@@ -370,14 +370,7 @@ void Rdb_key_def::setup(const TABLE *const tbl,
     /*
       This should be the last member variable set before releasing the mutex
       so that other threads can't see the object partially set up.
-
-      In 8.0, the charset strnxfrm_* methods _require_ that the dest buffer
-      size be on a 2 byte boundary. This value is used as the buffer size for
-      the packing and destination buffers passed into these strnxfrm methods.
-      So, lets round it up by a byte if necessary.
      */
-    if (max_len % 2)
-      max_len++;
     m_maxlength = max_len;
 
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
@@ -2677,7 +2670,7 @@ void Rdb_key_def::pack_with_varchar_encoding(
                                   ? (uint)*field->ptr
                                   : uint2korr(field->ptr);
   size_t xfrm_len = charset->coll->strnxfrm(
-      charset, buf, m_maxlength, field_var->char_length(),
+      charset, buf, fpi->m_max_image_len, field_var->char_length(),
       field_var->ptr + field_var->length_bytes, value_length,
       MY_STRXFRM_NOPAD_WITH_SPACE);
 
@@ -2794,7 +2787,7 @@ void Rdb_key_def::pack_with_varchar_space_pad(
       charset, (const char *)field_var->ptr + field_var->length_bytes,
       value_length);
   const size_t xfrm_len = charset->coll->strnxfrm(
-      charset, buf, m_maxlength, field_var->char_length(),
+      charset, buf, fpi->m_max_image_len, field_var->char_length(),
       field_var->ptr + field_var->length_bytes, trimmed_len,
       MY_STRXFRM_NOPAD_WITH_SPACE);
 
@@ -3867,7 +3860,8 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
           m_skip_func = &Rdb_key_def::skip_variable_space_pad;
           m_segment_size = get_segment_size_from_collation(cs);
           m_max_image_len =
-              (max_image_len_before_chunks / (m_segment_size - 1) + 1) *
+              (max_image_len_before_chunks / (m_segment_size - 1) +
+               cs->mbmaxlen) *
               m_segment_size;
           rdb_get_mem_comparable_space(cs, &space_xfrm, &space_xfrm_len,
                                        &space_mb_len);

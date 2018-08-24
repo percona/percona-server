@@ -87,17 +87,17 @@ PSI_memory_key key_memory_audit_log_commands;
 
 static PSI_memory_info all_audit_log_memory[] = {
     {&key_memory_audit_log_logger_handle, "audit_log_logger_handle",
-     PSI_FLAG_SINGLETON, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
-    {&key_memory_audit_log_handler, "audit_log_handler", PSI_FLAG_SINGLETON,
-     PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
-    {&key_memory_audit_log_buffer, "audit_log_buffer", PSI_FLAG_SINGLETON,
-     PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
-    {&key_memory_audit_log_accounts, "audit_log_accounts", PSI_FLAG_SINGLETON,
-     PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
-    {&key_memory_audit_log_databases, "audit_log_databases", PSI_FLAG_SINGLETON,
-     PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
-    {&key_memory_audit_log_commands, "audit_log_commands", PSI_FLAG_SINGLETON,
-     PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+    {&key_memory_audit_log_handler, "audit_log_handler",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+    {&key_memory_audit_log_buffer, "audit_log_buffer",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+    {&key_memory_audit_log_accounts, "audit_log_accounts",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+    {&key_memory_audit_log_databases, "audit_log_databases",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+    {&key_memory_audit_log_commands, "audit_log_commands",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
 };
 
 static const int audit_log_syslog_facility_codes[] = {
@@ -368,8 +368,12 @@ static char *make_argv(char *buf, size_t len, int argc, char **argv) noexcept {
   size_t left = len;
 
   buf[0] = 0;
-  while (argc > 0 && left > 0) {
-    left -= snprintf(buf + len - left, left, "%s%c", *argv, argc > 1 ? ' ' : 0);
+  while (argc > 0 || left > 0) {
+    const int ret =
+        snprintf(buf + len - left, left, "%s%c", *argv, argc > 1 ? ' ' : 0);
+    DBUG_ASSERT(ret > 0);
+    if (ret < 0 || static_cast<size_t>(ret) >= left) break;
+    left -= ret;
     argc--;
     argv++;
   }
@@ -1717,9 +1721,9 @@ mysql_declare_plugin(audit_log){
     "Percona LLC and/or its affiliates.", /* author                          */
     "Audit log",                          /* description                     */
     PLUGIN_LICENSE_GPL,
-    audit_log_plugin_init,   /* init function (when loaded)     */
-    audit_log_plugin_deinit, /* deinit function (when unloaded) */
+    audit_log_plugin_init, /* init function (when loaded)     */
     nullptr,
+    audit_log_plugin_deinit,    /* deinit function (when unloaded) */
     PLUGIN_VERSION,             /* version                         */
     audit_log_status_variables, /* status variables                */
     audit_log_system_variables, /* system variables                */

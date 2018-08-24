@@ -21,7 +21,7 @@
 #include "map_helpers.h"
 #include "my_sys.h"
 #include "my_user.h"
-#include "mysql/components/services/mysql_rwlock.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"
 
 static std::string make_account_string(const char *user, size_t user_length,

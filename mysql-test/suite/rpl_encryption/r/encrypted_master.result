@@ -23,9 +23,7 @@ CREATE DATABASE database_name_to_encrypt;
 USE database_name_to_encrypt;
 CREATE USER user_name_to_encrypt;
 GRANT ALL ON database_name_to_encrypt.* TO user_name_to_encrypt;
-SET PASSWORD FOR user_name_to_encrypt = PASSWORD('password_to_encrypt');
-Warnings:
-Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+SET PASSWORD FOR user_name_to_encrypt = 'password_to_encrypt';
 CREATE TABLE innodb_table_name_to_encrypt (
 int_column_name_to_encrypt INT PRIMARY KEY,
 timestamp_column_name_to_encrypt TIMESTAMP(6) NULL,
@@ -104,7 +102,7 @@ disconnect con1;
 connection server_1;
 CREATE INDEX index_name_to_encrypt
 ON myisam_table_name_to_encrypt (datetime_column_name_to_encrypt);
-ALTER DATABASE database_name_to_encrypt CHARACTER SET utf8;
+ALTER DATABASE database_name_to_encrypt CHARACTER SET utf8mb4;
 ALTER TABLE innodb_table_name_to_encrypt
 MODIFY timestamp_column_name_to_encrypt TIMESTAMP NOT NULL
 DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -168,9 +166,7 @@ CREATE DATABASE database_name_to_encrypt;
 USE database_name_to_encrypt;
 CREATE USER user_name_to_encrypt;
 GRANT ALL ON database_name_to_encrypt.* TO user_name_to_encrypt;
-SET PASSWORD FOR user_name_to_encrypt = PASSWORD('password_to_encrypt');
-Warnings:
-Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+SET PASSWORD FOR user_name_to_encrypt = 'password_to_encrypt';
 CREATE TABLE innodb_table_name_to_encrypt (
 int_column_name_to_encrypt INT PRIMARY KEY,
 timestamp_column_name_to_encrypt TIMESTAMP(6) NULL,
@@ -249,7 +245,7 @@ disconnect con1;
 connection server_1;
 CREATE INDEX index_name_to_encrypt
 ON myisam_table_name_to_encrypt (datetime_column_name_to_encrypt);
-ALTER DATABASE database_name_to_encrypt CHARACTER SET utf8;
+ALTER DATABASE database_name_to_encrypt CHARACTER SET utf8mb4;
 ALTER TABLE innodb_table_name_to_encrypt
 MODIFY timestamp_column_name_to_encrypt TIMESTAMP NOT NULL
 DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -315,9 +311,7 @@ CREATE DATABASE database_name_to_encrypt;
 USE database_name_to_encrypt;
 CREATE USER user_name_to_encrypt;
 GRANT ALL ON database_name_to_encrypt.* TO user_name_to_encrypt;
-SET PASSWORD FOR user_name_to_encrypt = PASSWORD('password_to_encrypt');
-Warnings:
-Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+SET PASSWORD FOR user_name_to_encrypt = 'password_to_encrypt';
 CREATE TABLE innodb_table_name_to_encrypt (
 int_column_name_to_encrypt INT PRIMARY KEY,
 timestamp_column_name_to_encrypt TIMESTAMP(6) NULL,
@@ -396,7 +390,7 @@ disconnect con1;
 connection server_1;
 CREATE INDEX index_name_to_encrypt
 ON myisam_table_name_to_encrypt (datetime_column_name_to_encrypt);
-ALTER DATABASE database_name_to_encrypt CHARACTER SET utf8;
+ALTER DATABASE database_name_to_encrypt CHARACTER SET utf8mb4;
 ALTER TABLE innodb_table_name_to_encrypt
 MODIFY timestamp_column_name_to_encrypt TIMESTAMP NOT NULL
 DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -454,23 +448,23 @@ DROP SERVER server_name_to_encrypt;
 #############################
 # Here we try to find several plain texts that would appear in not encrypted binlog files.
 # The searches should fail as we expect the binlog files to be encrypted.
-NOT FOUND /_to_encrypt/ in master-bin.0*
-NOT FOUND /COMMIT/ in master-bin.0*
-NOT FOUND /TIMESTAMP/ in master-bin.0*
+Pattern "_to_encrypt" not found
+Pattern "COMMIT" not found
+Pattern "TIMESTAMP" not found
 include/save_master_pos.inc
 #############################
 # Final checks for the slave
 #############################
 connection server_2;
 include/sync_slave_io.inc
-FOUND /_to_encrypt/ in slave-relay-bin.0*
-FOUND /COMMIT/ in slave-relay-bin.0*
-FOUND /TIMESTAMP/ in slave-relay-bin.0*
+Pattern "_to_encrypt" found
+Pattern "COMMIT" found
+Pattern "TIMESTAMP" found
 include/start_slave.inc
 include/sync_slave_sql_with_io.inc
-FOUND /_to_encrypt/ in slave-bin.0*
-FOUND /COMMIT/ in slave-bin.0*
-FOUND /TIMESTAMP/ in slave-bin.0*
+Pattern "_to_encrypt" found
+Pattern "COMMIT" found
+Pattern "TIMESTAMP" found
 ##########
 # Cleanup
 ##########

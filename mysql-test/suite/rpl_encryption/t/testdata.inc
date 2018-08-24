@@ -114,7 +114,7 @@ CREATE TEMPORARY TABLE tmp_table_name_to_encrypt (
 CREATE INDEX index_name_to_encrypt
   ON myisam_table_name_to_encrypt (datetime_column_name_to_encrypt);
 
-ALTER DATABASE database_name_to_encrypt CHARACTER SET utf8;
+ALTER DATABASE database_name_to_encrypt CHARACTER SET utf8mb4;
 
 ALTER TABLE innodb_table_name_to_encrypt
   MODIFY timestamp_column_name_to_encrypt TIMESTAMP NOT NULL

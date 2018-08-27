@@ -139,7 +139,7 @@ FROM
 --echo # Bug lp:1659992 "Function over userstat tables cause mysql to crash"
 
 delimiter |;
-CREATE FUNCTION utility_get_global_variable(in_name VARCHAR(64)) RETURNS VARCHAR(1024) CHARSET utf8 DETERMINISTIC SQL SECURITY INVOKER
+CREATE FUNCTION utility_get_global_variable(in_name VARCHAR(64)) RETURNS VARCHAR(1024) CHARSET UTF8MB4 DETERMINISTIC SQL SECURITY INVOKER
 BEGIN
   DECLARE var_value VARCHAR(1024);
   SELECT v.variable_value FROM performance_schema.global_variables v WHERE v.variable_name = in_name INTO var_value;

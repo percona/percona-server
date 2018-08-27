@@ -216,6 +216,11 @@ const char *Command_maps::sql_commands[] = {"select",
                                             "create_masking_policy",
                                             "drop_masking_policy",
                                             "show_create_masking_policy",
+                                            "show_user_stats",
+                                            "show_table_stats",
+                                            "show_index_stats",
+                                            "show_client_stats",
+                                            "show_thread_stats",
                                             "lock_tables_for_backup",
                                             ""};
 // keep the empty string last and add new elements before it.

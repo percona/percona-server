@@ -1201,6 +1201,7 @@ while (<F>) {
    print if /CHANGE MASTER TO/;
 }
 EOF
+--remove_file $MYSQLTEST_VARDIR/tmp/mwl136.sql
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 

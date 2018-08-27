@@ -32,4 +32,5 @@ INSERT INTO t0 VALUES (rotate_system_key("percona_binlog"));
 
 # cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/percona_binlog_rotate_key.err
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring
 DROP TABLE t0;

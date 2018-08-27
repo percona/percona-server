@@ -141,6 +141,8 @@ CREATE TABLE `questions_and_answers` (
 PRIMARY KEY (`id`),
 FULLTEXT KEY `keywords` (`keywords`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3620 DEFAULT CHARSET=utf8 COMMENT='Main table for Q&A module ';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1854,'support, services, essay, writing, maths, help, advice, study, advice, advise, careers, employability, graduating, graduate, student_support, academic_support, academic_help');
 INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1855,'accommodation, housing, halls, residence, live, living, bed, beds, acomodation, accomodation, accommidation, acomidation, hall, campus_living, uni_living, uni_halls, university_life, university_accommodation');
 INSERT INTO `questions_and_answers` (`id`,`keywords`) VALUES (1856,'interview, interviews, audition, auditions, portfolio, review, admission, interview_preparation, booking, book, change_interview');

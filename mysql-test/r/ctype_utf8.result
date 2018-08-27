@@ -5528,6 +5528,8 @@ Warning	1260	Row 2 was cut by GROUP_CONCAT()
 # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
 #
 SET NAMES utf8 COLLATE utf8_general_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # Start of ctype_utf8_ilseq.inc
 #
@@ -5542,7 +5544,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   KEY `ch` (`ch`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (ch) VALUES ('admin'),('admin1');
 SELECT ch FROM t1 WHERE ch='admin𝌆';
 ch
@@ -5563,8 +5565,8 @@ INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
 INSERT INTO t1 (ch) VALUES ('ab'),('a?b'),('a??b'),('a???b'),('a????b');
 INSERT INTO t1 (ch) VALUES ('az'),('a?z'),('a??z'),('a???z'),('a????z');
 INSERT INTO t1 (ch) VALUES ('z');
-INSERT INTO t1 (ch) VALUES (_utf8 0x61D080);
-INSERT INTO t1 (ch) VALUES (_utf8 0x61D680);
+INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D080);
+INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D680);
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
 ch
 Warnings:
@@ -5792,7 +5794,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   KEY `ch` (`ch`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (ch) VALUES ('admin'),('admin1');
 SELECT ch FROM t1 WHERE ch='admin𝌆';
 ch
@@ -5813,8 +5815,8 @@ INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
 INSERT INTO t1 (ch) VALUES ('ab'),('a?b'),('a??b'),('a???b'),('a????b');
 INSERT INTO t1 (ch) VALUES ('az'),('a?z'),('a??z'),('a???z'),('a????z');
 INSERT INTO t1 (ch) VALUES ('z');
-INSERT INTO t1 (ch) VALUES (_utf8 0x61D080);
-INSERT INTO t1 (ch) VALUES (_utf8 0x61D680);
+INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D080);
+INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D680);
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
 ch
 Warnings:
@@ -6042,7 +6044,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   KEY `ch` (`ch`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (ch) VALUES ('admin'),('admin1');
 SELECT ch FROM t1 WHERE ch='admin𝌆';
 ch
@@ -6063,8 +6065,8 @@ INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
 INSERT INTO t1 (ch) VALUES ('ab'),('a?b'),('a??b'),('a???b'),('a????b');
 INSERT INTO t1 (ch) VALUES ('az'),('a?z'),('a??z'),('a???z'),('a????z');
 INSERT INTO t1 (ch) VALUES ('z');
-INSERT INTO t1 (ch) VALUES (_utf8 0x61D080);
-INSERT INTO t1 (ch) VALUES (_utf8 0x61D680);
+INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D080);
+INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D680);
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
 ch
 Warnings:

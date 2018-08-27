@@ -7124,8 +7124,7 @@ bool MYSQL_BIN_LOG::write_buffer(uchar *buf, uint len, Master_info *mi) {
   if (crypto.is_enabled()) {
     ebuf = reinterpret_cast<uchar *>(
         my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME)));
-    if (!ebuf ||
-        encrypt_event(my_b_append_tell(&log_file), crypto, buf, ebuf, len)) {
+    if (!ebuf || encrypt_event(my_b_tell(&log_file), crypto, buf, ebuf, len)) {
       if (ebuf != nullptr) my_free(ebuf);
       DBUG_RETURN(true);
     }

@@ -5457,7 +5457,7 @@ void handler::update_global_table_stats() {
 
   // [db] + '.' + [table]
   std::string key{table->s->table_cache_key.str};
-  key.append('.', 1);
+  key.append(1, '.');
   key.append(table->s->table_name.str);
   key.shrink_to_fit();
 
@@ -5499,9 +5499,9 @@ void handler::update_global_index_stats() {
 
       // [db] + '.' + [table] + '.' + [index]
       std::string key{table->s->table_cache_key.str};
-      key.append('.', 1);
+      key.append(1, '.');
       key.append(table->s->table_name.str);
-      key.append('.', 1);
+      key.append(1, '.');
       key.append(key_info->name);
       key.shrink_to_fit();
 

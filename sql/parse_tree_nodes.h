@@ -3568,6 +3568,71 @@ class PT_show_databases final : public PT_show_filter_base {
   Sql_cmd_show_databases m_sql_cmd;
 };
 
+/// Parse tree node for SHOW CLIENT_STATISTICS
+
+class PT_show_client_stats final : public PT_show_filter_base {
+ public:
+  PT_show_client_stats(const POS &pos, const LEX_STRING &wild, Item *where)
+      : PT_show_filter_base(pos, SQLCOM_SHOW_CLIENT_STATS, wild, where) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+ private:
+  Sql_cmd_show_client_stats m_sql_cmd;
+};
+
+/// Parse tree node for SHOW INDEX_STATISTICS
+
+class PT_show_index_stats final : public PT_show_filter_base {
+ public:
+  PT_show_index_stats(const POS &pos, const LEX_STRING &wild, Item *where)
+      : PT_show_filter_base(pos, SQLCOM_SHOW_INDEX_STATS, wild, where) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+ private:
+  Sql_cmd_show_index_stats m_sql_cmd;
+};
+
+/// Parse tree node for SHOW TABLE_STATISTICS
+
+class PT_show_table_stats final : public PT_show_filter_base {
+ public:
+  PT_show_table_stats(const POS &pos, const LEX_STRING &wild, Item *where)
+      : PT_show_filter_base(pos, SQLCOM_SHOW_TABLE_STATS, wild, where) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+ private:
+  Sql_cmd_show_table_stats m_sql_cmd;
+};
+
+/// Parse tree node for SHOW THREAD_STATISTICS
+
+class PT_show_thread_stats final : public PT_show_filter_base {
+ public:
+  PT_show_thread_stats(const POS &pos, const LEX_STRING &wild, Item *where)
+      : PT_show_filter_base(pos, SQLCOM_SHOW_THREAD_STATS, wild, where) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+ private:
+  Sql_cmd_show_thread_stats m_sql_cmd;
+};
+
+/// Parse tree node for SHOW THREAD_STATISTICS
+
+class PT_show_user_stats final : public PT_show_filter_base {
+ public:
+  PT_show_user_stats(const POS &pos, const LEX_STRING &wild, Item *where)
+      : PT_show_filter_base(pos, SQLCOM_SHOW_USER_STATS, wild, where) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+ private:
+  Sql_cmd_show_user_stats m_sql_cmd;
+};
+
 /// Parse tree node for SHOW ENGINE statements
 
 class PT_show_engine_base : public PT_show_base {

@@ -2799,6 +2799,9 @@ create:
           '(' create_compression_dictionary_allowed_expr ')'
           {
             Lex->sql_command= SQLCOM_CREATE_COMPRESSION_DICTIONARY;
+            Lex->create_info= YYTHD->alloc_typed<HA_CREATE_INFO>();
+            if (Lex->create_info == nullptr)
+              MYSQL_YYABORT; // OOM
             Lex->create_info->options= $3;
             Lex->ident= $4;
             Lex->create_info->zip_dict_name = $6;

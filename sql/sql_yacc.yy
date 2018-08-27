@@ -2031,6 +2031,7 @@ void warn_on_deprecated_user_defined_collation(
         show_relaylog_events_stmt
         show_replica_status_stmt
         show_replicas_stmt
+        show_stats_stmt
         show_status_stmt
         show_table_status_stmt
         show_tables_stmt
@@ -2534,6 +2535,7 @@ simple_statement:
         | show_relaylog_events_stmt
         | show_replica_status_stmt
         | show_replicas_stmt
+        | show_stats_stmt
         | show_status_stmt
         | show_table_status_stmt
         | show_tables_stmt
@@ -13878,6 +13880,28 @@ show_replica_status_stmt:
           SHOW REPLICA_SYM STATUS_SYM opt_channel
           {
             $$ = NEW_PTN PT_show_replica_status(@$, $4);
+          }
+        ;
+show_stats_stmt:
+          SHOW CLIENT_STATS_SYM opt_wild_or_where
+          {
+            $$ = NEW_PTN PT_show_client_stats(@$, $3.wild, $3.where);
+          }
+        | SHOW USER_STATS_SYM opt_wild_or_where
+          {
+            $$ = NEW_PTN PT_show_user_stats(@$, $3.wild, $3.where);
+          }
+        | SHOW THREAD_STATS_SYM opt_wild_or_where
+          {
+            $$ = NEW_PTN PT_show_thread_stats(@$, $3.wild, $3.where);
+          }
+        | SHOW TABLE_STATS_SYM opt_wild_or_where
+          {
+            $$ = NEW_PTN PT_show_table_stats(@$, $3.wild, $3.where);
+          }
+        | SHOW INDEX_STATS_SYM opt_wild_or_where
+          {
+            $$ = NEW_PTN PT_show_index_stats(@$, $3.wild, $3.where);
           }
         ;
 

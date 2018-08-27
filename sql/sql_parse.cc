@@ -686,6 +686,11 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_SHOW_TABLE_STATUS] =
       (CF_STATUS_COMMAND | CF_SHOW_TABLE_COMMAND | CF_HAS_RESULT_SET |
        CF_REEXECUTION_FRAGILE);
+  sql_command_flags[SQLCOM_SHOW_USER_STATS] = CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_TABLE_STATS] = CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_INDEX_STATS] = CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CLIENT_STATS] = CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_THREAD_STATS] = CF_STATUS_COMMAND;
   /**
     ACL DDLs do not access data-dictionary tables. However, they still
     need to be marked to avoid autocommit. This is necessary because
@@ -1074,6 +1079,11 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_END] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_CREATE_SRS] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_DROP_SRS] |= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_USER_STATS] |= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_TABLE_STATS] |= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_INDEX_STATS] |= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_CLIENT_STATS] |= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_THREAD_STATS] |= CF_ALLOW_PROTOCOL_PLUGIN;
 
   /*
     Mark DDL statements which require that auto-commit mode to be temporarily
@@ -4840,6 +4850,11 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_SHOW_STATUS_FUNC:
     case SQLCOM_SHOW_VARIABLES:
     case SQLCOM_SHOW_WARNS:
+    case SQLCOM_SHOW_USER_STATS:
+    case SQLCOM_SHOW_TABLE_STATS:
+    case SQLCOM_SHOW_INDEX_STATS:
+    case SQLCOM_SHOW_CLIENT_STATS:
+    case SQLCOM_SHOW_THREAD_STATS:
     case SQLCOM_CLONE:
     case SQLCOM_LOCK_INSTANCE:
     case SQLCOM_UNLOCK_INSTANCE:

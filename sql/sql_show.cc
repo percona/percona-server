@@ -463,6 +463,26 @@ bool Sql_cmd_show_databases::check_privileges(THD *thd) {
          check_global_access(thd, SHOW_DB_ACL);
 }
 
+bool Sql_cmd_show_client_stats::check_privileges(THD *thd) {
+  return check_global_access(thd, PROCESS_ACL);
+}
+
+bool Sql_cmd_show_index_stats::check_privileges(THD *thd) {
+  return check_global_access(thd, PROCESS_ACL);
+}
+
+bool Sql_cmd_show_table_stats::check_privileges(THD *thd) {
+  return check_global_access(thd, PROCESS_ACL);
+}
+
+bool Sql_cmd_show_thread_stats::check_privileges(THD *thd) {
+  return check_global_access(thd, PROCESS_ACL);
+}
+
+bool Sql_cmd_show_user_stats::check_privileges(THD *thd) {
+  return check_global_access(thd, PROCESS_ACL);
+}
+
 bool Sql_cmd_show_engine_logs::check_privileges(THD *thd) {
   return check_access(thd, FILE_ACL, any_db, nullptr, nullptr, false, false);
 }

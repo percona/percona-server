@@ -357,6 +357,46 @@ class Sql_cmd_show_databases : public Sql_cmd_show {
   bool check_privileges(THD *thd) override;
 };
 
+/// Represents SHOW CLIENT_STATISTICS statement.
+
+class Sql_cmd_show_client_stats : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_client_stats() : Sql_cmd_show(SQLCOM_SHOW_CLIENT_STATS) {}
+  bool check_privileges(THD *thd) override;
+};
+
+/// Represents SHOW INDEX_STATISTICS statement.
+
+class Sql_cmd_show_index_stats : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_index_stats() : Sql_cmd_show(SQLCOM_SHOW_INDEX_STATS) {}
+  bool check_privileges(THD *thd) override;
+};
+
+/// Represents SHOW TABLE_STATISTICS statement.
+
+class Sql_cmd_show_table_stats : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_table_stats() : Sql_cmd_show(SQLCOM_SHOW_TABLE_STATS) {}
+  bool check_privileges(THD *thd) override;
+};
+
+/// Represents SHOW THREAD_STATISTICS statement.
+
+class Sql_cmd_show_thread_stats : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_thread_stats() : Sql_cmd_show(SQLCOM_SHOW_THREAD_STATS) {}
+  bool check_privileges(THD *thd) override;
+};
+
+/// Represents SHOW USER_STATISTICS statement.
+
+class Sql_cmd_show_user_stats : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_user_stats() : Sql_cmd_show(SQLCOM_SHOW_USER_STATS) {}
+  bool check_privileges(THD *thd) override;
+};
+
 /// Represents SHOW ENGINE LOGS statement.
 
 class Sql_cmd_show_engine_logs : public Sql_cmd_show_noplan {

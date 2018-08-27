@@ -1,8 +1,8 @@
 diff -rup old/client/base/CMakeLists.txt new/client/base/CMakeLists.txt
 --- old/client/base/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
 +++ new/client/base/CMakeLists.txt	2016-03-09 11:44:10.259330311 +0100
-@@ -52,7 +52,7 @@ ADD_COMPILE_FLAGS(
-   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
+@@ -52,7 +52,7 @@
+   COMPILE_FLAGS -isystem ${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
  )
  
 -TARGET_LINK_LIBRARIES(client_base perconaserverclient)
@@ -13,7 +13,7 @@ diff -rup old/client/base/CMakeLists.txt new/client/base/CMakeLists.txt
 diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
 --- old/client/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
 +++ new/client/CMakeLists.txt	2016-03-09 11:41:15.159325622 +0100
-@@ -43,7 +43,7 @@
+@@ -46,7 +46,7 @@
  
  ADD_DEFINITIONS(${SSL_DEFINES})
  MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc)
@@ -23,9 +23,9 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
    TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
  ENDIF(UNIX)
 @@ -55,58 +55,58 @@
- ADD_COMPILE_FLAGS(
-   upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
- )
+   MYSQL_ADD_EXECUTABLE(mysql_upgrade
+     upgrade/program.cc
+   )
 -TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base mysqlcheck_core)
 +TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
  ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema)

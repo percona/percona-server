@@ -490,25 +490,26 @@ int vio_shutdown(Vio *vio, int how) {
 
   int r = vio_cancel(vio, how);
 
+  if (!vio->inactive) {
 #ifdef USE_PPOLL_IN_VIO
-  if (vio->thread_id != 0 && vio->poll_shutdown_flag.test_and_set()) {
-    // Send signal to wake up from poll.
-    if (pthread_kill(vio->thread_id, SIGUSR1) == 0)
-      vio_wait_until_woken(vio);
-    else
-      perror("Error in pthread_kill");
-  }
+    if (vio->thread_id != 0 && vio->poll_shutdown_flag.test_and_set()) {
+      // Send signal to wake up from poll.
+      if (pthread_kill(vio->thread_id, SIGUSR1) == 0)
+        vio_wait_until_woken(vio);
+      else
+        perror("Error in pthread_kill");
+    }
 #elif defined HAVE_KQUEUE
-  if (vio->kq_fd != -1 && vio->kevent_wakeup_flag.test_and_set())
-    vio_wait_until_woken(vio);
+    if (vio->kq_fd != -1 && vio->kevent_wakeup_flag.test_and_set())
+      vio_wait_until_woken(vio);
 #endif
 
-  if (!vio->inactive)
     if (mysql_socket_close(vio->mysql_socket)) r = -1;
 #ifdef HAVE_KQUEUE
-  if (vio->kq_fd == -1 || close(vio->kq_fd)) r = -1;
-  vio->kq_fd = -1;
+    if (vio->kq_fd == -1 || close(vio->kq_fd)) r = -1;
+    vio->kq_fd = -1;
 #endif
+  }
 
   if (r) {
     DBUG_PRINT("vio_error", ("close() failed, error: %d", socket_errno));

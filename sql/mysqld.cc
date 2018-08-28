@@ -845,7 +845,6 @@ char *opt_keyring_migration_source = NULL;
 char *opt_keyring_migration_destination = NULL;
 ulong opt_keyring_migration_port = 0;
 bool migrate_connect_options = 0;
-uint test_flags = 0;
 #ifndef _WIN32
 bool opt_log_syslog_include_pid;
 char *opt_log_syslog_facility;
@@ -954,7 +953,7 @@ volatile sig_atomic_t calling_initgroups = 0; /**< Used in SIGSEGV handler. */
 #endif
 const char *timestamp_type_names[] = {"UTC", "SYSTEM", NullS};
 ulong opt_log_timestamps;
-uint mysqld_port, select_errors, ha_open_options;
+uint mysqld_port, test_flags = 0, select_errors, ha_open_options;
 uint mysqld_extra_port;
 uint mysqld_port_timeout;
 ulong delay_key_write_options;
@@ -7190,6 +7189,8 @@ struct my_option my_long_early_options[] = {
     {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
      "Don't print a stack trace on failure.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
      0, 0, 0, 0},
+    /* We must always support the next option to make scripts like mysqltest
+       easier to do */
     {"gdb", 0, "Set up signals usable for debugging.", &opt_debugging,
      &opt_debugging, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
@@ -7285,8 +7286,6 @@ struct my_option my_long_options[] = {
      "--skip-external-locking.",
      &opt_external_locking, &opt_external_locking, 0, GET_BOOL, NO_ARG, 0, 0, 0,
      0, 0, 0},
-/* We must always support the next option to make scripts like mysqltest
-   easier to do */
 #if defined(HAVE_LINUX_LARGE_PAGES) || defined(HAVE_SOLARIS_LARGE_PAGES)
     {"super-large-pages", 0, "Enable support for super large pages.",
      &opt_super_large_pages, &opt_super_large_pages, 0, GET_BOOL, OPT_ARG, 0, 0,

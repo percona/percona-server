@@ -4806,7 +4806,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           thd->copy_status_var(&query_start_status);
         }
 
-        dispatch_sql_command(thd, &parser_state);
+        dispatch_sql_command(thd, &parser_state, true);
 
         enum_sql_command command = thd->lex->sql_command;
 

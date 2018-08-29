@@ -182,6 +182,7 @@
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_implicit
 #include "sql/transaction_info.h"
+#include "sql/userstat.h"
 #include "sql_string.h"
 #include "string_with_len.h"
 #include "strmake.h"
@@ -1623,7 +1624,7 @@ static void check_secondary_engine_statement(THD *thd,
   parser_state->reset(query_string, query_length);
 
   // Restart the statement.
-  dispatch_sql_command(thd, parser_state, /*is_retry=*/true);
+  dispatch_sql_command(thd, parser_state, true, /*is_retry=*/true);
 
   // Check if the restarted statement failed, and if so, if it needs
   // another restart/fallback to the primary storage engine.
@@ -1842,6 +1843,12 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     thd->status_var.questions++;
     global_aggregated_stats.get_shard(thd->thread_id()).questions++;
   }
+
+  /* Declare userstat variables and start timer */
+  double start_busy_usecs = 0.0;
+  double start_cpu_nsecs = 0.0;
+  if (unlikely(opt_userstat))
+    userstat_start_timer(&start_busy_usecs, &start_cpu_nsecs);
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -2149,7 +2156,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
                                  com_data->com_query.parameter_count);
 
       /* This will call MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES() */
-      dispatch_sql_command(thd, &parser_state);
+      dispatch_sql_command(thd, &parser_state, false);
 
       // If statement failed, possibly restart it in another storage engine.
       if (thd->is_error()) {
@@ -2234,7 +2241,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::PRIMARY_TENTATIVELY);
         /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-        dispatch_sql_command(thd, &parser_state);
+        dispatch_sql_command(thd, &parser_state, false);
 
         if (thd->is_error()) {
           check_secondary_engine_statement(thd, &parser_state,
@@ -2456,6 +2463,15 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 done:
   assert(thd->open_tables == nullptr ||
          (thd->locked_tables_mode == LTM_LOCK_TABLES));
+
+  /* Update user statistics only if at least one timer was initialized */
+  if (unlikely(start_busy_usecs > 0.0 || start_cpu_nsecs > 0.0)) {
+    userstat_finish_timer(start_busy_usecs, start_cpu_nsecs, &thd->busy_time,
+                          &thd->cpu_time);
+    /* Updates THD stats and the global user stats. */
+    thd->update_stats(true);
+    update_global_user_stats(thd, true, time(nullptr));
+  }
 
   /* Finalize server status flags after executing a command. */
   thd->update_slow_query_status();
@@ -5326,7 +5342,8 @@ void statement_id_to_session(THD *thd) {
                       already logged in the first round.
 */
 
-void dispatch_sql_command(THD *thd, Parser_state *parser_state, bool is_retry) {
+void dispatch_sql_command(THD *thd, Parser_state *parser_state,
+                          bool update_userstat, bool is_retry) {
   DBUG_TRACE;
   DBUG_PRINT("dispatch_sql_command", ("query: '%s'", thd->query().str));
   statement_id_to_session(thd);
@@ -5338,31 +5355,11 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state, bool is_retry) {
   thd->reset_rewritten_query();
   lex_start(thd);
 
-  int start_time_error = 0;
-  int end_time_error = 0;
-  struct timeval start_time, end_time;
-  double start_usecs = 0;
-  double end_usecs = 0;
-  /* cpu time */
-  int cputime_error = 0;
-#ifdef HAVE_CLOCK_GETTIME
-  struct timespec tp;
-#endif
-  double start_cpu_nsecs = 0;
-  double end_cpu_nsecs = 0;
-
-  if (opt_userstat) {
-#ifdef HAVE_CLOCK_GETTIME
-    /* get start cputime */
-    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
-      start_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
-#endif
-
-    // Gets the start time, in order to measure how long this command takes.
-    if (!(start_time_error = gettimeofday(&start_time, nullptr))) {
-      start_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
-    }
-  }
+  /* Declare userstat variables and start timer */
+  double start_busy_usecs = 0.0;
+  double start_cpu_nsecs = 0.0;
+  if (unlikely(opt_userstat && update_userstat))
+    userstat_start_timer(&start_busy_usecs, &start_cpu_nsecs);
 
   thd->m_parser_state = parser_state;
   invoke_pre_parse_rewrite_plugins(thd);
@@ -5537,45 +5534,14 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state, bool is_retry) {
   thd->cleanup_after_query();
   assert(thd->change_list.is_empty());
 
-  if (opt_userstat) {
-    // Gets the end time.
-    if (!(end_time_error = gettimeofday(&end_time, NULL))) {
-      end_usecs = end_time.tv_sec * 1000000.0 + end_time.tv_usec;
-    }
-
-    // Calculates the difference between the end and start times.
-    if (start_usecs && end_usecs >= start_usecs && !start_time_error &&
-        !end_time_error) {
-      thd->busy_time = (end_usecs - start_usecs) / 1000000;
-      // In case there are bad values, 2629743 is the #seconds in a month.
-      if (thd->busy_time > 2629743) {
-        thd->busy_time = 0;
-      }
-    } else {
-      // end time went back in time, or gettimeofday() failed.
-      thd->busy_time = 0;
-    }
-
-#ifdef HAVE_CLOCK_GETTIME
-    /* get end cputime */
-    if (!cputime_error &&
-        !(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
-      end_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
-#endif
-    if (start_cpu_nsecs && !cputime_error) {
-      thd->cpu_time = (end_cpu_nsecs - start_cpu_nsecs) / 1000000000;
-      // In case there are bad values, 2629743 is the #seconds in a month.
-      if (thd->cpu_time > 2629743) {
-        thd->cpu_time = 0;
-      }
-    } else
-      thd->cpu_time = 0;
-  }
-
-  // Updates THD stats and the global user stats.
-  if (unlikely(opt_userstat)) {
+  /* Update user statistics only if at least one timer was initialized */
+  if (unlikely(update_userstat &&
+               (start_busy_usecs > 0.0 || start_cpu_nsecs > 0.0))) {
+    userstat_finish_timer(start_busy_usecs, start_cpu_nsecs, &thd->busy_time,
+                          &thd->cpu_time);
+    /* Updates THD stats and the global user stats. */
     thd->update_stats(true);
-    update_global_user_stats(thd, true, time(NULL));
+    update_global_user_stats(thd, true, time(nullptr));
   }
 
   DEBUG_SYNC(thd, "query_rewritten");

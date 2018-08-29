@@ -846,14 +846,15 @@ class Sys_var_version : public Sys_var_charptr {
   virtual uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
     char **version_ptr =
         reinterpret_cast<char **>(Sys_var_charptr::global_value_ptr(thd, base));
-    if (version_ptr == nullptr) return nullptr;
+    if (version_ptr == nullptr || *version_ptr == nullptr) return nullptr;
 
     sys_var *suffix_var = find_sys_var(thd, STRING_WITH_LEN("version_suffix"));
     if (suffix_var == nullptr) return reinterpret_cast<uchar *>(version_ptr);
 
     char **suffix_ptr = reinterpret_cast<char **>(
         suffix_var->value_ptr(thd, OPT_GLOBAL, nullptr));
-    if (suffix_ptr == nullptr) return reinterpret_cast<uchar *>(version_ptr);
+    if (suffix_ptr == nullptr || *suffix_ptr == nullptr)
+      return reinterpret_cast<uchar *>(version_ptr);
 
     size_t suffix_ptr_len = strlen(*suffix_ptr);
     size_t version_ptr_len = strlen(*version_ptr);

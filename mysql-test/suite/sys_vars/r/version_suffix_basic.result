@@ -64,3 +64,14 @@ COUNT(@@GLOBAL.version_suffix)
 SELECT version_suffix = @@SESSION.version_suffix;
 ERROR 42S22: Unknown column 'version_suffix' in 'field list'
 Expected error 'Readonly variable'
+SET GLOBAL version_suffix = NULL;
+SHOW GLOBAL VARIABLES LIKE 'a';
+Variable_name	Value
+SELECT @@GLOBAL.version_suffix;
+@@GLOBAL.version_suffix
+NULL
+SELECT COUNT(@@GLOBAL.version_suffix);
+COUNT(@@GLOBAL.version_suffix)
+0
+0 Expected
+SET GLOBAL version_suffix = @saved_version_suffix;

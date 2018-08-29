@@ -861,7 +861,7 @@ public:
   {
     char **version_ptr= reinterpret_cast<char**> (
                                Sys_var_charptr::global_value_ptr(thd, base));
-    if (version_ptr == NULL)
+    if (version_ptr == NULL || *version_ptr == NULL)
       return NULL;
 
     sys_var *suffix_var= find_sys_var(thd, STRING_WITH_LEN("version_suffix"));
@@ -870,7 +870,7 @@ public:
 
     char** suffix_ptr= reinterpret_cast<char**> (suffix_var->value_ptr(thd,
                                                           OPT_GLOBAL, NULL));
-    if (suffix_ptr == NULL)
+    if (suffix_ptr == NULL || *suffix_ptr == NULL)
       return reinterpret_cast<uchar*> (version_ptr);
 
     size_t suffix_ptr_len= strlen(*suffix_ptr);

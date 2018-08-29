@@ -12,11 +12,7 @@ key (b,e),
 key (h,b)
 ) engine=rocksdb
 partition by linear hash (i) partitions 8;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t values (1,1,'a',now(),1,1,'a',1,1);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t values (1,1,'a',now(),1,1,'a',1,1);
 insert into t values (1,1,'a',now(),1,1,'a',1,1);
 insert into t values (1,1,'a',now(),1,1,'a',1,1);

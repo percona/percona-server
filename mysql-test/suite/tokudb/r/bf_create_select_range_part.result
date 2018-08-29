@@ -13,11 +13,7 @@ PARTITION p4 VALUES LESS THAN (500000),
 PARTITION p5 VALUES LESS THAN (600000),
 PARTITION p6 VALUES LESS THAN (700000),
 PARTITION p7 VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 values (null,null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 SELECT null,val FROM t1;
 INSERT INTO t1 SELECT null,val FROM t1;
 INSERT INTO t1 SELECT null,val FROM t1;

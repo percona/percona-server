@@ -1,2 +1,15 @@
 partition_basic_symlink_tokudb : tokudb_file_per_table is not supported
 partition_reorganize_tokudb : tokudb_file_per_table is not supported
+partition_exchange_tokudb : exchange partition is not supported
+partition_exch_qa_1_tokudb : exchange partition is not supported
+partition_exch_qa_4_tokudb : exchange partition is not supported
+partition_exch_qa_5_tokudb : exchange partition is not supported
+partition_exch_qa_7_tokudb : exchange partition is not supported
+partition_exch_qa_8_tokudb : exchange partition is not supported
+partition_exch_myisam_tokudb : exchange partition is not supported
+partition_exch_tokudb : exchange partition is not supported
+partition_mgm_lc0_tokudb : exchange partition is not supported
+nonflushing_analyze_debug : percona's test which has not yet been ported to 8.0
+partition_debug_sync_tokudb : the "debug-sync" code does not exist in 8.0
+partition_debug_tokudb : the debug code does not exist in 8.0
+

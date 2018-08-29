@@ -36,7 +36,15 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include "ha_tokudb.h"
 
+#include "ha_tokupart.h"
+
 #include "sql/sql_db.h"
+
+#include "sql/dd/dd.h"
+#include "sql/dd/dictionary.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/types/partition.h"
+#include "sql/dd/types/table.h"
 
 pfs_key_t ha_tokudb_mutex_key;
 pfs_key_t num_DBs_lock_key;
@@ -395,12 +403,7 @@ ulong ha_tokudb::index_flags(uint idx, TOKUDB_UNUSED(uint part),
                              TOKUDB_UNUSED(bool all_parts)) const {
   TOKUDB_HANDLER_DBUG_ENTER("");
   assert_always(table_share);
-  ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY |
-                 HA_READ_RANGE | HA_DO_INDEX_COND_PUSHDOWN);
-  if (key_is_clustering(&table_share->key_info[idx])) {
-    flags |= HA_CLUSTERED_INDEX;
-  }
-  DBUG_RETURN(flags);
+  DBUG_RETURN(::index_flags(&table_share->key_info[idx]));
 }
 
 //
@@ -8040,6 +8043,7 @@ bool ha_tokudb::rpl_lookup_rows() {
 #include "ha_tokudb_mrr_mysql.cc"
 
 // handlerton
+#include "ha_tokupart.cc"
 #include "hatoku_hton.cc"
 
 // generate template functions

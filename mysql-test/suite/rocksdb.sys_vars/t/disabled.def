@@ -1,3 +1,1 @@
-rocksdb_update_cf_options_basic : native partitioning
-
 rocksdb_validate_tables_basic : disabled until validation is figured out

@@ -1,17 +1,13 @@
 create table t2 (a int not null, primary key(a)) engine='TokuDB'
 partition by key (a) partitions 8192;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 8192 */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 65535 inserts;
 select count(*) from t2;
 count(*)

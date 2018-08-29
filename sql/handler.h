@@ -1571,6 +1571,7 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
                                   const dd::Tablespace *old_ts_def,
                                   dd::Tablespace *new_ts_def);
 
+
 /**
   SE interface for getting tablespace extension.
   @return Extension of tablespace datafile name.
@@ -5438,6 +5439,10 @@ class handler {
   */
 
   virtual bool is_ignorable_error(int error);
+  MY_NODISCARD virtual bool continue_partition_copying_on_error(
+      int error [[maybe_unused]]) {
+    return false;
+  }
 
   /**
     @brief Determine whether an error is fatal or not.

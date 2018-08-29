@@ -43,6 +43,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 
 /* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
@@ -17048,10 +17049,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                   &table_def))
       return true;
 
-    table_list->partition_names = &alter_info->partition_names;
-    if (secondary_engine_unload_table(
-            thd, table_list->db, table_list->table_name, *table_def, false))
-      return true;
+    const auto old_partition_names = std::exchange(
+        table_list->partition_names, &alter_info->partition_names);
+    auto unload_res = secondary_engine_unload_table(
+        thd, table_list->db, table_list->table_name, *table_def, false);
+    table_list->partition_names = old_partition_names;
+
+    if (unload_res) return true;
   }
 
   /*
@@ -18828,7 +18832,7 @@ static int copy_data_between_tables(
         /* Not a duplicate key error. */
         to->file->print_error(error, MYF(0));
         break;
-      } else {
+      } else if (!to->file->continue_partition_copying_on_error(error)) {
         /* Report duplicate key error. */
         const uint key_nr = to->file->get_dup_key(error);
         if ((int)key_nr >= 0) {

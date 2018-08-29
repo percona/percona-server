@@ -556,7 +556,8 @@ exit:
     @retval != 0 Error code
 */
 
-int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data) {
+int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data,
+                                    bool lookup_rows) {
   uint32 new_part_id, old_part_id;
   int error = 0;
   longlong func_value;
@@ -593,7 +594,7 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data) {
     Notice that HA_READ_BEFORE_WRITE_REMOVAL does not require this protocol,
     so this is not supported for this engine.
   */
-  if (old_part_id != m_last_part) {
+  if (old_part_id != m_last_part && lookup_rows) {
     m_err_rec = old_data;
     return HA_ERR_ROW_IN_WRONG_PARTITION;
   }
@@ -642,7 +643,7 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data) {
   return error;
 }
 
-int Partition_helper::ph_delete_row(const uchar *buf) {
+int Partition_helper::ph_delete_row(const uchar *buf, bool lookup_rows) {
   int error;
   uint part_id;
   DBUG_TRACE;
@@ -678,7 +679,7 @@ int Partition_helper::ph_delete_row(const uchar *buf) {
     TODO: change the assert in InnoDB into an error instead and make this one
     an assert instead and remove the get_part_for_delete()!
   */
-  if (part_id != m_last_part) {
+  if (part_id != m_last_part && lookup_rows) {
     m_err_rec = buf;
     return HA_ERR_ROW_IN_WRONG_PARTITION;
   }

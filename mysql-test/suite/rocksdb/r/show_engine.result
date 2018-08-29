@@ -7,8 +7,6 @@ CREATE TABLE t2 (j INT, PRIMARY KEY (j) COMMENT 'rev:cf_t2') ENGINE = ROCKSDB;
 CREATE TABLE t3 (k INT, PRIMARY KEY (k) COMMENT 'cf_t1') ENGINE = ROCKSDB;
 CREATE TABLE t4 (l INT, PRIMARY KEY (l) COMMENT 'cf_t4') ENGINE = ROCKSDB
 PARTITION BY KEY(l) PARTITIONS 4;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET @save.rocksdb_max_background_jobs= @@global.rocksdb_max_background_jobs;
 SET GLOBAL rocksdb_max_background_jobs= 1;
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -20,8 +18,6 @@ SELECT COUNT(*) FROM t2;
 COUNT(*)
 4
 INSERT INTO t4 VALUES (1), (2), (3), (4), (5);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT COUNT(*) FROM t4;
 COUNT(*)
 5

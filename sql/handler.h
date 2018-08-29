@@ -1584,6 +1584,7 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
                                   const dd::Tablespace *old_ts_def,
                                   dd::Tablespace *new_ts_def);
 
+
 /**
   SE interface for getting tablespace extension.
   @return Extension of tablespace datafile name.
@@ -5029,6 +5030,17 @@ class handler {
   virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init() { cached_table_flags = table_flags(); }
+  /**
+    For MyRocks, secondary initialization that happens after frm is parsed into
+    field information from within open_binary_frm. MyRocks uses this secondary
+    init phase to analyze the key and field definitions to determine if
+    HA_PRIMARY_KEY_IN_READ_INDEX flag is available for the table as it only
+    supports that behavior for certain types of key combinations. The
+    HA_PRIMARY_KEY_IN_READ_INDEX flag is enabled by default till this method
+    invocation and can be disabled here in case it isn't supported.
+    Return values: false success, true failure.
+  */
+  virtual bool init_with_fields() { return false; }
   /* ha_ methods: public wrappers for private virtual API */
 
   /**
@@ -5724,6 +5736,10 @@ class handler {
   */
 
   virtual bool is_ignorable_error(int error);
+  [[nodiscard]] virtual bool continue_partition_copying_on_error(
+      int error [[maybe_unused]]) {
+    return false;
+  }
 
   /**
     @brief Determine whether an error is fatal or not.
@@ -5949,12 +5965,24 @@ class handler {
     return index_read_last(buf, key, key_len);
   }
 
-  virtual int read_range_first(const key_range *start_key,
+ public:
+   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key, bool eq_range_arg,
                                bool sorted);
   virtual int read_range_next();
 
  public:
+  /**
+    Query storage engine to see if it supports gap locks on this table.
+  */
+  virtual bool has_gap_locks() const noexcept { return false; }
+
+  /**
+    Query storage engine to see if it can support handling specific replication
+    method in its current configuration.
+  */
+  virtual bool rpl_can_handle_stm_event() const noexcept { return true; }
+
   /**
     Set the end position for a range scan. This is used for checking
     for when to end the range scan and by the ICP code to determine
@@ -7380,6 +7408,28 @@ class handler {
   void set_ha_table(TABLE *table_arg) { table = table_arg; }
 
   int get_lock_type() const { return m_lock_type; }
+
+ public:
+  /* Read-free replication interface */
+
+  /**
+     Determine whether the storage engine asks for row-based replication that
+     may skip the lookup of the old row image.
+
+     @return true if old rows should be read (the default)
+             false if old rows should not be read
+   */
+  virtual bool rpl_lookup_rows() { return true; }
+  /*
+     Storage engine hooks to be called before and after row write, delete, and
+     update events
+  */
+  virtual void rpl_before_write_rows() {}
+  virtual void rpl_after_write_rows() {}
+  virtual void rpl_before_delete_rows() {}
+  virtual void rpl_after_delete_rows() {}
+  virtual void rpl_before_update_rows() {}
+  virtual void rpl_after_update_rows() {}
 
   /**
     Callback function that will be called by my_prepare_gcolumn_template

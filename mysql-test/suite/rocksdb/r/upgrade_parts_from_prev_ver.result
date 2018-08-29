@@ -1,0 +1,75 @@
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Stop DB server which was created by MTR default
+#########
+# Test for upgrade partitioning with mysql_upgrade
+###
+# Unzip the zip file.
+# restart:<hidden args>
+# Execute mysql_upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+sys.sys_config                                     OK
+test.t1                                            OK
+# Check test table after upgrade
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL,
+  `b` int(10) unsigned NOT NULL,
+  `c` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `k_b_c` (`b`,`c`)
+) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+SUBPARTITIONS 3
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = ROCKSDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = ROCKSDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = ROCKSDB,
+ PARTITION p3 VALUES LESS THAN (400) ENGINE = ROCKSDB) */
+SELECT * FROM test.t1 ORDER BY a;
+a	b	c
+50	50	50
+55	55	55
+250	250	250
+255	255	255
+350	350	350
+355	355	355
+t1_id.sdi
+# Stop the server
+# Remove copied files
+# Restart the server with default options.
+# restart

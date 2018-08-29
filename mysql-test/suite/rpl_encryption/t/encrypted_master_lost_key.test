@@ -104,6 +104,7 @@ UNINSTALL PLUGIN keyring_file;
 --let $rpl_server_parameters=
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
+--remove_file $MYSQL_TMP_DIR/master_lose_key
 
 --let $good_master_binlog= query_get_value(SHOW MASTER STATUS,File,1)
 
@@ -134,7 +135,7 @@ INSERT INTO table3_to_encrypt SELECT NULL,NOW(),b FROM table3_to_encrypt;
 --disable_connect_log
 START SLAVE SQL_THREAD;
 START SLAVE IO_THREAD;
---let $slave_io_errno= 1236
+--let $slave_io_errno= 13114 # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 --source include/wait_for_slave_io_error.inc
 --enable_connect_log
 
@@ -154,7 +155,7 @@ SHOW TABLES;
 --connection server_2
 
 --disable_connect_log
---source include/stop_slave.inc
+--source include/stop_slave_sql.inc
 RESET SLAVE ALL;
 DROP DATABASE test;
 CREATE DATABASE test;

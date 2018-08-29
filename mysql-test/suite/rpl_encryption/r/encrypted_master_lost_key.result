@@ -24,7 +24,7 @@ INSERT INTO table1_to_encrypt SELECT NULL,NOW(),b FROM table1_to_encrypt;
 SET binlog_format=ROW;
 INSERT INTO table1_to_encrypt SELECT NULL,NOW(),b FROM table1_to_encrypt;
 INSERT INTO table1_to_encrypt SELECT NULL,NOW(),b FROM table1_to_encrypt;
-NOT FOUND /table1_to_encrypt/ in master-bin.0*
+Pattern "table1_to_encrypt" not found
 ################################################################
 # Pre-test 2: restart master with a different keys' storage file
 ################################################################
@@ -58,7 +58,7 @@ INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 # Make sure that binary logs are encrypted by making sure that plain text
 # table name is not present in the binary log
-NOT FOUND /table2_to_encrypt/ in master-bin.0*
+Pattern "table2_to_encrypt" not found
 UNINSTALL PLUGIN keyring_file;
 #####################################################
 # Pre-test 3: restart master again with the right key
@@ -103,7 +103,7 @@ connection master;
 connection server_2;
 START SLAVE SQL_THREAD;
 START SLAVE IO_THREAD;
-include/wait_for_slave_io_error.inc [errno=1236]
+include/wait_for_slave_io_error.inc [errno=13114 # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG]
 SHOW TABLES;
 Tables_in_test
 table1_to_encrypt
@@ -112,7 +112,7 @@ table1_to_encrypt
 #         from a good binary log
 #####################################################
 connection server_2;
-include/stop_slave.inc
+include/stop_slave_sql.inc
 RESET SLAVE ALL;
 DROP DATABASE test;
 CREATE DATABASE test;

@@ -1484,8 +1484,9 @@ class THD : public MDL_context_owner,
   ulong innodb_page_access;
 
   void mark_innodb_used(ulonglong trx_id) noexcept {
-    DBUG_ASSERT(innodb_trx_id == 0 || innodb_trx_id == trx_id);
-    innodb_trx_id = trx_id;
+    DBUG_ASSERT(innodb_trx_id == 0 || innodb_trx_id == trx_id ||
+                is_attachable_ro_transaction_active());
+    if (trx_id) innodb_trx_id = trx_id;
     innodb_was_used = true;
   }
 

@@ -4700,7 +4700,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
               return ignored_error_code(error_code);
             });
 
-        dispatch_sql_command(thd, &parser_state);
+        dispatch_sql_command(thd, &parser_state, true);
 
         enum_sql_command command = thd->lex->sql_command;
 

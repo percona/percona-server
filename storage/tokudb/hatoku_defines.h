@@ -112,7 +112,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_INCLUDE_WRITE_FRM_DATA 0
 #define TOKU_INCLUDE_DISCOVER_FRM 0
 #define TOKU_INCLUDE_RFR 0
-#define TOKU_INCLUDE_UPSERT 0
+#define TOKU_INCLUDE_UPSERT 1
 
 #if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 #include "discover.h"

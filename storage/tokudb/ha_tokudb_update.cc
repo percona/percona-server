@@ -482,7 +482,7 @@ bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields,
   if (table->triggers) return false;
 
   // no binlog
-  if (mysql_bin_log.is_open() &&
+  if (!thd->is_current_stmt_binlog_disabled() &&
       !(thd->variables.binlog_format == BINLOG_FORMAT_STMT ||
         thd->variables.binlog_format == BINLOG_FORMAT_MIXED))
     return false;
@@ -846,7 +846,7 @@ bool ha_tokudb::check_upsert(THD *thd, List<Item> &update_fields,
   if (table->s->keys > 1) return false;
 
   // no binlog
-  if (mysql_bin_log.is_open() &&
+  if (!thd->is_current_stmt_binlog_disabled() &&
       !(thd->variables.binlog_format == BINLOG_FORMAT_STMT ||
         thd->variables.binlog_format == BINLOG_FORMAT_MIXED))
     return false;

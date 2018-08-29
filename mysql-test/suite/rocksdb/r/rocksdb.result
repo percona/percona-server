@@ -42,7 +42,7 @@ Table	Create Table
 t0	CREATE TABLE `t0` (
   `a` int NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t0;
 create table t1 (a int primary key, b int) engine=rocksdb;
 insert into t1 values (1,1);
@@ -71,7 +71,7 @@ Warnings:
 Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b` from `test`.`t2` where multiple equal('no-such-key', NULL)
 explain select * from t2 where a='abc';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	12	const	#	100.00	NULL
+1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	42	const	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 'abc' AS `a`,'def' AS `b` from `test`.`t2` where 1
 select * from t2 where a='abc';
@@ -189,7 +189,9 @@ insert into t8 values
 # Delete by PK
 explain delete from t8 where a='three';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t8	NULL	range	PRIMARY	PRIMARY	12	const	#	100.00	Using where
+1	DELETE	t8	NULL	range	PRIMARY	PRIMARY	42	const	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t8` where (`test`.`t8`.`a` = 'three')
 delete from t8 where a='three';
 select * from t8;
 a	col1
@@ -301,8 +303,6 @@ DROP TABLE t12;
 # MDEV-3964: Assertion `!pk_descr' fails in ha_rocksdb::open on adding partitions ...
 #
 create table t14 (pk int primary key) engine=RocksDB partition by hash(pk) partitions 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t14', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t14;
 #
 # MDEV-3960: Server crashes on running DISCARD TABLESPACE on a RocksDB table
@@ -531,7 +531,7 @@ insert into t30 values ('row3', 'row3-key', 'row3-data');
 explain
 select * from t30 where key1='row2-key';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	ref	key1	key1	18	const	#	100.00	NULL
+1	SIMPLE	t30	NULL	ref	key1	key1	66	const	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` where (`test`.`t30`.`key1` = 'row2-key')
 select * from t30 where key1='row2-key';
@@ -540,7 +540,7 @@ row2	row2-key	row2-data
 explain 
 select * from t30 where key1='row1';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	ref	key1	key1	18	const	#	100.00	NULL
+1	SIMPLE	t30	NULL	ref	key1	key1	66	const	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` where (`test`.`t30`.`key1` = 'row1')
 # This will produce nothing:
@@ -549,7 +549,7 @@ pk	key1	col1
 explain
 select key1 from t30;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	index	NULL	key1	18	NULL	#	100.00	Using index
+1	SIMPLE	t30	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`key1` AS `key1` from `test`.`t30`
 select key1 from t30;
@@ -581,7 +581,7 @@ insert into t30 values
 explain 
 select * from t30 where key1 <='row3-key';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	range	key1	key1	18	NULL	#	100.00	Using index condition
+1	SIMPLE	t30	NULL	range	key1	key1	66	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` where (`test`.`t30`.`key1` <= 'row3-key')
 select * from t30 where key1 <='row3-key';
@@ -592,7 +592,7 @@ row3	row3-key	row3-data
 explain 
 select * from t30 where key1 between 'row2-key' and 'row4-key';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	range	key1	key1	18	NULL	#	100.00	Using index condition
+1	SIMPLE	t30	NULL	range	key1	key1	66	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` where (`test`.`t30`.`key1` between 'row2-key' and 'row4-key')
 select * from t30 where key1 between 'row2-key' and 'row4-key';
@@ -603,7 +603,7 @@ row4	row4-key	row4-data
 explain 
 select * from t30 where key1 in ('row2-key','row4-key');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	range	key1	key1	18	NULL	#	100.00	Using index condition
+1	SIMPLE	t30	NULL	range	key1	key1	66	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` where (`test`.`t30`.`key1` in ('row2-key','row4-key'))
 select * from t30 where key1 in ('row2-key','row4-key');
@@ -613,7 +613,7 @@ row4	row4-key	row4-data
 explain 
 select key1 from t30 where key1 in ('row2-key','row4-key');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	range	key1	key1	18	NULL	#	100.00	Using where; Using index
+1	SIMPLE	t30	NULL	range	key1	key1	66	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`key1` AS `key1` from `test`.`t30` where (`test`.`t30`.`key1` in ('row2-key','row4-key'))
 select key1 from t30 where key1 in ('row2-key','row4-key');
@@ -623,7 +623,7 @@ row4-key
 explain 
 select * from t30 where key1 > 'row1-key' and key1 < 'row4-key';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	range	key1	key1	18	NULL	#	100.00	Using index condition
+1	SIMPLE	t30	NULL	range	key1	key1	66	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` where ((`test`.`t30`.`key1` > 'row1-key') and (`test`.`t30`.`key1` < 'row4-key'))
 select * from t30 where key1 > 'row1-key' and key1 < 'row4-key';
@@ -633,7 +633,7 @@ row3	row3-key	row3-data
 explain 
 select * from t30 order by key1 limit 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	index	NULL	key1	18	NULL	#	100.00	NULL
+1	SIMPLE	t30	NULL	index	NULL	key1	66	NULL	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` order by `test`.`t30`.`key1` limit 3
 select * from t30 order by key1 limit 3;
@@ -644,7 +644,7 @@ row3	row3-key	row3-data
 explain 
 select * from t30 order by key1 desc limit 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	index	NULL	key1	18	NULL	#	100.00	NULL
+1	SIMPLE	t30	NULL	index	NULL	key1	66	NULL	#	100.00	Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` order by `test`.`t30`.`key1` desc limit 3
 select * from t30 order by key1 desc limit 3;
@@ -658,7 +658,7 @@ row3	row3-key	row3-data
 explain 
 select * from t30 where pk <='row3';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	range	PRIMARY	PRIMARY	18	NULL	#	100.00	Using where
+1	SIMPLE	t30	NULL	range	PRIMARY	PRIMARY	66	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` where (`test`.`t30`.`pk` <= 'row3')
 select * from t30 where pk <='row3';
@@ -669,7 +669,7 @@ row3	row3-key	row3-data
 explain 
 select * from t30 where pk between 'row2' and 'row4';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	range	PRIMARY	PRIMARY	18	NULL	#	100.00	Using where
+1	SIMPLE	t30	NULL	range	PRIMARY	PRIMARY	66	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` where (`test`.`t30`.`pk` between 'row2' and 'row4')
 select * from t30 where pk between 'row2' and 'row4';
@@ -680,7 +680,7 @@ row4	row4-key	row4-data
 explain 
 select * from t30 where pk in ('row2','row4');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	range	PRIMARY	PRIMARY	18	NULL	#	100.00	Using where
+1	SIMPLE	t30	NULL	range	PRIMARY	PRIMARY	66	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` where (`test`.`t30`.`pk` in ('row2','row4'))
 select * from t30 where pk in ('row2','row4');
@@ -690,7 +690,7 @@ row4	row4-key	row4-data
 explain 
 select * from t30 order by pk limit 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t30	NULL	index	NULL	PRIMARY	18	NULL	#	100.00	NULL
+1	SIMPLE	t30	NULL	index	NULL	PRIMARY	66	NULL	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t30`.`pk` AS `pk`,`test`.`t30`.`key1` AS `key1`,`test`.`t30`.`col1` AS `col1` from `test`.`t30` order by `test`.`t30`.`pk` limit 3
 select * from t30 order by pk limit 3;
@@ -1003,7 +1003,6 @@ rocksdb_use_adaptive_mutex	OFF
 rocksdb_use_direct_io_for_flush_and_compaction	OFF
 rocksdb_use_direct_reads	OFF
 rocksdb_use_fsync	OFF
-rocksdb_validate_tables	1
 rocksdb_verify_row_debug_checksums	OFF
 rocksdb_wal_bytes_per_sync	0
 rocksdb_wal_dir	
@@ -1172,7 +1171,7 @@ one
 drop table t2;
 create table t3 (
 pk int primary key, 
-key1 char(10) collate utf8_bin,
+key1 char(10) collate utf8mb4_bin,
 col1 int,
 key (key1)
 ) engine=rocksdb;
@@ -1180,7 +1179,7 @@ insert into t3 values(1, 'one',11), (2,'two',22);
 explain 
 select key1 from t3 where key1='one';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	key1	key1	31	const	#	100.00	Using index
+1	SIMPLE	t3	NULL	ref	key1	key1	41	const	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`key1` AS `key1` from `test`.`t3` where (`test`.`t3`.`key1` = 'one')
 select key1 from t3 where key1='one';
@@ -1252,9 +1251,9 @@ CREATE TABLE t1 (pk INT PRIMARY KEY, c VARCHAR(4)) ENGINE=RocksDB;
 INSERT INTO t1 VALUES (1,'foo'), (2,'bar');
 DROP TABLE t1;
 #
-# MDEV-4304: RocksDB: Index-only scan by a field with utf8_bin collation returns garbage symbols
+# MDEV-4304: RocksDB: Index-only scan by a field with utf8mb4_bin collation returns garbage symbols
 #
-CREATE TABLE t1 (pk INT PRIMARY KEY, c1 CHAR(1), c2 CHAR(1), KEY(c1)) ENGINE=RocksDB CHARSET utf8 COLLATE utf8_bin;
+CREATE TABLE t1 (pk INT PRIMARY KEY, c1 CHAR(1), c2 CHAR(1), KEY(c1)) ENGINE=RocksDB CHARSET UTF8MB4 COLLATE utf8mb4_bin;
 INSERT INTO t1 VALUES (1,'h','h');
 SELECT * FROM t1;
 pk	c1	c2
@@ -1456,7 +1455,7 @@ create table t1 (i int primary key auto_increment) engine=RocksDB;
 insert into t1 values (null),(null);
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ROCKSDB	10	Fixed	1000	0	#	0	0	0	3	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	ROCKSDB	10	Fixed	1000	0	#	0	0	0	3	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 drop table t1;
 #
 # Fix Issue #4: Crash when using pseudo-unique keys
@@ -1837,13 +1836,13 @@ create table t0 (a int) engine=myisam;
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (
 pk int primary key, 
-col1 varchar(255),
+col1 varchar(191),
 key(col1)
 ) engine=rocksdb;
-insert into t1 select a, repeat('123456789ABCDEF-', 15) from t0;
+insert into t1 select a, repeat('123456789ABCDEF-', 5) from t0;
 select * from t1 where pk=3;
 pk	col1
-3	123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-
+3	123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-123456789ABCDEF-
 drop table t0, t1;
 #
 # Fix issue #10: Segfault in Rdb_key_def::get_primary_key_tuple
@@ -1855,7 +1854,7 @@ id1 bigint(20) unsigned NOT NULL DEFAULT '0',
 id2 bigint(20) unsigned NOT NULL DEFAULT '0',
 link_type bigint(20) unsigned NOT NULL DEFAULT '0',
 visibility tinyint(3) NOT NULL DEFAULT '0',
-data varchar(255) NOT NULL DEFAULT '',
+data varchar(191) NOT NULL DEFAULT '',
 time bigint(20) unsigned NOT NULL DEFAULT '0',
 version int(11) unsigned NOT NULL DEFAULT '0',
 PRIMARY KEY (link_type,id1,id2)
@@ -2366,12 +2365,11 @@ SET @old_mode = @@sql_mode;
 SET sql_mode = 'strict_all_tables';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(c, b(255))) engine=rocksdb;
+create table t1 (a int, b text, c varchar(191), Primary Key(a), Key(c, b(191))) engine=rocksdb;
 drop table t1;
 set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
 set @@global.rocksdb_large_prefix=1;
-create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(1255))) engine=rocksdb;
+create table t1 (a int, b text, c varchar(191), Primary Key(a), Key(b(191))) engine=rocksdb;
 set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
 insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
 select * from t1;
@@ -2381,12 +2379,12 @@ a	b	c
 3	3abcde	3abcde
 explain select * from t1 where b like '1%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	b	1258	NULL	#	100.00	Using where
+1	SIMPLE	t1	NULL	range	b	b	767	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` like '1%')
 explain select b, a from t1 where b like '1%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	b	1258	NULL	#	100.00	Using where
+1	SIMPLE	t1	NULL	range	b	b	767	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` like '1%')
 update t1 set b= '12345' where b = '2abcde';
@@ -2399,8 +2397,6 @@ drop table t1;
 create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(2255))) engine=rocksdb;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
 SET sql_mode = @old_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t0;
 #
 # Fix assertion failure (attempt to overrun the key buffer) for prefix indexes
@@ -2571,7 +2567,7 @@ r2	CREATE TABLE `r2` (
   `id` int NOT NULL AUTO_INCREMENT,
   `value` int DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 begin;
 insert into r1 values (10, 1);
 commit;
@@ -2595,7 +2591,7 @@ r2	CREATE TABLE `r2` (
   `id` int NOT NULL AUTO_INCREMENT,
   `value` int DEFAULT NULL,
   KEY `i` (`id`)
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 begin;
 insert into r1 values (10, 1);
 commit;
@@ -2629,20 +2625,14 @@ set AUTOCOMMIT=1;
 # Issue#213 Crash on LOCK TABLES + partitions
 #
 CREATE TABLE t1(a INT,b INT,KEY (b)) engine=rocksdb PARTITION BY HASH(a) PARTITIONS 2;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1(a)VALUES (20010101101010.999949);
 ERROR 22003: Out of range value for column 'a' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1(a)VALUES (20010101101010.999949);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 lock tables t1 write,t1 as t0 write,t1 as t2 write;
 set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
@@ -2655,8 +2645,6 @@ INSERT INTO t1 VALUES(X'042000200020',X'042000200020'),(X'200400200020',X'200400
 ERROR 22003: Out of range value for column 'a' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES(X'042000200020',X'042000200020'),(X'200400200020',X'200400200020');
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
@@ -2664,8 +2652,6 @@ Warning	1264	Out of range value for column 'b' at row 1
 Warning	1264	Out of range value for column 'a' at row 2
 Warning	1264	Out of range value for column 'b' at row 2
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UNLOCK TABLES;
 DROP TABLE t1;
 #
@@ -2674,8 +2660,8 @@ DROP TABLE t1;
 #   needs a datype that doesn't support index-inly)
 #
 CREATE TABLE t1(
-c1 varchar(10) character set utf8 collate utf8_general_ci NOT NULL, 
-c2 varchar(10) character set utf8 collate utf8_general_ci, 
+c1 varchar(10) character set UTF8MB4 collate utf8mb4_general_ci NOT NULL, 
+c2 varchar(10) character set UTF8MB4 collate utf8mb4_general_ci, 
 c3 INT, 
 INDEX idx(c1,c2)
 ) ENGINE=ROCKSDB;
@@ -2684,11 +2670,9 @@ INSERT INTO t1 VALUES ('c1-val2','c2-val3',6);
 INSERT INTO t1 VALUES ('c1-val3','c2-val3',7);
 SELECT * FROM t1 force index(idx) WHERE c1 <> 'c1-val2' ORDER BY c1 DESC;
 c1	c2	c3
-c1-val3	c2-val3	7
-c1-val1	c2-val1	5
 explain SELECT * FROM t1  force index(idx) WHERE c1 <> '1' ORDER BY c1 DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	idx	idx	32	NULL	#	100.00	Using where
+1	SIMPLE	t1	NULL	range	idx	idx	42	NULL	#	100.00	Using index condition; Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3` from `test`.`t1` FORCE INDEX (`idx`) where (`test`.`t1`.`c1` <> '1') order by `test`.`t1`.`c1` desc
 drop table t1;
@@ -2709,7 +2693,7 @@ CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(0),(-1),(0);
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ROCKSDB	10	Fixed	1000	#	#	#	#	#	3	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	ROCKSDB	10	Fixed	1000	#	#	#	#	#	3	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 SELECT * FROM t1;
 a
 -1
@@ -2720,7 +2704,7 @@ CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(0),(10),(0);
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ROCKSDB	10	Fixed	1000	#	#	#	#	#	12	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t1	ROCKSDB	10	Fixed	1000	#	#	#	#	#	12	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 SELECT * FROM t1;
 a
 1

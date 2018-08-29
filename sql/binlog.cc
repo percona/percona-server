@@ -2751,11 +2751,11 @@ static int binlog_savepoint_rollback(handlerton *, THD *thd, void *sv) {
   */
   if (trans_cannot_safely_rollback(thd)) {
     String log_query;
-    if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
-        log_query.append("`") ||
-        log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
-        log_query.append("`"))
+    if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")))
       DBUG_RETURN(1);
+    else
+      append_identifier(thd, &log_query, thd->lex->ident.str,
+                        thd->lex->ident.length);
     int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
     Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(), true,
                           false, true, errcode);

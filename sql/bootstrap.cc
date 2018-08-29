@@ -263,7 +263,7 @@ static int process_iterator(THD *thd, Command_iterator *it,
 
     // Ignore ER_TOO_LONG_KEY for system tables.
     thd->push_internal_handler(&error_handler);
-    dispatch_sql_command(thd, &parser_state);
+    dispatch_sql_command(thd, &parser_state, true);
     thd->pop_internal_handler();
 
     error = thd->is_error();

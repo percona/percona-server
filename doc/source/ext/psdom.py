@@ -362,7 +362,7 @@ class PerconaServerDomain(Domain):
                             contnode, target)
 
     def get_objects(self):
-        for refname, (docname, type) in self.data['objects'].iteritems():
+        for refname, (docname, type) in self.data['objects'].items():
             yield (refname, refname, type, docname, refname, 1)
 
     def find_obj(self, env, obj, name, typ, searchorder=0):

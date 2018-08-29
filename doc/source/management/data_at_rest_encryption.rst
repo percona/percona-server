@@ -103,6 +103,28 @@ number 13 set if tablespace is encrypted. This bit can be ckecked with
 System Variables
 ----------------
 
+.. variable:: innodb_sys_tablespace_encrypt
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--innodb-sys-tablespace-encrypt``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``Off``	      
+
+When this variable is enabled, all data in the InnoDB system tablespace are encrypted.
+
+.. variable:: innodb_sys_tablespace_encrypt
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--innodb-sys-tablespace-encrypt``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``Off``	      
+
+When this variable is enabled, all data in the parallel double write buffer are encrypted.
+
 .. variable:: innodb_temp_tablespace_encrypt
 
   :version 5.7.21-21: Implemented
@@ -112,7 +134,7 @@ System Variables
   :vartype: Boolean
   :default: ``Off``
 
-When this option is turned on, server starts to encrypt temporary tablespace
+When this option is turned on, the server starts to encrypt temporary tablespace
 and temporary |InnoDB| file-per-table tablespaces. The option does not force
 encryption of temporary tables which are currently opened, and it doesn't
 rebuild system temporary tablespace to encrypt data which are already written.

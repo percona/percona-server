@@ -18,7 +18,6 @@ New Features
 * A new ``--encrypt-tmp-files`` option turns on encryption for the temporary
   files which  |Percona Server| may create on disk for filesort, binary log
   transactional caches and Group Replication caches.
-.
 
 Bugs Fixed
 ==========
@@ -28,7 +27,15 @@ Bugs Fixed
   its nature a counter and allowing only an increase, could return to its
   previous value. Bug fixed :psbug:`3951` (upstream :mysqlbug:`90351`).
 
-* NUMA support was improved in |Percona Server|, reverting upstream implementation back to the original one, due to upstream variant being less effective in memory allocation. Now `innodb_numa_interleave <http://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_numa_interleave>`_ variable not only enables NUMA interleave memory policy for the InnoDB buffer pool allocation, but forces NUMA interleaved allocation at the buffer pool initialization time. Bug fixed :psbug:`3967`.
+* NUMA support was improved in |Percona Server|, reverting upstream
+  implementation back to the original one, due to upstream variant
+  being less effective in memory allocation. Now
+  `innodb_numa_interleave
+  <http://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_numa_interleave>`_
+  variable not only enables NUMA interleave memory policy for the
+  InnoDB buffer pool allocation, but forces NUMA interleaved
+  allocation at the buffer pool initialization time. Bug fixed
+  :psbug:`3967`.
 
 * :variable:`audit_log_include_accounts` variable did not take effect if
   placed in ``my.cnf`` configuration file, while still working as intended if
@@ -60,22 +67,21 @@ MyRocks Changes and Fixes
   a full table scan on tables with unique secondary index. Bug fixed
   :psbug:`4495` (upstream `facebook/mysql-5.6#830 <https://github.com/facebook/mysql-5.6/issues/830>`_).
 
-
 Other Bugs Fixed
 ================
 
-* :psbug:`4451` "Implement better compression algo testing"
+* :psbug:`4451` \"Implement better compression algo testing\"
 
-* :psbug:`4469` "variable use out of scope bug in get_last_key test detected by
-  ASAN in clang 6"
+* :psbug:`4469` \"variable use out of scope bug in get_last_key test detected by
+  ASAN in clang 6\"
 
-* :psbug:`4470` "the cachetable-simple-pin-nonblocking-cheap test occasionally
-  fails due to a locking conflict with the cachetable evictor"
+* :psbug:`4470` \"the cachetable-simple-pin-nonblocking-cheap test occasionally
+  fails due to a locking conflict with the cachetable evictor\"
 
-* :psbug:`4488` "`-Werror` is always disabled for `innodb_memcached`"
+* :psbug:`4488` \"\`-Werror\` is always disabled for \`innodb_memcached\`\"
 
-* :psbug:`1114` "Assertion `inited == INDEX' failed"
+* :psbug:`1114` \"Assertion \`inited \=\= INDEX\' failed\"
 
-* :psbug:`1130` "RBR Replication with concurrent XA in READ-COMMITTED takes
-  supremum pseudo-records and breaks replication"
+* :psbug:`1130` \"RBR Replication with concurrent XA in READ-COMMITTED takes
+  supremum pseudo-records and breaks replication\"
 

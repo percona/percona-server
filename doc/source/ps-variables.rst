@@ -77,6 +77,11 @@ System Variables
      - Yes
      - Global
      - No
+   * - :variable:`binlog_space_limit`
+     - Yes
+     - Yes
+     - Global
+     - Yes
    * - :variable:`csv_mode`
      - Yes
      - Yes
@@ -132,12 +137,12 @@ System Variables
      - Yes
      - Global
      - Yes
-  * - :variable:`innodb_encrypt_online_alter_logs`
+   * - :variable:`innodb_encrypt_online_alter_logs`
      - Yes
      - Yes
      - Global
      - Yes
-  * - :variable:`innodb_encrypt_tables`
+   * - :variable:`innodb_encrypt_tables`
      - Yes
      - Yes
      - Global

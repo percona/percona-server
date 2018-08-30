@@ -140,11 +140,10 @@ insert into t1 set i = null;
 select last_insert_id();
 last_insert_id()
 255
-explain extended select last_insert_id();
+explain select last_insert_id();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select last_insert_id() AS `last_insert_id()`
 insert into t1 set i = 254;
 ERROR 23000: Duplicate entry '254' for key 'PRIMARY'
@@ -186,8 +185,6 @@ last_insert_id()
 drop table t1;
 create table t1(a int auto_increment,b int null,primary key(a));
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1(a,b)values(NULL,1);
 insert into t1(a,b)values(200,2);
 insert into t1(a,b)values(0,3);
@@ -379,7 +376,7 @@ t1	CREATE TABLE `t1` (
   `t1_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`t1_id`),
   KEY `t1_name` (`t1_name`)
-) ENGINE=TokuDB AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
+) ENGINE=TokuDB AUTO_INCREMENT=1003 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `t1`;
 create table t1(a int not null auto_increment primary key);
 create table t2(a int not null auto_increment primary key, t1a int);
@@ -447,7 +444,7 @@ CREATE TABLE t1 (t1 INT(10) PRIMARY KEY, t2 INT(10));
 INSERT INTO t1 VALUES(0, 0);
 INSERT INTO t1 VALUES(1, 1);
 ALTER TABLE t1 CHANGE t1 t1 INT(10) auto_increment;
-ERROR 23000: ALTER TABLE causes auto_increment resequencing, resulting in duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 DROP TABLE t1;
 create table t1 (a int primary key auto_increment, b int, c int, d timestamp default current_timestamp, unique(b),unique(c));
 insert into t1 values(null,1,1,now());

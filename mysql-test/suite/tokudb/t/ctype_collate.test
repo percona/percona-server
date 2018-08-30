@@ -1,9 +1,5 @@
 source include/have_tokudb.inc;
 SET DEFAULT_STORAGE_ENGINE='tokudb';
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
---enable_warnings
 
 CREATE TABLE t1 (
   latin1_f CHAR(32) CHARACTER SET latin1 NOT NULL
@@ -47,8 +43,6 @@ INSERT INTO t1 (latin1_f) VALUES (_latin1'u');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'UE');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'ue');
 
-INSERT INTO t1 (latin1_f) VALUES (_latin1'Ü');
-INSERT INTO t1 (latin1_f) VALUES (_latin1'ü');
 
 INSERT INTO t1 (latin1_f) VALUES (_latin1'SS');
 INSERT INTO t1 (latin1_f) VALUES (_latin1'ss');
@@ -140,7 +134,7 @@ SHOW FIELDS FROM  t1;
 SET CHARACTER SET 'latin1';
 SHOW VARIABLES LIKE 'character_set_client';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-explain extended SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+explain SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 
 SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'collation_client';

@@ -29,62 +29,62 @@ CREATE TABLE tdb76_compressed(a INT) ENGINE=TokuDB ROW_FORMAT=COMPRESSED;
 Warnings:
 Warning	1478	TokuDB: invalid ROW_FORMAT specifier.
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name like 'tdb76_%' ORDER BY table_name;
-table_name	row_format	engine
-tdb76_1	tokudb_zlib	TokuDB
-tdb76_2	tokudb_quicklz	TokuDB
-tdb76_3	tokudb_lzma	TokuDB
-tdb76_4	tokudb_uncompressed	TokuDB
-tdb76_5	tokudb_zlib	TokuDB
-tdb76_6	tokudb_lzma	TokuDB
-tdb76_7	tokudb_quicklz	TokuDB
-tdb76_8	tokudb_snappy	TokuDB
-tdb76_compact	tokudb_zlib	TokuDB
-tdb76_compressed	tokudb_zlib	TokuDB
-tdb76_dynamic	tokudb_zlib	TokuDB
-tdb76_redundant	tokudb_zlib	TokuDB
+TABLE_NAME	ROW_FORMAT	ENGINE
+tdb76_1	Fixed	TokuDB
+tdb76_2	Fixed	TokuDB
+tdb76_3	Fixed	TokuDB
+tdb76_4	Fixed	TokuDB
+tdb76_5	Fixed	TokuDB
+tdb76_6	Fixed	TokuDB
+tdb76_7	Fixed	TokuDB
+tdb76_8	Fixed	TokuDB
+tdb76_compact	Fixed	TokuDB
+tdb76_compressed	Fixed	TokuDB
+tdb76_dynamic	Dynamic	TokuDB
+tdb76_redundant	Fixed	TokuDB
 DROP TABLE tdb76_1, tdb76_2, tdb76_3, tdb76_4, tdb76_5, tdb76_6, tdb76_7, tdb76_8, tdb76_compact, tdb76_redundant, tdb76_dynamic, tdb76_compressed;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name like 'tokudb_row_format_test%' ORDER BY table_name;
-table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_zlib	TokuDB
-tokudb_row_format_test_2	tokudb_quicklz	TokuDB
-tokudb_row_format_test_3	tokudb_lzma	TokuDB
-tokudb_row_format_test_4	tokudb_uncompressed	TokuDB
-tokudb_row_format_test_5	tokudb_zlib	TokuDB
-tokudb_row_format_test_6	tokudb_lzma	TokuDB
-tokudb_row_format_test_7	tokudb_quicklz	TokuDB
-tokudb_row_format_test_8	tokudb_snappy	TokuDB
+TABLE_NAME	ROW_FORMAT	ENGINE
+tokudb_row_format_test_1	Fixed	TokuDB
+tokudb_row_format_test_2	Fixed	TokuDB
+tokudb_row_format_test_3	Fixed	TokuDB
+tokudb_row_format_test_4	Fixed	TokuDB
+tokudb_row_format_test_5	Fixed	TokuDB
+tokudb_row_format_test_6	Fixed	TokuDB
+tokudb_row_format_test_7	Fixed	TokuDB
+tokudb_row_format_test_8	Fixed	TokuDB
 ALTER TABLE tokudb_row_format_test_1 ENGINE=TokuDB ROW_FORMAT=TOKUDB_FAST;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name = 'tokudb_row_format_test_1';
-table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_quicklz	TokuDB
+TABLE_NAME	ROW_FORMAT	ENGINE
+tokudb_row_format_test_1	Fixed	TokuDB
 ALTER TABLE tokudb_row_format_test_1 ENGINE=TokuDB ROW_FORMAT=TOKUDB_SMALL;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name = 'tokudb_row_format_test_1';
-table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_lzma	TokuDB
+TABLE_NAME	ROW_FORMAT	ENGINE
+tokudb_row_format_test_1	Fixed	TokuDB
 ALTER TABLE tokudb_row_format_test_1 ENGINE=TokuDB ROW_FORMAT=TOKUDB_UNCOMPRESSED;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name = 'tokudb_row_format_test_1';
-table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_uncompressed	TokuDB
+TABLE_NAME	ROW_FORMAT	ENGINE
+tokudb_row_format_test_1	Fixed	TokuDB
 ALTER TABLE tokudb_row_format_test_1 ENGINE=TokuDB ROW_FORMAT=TOKUDB_ZLIB;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name = 'tokudb_row_format_test_1';
-table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_zlib	TokuDB
+TABLE_NAME	ROW_FORMAT	ENGINE
+tokudb_row_format_test_1	Fixed	TokuDB
 ALTER TABLE tokudb_row_format_test_1 ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name = 'tokudb_row_format_test_1';
-table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_snappy	TokuDB
+TABLE_NAME	ROW_FORMAT	ENGINE
+tokudb_row_format_test_1	Fixed	TokuDB
 ALTER TABLE tokudb_row_format_test_1 ENGINE=TokuDB ROW_FORMAT=TOKUDB_QUICKLZ;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name = 'tokudb_row_format_test_1';
-table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_quicklz	TokuDB
+TABLE_NAME	ROW_FORMAT	ENGINE
+tokudb_row_format_test_1	Fixed	TokuDB
 ALTER TABLE tokudb_row_format_test_1 ENGINE=TokuDB ROW_FORMAT=TOKUDB_LZMA;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name = 'tokudb_row_format_test_1';
-table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_lzma	TokuDB
+TABLE_NAME	ROW_FORMAT	ENGINE
+tokudb_row_format_test_1	Fixed	TokuDB
 ALTER TABLE tokudb_row_format_test_1 ENGINE=TokuDB ROW_FORMAT=TOKUDB_DEFAULT;
 Warnings:
 Warning	1478	TokuDB: invalid ROW_FORMAT specifier.
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name = 'tokudb_row_format_test_1';
-table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_zlib	TokuDB
+TABLE_NAME	ROW_FORMAT	ENGINE
+tokudb_row_format_test_1	Fixed	TokuDB
 DROP TABLE tokudb_row_format_test_1, tokudb_row_format_test_2, tokudb_row_format_test_3, tokudb_row_format_test_4, tokudb_row_format_test_5, tokudb_row_format_test_6, tokudb_row_format_test_7, tokudb_row_format_test_8;

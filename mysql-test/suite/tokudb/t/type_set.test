@@ -32,18 +32,6 @@ select s from t1 order by s;
 select s from t1 order by concat(s);
 drop table t1;
 
-#
-# Check that SET honors a more complex collation correctly
-#
-CREATE TABLE t1 (c set('ae','oe','ue','ss') collate latin1_german2_ci);
-INSERT INTO t1 VALUES ('ä'),('ö'),('ü'),('ß');
-INSERT INTO t1 VALUES ('ae'),('oe'),('ue'),('ss');
-INSERT INTO t1 VALUES ('ä,ö,ü,ß');
-INSERT INTO t1 VALUES ('ae,oe,ue,ss');
-SELECT c FROM t1 ORDER BY c;
-SELECT c FROM t1 ORDER BY concat(c);
-DROP TABLE t1;
-
 # End of 4.1 tests
 
 #

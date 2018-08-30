@@ -60,6 +60,7 @@ select * from foo where a = 5;
 connection default;
 --error ER_LOCK_WAIT_TIMEOUT
 insert into foo values (5,0.01,10);
+--error ER_LOCK_WAIT_TIMEOUT
 insert into foo values (5.0001,10,10);
 insert into foo values (4.99999,1,10);
 

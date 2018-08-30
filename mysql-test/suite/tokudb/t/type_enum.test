@@ -52,64 +52,6 @@ replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 drop table t1;
 
-
-#
-# Bug #5628 German characters in field-defs will be '?'
-# with some table definitions
-#
-set names latin1;
-CREATE TABLE t1 (
-  a INT  default 1,
-  b ENUM('value','öäü_value','ÊÃÕ') character set latin1 NOT NULL
-);
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create table t1;
-show columns from t1;
-drop table t1;
-
-#
-# Bugs #6154, 6206: ENUMs are not case sensitive even if declared BINARY
-#
-CREATE TABLE t1 (c enum('a', 'A') BINARY);
-INSERT INTO t1 VALUES ('a'),('A');
-SELECT * FROM t1;
-DROP TABLE t1;
-
-CREATE TABLE t1 (c enum('ae','oe','ue','ss') collate latin1_german2_ci);
-INSERT INTO t1 VALUES ('ä'),('ö'),('ü'),('ß');
-SELECT * FROM t1;
-DROP TABLE t1;
-
-#
-# Bug #6379: ENUM values are incorrectly converted
-#
-# Check latin1 -> utf8 conversion
-#
-CREATE TABLE t1 (
-  a ENUM('ä','ö','ü') character set utf8 default 'ü'
-);
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create table t1;
-insert into t1 values ('ä'), ('ö'), ('ü');
-select a from t1 order by a;
-drop table t1;
-
-#
-# Now check utf8 -> latin1 conversion
-# This test emulates loading a script generated with mysqldump
-#
-set names utf8;
-CREATE TABLE t1 (
-  a ENUM('Ã¤','Ã¶','Ã¼') character set latin1 default 'Ã¼'
-);
-insert into t1 values ('Ã¤'),('Ã¶'),('Ã¼');
-# Now check what has been loaded
-set names latin1;
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create table t1;
-select a from t1 order by a;
-drop table t1;
-
 #
 # Test bug where enum fields where extended for each ALTER TABLE
 #
@@ -146,28 +88,10 @@ replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 drop table t1;
 
-#
-# Bug#24660 "enum" field type definition problem
-#
-create table t1(russian enum('E','F','EÿF','FÿE') NOT NULL DEFAULT'E');
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create table t1;
-drop table t1;
-
 create table t1(denormal enum('E','F','E,F','F,E') NOT NULL DEFAULT'E');
 replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 drop table t1;
-
-create table t1(russian_deviant enum('E','F','EÿF','F,E') NOT NULL DEFAULT'E');
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create table t1;
-drop table t1;
-
-# ER_WRONG_FIELD_TERMINATORS
---error 1083
-create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
- !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'));
 
 #
 # Bug #29251: MySQL coerces special 0 enum values to normal '' value

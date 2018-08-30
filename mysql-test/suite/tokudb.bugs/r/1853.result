@@ -67,6 +67,7 @@ a	b	c
 insert into foo values (5,0.01,10);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert into foo values (5.0001,10,10);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert into foo values (4.99999,1,10);
 commit;
 begin;
@@ -79,7 +80,6 @@ a	b	c
 5	5	5
 5	6	6
 5	10	10
-5.0001	10	10
 5.001	10	10
 insert into foo values (4.1,0.01,10);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -102,7 +102,6 @@ a	b	c
 5	5	5
 5	6	6
 5	10	10
-5.0001	10	10
 5.001	10	10
 insert into foo values (4,0.01,10);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -121,7 +120,6 @@ a	b	c
 5	5	5
 5	6	6
 5	10	10
-5.0001	10	10
 5.001	10	10
 6	1.1	10
 6	4	4
@@ -150,7 +148,6 @@ a	b	c
 5	5	5
 5	6	6
 5	10	10
-5.0001	10	10
 5.001	10	10
 6	1.1	10
 6	4	4

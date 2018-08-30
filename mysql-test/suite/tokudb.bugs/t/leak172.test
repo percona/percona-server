@@ -3,11 +3,6 @@
 
 source include/have_tokudb.inc;
 source include/have_debug.inc;
-set default_storage_engine=tokudb;
-
-disable_warnings;
-drop table if exists t1,t2;
-enable_warnings;
 
 let $MYSQLD_DATADIR=`select @@datadir`;
 copy_file std_data/leak172_t1.data $MYSQLD_DATADIR/test/leak172_t1.data;
@@ -70,7 +65,7 @@ CREATE TABLE `t1` (
   KEY `c9` (`c9`),
   KEY `c7` (`c7`),
   KEY `c35` (`c35`)
-);
+) DEFAULT CHARSET latin1 ENGINE=TOKUDB;
 
 CREATE TABLE `t2` (
   `c12` varchar(240) DEFAULT NULL,
@@ -129,14 +124,14 @@ CREATE TABLE `t2` (
   KEY `c1` (`c1`),
   KEY `c27` (`c27`(255)),
   KEY `c31` (`c31`)
-);
+) DEFAULT CHARSET latin1 ENGINE=TOKUDB;
 
-LOAD DATA INFILE 'leak172_t1.data' INTO TABLE `t1` fields terminated by ',';
+LOAD DATA INFILE 'leak172_t1.data' INTO TABLE `t1` CHARACTER SET latin1 FIELDS TERMINATED BY ',';
 remove_file $MYSQLD_DATADIR/test/leak172_t1.data;
 
 connect(conn1,localhost,root,,);
 set session debug="+d,tokudb_end_bulk_insert_sleep";
-send LOAD DATA INFILE 'leak172_t2.data' INTO TABLE `t2` fields terminated by ',';
+send LOAD DATA INFILE 'leak172_t2.data' INTO TABLE `t2` CHARACTER SET latin1 FIELDS TERMINATED BY ',';
 
 connection default;
 let $wait_condition= select count(*)=1 from information_schema.processlist where info like 'LOAD DATA INFILE%' and state like 'DBUG sleep';

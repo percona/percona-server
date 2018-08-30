@@ -1,5 +1,3 @@
-set default_storage_engine=tokudb;
-drop table if exists t1,t2;
 CREATE TABLE `t1` (
 `c4` int(11) DEFAULT NULL,
 `c5` int(11) DEFAULT NULL,
@@ -57,7 +55,7 @@ KEY `c15` (`c15`),
 KEY `c9` (`c9`),
 KEY `c7` (`c7`),
 KEY `c35` (`c35`)
-);
+) DEFAULT CHARSET latin1 ENGINE=TOKUDB;
 CREATE TABLE `t2` (
 `c12` varchar(240) DEFAULT NULL,
 `c15` varchar(240) DEFAULT NULL,
@@ -115,10 +113,10 @@ KEY `c3` (`c3`),
 KEY `c1` (`c1`),
 KEY `c27` (`c27`(255)),
 KEY `c31` (`c31`)
-);
-LOAD DATA INFILE 'leak172_t1.data' INTO TABLE `t1` fields terminated by ',';
+) DEFAULT CHARSET latin1 ENGINE=TOKUDB;
+LOAD DATA INFILE 'leak172_t1.data' INTO TABLE `t1` CHARACTER SET latin1 FIELDS TERMINATED BY ',';
 set session debug="+d,tokudb_end_bulk_insert_sleep";
-LOAD DATA INFILE 'leak172_t2.data' INTO TABLE `t2` fields terminated by ',';
+LOAD DATA INFILE 'leak172_t2.data' INTO TABLE `t2` CHARACTER SET latin1 FIELDS TERMINATED BY ',';
 UPDATE t1, t2 SET t1.`c5` = 4 WHERE t1.`c6` <= 'o';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 drop table t1,t2;

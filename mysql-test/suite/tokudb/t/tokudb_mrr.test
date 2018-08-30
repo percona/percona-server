@@ -4,7 +4,6 @@
 #
 
 --source include/have_tokudb.inc
---source include/have_mrr.inc
 
 set optimizer_switch='mrr=on,mrr_cost_based=off';
 
@@ -60,7 +59,7 @@ INSERT INTO t1 VALUES (1,1,1),(3,3,3),(5,5,5);
 COMMIT;
 
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT @@tx_isolation;
+SELECT @@transaction_isolation;
 START TRANSACTION;
 
 EXPLAIN SELECT * FROM t1 WHERE a >= 2 FOR UPDATE;

@@ -28,7 +28,7 @@ SET binlog_format=ROW;
 INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
 INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
 # Make sure that binary logs are not encrypted
-FOUND /table1_no_encryption/ in master-bin.0*
+Pattern "table1_no_encryption" found
 include/save_master_pos.inc
 connection master;
 #####################################################
@@ -63,7 +63,7 @@ SET binlog_format=ROW;
 INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 # Make sure that binary logs are encrypted
-NOT FOUND /table2_to_encrypt/ in master-bin.0*
+Pattern "table2_to_encrypt" not found
 #####################################################
 # Part 3: restart master again without encryption
 #####################################################
@@ -107,14 +107,14 @@ include/save_master_pos.inc
 connection master;
 connection slave;
 call mtr.add_suppression("Slave I/O for channel '': Got fatal error 1236 from master when reading data from binary log: 'Could not decrypt binlog: encryption key error;");
-include/wait_for_slave_io_error.inc [errno=1236]
+include/wait_for_slave_io_error.inc [errno=13114 # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG]
 connection slave;
 connection slave;
 connection slave;
 SHOW TABLES;
 Tables_in_test
 table1_no_encryption
-include/stop_slave.inc
+include/stop_slave_sql.inc
 RESET SLAVE;
 ##########
 # Cleanup

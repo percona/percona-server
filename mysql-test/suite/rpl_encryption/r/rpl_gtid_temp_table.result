@@ -16,24 +16,24 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 START TRANSACTION;
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
 COMMIT;
 INSERT INTO trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM trans_table2 WHERE i=func1();
-Got one of the listed errors
 INSERT INTO non_trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE non_trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM non_trans_table2 WHERE i=func1();
-Got one of the listed errors
 DROP FUNCTION func1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON trans_table2 FOR EACH ROW
@@ -41,7 +41,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON trans_table2 FOR EACH ROW
@@ -49,7 +48,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON trans_table2 FOR EACH ROW
@@ -57,7 +55,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON trans_table2 FOR EACH ROW
@@ -65,7 +62,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON trans_table2 FOR EACH ROW
@@ -73,7 +69,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON trans_table2 FOR EACH ROW
@@ -81,7 +76,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON non_trans_table2 FOR EACH ROW
@@ -89,7 +83,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON non_trans_table2 FOR EACH ROW
@@ -97,7 +90,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
@@ -105,7 +97,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON non_trans_table2 FOR EACH ROW
@@ -113,7 +104,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON non_trans_table2 FOR EACH ROW
@@ -121,7 +111,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON non_trans_table2 FOR EACH ROW
@@ -129,31 +118,30 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
 BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 START TRANSACTION;
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
 COMMIT;
 INSERT INTO trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM trans_table2 WHERE i=func1();
-Got one of the listed errors
 INSERT INTO non_trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE non_trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM non_trans_table2 WHERE i=func1();
-Got one of the listed errors
 DROP FUNCTION func1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON trans_table2 FOR EACH ROW
@@ -161,7 +149,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON trans_table2 FOR EACH ROW
@@ -169,7 +156,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON trans_table2 FOR EACH ROW
@@ -177,7 +163,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON trans_table2 FOR EACH ROW
@@ -185,7 +170,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON trans_table2 FOR EACH ROW
@@ -193,7 +177,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON trans_table2 FOR EACH ROW
@@ -201,7 +184,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON non_trans_table2 FOR EACH ROW
@@ -209,7 +191,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON non_trans_table2 FOR EACH ROW
@@ -217,7 +198,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
@@ -225,7 +205,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON non_trans_table2 FOR EACH ROW
@@ -233,7 +212,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON non_trans_table2 FOR EACH ROW
@@ -241,7 +219,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON non_trans_table2 FOR EACH ROW
@@ -249,271 +226,30 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-RETURN 0;
-END;
-SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
-START TRANSACTION;
-SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
-COMMIT;
-INSERT INTO trans_table2 VALUES (func1());
-Got one of the listed errors
-UPDATE trans_table2 SET i=func1();
-Got one of the listed errors
-DELETE FROM trans_table2 WHERE i=func1();
-Got one of the listed errors
-INSERT INTO non_trans_table2 VALUES (func1());
-Got one of the listed errors
-UPDATE non_trans_table2 SET i=func1();
-Got one of the listed errors
-DELETE FROM non_trans_table2 WHERE i=func1();
-Got one of the listed errors
-DROP FUNCTION func1;
-CREATE TRIGGER trigger1
-BEFORE INSERT ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER INSERT ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-BEFORE UPDATE ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-UPDATE trans_table2 SET i=12;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER UPDATE ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-UPDATE trans_table2 SET i=12;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-BEFORE DELETE ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-DELETE FROM trans_table2;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER DELETE ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-DELETE FROM trans_table2;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-BEFORE INSERT ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER INSERT ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER UPDATE ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-BEFORE DELETE ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-DELETE FROM non_trans_table2;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER DELETE ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
-END;
-DELETE FROM non_trans_table2;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-RETURN 0;
-END;
-SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
-START TRANSACTION;
-SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
-COMMIT;
-INSERT INTO trans_table2 VALUES (func1());
-Got one of the listed errors
-UPDATE trans_table2 SET i=func1();
-Got one of the listed errors
-DELETE FROM trans_table2 WHERE i=func1();
-Got one of the listed errors
-INSERT INTO non_trans_table2 VALUES (func1());
-Got one of the listed errors
-UPDATE non_trans_table2 SET i=func1();
-Got one of the listed errors
-DELETE FROM non_trans_table2 WHERE i=func1();
-Got one of the listed errors
-DROP FUNCTION func1;
-CREATE TRIGGER trigger1
-BEFORE INSERT ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER INSERT ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-BEFORE UPDATE ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-UPDATE trans_table2 SET i=12;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER UPDATE ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-UPDATE trans_table2 SET i=12;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-BEFORE DELETE ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-DELETE FROM trans_table2;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER DELETE ON trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-DELETE FROM trans_table2;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-BEFORE INSERT ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER INSERT ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER UPDATE ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-BEFORE DELETE ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-DELETE FROM non_trans_table2;
-Got one of the listed errors
-DROP TRIGGER trigger1;
-CREATE TRIGGER trigger1
-AFTER DELETE ON non_trans_table2 FOR EACH ROW
-BEGIN
-CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
-END;
-DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
 BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 START TRANSACTION;
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
 COMMIT;
 INSERT INTO trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM trans_table2 WHERE i=func1();
-Got one of the listed errors
 INSERT INTO non_trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE non_trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM non_trans_table2 WHERE i=func1();
-Got one of the listed errors
 DROP FUNCTION func1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON trans_table2 FOR EACH ROW
@@ -521,7 +257,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON trans_table2 FOR EACH ROW
@@ -529,7 +264,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON trans_table2 FOR EACH ROW
@@ -537,7 +271,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON trans_table2 FOR EACH ROW
@@ -545,7 +278,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON trans_table2 FOR EACH ROW
@@ -553,7 +285,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON trans_table2 FOR EACH ROW
@@ -561,7 +292,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON non_trans_table2 FOR EACH ROW
@@ -569,7 +299,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON non_trans_table2 FOR EACH ROW
@@ -577,7 +306,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
@@ -585,7 +313,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON non_trans_table2 FOR EACH ROW
@@ -593,7 +320,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON non_trans_table2 FOR EACH ROW
@@ -601,7 +327,6 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON non_trans_table2 FOR EACH ROW
@@ -609,31 +334,30 @@ BEGIN
 DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
 BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 RETURN 0;
 END;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 START TRANSACTION;
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
 COMMIT;
 INSERT INTO trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM trans_table2 WHERE i=func1();
-Got one of the listed errors
 INSERT INTO non_trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE non_trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM non_trans_table2 WHERE i=func1();
-Got one of the listed errors
 DROP FUNCTION func1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON trans_table2 FOR EACH ROW
@@ -641,7 +365,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON trans_table2 FOR EACH ROW
@@ -649,7 +372,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON trans_table2 FOR EACH ROW
@@ -657,7 +379,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON trans_table2 FOR EACH ROW
@@ -665,7 +386,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON trans_table2 FOR EACH ROW
@@ -673,7 +393,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON trans_table2 FOR EACH ROW
@@ -681,7 +400,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON non_trans_table2 FOR EACH ROW
@@ -689,7 +407,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON non_trans_table2 FOR EACH ROW
@@ -697,7 +414,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
@@ -705,7 +421,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON non_trans_table2 FOR EACH ROW
@@ -713,7 +428,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON non_trans_table2 FOR EACH ROW
@@ -721,7 +435,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON non_trans_table2 FOR EACH ROW
@@ -729,31 +442,30 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
 BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 START TRANSACTION;
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
 COMMIT;
 INSERT INTO trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM trans_table2 WHERE i=func1();
-Got one of the listed errors
 INSERT INTO non_trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE non_trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM non_trans_table2 WHERE i=func1();
-Got one of the listed errors
 DROP FUNCTION func1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON trans_table2 FOR EACH ROW
@@ -761,7 +473,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON trans_table2 FOR EACH ROW
@@ -769,7 +480,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON trans_table2 FOR EACH ROW
@@ -777,7 +487,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON trans_table2 FOR EACH ROW
@@ -785,7 +494,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON trans_table2 FOR EACH ROW
@@ -793,7 +501,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON trans_table2 FOR EACH ROW
@@ -801,7 +508,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON non_trans_table2 FOR EACH ROW
@@ -809,7 +515,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON non_trans_table2 FOR EACH ROW
@@ -817,7 +522,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
@@ -825,7 +529,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON non_trans_table2 FOR EACH ROW
@@ -833,7 +536,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON non_trans_table2 FOR EACH ROW
@@ -841,7 +543,6 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON non_trans_table2 FOR EACH ROW
@@ -849,31 +550,30 @@ BEGIN
 INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
 BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 RETURN 0;
 END;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 START TRANSACTION;
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
 COMMIT;
 INSERT INTO trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM trans_table2 WHERE i=func1();
-Got one of the listed errors
 INSERT INTO non_trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE non_trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM non_trans_table2 WHERE i=func1();
-Got one of the listed errors
 DROP FUNCTION func1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON trans_table2 FOR EACH ROW
@@ -881,7 +581,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON trans_table2 FOR EACH ROW
@@ -889,7 +588,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON trans_table2 FOR EACH ROW
@@ -897,7 +595,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON trans_table2 FOR EACH ROW
@@ -905,7 +602,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON trans_table2 FOR EACH ROW
@@ -913,7 +609,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON trans_table2 FOR EACH ROW
@@ -921,7 +616,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON non_trans_table2 FOR EACH ROW
@@ -929,7 +623,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON non_trans_table2 FOR EACH ROW
@@ -937,7 +630,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
@@ -945,7 +637,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON non_trans_table2 FOR EACH ROW
@@ -953,7 +644,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON non_trans_table2 FOR EACH ROW
@@ -961,7 +651,6 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON non_trans_table2 FOR EACH ROW
@@ -969,31 +658,30 @@ BEGIN
 INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
 BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 RETURN 0;
 END;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 START TRANSACTION;
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
 COMMIT;
 INSERT INTO trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM trans_table2 WHERE i=func1();
-Got one of the listed errors
 INSERT INTO non_trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE non_trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM non_trans_table2 WHERE i=func1();
-Got one of the listed errors
 DROP FUNCTION func1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON trans_table2 FOR EACH ROW
@@ -1001,7 +689,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON trans_table2 FOR EACH ROW
@@ -1009,7 +696,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON trans_table2 FOR EACH ROW
@@ -1017,7 +703,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON trans_table2 FOR EACH ROW
@@ -1025,7 +710,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON trans_table2 FOR EACH ROW
@@ -1033,7 +717,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON trans_table2 FOR EACH ROW
@@ -1041,7 +724,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON non_trans_table2 FOR EACH ROW
@@ -1049,7 +731,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON non_trans_table2 FOR EACH ROW
@@ -1057,7 +738,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
@@ -1065,7 +745,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON non_trans_table2 FOR EACH ROW
@@ -1073,7 +752,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON non_trans_table2 FOR EACH ROW
@@ -1081,7 +759,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON non_trans_table2 FOR EACH ROW
@@ -1089,31 +766,30 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE FUNCTION func1 () RETURNS varchar(30) CHARSET utf8
 BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 RETURN 0;
 END;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 START TRANSACTION;
 SELECT func1();
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+func1()
+0
 COMMIT;
 INSERT INTO trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM trans_table2 WHERE i=func1();
-Got one of the listed errors
 INSERT INTO non_trans_table2 VALUES (func1());
-Got one of the listed errors
 UPDATE non_trans_table2 SET i=func1();
-Got one of the listed errors
 DELETE FROM non_trans_table2 WHERE i=func1();
-Got one of the listed errors
 DROP FUNCTION func1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON trans_table2 FOR EACH ROW
@@ -1121,7 +797,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON trans_table2 FOR EACH ROW
@@ -1129,7 +804,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 INSERT INTO trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON trans_table2 FOR EACH ROW
@@ -1137,7 +811,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON trans_table2 FOR EACH ROW
@@ -1145,7 +818,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 UPDATE trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON trans_table2 FOR EACH ROW
@@ -1153,7 +825,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON trans_table2 FOR EACH ROW
@@ -1161,7 +832,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 DELETE FROM trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE INSERT ON non_trans_table2 FOR EACH ROW
@@ -1169,7 +839,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER INSERT ON non_trans_table2 FOR EACH ROW
@@ -1177,7 +846,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 INSERT INTO non_trans_table2 VALUES (10);
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE UPDATE ON non_trans_table2 FOR EACH ROW
@@ -1185,7 +853,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER UPDATE ON non_trans_table2 FOR EACH ROW
@@ -1193,7 +860,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 UPDATE non_trans_table2 SET i=12;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 BEFORE DELETE ON non_trans_table2 FOR EACH ROW
@@ -1201,7 +867,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 CREATE TRIGGER trigger1
 AFTER DELETE ON non_trans_table2 FOR EACH ROW
@@ -1209,7 +874,6 @@ BEGIN
 CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 END;
 DELETE FROM non_trans_table2;
-Got one of the listed errors
 DROP TRIGGER trigger1;
 include/sync_slave_sql_with_master.inc
 [connection master]

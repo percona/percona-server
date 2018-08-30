@@ -17,9 +17,7 @@ CREATE DATABASE database_name_to_encrypt;
 USE database_name_to_encrypt;
 CREATE USER user_name_to_encrypt;
 GRANT ALL ON database_name_to_encrypt.* TO user_name_to_encrypt;
-SET PASSWORD FOR user_name_to_encrypt = PASSWORD('password_to_encrypt');
-Warnings:
-Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+SET PASSWORD FOR user_name_to_encrypt = 'password_to_encrypt';
 CREATE TABLE innodb_table_name_to_encrypt (
 int_column_name_to_encrypt INT PRIMARY KEY,
 timestamp_column_name_to_encrypt TIMESTAMP(6) NULL,
@@ -98,7 +96,7 @@ disconnect con1;
 connection server_1;
 CREATE INDEX index_name_to_encrypt
 ON myisam_table_name_to_encrypt (datetime_column_name_to_encrypt);
-ALTER DATABASE database_name_to_encrypt CHARACTER SET utf8;
+ALTER DATABASE database_name_to_encrypt CHARACTER SET utf8mb4;
 ALTER TABLE innodb_table_name_to_encrypt
 MODIFY timestamp_column_name_to_encrypt TIMESTAMP NOT NULL
 DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -156,9 +154,9 @@ DROP SERVER server_name_to_encrypt;
 #################
 # Let's make sure that master binlog files are not encrypted by finding some
 # plain texts that we know would appear in not encrypted binary log files.
-FOUND /_to_encrypt/ in master-bin.0*
-FOUND /COMMIT/ in master-bin.0*
-FOUND /TIMESTAMP/ in master-bin.0*
+Pattern "_to_encrypt" found
+Pattern "COMMIT" found
+Pattern "TIMESTAMP" found
 include/sync_slave_io_with_master.inc
 connection server_1;
 connection server_2;
@@ -171,9 +169,9 @@ connection server_2;
 connection server_2;
 # Here we try to find several plain texts that would appear in not encrypted binlog files.
 # The searches should fail as we expect the binlog files to be encrypted.
-NOT FOUND /_to_encrypt/ in slave-relay-bin.0*
-NOT FOUND /COMMIT/ in slave-relay-bin.0*
-NOT FOUND /TIMESTAMP/ in slave-relay-bin.0*
+Pattern "_to_encrypt" not found
+Pattern "COMMIT" not found
+Pattern "TIMESTAMP" not found
 #################
 # Slave binlog checks
 #################
@@ -187,9 +185,9 @@ connection server_2;
 connection server_2;
 connection server_2;
 connection server_2;
-NOT FOUND /_to_encrypt/ in slave-bin.0*
-NOT FOUND /COMMIT/ in slave-bin.0*
-NOT FOUND /TIMESTAMP/ in slave-bin.0*
+Pattern "_to_encrypt" not found
+Pattern "COMMIT" not found
+Pattern "TIMESTAMP" not found
 ##########
 # Cleanup
 ##########

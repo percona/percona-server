@@ -43,7 +43,6 @@
 --echo # Let's make sure that master binlog files are not encrypted by finding some
 --echo # plain texts that we know would appear in not encrypted binary log files.
 
---let SEARCH_ECHO=ALL
 --let SEARCH_FILE= $master_datadir/master-bin.0*
 --let SEARCH_PATTERN= _to_encrypt
 --source include/search_pattern.inc

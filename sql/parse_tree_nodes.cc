@@ -1211,6 +1211,8 @@ Sql_cmd *PT_call::make_cmd(THD *thd) {
 
   Parse_context pc(thd, lex->current_query_block());
 
+  if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
+
   if (opt_expr_list != nullptr && opt_expr_list->contextualize(&pc))
     return nullptr; /* purecov: inspected */
 
@@ -2317,6 +2319,8 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
 
   Parse_context pc(thd, lex->current_query_block());
 
+  if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
+
   Table_ref *table = pc.select->add_table_to_list(
       thd, table_name, nullptr, TL_OPTION_UPDATING, TL_WRITE, MDL_SHARED);
   if (table == nullptr) return nullptr;
@@ -3269,6 +3273,8 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd) {
   Table_ddl_parse_context pc(thd, thd->lex->current_query_block(),
                              &m_alter_info);
 
+  if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
+
   if (init_alter_table_stmt(&pc, m_table_name, m_algo, m_lock, m_validation))
     return nullptr;
 
@@ -3307,6 +3313,9 @@ Sql_cmd *PT_alter_table_standalone_stmt::make_cmd(THD *thd) {
 
   Table_ddl_parse_context pc(thd, thd->lex->current_query_block(),
                              &m_alter_info);
+
+  if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
+
   if (init_alter_table_stmt(&pc, m_table_name, m_algo, m_lock, m_validation) ||
       m_action->contextualize(&pc))
     return nullptr;
@@ -3339,6 +3348,9 @@ Sql_cmd *PT_analyze_table_stmt::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
   Query_block *const select = lex->current_query_block();
 
+  Parse_context pc(thd, select);
+  if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
+
   lex->no_write_to_binlog = m_no_write_to_binlog;
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
                          MDL_SHARED_READ))
@@ -3366,6 +3378,10 @@ Sql_cmd *PT_check_table_stmt::make_cmd(THD *thd) {
     return nullptr;
   }
 
+  Parse_context pc(thd, select);
+
+  if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
+
   lex->check_opt.flags |= m_flags;
   lex->check_opt.sql_flags |= m_sql_flags;
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
@@ -3383,6 +3399,11 @@ Sql_cmd *PT_optimize_table_stmt::make_cmd(THD *thd) {
   Query_block *const select = lex->current_query_block();
 
   lex->no_write_to_binlog = m_no_write_to_binlog;
+
+  Parse_context pc(thd, select);
+
+  if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
+
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
                          MDL_SHARED_READ))
     return nullptr;
@@ -3497,6 +3518,8 @@ Sql_cmd *PT_load_index_stmt::make_cmd(THD *thd) {
 
   Table_ddl_parse_context pc(thd, thd->lex->current_query_block(),
                              &m_alter_info);
+
+  if (m_opt_hints != nullptr && m_opt_hints->contextualize(&pc)) return nullptr;
 
   for (auto *preload_keys : *m_preload_list)
     if (preload_keys->contextualize(&pc)) return nullptr;

@@ -1126,22 +1126,27 @@ static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
                          "Use strict mode when evaluating create options.",
                          innodb_check_session_admin, nullptr, true);
 
-static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
+static MYSQL_THDVAR_BOOL(ft_enable_stopword,
+                         PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                          "Create FTS index with stopword.", nullptr, nullptr,
                          /* default */ true);
 
-static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_ULONG(lock_wait_timeout,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
                           "Timeout in seconds an InnoDB transaction may wait "
                           "for a lock before being rolled back. Values above "
                           "100000000 disable the timeout.",
                           nullptr, nullptr, 50, 1, 1024 * 1024 * 1024, 0);
 
 static MYSQL_THDVAR_STR(
-    ft_user_stopword_table, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
+    ft_user_stopword_table,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_HINTUPDATEABLE,
     "User supplied stopword table name, effective in the session level.",
     innodb_stopword_table_validate, nullptr, nullptr);
 
-static MYSQL_THDVAR_STR(tmpdir, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
+static MYSQL_THDVAR_STR(tmpdir,
+                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_HINTUPDATEABLE,
                         "Directory for temporary non-tablespace files.",
                         innodb_tmpdir_validate, nullptr, nullptr);
 

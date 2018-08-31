@@ -1824,7 +1824,7 @@ void THD::restore_globals() {
 
 // Resets stats in a THD.
 void THD::reset_stats(void) noexcept {
-  current_connect_time = time(nullptr);
+  current_connect_time = my_getsystime();
   last_global_update_time = current_connect_time;
   reset_diff_stats();
 }
@@ -1893,8 +1893,8 @@ void THD::update_stats(bool ran_command) noexcept {
      are already store in diff_total_*.
   */
 
-  busy_time = 0;
-  cpu_time = 0;
+  busy_time = 0.0;
+  cpu_time = 0.0;
   bytes_received = 0;
   bytes_sent = 0;
   binlog_bytes_written = 0;

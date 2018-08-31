@@ -2006,7 +2006,7 @@ done:
                           &thd->cpu_time);
     /* Updates THD stats and the global user stats. */
     thd->update_stats(true);
-    update_global_user_stats(thd, true, time(nullptr));
+    update_global_user_stats(thd, true, my_getsystime());
   }
 
   /* Finalize server status flags after executing a command. */
@@ -5193,7 +5193,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat) {
                           &thd->cpu_time);
     /* Updates THD stats and the global user stats. */
     thd->update_stats(true);
-    update_global_user_stats(thd, true, time(nullptr));
+    update_global_user_stats(thd, true, my_getsystime());
   }
 
   DBUG_VOID_RETURN;

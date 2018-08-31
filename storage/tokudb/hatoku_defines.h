@@ -153,6 +153,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 /* Bits for share->status */
 #define STATUS_PRIMARY_KEY_INIT 0x1
 
+// minimum allowable size for locktree a.k.a tokudb_max_lock_memory
+#define HA_TOKUDB_MIN_LOCK_MEMORY (1 << 17)  // 131077
+
 #if defined(TOKUDB_VERSION_MAJOR) && defined(TOKUDB_VERSION_MINOR)
 #define TOKUDB_PLUGIN_VERSION \
   ((TOKUDB_VERSION_MAJOR << 8) + TOKUDB_VERSION_MINOR)

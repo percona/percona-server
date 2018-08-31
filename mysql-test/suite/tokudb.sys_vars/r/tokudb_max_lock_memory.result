@@ -1,0 +1,7 @@
+CALL mtr.add_suppression("tokudb_max_lock_memory must be greater than*");
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/tokudb.max_lock_memory.err --tokudb_max_lock_memory=1
+Pattern "tokudb_max_lock_memory must be greater than" found
+include/assert.inc ["SELECT @@global.tokudb_max_lock_memory > 1"]
+# restart:--tokudb_max_lock_memory=0 --log-error-verbosity=3
+include/assert.inc ["SELECT @@global.tokudb_max_lock_memory > 0"]
+# restart

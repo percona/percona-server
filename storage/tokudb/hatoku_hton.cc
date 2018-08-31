@@ -392,6 +392,14 @@ static int tokudb_init_func(void *p) {
   }
   if (tokudb::sysvars::max_lock_memory == 0) {
     tokudb::sysvars::max_lock_memory = tokudb::sysvars::cache_size / 8;
+  } else if (tokudb::sysvars::max_lock_memory < HA_TOKUDB_MIN_LOCK_MEMORY) {
+    LogPluginErrMsg(WARNING_LEVEL, 0,
+                    "tokudb_max_lock_memory must be greater than %u.  The "
+                    "current set value of %llu is too small and is being set "
+                    "to %u.",
+                    HA_TOKUDB_MIN_LOCK_MEMORY, tokudb::sysvars::max_lock_memory,
+                    HA_TOKUDB_MIN_LOCK_MEMORY);
+    tokudb::sysvars::max_lock_memory = HA_TOKUDB_MIN_LOCK_MEMORY;
   }
   if (tokudb::sysvars::max_lock_memory) {
     DBUG_PRINT("info", ("tokudb_max_lock_memory: %lld\n",

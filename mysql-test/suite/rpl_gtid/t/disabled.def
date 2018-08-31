@@ -10,4 +10,4 @@
 #
 ##############################################################################
 rpl_gtid_delete_memory_table_after_start_server : BUG#24351040 29/8/2017 Ivo Roylev
-
+rpl_master_errors : https://jira.percona.com/browse/PS-4797

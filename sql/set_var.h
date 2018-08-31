@@ -285,7 +285,7 @@ class sys_var {
     @return true if the variable can be set using SET_VAR hint,
             false otherwise.
   */
-  bool is_hint_updateable() const { return flags & HINT_UPDATEABLE; }
+  virtual bool is_hint_updateable() const { return flags & HINT_UPDATEABLE; }
   /**
     the following is only true for keycache variables,
     that support the syntax @@keycache_name.variable_name
@@ -338,14 +338,14 @@ class sys_var {
   }
   void do_deprecated_warning(THD *thd);
   /**
-    Create item from system variable value.
+    Create item from system variable session value.
 
     @param  thd  pointer to THD object
 
     @return pointer to Item object or NULL if it's
             impossible to obtain the value.
   */
-  Item *copy_value(THD *thd);
+  virtual Item *copy_value(THD *thd);
 
   void save_default(THD *thd, set_var *var) { global_save_default(thd, var); }
 
@@ -686,8 +686,20 @@ class System_variable_tracker final {
     @returns true if the underlying variable can be referenced in the
              SET_VAR optimizer hint syntax, otherwise false.
   */
-  bool is_hint_updateable() const {
-    return m_tag == STATIC && m_static.m_static_var->is_hint_updateable();
+  bool is_hint_updateable(THD *thd) const {
+    if (m_tag == STATIC && m_static.m_static_var->is_hint_updateable())
+      return true;
+
+    if (m_tag == PLUGIN) {
+      auto f = [](const System_variable_tracker &, sys_var *var) {
+        return var->is_hint_updateable();
+      };
+
+      return access_system_variable<bool>(thd, f, Suppress_not_found_error::YES)
+          .value_or(false);
+    }
+
+    return false;
   }
 
   /**

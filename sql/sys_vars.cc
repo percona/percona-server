@@ -3255,9 +3255,9 @@ constexpr size_t max_mem_sz = std::numeric_limits<size_t>::max();
 static Sys_var_ulonglong Sys_histogram_generation_max_mem_size(
     "histogram_generation_max_mem_size",
     "Maximum amount of memory available for generating histograms",
-    SESSION_VAR(histogram_generation_max_mem_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1000000, max_mem_sz), DEFAULT(20000000), BLOCK_SIZE(1),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
+    HINT_UPDATEABLE SESSION_VAR(histogram_generation_max_mem_size),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(1000000, max_mem_sz), DEFAULT(20000000),
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
     ON_UPDATE(nullptr));
 
 /*
@@ -3505,7 +3505,7 @@ static Sys_var_uint Sys_port(
 static Sys_var_ulong Sys_preload_buff_size(
     "preload_buffer_size",
     "The size of the buffer that is allocated when preloading indexes",
-    SESSION_VAR(preload_buff_size), CMD_LINE(REQUIRED_ARG),
+    HINT_UPDATEABLE SESSION_VAR(preload_buff_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(32768), BLOCK_SIZE(1),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super));
 
@@ -5796,8 +5796,8 @@ static Sys_var_session_special Sys_warning_count(
 
 static Sys_var_ulong Sys_default_week_format(
     "default_week_format", "The default week format used by WEEK() functions",
-    SESSION_VAR(default_week_format), CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 7),
-    DEFAULT(0), BLOCK_SIZE(1));
+    HINT_UPDATEABLE SESSION_VAR(default_week_format), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, 7), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_group_concat_max_len(
     "group_concat_max_len",
@@ -7056,8 +7056,8 @@ static Sys_var_bool Sys_validate_user_plugins(
 
 static Sys_var_enum Sys_block_encryption_mode(
     "block_encryption_mode", "mode for AES_ENCRYPT/AES_DECRYPT",
-    SESSION_VAR(my_aes_mode), CMD_LINE(REQUIRED_ARG), my_aes_opmode_names,
-    DEFAULT(my_aes_128_ecb));
+    HINT_UPDATEABLE SESSION_VAR(my_aes_mode), CMD_LINE(REQUIRED_ARG),
+    my_aes_opmode_names, DEFAULT(my_aes_128_ecb));
 
 static bool check_track_session_sys_vars(sys_var *, THD *thd, set_var *var) {
   DBUG_TRACE;

@@ -2574,7 +2574,7 @@ done:
                           &thd->cpu_time);
     /* Updates THD stats and the global user stats. */
     thd->update_stats(true);
-    update_global_user_stats(thd, true, time(nullptr));
+    update_global_user_stats(thd, true, my_getsystime());
   }
 
   /* Finalize server status flags after executing a command. */
@@ -5687,7 +5687,7 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state,
                           &thd->cpu_time);
     /* Updates THD stats and the global user stats. */
     thd->update_stats(true);
-    update_global_user_stats(thd, true, time(nullptr));
+    update_global_user_stats(thd, true, my_getsystime());
   }
 
   DEBUG_SYNC(thd, "query_rewritten");

@@ -10199,7 +10199,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
 
     if (unlikely(opt_userstat)) {
       thd->update_stats(false);
-      update_global_user_stats(thd, true, time(nullptr));
+      update_global_user_stats(thd, true, my_getsystime());
     }
 
 #ifdef HAVE_PSI_STAGE_INTERFACE

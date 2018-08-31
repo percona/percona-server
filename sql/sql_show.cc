@@ -3814,9 +3814,9 @@ static int send_user_stats(THD *thd, const user_stats_t &all_user_stats,
                            system_charset_info);
     table->field[1]->store(user_stats->total_connections, true);
     table->field[2]->store(user_stats->concurrent_connections, true);
-    table->field[3]->store(user_stats->connected_time, true);
-    table->field[4]->store(static_cast<ulonglong>(user_stats->busy_time), true);
-    table->field[5]->store(static_cast<ulonglong>(user_stats->cpu_time), true);
+    table->field[3]->store(user_stats->connected_time);
+    table->field[4]->store(user_stats->busy_time);
+    table->field[5]->store(user_stats->cpu_time);
     table->field[6]->store(user_stats->bytes_received, true);
     table->field[7]->store(user_stats->bytes_sent, true);
     table->field[8]->store(user_stats->binlog_bytes_written, true);
@@ -3849,11 +3849,9 @@ static int send_thread_stats(THD *thd, const thread_stats_t &all_thread_stats,
     const THREAD_STATS *const thread_stats = &it.second;
     table->field[0]->store(thread_stats->id, true);
     table->field[1]->store(thread_stats->total_connections, true);
-    table->field[2]->store(thread_stats->connected_time, true);
-    table->field[3]->store(static_cast<ulonglong>(thread_stats->busy_time),
-                           true);
-    table->field[4]->store(static_cast<ulonglong>(thread_stats->cpu_time),
-                           true);
+    table->field[2]->store(thread_stats->connected_time);
+    table->field[3]->store(thread_stats->busy_time);
+    table->field[4]->store(thread_stats->cpu_time);
     table->field[5]->store(thread_stats->bytes_received, true);
     table->field[6]->store(thread_stats->bytes_sent, true);
     table->field[7]->store(thread_stats->binlog_bytes_written, true);

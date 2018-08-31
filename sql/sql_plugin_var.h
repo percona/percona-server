@@ -295,7 +295,21 @@ class sys_var_pluginvar : public sys_var {
   bool is_non_persistent() override {
     return (plugin_var->flags & PLUGIN_VAR_NOPERSIST);
   }
+  bool is_hint_updateable() const override {
+    return (plugin_var->flags & PLUGIN_VAR_HINTUPDATEABLE);
+  }
+
   void set_is_plugin(bool val) override { is_plugin = val; }
+
+  /**
+    Create item from plugin variable session value.
+
+    @param  thd  pointer to THD object
+
+    @return pointer to Item object or NULL if it's
+            impossible to obtain the value.
+  */
+  Item *copy_value(THD *thd) override;
 };
 
 /*

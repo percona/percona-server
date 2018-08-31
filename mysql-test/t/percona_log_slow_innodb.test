@@ -74,6 +74,18 @@ reap;
 --disconnect con2
 --connection default
 
+--echo #
+--echo # PS-4788: Setting log_slow_verbosity and enabling the slow_query_log could lead to a server crash
+--echo #
+
+SET @saved_slow_query_log = @@GLOBAL.slow_query_log;
+SET SESSION log_slow_verbosity='microtime,innodb,query_plan';
+SET @@GLOBAL.slow_query_log=1;
+--disable_result_log
+SELECT * FROM INFORMATION_SCHEMA.TABLES;
+--enable_result_log
+
+SET GLOBAL slow_query_log = @saved_slow_query_log;
 SET SESSION min_examined_row_limit=default;
 SET SESSION long_query_time=default;
 SET SESSION log_slow_verbosity=@old_log_slow_verbosity;

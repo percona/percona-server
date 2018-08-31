@@ -1378,12 +1378,8 @@ ENABLED_ROLES	information_schema.ENABLED_ROLES	1
 ENGINES	information_schema.ENGINES	1
 EVENTS	information_schema.EVENTS	1
 FILES	information_schema.FILES	1
-<<<<<<< HEAD
 GLOBAL_TEMPORARY_TABLES	information_schema.GLOBAL_TEMPORARY_TABLES	1
 INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
-KEYWORDS	information_schema.KEYWORDS	1
-=======
->>>>>>> mysql-8.0.14
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
 OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1

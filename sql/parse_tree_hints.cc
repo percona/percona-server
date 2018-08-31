@@ -541,7 +541,7 @@ bool PT_hint_sys_var::do_contextualize(Parse_context *pc) {
     return false;
   }
 
-  if (!var_tracker.is_hint_updateable()) {
+  if (!var_tracker.is_hint_updateable(pc->thd)) {
     String str;
     str.append(STRING_WITH_LEN("'"));
     str.append(sys_var_name.str, sys_var_name.length);

@@ -3094,9 +3094,9 @@ class THD : public MDL_context_owner,
     variables are reset to 0.
   */
   // Time when the current thread connected to MySQL.
-  time_t current_connect_time;
+  ulonglong current_connect_time;
   // Last time when THD stats were updated in global_user_stats.
-  time_t last_global_update_time;
+  ulonglong last_global_update_time;
   // Busy (non-idle) time for just one command.
   double busy_time{0.0};
   // Busy time not updated in global_user_stats yet.

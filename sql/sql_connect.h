@@ -102,9 +102,9 @@ struct THREAD_STATS {
   const my_thread_id id;
   uint total_connections{1};
   uint total_ssl_connections;
-  time_t connected_time{0};  // in seconds
-  double busy_time{0.0};     // in seconds
-  double cpu_time{0.0};      // in seconds
+  double connected_time{0.0};  // in seconds
+  double busy_time{0.0};       // in seconds
+  double cpu_time{0.0};        // in seconds
   ulonglong bytes_received{0};
   ulonglong bytes_sent{0};
   ulonglong binlog_bytes_written{0};
@@ -131,9 +131,9 @@ struct USER_STATS {
   uint total_ssl_connections;
   uint concurrent_connections{0};
   const size_t priv_user_len;
-  time_t connected_time{0};  // in seconds
-  double busy_time{0.0};     // in seconds
-  double cpu_time{0.0};      // in seconds
+  double connected_time{0.0};  // in seconds
+  double busy_time{0.0};       // in seconds
+  double cpu_time{0.0};        // in seconds
   ulonglong bytes_received{0};
   ulonglong bytes_sent{0};
   ulonglong binlog_bytes_written{0};
@@ -165,6 +165,6 @@ int get_or_create_user_conn(THD *thd, const char *user, const char *host,
                             const USER_RESOURCES *mqh);
 int check_for_max_user_connections(THD *thd, const USER_CONN *uc);
 // Uses the THD to update the global stats by user name and client IP
-void update_global_user_stats(THD *thd, bool create_user, time_t now);
+void update_global_user_stats(THD *thd, bool create_user, ulonglong now);
 
 #endif /* SQL_CONNECT_INCLUDED */

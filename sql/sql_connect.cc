@@ -299,8 +299,9 @@ static void increment_connection_count(const THD &thd, bool use_lock) {
 // Used to update the global user and client stats.
 static void update_global_user_stats_with_user(const THD &thd,
                                                USER_STATS *user_stats,
-                                               time_t now) noexcept {
-  user_stats->connected_time += now - thd.last_global_update_time;
+                                               ulonglong now) noexcept {
+  user_stats->connected_time +=
+      (now - thd.last_global_update_time) / 10000000.0;
   user_stats->busy_time += thd.diff_total_busy_time;
   user_stats->cpu_time += thd.diff_total_cpu_time;
   user_stats->bytes_received += thd.diff_total_bytes_received;
@@ -322,8 +323,9 @@ static void update_global_user_stats_with_user(const THD &thd,
 
 static void update_global_thread_stats_with_thread(const THD &thd,
                                                    THREAD_STATS *thread_stats,
-                                                   time_t now) noexcept {
-  thread_stats->connected_time += now - thd.last_global_update_time;
+                                                   ulonglong now) noexcept {
+  thread_stats->connected_time +=
+      (now - thd.last_global_update_time) / 10000000.0;
   thread_stats->busy_time += thd.diff_total_busy_time;
   thread_stats->cpu_time += thd.diff_total_cpu_time;
   thread_stats->bytes_received += thd.diff_total_bytes_received;
@@ -344,7 +346,7 @@ static void update_global_thread_stats_with_thread(const THD &thd,
 }
 
 // Updates the global stats of a user or client
-void update_global_user_stats(THD *thd, bool create_user, time_t now) {
+void update_global_user_stats(THD *thd, bool create_user, ulonglong now) {
   const char *user_string =
       get_valid_user_string(thd->m_main_security_ctx.user().str);
   const char *client_string = get_client_host(*thd);

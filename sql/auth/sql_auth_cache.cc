@@ -3431,7 +3431,7 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)
                             &m_db_acls, &m_db_wild_acls, &m_table_acls,
                             &m_sp_acls, &m_func_acls, &m_lib_acls,
                             &granted_roles, &m_with_admin_acls,
-                            &m_dynamic_privileges, m_restrictions);
+                            &m_dynamic_privileges, m_restrictions, false);
 }
 
 Acl_map::~Acl_map() {

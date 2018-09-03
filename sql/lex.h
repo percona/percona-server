@@ -220,6 +220,7 @@ static const SYMBOL symbols[] = {
     {SYM("DUPLICATE", DUPLICATE_SYM)},
     {SYM("DYNAMIC", DYNAMIC_SYM)},
     {SYM("EACH", EACH_SYM)},
+    {SYM("EFFECTIVE", EFFECTIVE_SYM)},
     {SYM("ELSE", ELSE)},
     {SYM("ELSEIF", ELSEIF_SYM)},
     {SYM("EMPTY", EMPTY_SYM)},

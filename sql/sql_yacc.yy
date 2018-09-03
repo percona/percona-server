@@ -1226,7 +1226,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> REFERENCE_SYM                 /* MYSQL */
 
 /*
-   Tokens from Percona Server, all versions
+   Tokens from Percona Server 5.7 and older
 */
 %token CHANGED_PAGE_BITMAPS_SYM
 %token<keyword> CLIENT_STATS_SYM
@@ -1244,6 +1244,11 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> TOKU_SMALL_SYM
 %token<keyword> TOKU_DEFAULT_SYM
 %token<keyword> USER_STATS_SYM
+
+/*
+   Tokens from Percona Server 8.0
+*/
+%token<keyword> EFFECTIVE_SYM
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -12572,17 +12577,32 @@ show_param:
           }
         | GRANTS
           {
-            auto *tmp= NEW_PTN PT_show_grants(0, 0);
+            auto *tmp= NEW_PTN PT_show_grants(0, 0, false);
             MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user
           {
-            auto *tmp= NEW_PTN PT_show_grants($3, 0);
+            auto *tmp= NEW_PTN PT_show_grants($3, 0, false);
             MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user USING user_list
           {
-            auto *tmp= NEW_PTN PT_show_grants($3, $5);
+            auto *tmp= NEW_PTN PT_show_grants($3, $5, false);
+            MAKE_CMD(tmp);
+          }
+        | EFFECTIVE_SYM GRANTS
+          {
+            auto *tmp= NEW_PTN PT_show_grants(0, 0, true);
+            MAKE_CMD(tmp);
+          }
+        | EFFECTIVE_SYM GRANTS FOR_SYM user
+          {
+            auto *tmp= NEW_PTN PT_show_grants($4, 0, true);
+            MAKE_CMD(tmp);
+          }
+        | EFFECTIVE_SYM GRANTS FOR_SYM user USING user_list
+          {
+            auto *tmp= NEW_PTN PT_show_grants($4, $6, true);
             MAKE_CMD(tmp);
           }
         | CREATE DATABASE opt_if_not_exists ident
@@ -13989,6 +14009,7 @@ role_or_label_keyword:
         | DUMPFILE
         | DUPLICATE_SYM
         | DYNAMIC_SYM
+        | EFFECTIVE_SYM
         | ENABLE_SYM
         | ENDS_SYM
         | ENGINES_SYM

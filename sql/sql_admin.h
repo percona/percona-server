@@ -357,11 +357,15 @@ class Sql_cmd_show_grants : public Sql_cmd {
 
   const LEX_USER *for_user;
   const List<LEX_USER> *using_users;
+  const bool effective_grants;
 
  public:
   Sql_cmd_show_grants(const LEX_USER *for_user_arg,
-                      const List<LEX_USER> *using_users_arg)
-      : for_user(for_user_arg), using_users(using_users_arg) {}
+                      const List<LEX_USER> *using_users_arg,
+                      bool effective_grants_arg)
+      : for_user(for_user_arg),
+        using_users(using_users_arg),
+        effective_grants(effective_grants_arg) {}
 
   virtual bool execute(THD *thd);
   virtual enum_sql_command sql_command_code() const {

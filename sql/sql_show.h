@@ -457,10 +457,12 @@ class Sql_cmd_show_events : public Sql_cmd_show_schema_base {
 class Sql_cmd_show_grants : public Sql_cmd_show_noplan {
  public:
   Sql_cmd_show_grants(const LEX_USER *for_user_arg,
-                      const List<LEX_USER> *using_users_arg)
+                      const List<LEX_USER> *using_users_arg,
+                      bool effective_grants_arg)
       : Sql_cmd_show_noplan(SQLCOM_SHOW_GRANTS),
         for_user(for_user_arg),
-        using_users(using_users_arg) {}
+        using_users(using_users_arg),
+        effective_grants(effective_grants_arg) {}
 
   bool check_privileges(THD *thd) override;
   bool execute_inner(THD *thd) override;
@@ -468,6 +470,7 @@ class Sql_cmd_show_grants : public Sql_cmd_show_noplan {
  private:
   const LEX_USER *for_user;
   const List<LEX_USER> *using_users;
+  const bool effective_grants;
 };
 
 /// Represents the SHOW INDEX statement.

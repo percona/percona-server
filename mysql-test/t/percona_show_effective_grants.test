@@ -36,6 +36,7 @@ GRANT ALL PRIVILEGES ON PROCEDURE db3.p1 TO grantee WITH GRANT OPTION;
 -- connect (con1, localhost, grantee,grantee1,)
 -- connection con1
 SELECT user(), current_user();
+SHOW EFFECTIVE GRANTS;
 SHOW GRANTS;
 USE db2;
 CREATE TABLE t1(f1 int);
@@ -51,3 +52,20 @@ DROP DATABASE db2;
 DROP DATABASE db3;
 DROP USER grantee@localhost;
 DROP USER grantee;
+
+
+#
+# Test SHOW EFFECTIVE GRANTS
+#
+CREATE DATABASE mysqltest;
+USE mysqltest;
+CREATE TABLE t1(f1 INT);
+CREATE USER mysqltest1@'%', mysqltest1@'192.%';
+GRANT UPDATE, DELETE ON mysqltest.t1 TO mysqltest1@'%';
+GRANT UPDATE(f1), SELECT ON mysqltest.t1 TO mysqltest1@'192.%';
+SHOW EFFECTIVE GRANTS FOR mysqltest1@'192.%';
+SHOW GRANTS FOR mysqltest1@'192.%';
+SHOW EFFECTIVE GRANTS FOR mysqltest1@'%';
+SHOW GRANTS FOR mysqltest1@'%';
+DROP USER mysqltest1@'%', mysqltest1@'192.%';
+DROP DATABASE mysqltest;

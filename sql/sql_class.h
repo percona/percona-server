@@ -1491,7 +1491,7 @@ class THD : public MDL_context_owner,
   }
 
   void access_distinct_page(ulong page_id) {
-    if (approx_distinct_pages.test_and_set(mem_root, page_id))
+    if (approx_distinct_pages.test_and_set(&main_mem_root, page_id))
       innodb_page_access++;
   }
 

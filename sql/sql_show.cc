@@ -552,7 +552,8 @@ bool Sql_cmd_show_grants::execute_inner(THD *thd) {
       const List_of_auth_id_refs *active_list =
           thd->security_context()->get_active_roles();
       return mysql_show_grants(thd, &current_user, *active_list,
-                               show_mandatory_roles, have_using_clause);
+                               show_mandatory_roles, have_using_clause,
+                               effective_grants);
     }
   } else if (strcmp(thd->security_context()->priv_user().str,
                     for_user->user.str) != 0) {
@@ -576,7 +577,7 @@ bool Sql_cmd_show_grants::execute_inner(THD *thd) {
   LEX_USER *tmp_user = const_cast<LEX_USER *>(for_user);
   tmp_user = get_current_user(thd, tmp_user);
   return mysql_show_grants(thd, tmp_user, authid_list, show_mandatory_roles,
-                           have_using_clause);
+                           have_using_clause, effective_grants);
 }
 
 bool Sql_cmd_show_binary_log_status::check_privileges(THD *thd) {

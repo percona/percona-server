@@ -809,7 +809,7 @@ ulong get_table_grant(THD *thd, Table_ref *table);
 ulong get_column_grant(THD *thd, GRANT_INFO *grant, const char *db_name,
                        const char *table_name, const char *field_name);
 bool mysql_show_grants(THD *, LEX_USER *, const List_of_auth_id_refs &, bool,
-                       bool);
+                       bool, bool);
 bool mysql_show_create_user(THD *thd, LEX_USER *user, bool are_both_users_same);
 bool mysql_revoke_all(THD *thd, List<LEX_USER> &list);
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,

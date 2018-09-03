@@ -281,7 +281,8 @@ void get_privilege_access_maps(
     Db_access_map *db_map, Db_access_map *db_wild_map,
     Table_access_map *table_map, SP_access_map *sp_map, SP_access_map *func_map,
     List_of_granted_roles *granted_roles, Grant_acl_set *with_admin_acl,
-    Dynamic_privileges *dynamic_acl, Restrictions &restrictions);
+    Dynamic_privileges *dynamic_acl, Restrictions &restrictions,
+    bool effective_grants);
 bool clear_default_roles(THD *thd, TABLE *table,
                          const Auth_id_ref &user_auth_id,
                          std::vector<Role_id> *default_roles);

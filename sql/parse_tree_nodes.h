@@ -3761,9 +3761,9 @@ class PT_show_function_code final : public PT_show_routine_code {
 class PT_show_grants final : public PT_show_base {
  public:
   PT_show_grants(const POS &pos, const LEX_USER *opt_for_user,
-                 const List<LEX_USER> *opt_using_users)
+                 const List<LEX_USER> *opt_using_users, bool effective_grants)
       : PT_show_base(pos, SQLCOM_SHOW_GRANTS),
-        sql_cmd(opt_for_user, opt_using_users) {
+        sql_cmd(opt_for_user, opt_using_users, effective_grants) {
     assert(opt_using_users == nullptr || opt_for_user != nullptr);
   }
 

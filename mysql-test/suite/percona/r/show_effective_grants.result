@@ -22,14 +22,17 @@ GRANT ALL PRIVILEGES ON PROCEDURE db3.p1 TO grantee WITH GRANT OPTION;
 SELECT user(), current_user();
 user()	current_user()
 grantee@localhost	grantee@localhost
+SHOW EFFECTIVE GRANTS;
+Effective grants for grantee@localhost
+GRANT USAGE ON *.* TO `grantee`@`localhost`
+GRANT ALL PRIVILEGES ON `db2`.* TO `grantee`@`localhost` WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON `db3`.`t1` TO `grantee`@`localhost` WITH GRANT OPTION
+GRANT SELECT (`a`) ON `db3`.`t2` TO `grantee`@`localhost` WITH GRANT OPTION
+GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `db3`.`p1` TO `grantee`@`localhost` WITH GRANT OPTION
+GRANT EXECUTE, ALTER ROUTINE ON FUNCTION `db3`.`f1` TO `grantee`@`localhost` WITH GRANT OPTION
 SHOW GRANTS;
 Grants for grantee@localhost
-GRANT USAGE ON *.* TO 'grantee'@'localhost'
-GRANT ALL PRIVILEGES ON `db2`.* TO 'grantee'@'%' WITH GRANT OPTION
-GRANT SELECT (a) ON `db3`.`t2` TO 'grantee'@'%' WITH GRANT OPTION
-GRANT ALL PRIVILEGES ON `db3`.`t1` TO 'grantee'@'%' WITH GRANT OPTION
-GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `db3`.`p1` TO 'grantee'@'%' WITH GRANT OPTION
-GRANT EXECUTE, ALTER ROUTINE ON FUNCTION `db3`.`f1` TO 'grantee'@'%' WITH GRANT OPTION
+GRANT USAGE ON *.* TO `grantee`@`localhost`
 USE db2;
 CREATE TABLE t1(f1 int);
 USE db3;
@@ -48,3 +51,27 @@ DROP DATABASE db2;
 DROP DATABASE db3;
 DROP USER grantee@localhost;
 DROP USER grantee;
+CREATE DATABASE mysqltest;
+USE mysqltest;
+CREATE TABLE t1(f1 INT);
+CREATE USER mysqltest1@'%', mysqltest1@'192.%';
+GRANT UPDATE, DELETE ON mysqltest.t1 TO mysqltest1@'%';
+GRANT UPDATE(f1), SELECT ON mysqltest.t1 TO mysqltest1@'192.%';
+SHOW EFFECTIVE GRANTS FOR mysqltest1@'192.%';
+Effective grants for mysqltest1@192.%
+GRANT USAGE ON *.* TO `mysqltest1`@`192.%`
+GRANT SELECT, UPDATE, UPDATE (`f1`), DELETE ON `mysqltest`.`t1` TO `mysqltest1`@`192.%`
+SHOW GRANTS FOR mysqltest1@'192.%';
+Grants for mysqltest1@192.%
+GRANT USAGE ON *.* TO `mysqltest1`@`192.%`
+GRANT SELECT, UPDATE (`f1`) ON `mysqltest`.`t1` TO `mysqltest1`@`192.%`
+SHOW EFFECTIVE GRANTS FOR mysqltest1@'%';
+Effective grants for mysqltest1@%
+GRANT USAGE ON *.* TO `mysqltest1`@`%`
+GRANT UPDATE, DELETE ON `mysqltest`.`t1` TO `mysqltest1`@`%`
+SHOW GRANTS FOR mysqltest1@'%';
+Grants for mysqltest1@%
+GRANT USAGE ON *.* TO `mysqltest1`@`%`
+GRANT UPDATE, DELETE ON `mysqltest`.`t1` TO `mysqltest1`@`%`
+DROP USER mysqltest1@'%', mysqltest1@'192.%';
+DROP DATABASE mysqltest;

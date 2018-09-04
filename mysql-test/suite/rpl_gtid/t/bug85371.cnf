@@ -1,18 +1,12 @@
 !include ../my.cnf
 
 [mysqld.1]
-enforce-gtid-consistency=ON
-gtid-mode=ON
 binlog-rows-query-log-events= ON
 
 [mysqld.2]
-enforce-gtid-consistency=ON
-gtid-mode=ON
 binlog-rows-query-log-events= ON
 
 [mysqld.3]
-enforce-gtid-consistency=ON
-gtid-mode=ON
 binlog-rows-query-log-events= ON
 
 [ENV]

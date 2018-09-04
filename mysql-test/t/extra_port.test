@@ -5,7 +5,7 @@ call mtr.add_suppression("Too many connections");
 
 CREATE USER nonprivuser@localhost;
 
-SELECT VARIABLE_VALUE INTO @cemc_1 FROM performance_schema.GLOBAL_STATUS
+SELECT VARIABLE_VALUE INTO @cemc_1 FROM performance_schema.global_status
        WHERE VARIABLE_NAME='Connection_errors_max_connections';
 SHOW GLOBAL STATUS LIKE 'Threads_connected';
 

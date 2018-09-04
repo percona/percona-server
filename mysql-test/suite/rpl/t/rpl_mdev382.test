@@ -118,8 +118,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_regex /LOCAL INFILE '.*SQL_LOAD.*' INTO/LOCAL INFILE '<name>' INTO/
 --let $mysqlbinlog_parameters=--short-form --start-position=$binlog_start --stop-position=$pos2 $MYSQLD_DATADIR/master-bin.000001
 --source include/mysqlbinlog.inc
---remove_file $MYSQL_TMP_DIR/SQL_LOAD_MB-2-0
---remove_file $MYSQL_TMP_DIR/SQL_LOAD_MB-3-0
+--remove_files_wildcard $MYSQL_TMP_DIR SQL_LOAD_MB*
 
 sync_slave_with_master;
 connection slave;
@@ -172,7 +171,8 @@ let $pos2= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 --source include/show_binlog_events.inc
 
---exec $MYSQL_BINLOG --short-form --start-position=$binlog_start --stop-position=$pos2 $MYSQLD_DATADIR/master-bin.000001
+--let $mysqlbinlog_parameters=--short-form --start-position=$binlog_start --stop-position=$pos2 $MYSQLD_DATADIR/master-bin.000001
+--source include/mysqlbinlog.inc
 
 sync_slave_with_master;
 connection slave;

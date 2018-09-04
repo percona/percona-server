@@ -268,17 +268,18 @@ master-bin.000001	#	User var	#	#	@```c`=-123450123456789012345678901234567890123
 master-bin.000001	#	User var	#	#	@```d```=_utf8mb4 0x78787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878 COLLATE utf8mb4_0900_ai_ci
 master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/mysqlbinlog.inc
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-# original_commit_timestamp=1535546878271762 (2018-08-29 15:47:58.271762 GMT)
-# immediate_commit_timestamp=1535546878271762 (2018-08-29 15:47:58.271762 GMT)
-/*!80001 SET @@session.original_commit_timestamp=1535546878271762*//*!*/;
-SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
 use `db1``; select 'oops!'`/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
+SET TIMESTAMP=#/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
@@ -289,22 +290,22 @@ SET @@session.collation_database=DEFAULT/*!*/;
 /*!80005 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
 CREATE TABLE t1 (a1 BIGINT PRIMARY KEY, a2 BIGINT, a3 BIGINT, a4 BIGINT UNSIGNED, b DOUBLE, c DECIMAL(65,10), d VARCHAR(100))
 /*!*/;
-# original_commit_timestamp=1535546878279942 (2018-08-29 15:47:58.279942 GMT)
-# immediate_commit_timestamp=1535546878279942 (2018-08-29 15:47:58.279942 GMT)
-/*!80001 SET @@session.original_commit_timestamp=1535546878279942*//*!*/;
-SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
-SET TIMESTAMP=1000000000/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES (-9223372036854775808,42,9223372036854775807,18446744073709551615,-1234560123456789e110, -1234501234567890123456789012345678901234567890123456789.0123456789, REPEAT("x", 100))
 /*!*/;
 COMMIT/*!*/;
-# original_commit_timestamp=1535546878282958 (2018-08-29 15:47:58.282958 GMT)
-# immediate_commit_timestamp=1535546878282958 (2018-08-29 15:47:58.282958 GMT)
-/*!80001 SET @@session.original_commit_timestamp=1535546878282958*//*!*/;
-SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
 SET @`a``1`:=-9223372036854775808/*!*/;
@@ -314,11 +315,11 @@ SET @`a``4`:=18446744073709551615/*!*/;
 SET @`b```:=-1.2345601234568e+125/*!*/;
 SET @```c`:=-1234501234567890123456789012345678901234567890123456789.0123456789/*!*/;
 SET @```d```:=_utf8mb4 0x78787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878 COLLATE `utf8mb4_0900_ai_ci`/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
+SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98))
 /*!*/;
 COMMIT/*!*/;
-SET @@SESSION.GTID_NEXT= 'AUTOMATIC' /* added by mysqlbinlog */ /*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;

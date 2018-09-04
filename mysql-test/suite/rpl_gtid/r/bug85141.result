@@ -44,22 +44,22 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 # Step 4: syncing server_3(C) with server_1(A) and capturing initial value of IO waits
 #
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 # t1 records on server_3(C) after syncing with server_1(A) must match
 include/rpl_diff.inc
 #
 # Step 5: starting slave on server_2(B) and syncing server_2(B) with server_1(A)
 #
 [connection server_2]
-include/start_slave.inc
+include/start_slave.inc [FOR CHANNEL 'channel_1']
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 # t1 records on server_2(B) after syncing with server_1(A) must match
 include/rpl_diff.inc
 #
 # Step 6: syncing server_3(C) with server_2(B)
 #
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 # t1 records on server_3(C) after syncing with server_2(B) must match
 include/rpl_diff.inc
 include/assert.inc [number of IO waits for "slave_relay_log_info" must not change]
@@ -69,13 +69,13 @@ include/assert.inc [number of IO waits for "slave_master_info" must not change]
 #
 [connection server_1]
 DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_2']
 [connection server_2]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 DELETE FROM performance_schema.setup_objects WHERE object_type = 'TABLE' AND object_schema = 'mysql' AND object_name = 'slave_relay_log_info';
 DELETE FROM performance_schema.setup_objects WHERE object_type = 'TABLE' AND object_schema = 'mysql' AND object_name = 'slave_master_info';
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_2';
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_2';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';

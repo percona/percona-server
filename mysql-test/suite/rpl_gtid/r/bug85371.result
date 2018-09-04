@@ -15,17 +15,17 @@ INSERT INTO t1 (a) VALUES (6), (7), (8), (9), (10);
 DROP TABLE t1;
 ### sync the server_3 with server_1
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 ### sync the server_2 with server_3
 [connection server_3]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 ### sync the server_2 with server_1
 ### here crash must take place if the bug is not fixed
 [connection server_1]
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 ### finish replication
 [connection server_1]
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_3';
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';

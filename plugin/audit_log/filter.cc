@@ -36,7 +36,7 @@ static std::string make_account_string(const char *user, size_t user_length,
 
 static std::string make_command_string(const char *name, size_t length) {
   std::string result(name, length);
-  my_casedn_str(&my_charset_utf8_general_ci, const_cast<char *>(result.data()));
+  std::transform(result.begin(), result.end(), result.begin(), ::tolower);
   result.shrink_to_fit();
   return result;
 }
@@ -51,7 +51,7 @@ using db_set_t = collation_unordered_set<std::string>;
 static db_set_t *include_databases;
 static db_set_t *exclude_databases;
 
-using command_set_t = collation_unordered_set<std::string>;
+using command_set_t = malloc_unordered_set<std::string>;
 
 static command_set_t *include_commands;
 static command_set_t *exclude_commands;
@@ -175,20 +175,22 @@ static void database_list_from_string(db_set_t *db_set, const char *string) {
 */
 static void command_list_from_string(command_set_t *command_set,
                                      const char *string) {
-  const char *entry = string;
+  std::string lcase_str(string);
+  std::transform(lcase_str.begin(), lcase_str.end(), lcase_str.begin(),
+                 ::tolower);
 
   command_set->clear();
 
-  while (*entry) {
-    size_t len = 0;
-
-    while (*entry == ' ' || *entry == ',') entry++;
-
-    while (entry[len] != ' ' && entry[len] != ',' && entry[len] != 0) len++;
-
-    if (len > 0) command_set->emplace(entry, len);
-
-    entry += len;
+  auto it = lcase_str.cbegin();
+  while (it != lcase_str.cend()) {
+    std::string::size_type len = 0;
+    while (it != lcase_str.cend() && (*it == ' ' || *it == ',')) it++;
+    while (it + len != lcase_str.cend() && it[len] != ' ' && it[len] != ',')
+      len++;
+    if (len > 0) {
+      command_set->emplace(&(*it), len);
+      it += len;
+    }
   }
 }
 
@@ -215,11 +217,9 @@ void audit_log_filter_init() {
   exclude_databases =
       new db_set_t(&my_charset_bin, key_memory_audit_log_databases);
 
-  include_commands =
-      new command_set_t(&my_charset_bin, key_memory_audit_log_commands);
+  include_commands = new command_set_t(key_memory_audit_log_commands);
 
-  exclude_commands =
-      new command_set_t(&my_charset_bin, key_memory_audit_log_commands);
+  exclude_commands = new command_set_t(key_memory_audit_log_commands);
 }
 
 void audit_log_filter_destroy() noexcept {

@@ -64,12 +64,14 @@ CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a, b) V
 INSERT INTO t1 VALUES (5,5);
 CALL p1();
 SET GLOBAL keycache1.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 CACHE INDEX t1 IN keycache1;
 Table	Op	Msg_type	Msg_text
 db1.t1	assign_to_keycache	status	OK
 ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
-ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Unknown database '#mysql50#a-b-c'
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE test;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
@@ -86,12 +88,14 @@ CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a, b) V
 INSERT INTO t1 VALUES (5,5);
 CALL p1();
 SET GLOBAL keycache1.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 CACHE INDEX t1 IN keycache1;
 Table	Op	Msg_type	Msg_text
 db1.t1	assign_to_keycache	status	OK
 ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
-ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Unknown database '#mysql50#a-b-c'
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE test;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
@@ -108,12 +112,14 @@ CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a, b) V
 INSERT INTO t1 VALUES (5,5);
 CALL p1();
 SET GLOBAL keycache1.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 CACHE INDEX t1 IN keycache1;
 Table	Op	Msg_type	Msg_text
 db1.t1	assign_to_keycache	status	OK
 ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
-ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Unknown database '#mysql50#a-b-c'
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE test;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
@@ -131,12 +137,14 @@ CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 (a, b) V
 INSERT INTO t1 VALUES (5,5);
 CALL p1();
 SET GLOBAL keycache1.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 CACHE INDEX t1 IN keycache1;
 Table	Op	Msg_type	Msg_text
 db1.t1	assign_to_keycache	status	OK
 ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
-ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: Unknown database '#mysql50#a-b-c'
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE test;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
@@ -163,9 +171,10 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","call_procedure","<CONN_ID>",0,"INSERT INTO t1 (a, b) VALUES (1, 1)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","call_procedure","<CONN_ID>",0,"CALL p1()","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL keycache1.key_buffer_size=128*1024","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","assign_to_keycache","<CONN_ID>",0,"CACHE INDEX t1 IN keycache1","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","alter_db","<CONN_ID>",0,"ALTER DATABASE db1 DEFAULT CHARACTER SET utf8","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","alter_db_upgrade","<CONN_ID>",1049,"ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE test","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.t1","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_db","<CONN_ID>",0,"DROP DATABASE db1","root[root] @ localhost []","localhost","","","test"
@@ -188,7 +197,6 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL keycache1.key_buffer_size=128*1024","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","assign_to_keycache","<CONN_ID>",0,"CACHE INDEX t1 IN keycache1","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","alter_db","<CONN_ID>",0,"ALTER DATABASE db1 DEFAULT CHARACTER SET utf8","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","alter_db_upgrade","<CONN_ID>",1049,"ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE test","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.t1","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_db","<CONN_ID>",0,"DROP DATABASE db1","root[root] @ localhost []","localhost","","","test"
@@ -198,10 +206,11 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL keycache1.key_buffer_size=128*1024","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","assign_to_keycache","<CONN_ID>",0,"CACHE INDEX t1 IN keycache1","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","alter_db","<CONN_ID>",0,"ALTER DATABASE db1 DEFAULT CHARACTER SET utf8","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","alter_db_upgrade","<CONN_ID>",1049,"ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE test","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_commands= NULL","root[root] @ localhost []","localhost","","","test"
 "Ping","<ID>","<DATETIME>","error","<CONN_ID>",0,"","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","show_warnings","<CONN_ID>",0,"SHOW WARNINGS","root[root] @ localhost []","localhost","","","db1"
 "Ping","<ID>","<DATETIME>","error","<CONN_ID>",0,"","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_commands= NULL","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_commands= NULL","root[root] @ localhost []","localhost","","","test"

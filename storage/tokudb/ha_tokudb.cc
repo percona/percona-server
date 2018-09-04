@@ -383,19 +383,6 @@ static inline bool is_replace_into(THD *thd) {
   return thd->lex->duplicates == DUP_REPLACE;
 }
 
-static inline bool do_ignore_flag_optimization(THD *thd, TABLE *table,
-                                               bool opt_eligible) {
-  bool do_opt = false;
-  if (opt_eligible && (is_replace_into(thd) || is_insert_ignore(thd)) &&
-      !table->triggers &&
-      !(thd->is_current_stmt_binlog_disabled() &&
-        thd->variables.binlog_format != BINLOG_FORMAT_STMT)) {
-    do_opt = true;
-  }
-
-  return do_opt;
-}
-
 ulonglong ha_tokudb::table_flags() const {
   return int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 }
@@ -1414,35 +1401,6 @@ exit:
   return error;
 }
 
-bool ha_tokudb::can_replace_into_be_fast(TABLE_SHARE *table_share,
-                                         KEY_AND_COL_INFO *kc_info, uint pk) {
-  uint curr_num_DBs = table_share->keys + tokudb_test(hidden_primary_key);
-  bool ret_val;
-  if (curr_num_DBs == 1) {
-    ret_val = true;
-    goto exit;
-  }
-  ret_val = true;
-  for (uint curr_index = 0; curr_index < table_share->keys; curr_index++) {
-    if (curr_index == pk) continue;
-    KEY *curr_key_info = &table_share->key_info[curr_index];
-    for (uint i = 0; i < curr_key_info->user_defined_key_parts; i++) {
-      uint16 curr_field_index = curr_key_info->key_part[i].field->field_index;
-      if (!bitmap_is_set(&kc_info->key_filters[curr_index], curr_field_index)) {
-        ret_val = false;
-        goto exit;
-      }
-      if (bitmap_is_set(&kc_info->key_filters[curr_index], curr_field_index) &&
-          !bitmap_is_set(&kc_info->key_filters[pk], curr_field_index)) {
-        ret_val = false;
-        goto exit;
-      }
-    }
-  }
-exit:
-  return ret_val;
-}
-
 int ha_tokudb::initialize_share(const char *name, int mode) {
   int error = 0;
   uint64_t num_rows = 0;
@@ -1527,8 +1485,6 @@ int ha_tokudb::initialize_share(const char *name, int mode) {
       }
     }
   }
-  share->replace_into_fast =
-      can_replace_into_be_fast(table_share, &share->kc_info, primary_key);
 
   share->pk_has_string = false;
   if (!hidden_primary_key) {
@@ -3473,32 +3429,13 @@ void ha_tokudb::test_row_packing(uchar *record, DBT *pk_key, DBT *pk_val) {
 // set the put flags for the main dictionary
 void ha_tokudb::set_main_dict_put_flags(THD *thd, uint32_t *put_flags) {
   uint32_t old_prelock_flags = 0;
-  uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
-  bool in_hot_index = share->num_DBs > curr_num_DBs;
-  bool using_ignore_flag_opt = do_ignore_flag_optimization(
-      thd, table, share->replace_into_fast && !using_ignore_no_key);
-  //
-  // optimization for "REPLACE INTO..." (and "INSERT IGNORE") command
-  // if the command is "REPLACE INTO" and the only table
-  // is the main table (or all indexes are a subset of the pk),
-  // then we can simply insert the element
-  // with DB_YESOVERWRITE. If the element does not exist,
-  // it will act as a normal insert, and if it does exist, it
-  // will act as a replace, which is exactly what REPLACE INTO is supposed
-  // to do. We cannot do this if otherwise, because then we lose
-  // consistency between indexes
-  //
+
   if (hidden_primary_key) {
     *put_flags = old_prelock_flags;
   } else if (!do_unique_checks(thd, in_rpl_write_rows | in_rpl_update_rows) &&
              !is_replace_into(thd) && !is_insert_ignore(thd)) {
     *put_flags = old_prelock_flags;
-  } else if (using_ignore_flag_opt && is_replace_into(thd) && !in_hot_index) {
-    *put_flags = old_prelock_flags;
   } else {
-    // GL on DB-937 : The server expects an SE to return ER_DUP_ENTRY on a
-    // dup key hit even when IGNORE is in use. This is so the server can
-    // set the correct warnings on the statement.
     *put_flags = DB_NOOVERWRITE | old_prelock_flags;
   }
 }
@@ -3600,11 +3537,9 @@ int ha_tokudb::write_row(uchar *record) {
   int error;
   THD *thd = ha_thd();
   bool has_null;
-  DB_TXN *sub_trans = NULL;
   DB_TXN *txn = NULL;
   tokudb_trx_data *trx = NULL;
   uint curr_num_DBs;
-  bool create_sub_trans = false;
   bool num_DBs_locked = false;
 
   //
@@ -3673,18 +3608,7 @@ int ha_tokudb::write_row(uchar *record) {
     goto cleanup;
   }
 
-  create_sub_trans =
-      (using_ignore &&
-       !(do_ignore_flag_optimization(
-           thd, table, share->replace_into_fast && !using_ignore_no_key)));
-  if (create_sub_trans) {
-    error =
-        txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION, thd);
-    if (error) {
-      goto cleanup;
-    }
-  }
-  txn = create_sub_trans ? sub_trans : transaction;
+  txn = transaction;
   TOKUDB_HANDLER_TRACE_FOR_FLAGS(TOKUDB_DEBUG_TXN, "txn %p", txn);
   if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_CHECK_KEY))) {
     test_row_packing(record, &prim_key, &row);
@@ -3748,16 +3672,7 @@ cleanup:
   if (error == DB_KEYEXIST) {
     error = HA_ERR_FOUND_DUPP_KEY;
   }
-  if (sub_trans) {
-    // no point in recording error value of abort.
-    // nothing we can do about it anyway and it is not what
-    // we want to return.
-    if (error) {
-      abort_txn(sub_trans);
-    } else {
-      commit_txn(sub_trans, DB_TXN_NOSYNC);
-    }
-  }
+
   TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 

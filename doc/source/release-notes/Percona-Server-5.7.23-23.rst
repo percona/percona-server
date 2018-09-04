@@ -5,7 +5,7 @@ Percona Server |release|
 ========================
 
 Percona is glad to announce the release of Percona Server |release| on
-September 3, 2018. Downloads are available `here
+September 10, 2018. Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.23-23/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 
@@ -27,11 +27,13 @@ New Features
 * Starting with |release|, all data are encrypted in the InnoDB system
   tablespace and in the parallel double write buffer. A new variable
   :variable:`innodb_sys_tablespace_encrypt` is introduced to encrypt the system
-  tablespace. The encryption of the parallel double write buffer file is
-  controlled by the variable :variable:`innodb_parallel_dblwr_encrypt`. Both
-  variables are ``OFF`` by default. For more information, see :psbug:`3822`.
-* Changing ``rocksdb_update_cf_options`` shows warnings and errors in the
-  client. For more information, see :psbug:`4258`.
+  tablespace. This feature is considered **ALPHA** quality. The encryption of
+  the parallel double write buffer file is controlled by the variable
+  :variable:`innodb_parallel_dblwr_encrypt`. Both variables are ``OFF`` by
+  default. For more information, see :psbug:`3822`.
+* Changing ``rocksdb_update_cf_options`` returns any warnings and errors to the
+  client instead of printing them to the server error log. For more information,
+  see :psbug:`4258`.
 	
 Bugs Fixed
 ==========

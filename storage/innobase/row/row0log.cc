@@ -479,6 +479,7 @@ void row_log_online_op(
     IORequest request(IORequest::WRITE);
     const os_offset_t byte_offset =
         (os_offset_t)log->tail.blocks * srv_sort_buf_size;
+    byte *buf = log->tail.block;
 
     if (byte_offset + srv_sort_buf_size >= srv_online_max_size) {
       goto write_failed;
@@ -509,10 +510,11 @@ void row_log_online_op(
       }
 
       srv_stats.n_rowlog_blocks_encrypted.inc();
+      buf = log->crypt_tail;
     }
 
-    err = os_file_write_int_fd(request, "(modification log)", log->fd,
-                               log->tail.block, byte_offset, srv_sort_buf_size);
+    err = os_file_write_int_fd(request, "(modification log)", log->fd, buf,
+                               byte_offset, srv_sort_buf_size);
 
     log->tail.blocks++;
     if (err != DB_SUCCESS) {

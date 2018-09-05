@@ -61,6 +61,7 @@
 #include "rocksdb/utilities/convenience.h"
 #include "rocksdb/utilities/memory_util.h"
 #include "rocksdb/utilities/sim_cache.h"
+#include "rocksdb/utilities/write_batch_with_index.h"
 #include "util/stop_watch.h"
 
 /* MyRocks includes */
@@ -1867,6 +1868,7 @@ class Rdb_transaction {
   std::shared_ptr<Rdb_snapshot_notifier> m_notifier;
 
   // This should be used only when updating binlog information.
+  virtual rocksdb::WriteBatchBase *get_write_batch() = 0;
   virtual bool commit_no_binlog() = 0;
   virtual rocksdb::Iterator *
   get_iterator(const rocksdb::ReadOptions &options,
@@ -2365,15 +2367,26 @@ public:
     Called when a "top-level" statement inside a transaction completes
     successfully and its changes become part of the transaction's changes.
   */
-  void make_stmt_savepoint_permanent() {
+  int make_stmt_savepoint_permanent() {
 
     // Take another RocksDB savepoint only if we had changes since the last
     // one. This is very important for long transactions doing lots of
     // SELECTs.
     if (m_writes_at_last_savepoint != m_write_count) {
+      rocksdb::WriteBatchBase *batch = get_write_batch();
+      rocksdb::Status status = rocksdb::Status::NotFound();
+      while ((status = batch->PopSavePoint()) == rocksdb::Status::OK()) {
+      }
+
+      if (status != rocksdb::Status::NotFound()) {
+        return HA_EXIT_FAILURE;
+      }
+
       do_set_savepoint();
       m_writes_at_last_savepoint = m_write_count;
     }
+
+    return HA_EXIT_SUCCESS;
   }
 
   /*
@@ -2618,6 +2631,10 @@ public:
     return m_rocksdb_tx->GetWriteBatch() &&
            m_rocksdb_tx->GetWriteBatch()->GetWriteBatch() &&
            m_rocksdb_tx->GetWriteBatch()->GetWriteBatch()->Count() > 0;
+  }
+
+  rocksdb::WriteBatchBase *get_write_batch() override {
+    return m_rocksdb_tx->GetCommitTimeWriteBatch();
   }
 
   /*
@@ -2884,6 +2901,8 @@ error:
   bool has_modifications() const override {
     return m_batch->GetWriteBatch()->Count() > 0;
   }
+
+  rocksdb::WriteBatchBase *get_write_batch() override { return m_batch; }
 
   rocksdb::WriteBatchBase *get_indexed_write_batch() override {
     ++m_write_count;

@@ -68,12 +68,20 @@ bool Auto_THD::handle_condition(
   else if (*level == Sql_condition::SL_NOTE)
     log_err_level = INFORMATION_LEVEL;
 
-  LogEvent()
-      .type(LOG_TYPE_ERROR)
-      .prio(log_err_level)
-      .sqlstate(sqlstate)
-      .errcode(ER_SERVER_NO_SESSION_TO_SEND_TO)  // override if exists
-      .lookup(ER_SERVER_NO_SESSION_TO_SEND_TO, sql_errno, msg);
+  if (sql_errno == ER_AUDIT_API_ABORT)
+    LogEvent()
+        .type(LOG_TYPE_ERROR)
+        .prio(log_err_level)
+        .sqlstate(sqlstate)
+        .errcode(sql_errno)
+        .verbatim(msg);
+  else
+    LogEvent()
+        .type(LOG_TYPE_ERROR)
+        .prio(log_err_level)
+        .sqlstate(sqlstate)
+        .errcode(ER_SERVER_NO_SESSION_TO_SEND_TO)  // override if exists
+        .lookup(ER_SERVER_NO_SESSION_TO_SEND_TO, sql_errno, msg);
 
   return false;
 }

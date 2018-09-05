@@ -16,6 +16,7 @@
 
 #include "filter.h"
 
+#include <algorithm>
 #include "audit_log.h"
 #include "m_ctype.h"
 #include "map_helpers.h"

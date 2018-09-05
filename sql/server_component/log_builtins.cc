@@ -1322,7 +1322,8 @@ int log_line_submit(log_line *ll) {
       const int n = log_line_index_by_type(ll, LOG_ITEM_SQL_ERRCODE);
       if (n >= 0) {
         const int ec = (int)ll->item[n].data.data_integer;
-        assert((ec < 1) || (ec >= EE_ERROR_FIRST && ec <= EE_ERROR_LAST) ||
+        assert((ec < 1) || (ec == ER_AUDIT_API_ABORT) ||
+               (ec >= EE_ERROR_FIRST && ec <= EE_ERROR_LAST) ||
                (ec >= ER_SERVER_RANGE_START));
       }
     }

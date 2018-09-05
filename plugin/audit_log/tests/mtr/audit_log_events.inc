@@ -88,10 +88,15 @@ insert into sa_t1 values (1), (2);
 drop table sa_t1;
 drop database sa_db;
 connection default;
-create user 'jeffrey'@'localhost' IDENTIFIED BY 'mypass';
-drop user 'jeffrey'@'localhost';
+# IDENTIFIED BY will be logged as IDENTIFIED ... AS, containing control chars
+if ($test_control_chars) {
+  create user 'jeffrey'@'localhost' IDENTIFIED BY 'mypass';
+  drop user 'jeffrey'@'localhost';
+}
 select '&;&&&""""<><<>>>>';
-let $str=`SELECT x'2009080c0a0d2f225c5c'`;
-eval select '$str';
+if ($test_control_chars) {
+  let $str=`SELECT x'2009080c0a0d2f225c5c'`;
+  eval select '$str';
+}
 disconnect con1;
 --source include/wait_until_count_sessions.inc

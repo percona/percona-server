@@ -207,18 +207,20 @@ static void escape_buf(const char *in, size_t *inlen, char *out, size_t *outlen,
 
 static void xml_escape(const char *in, size_t *inlen, char *out,
                        size_t *outlen) noexcept {
-  // Most control sequences aren't supported before XML 1.1, and most
-  // tools only support 1.0. Our output is 1.0. Escaping them wouldn't make
-  // the output more valid.
+  // Although most control sequences aren't supported in XML 1.0, we are better
+  // off printing them anyway instead of the original control characters
   static const escape_rule_t control_rules[] = {
-      {0, 0, nullptr}, {0, 0, nullptr},    {0, 0, nullptr},    {0, 0, nullptr},
-      {0, 0, nullptr}, {0, 0, nullptr},    {0, 0, nullptr},    {0, 0, nullptr},
-      {0, 0, nullptr}, {'\t', 5, "&#9;"},  {'\n', 6, "&#10;"}, {0, 0, nullptr},
-      {0, 0, nullptr}, {'\r', 6, "&#13;"}, {0, 0, nullptr},    {0, 0, nullptr},
-      {0, 0, nullptr}, {0, 0, nullptr},    {0, 0, nullptr},    {0, 0, nullptr},
-      {0, 0, nullptr}, {0, 0, nullptr},    {0, 0, nullptr},    {0, 0, nullptr},
-      {0, 0, nullptr}, {0, 0, nullptr},    {0, 0, nullptr},    {0, 0, nullptr},
-      {0, 0, nullptr}, {0, 0, nullptr},    {0, 0, nullptr},    {0, 0, nullptr},
+      {0, 1, "?"},       {1, 4, "&#1;"},     {2, 4, "&#2;"},
+      {3, 4, "&#3;"},    {4, 4, "&#4;"},     {5, 4, "&#5;"},
+      {6, 4, "&#6;"},    {7, 4, "&#7;"},     {8, 4, "&#8;"},
+      {'\t', 4, "&#9;"}, {'\n', 5, "&#10;"}, {11, 5, "&#11;"},
+      {12, 5, "&#12;"},  {'\r', 5, "&#13;"}, {14, 5, "&#14;"},
+      {15, 5, "&#15;"},  {16, 5, "&#16;"},   {17, 5, "&#17;"},
+      {18, 5, "&#18;"},  {19, 5, "&#19;"},   {20, 5, "&#20;"},
+      {21, 5, "&#21;"},  {22, 5, "&#22;"},   {23, 5, "&#23;"},
+      {24, 5, "&#24;"},  {25, 5, "&#25;"},   {26, 5, "&#26;"},
+      {27, 5, "&#27;"},  {28, 5, "&#28;"},   {29, 5, "&#29;"},
+      {30, 5, "&#30;"},  {31, 5, "&#31;"},
   };
   static const escape_rule_t other_rules[] = {{'<', 4, "&lt;"},
                                               {'>', 4, "&gt;"},

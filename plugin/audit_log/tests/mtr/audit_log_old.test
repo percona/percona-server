@@ -14,5 +14,5 @@ perl;
   $p = new XML::Parser;
   $p->parsefile($ENV{'MYSQLD_DATADIR'} . '/test_audit_old.log');
 EOF
---remove_file $MYSQLD_DATADIR/test_audit.log
---remove_file $MYSQLD_DATADIR/test_audit_old.log
+# --remove_file $MYSQLD_DATADIR/test_audit.log
+# --remove_file $MYSQLD_DATADIR/test_audit_old.log

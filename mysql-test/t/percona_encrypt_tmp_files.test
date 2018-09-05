@@ -106,7 +106,7 @@ DROP TABLE t1, t2;
 SET GLOBAL binlog_cache_size = @saved_binlog_cache_size;
 
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 | $MYSQL;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 | $MYSQL;
 
 SELECT LEFT(a, 10) FROM t1;
 SELECT LEFT(a, 10) FROM t2;

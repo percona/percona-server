@@ -58,6 +58,7 @@ if (!$gtid_mode_on)
 
 
 # Cleanup:
+SET DEBUG_SYNC= 'reset';
 
 DROP VIEW v_12;
 

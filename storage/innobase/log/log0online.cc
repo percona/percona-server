@@ -1145,6 +1145,7 @@ it, replacing another such file */
       }
     }
   }
+  my_dirend(bitmap_dir);
 
   if (first_file_seq_num == ULONG_MAX && last_file_seq_num == 0) {
     bitmap_files->count = 0;
@@ -1180,6 +1181,7 @@ it, replacing another such file */
     const size_t array_pos = file_seq_num - first_file_seq_num;
     if (UNIV_UNLIKELY(array_pos >= bitmap_files->count)) {
       log_online_diagnose_inconsistent_dir(bitmap_files);
+      my_dirend(bitmap_dir);
       return false;
     }
 
@@ -1191,6 +1193,7 @@ it, replacing another such file */
       bitmap_files->files[array_pos].start_lsn = file_start_lsn;
     }
   }
+  my_dirend(bitmap_dir);
 
   if (!bitmap_files->files[0].seq_num ||
       bitmap_files->files[0].seq_num != first_file_seq_num) {

@@ -9665,7 +9665,7 @@ inline Column_node *Table_node::get_column_node(const Field *field) const
 
 inline Column_node *Table_node::create_column_node(const Field *field) {
   if (!get_column_node(field)) {
-    Column_node *column = new Column_node;
+    Column_node *column = new (*THR_MALLOC) Column_node;
     columns[field->field_index] = column;
     /*
       If the table is ORDERED or CONST, then all the columns are
@@ -9678,7 +9678,7 @@ inline Column_node *Table_node::create_column_node(const Field *field) {
 }
 
 All_columns_node *Table_node::create_all_columns_node() {
-  All_columns_node *node = new All_columns_node;
+  All_columns_node *node = new (*THR_MALLOC) All_columns_node;
   uint i = 0;
   for (i = 0; i < table->s->fields; i++) {
     Column_node *column = create_column_node(table->field[i]);
@@ -9688,7 +9688,7 @@ All_columns_node *Table_node::create_all_columns_node() {
 }
 
 Key_node *Table_node::create_key_node(const KEY *key_info) {
-  Key_node *node = new Key_node;
+  Key_node *node = new (*THR_MALLOC) Key_node;
   uint key_parts = key_info->user_defined_key_parts;
   uint i;
   for (i = 0; i < key_parts; i++) {
@@ -9714,8 +9714,8 @@ class Const_ordered_table_node final : public Or_node {
 
 Const_ordered_table_node::Const_ordered_table_node(const TABLE *table_arg)
     : table(table_arg),
-      ordered_table_node(new Table_node(table)),
-      const_table_node(new Table_node(table)) {
+      ordered_table_node(new (*THR_MALLOC) Table_node(table)),
+      const_table_node(new (*THR_MALLOC) Table_node(table)) {
   add_successor(ordered_table_node);
   add_successor(const_table_node);
 }
@@ -9765,7 +9765,8 @@ inline void Join_node::add_join_list(List<TABLE_LIST> *join_list) {
 }
 
 inline Const_ordered_table_node *Join_node::add_table(const TABLE *table) {
-  Const_ordered_table_node *tableNode = new Const_ordered_table_node(table);
+  Const_ordered_table_node *tableNode =
+      new (*THR_MALLOC) Const_ordered_table_node(table);
   add_successor(tableNode);
   tables.push_back(tableNode);
   return tableNode;

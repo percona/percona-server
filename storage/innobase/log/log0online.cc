@@ -565,6 +565,7 @@ that's the cwd */
       log_bmp_sys->out.name[FN_REFLEN - 1] = '\0';
     }
   }
+  my_dirend(bitmap_dir);
 
   if (!log_bmp_sys->out_seq_num) {
     log_bmp_sys->out_seq_num = 1;

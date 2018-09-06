@@ -1547,7 +1547,8 @@ int log_line_submit(log_line *ll) {
       int n = log_line_index_by_type(ll, LOG_ITEM_SQL_ERRCODE);
       if (n >= 0) {
         int ec = (int)ll->item[n].data.data_integer;
-        DBUG_ASSERT((ec < 1) || (ec >= ER_SERVER_RANGE_START));
+        DBUG_ASSERT((ec < 1) || (ec == ER_AUDIT_API_ABORT) ||
+                    (ec >= ER_SERVER_RANGE_START));
       }
     }
 #endif

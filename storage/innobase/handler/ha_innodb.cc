@@ -10524,6 +10524,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
   err = enable_encryption(table);
   if (err != DB_SUCCESS) {
     dict_mem_table_free(table);
+    mem_heap_free(heap);
     goto error_ret;
   }
 

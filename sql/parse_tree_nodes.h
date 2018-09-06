@@ -3449,8 +3449,8 @@ class PT_show_grants final : public Parse_tree_root {
 
  public:
   PT_show_grants(const LEX_USER *opt_for_user,
-                 const List<LEX_USER> *opt_using_users)
-      : sql_cmd(opt_for_user, opt_using_users) {
+                 const List<LEX_USER> *opt_using_users, bool effective_grants)
+      : sql_cmd(opt_for_user, opt_using_users, effective_grants) {
     DBUG_ASSERT(opt_using_users == NULL || opt_for_user != NULL);
   }
 

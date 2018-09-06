@@ -3115,7 +3115,7 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)
   get_privilege_access_maps(
       const_cast<ACL_USER *>(acl_user), sctx->get_active_roles(), &m_global_acl,
       &m_db_acls, &m_db_wild_acls, &m_table_acls, &m_sp_acls, &m_func_acls,
-      &granted_roles, &m_with_admin_acls, &m_dynamic_privileges);
+      &granted_roles, &m_with_admin_acls, &m_dynamic_privileges, false);
   DBUG_VOID_RETURN;
 }
 

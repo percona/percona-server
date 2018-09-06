@@ -1164,10 +1164,19 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
   }
 }
 
+static bool hosts_match_for_grants(ACL_HOST_AND_IP &acl_db_host,
+                                   const char *user_host, const char *db_host,
+                                   bool effective_grants) {
+  if (effective_grants)
+    return acl_db_host.compare_hostname(user_host, user_host);
+  return !my_strcasecmp(system_charset_info, user_host, db_host);
+}
+
 void get_sp_access_map(
     ACL_USER *acl_user, SP_access_map *sp_map,
     malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
-        *hash) {
+        *hash,
+    bool effective_grants) {
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
   /* Add routine access */
   for (const auto &key_and_value : *hash) {
@@ -1184,8 +1193,8 @@ void get_sp_access_map(
     */
 
     if (!strcmp(acl_user->user, user) &&
-        grant_proc->host.compare_hostname(acl_user->host.get_host(),
-                                          acl_user->host.get_host())) {
+        hosts_match_for_grants(grant_proc->host, acl_user->host.get_host(),
+                               host, effective_grants)) {
       ulong proc_access = grant_proc->privs;
       if (proc_access != 0) {
         String key;
@@ -1198,7 +1207,8 @@ void get_sp_access_map(
   }
 }
 
-void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
+void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map,
+                          bool effective_grants) {
   DBUG_ENTER("get_table_access_map");
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
   for (const auto &key_and_value : *column_priv_hash) {
@@ -1218,7 +1228,8 @@ void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
       would be wrong from a security point of view.
     */
     if (!strcmp(acl_user_user, user) &&
-        grant_table->host.compare_hostname(acl_user_host, acl_user_host)) {
+        hosts_match_for_grants(grant_table->host, acl_user_host, host,
+                               effective_grants)) {
       ulong table_access = grant_table->privs;
       if ((table_access | grant_table->cols) != 0) {
         String q_name;
@@ -1285,7 +1296,8 @@ bool has_wildcard_characters(const LEX_CSTRING &db) {
 }
 
 void get_database_access_map(ACL_USER *acl_user, Db_access_map *db_map,
-                             Db_access_map *db_wild_map) {
+                             Db_access_map *db_wild_map,
+                             bool effective_grants) {
   ACL_DB *acl_db;
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
   for (acl_db = acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db) {
@@ -1302,9 +1314,9 @@ void get_database_access_map(ACL_USER *acl_user, Db_access_map *db_map,
       actually applied, and showing fewer privileges than are applied
       would be wrong from a security point of view.
     */
-
     if (!strcmp(acl_user_user, acl_db_user) &&
-        acl_db->host.compare_hostname(acl_user_host, acl_user_host)) {
+        hosts_match_for_grants(acl_db->host, acl_user_host, acl_db_host,
+                               effective_grants)) {
       ulong want_access = acl_db->access;
       if (want_access) {
         if (has_wildcard_characters({acl_db->db, strlen(acl_db->db)})) {
@@ -1329,7 +1341,8 @@ class Get_access_maps : public boost::default_bfs_visitor {
   Get_access_maps(ulong *access, Db_access_map *db_map,
                   Db_access_map *db_wild_map, Table_access_map *table_map,
                   SP_access_map *sp_map, SP_access_map *func_map,
-                  Grant_acl_set *with_admin_acl, Dynamic_privileges *dyn_acl)
+                  Grant_acl_set *with_admin_acl, Dynamic_privileges *dyn_acl,
+                  bool effective_grants)
       : m_access(access),
         m_db_map(db_map),
         m_db_wild_map(db_wild_map),
@@ -1337,7 +1350,8 @@ class Get_access_maps : public boost::default_bfs_visitor {
         m_sp_map(sp_map),
         m_func_map(func_map),
         m_with_admin_acl(with_admin_acl),
-        m_dynamic_acl(dyn_acl) {}
+        m_dynamic_acl(dyn_acl),
+        m_effective_grants(effective_grants) {}
 
   template <typename Vertex, typename Graph>
   void discover_vertex(Vertex u, const Graph &) const {
@@ -1354,16 +1368,19 @@ class Get_access_maps : public boost::default_bfs_visitor {
     *m_access |= implicit_cast<ACL_ACCESS *>(&acl_user)->access;
 
     /* Add database access */
-    get_database_access_map(&acl_user, m_db_map, m_db_wild_map);
+    get_database_access_map(&acl_user, m_db_map, m_db_wild_map,
+                            m_effective_grants);
 
     /* Add table access */
-    get_table_access_map(&acl_user, m_table_map);
+    get_table_access_map(&acl_user, m_table_map, m_effective_grants);
 
     /* Add stored procedure access */
-    get_sp_access_map(&acl_user, m_sp_map, proc_priv_hash.get());
+    get_sp_access_map(&acl_user, m_sp_map, proc_priv_hash.get(),
+                      m_effective_grants);
 
     /* Add user function access */
-    get_sp_access_map(&acl_user, m_sp_map, func_priv_hash.get());
+    get_sp_access_map(&acl_user, m_sp_map, func_priv_hash.get(),
+                      m_effective_grants);
 
     /* Add dynamic privileges */
     get_dynamic_privileges(&acl_user, m_dynamic_acl);
@@ -1399,6 +1416,7 @@ class Get_access_maps : public boost::default_bfs_visitor {
   SP_access_map *m_func_map;
   Grant_acl_set *m_with_admin_acl;
   Dynamic_privileges *m_dynamic_acl;
+  bool m_effective_grants;
 };
 
 /**
@@ -4069,7 +4087,7 @@ void get_privilege_access_maps(
     Db_access_map *db_map, Db_access_map *db_wild_map,
     Table_access_map *table_map, SP_access_map *sp_map, SP_access_map *func_map,
     List_of_granted_roles *granted_roles, Grant_acl_set *with_admin_acl,
-    Dynamic_privileges *dynamic_acl) {
+    Dynamic_privileges *dynamic_acl, bool effective_grants) {
   DBUG_ENTER("get_privilege_access_maps");
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
   List_of_auth_id_refs activated_roles_ref;
@@ -4080,13 +4098,13 @@ void get_privilege_access_maps(
   DBUG_PRINT("info", ("Global access for acl_user %s@%s is %lu", acl_user->user,
                       acl_user->host.get_host(), acl_user->access));
   // Get database access
-  get_database_access_map(acl_user, db_map, db_wild_map);
+  get_database_access_map(acl_user, db_map, db_wild_map, effective_grants);
   // Get table- and column privileges
-  get_table_access_map(acl_user, table_map);
+  get_table_access_map(acl_user, table_map, effective_grants);
   // get stored procedure privileges
-  get_sp_access_map(acl_user, sp_map, proc_priv_hash.get());
+  get_sp_access_map(acl_user, sp_map, proc_priv_hash.get(), effective_grants);
   // get user function privileges
-  get_sp_access_map(acl_user, func_map, func_priv_hash.get());
+  get_sp_access_map(acl_user, func_map, func_priv_hash.get(), effective_grants);
   // get dynamic privileges
   get_dynamic_privileges(acl_user, dynamic_acl);
 
@@ -4114,7 +4132,7 @@ void get_privilege_access_maps(
       boost::num_vertices(*g_granted_roles));
 
   Get_access_maps vis(access, db_map, db_wild_map, table_map, sp_map, func_map,
-                      with_admin_acl, dynamic_acl);
+                      with_admin_acl, dynamic_acl, effective_grants);
   if (has_granted_roles || mandatory_roles.size() > 0) {
     bool acl_user_has_vertex = (user_vertex_it != g_authid_to_vertex->end());
     if (!acl_user_has_vertex) DBUG_VOID_RETURN;
@@ -4200,7 +4218,7 @@ void get_privilege_access_maps(
 */
 bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
                        const List_of_auth_id_refs &using_roles,
-                       bool show_mandatory_roles) {
+                       bool show_mandatory_roles, bool effective_grants) {
   int error = 0;
   ACL_USER *acl_user = NULL;
   char buff[1024];
@@ -4247,8 +4265,8 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   Item_string *field = new Item_string("", 0, &my_charset_latin1);
   List<Item> field_list;
   field->max_length = 1024;
-  strxmov(buff, "Grants for ", lex_user->user.str, "@", lex_user->host.str,
-          NullS);
+  strxmov(buff, effective_grants ? "Effective grants for " : "Grants for ",
+          lex_user->user.str, "@", lex_user->host.str, NullS);
   field->item_name.set(buff);
   field_list.push_back(field);
   if (thd->send_result_metadata(&field_list,
@@ -4268,7 +4286,8 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   table_map.set_thd(thd);
   get_privilege_access_maps(acl_user, &using_roles, &access, &db_map,
                             &db_wild_map, &table_map, &sp_map, &func_map,
-                            &granted_roles, &with_admin_acl, &dynamic_acl);
+                            &granted_roles, &with_admin_acl, &dynamic_acl,
+                            effective_grants);
   String output;
   make_global_privilege_statement(thd, access, acl_user, &output);
   Protocol *protocol = thd->get_protocol();

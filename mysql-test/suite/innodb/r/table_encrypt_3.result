@@ -1169,9 +1169,9 @@ c1	c2	right(c3, 20)
 0	aaaaa	AAAAAAAAAAAAAAAAAAAA
 0	aaaaa	AAAAAAAAAAAAAAAAAAAA
 0	aaaaa	AAAAAAAAAAAAAAAAAAAA
+DROP TABLE tde_db.t_encrypt;
 DROP USER encryptnonprivuser@localhost;
 DROP USER encryptprivuser@localhost;
-DROP TABLE tde_db.t_encrypt;
 SET GLOBAL innodb_file_per_table=1;
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
@@ -1410,7 +1410,6 @@ GRANT ENCRYPTION_KEY_ADMIN, CREATE ON *.* TO encryption_admin@localhost;
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 REVOKE ENCRYPTION_KEY_ADMIN ON *.* FROM encryption_admin@localhost;
-# restart:<hidden args>
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or ENCRYPTION_KEY_ADMIN privilege(s) for this operation
 DROP USER encryption_admin@localhost;

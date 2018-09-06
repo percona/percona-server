@@ -2,9 +2,6 @@
 --echo # Test for bug bug91541 ("Flush status" statement adds twice to global values)
 --echo #
 
-SET @saved_show_compatibility_56 = @@global.show_compatibility_56;
-SET GLOBAL show_compatibility_56 = OFF;
-
 --echo #
 --echo # default connection
 --echo #
@@ -61,5 +58,3 @@ FLUSH STATUS;
 --let $assert_cond = $default_session_value = 0
 --let $assert_text = Default session value after FLUSH must remain zero
 --source include/assert.inc
-
-SET GLOBAL show_compatibility_56 = @saved_show_compatibility_56;

@@ -1,4 +1,4 @@
-# The bug #1008609 test cause. 
+# The bug #1008609 test case.
 # The bug consist in crashing the server when it is launched with both
 # "--userstat=1" and "--bootstrap" parameters.
 #
@@ -14,12 +14,11 @@ SELECT 1;
 EOF
 
 exec
-  $MYSQLD_BOOTSTRAP_CMD < $MYSQLTEST_VARDIR/tmp/percona_bug1008609.sql >> 
+  $MYSQLD_BOOTSTRAP_CMD < $MYSQLTEST_VARDIR/tmp/percona_bug1008609.sql >>
     $MYSQLTEST_VARDIR/tmp/percona_bug1008609.log 2>&1;
 
 --remove_file $MYSQLTEST_VARDIR/tmp/percona_bug1008609.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/percona_bug1008609.log
---remove_files_wildcard $temp_data_dir *
---rmdir $temp_data_dir
+--force-rmdir $temp_data_dir
 
 --echo OK

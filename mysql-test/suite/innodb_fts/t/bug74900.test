@@ -7,7 +7,7 @@ call mtr.add_suppression("'rename' returned OS error");
 CREATE TABLE t1 (s1 CHAR) ENGINE=InnoDB;
 CREATE FULLTEXT INDEX i ON t1(s1);
 
---error ER_ERROR_ON_RENAME
+--error ER_BAD_DB_ERROR
 ALTER TABLE t1 RENAME nonexisting.t1;
 ALTER TABLE t1 KEY_BLOCK_SIZE=2;
 

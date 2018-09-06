@@ -115,7 +115,6 @@ let $pos2= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 --source include/show_binlog_events.inc
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_regex /LOCAL INFILE '.*SQL_LOAD.*' INTO/LOCAL INFILE '<name>' INTO/
 --let $mysqlbinlog_parameters=--short-form --start-position=$binlog_start --stop-position=$pos2 $MYSQLD_DATADIR/master-bin.000001
 --source include/mysqlbinlog.inc
 --remove_files_wildcard $MYSQL_TMP_DIR SQL_LOAD_MB*

@@ -6,6 +6,6 @@ CREATE FULLTEXT INDEX i ON t1(s1);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE t1 RENAME nonexisting.t1;
-ERROR HY000: Error on rename of './test/t1' to './nonexisting/t1' (errno: 168 - Unknown (generic) error from engine)
+ERROR 42000: Unknown database 'nonexisting'
 ALTER TABLE t1 KEY_BLOCK_SIZE=2;
 DROP TABLE t1;

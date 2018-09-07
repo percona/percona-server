@@ -1,38 +1,5 @@
-percona-server-5.7 (5.7.12-5) unstable; urgency=low
+percona-server-8.0 (8.0.12-1) unstable; urgency=low
 
-  * Added packaging for new plugin
+  * Packaging for 8.0
 
- -- Evgeniy Patlan <korvin@amber>  Tue, 31 May 2016 17:37:32 +0300
-
-percona-server-5.7 (5.7.12-5) unstable; urgency=low
-
-  * Fix for description of the client package in debian (#1201074)
-
- -- Evgeniy Patlan <evgeniy.patlan@percona.com>  Fri, 27 May 2016 09:47:38 +0300
-
-percona-server-5.7 (5.7.11-4) unstable; urgency=low
-
-  * Fixed sysvinit script doesn't tolerate pid-file option without
-    path specified (#1549333)
-  * Fixed systemd script brakes if there are multiple same options specified
-    (#1554976)
-  * Included keyring_file.so plugin
-
- -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Wed, 09 Mar 2016 09:31:40 +0100
-
-percona-server-5.7 (5.7.10-2rc2) unstable; urgency=low
-
-  * Re-added TokuBackup to the packaging (JEN-439)
-  * PS 5.7 can't be restarted after TokuDB has been installed with
-    ps_tokudb_admin (#1527535)
-  * TokuDB upgrade fails during the 5.6 -> 5.7 upgrade (#1533580)
-  * Fixed configuration file handling in ubuntu vivid/wily (BLD-385)
-  * Added support for building with mecab plugin library (JEN-427)
-
- -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Tue, 02 Feb 2016 10:02:33 +0100
-
-percona-server-5.7 (5.7.10-1rc1) unstable; urgency=low
-
-  * Initial release PS 5.7.10-1rc1
-
- -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Fri, 27 Nov 2015 11:09:00 +0200
+ -- Evgeniy Patlan <evgeniy.patlan@percona.com>  Mon, 03 Sep 2018 12:50:32 +0300

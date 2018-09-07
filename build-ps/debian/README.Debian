@@ -1,4 +1,4 @@
-percona-server-5.7 for Debian
+percona-server-8.0 for Debian
 -----------------------------
 
 For rebuild on debian (>= jessie) please add dh-systemd as build dependency.

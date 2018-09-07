@@ -1,2 +1,2 @@
 version=3
-https://www.percona.com/downloads/Percona-Server-5.7/LATEST/source/percona-server-([\d\.]+)-([\d\.]+).tar.gz
+https://www.percona.com/downloads/Percona-Server-8.0/LATEST/source/percona-server-([\d\.]+)-([\d\.]+).tar.gz

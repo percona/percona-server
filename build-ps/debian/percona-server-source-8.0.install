@@ -1,0 +1,2 @@
+../percona-server-8.0*.dsc usr/src/percona-server/
+../percona-server-8.0*.tar.gz usr/src/percona-server/

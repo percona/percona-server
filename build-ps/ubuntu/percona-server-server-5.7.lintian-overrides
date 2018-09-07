@@ -1,5 +1,0 @@
-extra-license-file usr/share/doc/percona-server-server-5.7/COPYING.gz
-# Due to static linking this cannot be avoided and hence being overridden
-percona-server-server-5.7: embedded-library
-# Since we ship debug plugins so this error is overridden
-percona-server-server-5.7: unstripped-binary-or-object usr/lib/mysql/plugin/debug/*

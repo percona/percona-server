@@ -532,6 +532,14 @@ bool has_exclusive_table_mdl(THD *thd, const char *schema_name,
 }
 
 bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
+                                      unsigned long int lock_wait_timeout,
+                                      MDL_ticket **ticket, bool for_trx) {
+  enum_mdl_duration duration = (for_trx ? MDL_TRANSACTION : MDL_EXPLICIT);
+  return acquire_exclusive_mdl(thd, MDL_key::TABLESPACE, "", tablespace_name,
+                               false, lock_wait_timeout, duration, ticket);
+}
+
+bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
                                       bool no_wait, MDL_ticket **ticket,
                                       bool for_trx) {
   enum_mdl_duration duration = (for_trx ? MDL_TRANSACTION : MDL_EXPLICIT);

@@ -5618,6 +5618,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     strcpy(tablespace, indexed_table->tablespace());
   }
 
+  adjust_encryption_key_id(ha_alter_info->create_info,
+                           &(new_dd_tab->options()));
+
   create_table_info_t info(m_user_thd, altered_table,
                            ha_alter_info->create_info, nullptr, nullptr,
                            indexed_table->tablespace ? tablespace : nullptr,
@@ -5625,7 +5628,12 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
   info.set_tablespace_type(is_file_per_table);
 
-  if (ha_alter_info->handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) {
+  if (ha_alter_info->handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION ||
+      (Encryption::should_be_keyring_encrypted(
+           ha_alter_info->create_info->encrypt_type.str) &&
+       innobase_spatial_exist(
+           altered_table))) {  // We need to make sure spatial index was not
+                               // added if this is to be keyring encrypted
     const char *invalid_opt = info.create_options_are_invalid();
     if (invalid_opt != nullptr) {
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), table_type(), invalid_opt);

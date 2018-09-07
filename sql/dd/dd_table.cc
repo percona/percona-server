@@ -2135,6 +2135,10 @@ static bool fill_dd_table_from_create_info(
     }
   }
 
+  if (create_info->was_encryption_key_id_set) {
+    table_options->set("encryption_key_id", create_info->encryption_key_id);
+  }
+
   // Storage media
   if (create_info->storage_media > HA_SM_DEFAULT)
     table_options->set("storage", create_info->storage_media);

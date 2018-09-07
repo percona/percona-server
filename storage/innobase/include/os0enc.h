@@ -308,6 +308,9 @@ class Encryption {
 
   MY_NODISCARD static bool is_online_encryption_on() noexcept;
 
+  MY_NODISCARD static bool should_be_keyring_encrypted(
+      const char *algorithm) noexcept;
+
   /** Generate random encryption value for key and iv.
   @param[in,out]  value Encryption value */
   static void random_value(byte *value) noexcept;

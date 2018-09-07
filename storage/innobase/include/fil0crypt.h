@@ -55,8 +55,8 @@ static const unsigned char CRYPT_MAGIC[MAGIC_SZ] = {'s', 0xE, 0xC,
 #ifdef UNIV_INNOCHECKSUM  // TODO:Robert INNOCHECKSUM ENCRYPTION_KEY_LEN is not
                           // defined - and probably all of this file should not
                           // be
-static const ulint Encryption::KEY_LEN = 32;  // TODO:Robert kind of workaround
-#endif                                        // UNIV_INNOCHECKSUM
+static const ulint ENCRYPTION_KEY_LEN = 32;  // TODO:Robert kind of workaround
+#endif                                       // UNIV_INNOCHECKSUM
 
 /* This key will be used if nothing else is given */
 //#define FIL_DEFAULT_ENCRYPTION_KEY 0
@@ -131,8 +131,8 @@ struct fil_space_rotate_state_t {
 
   time_t start_time;          /*!< time when rotation started */
   ulint active_threads;       /*!< active threads in space */
-  ulint next_offset;          /*!< next "free" offset */
-  ulint max_offset;           /*!< max offset needing to be rotated */
+  page_no_t next_offset;      /*!< next "free" offset */
+  page_no_t max_offset;       /*!< max offset needing to be rotated */
   uint min_key_version_found; /*!< min key version found but not
                               rotated */
   lsn_t end_lsn;              /*!< max lsn created when rotating this
@@ -143,7 +143,7 @@ struct fil_space_rotate_state_t {
   trx_t *trx;
   Flush_observer *flush_observer;
 
-  void create_flush_observer(uint space_id);
+  void create_flush_observer(space_id_t space_id);
 
   void destroy_flush_observer();
 };
@@ -263,6 +263,11 @@ struct fil_space_crypt_t {
   Encryption_rotation encryption_rotation;
 
   uchar *tablespace_key;  // TODO:Make it private ?
+  // In Oracle's tablespace encryption is Encryption::KEY_LEN long,
+  // which is incorrect value - it should be always 128 bits,
+  // nevertheless we need Encryption::KEY_LEN tablespace_iv
+  // to be able to store this IV.
+  uchar *tablespace_iv;
 
   // In Oracle's tablespace encryption is Encryption::KEY_LEN long,
   // which is incorrect value - it should be always 128 bits,
@@ -280,16 +285,16 @@ struct fil_space_crypt_t {
 
 /** Status info about encryption */
 struct fil_space_crypt_status_t {
-  ulint space;                   /*!< tablespace id */
-  ulint scheme;                  /*!< encryption scheme */
-  uint min_key_version;          /*!< min key version */
-  uint current_key_version;      /*!< current key version */
-  uint keyserver_requests;       /*!< no of key requests to key server */
-  uint key_id;                   /*!< current key_id */
-  bool rotating;                 /*!< is key rotation ongoing */
-  bool flushing;                 /*!< is flush at end of rotation ongoing */
-  ulint rotate_next_page_number; /*!< next page if key rotating */
-  ulint rotate_max_page_number;  /*!< max page if key rotating */
+  space_id_t space;                  /*!< tablespace id */
+  ulint scheme;                      /*!< encryption scheme */
+  uint min_key_version;              /*!< min key version */
+  uint current_key_version;          /*!< current key version */
+  uint keyserver_requests;           /*!< no of key requests to key server */
+  uint key_id;                       /*!< current key_id */
+  bool rotating;                     /*!< is key rotation ongoing */
+  bool flushing;                     /*!< is flush at end of rotation ongoing */
+  page_no_t rotate_next_page_number; /*!< next page if key rotating */
+  page_no_t rotate_max_page_number;  /*!< max page if key rotating */
 };
 
 /** Statistics about encryption key rotation */
@@ -364,19 +369,6 @@ void fil_space_destroy_crypt_data(fil_space_crypt_t **crypt_data);
 MY_NODISCARD byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
                                                  const byte *end_ptr, ulint len);
 
-/** Encrypt a buffer.
-@param[in,out]		crypt_data	Crypt data
-@param[in]		space		space_id
-@param[in]		offset		Page offset
-@param[in]		lsn		Log sequence number
-@param[in]		src_frame	Page to encrypt
-@param[in]		page_size	Page size
-@param[in,out]		dst_frame	Output buffer
-@return encrypted buffer or NULL */
-MY_NODISCARD byte *fil_encrypt_buf(fil_space_crypt_t *crypt_data, ulint space, ulint offset,
-                                  lsn_t lsn, const byte *src_frame,
-                                  const page_size_t &page_size, byte *dst_frame);
-
 /**
 Encrypt a page.
 
@@ -432,13 +424,10 @@ encrypted, or corrupted.
 
 @param[in,out]	page		page frame (checksum is temporarily modified)
 @param[in]	page_size	page size
-@param[in]	space		tablespace identifier
-@param[in]	offset		page number
 @return true if page is encrypted AND OK, false otherwise */
-MY_NODISCARD bool fil_space_verify_crypt_checksum(byte *page,
-                                     // const ulint	        page_size,
-                                     ulint page_size, bool is_zip_compressed,
-                                     bool is_new_schema_compressed);
+MY_NODISCARD bool fil_space_verify_crypt_checksum(
+    byte *page, ulint page_size, bool is_zip_compressed,
+    bool is_new_schema_compressed);
 
 /*********************************************************************
 Adjust thread count for key rotation

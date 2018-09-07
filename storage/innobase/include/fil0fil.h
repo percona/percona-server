@@ -1583,6 +1583,13 @@ when it could be dropped concurrently.
 @retval	NULL if missing */
 fil_space_t *fil_space_acquire_for_io(space_id_t id);
 
+/** Load and acquire a tablespace for reading or writing a block,
+when it could be dropped concurrently.
+@param[in]	id	tablespace ID
+@return	the tablespace
+@retval	NULL if missing */
+fil_space_t *fil_space_acquire_for_io_with_load(space_id_t space_id);
+
 /** Release a tablespace acquired with fil_space_acquire_for_io().
 @param[in,out]	space	tablespace to release  */
 void fil_space_release_for_io(fil_space_t *space);

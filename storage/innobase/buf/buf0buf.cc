@@ -4278,7 +4278,9 @@ buf_block_t *Buf_fetch<T>::single_page() {
   Counter::inc(m_buf_pool->stat.m_n_page_gets, m_page_id.page_no());
 
   for (;;) {
-    if (static_cast<T *>(this)->get(block) == DB_NOT_FOUND) {
+    dberr_t error = static_cast<T *>(this)->get(block);
+    if (error == DB_NOT_FOUND ||
+        (error == DB_IO_DECRYPT_FAIL && block == nullptr)) {
       return (nullptr);
     }
     ut_a(!block->page.was_stale());
@@ -5532,7 +5534,6 @@ void buf_page_free_stale_during_write(buf_page_t *bpage,
   /* Since we aborted a write request. We need to adjust the number of
   of outstanding write requests. */
   --buf_pool->n_flush[flush_type];
-
 
   if (buf_pool->n_flush[flush_type] == 0 &&
       buf_pool->init_flush[flush_type] == false) {

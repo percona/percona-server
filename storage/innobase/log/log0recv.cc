@@ -1147,13 +1147,19 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
     return;
   }
 
-  bool found;
   const page_id_t page_id(recv_addr->space, recv_addr->page_no);
 
-  const page_size_t page_size =
-      fil_space_get_page_size(recv_addr->space, &found);
+  fil_space_t *space = fil_space_acquire_for_io_with_load(recv_addr->space);
+  const page_size_t page_size(space->flags);
 
-  if (!found || recv_sys->missing_ids.find(recv_addr->space) !=
+  if (space && space->is_space_encrypted) {
+    /* found space that cannot be decrypted, abort processing REDO */
+    recv_sys->found_corrupt_log = true;
+    fil_space_release_for_io(space);
+    return;
+  }
+
+  if (!space || recv_sys->missing_ids.find(recv_addr->space) !=
                     recv_sys->missing_ids.end()) {
     /* Tablespace was discarded or dropped after changes were
     made to it. Or, we have ignored redo log for this tablespace
@@ -1196,6 +1202,10 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
     }
 
     mutex_enter(&recv_sys->mutex);
+  }
+
+  if (space) {
+    fil_space_release_for_io(space);
   }
 }
 
@@ -2809,7 +2819,7 @@ void recv_recover_page_func(
 
     if (recv->start_lsn >= page_lsn
 #ifndef UNIV_HOTBACKUP
-        && undo::is_active(recv_addr->space)
+        && undo::is_active(recv_addr->space, false)
 #endif /* !UNIV_HOTBACKUP */
     ) {
 

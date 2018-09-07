@@ -4658,7 +4658,6 @@ class handler {
     This can be used for example to modify the create statement based on a
     storage engine specific setting.
   */
-  virtual void adjust_create_info_for_dd(HA_CREATE_INFO *) {}
   virtual void update_create_info(
       HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) {}
   virtual int assign_to_keycache(THD *, HA_CHECK_OPT *) {

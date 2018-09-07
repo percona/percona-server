@@ -3,8 +3,8 @@ create tablespace ts_encrypted1 add datafile 'ts_encrypted1.ibd' engine=innodb e
 create tablespace ts_encrypted2 add datafile 'ts_encrypted2.ibd' engine=innodb encryption="Y";
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] Function 'keyring_file' already exists");
-call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
+call mtr.add_suppression("Function 'keyring_file' already exists");
+call mtr.add_suppression("Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
 call mtr.add_suppression("Plugin keyring_file reported");
 create table t1_default_explicit_on (a int) engine=innodb encryption="Y";
 create table t2_default_explicit_off (a int) engine=innodb encryption="N";
@@ -45,49 +45,49 @@ show create table t1_default_explicit_on;
 Table	Create Table
 t1_default_explicit_on	CREATE TABLE `t1_default_explicit_on` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t2_default_explicit_off;
 Table	Create Table
 t2_default_explicit_off	CREATE TABLE `t2_default_explicit_off` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t3_on_default;
 Table	Create Table
 t3_on_default	CREATE TABLE `t3_on_default` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t4_on_explicit_off;
 Table	Create Table
 t4_on_explicit_off	CREATE TABLE `t4_on_explicit_off` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t5_off_explicit_off;
 Table	Create Table
 t5_off_explicit_off	CREATE TABLE `t5_off_explicit_off` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t6_force_default;
 Table	Create Table
 t6_force_default	CREATE TABLE `t6_force_default` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t6_force_default_dup;
 Table	Create Table
 t6_force_default_dup	CREATE TABLE `t6_force_default_dup` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t5_off_explicit_off_dup;
 Table	Create Table
 t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t7_partitioned;
 Table	Create Table
 t7_partitioned	CREATE TABLE `t7_partitioned` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `ts_encrypted1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
-/*!50100 PARTITION BY RANGE (a)
+) /*!50100 TABLESPACE `ts_encrypted1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p1 VALUES LESS THAN (20) TABLESPACE = `ts_encrypted1` ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (40) TABLESPACE = `ts_encrypted2` ENGINE = InnoDB) */
 alter table t1_default_explicit_on encryption="N";
@@ -119,49 +119,49 @@ show create table t1_default_explicit_on;
 Table	Create Table
 t1_default_explicit_on	CREATE TABLE `t1_default_explicit_on` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t2_default_explicit_off;
 Table	Create Table
 t2_default_explicit_off	CREATE TABLE `t2_default_explicit_off` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t3_on_default;
 Table	Create Table
 t3_on_default	CREATE TABLE `t3_on_default` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t4_on_explicit_off;
 Table	Create Table
 t4_on_explicit_off	CREATE TABLE `t4_on_explicit_off` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t5_off_explicit_off;
 Table	Create Table
 t5_off_explicit_off	CREATE TABLE `t5_off_explicit_off` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t6_force_default;
 Table	Create Table
 t6_force_default	CREATE TABLE `t6_force_default` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t6_force_default_dup;
 Table	Create Table
 t6_force_default_dup	CREATE TABLE `t6_force_default_dup` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t5_off_explicit_off_dup;
 Table	Create Table
 t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t7_partitioned;
 Table	Create Table
 t7_partitioned	CREATE TABLE `t7_partitioned` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `ts_encrypted1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
-/*!50100 PARTITION BY RANGE (a)
+) /*!50100 TABLESPACE `ts_encrypted1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p1 VALUES LESS THAN (20) TABLESPACE = `ts_encrypted1` ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (40) TABLESPACE = `ts_encrypted2` ENGINE = InnoDB) */
 flush tables;
@@ -169,42 +169,42 @@ show create table t1_default_explicit_on;
 Table	Create Table
 t1_default_explicit_on	CREATE TABLE `t1_default_explicit_on` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t2_default_explicit_off;
 Table	Create Table
 t2_default_explicit_off	CREATE TABLE `t2_default_explicit_off` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t3_on_default;
 Table	Create Table
 t3_on_default	CREATE TABLE `t3_on_default` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t4_on_explicit_off;
 Table	Create Table
 t4_on_explicit_off	CREATE TABLE `t4_on_explicit_off` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t5_off_explicit_off;
 Table	Create Table
 t5_off_explicit_off	CREATE TABLE `t5_off_explicit_off` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t6_force_default;
 Table	Create Table
 t6_force_default	CREATE TABLE `t6_force_default` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t6_force_default_dup;
 Table	Create Table
 t6_force_default_dup	CREATE TABLE `t6_force_default_dup` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 show create table t5_off_explicit_off_dup;
 Table	Create Table
 t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 select * from t1_default_explicit_on;
 a
 42
@@ -234,4 +234,5 @@ drop table t5_off_explicit_off_dup;
 drop table t7_partitioned;
 drop tablespace ts_encrypted1;
 drop tablespace ts_encrypted2;
+drop tablespace ts_unencrypted1;
 set global innodb_encrypt_tables=OFF;

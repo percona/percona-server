@@ -233,7 +233,11 @@ class ha_innobase : public handler {
 
   ha_rows estimate_rows_upper_bound();
 
-  virtual void adjust_create_info_for_frm(HA_CREATE_INFO *create_info) noexcept;
+  /** Adjust encryption options.
+  @param[in,out]  create_info Additional create information.
+  @param[in,out]  table_def dd::Table object object to be modified.*/
+  void adjust_encryption_options(HA_CREATE_INFO *create_info,
+                                 dd::Table *table_def) noexcept;
 
   void update_create_info(HA_CREATE_INFO *create_info);
 

@@ -1,4 +1,4 @@
-Source: percona-server-5.7
+Source: percona-server-8.0
 Section: database
 Priority: extra
 Maintainer: Percona Server Development Team <mysql-dev@percona.com>
@@ -27,14 +27,14 @@ Build-Depends: bison,
                libldap2-dev
 Standards-Version: 3.9.4
 Homepage: http://www.percona.com/software/percona-server/
-Vcs-Git: git://github.com/percona/percona-server.git -b 5.7
+Vcs-Git: git://github.com/percona/percona-server.git -b 8.0
 
-Package: percona-server-tokudb-5.7
+Package: percona-server-tokudb-8.0
 Section: database
 Architecture: any
-Depends: percona-server-server-5.7 (= ${binary:Version}), libjemalloc1 (>= 3.3.0), ${misc:Depends}
-Breaks: percona-server-tokudb-5.6
-Replaces: percona-server-tokudb-5.6
+Depends: percona-server-server-8.0 (= ${binary:Version}), libjemalloc1 (>= 3.3.0), ${misc:Depends}
+Breaks: percona-server-tokudb-5.6, percona-server-tokudb-5.7
+Replaces: percona-server-tokudb-5.6, percona-server-tokudb-5.7
 Description: TokuDB engine plugin for Percona Server
  .
  TokuDB is a storage engine for MySQL and MariaDB that is specifically
@@ -45,10 +45,12 @@ Description: TokuDB engine plugin for Percona Server
  .
  This package includes the TokuDB plugin library.
 
-Package: percona-server-rocksdb-5.7
+Package: percona-server-rocksdb-8.0
 Section: database
 Architecture: any
-Depends: percona-server-server-5.7 (= ${binary:Version}), ${misc:Depends}
+Depends: percona-server-server-8.0 (= ${binary:Version}), ${misc:Depends}
+Breaks: percona-server-rocksdb-5.7
+Replaces: percona-server-rocksdb-5.7
 Description: MyRocks storage engine plugin for Percona Server
  .
  MyRocks is a storage engine for Percona Server which incorporates RocksDB
@@ -56,13 +58,13 @@ Description: MyRocks storage engine plugin for Percona Server
  .
  This package includes the MyRocks/RocksDB plugin library.
 
-Package: libperconaserverclient20
+Package: libperconaserverclient21
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
-Depends: percona-server-common-5.7 (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
-Replaces: libpercona-server-client16, libperconaserverclient18, libperconaserverclient18.1
+Depends: percona-server-common-8.0 (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Replaces: libpercona-server-client16, libperconaserverclient18, libperconaserverclient18.1, libperconaserverclient20
 Description: Percona Server database client library
  Percona Server is a fast, stable and true multi-user, 
  multi-threaded SQL database server. SQL (Structured Query Language) 
@@ -71,12 +73,13 @@ Description: Percona Server database client library
  .
  This package includes the client library.
 
-Package: libperconaserverclient20-dev
+Package: libperconaserverclient21-dev
 Architecture: any
 Section: libdevel
-Depends: libperconaserverclient20 (= ${binary:Version}),
+Depends: libperconaserverclient21 (= ${binary:Version}),
          zlib1g-dev, ${misc:Depends}
-Breaks: libperconaserverclient18.1-dev,
+Breaks: libperconaserverclient20-dev,
+        libperconaserverclient18.1-dev,
         libperconaserverclient18-dev,
         libperconaserverclient16-dev,
         libperconaserverclient15-dev,
@@ -87,7 +90,8 @@ Breaks: libperconaserverclient18.1-dev,
         libmysqlclient18-dev,
         libmysqlclient20-dev,
         libmariadbclient-dev
-Replaces: libperconaserverclient18.1-dev,
+Replaces: libperconaserverclient20-dev,
+          libperconaserverclient18.1-dev,
           libperconaserverclient18-dev,
           libperconaserverclient16-dev,
           libperconaserverclient15-dev,
@@ -105,12 +109,14 @@ Description: Percona Server database development files
  .
  This package includes development libraries and header files.
 
-Package: percona-server-common-5.7
+Package: percona-server-common-8.0
 Section: database
 Architecture: any
 Pre-depends: debconf (>= 0.2.17), mysql-common, debsums, ${misc:Pre-Depends}
 Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Breaks: percona-server-common-5.7
+Replaces: percona-server-common-5.7
 Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database
@@ -120,26 +126,27 @@ Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
  This package includes files needed by all versions of the client library
  (e.g. /etc/mysql/my.cnf).
 
-Package: percona-server-client-5.7
+Package: percona-server-client-8.0
 Architecture: any
-Depends: percona-server-common-5.7 (= ${binary:Version}),
+Depends: percona-server-common-8.0 (= ${binary:Version}),
          ${shlibs:Depends}, ${misc:Depends}
 Provides: mysql-client,
           virtual-mysql-client, virtual-mysql-client-core,
-          mysql-client-5.7, mysql-client-core-5.7
+          mysql-client-8.0, mysql-client-core-8.0
 Breaks: mysql-client-5.0,
         mysql-client-core-5.1,
         mysql-client-core-5.5,
         mysql-client-core-5.6,
-        mysql-client-core-5.7,
+        mysql-client-core-8.0,
         mysql-client-5.1,
         mysql-client-5.5,
         mysql-client-5.6,
-        mysql-client-5.7,
+        mysql-client-8.0,
         percona-xtradb-client-5.0,
         percona-server-client-5.1,
         percona-server-client-5.5,
         percona-server-client-5.6,
+        percona-server-client-5.7,
         mariadb-client,
         mariadb-client-core-5.5,
         mariadb-client-5.5,
@@ -150,14 +157,17 @@ Replaces: mysql-client-5.0,
            mysql-client-core-5.5,
            mysql-client-core-5.6,
            mysql-client-core-5.7,
+           mysql-client-core-8.0,
            mysql-client-5.1,
            mysql-client-5.5,
            mysql-client-5.6,
            mysql-client-5.7,
+           mysql-client-8.0,
            percona-xtradb-client-5.0,
            percona-server-client-5.1,
            percona-server-client-5.5,
            percona-server-client-5.6,
+           percona-server-client-5.7,
            mariadb-client,
            mariadb-client-core-5.5,
            mariadb-client-5.5,
@@ -171,30 +181,31 @@ Description: Percona Server database client binaries
  .
  This package includes the client binaries.
 
-Package: percona-server-server-5.7
+Package: percona-server-server-8.0
 Architecture: any
-Pre-Depends: percona-server-common-5.7 (= ${binary:Version}),
+Pre-Depends: percona-server-common-8.0 (= ${binary:Version}),
              adduser,
              debconf (>= 0.2.17)
-Depends: percona-server-client-5.7 (= ${binary:Version}),
+Depends: percona-server-client-8.0 (= ${binary:Version}),
          ${shlibs:Depends}, ${misc:Depends},
          psmisc
 Provides: mysql-server,
           virtual-mysql-server, virtual-mysql-server-core,
-          mysql-server-5.7, mysql-server-core-5.7
+          mysql-server-8.0, mysql-server-core-8.0
 Breaks: mysql-server-5.0,
         mysql-server-5.1,
         mysql-server-5.5,
         mysql-server-5.6,
-        mysql-server-5.7,
+        mysql-server-8.0,
         mysql-server-core-5.1,
         mysql-server-core-5.5,
         mysql-server-core-5.6,
-        mysql-server-core-5.7,
+        mysql-server-core-8.0,
         percona-xtradb-server-5.0,
         percona-server-server-5.1,
         percona-server-server-5.5,
         percona-server-server-5.6,
+        percona-server-server-5.7,
         mariadb-server,
         mariadb-server-core-5.5,
         mariadb-server-5.5,
@@ -205,14 +216,17 @@ Replaces: mysql-server-5.0,
           mysql-server-5.5,
           mysql-server-5.6,
           mysql-server-5.7,
+          mysql-server-8.0,
           mysql-server-core-5.1,
           mysql-server-core-5.5,
           mysql-server-core-5.6,
           mysql-server-core-5.7,
+          mysql-server-core-8.0,
           percona-xtradb-server-5.0,
           percona-server-server-5.1,
           percona-server-server-5.5,
           percona-server-server-5.6,
+          percona-server-server-5.7,
           mariadb-server,
           mariadb-server-core-5.5,
           mariadb-server-5.5,
@@ -226,13 +240,13 @@ Description: Percona Server database server binaries
  .
  This package includes the server binaries.
 
-Package: percona-server-test-5.7
+Package: percona-server-test-8.0
 Architecture: any
-Depends: percona-server-client-5.7 (= ${binary:Version}),
-         percona-server-server-5.7 (= ${binary:Version}),
-         libperconaserverclient20-dev (= ${binary:Version}),
+Depends: percona-server-client-8.0 (= ${binary:Version}),
+         percona-server-server-8.0 (= ${binary:Version}),
+         libperconaserverclient21-dev (= ${binary:Version}),
          perl, python, ${misc:Depends}, ${shlibs:Depends}
-Replaces: percona-server-server-5.7, percona-server-client-5.7
+Replaces: percona-server-server-8.0, percona-server-client-8.0
 Description: Percona Server database test suite
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database
@@ -243,17 +257,17 @@ Description: Percona Server database test suite
  a means for verifying that Percona Server and its client programs 
  operate according to expectations
 
-Package: percona-server-source-5.7
+Package: percona-server-source-8.0
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Percona Server 5.7 source
+Description: Percona Server 8.0 source
  This package includes the source code to Percona Server as configured before
  building.
 
-Package: percona-server-5.7-dbg
+Package: percona-server-8.0-dbg
 Architecture: any
 Section: debug
-Depends: percona-server-server-5.7 (= ${binary:Version}), ${misc:Depends}
+Depends: percona-server-server-8.0 (= ${binary:Version}), ${misc:Depends}
 Description: Debugging package for Percona Server
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database

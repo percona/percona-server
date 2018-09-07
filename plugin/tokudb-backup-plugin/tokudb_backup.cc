@@ -37,6 +37,10 @@
 #include <string>
 #include <vector>
 
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
+
 template <typename T>
 class BasicLockableClassWrapper {
   T &m_lockable;
@@ -870,6 +874,8 @@ class source_dirs {
 
     Item_func_get_system_var *item = new Item_func_get_system_var(
         var, OPT_GLOBAL, &component_name, nullptr, 0);
+    item->resolve_type(thd);
+    item->quick_fix_field();
     String scratch;
     String *str = item->val_str(&scratch);
     if (str) {
@@ -1269,11 +1275,15 @@ static void tokudb_backup_update_throttle(
 
 static int tokudb_backup_plugin_init(MY_ATTRIBUTE((__unused__)) void *p) {
   DBUG_ENTER(__FUNCTION__);
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) {
+    DBUG_RETURN(true);
+  }
   DBUG_RETURN(0);
 }
 
 static int tokudb_backup_plugin_deinit(MY_ATTRIBUTE((__unused__)) void *p) {
   DBUG_ENTER(__FUNCTION__);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   DBUG_RETURN(0);
 }
 

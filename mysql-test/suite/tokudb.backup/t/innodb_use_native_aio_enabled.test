@@ -1,8 +1,10 @@
 # Check if tokudb hot backup is prevented if innodb_use_native_aio enabled
 --source include/have_tokudb_backup.inc
---source include/have_innodb.inc
 
-SELECT @@innodb_use_native_aio;
+--let $assert_text="Expected native AIO to be enabled"
+--let $assert_cond="[select @@global.innodb_use_native_aio = 1]" = 1
+--source include/assert.inc
+
 
 --let BACKUP_DIR= $MYSQL_TMP_DIR/tokudb_backup
 

@@ -983,8 +983,9 @@ static bool audit_log_update_thd_local(MYSQL_THD thd,
     if (event_connection->status == 0) {
       /* track default DB change */
       DBUG_ASSERT(event_connection->database.length <= sizeof(local->db));
-      memcpy(local->db, event_connection->database.str,
-             event_connection->database.length);
+      if (event_connection->database.str != nullptr)
+        memcpy(local->db, event_connection->database.str,
+               event_connection->database.length);
       local->db[event_connection->database.length] = 0;
     }
   } else if (event_class == MYSQL_AUDIT_GENERAL_CLASS) {

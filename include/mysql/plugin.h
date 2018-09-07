@@ -190,7 +190,12 @@ struct MYSQL_XID {
 #define PLUGIN_VAR_MEMALLOC 0x8000  /* String needs memory allocated */
 #define PLUGIN_VAR_NOPERSIST                \
   0x10000 /* SET PERSIST_ONLY is prohibited \
-             for read only variables */
+          for read only variables */
+#define PLUGIN_VAR_HINTUPDATEABLE              \
+  0x20000 /* This flag enables variables to be \
+    recognized by SET_VAR() HINT. Should       \
+    be used only THDVAR()  variables, ie       \
+    variables which have session scope */
 /**
   There can be some variables which needs to be set before plugin is loaded but
   not after plugin is loaded. ex: GR specific variables. Below flag must be set

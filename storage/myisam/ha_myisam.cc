@@ -104,14 +104,14 @@ static MYSQL_SYSVAR_SET(
     NULL, NULL, 0, &myisam_recover_typelib);
 
 static MYSQL_THDVAR_ULONG(
-    repair_threads, PLUGIN_VAR_RQCMDARG,
+    repair_threads, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "If larger than 1, when repairing a MyISAM table all indexes will be "
     "created in parallel, with one thread per index. The value of 1 "
     "disables parallel repair",
     NULL, NULL, 1, 1, ULONG_MAX, 1);
 
 static MYSQL_THDVAR_ULONGLONG(
-    sort_buffer_size, PLUGIN_VAR_RQCMDARG,
+    sort_buffer_size, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "The buffer that is allocated when sorting the index when doing "
     "a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE",
     NULL, NULL, 8192 * 1024, (long)(MIN_SORT_BUFFER + MALLOC_OVERHEAD),
@@ -130,7 +130,7 @@ static MYSQL_SYSVAR_ULONGLONG(mmap_size, myisam_mmap_size,
                               SIZE_T_MAX, 1);
 
 static MYSQL_THDVAR_ENUM(
-    stats_method, PLUGIN_VAR_RQCMDARG,
+    stats_method, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
     "Specifies how MyISAM index statistics collection code should "
     "treat NULLs. Possible values of name are NULLS_UNEQUAL (default "
     "behavior for 4.1 and later), NULLS_EQUAL (emulate 4.0 behavior), "

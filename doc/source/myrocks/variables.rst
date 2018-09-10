@@ -228,6 +228,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_error_on_suboptimal_collation`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_flush_log_at_trx_commit`
      - Yes
      - Yes
@@ -1246,6 +1250,19 @@ Enable it to increase throughput for concurrent workloads.
 
 Specifies whether to report an error when a database already exists.
 Disabled by default.
+
+.. variable:: rocksdb_error_on_suboptimal_collation
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--rocksdb-error-on-suboptimal-collation``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+Specifies whether to report an error instead of a warning if an index is
+created on a char field where the table has a sub-optimal collation (case
+insensitive). Enabled by default.
 
 .. variable:: rocksdb_flush_log_at_trx_commit
 

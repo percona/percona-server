@@ -11501,15 +11501,30 @@ const char *create_table_info_t::create_options_are_invalid() {
 
 static const LEX_STRING yes_string = {C_STRING_WITH_LEN("Y")};
 
-void ha_innobase::adjust_create_info_for_frm(
-    HA_CREATE_INFO *create_info) noexcept {
+/** Adjust encryption options.
+@param[in,out]  create_info Additional create information.
+@param[in,out]  table_def dd::Table object to be modified.*/
+void ha_innobase::adjust_encryption_options(HA_CREATE_INFO *create_info,
+                                            dd::Table *table_def) noexcept {
   const bool is_intrinsic =
       (create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE) != 0;
+  /* If table is intrinsic, it will use encryption for table based on
+  temporary tablespace encryption property. For non-intrinsic tables
+  without explicit encryption attribute, table will be forced to be
+  encrypted if innodb_encrypt_tables=ON/FORCE */
   if (create_info->encrypt_type.length == 0 &&
       create_info->encrypt_type.str == nullptr &&
-      (srv_encrypt_tables != SRV_ENCRYPT_TABLES_OFF ||
-       (srv_tmp_space.is_encrypted() && is_intrinsic)))
+      ((is_intrinsic && srv_tmp_space.is_encrypted()) ||
+       (!is_intrinsic && srv_encrypt_tables != SRV_ENCRYPT_TABLES_OFF))) {
     create_info->encrypt_type = yes_string;
+    if (table_def) {
+      dd::String_type encrypt_type;
+      dd::Properties &table_options = table_def->options();
+      encrypt_type.assign(create_info->encrypt_type.str,
+                          create_info->encrypt_type.length);
+      table_options.set("encrypt_type", encrypt_type);
+    }
+  }
 }
 
 /** Update create_info.  Used in SHOW CREATE TABLE et al. */
@@ -13741,6 +13756,8 @@ statement commit time.
 int ha_innobase::create(const char *name, TABLE *form,
                         HA_CREATE_INFO *create_info, dd::Table *table_def) {
   THD *thd = ha_thd();
+
+  adjust_encryption_options(create_info, table_def);
 
   if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
     return (truncate_impl(name, form, table_def));

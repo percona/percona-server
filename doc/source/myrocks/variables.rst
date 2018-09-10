@@ -84,6 +84,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_bulk_load_allow_sk`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_bulk_load_allow_unsorted`
      - Yes
      - Yes
@@ -714,6 +718,19 @@ Default value is ``10``, meaning that the block is not closed
 until there is less than 10 bits of free space remaining.
 
 Allowed range is from ``1`` to ``2147483647``.
+
+.. variable:: rocksdb_bulk_load_allow_sk
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--rocksdb-bulk-load-allow-sk``
+  :dyn: Yes
+  :scope: Global, Session
+  :vartype: Boolean
+  :default: ``OFF``
+
+Enabling this variable allows secondary keys to be added using the bulk loading
+feature. This variable can be toggled only when bulk load is disabled, i.e.
+when :variable:`rocksdb_bulk_load` is ``OFF``.
 
 .. variable:: rocksdb_bulk_load_allow_unsorted
 

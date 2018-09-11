@@ -1370,6 +1370,16 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
       break;
   }
 
+  /* Check if this index is of clustering key type. Used by TokuDB */
+  const dd::Properties &index_options = idx_obj->options();
+  bool has_clustering = false;
+  if (index_options.exists("clustering_key")) {
+    index_options.get("clustering_key", &has_clustering);
+  }
+  if (has_clustering) {
+    keyinfo->flags |= HA_CLUSTERING;
+  }
+
   if (idx_obj->is_generated()) keyinfo->flags |= HA_GENERATED_KEY;
 
   /*

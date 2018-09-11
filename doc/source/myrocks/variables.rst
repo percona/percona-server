@@ -881,8 +881,8 @@ and will be enabled if :variable:`rocksdb_bulk_load` is enabled.
 Specifies whether to write the commit time write batch into the database or
 not.
 
-.. note:: If the commit time write batch is only useful for recovery, writting
-          to WAL is enough.
+.. note:: If the commit time write batch is only useful for recovery, then
+          writing to WAL is enough.
 
 .. variable:: rocksdb_compact_cf
 
@@ -2436,6 +2436,6 @@ Allowed values are ``write_committed``, ``write_prepared``, and
 ``write_unprepared``.
 
 Default value is ``write_committed`` which means data are written at commit
-time. If the value is set to ``write_prepared``, data are written after
+time. If the value is set to ``write_prepared``, then data are written after
 the prepare phase of a two-phase transaction. If the value is set to 
-``write_unprepared``, data are written before the prepare phase.
+``write_unprepared``, then data are written before the prepare phase.

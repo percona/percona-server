@@ -448,6 +448,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_stats_recalc_rate`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_store_row_debug_checksums`
      - Yes
      - Yes
@@ -2052,6 +2056,19 @@ Specifies the period in seconds for performing a dump of the MyRocks statistics
 to the info log.
 Default value is ``600``.
 Allowed range is up to ``2147483647``.
+
+.. variable:: rocksdb_stats_recalc_rate
+
+  :version 5.7.19-17: Implemented
+  :cli: ``--rocksdb-stats-recalc-rate``
+  :dyn: No
+  :scope: Global
+  :vartype: Numeric
+  :default: ``0``
+
+Specifies the number of indexes to recalculate per second. Recalculating index
+statistics periodically ensures it to match the actual sum from SST files.
+Default value is ``0``. Allowed range is up to ``4294967295``.
 
 .. variable:: rocksdb_store_row_debug_checksums
 

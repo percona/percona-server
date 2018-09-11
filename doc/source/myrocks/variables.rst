@@ -116,6 +116,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_commit_time_batch_for_recovery`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_compact_cf`
      - Yes
      - Yes
@@ -552,6 +556,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_write_policy`
+     - Yes
+     - No
+     - Global
 
 .. variable:: rocksdb_access_hint_on_compaction_start
 
@@ -860,6 +868,21 @@ when a batch contains more than the value of
 :variable:`rocksdb_bulk_load_size`.
 This is disabled by default
 and will be enabled if :variable:`rocksdb_bulk_load` is enabled.
+
+.. variable:: rocksdb_commit_time_batch_for_recovery
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--rocksdb-commit-time-batch-for-recovery``
+  :dyn: Yes
+  :scope: Global, Session
+  :vartype: Boolean
+  :default: ``OFF``
+
+Specifies whether to write the commit time write batch into the database or
+not.
+
+.. note:: If the commit time write batch is only useful for recovery, writting
+          to WAL is enough.
 
 .. variable:: rocksdb_compact_cf
 
@@ -2059,7 +2082,7 @@ Allowed range is up to ``2147483647``.
 
 .. variable:: rocksdb_stats_recalc_rate
 
-  :version 5.7.19-17: Implemented
+  :version 5.7.23-23: Implemented
   :cli: ``--rocksdb-stats-recalc-rate``
   :dyn: No
   :scope: Global
@@ -2398,3 +2421,21 @@ which can be useful for bulk loading.
 
 Specifies whether to ignore writes to column families that do not exist.
 Disabled by default (writes to non-existent column families are not ignored).
+
+.. variable:: rocksdb_write_policy
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--rocksdb-write-policy``
+  :dyn: No
+  :scope: Global
+  :vartype: String
+  :default: ``write_committed``
+
+Specifies when two-phase commit data are actually written into the database.
+Allowed values are ``write_committed``, ``write_prepared``, and
+``write_unprepared``.
+
+Default value is ``write_committed`` which means data are written at commit
+time. If the value is set to ``write_prepared``, data are written after
+the prepare phase of a two-phase transaction. If the value is set to 
+``write_unprepared``, data are written before the prepare phase.

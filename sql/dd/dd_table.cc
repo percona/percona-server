@@ -1115,6 +1115,10 @@ static void fill_dd_indexes_from_keyinfo(
     if (key->parser_name.str)
       idx_options->set("parser_name", key->parser_name.str);
 
+    if (key->flags & HA_CLUSTERING) {
+      idx_options->set("clustering_key", true);
+    }
+
     /*
       If we have no primary key, then we pick the first candidate primary
       key and promote it. When we promote, the field's of key_part needs to

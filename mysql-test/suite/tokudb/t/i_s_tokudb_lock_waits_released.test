@@ -2,13 +2,9 @@
 # populated with 1 lock_wait and all transactions are present in information_schema.tokudb_trx for 2 clients
 
 source include/have_tokudb.inc;
-set default_storage_engine='tokudb';
 set tokudb_prelock_empty=false;
-disable_warnings;
-drop table if exists t;
-enable_warnings;
 
-create table t (id int primary key);
+create table t (id int primary key) engine=tokudb;
 
 # verify that txn_a insert (1) blocks txn_b insert (1) and txn_b gets a duplicate key error
 
@@ -56,7 +52,7 @@ select * from information_schema.tokudb_locks;
 select * from information_schema.tokudb_lock_waits;
 
 connection conn_b;
---error 1062 # duplicate key
+--error ER_DUP_ENTRY
 reap;
 commit;
 
@@ -81,13 +77,18 @@ set autocommit=0;
 set tokudb_lock_timeout=600000; # set lock wait timeout to 10 minutes
 send replace into t values (1);
 
---echo should find the presence of a lock on 1st transaction
+# There will actually be three locks held by the same transaction
+# but it is expected as there is a sub-transaction involved now and
+# sub-transactions inherit lockability from their parent but still maintain
+# their own independent lock.  This can be seen/verified by removing the
+# column masking of the transaction Ids.
+--echo should find the presence of lock(s) on 1st transactioni
 connection default;
 let $wait_condition= select count(*)=1 from information_schema.processlist where info='replace into t values (1)' and state='update';
 source include/wait_condition.inc;
 real_sleep 1; # delay a little to shorten the update -> write row -> lock wait race
 
-replace_column 1 TRX_ID 2 MYSQL_ID; 
+replace_column 1 TRX_ID 2 MYSQL_ID;
 select * from information_schema.tokudb_locks;
 
 --echo should find the presence of a lock_wait on the 2nd transaction
@@ -101,7 +102,7 @@ select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 connection conn_a;
 commit;
 --echo verify that the lock on the 1st transaction is released and replaced by the lock for the 2nd transaction
-let $wait_condition= select count(*)=1 from information_schema.tokudb_locks where locks_dname='./test/t-main';
+let $wait_condition= select count(*)=3 from information_schema.tokudb_locks where locks_dname='./test/t-main';
 source include/wait_condition.inc;
 replace_column 1 TRX_ID 2 MYSQL_ID;
 select * from information_schema.tokudb_locks;

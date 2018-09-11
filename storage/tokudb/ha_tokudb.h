@@ -268,7 +268,6 @@ public:
     bool try_table_lock;
 
     bool has_unique_keys;
-    bool replace_into_fast;
     tokudb::thread::rwlock_t _num_DBs_lock;
     uint32_t num_DBs;
 
@@ -674,7 +673,6 @@ private:
     int write_key_name_to_status(DB* status_block, char* key_name, DB_TXN* txn);
     int write_auto_inc_create(DB* db, ulonglong val, DB_TXN* txn);
     void init_auto_increment();
-    bool can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_INFO* kc_info, uint pk);
     int initialize_share(const char* name, int mode);
 
     void set_query_columns(uint keynr);

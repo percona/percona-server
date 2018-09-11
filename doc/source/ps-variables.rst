@@ -102,6 +102,11 @@ System Variables
      - Yes
      - Global
      - No
+   * - :variable:`ft_query_extra_word_chars`
+     - Yes
+     - Yes
+     - Both
+     - Yes
    * - :variable:`have_backup_locks`
      - Yes
      - No

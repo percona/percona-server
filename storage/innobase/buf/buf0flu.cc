@@ -2594,11 +2594,13 @@ void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
   os_thread_create(page_flush_coordinator_thread_key,
                    buf_flush_page_coordinator_thread, n_page_cleaners);
 
-  os_thread_create(buf_lru_manager_thread_key, buf_lru_manager_thread);
+  for (decltype(srv_buf_pool_instances) i = 0; i < srv_buf_pool_instances; i++)
+    os_thread_create(buf_lru_manager_thread_key, buf_lru_manager_thread);
 
   /* Make sure page cleaner and LRU managers are active. */
-
-  while (!buf_page_cleaner_is_active) {
+  while (!buf_page_cleaner_is_active ||
+         buf_lru_manager_running_threads.load(std::memory_order_relaxed) <
+             srv_buf_pool_instances) {
     os_thread_sleep(10000);
   }
 }

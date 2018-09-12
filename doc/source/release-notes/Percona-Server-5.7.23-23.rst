@@ -50,7 +50,7 @@ Bugs Fixed
 * The option ``innodb-optimize-keys`` could fail when a dumped table has two
   columns such that the name of one of them contains the other as as a prefix and
   is defined with the AUTO_INCREMENT attribute. Bug fixed :psbug:`4524`.
-* When ``innodb_temp_tablespace_encrypt`` was set to ``ON`` the ``CREATE TABLE``
+* When :variable:`innodb_temp_tablespace_encrypt` was set to ``ON`` the ``CREATE TABLE``
   command could ignore the value of the ``ENCRYPTION`` option. Bug fixed
   :psbug:`4565`.
 * If ``FLUSH STATUS`` was run from a different session, a statement could be

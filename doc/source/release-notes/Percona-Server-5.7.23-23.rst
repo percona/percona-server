@@ -24,8 +24,8 @@ New Features
   :variable:`binlog_space_limit` is consistent with the variable
   :variable:`relay-log-space-limit` used for relay logs; both variables have the
   same semantics. For more information, see :psbug:`275`.
-* Starting with |release|, all data are encrypted in the InnoDB system
-  tablespace and in the parallel double write buffer. A new variable
+* Starting with |release|, it is possible to encrypt all data in the InnoDB
+  system tablespace and in the parallel double write buffer. A new variable
   :variable:`innodb_sys_tablespace_encrypt` is introduced to encrypt the system
   tablespace. This feature is considered **ALPHA** quality. The encryption of
   the parallel double write buffer file is controlled by the variable
@@ -34,6 +34,9 @@ New Features
 * Changing ``rocksdb_update_cf_options`` returns any warnings and errors to the
   client instead of printing them to the server error log. For more information,
   see :psbug:`4258`.
+* :variable:`rocksdb_number_stat_computers` and 
+  :variable:`rocksdb_rate_limit_delay_millis` variables have been removed. For
+  more information, see :psbug:`4780`.
 * A number of new variables were introduced for |MyRocks|: 
   :variable:`rocksdb_rows_filtered` to show the number of rows filtered out for
   TTL in MyRocks tables, :variable:`rocksdb_bulk_load_allow_sk` to allow adding

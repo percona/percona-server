@@ -5,7 +5,7 @@ Percona Server |release|
 ========================
 
 Percona is glad to announce the release of Percona Server |release| on
-September 10, 2018. Downloads are available `here
+September 12, 2018. Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.23-23/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 
@@ -34,6 +34,18 @@ New Features
 * Changing ``rocksdb_update_cf_options`` returns any warnings and errors to the
   client instead of printing them to the server error log. For more information,
   see :psbug:`4258`.
+* A number of new variables were introduced for |MyRocks|: 
+  :variable:`rocksdb_rows_filtered` to show the number of rows filtered out for
+  TTL in MyRocks tables, :variable:`rocksdb_bulk_load_allow_sk` to allow adding
+  secondary keys using the bulk loading feature,
+  :variable:`rocksdb_error_on_suboptimal_collation` toggling warning or error
+  in case of an index creation on a char field where the table has a sub-optimal
+  collation, :variable:`rocksdb_stats_recalc_rate` specifying the number of
+  indexes to recalculate per second,
+  :variable:`rocksdb_commit_time_batch_for_recovery` toggler of writing the
+  commit time write batch into the database,
+  and :variable:`rocksdb_write_policy` specifying when two-phase commit data are
+  actually written into the database.
 	
 Bugs Fixed
 ==========

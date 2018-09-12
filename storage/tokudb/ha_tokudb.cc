@@ -3430,10 +3430,9 @@ void ha_tokudb::test_row_packing(uchar *record, DBT *pk_key, DBT *pk_val) {
 void ha_tokudb::set_main_dict_put_flags(THD *thd, uint32_t *put_flags) {
   uint32_t old_prelock_flags = 0;
 
-  if (hidden_primary_key) {
-    *put_flags = old_prelock_flags;
-  } else if (!do_unique_checks(thd, in_rpl_write_rows | in_rpl_update_rows) &&
-             !is_replace_into(thd) && !is_insert_ignore(thd)) {
+  if (hidden_primary_key ||
+      (!do_unique_checks(thd, in_rpl_write_rows | in_rpl_update_rows) &&
+       !is_replace_into(thd) && !is_insert_ignore(thd))) {
     *put_flags = old_prelock_flags;
   } else {
     *put_flags = DB_NOOVERWRITE | old_prelock_flags;
@@ -3537,8 +3536,9 @@ int ha_tokudb::write_row(uchar *record) {
   int error;
   THD *thd = ha_thd();
   bool has_null;
-  DB_TXN *txn = NULL;
-  tokudb_trx_data *trx = NULL;
+  DB_TXN *sub_trans = nullptr;
+  DB_TXN *txn = nullptr;
+  tokudb_trx_data *trx = nullptr;
   uint curr_num_DBs;
   bool num_DBs_locked = false;
 
@@ -3608,7 +3608,16 @@ int ha_tokudb::write_row(uchar *record) {
     goto cleanup;
   }
 
-  txn = transaction;
+  if (using_ignore) {
+    error =
+        txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION, thd);
+    if (error) {
+      goto cleanup;
+    }
+    txn = sub_trans;
+  } else {
+    txn = transaction;
+  }
   TOKUDB_HANDLER_TRACE_FOR_FLAGS(TOKUDB_DEBUG_TXN, "txn %p", txn);
   if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_CHECK_KEY))) {
     test_row_packing(record, &prim_key, &row);
@@ -3672,7 +3681,16 @@ cleanup:
   if (error == DB_KEYEXIST) {
     error = HA_ERR_FOUND_DUPP_KEY;
   }
-
+  if (using_ignore) {
+    // no point in recording error value of abort.
+    // nothing we can do about it anyway and it is not what
+    // we want to return.
+    if (error) {
+      abort_txn(sub_trans);
+    } else {
+      commit_txn(sub_trans, DB_TXN_NOSYNC);
+    }
+  }
   TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 

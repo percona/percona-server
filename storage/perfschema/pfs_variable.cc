@@ -941,7 +941,9 @@ bool PFS_status_variable_cache::can_aggregate(
     case SHOW_DOUBLE_STATUS:
     case SHOW_HA_ROWS:
     case SHOW_LONG_NOFLUSH:
+    case SHOW_SIGNED_INT:
     case SHOW_SIGNED_LONG:
+    case SHOW_SIGNED_LONGLONG:
     default:
       return false;
       break;

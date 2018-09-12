@@ -17,28 +17,6 @@ size of the binlogs on disk to 20G. The actual size limit is not necessarily
 ``FLUSH LOGS`` will make the server start a new log file and thus resulting in
 log files that are not fully written in these cases limit will be lower.
 
-Version Specific Information
-============================
-
-  * 5.7.10-1:
-    Variable :variable:`max_binlog_files` ported from |Percona Server| 5.6.
-  * 5.7.23-23:
-    Variable :variable:`max_binlog_files` is deprecated and replaced with :variable:`binlog_space_variable`.
-
-
-System Variables
-================
-
-.. variable:: max_binlog_files
-
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: ULONG
-     :default: 0 (unlimited)
-     :range: 0-102400
-
 Example
 =======
 
@@ -56,3 +34,43 @@ In order for new value to take effect ``FLUSH LOGS`` needs to be run. After that
   $ ls -l mysql-bin.0* | wc -l
   20
 
+Version Specific Information
+============================
+
+  * 5.7.10-1:
+    Variable :variable:`max_binlog_files` ported from |Percona Server| 5.6.
+  * 5.7.23-23:
+    Variable :variable:`max_binlog_files` is deprecated and replaced with :variable:`binlog_space_limit`.
+
+System Variables
+================
+
+.. variable:: max_binlog_files
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: ULONG
+     :default: 0 (unlimited)
+     :range: 0-102400
+     
+.. variable:: binlog_space_limit
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: No
+     :vartype: ULONG
+     :default: 0 (unlimited)
+     :range: 0-102400
+     
+This option places an upper limit on the total size in bytes of all binary logs. A value of ``0`` means
+“no limit”. This is useful for a server host that has limited disk space.
+
+When the limit is reached, oldest binary logs are purged until the total size is under the limit or only
+active log is remaining.
+
+.. note:: You should not set ``--binlog-space-limit`` to less or equal than the value of
+          ``--max-binlog-size`` because after the max-binlog-size limit will be reached, logs will be
+          rotated and immediately pruned by binlog-space-limit.

@@ -39,3 +39,6 @@ xtradb_compressed_columns_consistency_barracuda_redundant_set1 : percona disable
 xtradb_compressed_columns_consistency_barracuda_redundant_set2 : percona disabled until zip dict 8.0 reimplementation
 xtradb_compressed_columns_debug : percona disabled until zip dict 8.0 reimplementation
 xtradb_compressed_columns_ibd_sizes : percona disabled until zip dict 8.0 reimplementation
+xtradb_compressed_columns_ibd_sizes_partitioning : percona disabled until zip dict 8.0 reimplementation
+xtradb_compressed_columns_virtual : percona disabled until zip dict 8.0 reimplementation
+percona_sys_tablespace_encrypt : https://jira.percona.com/browse/PS-4834

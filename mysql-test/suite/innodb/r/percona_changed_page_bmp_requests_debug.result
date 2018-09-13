@@ -7,3 +7,76 @@ INSERT INTO t1 VALUES (20);
 SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
 SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
 DROP TABLE t1;
+#
+# PS-4723 "PURGE CHANGED_PAGE_BITMAPS doesn't work when innodb_data_home_dir used"
+# https://jira.percona.com/browse/PS-4723
+#
+call mtr.add_suppression("InnoDB: New log files created");
+call mtr.add_suppression("InnoDB: Creating foreign key constraint system tables");
+call mtr.add_suppression("InnoDB: Cannot open table mysql/[a-z_]+ from the internal data dictionary");
+call mtr.add_suppression("Info table is not ready to be used");
+call mtr.add_suppression("Table `mysql`\\.`innodb_table_stats` not found");
+call mtr.add_suppression("Can't open the mysql\\.plugin table");
+call mtr.add_suppression("Can't open and lock privilege tables");
+call mtr.add_suppression("Gtid table is not ready to be used");
+call mtr.add_suppression("Failed to open optimizer cost constant tables");
+call mtr.add_suppression("Can't open and lock time zone table");
+
+# Creating a custom data directory.
+
+# Restarting with custom InnoDB data directories.
+# restart:<hidden args>
+include/assert.inc [InnoDB redo log tracking must be enabled]
+include/assert.inc [InnoDB file per table must be disabled]
+
+# Creating a simple table and filling it with some records.
+CREATE TABLE t1(id INT) ENGINE=InnoDB STATS_PERSISTENT=0 STATS_AUTO_RECALC=0;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+
+# Flushing the table and changed page bitmaps.
+FLUSH TABLES t1;
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+
+# Inserting and flushing one more time for compatibility with 5.5.
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+FLUSH TABLES t1;
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+
+# Listing .xdb files after the flush.
+# The output must show three .xdb files: ib_modified_log_1_0.xdb, ib_modified_log_2_nnn.xdb and ib_modified_log_3_nnn.xdb.
+ib_modified_log_1_<nnn>.xdb
+ib_modified_log_2_<nnn>.xdb
+ib_modified_log_3_<nnn>.xdb
+
+# Purging changed page bitmaps (tracking enabled).
+# The first two .xdb files (ib_modified_log_1_0.xdb and ib_modified_log_2_nnn.xdb) must be deleted.
+PURGE CHANGED_PAGE_BITMAPS BEFORE PREVIOUS_LSN;
+
+# Listing .xdb files after the purge (tracking enabled).
+# The output must show only one .xdb file - ib_modified_log_3_nnn.xdb.
+ib_modified_log_3_<nnn>.xdb
+
+# Restarting with redo log tracking disabled.
+# restart:<hidden args>
+include/assert.inc [InnoDB redo log tracking must be disabled]
+
+# Listing .xdb files after the restart with tracking disabled.
+# The output must show the same two .xdb files: ib_modified_log_3_nnn.xdb and ib_modified_log_4_nnn.xdb.
+ib_modified_log_3_<nnn>.xdb
+ib_modified_log_4_<nnn>.xdb
+
+# Purging changed page bitmaps (tracking disabled).
+# The third .xdb file (ib_modified_log_3_nnn.xdb) must be deleted.
+PURGE CHANGED_PAGE_BITMAPS BEFORE PREVIOUS_LSN;
+
+# Listing .xdb files after the purge (tracking disabled).
+# The output must show only one .xdb file - ib_modified_log_4_nnn.xdb.
+ib_modified_log_4_<nnn>.xdb
+
+# Dropping the table.
+DROP TABLE t1;
+# Restarting with initial parameters.
+# restart:<hidden args>
+# Cleaning up

@@ -81,14 +81,20 @@ if (!$CURL_TIMEOUT)
   {
     if ($curl_response)
     {
-      print $F "--skip Cannot connect to Hashicorp Vault due to : $curl_response";
+      print $F "--let VAULT_ERROR= Cannot connect to Hashicorp Vault due to : $curl_response\n";
     }
     else
     {
-      print $F "--skip Seems that Hashicorp Vault testing server is down";
+      print $F "--let VAULT_ERROR= Seems that Hashicorp Vault testing server is down\n";
     }
   }
   $F->close();
 EOF
 
+--let VAULT_ERROR= 
 --source $MYSQLTEST_VARDIR/tmp/mount_list_result.inc
+
+if ($VAULT_ERROR)
+{
+  --skip $VAULT_ERROR
+}

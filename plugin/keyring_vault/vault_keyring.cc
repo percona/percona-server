@@ -175,6 +175,7 @@ int keyring_vault_deinit(void *arg [[maybe_unused]]) noexcept {
   logger.reset();
   delete_keyring_file_data();
   mysql_rwlock_destroy(&LOCK_keyring);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 
   curl_global_cleanup();
   return 0;

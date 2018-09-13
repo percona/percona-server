@@ -60,7 +60,7 @@ foo	CREATE TABLE `foo` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`),
   KEY `d` (`d`),
-  KEY `b` (`b`)
+  CLUSTERING KEY `b` (`b`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table foo_isam;
 Table	Create Table

@@ -4,5 +4,6 @@ KEYRING_VAULT_VERSION_1.0 {
      mysql_malloc_service;
      my_plugin_log_service;
      security_context_service;
+     plugin_registry_service;
   local: *;
 };

@@ -32,4 +32,4 @@
 # with name1, name2 etc from the comma separated list of plugin names
 # in the optional 4th argument.
 
-keyring_vault      plugin/keyring_vault      KEYRING_VAULT_PLUGIN keyring_vault
+keyring_vault      plugin_output_directory      KEYRING_VAULT_PLUGIN keyring_vault

@@ -29,9 +29,15 @@ int MY_ATTRIBUTE((visibility("default")))
   return 1;
 }
 
-void Log_resource_mi_wrapper::lock() { mysql_mutex_lock(&mi->data_lock); }
+void Log_resource_mi_wrapper::lock() {
+  mysql_mutex_lock(&mi->data_lock);
+  mysql_mutex_lock(&mi->rli->data_lock);
+}
 
-void Log_resource_mi_wrapper::unlock() { mysql_mutex_unlock(&mi->data_lock); }
+void Log_resource_mi_wrapper::unlock() {
+  mysql_mutex_unlock(&mi->rli->data_lock);
+  mysql_mutex_unlock(&mi->data_lock);
+}
 
 bool Log_resource_mi_wrapper::collect_info() {
   bool error = false;
@@ -47,6 +53,8 @@ bool Log_resource_mi_wrapper::collect_info() {
   const size_t dir_len = dirname_length(log_info.log_file_name);
   Json_string json_log_file(log_info.log_file_name + dir_len);
   Json_int json_log_pos(log_info.pos);
+  Json_string json_relay_master_log_file(mi->rli->get_group_master_log_name());
+  Json_int json_relay_master_log_pos(mi->rli->get_group_master_log_pos());
 
   Json_object json_channel;
   error = json_channel.add_clone("channel_name",
@@ -54,6 +62,12 @@ bool Log_resource_mi_wrapper::collect_info() {
   if (!error) error = json_channel.add_clone("relay_log_file", &json_log_file);
   if (!error)
     error = json_channel.add_clone("relay_log_position", &json_log_pos);
+  if (!error)
+    error = json_channel.add_clone("relay_master_log_file",
+                                   &json_relay_master_log_file);
+  if (!error)
+    error = json_channel.add_clone("exec_master_log_position",
+                                   &json_relay_master_log_pos);
   if (!error) json_replication->append_clone(&json_channel);
 
   return error;

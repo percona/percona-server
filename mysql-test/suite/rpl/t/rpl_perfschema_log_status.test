@@ -63,6 +63,10 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 --let $relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 1)
 --let $relay_log_pos= query_get_value(SHOW REPLICA STATUS, Relay_Log_Pos, 1)
 --let $ch1_relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Log_File, 2)
+--let $relay_source_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 1)
+--let $relay_source_log_pos= query_get_value(SHOW REPLICA STATUS, Exec_Source_Log_Pos, 1)
+--let $ch1_source_relay_log_file= query_get_value(SHOW REPLICA STATUS, Relay_Source_Log_File, 2)
+
 # As we do not start ch1, we cannot verify its positions accurately for this
 # test case purposes. That is fine as the objective is to test a non-empty
 # channel name.
@@ -137,6 +141,16 @@ if ($rpl_debug)
 --let $assert_cond= $ils_relay_log_pos = $relay_log_pos
 --source include/assert.inc
 
+--let $assert_text= Collected default replication channel relay source log file name is correct
+--let $ils_relay_source_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[0].relay_master_log_file") FROM ils_copy`
+--let $assert_cond= $ils_relay_source_log_file = "$relay_source_log_file"
+--source include/assert.inc
+
+--let $assert_text= Collected default replication channel relay source log file position is correct
+--let $ils_relay_source_log_pos= `SELECT JSON_EXTRACT(channels, "$.channels[0].exec_master_log_position") FROM ils_copy`
+--let $assert_cond= $ils_relay_source_log_pos = $relay_source_log_pos
+--source include/assert.inc
+
 --let $assert_text= Collected replication channel name for ch1 is correct
 --let $ils_ch1_channel_name= `SELECT JSON_EXTRACT(channels, "$.channels[1].channel_name") FROM ils_copy`
 --let $assert_cond= $ils_ch1_channel_name = "ch1"
@@ -145,6 +159,11 @@ if ($rpl_debug)
 --let $assert_text= Collected replication channel relay log file name for ch1 is correct
 --let $ils_ch1_relay_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[1].relay_log_file") FROM ils_copy`
 --let $assert_cond= $ils_ch1_relay_log_file = "$ch1_relay_log_file"
+--source include/assert.inc
+
+--let $assert_text= Collected replication channel relay source log file name for ch1 is correct
+--let $ils_ch1_relay_source_log_file= `SELECT JSON_EXTRACT(channels, "$.channels[1].relay_master_log_file") FROM ils_copy`
+--let $assert_cond= $ils_ch1_relay_source_log_file = "$ch1_relay_source_log_file"
 --source include/assert.inc
 
 --let $assert_text= Collected InnoDB LSN is in correct boundaries

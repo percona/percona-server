@@ -1,10 +1,9 @@
-DROP TABLE IF EXISTS t1;
 set @@session.max_heap_table_size=16*1024*1024;
-CREATE TABLE t1 (a INT NOT NULL, b VARCHAR(400), c INT, PRIMARY KEY (a), KEY (c)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=128;
+CREATE TABLE t1 (a INT NOT NULL, b VARCHAR(400), c INT, PRIMARY KEY (a), KEY (c)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=128 CHARACTER SET=latin1;
 ERROR 42000: Incorrect usage/placement of 'key_block_size'
-CREATE TABLE t1 (a INT NOT NULL, b INT, c VARCHAR(400), PRIMARY KEY (a), KEY (b)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=4;
+CREATE TABLE t1 (a INT NOT NULL, b INT, c VARCHAR(400), PRIMARY KEY (a), KEY (b)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=4 CHARACTER SET=latin1;
 ERROR 42000: Incorrect usage/placement of 'key_block_size'
-CREATE TABLE t1 (a INT NOT NULL, b INT, c VARCHAR(400), d VARCHAR(400), PRIMARY KEY (a), KEY (b)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=24;
+CREATE TABLE t1 (a INT NOT NULL, b INT, c VARCHAR(400), d VARCHAR(400), PRIMARY KEY (a), KEY (b)) ENGINE=HEAP COMMENT="testing heaps" KEY_BLOCK_SIZE=24 CHARACTER SET=latin1;
 SHOW TABLE STATUS LIKE "t1";
 Name	t1
 Engine	MEMORY
@@ -76,7 +75,7 @@ Name	t1
 Engine	MEMORY
 Version	10
 Row_format	Dynamic
-Rows	7
+Rows	0
 Avg_row_length	X
 Data_length	X
 Max_data_length	X
@@ -95,8 +94,8 @@ SHOW TABLE STATUS LIKE "t1";
 Name	t1
 Engine	MEMORY
 Version	10
-Row_format	Dynamic
-Rows	7
+Row_format	Fixed
+Rows	0
 Avg_row_length	X
 Data_length	X
 Max_data_length	X
@@ -115,8 +114,8 @@ SHOW TABLE STATUS LIKE "t1";
 Name	t1
 Engine	MEMORY
 Version	10
-Row_format	Dynamic
-Rows	7
+Row_format	Fixed
+Rows	0
 Avg_row_length	X
 Data_length	X
 Max_data_length	X
@@ -136,7 +135,7 @@ Name	t1
 Engine	MEMORY
 Version	10
 Row_format	Dynamic
-Rows	7
+Rows	0
 Avg_row_length	X
 Data_length	X
 Max_data_length	X
@@ -173,7 +172,7 @@ Name	t1
 Engine	MEMORY
 Version	10
 Row_format	Dynamic
-Rows	10001
+Rows	0
 Avg_row_length	X
 Data_length	X
 Max_data_length	X
@@ -269,7 +268,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `json_column` text,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE  t1 ENGINE=INNODB;
 ALTER TABLE  t1 ENGINE=MEMORY;
 #
@@ -282,7 +281,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `json_column` blob,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 MODIFY json_column TEXT;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -290,7 +289,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `json_column` text,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 MODIFY json_column BLOB;
 ALTER TABLE t1 MODIFY json_column TEXT;
 SHOW CREATE TABLE t1;
@@ -299,7 +298,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `json_column` text,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # PS-3943: Explicit key_block_size is kept and doesn't change
@@ -315,7 +314,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `json_column` text,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=200
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=200
 ALTER TABLE  t1 ENGINE=INNODB KEY_BLOCK_SIZE=0;
 ALTER TABLE  t1 ENGINE=MEMORY;
 ALTER TABLE t1 MODIFY json_column BLOB;
@@ -325,7 +324,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `json_column` blob,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 MODIFY json_column TEXT;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -333,5 +332,5 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `json_column` text,
   PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;

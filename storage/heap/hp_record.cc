@@ -133,7 +133,8 @@ static inline bool hp_process_field_data_to_chunkset(
 #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
       dump_chunk(info, curr_chunk);
 #endif
-      curr_chunk = *((uchar **)(curr_chunk + info.recordspace.offset_link));
+      memcpy(&curr_chunk, curr_chunk + info.recordspace.offset_link,
+             sizeof(uchar *));
       dst_offset = 0;
       continue;
     }
@@ -364,7 +365,7 @@ bool hp_extract_record(HP_INFO *info, uchar *record,
           Store a zero pointer for zero-length BLOBs because the server
           relies on that (see Field_blob::val_*().
         */
-        *(uchar **)to = 0;
+        memset(reinterpret_cast<uchar **>(to), 0, sizeof(uchar *));
       } else if (is_blob_column(column) && length > 0) {
         uint newsize = info->blob_offset + length;
 
@@ -424,7 +425,8 @@ bool hp_extract_record(HP_INFO *info, uchar *record,
 
   /* Store pointers to blob data in record */
   for (uint i = 0; i < nblobs; i++) {
-    *(uchar **)(record + rec_offsets[i]) = info->blob_buffer + buf_offsets[i];
+    uchar *record_off = info->blob_buffer + buf_offsets[i];
+    memcpy(record + rec_offsets[i], &record_off, sizeof(uchar *));
   }
 
   DBUG_RETURN(0);

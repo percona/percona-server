@@ -1,0 +1,14 @@
+#
+# Bug #789131: Valgrind warning in MyISAM in mysql-55-eb-blobs
+#
+
+CREATE TABLE t1 (f1 VARCHAR (128), f2 VARCHAR (128), f3 VARBINARY (512),
+       	     	f4 TEXT (65525), f5 VARCHAR (128), KEY (f1(1))) ENGINE=HEAP;
+
+INSERT IGNORE INTO t1 VALUES 
+       ( 'o' , "" , NULL , "" , 0 ) , 
+       (NULL, "" , "" , "" , 'f' ) ;
+
+INSERT IGNORE INTO t1 SELECT * FROM t1;
+
+DROP TABLE t1;

@@ -77,7 +77,7 @@ uint write_status_frequency = 0;
 bool dir_per_db = true;
 char *version = (char *)TOKUDB_VERSION_STR;
 
-bool check_jemalloc = true;
+bool check_jemalloc = false;
 
 static MYSQL_SYSVAR_ULONGLONG(cache_size, cache_size, PLUGIN_VAR_READONLY,
                               "cache table size", NULL, NULL, 0, 0, ~0ULL, 0);
@@ -235,7 +235,7 @@ static MYSQL_SYSVAR_BOOL(dir_per_db, dir_per_db, 0,
 static MYSQL_SYSVAR_BOOL(
     check_jemalloc, check_jemalloc, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
     "check if jemalloc is linked and transparent huge pages are disabled", NULL,
-    NULL, true);
+    NULL, false);
 
 //******************************************************************************
 // session variables

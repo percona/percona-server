@@ -39,6 +39,8 @@ int heap_rlast(HP_INFO *info, uchar *record, int inx) {
     if ((pos = (uchar *)tree_search_edge(&keyinfo->rb_tree, info->parents,
                                          &info->last_pos,
                                          offsetof(TREE_ELEMENT, right)))) {
+      memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos),
+             sizeof(uchar *));
       if (hp_extract_record(info, record, pos)) return my_errno();
       info->current_ptr = pos;
       info->update = HA_STATE_AKTIV;

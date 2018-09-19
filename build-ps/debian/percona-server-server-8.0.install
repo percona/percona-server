@@ -16,6 +16,11 @@ usr/bin/resolveip
 usr/bin/resolve_stack_dump
 usr/sbin/mysqld
 usr/bin/ps-admin
+
+# confguration files
+debian/extra/mysql.cnf  etc/mysql/
+debian/extra/mysqld.cnf /etc/mysql/mysql.conf.d/
+
 # debug binary
 usr/sbin/mysqld-debug
 # man pages

@@ -5,5 +5,5 @@ usr/share/mysql/errmsg-utf8.txt
 usr/share/mysql/charsets/*.xml
 usr/share/mysql/charsets/README
 # config files
-debian/extra/percona-server.cnf etc/mysql/
-debian/extra/percona-server.conf.d etc/mysql/
+debian/extra/conf.d  etc/mysql/
+debian/extra/my.cnf.fallback etc/mysql/

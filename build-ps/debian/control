@@ -112,7 +112,7 @@ Description: Percona Server database development files
 Package: percona-server-common-8.0
 Section: database
 Architecture: any
-Pre-depends: debconf (>= 0.2.17), mysql-common, debsums, ${misc:Pre-Depends}
+Pre-depends: debconf (>= 0.2.17), debsums, ${misc:Pre-Depends}
 Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Breaks: percona-server-common-5.7

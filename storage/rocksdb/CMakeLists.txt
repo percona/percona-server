@@ -159,6 +159,10 @@ ELSE()
   SET(PIC_EXT "")
 ENDIF()
 
+IF(DEFINED WITH_UBSAN)
+  add_definitions(-DROCKSDB_UBSAN_RUN)
+ENDIF()
+
 SET(ROCKSDB_SOURCES
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
   logger.h

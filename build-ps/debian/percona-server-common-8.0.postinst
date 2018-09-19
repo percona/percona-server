@@ -2,75 +2,9 @@
 
 set -e
 
-print_message() {
-    echo " -------------"
-    echo "   *  The suggested mysql options and settings are in /etc/mysql/percona-server.conf.d/mysqld.cnf"
-    echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
-    echo "   *  Once it is done please execute the following commands:"
-    echo " rm -rf /etc/mysql/my.cnf"
-    echo " update-alternatives --install /etc/mysql/my.cnf my.cnf \"/etc/mysql/percona-server.cnf\" 200"
-    echo " -------------"
-}
-
-case "$1" in
-  configure)
-    if [ ! -f /etc/mysql/my.cnf ]; then 
-        update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
-        exit 0
-    else
-        FILE=$(readlink -e /etc/mysql/my.cnf)
-        PKG=$(dpkg -S $FILE | cut -d: -f 1)
-        CONF_EXISTS=0 
-        if [ "$PKG" = "mysql-common" -o "$PKG" = "mariadb-common" -o "$PKG" = "percona-server-common" ]; then
-            MODIFIED=$(debsums --all $PKG | grep $FILE | awk '{print $2}')
-            if [ $MODIFIED = "OK" ]; then
-                if [ "$PKG" = "mariadb-common" -o "$PKG" = "mysql-common" ]; then
-                    for DIR in $(grep 'includedir' $FILE | awk '{print $2}'); do
-                        if [ -d $DIR ]; then
-                            COUNT=$(ls $DIR | wc -l)
-                            if [ $COUNT -gt 0 ]; then
-                                for file in $(ls $DIR); do
-                                    modified=$(debsums --all $PKG | grep $file | awk '{print $2}')
-                                    if [ $MODIFIED = "OK" ]; then
-                                        CONF_EXISTS=0
-                                    else
-                                        CONF_EXISTS=1
-                                        break
-                                    fi
-                                done
-                            fi
-                        fi
-                    done
-                fi
-                if [ $CONF_EXISTS = 0 ]; then
-                    cp -p /etc/mysql/my.cnf /etc/mysql/my.cnf.old
-                    #rm -rf /etc/mysql/my.cnf
-                    update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200 || true
-                    exit 0
-                else
-                    print_message
-                    exit 0
-                fi
-            fi
-        fi
-        real_file=$(readlink -f /etc/mysql/my.cnf)
-        if [ ! -f /etc/mysql/my.cnf -o $real_file = "/etc/mysql/percona-server.cnf" ]; then
-            print_message
-            #rm -rf /etc/mysql/my.cnf
-            update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200 || true
-        else
-            print_message
-        fi
-    fi
-  ;;  
-
-  abort-upgrade|abort-remove|abort-configure)
-  ;;  
-
-  *)  
-    echo "postinst called with unknown argument '$1'" 1>&2
-    exit 1
-  ;;  
-esac
+if [ "$1" = "configure" ]; then
+	# Low priority fallback for client use when no server is installed.
+	update-alternatives --install /etc/mysql/my.cnf my.cnf /etc/mysql/my.cnf.fallback 100
+fi
 
 #DEBHELPER#

@@ -688,7 +688,7 @@ informational message. */
 class warn_or_info : public logger {
  public:
 #ifndef UNIV_NO_ERR_MSGS
-  warn_or_info(bool pred, int err)
+  warn_or_info(int err, bool pred)
       : logger(pred ? WARNING_LEVEL : INFORMATION_LEVEL, err) {}
 #endif /* !UNIV_NO_ERR_MSGS */
 };

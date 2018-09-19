@@ -60,6 +60,7 @@ case "$1" in
 	set -e
 
 	place_upstart_job_back
+	update-alternatives --remove my.cnf "/etc/mysql/mysql.cnf"
 
 	set +e
 
@@ -73,9 +74,9 @@ case "$1" in
 
 	MYSQLDATA=/var/lib/mysql
 	MYSQLFILES=/var/lib/mysql-files
+	MYSQLKEYRING=/var/lib/mysql-keyring
 	MYSQLLOG=/var/log/mysql
 	MYSQLRUN=/var/run/mysqld
-	MYSQLKEYRING=/var/lib/mysql-keyring
 
 	server_stop
 
@@ -107,6 +108,12 @@ case "$1" in
 		if [ -d ${MYSQLKEYRING} ] || [ -L ${MYSQLKEYRING} ];
 		then
 			rm -rf ${MYSQLKEYRING}
+		fi
+
+		OVERRIDEFILE="/etc/mysql/mysql.conf.d/default-auth-override.cnf"
+		if [ -e ${OVERRIDEFILE} ];
+		then
+			rm ${OVERRIDEFILE}
 		fi
 
 		if getent passwd mysql >/dev/null;

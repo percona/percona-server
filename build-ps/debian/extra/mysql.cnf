@@ -26,3 +26,8 @@ sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_ALL_TABLES
 
 # Disabling symbolic-links is recommended to prevent assorted security risks
 symbolic-links=0
+
+[mysqld_safe]
+pid-file = /var/run/mysqld/mysqld.pid
+socket   = /var/run/mysqld/mysqld.sock
+nice     = 0

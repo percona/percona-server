@@ -519,14 +519,7 @@ make DESTDIR=%{buildroot} install
 #install -D -m 0644 packaging/rpm-common/mysql.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
 #investigate this logrotate
 install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
-install -d %{buildroot}%{_sysconfdir}/percona-server.conf.d
-install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/percona-server.cnf
-install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld.cnf
-install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld_safe.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
-
-#%if 0%{?rhel} > 6
-#  install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
-#%endif
+install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld.cnf %{buildroot}%{_sysconfdir}/my.cnf
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 
 #%if 0%{?systemd}
@@ -623,42 +616,6 @@ if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "
   fi
 else
   cp /etc/my.cnf /etc/my.cnf.old
-fi
-if [ ! -f /etc/my.cnf ]; then
-  rm -rf /etc/my.cnf
-  update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
-else
-  if [ "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
-      real_file=$(readlink -f /etc/my.cnf)
-      if [ -L /etc/my.cnf ] && [ "x${real_file}" == "x/etc/percona-server.cnf" ]; then
-          rm -rf /etc/my.cnf
-          update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
-      else
-          echo " -------------"
-          echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
-          echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
-          echo "   *  Once it is done please execute the following commands:"
-          echo " rm -rf /etc/my.cnf"
-          echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
-          echo " -------------"
-      fi
-  else
-      echo " -------------"
-      echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
-      echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
-      echo "   *  Once it is done please execute the following commands:"
-      echo " rm -rf /etc/my.cnf"
-      echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
-      echo " -------------"
-      cnflog=$(/usr/bin/my_print_defaults mysqld|grep -c log-error)
-      if [ $cnflog = 0 -a -f /etc/my.cnf -a ! -L /etc/my.cnf ]; then
-          sed -i "/^\[mysqld\]$/a log-error=/var/log/mysqld.log" /etc/my.cnf
-      fi
-      cnfpid=$(/usr/bin/my_print_defaults mysqld|grep -c pid-file)
-      if [ $cnfpid = 0 -a -f /etc/my.cnf -a ! -L /etc/my.cnf ]; then
-          sed -i "/^\[mysqld\]$/a pid-file=/var/run/mysqld/mysqld.pid" /etc/my.cnf
-      fi
-  fi
 fi
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
@@ -762,18 +719,8 @@ fi
 %attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
 %attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
 
-
-#%config(noreplace) %{_sysconfdir}/my.cnf
+%config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
-%dir %{_sysconfdir}/percona-server.conf.d
-%config(noreplace) %{_sysconfdir}/percona-server.cnf
-%config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld.cnf
-%config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
-%if 0%{?rhel} > 6
-#%ghost %config(noreplace) %{_sysconfdir}/my.cnf
-%ghost %{_sysconfdir}/my.cnf
-%endif
-
 
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/ibd2sdi

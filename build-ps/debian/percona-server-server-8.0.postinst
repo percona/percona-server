@@ -89,6 +89,11 @@ case "$1" in
             fi
 		fi
 
+		# If the existing config file is a proper file, we back it up
+		if [ -f "/etc/mysql/my.cnf" ] && [ ! -L "/etc/mysql/my.cnf" ]; then
+			cp /etc/mysql/my.cnf /etc/mysql/my.cnf.bak
+		fi
+		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
 		then
 			db_get percona-server-server-8.0/root-pass && PASSWD=${RET}
@@ -118,7 +123,6 @@ EOF
 			run_init_sql "$SQL"
 			rm -f "$SQL"
 		fi
-
 		set +e
 
 	fi

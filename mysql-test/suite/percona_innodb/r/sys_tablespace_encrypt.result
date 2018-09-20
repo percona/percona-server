@@ -1,3 +1,4 @@
+call mtr.add_suppression("Found 1 prepared XA transactions");
 # Do tests on un-encrypted system tablespace
 SELECT @@innodb_sys_tablespace_encrypt;
 @@innodb_sys_tablespace_encrypt
@@ -105,7 +106,7 @@ SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
   `a` text
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 CREATE TABLE t7(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 INSERT INTO t7 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
 ALTER TABLE t7 ALGORITHM=COPY;
@@ -113,7 +114,7 @@ SHOW CREATE TABLE t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
   `a` text
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 # rebuild to a table unencrypted and in system should be disalowed
 ALTER TABLE t7 ALGORITHM=COPY, ENCRYPTION='N';
 ERROR HY000: InnoDB: Tablespace `innodb_system` can contain only an ENCRYPTED tables.
@@ -121,14 +122,14 @@ SHOW CREATE TABLE t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
   `a` text
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 ALTER TABLE t7 ENCRYPTION='N';
 ERROR HY000: InnoDB: Tablespace `innodb_system` can contain only an ENCRYPTED tables.
 SHOW CREATE TABLE t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
   `a` text
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 # Move encrypted table in system tablespace to file_per_table tablespace
 # t7 should be encrypted table. Verify the ibd later
 ALTER TABLE t7 TABLESPACE=`innodb_file_per_table`;
@@ -136,14 +137,14 @@ SHOW CREATE TABLE t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
   `a` text
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 # Move encrypted table in sytem tablespace as an unencrypted table
 ALTER TABLE t6 TABLESPACE=`innodb_file_per_table`, ENCRYPTION='N';
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
   `a` text
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 # Move unencrypted file_per_table to a table in encrypted system tablespace
 CREATE TABLE t8(a TEXT);
 INSERT INTO t8 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
@@ -157,5 +158,15 @@ ALTER TABLE t9 TABLESPACE=`innodb_system`;
 # make sure that system tablespace is encrypted
 Pattern not found.
 Pattern not found.
+#
+# PS-4917 : Assertion failure: dict0dd.cc:5784:space->flags == flags
+#
+# restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON
+XA START 'x1';
+INSERT INTO t1 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+INSERT INTO t5 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+XA END 'x1';
+XA PREPARE 'x1';
+# Kill and restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON
 # Start default MTR instance
 # restart

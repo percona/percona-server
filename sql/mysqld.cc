@@ -9858,6 +9858,26 @@ int mysqld_main(int argc, char **argv)
   if (!server_id_supplied)
     LogErr(INFORMATION_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);
 
+  /* Server generates uuid after innodb is initialized. But during
+  initialization, if tablespaces like system, redo, temporary are encrypted,
+  they are initialized with "empty" UUID. Now UUID is available, fix the
+  empty UUID of such tablespaces now */
+  if (innodb_hton != nullptr &&
+      innodb_hton->fix_tablespaces_empty_uuid != nullptr) {
+    if (innodb_hton->fix_tablespaces_empty_uuid()) {
+      sql_print_error(
+          "Fixing empty UUID with InnoDB Engine failed. Please"
+          " check if keyring plugin is loaded and execute"
+          " \"ALTER INSTANCE ROTATE INNODB MASTER KEY\"");
+    }
+    // Only now, that we have server_uuid initialized we can
+    // instruct encryption threads to do some work
+    if (innodb_hton->fix_default_table_encryption != nullptr) {
+      innodb_hton->fix_default_table_encryption(
+          global_system_variables.default_table_encryption, true);
+    }
+  }
+
   /*
     Add server_uuid to the tsid_map.  This must be done after
     server_uuid has been initialized in init_server_auto_options and

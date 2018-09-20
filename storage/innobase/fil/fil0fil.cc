@@ -9101,7 +9101,6 @@ bool Fil_shard::needs_encryption_rotate(fil_space_t *space) {
       "ib_encryption_rotate_skip",
       ib::info(ER_IB_MSG_INJECT_FAILURE, "ib_encryption_rotate_skip");
       return false;);
-
   return true;
 }
 
@@ -9231,6 +9230,7 @@ size_t fil_encryption_rotate() { return (fil_system->encryption_rotate()); }
 void fil_encryption_reencrypt(std::vector<space_id_t> &sid_vector) {
   fil_system->encryption_reencrypt(sid_vector);
 }
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Constructor

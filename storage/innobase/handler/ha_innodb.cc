@@ -207,7 +207,7 @@ ib_mutex_t master_key_id_mutex;
 static ulong commit_threads = 0;
 static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
-static bool innodb_inited = 0;
+bool innodb_inited = false;
 
 #define EQ_CURRENT_THD(thd) ((thd) == current_thd)
 
@@ -3813,6 +3813,76 @@ bool innobase_encryption_key_rotation() {
   return (ret);
 }
 
+/** Fix the empty UUID of tablespaces like system, temp etc by generating
+a new master key and do key rotation. These tablespaces if encrypted
+during startup, will be encrypted with tablespace key which has empty UUID
+@return false on success, true on failure */
+bool innobase_fix_tablespaces_empty_uuid() {
+  /* If we are in read only mode, we cannot do rotation but it
+  is OK */
+  if (srv_read_only_mode) {
+    return (false);
+  }
+
+  /* We only need to handle the case when an encrypted tablespace
+  is created at startup. If it is 0, there is no encrypted tablespace,
+  If it is > 1, it means we already have fixed the UUID */
+  if (Encryption::s_master_key_id != 1) {
+    return (false);
+  }
+
+  byte *master_key = nullptr;
+  ulint master_key_id;
+  Encryption::get_master_key(&master_key_id, &master_key);
+
+  if (master_key == nullptr) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    return (true);
+  }
+  my_free(master_key);
+
+  master_key = nullptr;
+
+  /* Generate the new master key. */
+  Encryption::create_master_key(&master_key);
+
+  if (master_key == nullptr) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    return (true);
+  }
+
+  /** Check if sys, temp need rotation to fix the empty uuid */
+  space_id_vec space_ids;
+
+  space_ids.push_back(srv_sys_space.space_id());
+  space_ids.push_back(srv_tmp_space.space_id());
+
+  undo::spaces->s_lock();
+  for (auto undo_space : undo::spaces->m_spaces) {
+    /* We already added system tablespace */
+    if (undo_space->id() == TRX_SYS_SPACE) {
+      continue;
+    }
+    space_ids.push_back(undo_space->id());
+  }
+  undo::spaces->s_unlock();
+
+  /* Rotate log tablespace */
+  bool failure1 = !log_rotate_encryption();
+
+  bool failure2 = !fil_encryption_rotate_global(space_ids);
+
+  my_free(master_key);
+
+  /* If rotation failure, return error */
+  if (failure1 || failure2) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    return (true);
+  }
+
+  return (false);
+}
+
 /** Return partitioning flags. */
 static uint innobase_partition_flags() {
   return (HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK |
@@ -4436,6 +4506,9 @@ static int innodb_init(void *p) {
 
   innobase_hton->rotate_encryption_master_key =
       innobase_encryption_key_rotation;
+
+  innobase_hton->fix_tablespaces_empty_uuid =
+      innobase_fix_tablespaces_empty_uuid;
 
   innobase_hton->post_ddl = innobase_post_ddl;
 

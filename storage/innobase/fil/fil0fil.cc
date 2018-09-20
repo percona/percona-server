@@ -7469,14 +7469,45 @@ fil_temp_update_encryption(
 /** Default master key id for bootstrap */
 static const ulint ENCRYPTION_DEFAULT_MASTER_KEY_ID = 0;
 
+/** Rotate the tablespace key by new master key.
+@param[in]	space	tablespace object
+@return true if the re-encrypt suceeds */
+static
+bool
+fil_encryption_rotate_low(const fil_space_t* space)
+{
+	bool success = true;
+	if (space->encryption_type != Encryption::NONE) {
+		mtr_t mtr;
+		mtr_start(&mtr);
+
+		if (fsp_is_system_temporary(space->id)) {
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		}
+
+		mtr.set_named_space(space->id);
+
+		fil_space_t* space_locked = mtr_x_lock_space(space->id, &mtr);
+
+		byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
+
+		if (!fsp_header_rotate_encryption(space_locked,
+						  encrypt_info,
+						  &mtr)) {
+			success = false;
+		}
+		mtr_commit(&mtr);
+	}
+	return(success);
+}
+
 /** Rotate the tablespace keys by new master key.
 @return true if the re-encrypt suceeds */
 bool
 fil_encryption_rotate()
 {
 	fil_space_t*	space;
-	mtr_t		mtr;
-	byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
 
 	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL; ) {
@@ -7498,27 +7529,9 @@ fil_encryption_rotate()
 			continue;
 		}
 
-		if (space->encryption_type != Encryption::NONE) {
-			mtr_start(&mtr);
-
-			if (fsp_is_system_temporary(space->id)) {
-				mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-			}
-
-			mtr.set_named_space(space->id);
-
-			space = mtr_x_lock_space(space->id, &mtr);
-
-			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
-
-			if (!fsp_header_rotate_encryption(space,
-							  encrypt_info,
-							  &mtr)) {
-				mtr_commit(&mtr);
-				return(false);
-			}
-
-			mtr_commit(&mtr);
+		bool success = fil_encryption_rotate_low(space);
+		if (!success) {
+			return(false);
 		}
 
 		space = UT_LIST_GET_NEXT(space_list, space);
@@ -7526,6 +7539,29 @@ fil_encryption_rotate()
 				DBUG_SUICIDE(););
 	}
 
+	return(true);
+}
+
+/** Rotate tablespace keys of global tablespaces like system, temporary, etc.
+This is used only at startup to fix the empty UUIDs.
+@param[in]	space_ids	vector of space_ids
+@return true on success, false on failure */
+bool
+fil_encryption_rotate_global(const space_id_vec& space_ids)
+{
+	space_id_vec::const_iterator it;
+	for (it = space_ids.begin(); it != space_ids.end(); ++it) {
+
+		fil_space_t* space = fil_space_acquire(*it);
+
+		bool success = fil_encryption_rotate_low(space);
+
+		fil_space_release(space);
+
+		if (!success) {
+			return(false);
+		}
+	}
 	return(true);
 }
 

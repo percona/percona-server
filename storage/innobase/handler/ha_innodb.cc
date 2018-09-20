@@ -127,7 +127,7 @@ static mysql_mutex_t innobase_share_mutex;
 static ulong commit_threads = 0;
 static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
-static bool innodb_inited = 0;
+bool innodb_inited = false;
 
 #define INSIDE_HA_INNOBASE_CC
 
@@ -3721,6 +3721,69 @@ static bool innobase_is_supported_system_table(const char *db,
 /* mutex protecting the master_key_id */
 ib_mutex_t	master_key_id_mutex;
 
+/** Fix the empty UUID of tablespaces like system, temp etc by generating
+a new master key and do key rotation. These tablespaces if encrypted
+during startup, will be encrypted with tablespace key which has empty UUID
+@return false on success, true on failure */
+bool
+innobase_fix_tablespaces_empty_uuid()
+{
+	/* If we are in read only mode, we cannot do rotation but it
+	is OK */
+	if (srv_read_only_mode) {
+		return(false);
+	}
+
+	/* We only need to handle the case when an encrypted tablespace
+	is created at startup. If it is 0, there is no encrypted tablespace,
+	If it is > 1, it means we already have fixed the UUID */
+	if (Encryption::master_key_id != 1) {
+		return(false);
+	}
+
+	byte*	master_key = NULL;
+	ulint	master_key_id;
+	Encryption::Version	version;
+	Encryption::get_master_key(&master_key_id,
+				   &master_key,
+				   &version);
+
+	if (master_key == NULL) {
+		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+		return(true);
+	}
+	my_free(master_key);
+
+	master_key = NULL;
+
+	/* Generate the new master key. */
+	Encryption::create_master_key(&master_key);
+
+	if (master_key == NULL) {
+		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+		return(true);
+	}
+
+	/** Check if sys, temp need rotation to fix the empty uuid */
+	/* Also, in future, it is possible to fix empty uuid for redo & undo
+	here. Just add the space_id into vector */
+	space_id_vec space_ids;
+
+	space_ids.push_back(srv_sys_space.space_id());
+	space_ids.push_back(srv_tmp_space.space_id());
+
+	bool	ret = !fil_encryption_rotate_global(space_ids);
+
+	my_free(master_key);
+
+	/* If rotation failure, return error */
+	if (ret) {
+		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+	}
+
+	return(ret);
+}
+
 /** Rotate the encrypted tablespace keys according to master key
 rotation.
 @return false on success, true on failure */
@@ -3893,6 +3956,9 @@ innobase_init(
 
 	innobase_hton->rotate_encryption_master_key =
 		innobase_encryption_key_rotation;
+
+	innobase_hton->fix_tablespaces_empty_uuid =
+		innobase_fix_tablespaces_empty_uuid;
 
 	innobase_hton->create_zip_dict = innobase_create_zip_dict;
 	innobase_hton->drop_zip_dict = innobase_drop_zip_dict;

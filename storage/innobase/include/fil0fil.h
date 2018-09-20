@@ -1706,4 +1706,12 @@ fil_space_set_corrupt(
 /*==================*/
 	ulint	space_id);
 
+typedef std::vector<ulint> space_id_vec;
+
+/** Rotate tablespace keys of global tablespaces like system, temporary, etc.
+This is used only at startup to fix the empty UUIDs.
+@param[in]	space_ids	vector of space_ids
+@return true on success, false on failure */
+bool
+fil_encryption_rotate_global(const space_id_vec& space_ids);
 #endif /* fil0fil_h */

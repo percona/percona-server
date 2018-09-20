@@ -5144,6 +5144,20 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  /* Server generates uuid after innodb is initialized. But during
+  initialization, if tablespaces like system, redo, temporary are encrypted,
+  they are initialized with "empty" UUID. Now UUID is available, fix the
+  empty UUID of such tablespaces now */
+  if (innodb_hton != NULL && innodb_hton->fix_tablespaces_empty_uuid)
+  {
+    if (innodb_hton->fix_tablespaces_empty_uuid())
+    {
+      sql_print_error("Fixing empty UUID with InnoDB Engine failed. Please"
+		      " check if keyring plugin is loaded and execute"
+		      " \"ALTER INSTANCE ROTATE INNODB MASTER KEY\"");
+    }
+  }
+
   /*
     Add server_uuid to the sid_map.  This must be done after
     server_uuid has been initialized in init_server_auto_options and

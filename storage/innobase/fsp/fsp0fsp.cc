@@ -930,6 +930,11 @@ fsp_header_fill_encryption_info(
 	if (version == Encryption::ENCRYPTION_VERSION_2) {
 		memcpy(ptr, Encryption::uuid, ENCRYPTION_SERVER_UUID_LEN);
 		ptr += ENCRYPTION_SERVER_UUID_LEN;
+		/* We should never write empty UUID. Only exemption is for
+		tablespaces when InnoDB is initializing (like system, temp, etc).
+		These tablespaces UUID will be fixed by handlerton API after server
+		generates uuid */
+		ut_ad(!innodb_inited || strlen(Encryption::uuid) != 0);
 	}
 
 	/* Write tablespace key to temp space. */
@@ -1287,6 +1292,7 @@ fsp_header_decode_encryption_info(
 		memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
 		memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
 		ptr += ENCRYPTION_SERVER_UUID_LEN;
+		ut_ad(strlen(srv_uuid) != 0);
 	}
 
 	/* Get master key by key id. */

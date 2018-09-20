@@ -109,7 +109,7 @@ done
 if test "$#" -eq 0
 then
     WORKDIR="$(pwd)"
-    
+
     # Check that the current directory is not empty
     if test "x$(echo *)" != "x*"
     then
@@ -184,7 +184,7 @@ fi
 if test -d "$SOURCEDIR/storage/tokudb"
 then
     CMAKE_OPTS="${CMAKE_OPTS:-} -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKUDB_BACKUP_PLUGIN_VERSION=${TOKUDB_BACKUP_VERSION}"
-    
+
     if test "x$CMAKE_BUILD_TYPE" != "xDebug"
     then
         CMAKE_OPTS="${CMAKE_OPTS:-} -DTOKU_DEBUG_PARANOID=OFF"
@@ -233,7 +233,7 @@ then
         echo >&2 "Jemalloc dir $WITH_JEMALLOC does not exist"
         exit 1
     fi
-    
+
     JEMALLOCDIR="$(cd "$WITH_JEMALLOC"; pwd)"
 fi
 
@@ -242,7 +242,7 @@ fi
     rm -rf "$WORKDIR_ABS/bld"
     mkdir "$WORKDIR_ABS/bld"
     cd "$WORKDIR_ABS/bld"
- 
+
     cmake $SOURCEDIR ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
         $DEBUG_EXTRA \
@@ -283,7 +283,8 @@ fi
 # Package the archive
 (
     cd "$INSTALLDIR/usr/local/"
-
+    #PS-4854 Percona Server for MySQL tarball without AGPLv3 dependency/license
+    find $PRODUCT_FULL -type f -name 'COPYING.AGPLv3' -delete
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL
 )
 

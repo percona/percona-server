@@ -4677,6 +4677,68 @@ bool innobase_fix_default_table_encryption(ulong encryption_option,
   return false;
 }
 
+/** Fix the empty UUID of tablespaces like system, temp etc by generating
+a new master key and do key rotation. These tablespaces if encrypted
+during startup, will be encrypted with tablespace key which has empty UUID
+@return false on success, true on failure */
+bool innobase_fix_tablespaces_empty_uuid() {
+  /* If we are in read only mode, we cannot do rotation but it
+  is OK */
+  if (srv_read_only_mode) {
+    return (false);
+  }
+
+  /* We only need to handle the case when an encrypted tablespace
+  is created at startup. If it is 0, there is no encrypted tablespace,
+  If it is > 1, it means we already have fixed the UUID */
+  if (Encryption::get_master_key_id() != 1) {
+    return (false);
+  }
+
+  byte *master_key = nullptr;
+  uint32_t master_key_id;
+  Encryption::get_master_key(&master_key_id, &master_key);
+
+  if (master_key == nullptr) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    return (true);
+  }
+  my_free(master_key);
+
+  master_key = nullptr;
+
+  /* Generate the new master key. */
+  Encryption::create_master_key(&master_key);
+
+  if (master_key == nullptr) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    return (true);
+  }
+
+  /** Check if sys, temp need rotation to fix the empty uuid */
+  space_id_vec space_ids;
+
+  space_ids.push_back(srv_sys_space.space_id());
+  space_ids.push_back(srv_tmp_space.space_id());
+  space_ids.push_back(dict_sys_t::s_dict_space_id);
+
+  undo::spaces->s_lock();
+  for (auto undo_space : undo::spaces->m_spaces) {
+    /* We already added system tablespace */
+    if (undo_space->id() == TRX_SYS_SPACE) {
+      continue;
+    }
+    space_ids.push_back(undo_space->id());
+  }
+  undo::spaces->s_unlock();
+
+  /* Rotate log tablespace */
+
+  my_free(master_key);
+
+  return (false);
+}
+
 /** Enable or Disable SE write ahead logging.
 @param[in]      thd     connection THD
 @param[in]      enable  enable/disable redo logging
@@ -5746,6 +5808,9 @@ static int innodb_init(void *p) {
   innobase_hton->rotate_encryption_master_key =
       innobase_encryption_key_rotation;
 
+  innobase_hton->fix_tablespaces_empty_uuid =
+      innobase_fix_tablespaces_empty_uuid;
+
   innobase_hton->fix_default_table_encryption =
       innobase_fix_default_table_encryption;
 
@@ -6048,7 +6113,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     static char se_private_data_innodb_system[len];
     static char se_private_data_dd[len];
     snprintf(se_private_data_innodb_system, len, fmt, TRX_SYS_SPACE,
-             predefined_flags, DD_SPACE_CURRENT_SRV_VERSION,
+             srv_sys_space.flags(), DD_SPACE_CURRENT_SRV_VERSION,
              DD_SPACE_CURRENT_SPACE_VERSION);
     snprintf(se_private_data_dd, len, fmt, dict_sys_t::s_dict_space_id,
              predefined_flags, DD_SPACE_CURRENT_SRV_VERSION,

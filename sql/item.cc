@@ -2302,7 +2302,8 @@ Item_field::Item_field(Field *f)
       no_const_subst(false),
       have_privileges(0),
       any_privileges(false) {
-  if (f->table->pos_in_table_list != NULL)
+  if (f->table->pos_in_table_list != nullptr &&
+      f->table->pos_in_table_list->select_lex != nullptr)
     context = &(f->table->pos_in_table_list->select_lex->context);
 
   set_field(f);

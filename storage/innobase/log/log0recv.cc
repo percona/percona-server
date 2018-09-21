@@ -3170,14 +3170,20 @@ bool meb_scan_log_recs(
 /** Reads a specified log segment to a buffer.
 @param[in,out]	log		redo log
 @param[in,out]	buf		buffer where to read
-@param[in]	start_lsn	read area start */
-void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn) {
-  log_background_threads_inactive_validate(log);
+@param[in]	start_lsn	read area start
+@param[in]	end_lsn		read area end
+@param[in]	online		whether the read is for the changed page
+                                tracking */
+void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn,
+                       bool online) {
+  if (!online) log_background_threads_inactive_validate(log);
 
   do {
     lsn_t source_offset;
 
+    if (online) log_writer_mutex_enter(log);
     source_offset = log_files_real_offset_for_lsn(log, start_lsn);
+    if (online) log_writer_mutex_exit(log);
 
     ut_a(end_lsn - start_lsn <= ULINT_MAX);
 
@@ -3267,7 +3273,7 @@ static void recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
   while (!finished) {
     lsn_t end_lsn = start_lsn + RECV_SCAN_SIZE;
 
-    recv_read_log_seg(log, log.buf, start_lsn, end_lsn);
+    recv_read_log_seg(log, log.buf, start_lsn, end_lsn, false);
 
     finished = recv_scan_log_recs(log, max_mem, log.buf, RECV_SCAN_SIZE,
                                   checkpoint_lsn, start_lsn, contiguous_lsn,
@@ -3499,7 +3505,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   if (start_lsn < end_lsn) {
     ut_a(start_lsn % log.buf_size + OS_FILE_LOG_BLOCK_SIZE <= log.buf_size);
 
-    recv_read_log_seg(log, recv_sys->last_block, start_lsn, end_lsn);
+    recv_read_log_seg(log, recv_sys->last_block, start_lsn, end_lsn, false);
 
     memcpy(log.buf + start_lsn % log.buf_size, recv_sys->last_block,
            OS_FILE_LOG_BLOCK_SIZE);

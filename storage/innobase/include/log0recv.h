@@ -68,8 +68,11 @@ lsn_t recv_calc_lsn_on_data_add(
 @param[in,out]	log		redo log
 @param[in,out]	buf		buffer where to read
 @param[in]	start_lsn	read area start
-@param[in]	end_lsn		read area end */
-void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn);
+@param[in]	end_lsn		read area end
+@param[in]	online		whether the read is for the changed page
+                                tracking */
+void recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn, lsn_t end_lsn,
+                       bool online);
 
 /** Tries to parse a single log record.
 @param[out]	type		log record type

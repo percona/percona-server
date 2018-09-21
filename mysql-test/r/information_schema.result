@@ -70,11 +70,9 @@ COLUMN_STATISTICS
 ENGINES
 EVENTS
 FILES
-KEYWORDS
-INDEX_STATISTICS
-GLOBAL_STATUS
 GLOBAL_TEMPORARY_TABLES
-GLOBAL_VARIABLES
+INDEX_STATISTICS
+KEYWORDS
 KEY_COLUMN_USAGE
 OPTIMIZER_TRACE
 PARAMETERS
@@ -101,9 +99,6 @@ TRIGGERS
 USER_PRIVILEGES
 USER_STATISTICS
 VIEWS
-XTRADB_READ_VIEW
-XTRADB_ZIP_DICT
-XTRADB_ZIP_DICT_COLS
 columns_priv
 component
 db
@@ -145,20 +140,6 @@ select c,table_name from v1
 inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c rlike "t[1-5]{1}$" order by c;
 c	TABLE_NAME
-TABLES	TABLES
-TABLESPACES	TABLESPACES
-TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
-TABLE_PRIVILEGES	TABLE_PRIVILEGES
-TABLE_STATISTICS	TABLE_STATISTICS
-TEMPORARY_TABLES	TEMPORARY_TABLES
-THREAD_STATISTICS	THREAD_STATISTICS
-TRIGGERS	TRIGGERS
-tables_priv	tables_priv
-time_zone	time_zone
-time_zone_leap_second	time_zone_leap_second
-time_zone_name	time_zone_name
-time_zone_transition	time_zone_transition
-time_zone_transition_type	time_zone_transition_type
 t1	t1
 t2	t2
 t3	t3
@@ -168,20 +149,6 @@ select c,table_name from v1
 left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c rlike "t[1-5]{1}$" order by c;
 c	TABLE_NAME
-TABLES	TABLES
-TABLESPACES	TABLESPACES
-TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
-TABLE_PRIVILEGES	TABLE_PRIVILEGES
-TABLE_STATISTICS	TABLE_STATISTICS
-TEMPORARY_TABLES	TEMPORARY_TABLES
-THREAD_STATISTICS	THREAD_STATISTICS
-TRIGGERS	TRIGGERS
-tables_priv	tables_priv
-time_zone	time_zone
-time_zone_leap_second	time_zone_leap_second
-time_zone_name	time_zone_name
-time_zone_transition	time_zone_transition
-time_zone_transition_type	time_zone_transition_type
 t1	t1
 t2	t2
 t3	t3
@@ -191,20 +158,6 @@ select c, v2.table_name from v1
 right join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c rlike "t[1-5]{1}$" order by c;
 c	TABLE_NAME
-TABLES	TABLES
-TABLESPACES	TABLESPACES
-TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
-TABLE_PRIVILEGES	TABLE_PRIVILEGES
-TABLE_STATISTICS	TABLE_STATISTICS
-TEMPORARY_TABLES	TEMPORARY_TABLES
-THREAD_STATISTICS	THREAD_STATISTICS
-TRIGGERS	TRIGGERS
-tables_priv	tables_priv
-time_zone	time_zone
-time_zone_leap_second	time_zone_leap_second
-time_zone_name	time_zone_name
-time_zone_transition	time_zone_transition
-time_zone_transition_type	time_zone_transition_type
 t1	t1
 t2	t2
 t3	t3
@@ -673,8 +626,7 @@ where table_schema='information_schema'
 order by table_name collate utf8_general_ci limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
 CHARACTER_SETS	SYSTEM VIEW	NULL
-COLLATIONS	SYSTEM VIEW	NULL
-CLIENT_STATISTICS	SYSTEM VIEW	MEMORY
+CLIENT_STATISTICS	SYSTEM VIEW	NULL
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
@@ -855,12 +807,6 @@ EVENTS	ENDS	datetime
 EVENTS	EXECUTE_AT	datetime
 EVENTS	LAST_EXECUTED	datetime
 EVENTS	STARTS	datetime
-FILES	CREATION_TIME	datetime
-FILES	LAST_UPDATE_TIME	datetime
-FILES	LAST_ACCESS_TIME	datetime
-FILES	CREATE_TIME	datetime
-FILES	UPDATE_TIME	datetime
-FILES	CHECK_TIME	datetime
 GLOBAL_TEMPORARY_TABLES	CREATE_TIME	datetime
 GLOBAL_TEMPORARY_TABLES	UPDATE_TIME	datetime
 PARTITIONS	CHECK_TIME	datetime
@@ -869,11 +815,6 @@ TABLES	CHECK_TIME	datetime
 TABLES	UPDATE_TIME	datetime
 TEMPORARY_TABLES	CREATE_TIME	datetime
 TEMPORARY_TABLES	UPDATE_TIME	datetime
-TRIGGERS	CREATED	datetime
-event	execute_at	datetime
-event	last_executed	datetime
-event	starts	datetime
-event	ends	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
@@ -936,9 +877,9 @@ SELECT table_schema, count(*) FROM information_schema.TABLES WHERE
 table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
-table_schema	count(*)
-information_schema	42
-mysql	28
+TABLE_SCHEMA	count(*)
+information_schema	39
+mysql	31
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -1322,7 +1263,6 @@ table_schema IN ('mysql',
 'test')) order by table_name;
 TABLE_NAME
 user
-XTRADB_ZIP_DICT_COLS
 DROP TABLE IF EXISTS bug23037;
 DROP FUNCTION IF EXISTS get_value;
 SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT)
@@ -1389,9 +1329,9 @@ COLUMN_STATISTICS	information_schema.COLUMN_STATISTICS	1
 ENGINES	information_schema.ENGINES	1
 EVENTS	information_schema.EVENTS	1
 FILES	information_schema.FILES	1
-KEYWORDS	information_schema.KEYWORDS	1
 GLOBAL_TEMPORARY_TABLES	information_schema.GLOBAL_TEMPORARY_TABLES	1
 INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
+KEYWORDS	information_schema.KEYWORDS	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
 OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1
@@ -1418,9 +1358,6 @@ TRIGGERS	information_schema.TRIGGERS	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 USER_STATISTICS	information_schema.USER_STATISTICS	1
 VIEWS	information_schema.VIEWS	1
-XTRADB_READ_VIEW	information_schema.XTRADB_READ_VIEW	1
-XTRADB_ZIP_DICT	information_schema.XTRADB_ZIP_DICT	1
-XTRADB_ZIP_DICT_COLS	information_schema.XTRADB_ZIP_DICT_COLS	1
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);
@@ -1769,9 +1706,7 @@ SELECT length(CAST(b AS CHAR)) FROM ubig;
 length(CAST(b AS CHAR))
 20
 DROP TABLE ubig;
-grant usage on *.* to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user mysqltest_1@localhost identified by 'password';
 select 1 from information_schema.tables where table_schema=repeat('a', 2000);
 1
 drop user mysqltest_1@localhost;
@@ -2539,6 +2474,7 @@ AND t.table_name NOT LIKE 'ndb%'
 c1.column_name COLLATE utf8_general_ci;
 TABLE_NAME	COLUMN_NAME
 CHARACTER_SETS	CHARACTER_SET_NAME
+CLIENT_STATISTICS	CLIENT
 COLLATIONS	COLLATION_NAME
 COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
 COLUMNS	TABLE_SCHEMA
@@ -2547,6 +2483,8 @@ COLUMN_STATISTICS	SCHEMA_NAME
 ENGINES	ENGINE
 EVENTS	EVENT_SCHEMA
 FILES	TABLE_SCHEMA
+GLOBAL_TEMPORARY_TABLES	TABLE_SCHEMA
+INDEX_STATISTICS	TABLE_SCHEMA
 KEYWORDS	WORD
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 OPTIMIZER_TRACE	QUERY
@@ -2567,8 +2505,12 @@ TABLES	TABLE_SCHEMA
 TABLESPACES	TABLESPACE_NAME
 TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
 TABLE_PRIVILEGES	TABLE_SCHEMA
+TABLE_STATISTICS	TABLE_SCHEMA
+TEMPORARY_TABLES	TABLE_SCHEMA
+THREAD_STATISTICS	THREAD_ID
 TRIGGERS	TRIGGER_SCHEMA
 USER_PRIVILEGES	GRANTEE
+USER_STATISTICS	USER
 VIEWS	TABLE_SCHEMA
 SELECT t.table_name, c1.column_name
 FROM information_schema.tables t
@@ -2590,6 +2532,7 @@ AND t.table_name NOT LIKE 'ndb%'
 c1.column_name COLLATE utf8_general_ci;
 TABLE_NAME	COLUMN_NAME
 CHARACTER_SETS	CHARACTER_SET_NAME
+CLIENT_STATISTICS	CLIENT
 COLLATIONS	COLLATION_NAME
 COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
 COLUMNS	TABLE_SCHEMA
@@ -2598,6 +2541,8 @@ COLUMN_STATISTICS	SCHEMA_NAME
 ENGINES	ENGINE
 EVENTS	EVENT_SCHEMA
 FILES	TABLE_SCHEMA
+GLOBAL_TEMPORARY_TABLES	TABLE_SCHEMA
+INDEX_STATISTICS	TABLE_SCHEMA
 KEYWORDS	WORD
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 OPTIMIZER_TRACE	QUERY
@@ -2618,8 +2563,12 @@ TABLES	TABLE_SCHEMA
 TABLESPACES	TABLESPACE_NAME
 TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
 TABLE_PRIVILEGES	TABLE_SCHEMA
+TABLE_STATISTICS	TABLE_SCHEMA
+TEMPORARY_TABLES	TABLE_SCHEMA
+THREAD_STATISTICS	THREAD_ID
 TRIGGERS	TRIGGER_SCHEMA
 USER_PRIVILEGES	GRANTEE
+USER_STATISTICS	USER
 VIEWS	TABLE_SCHEMA
 #
 # BUG#24679166: TABLE CREATION WITH BINARY TYPE COLUMN IS RESULTING IN

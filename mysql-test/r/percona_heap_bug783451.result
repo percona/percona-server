@@ -1,5 +1,5 @@
 DROP TABLE IF EXISTS local_1_1;
-CREATE  TABLE IF NOT EXISTS local_1_1 ( f1 VARCHAR ( 32 ) NOT NULL  , f2 VARCHAR ( 128 ) NOT NULL DEFAULT 'cboepfaobilcchabvglgjdbynog' , f3 VARCHAR ( 32 ) NOT NULL  , f4 VARBINARY ( 32 ) NOT NULL  , f5 VARBINARY ( 1024 )  DEFAULT 'ycboepfao' , KEY ( f1 /* ( 2 ) */ , f2 /* ( 2 ) */ ) ) ENGINE=HEAP KEY_BLOCK_SIZE = 512;
+CREATE  TABLE IF NOT EXISTS local_1_1 ( f1 VARCHAR ( 32 ) NOT NULL  , f2 VARCHAR ( 128 ) NOT NULL DEFAULT 'cboepfaobilcchabvglgjdbynog' , f3 VARCHAR ( 32 ) NOT NULL  , f4 VARBINARY ( 32 ) NOT NULL  , f5 VARBINARY ( 1024 )  DEFAULT 'ycboepfao' , KEY ( f1 /* ( 2 ) */ , f2 /* ( 2 ) */ ) ) ENGINE=HEAP KEY_BLOCK_SIZE=512 CHARACTER SET=latin1;
 INSERT IGNORE INTO local_1_1 VALUES ( REPEAT( 'ervydbimvmbqmsowdbsa' , 1 ) , 'v' , NULL , NULL , REPEAT( 'mervydbimvmbqms' , 5 ) ) , ( 'p' , 6 , 'n' , REPEAT( 'imervydbimvmbqmsowdbs' , 4 ) , 'do' ) , ( NULL , NULL , REPEAT( 'himervydbimvmbqmsowdbsaybudvwaamvhempuublmia' , 6 ) , REPEAT('X', POW(2, 20) * 2) , REPEAT('X', POW(2, 20) * 2) ) , ( REPEAT('X', POW(2, 20) * 2) , REPEAT( 'Y' , 763 ) , NULL , REPEAT('X', POW(2, 20) * 2) , NULL ) , ( REPEAT('X', POW(2, 20) * 2) , 'time' , 'how' , 2 , REPEAT( 'Y' , 107 ) ) , ( REPEAT( 'hyshimervydbimvmbqmsowdbsaybud' , 5 ) , 2 , 8 , NULL , REPEAT('X', POW(2, 20) * 2) ) , ( 'come' , NULL , 'i' , NULL , REPEAT('X', POW(2, 20) * 2) );
 Warnings:
 Warning	1048	Column 'f3' cannot be null
@@ -110,4 +110,12 @@ Warning	1265	Data truncated for column 'f5' at row 61
 Warning	1265	Data truncated for column 'f5' at row 62
 Warning	1265	Data truncated for column 'f5' at row 63
 Warning	1265	Data truncated for column 'f5' at row 64
+Warning	1265	Data truncated for column 'f5' at row 65
+Warning	1265	Data truncated for column 'f5' at row 66
+Warning	1265	Data truncated for column 'f5' at row 67
+Warning	1265	Data truncated for column 'f5' at row 68
+Warning	1265	Data truncated for column 'f5' at row 69
+Warning	1265	Data truncated for column 'f5' at row 70
+Warning	1265	Data truncated for column 'f5' at row 71
+Warning	1265	Data truncated for column 'f5' at row 72
 DROP TABLE local_1_1;

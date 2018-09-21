@@ -131,7 +131,8 @@ static inline bool hp_process_field_data_to_chunkset(
 #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
       dump_chunk(info, curr_chunk);
 #endif
-      curr_chunk = *((uchar **)(curr_chunk + info.recordspace.offset_link));
+      memcpy(&curr_chunk, curr_chunk + info.recordspace.offset_link,
+             sizeof(uchar *));
       dst_offset = 0;
       continue;
     }
@@ -263,23 +264,19 @@ void hp_copy_record_data_to_chunkset(const HP_SHARE &info, const uchar *record,
 }
 
 /*
-  Macro to switch curr_chunk to the next chunk in the chunkset and reset
+  Function to switch curr_chunk to the next chunk in the chunkset and reset
   src_offset.
 */
+static inline void switch_to_next_chunk_for_read(const HP_SHARE &share,
+                                                 const uchar *&curr_chunk,
+                                                 uint &src_offset) {
+  memcpy(&curr_chunk, curr_chunk + share.recordspace.offset_link,
+         sizeof(uchar *));
+  src_offset = 0;
 #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
-#define SWITCH_TO_NEXT_CHUNK_FOR_READ(share, curr_chunk, src_offset)         \
-  {                                                                          \
-    curr_chunk = *((uchar **)(curr_chunk + share->recordspace.offset_link)); \
-    src_offset = 0;                                                          \
-    dump_chunk(share, curr_chunk);                                           \
-  }
-#else
-#define SWITCH_TO_NEXT_CHUNK_FOR_READ(share, curr_chunk, src_offset)         \
-  {                                                                          \
-    curr_chunk = *((uchar **)(curr_chunk + share->recordspace.offset_link)); \
-    src_offset = 0;                                                          \
-  }
+  dump_chunk(share, curr_chunk);
 #endif
+}
 
 /**
   Copies record data from storage to unpacked record format
@@ -351,7 +348,7 @@ bool hp_extract_record(HP_INFO *info, uchar *record,
 
       for (i = 0; i < pack_length; i++) {
         if (src_offset == share->recordspace.chunk_dataspace_length) {
-          SWITCH_TO_NEXT_CHUNK_FOR_READ(share, curr_chunk, src_offset);
+          switch_to_next_chunk_for_read(*share, curr_chunk, src_offset);
         }
         *to++ = curr_chunk[src_offset++];
       }
@@ -366,7 +363,7 @@ bool hp_extract_record(HP_INFO *info, uchar *record,
           Store a zero pointer for zero-length BLOBs because the server
           relies on that (see Field_blob::val_*().
         */
-        *(uchar **)to = 0;
+        memset(reinterpret_cast<uchar **>(to), 0, sizeof(uchar *));
       } else if (is_blob_column(column) && length > 0) {
         uint newsize = info->blob_offset + length;
 
@@ -411,7 +408,7 @@ bool hp_extract_record(HP_INFO *info, uchar *record,
 
       to_copy = share->recordspace.chunk_dataspace_length - src_offset;
       if (to_copy == 0) {
-        SWITCH_TO_NEXT_CHUNK_FOR_READ(share, curr_chunk, src_offset);
+        switch_to_next_chunk_for_read(*share, curr_chunk, src_offset);
         to_copy = share->recordspace.chunk_dataspace_length;
       }
 
@@ -426,7 +423,8 @@ bool hp_extract_record(HP_INFO *info, uchar *record,
 
   /* Store pointers to blob data in record */
   for (uint i = 0; i < nblobs; i++) {
-    *(uchar **)(record + rec_offsets[i]) = info->blob_buffer + buf_offsets[i];
+    uchar *record_off = info->blob_buffer + buf_offsets[i];
+    memcpy(record + rec_offsets[i], &record_off, sizeof(uchar *));
   }
 
   DBUG_RETURN(0);

@@ -201,7 +201,7 @@ static uchar *hp_allocate_variable_chunkset(HP_DATASPACE *info,
     curr_chunk = existing_set;
     while (curr_chunk && alloc_count) {
       prev_chunk = curr_chunk;
-      curr_chunk = *((uchar **)(curr_chunk + info->offset_link));
+      memcpy(&curr_chunk, curr_chunk + info->offset_link, sizeof(uchar *));
       alloc_count--;
     }
 
@@ -211,7 +211,8 @@ static uchar *hp_allocate_variable_chunkset(HP_DATASPACE *info,
           We came through all chunks and there is more left, let's truncate the
           list.
         */
-        *((uchar **)(prev_chunk + info->offset_link)) = nullptr;
+        memset(reinterpret_cast<uchar **>(prev_chunk + info->offset_link), 0,
+               sizeof(uchar *));
         hp_free_chunks(info, curr_chunk);
       }
 
@@ -234,8 +235,10 @@ static uchar *hp_allocate_variable_chunkset(HP_DATASPACE *info,
       if (last_existing_chunk) {
         /* Truncate whatever was added at the end of the existing chunkset */
         prev_chunk = last_existing_chunk;
-        curr_chunk = *((uchar **)(prev_chunk + info->offset_link));
-        *((uchar **)(prev_chunk + info->offset_link)) = nullptr;
+        memcpy(&curr_chunk, prev_chunk + info->offset_link, sizeof(uchar *));
+        memset(reinterpret_cast<uchar **>(prev_chunk + info->offset_link), 0,
+               sizeof(uchar *));
+
         hp_free_chunks(info, curr_chunk);
       } else if (first_chunk) {
         /* free any chunks previously allocated */
@@ -246,11 +249,12 @@ static uchar *hp_allocate_variable_chunkset(HP_DATASPACE *info,
     }
 
     /* mark as if this chunk is last in the chunkset */
-    *((uchar **)(curr_chunk + info->offset_link)) = 0;
+    memset(reinterpret_cast<uchar **>(curr_chunk + info->offset_link), 0,
+           sizeof(uchar *));
 
     if (prev_chunk) {
       /* tie them into a linked list */
-      *((uchar **)(prev_chunk + info->offset_link)) = curr_chunk;
+      memcpy(prev_chunk + info->offset_link, &curr_chunk, sizeof(uchar *));
       /* Record linked from active */
       curr_chunk[info->offset_status] = CHUNK_STATUS_LINKED;
     } else {
@@ -400,6 +404,6 @@ void hp_free_chunks(HP_DATASPACE *info, uchar *pos) noexcept {
     }
 
     /* Delete next chunk in this chunkset */
-    curr_chunk = *((uchar **)(curr_chunk + info->offset_link));
+    memcpy(&curr_chunk, curr_chunk + info->offset_link, sizeof(uchar *));
   }
 }

@@ -1,8 +1,6 @@
 SET default_storage_engine=MEMORY;
 drop table if exists t1,t2,t3,t4,t5,t6,t7;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
@@ -15,7 +13,7 @@ CREATE TABLE t2 (a char(255), b varbinary(70000), c varchar(70000000));
 Warnings:
 Note	1246	Converting column 'b' from VARBINARY to BLOB
 Note	1246	Converting column 'c' from VARCHAR to TEXT
-CREATE TABLE t4 (c varchar(65530) character set utf8 not null);
+CREATE TABLE t4 (c VARCHAR(65530) CHARACTER SET utf8mb4 NOT NULL);
 Warnings:
 Note	1246	Converting column 'c' from VARCHAR to TEXT
 show columns from t2;
@@ -29,12 +27,12 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` mediumtext,
   `b` mediumblob
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c` mediumtext CHARACTER SET utf8 NOT NULL
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+  `c` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1,t2,t3,t4;
 CREATE TABLE t1 (a char(257) default "hello");
 ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB or TEXT instead
@@ -220,19 +218,19 @@ select t from t1 group by t;
 t
 NULL
 
-1
-a
+hello
 HELLO
 HELLO MY
-hello
+a
+1
 select b from t1 group by b;
 b
 NULL
 
+hello
 HELLO
 HELLO MY
 a
-hello
 select distinct c from t1;
 c
 NULL
@@ -271,19 +269,19 @@ select c from t1 group by c;
 c
 NULL
 
-a
+hello
 HELLO
 HELLO MY
-hello
+a
 select d from t1 group by d;
 d
 NULL
 
-1
+hello
 HELLO
 HELLO MY
 a
-hello
+1
 select distinct * from t1;
 t	c	b	d
 NULL	NULL	NULL	NULL
@@ -295,38 +293,38 @@ a	a	a	a
 1		NULL	1
 select t,count(*) from t1 group by t;
 t	count(*)
-NULL	2
 	1
-1	1
-a	1
+hello	1
 HELLO	1
 HELLO MY	1
-hello	1
+a	1
+1	1
+NULL	2
 select b,count(*) from t1 group by b;
 b	count(*)
-NULL	3
 	1
+hello	1
 HELLO	1
 HELLO MY	1
 a	1
-hello	1
+NULL	3
 select c,count(*) from t1 group by c;
 c	count(*)
 NULL	2
 	2
-a	1
+hello	1
 HELLO	1
 HELLO MY	1
-hello	1
+a	1
 select d,count(*) from t1 group by d;
 d	count(*)
 NULL	2
 	1
-1	1
+hello	1
 HELLO	1
 HELLO MY	1
 a	1
-hello	1
+1	1
 drop table t1;
 CREATE TABLE t1 (
 t1_id bigint(21) NOT NULL auto_increment,
@@ -440,14 +438,13 @@ collation(load_file('../../std_data/words.dat')),
 coercibility(load_file('../../std_data/words.dat'));
 charset(load_file('../../std_data/words.dat'))	collation(load_file('../../std_data/words.dat'))	coercibility(load_file('../../std_data/words.dat'))
 binary	binary	4
-explain extended select
+EXPLAIN SELECT
 charset(load_file('MYSQLTEST_VARDIR/std_data/words.dat')),
 collation(load_file('MYSQLTEST_VARDIR/std_data/words.dat')),
 coercibility(load_file('MYSQLTEST_VARDIR/std_data/words.dat'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select charset(load_file('MYSQLTEST_VARDIR/std_data/words.dat')) AS `charset(load_file('MYSQLTEST_VARDIR/std_data/words.dat'))`,collation(load_file('MYSQLTEST_VARDIR/std_data/words.dat')) AS `collation(load_file('MYSQLTEST_VARDIR/std_data/words.dat'))`,coercibility(load_file('MYSQLTEST_VARDIR/std_data/words.dat')) AS `coercibility(load_file('MYSQLTEST_VARDIR/std_data/words.dat'))`
 update t1 set imagem=load_file('MYSQLTEST_VARDIR/std_data/words.dat') where id=1;
 select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
@@ -459,7 +456,7 @@ show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 l	longblob	NULL	YES		NULL		#	
 drop table t1;
-create table t1 (id integer primary key auto_increment, txt text not null);
+CREATE TABLE t1 (id INTEGER PRIMARY KEY AUTO_INCREMENT, txt TEXT NOT NULL) CHARACTER SET=latin1;
 insert into t1 (txt) values ('Chevy ');
 select * from t1 where txt='Chevy';
 id	txt
@@ -515,7 +512,7 @@ id	txt
 1	Chevy 
 2	Ford
 drop table t1;
-create table t1 (id integer primary key auto_increment, txt text);
+CREATE TABLE t1 (id INTEGER PRIMARY KEY AUTO_INCREMENT, txt TEXT) CHARACTER SET=latin1;
 insert into t1 (txt) values ('Chevy'), ('Chevy '), (NULL);
 select * from t1 where txt='Chevy' or txt is NULL;
 id	txt
@@ -614,6 +611,100 @@ id	txt
 3	NULL
 1	Chevy
 drop table t1;
+CREATE TABLE t1 (id INTEGER PRIMARY KEY AUTO_INCREMENT, txt TEXT) CHARACTER SET=utf8mb4;
+INSERT INTO t1 (txt) VALUES ('Chevy'), ('Chevy '), (NULL);
+SELECT * FROM t1 WHERE txt='Chevy' OR txt IS NULL;
+id	txt
+1	Chevy
+3	NULL
+EXPLAIN SELECT * FROM t1 WHERE txt='Chevy' OR txt IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or isnull(`test`.`t1`.`txt`))
+SELECT * FROM t1 WHERE txt='Chevy ';
+id	txt
+2	Chevy 
+SELECT * FROM t1 WHERE txt='Chevy ' OR txt='Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+SELECT * FROM t1 WHERE txt='Chevy' OR txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+SELECT * FROM t1 WHERE id='1' OR id='2';
+id	txt
+1	Chevy
+2	Chevy 
+INSERT INTO t1 (txt) VALUES('Ford');
+SELECT * FROM t1 WHERE txt='Chevy' OR txt='Chevy ' OR txt='Ford';
+id	txt
+1	Chevy
+2	Chevy 
+4	Ford
+SELECT * FROM t1 WHERE txt='Chevy' OR txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+SELECT * FROM t1 WHERE txt='Chevy' OR txt='Chevy ' OR txt=' Chevy';
+id	txt
+1	Chevy
+2	Chevy 
+SELECT * FROM t1 WHERE txt IN ('Chevy ','Chevy');
+id	txt
+1	Chevy
+2	Chevy 
+SELECT * FROM t1 WHERE txt IN ('Chevy');
+id	txt
+1	Chevy
+SELECT * FROM t1 WHERE txt BETWEEN 'Chevy' AND 'Chevy';
+id	txt
+1	Chevy
+SELECT * FROM t1 WHERE txt BETWEEN 'Chevy' AND 'Chevy' OR txt='Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+SELECT * FROM t1 WHERE txt BETWEEN 'Chevy' AND 'Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+SELECT * FROM t1 WHERE txt < 'Chevy';
+id	txt
+SELECT * FROM t1 WHERE txt < 'Chevy' OR txt IS NULL;
+id	txt
+3	NULL
+SELECT * FROM t1 WHERE txt <= 'Chevy ';
+id	txt
+1	Chevy
+2	Chevy 
+SELECT * FROM t1 WHERE txt > 'Chevy ';
+id	txt
+4	Ford
+SELECT * FROM t1 WHERE txt >= 'Chevy ';
+id	txt
+2	Chevy 
+4	Ford
+ALTER TABLE t1 MODIFY COLUMN txt BLOB;
+EXPLAIN SELECT * FROM t1 WHERE txt='Chevy' OR txt IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	43.75	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or isnull(`test`.`t1`.`txt`))
+SELECT * FROM t1 WHERE txt='Chevy' OR txt IS NULL;
+id	txt
+1	Chevy
+3	NULL
+EXPLAIN SELECT * FROM t1 WHERE txt='Chevy' OR txt IS NULL ORDER BY txt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	43.75	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or isnull(`test`.`t1`.`txt`)) order by `test`.`t1`.`txt`
+SELECT * FROM t1 WHERE txt='Chevy' OR txt IS NULL ORDER BY txt;
+id	txt
+3	NULL
+1	Chevy
+DROP TABLE t1;
 CREATE TABLE t1 ( i int(11) NOT NULL default '0',    c text NOT NULL, d varchar(1) NOT NULL DEFAULT ' ', PRIMARY KEY  (i));
 INSERT t1 (i, c) VALUES (1,''),(2,''),(3,'asdfh'),(4,'');
 select max(i) from t1 where c = '';
@@ -697,20 +788,16 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (default);
 select * from t1;
 a
 NULL
 drop table t1;
 set @@sql_mode='TRADITIONAL';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a text default '');
 ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'a' can't have a default value
 set @@sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t (c TEXT CHARSET ASCII);
 INSERT INTO t (c) VALUES (REPEAT('1',65537));
 Warnings:
@@ -798,38 +885,44 @@ ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
 CREATE TABLE b15776 (a year(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
 ERROR HY000: Supports only YEAR or YEAR(4) column.
 CREATE TABLE b15776 select cast(null as char(4294967295));
+Warnings:
+Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (67108864) - truncated
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
-cast(null as char(4294967295))	char(0)	YES		NULL	
+cast(null as char(4294967295))	longtext	YES		NULL	
 drop table b15776;
-CREATE TABLE b15776 select cast(null as nchar(4294967295));
+CREATE TABLE b15776 SELECT CAST(NULL AS CHAR(4294967295) CHARACTER SET utf8mb4);
+Warnings:
+Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (67108864) - truncated
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
-cast(null as nchar(4294967295))	char(0)	YES		NULL	
+CAST(NULL AS CHAR(4294967295) CHARACTER SET utf8mb4)	longtext	YES		NULL	
 drop table b15776;
 CREATE TABLE b15776 select cast(null as binary(4294967295));
+Warnings:
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
-cast(null as binary(4294967295))	binary(0)	YES		NULL	
+cast(null as binary(4294967295))	longblob	YES		NULL	
 drop table b15776;
 explain select cast(1 as char(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset latin1) AS `cast(1 as char(4294967295))`
-explain select cast(1 as nchar(4294967295));
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset utf8mb4) AS `cast(1 as char(4294967295))`
+EXPLAIN SELECT CAST(1 AS CHAR(4294967295) CHARACTER SET utf8mb4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset utf8) AS `cast(1 as nchar(4294967295))`
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset utf8mb4) AS `CAST(1 AS CHAR(4294967295) CHARACTER SET utf8mb4)`
 explain select cast(1 as binary(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset binary) AS `cast(1 as binary(4294967295))`
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset binary) AS `cast(1 as binary(4294967295))`
 explain select cast(1 as char(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
-explain select cast(1 as nchar(4294967296));
+EXPLAIN SELECT CAST(1 AS CHAR(4294967296) CHARACTER SET utf8mb4);
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 explain select cast(1 as binary(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
@@ -850,25 +943,25 @@ explain select convert(1, char(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset latin1) AS `convert(1, char(4294967295))`
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset utf8mb4) AS `convert(1, char(4294967295))`
 explain select convert(1, char(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 explain select convert(1, char(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
-explain select convert(1, nchar(4294967295));
+EXPLAIN SELECT CONVERT(1, CHAR(4294967295) CHARACTER SET utf8mb4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset utf8) AS `convert(1, nchar(4294967295))`
-explain select convert(1, nchar(4294967296));
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset utf8mb4) AS `CONVERT(1, CHAR(4294967295) CHARACTER SET utf8mb4)`
+EXPLAIN SELECT CONVERT(1, CHAR(4294967296) CHARACTER SET utf8mb4);
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
-explain select convert(1, nchar(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+EXPLAIN SELECT CONVERT(1, CHAR(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999) CHARACTER SET utf8mb4);
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 explain select convert(1, binary(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select cast(1 as char charset binary) AS `convert(1, binary(4294967295))`
+Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset binary) AS `convert(1, binary(4294967295))`
 explain select convert(1, binary(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 explain select convert(1, binary(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
@@ -902,9 +995,7 @@ COUNT(*)
 DROP FUNCTION f1;
 DROP TABLE t1;
 SET @old_max_heap_table_size = @@global.max_heap_table_size;
-SET @old_max_allowed_packet = @@global.max_allowed_packet;
 SET GLOBAL max_heap_table_size = 18 * 1024 * 1024;
-SET GLOBAL max_allowed_packet = 24 * 1024 * 1024;
 SET default_storage_engine=MEMORY;
 drop table if exists t1;
 CREATE TABLE t1 (data LONGBLOB);
@@ -938,5 +1029,4 @@ select length(data) from t1;
 length(data)
 65535
 drop table t1;
-SET GLOBAL max_allowed_packet = @old_max_allowed_packet;
 SET GLOBAL max_heap_table_size = @old_max_heap_table_size;

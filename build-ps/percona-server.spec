@@ -554,9 +554,6 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
   rm -f %{buildroot}%{_prefix}/COPYING.GPLv2
   rm -f %{buildroot}%{_prefix}/PATENTS
-%else
-  # Not needed if TokuDB package is not created
-  rm -rf %{buildroot}%{_bindir}/ps_tokudb_admin
 %endif
 
 # Remove upcoming man pages, to avoid breakage when they materialize
@@ -1101,7 +1098,6 @@ fi
 %{_bindir}/tokuftdump
 %{_libdir}/mysql/plugin/ha_tokudb.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
-%attr(755, root, root) %{_bindir}/ps_tokudb_admin
 %attr(755, root, root) %{_bindir}/tokuft_logprint
 %attr(755, root, root) %{_libdir}/mysql/plugin/tokudb_backup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/tokudb_backup.so

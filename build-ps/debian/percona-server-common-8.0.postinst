@@ -4,6 +4,9 @@ set -e
 
 if [ "$1" = "configure" ]; then
 	# Low priority fallback for client use when no server is installed.
+	if [ ! -f /etc/mysql/my.cnf.fallback ]; then
+		echo "!includedir /etc/mysql/conf.d/" >> /etc/mysql/my.cnf.fallback
+	fi
 	update-alternatives --install /etc/mysql/my.cnf my.cnf /etc/mysql/my.cnf.fallback 100
 fi
 

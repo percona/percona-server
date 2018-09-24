@@ -1,7 +1,6 @@
 usr/lib/mysql/plugin/ha_tokudb.so
 usr/lib/mysql/plugin/debug/ha_tokudb.so
 usr/bin/tokuftdump
-usr/bin/ps_tokudb_admin
 usr/bin/tokuft_logprint
 usr/lib/*/libHotBackup.so
 usr/bin/tokuft_logprint

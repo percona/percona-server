@@ -116,7 +116,8 @@ Pre-depends: debconf (>= 0.2.17), debsums, ${misc:Pre-Depends}
 Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Breaks: percona-server-common-5.7
-Replaces: percona-server-common-5.7
+Provides: mysql-common
+Replaces: mysql-common, percona-server-common-5.7
 Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database

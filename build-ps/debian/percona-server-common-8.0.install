@@ -6,3 +6,4 @@ usr/share/mysql/charsets/*.xml
 usr/share/mysql/charsets/README
 # config files
 debian/extra/conf.d  etc/mysql/
+debian/extra/my.cnf.fallback etc/mysql/

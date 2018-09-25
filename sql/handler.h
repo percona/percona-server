@@ -1061,6 +1061,17 @@ struct handlerton
   */
   bool (*rotate_encryption_master_key)(void);
 
+ /**
+    @brief
+    Fix empty UUID of tablespaces of an engine. This is used when engine encrypts
+    tablespaces as part of initialization. These tablespaces will have empty UUID
+    because UUID is generated after all plugins are initialized. This API will be
+    called by server only after UUID is available.
+    @returns false on success,
+             true on failure
+  */
+  bool (*fix_tablespaces_empty_uuid)(void);
+
   /**
     Creates a new compression dictionary with the specified data for this SE.
 

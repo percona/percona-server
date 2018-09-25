@@ -576,6 +576,7 @@ MY_NODISCARD
 trx_t*
 innobase_get_trx_for_slow_log(void);
 
+extern bool innodb_inited;
 #endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
 
 #endif /* HA_INNODB_PROTOTYPES_H */

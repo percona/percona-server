@@ -17,7 +17,7 @@ usr/bin/resolve_stack_dump
 usr/sbin/mysqld
 usr/bin/ps-admin
 
-# confguration files
+# configuration files
 debian/extra/mysql.cnf  etc/mysql/
 debian/extra/mysqld.cnf /etc/mysql/mysql.conf.d/
 

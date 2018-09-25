@@ -229,6 +229,8 @@ Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
+Obsoletes:      mysql-libs < %{version}-%{release}
+Provides:       mysql-libs = %{version}-%{release}
 
 %if 0%{?systemd}
 Requires(post):   systemd

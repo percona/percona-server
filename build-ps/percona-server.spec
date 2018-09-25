@@ -90,10 +90,19 @@
 
 # Version for compat libs
 %if 0%{?rhel} == 7
+%global compat_prefix         56
 %global compatver             5.6.28
 %global percona_compatver     76.1
 %global compatlib             18
 %global compatsrc             https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.el7.x86_64.rpm
+%endif
+
+%if 0%{?rhel} == 6
+%global compat_prefix         51
+%global compatver             5.1.73
+%global percona_compatver     14.12
+%global compatlib             16
+%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.73-rel14.12/RPM/rhel6/x86_64/Percona-Server-shared-51-5.1.73-rel14.12.624.rhel6.x86_64.rpm
 %endif
 
 # multiarch
@@ -332,10 +341,9 @@ Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
+Obsoletes:      mysql-libs < %{version}-%{release}
 Provides:       mysql-shared
-%if 0%{?rhel} > 6
 Requires(pre):  Percona-Server-shared-compat%{product_suffix}
-%endif
 
 %description -n Percona-Server-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -353,10 +361,14 @@ Provides:       libmysqlclient.so.18()(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_16)(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_18)(64bit)
 Obsoletes:      mariadb-libs
+%else
+Obsoletes:      mysql-libs
+%endif
+Conflicts:      Percona-Server-shared-51
+Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-56
 Conflicts:      Percona-Server-shared-57
-%endif
 
 %description -n Percona-Server-shared-compat%{product_suffix}
 This package contains the shared compat libraries for Percona Server %{compatver}-%{percona_compatver} client
@@ -409,16 +421,18 @@ fi
 
 # Download compat libs
 %if 0%{?compatlib}
-%if 0%{?rhel} > 6
 (
   rm -rf percona-compatlib
   mkdir percona-compatlib
   pushd percona-compatlib
   wget %{compatsrc}
-  rpm2cpio Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.el7.x86_64.rpm | cpio --extract --make-directories --verbose
+%if 0%{?rhel} > 6
+  rpm2cpio Percona-Server-shared-%{compat_prefix}-%{compatver}-rel%{percona_compatver}.el7.x86_64.rpm | cpio --extract --make-directories --verbose
+%else
+  rpm2cpio Percona-Server-shared-%{compat_prefix}-%{compatver}-rel%{percona_compatver}.624.rhel6.x86_64.rpm | cpio --extract --make-directories --verbose
+%endif # 0%{?rhel} > 6
   popd
 )
-%endif # 0%{?rhel} > 6
 %endif # 0%{?compatlib}
 
 # Build debug versions of mysqld and libmysqld.a
@@ -500,6 +514,9 @@ mkdir release
   %if 0%{?rhel} > 6
     install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient.so.18.1.0 %{buildroot}%{_libdir}/mysql/libmysqlclient.so.18.1.0
     install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient_r.so.18.1.0 %{buildroot}%{_libdir}/mysql/libmysqlclient_r.so.18.1.0
+  %else
+    install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient.so.16.0.0 %{buildroot}%{_libdir}/mysql/libmysqlclient.so.16.0.0
+    install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient_r.so.16.0.0 %{buildroot}%{_libdir}/mysql/libmysqlclient_r.so.16.0.0
   %endif # 0%{?rhel} > 6
 %endif # 0%{?compatlib}
 
@@ -645,6 +662,7 @@ echo "See http://www.percona.com/doc/percona-server/8.0/management/udf_percona_t
 %postun -n Percona-Server-shared%{product_suffix} -p /sbin/ldconfig
 
 %if 0%{?compatlib}
+%if 0%{?rhel} > 6
 %post -n Percona-Server-shared-compat%{product_suffix}
 for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
   if [ ! -f %{_libdir}/mysql/${lib} ]; then
@@ -660,6 +678,23 @@ for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
   fi
 done
 /sbin/ldconfig
+%else
+%post -n Percona-Server-shared-compat%{product_suffix}
+for lib in libmysqlclient{.so.16.0.0,.so.16,_r.so.16.0.0,_r.so.16}; do
+  if [ ! -f %{_libdir}/mysql/${lib} ]; then
+    ln -s libmysqlclient.so.16.1.0 %{_libdir}/mysql/${lib};
+  fi
+done
+/sbin/ldconfig
+
+%postun -n Percona-Server-shared-compat%{product_suffix}
+for lib in libmysqlclient{.so.16.0.0,.so.16,_r.so.16.0.0,_r.so.16}; do
+  if [ -h %{_libdir}/mysql/${lib} ]; then
+    rm -f %{_libdir}/mysql/${lib};
+  fi
+done
+/sbin/ldconfig
+%endif
 %endif
 
 %if 0%{?tokudb}

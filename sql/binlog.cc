@@ -5378,20 +5378,27 @@ int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO *linfo) {
   return 0;
 }
 
+static bool check_write_error_code(uint error_code) {
+  return error_code == ER_TRANS_CACHE_FULL ||
+         error_code == ER_STMT_CACHE_FULL || error_code == ER_ERROR_ON_WRITE ||
+         error_code == ER_BINLOG_LOGGING_IMPOSSIBLE;
+}
+
 bool MYSQL_BIN_LOG::check_write_error(THD *thd) {
   DBUG_ENTER("MYSQL_BIN_LOG::check_write_error");
 
-  bool checked = false;
+  if (!thd->is_error()) DBUG_RETURN(false);
 
-  if (!thd->is_error()) DBUG_RETURN(checked);
+  bool checked = check_write_error_code(thd->get_stmt_da()->mysql_errno());
 
-  switch (thd->get_stmt_da()->mysql_errno()) {
-    case ER_TRANS_CACHE_FULL:
-    case ER_STMT_CACHE_FULL:
-    case ER_ERROR_ON_WRITE:
-    case ER_BINLOG_LOGGING_IMPOSSIBLE:
-      checked = true;
-      break;
+  if (!checked) {
+    /* Check all conditions for one that matches the expected error */
+    const Sql_condition *err;
+    Diagnostics_area::Sql_condition_iterator it =
+        thd->get_stmt_da()->sql_conditions();
+    while ((err = it++) != nullptr && !checked) {
+      checked = check_write_error_code(err->mysql_errno());
+    }
   }
   DBUG_PRINT("return", ("checked: %s", YESNO(checked)));
   DBUG_RETURN(checked);
@@ -7610,11 +7617,10 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache,
   DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
                   { DBUG_SET("+d,simulate_file_write_error"); });
 
-  if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0)) {
-    DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
-                    { DBUG_SET("-d,simulate_file_write_error"); });
-    DBUG_RETURN(true);
-  }
+  int reinit_err = reinit_io_cache(cache, READ_CACHE, 0, 0, 0);
+  DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                  { DBUG_SET("-d,simulate_file_write_error"); });
+  if (reinit_err) DBUG_RETURN(true);
 
   uchar *buf = cache->read_pos;
   uint32 buf_len = my_b_bytes_in_cache(cache);

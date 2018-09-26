@@ -93,6 +93,13 @@ case "$1" in
 		if [ -f "/etc/mysql/my.cnf" ] && [ ! -L "/etc/mysql/my.cnf" ]; then
 			cp /etc/mysql/my.cnf /etc/mysql/my.cnf.bak
 		fi
+		if [ -d /etc/mysql/percona-server.conf.d ]; then
+			CONF_EXISTS=$(grep "percona-server.conf.d" /etc/mysql/mysql.cnf | wc -l)
+			if [ ${CONF_EXISTS} = 0 ]; then
+				echo "!includedir /etc/mysql/percona-server.conf.d/" >> /etc/mysql/mysql.cnf
+			fi
+		fi
+
 		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
 		then

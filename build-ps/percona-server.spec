@@ -617,23 +617,13 @@ fi
   fi
 %endif
 
-%if 0%{?rhel} > 6
-  MYCNF_PACKAGE="mariadb-libs"
-%else
-  MYCNF_PACKAGE="mysql-libs"
-%endif
+if [ -d /etc/percona-server.conf.d ]; then
+    CONF_EXISTS=$(grep "percona-server.conf.d" /etc/my.cnf | wc -l)
+    if [ ${CONF_EXISTS} = 0 ]; then
+        echo "!includedir /etc/percona-server.conf.d/" >> /etc/my.cnf
+    fi
+fi
 
-if [ -e /etc/my.cnf ]; then
-  MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep -m 1 Name | awk '{print $3}')
-fi
-if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
-  MODIFIED=$(rpm -Va "$MYCNF_PACKAGE" | grep '/etc/my.cnf' | awk '{print $1}' | grep -c 5)
-  if [ "$MODIFIED" == 1 ]; then
-      cp /etc/my.cnf /etc/my.cnf.old
-  fi
-else
-  cp /etc/my.cnf /etc/my.cnf.old
-fi
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
 echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
@@ -650,6 +640,12 @@ echo "See http://www.percona.com/doc/percona-server/8.0/management/udf_percona_t
     /sbin/chkconfig --del mysql
   fi
 %endif
+if [ "$1" = 0 ]; then
+  if [ -f %{_sysconfdir}/my.cnf ]; then
+    cp %{_sysconfdir}/my.cnf \
+    %{_sysconfdir}/my.cnf.rpmsave
+  fi
+fi
 
 %postun -n Percona-Server-server%{product_suffix}
 %if 0%{?systemd}

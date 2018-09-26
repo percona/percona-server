@@ -1,0 +1,54 @@
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/have_log_bin.inc
+
+--source include/master-slave.inc
+
+--echo #
+--echo # Bug #72457 "Replication with no tmpdir space can break replication"
+--echo # (https://bugs.mysql.com/bug.php?id=72457)
+--echo # Bug #86991 "binlog corruption when tmpdir gets full"
+--echo # (https://bugs.mysql.com/bug.php?id=86991)
+--echo # Bug #88223 "Replication with no tmpdir space and InnoDB as tmp_storage_engine can break"
+--echo # (https://bugs.mysql.com/bug.php?id=88223)
+--echo #
+
+CALL mtr.add_suppression("An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.");
+CALL mtr.add_suppression("Error writing file.*(errno: 28 - No space left on device)");
+
+SET @saved_binlog_error_action = @@global.binlog_error_action;
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+
+CREATE TABLE t1(f1 TEXT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(MD5(1));
+
+--let $i = 10
+while($i)
+{
+  INSERT INTO t1 SELECT * FROM t1;
+  --dec $i
+}
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+SET SESSION debug = "+d,simulate_tmpdir_partition_full";
+--replace_regex /Error writing file .*/Error writing file <tmp_file_name> (Errcode: ##)/
+--error 3
+INSERT INTO t1 SELECT * FROM t1;
+SET SESSION debug = "-d,simulate_tmpdir_partition_full";
+
+--source include/rpl_connection_slave.inc
+--let $slave_sql_errno = convert_error(ER_SLAVE_INCIDENT)
+--let $show_slave_sql_error = 1
+--source include/wait_for_slave_sql_error.inc
+--source include/stop_slave_io.inc
+RESET SLAVE;
+DROP TABLE t1;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+SET GLOBAL binlog_error_action = @saved_binlog_error_action;
+
+--let $rpl_only_running_threads = 1
+--source include/rpl_end.inc

@@ -1,4 +1,7 @@
 # Percona Server template configuration
+#
+# For advice on how to change settings please see
+# http://dev.mysql.com/doc/refman/8.0/en/server-configuration-defaults.html
 
 [mysqld]
 #
@@ -6,9 +9,10 @@
 # cache in MySQL. Start at 70% of total RAM for dedicated server, else 10%.
 # innodb_buffer_pool_size = 128M
 #
-# Remove leading # to turn on a very important data integrity option: logging
-# changes to the binary log between backups.
-# log_bin
+# Remove the leading "# " to disable binary logging
+# Binary logging captures changes between backups and is enabled by
+# default. It's default setting is log_bin=binlog
+# disable_log_bin
 #
 # Remove leading # to set options mainly useful for reporting servers.
 # The server defaults are faster for transactions and fast SELECTs.
@@ -16,16 +20,15 @@
 # join_buffer_size = 128M
 # sort_buffer_size = 2M
 # read_rnd_buffer_size = 2M
+#
+# Remove leading # to revert to previous value for default_authentication_plugin,
+# this will increase compatibility with older clients. For background, see:
+# https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_default_authentication_plugin
+# default-authentication-plugin=mysql_native_password
+
 datadir=/var/lib/mysql
 socket=/var/lib/mysql/mysql.sock
-
-# Disabling symbolic-links is recommended to prevent assorted security risks
-symbolic-links=0
 
 log-error=/var/log/mysqld.log
 pid-file=/var/run/mysqld/mysqld.pid
 
-[mysqld_safe]
-pid-file = /var/run/mysqld/mysqld.pid
-socket   = /var/run/mysqld/mysqld.sock
-nice     = 0

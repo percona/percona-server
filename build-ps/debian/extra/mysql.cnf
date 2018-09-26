@@ -1,33 +1,13 @@
 #
-# The Percona Server 5.7 configuration file.
-#
-# One can use all long options that the program supports.
-# Run program with --help to get a list of available options and with
-# --print-defaults to see which it would actually understand and use.
+# The Percona Server 8.0 configuration file.
 #
 # For explanations see
 # http://dev.mysql.com/doc/mysql/en/server-system-variables.html
+#
+#
+# * IMPORTANT: Additional settings that can override those from this file!
+#   The files must end with '.cnf', otherwise they'll be ignored.
+#
 
-[mysqld]
-user   = mysql
-pid-file = /var/run/mysqld/mysqld.pid
-socket   = /var/run/mysqld/mysqld.sock
-port   = 3306
-basedir    = /usr
-datadir    = /var/lib/mysql
-tmpdir   = /tmp
-lc-messages-dir  = /usr/share/mysql
-explicit_defaults_for_timestamp
-
-log-error    = /var/log/mysql/error.log
-
-# Recommended in standard MySQL setup
-sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_ALL_TABLES
-
-# Disabling symbolic-links is recommended to prevent assorted security risks
-symbolic-links=0
-
-[mysqld_safe]
-pid-file = /var/run/mysqld/mysqld.pid
-socket   = /var/run/mysqld/mysqld.sock
-nice     = 0
+!includedir /etc/mysql/conf.d/
+!includedir /etc/mysql/mysql.conf.d/

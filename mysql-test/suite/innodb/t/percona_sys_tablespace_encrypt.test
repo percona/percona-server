@@ -226,7 +226,5 @@ ALTER TABLE t9 TABLESPACE=`innodb_system`;
 --source include/start_mysqld.inc
 
 --remove_file $BOOTSTRAP_SQL
---let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1
---source include/cleanup_folder.inc
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
+--force-rmdir $MYSQL_TMP_DIR/datadir1
 --remove_file $MYSQLTEST_VARDIR/tmp/boot.log

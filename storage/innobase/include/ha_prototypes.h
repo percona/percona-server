@@ -413,4 +413,5 @@ InnoDB extended statistics should be collected.
 MY_NODISCARD
 trx_t *innobase_get_trx_for_slow_log(void) noexcept;
 
+extern bool innodb_inited;
 #endif /* HA_INNODB_PROTOTYPES_H */

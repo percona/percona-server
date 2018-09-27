@@ -1,0 +1,2 @@
+--internal-tmp-disk-storage-engine=InnoDB
+--default-tmp-storage-engine=InnoDB

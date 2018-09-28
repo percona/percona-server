@@ -2188,7 +2188,11 @@ static Sys_var_ulong Sys_log_error_verbosity(
     "Messages sent to the client are unaffected by this setting.",
     GLOBAL_VAR(log_error_verbosity), CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, 3),
     DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-    ON_UPDATE(update_log_error_verbosity));
+    ON_UPDATE(update_log_error_verbosity), NULL,
+    /* 1. my_init_signals() allows to use setrlimit() which can generate
+       LogErr() that depends on log_error_verbosity
+       2. my_init_signals() was moved before sys_var::PARSE_NORMAL */
+    sys_var::PARSE_EARLY);
 
 static Sys_var_enum Sys_log_timestamps(
     "log_timestamps",

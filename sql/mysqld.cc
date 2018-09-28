@@ -5763,12 +5763,14 @@ int mysqld_main(int argc, char **argv)
   init_pfs_instrument_array();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+  /* init_error_log() is required by error_log_printf() in
+     option_error_reporter() */
+  init_error_log();
   ho_error = handle_early_options();
 
   init_sql_statement_names();
   sys_var_init();
   ulong requested_open_files;
-  init_error_log();
   adjust_related_options(&requested_open_files);
   // moved signal initialization here so that PFS thread inherited signal mask
   my_init_signals();
@@ -6984,6 +6986,51 @@ static bool read_init_file(char *file_name) {
 ******************************************************************************/
 
 /**
+  Process command line options but use only "help", "initialize",
+  "initialize-insecure". If one of these options exists then change default
+  value of log_error_verbosity.
+*/
+static void adjust_log_error_verbosity(vector<my_option> *all_early_options) {
+  if (remaining_argc <= 1) return;
+
+  /* create a copy of remaining_argv */
+  int copy_argc = remaining_argc;
+  vector<char *> copy_argv;
+  copy_argv.reserve(copy_argc + 1);
+  for (int i = 0; i < copy_argc; i++) copy_argv.push_back(remaining_argv[i]);
+  copy_argv.push_back(nullptr);
+
+  /* select only "help", "initialize", "initialize-insecure" options */
+  vector<my_option> init_options;
+  static const vector<const char *> opt_names{"help", "initialize",
+                                              "initialize-insecure"};
+  for (my_option *opt = my_long_early_options; opt->name != nullptr; opt++)
+    if (std::find(opt_names.cbegin(), opt_names.cend(), opt->name) !=
+        opt_names.cend())
+      init_options.push_back(*opt);
+  add_terminator(&init_options);
+
+  char **copy_argv_ptr = &copy_argv[0];
+  int ho_error = handle_options(&copy_argc, &copy_argv_ptr, &init_options[0],
+                                mysqld_get_one_option);
+
+  if ((ho_error == 0) &&
+      (opt_help || opt_initialize || opt_initialize_insecure)) {
+    /*
+      Show errors during --help, but mute everything else so the info the
+      user actually wants isn't lost in the spam.  (For --help --verbose,
+      we need to set up far enough to be able to print variables provided
+      by plugins, so a good number of warnings/notes might get printed.)
+      Likewise for --initialize.
+    */
+    for (my_option *opt = &(*all_early_options)[0]; opt->name; opt++)
+      if (!strcmp("log_error_verbosity", opt->name)) {
+        opt->def_value = (opt_initialize || opt_initialize_insecure) ? 2 : 1;
+      }
+  }
+}
+
+/**
   Process command line options flagged as 'early'.
   Some components needs to be initialized as early as possible,
   because the rest of the server initialization depends on them.
@@ -7015,9 +7062,15 @@ static int handle_early_options() {
   my_getopt_error_reporter = option_error_reporter;
   my_charset_error_reporter = charset_error_reporter;
 
+  adjust_log_error_verbosity(&all_early_options);
+
   ho_error = handle_options(&remaining_argc, &remaining_argv,
                             &all_early_options[0], mysqld_get_one_option);
+
   if (ho_error == 0) {
+    /* update verbosity in filter engine, if needed */
+    log_builtins_filter_update_verbosity(log_error_verbosity);
+
     /* Add back the program name handle_options removes */
     remaining_argc++;
     remaining_argv--;
@@ -9432,29 +9485,12 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
-  if (opt_help || opt_initialize) {
-    /*
-      Show errors during --help, but mute everything else so the info the
-      user actually wants isn't lost in the spam.  (For --help --verbose,
-      we need to set up far enough to be able to print variables provided
-      by plugins, so a good number of warnings/notes might get printed.)
-      Likewise for --initialize.
-    */
-    struct my_option *opt = &all_options[0];
-    for (; opt->name; opt++)
-      if (!strcmp("log_error_verbosity", opt->name))
-        opt->def_value = opt_initialize ? 2 : 1;
-  }
-
   /* Skip unknown options so that they may be processed later by plugins */
   my_getopt_skip_unknown = true;
 
   if ((ho_error = handle_options(argc_ptr, argv_ptr, &all_options[0],
                                  mysqld_get_one_option)))
     return ho_error;
-
-  // update verbosity in filter engine, if needed
-  log_builtins_filter_update_verbosity(log_error_verbosity);
 
   if (!opt_help)
     vector<my_option>().swap(all_options);  // Deletes the vector contents.

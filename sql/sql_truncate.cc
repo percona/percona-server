@@ -563,7 +563,7 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, Table_ref *table_ref) {
 
     // Attempt to reconstruct the table
     if (ha_create_table(thd, path, table_ref->db, table_ref->table_name,
-                        &create_info, true, false, table_def) != 0) {
+                        &create_info, nullptr, true, false, table_def) != 0) {
       return;
     }
 
@@ -695,8 +695,8 @@ void Sql_cmd_truncate_table::truncate_temporary(THD *thd,
     // Create a clone of the tdef which can be manipulated by ha_create_table
     Up_table tdef_clone = Up_table{tdef_holder->clone()};
     m_error = ha_create_table(thd, saved_norm_path.c_str(), table_ref->db,
-                              table_ref->table_name, &create_info, true, true,
-                              tdef_clone.get());
+                              table_ref->table_name, &create_info, nullptr,
+                              true, true, tdef_clone.get());
 
     assert(
         !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));

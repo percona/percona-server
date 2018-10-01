@@ -1,0 +1,167 @@
+SET @numbers = 'one' 'two' 'three' 'four';
+CREATE PROCEDURE create_zip_dict(IN data TEXT)
+BEGIN
+SET @data_var = data;
+CREATE COMPRESSION_DICTIONARY dict(@data_var);
+END //
+CREATE PROCEDURE create_table_referencing_zip_dict()
+BEGIN
+CREATE TABLE t1(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict
+) ENGINE=InnoDB;
+END //
+CALL create_zip_dict(@numbers);
+CALL create_table_referencing_zip_dict();
+SELECT dict_data = @numbers AS zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'dict';
+zip_dict_data_match
+1
+SELECT dict_name = 'dict' AS dict_names_match FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME = 't1' AND COLUMN_NAME = 'a';
+dict_names_match
+1
+CREATE PROCEDURE create_zip_dict_and_table(IN data TEXT)
+BEGIN
+SET @data_var = data;
+CREATE COMPRESSION_DICTIONARY another_dict(@data_var);
+CREATE TABLE t2(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY another_dict
+) ENGINE=InnoDB;
+END //
+CALL create_zip_dict_and_table(@numbers);
+SELECT dict_data = @numbers AS another_zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'another_dict';
+another_zip_dict_data_match
+1
+SELECT dict_name= 'another_dict' AS another_dict_names_match FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME = 'antoher_dict' AND COLUMN_NAME = 'a';
+another_dict_names_match
+SET @json_value =
+'[\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  }\n'
+  ']\n'
+;
+CREATE PROCEDURE insert_zip_record(IN id INT, IN data TEXT)
+BEGIN
+INSERT INTO t1 VALUES(id, data);
+END //
+CALL insert_zip_record(1, @json_value);
+CREATE FUNCTION get_zip_record_hash(k INT) RETURNS CHAR(32) READS SQL DATA
+BEGIN
+DECLARE res CHAR(32);
+DECLARE found INT DEFAULT TRUE;
+DECLARE cur CURSOR FOR SELECT MD5(a) FROM t1 WHERE id = k;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET found = FALSE;
+OPEN cur;
+FETCH cur INTO res;
+IF NOT found THEN
+SET res = REPEAT('x', 32);
+END IF;
+CLOSE cur;
+RETURN res;
+END //
+SELECT MD5(a) INTO @expected_hash_value FROM t1 WHERE id = 1;
+SELECT get_zip_record_hash(1) = @expected_hash_value AS hash_values_match;
+hash_values_match
+1
+CREATE PROCEDURE delete_zip_record(k INT)
+BEGIN
+DELETE FROM t1 WHERE id = k;
+END //
+CALL delete_zip_record(1);
+SELECT get_zip_record_hash(1) = REPEAT('x', 32) AS hash_values_match;
+hash_values_match
+1
+CREATE PROCEDURE remove_zip_dicts_and_tables()
+BEGIN
+DROP TABLE t1, t2;
+DROP COMPRESSION_DICTIONARY dict;
+DROP COMPRESSION_DICTIONARY another_dict;
+END //
+CALL remove_zip_dicts_and_tables();
+SELECT COUNT(*) = 0 AS dictionary_references_removed FROM information_schema.compression_dictionary_tables WHERE table_name IN ('t1', 't2');
+dictionary_references_removed
+1
+SELECT COUNT(*) = 0 AS dictionaries_removed FROM information_schema.compression_dictionary WHERE dict_name IN ('dict', 'another_dict');
+dictionaries_removed
+1
+DROP PROCEDURE create_zip_dict;
+DROP PROCEDURE create_table_referencing_zip_dict;
+DROP PROCEDURE create_zip_dict_and_table;
+DROP PROCEDURE insert_zip_record;
+DROP FUNCTION get_zip_record_hash;
+DROP PROCEDURE delete_zip_record;
+DROP PROCEDURE remove_zip_dicts_and_tables;
+SET @create_zip_dict_sql = CONCAT('CREATE COMPRESSION_DICTIONARY dict(\'', @numbers, '\');');
+PREPARE create_zip_dict_stmt FROM @create_zip_dict_sql;
+EXECUTE create_zip_dict_stmt;
+DEALLOCATE PREPARE create_zip_dict_stmt;
+SET @create_table_referencing_zip_dict_sql =
+'CREATE TABLE t1('
+  '  id INT,'
+  '  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict'
+  ') ENGINE=InnoDB;'
+;
+PREPARE create_table_referencing_zip_dict_stmt FROM @create_table_referencing_zip_dict_sql;
+EXECUTE create_table_referencing_zip_dict_stmt;
+DEALLOCATE PREPARE create_table_referencing_zip_dict_stmt;
+SELECT dict_data = @numbers AS zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'dict';
+zip_dict_data_match
+1
+SELECT dict_name = 'dict' AS dict_names_match FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't1' AND COLUMN_NAME = 'a';
+dict_names_match
+1
+PREPARE insert_zip_record_stmt FROM 'INSERT INTO t1 VALUES(?, ?);';
+SET @blob_key = 1;
+EXECUTE insert_zip_record_stmt USING @blob_key, @json_value;
+DEALLOCATE PREPARE insert_zip_record_stmt;
+SELECT MD5(a) INTO @expected_hash_value FROM t1 WHERE id = 1;
+PREPARE get_zip_record_hash_stmt FROM 'SELECT IF(COUNT(*) = 0, REPEAT(\'x\', 32), MD5(MAX(a))) INTO @ps_hash_value FROM t1 WHERE id = ?;';
+EXECUTE get_zip_record_hash_stmt USING @blob_key;
+SELECT @ps_hash_value = @expected_hash_value AS hash_values_match;
+hash_values_match
+1
+PREPARE delete_zip_record_stmt FROM 'DELETE FROM t1 WHERE id = ?;';
+EXECUTE delete_zip_record_stmt USING @blob_key;
+DEALLOCATE PREPARE delete_zip_record_stmt;
+EXECUTE get_zip_record_hash_stmt USING @blob_key;
+DEALLOCATE PREPARE get_zip_record_hash_stmt;
+SELECT @ps_hash_value = REPEAT('x', 32) AS hash_values_match;
+hash_values_match
+1
+PREPARE remove_table_referencing_zip_dict_stmt FROM 'DROP TABLE t1';
+EXECUTE remove_table_referencing_zip_dict_stmt;
+DEALLOCATE PREPARE remove_table_referencing_zip_dict_stmt;
+PREPARE remove_zip_dict_stmt FROM 'DROP COMPRESSION_DICTIONARY dict;';
+EXECUTE remove_zip_dict_stmt;
+DEALLOCATE PREPARE remove_zip_dict_stmt;
+SELECT COUNT(*) = 0 AS dictionary_references_removed FROM information_schema.compression_dictionary_tables WHERE table_name IN ('t1', 't2');
+dictionary_references_removed
+1
+SELECT COUNT(*) = 0 AS dictionaries_removed FROM information_schema.compression_dictionary WHERE dict_name IN ('dict', 'another_dict');
+dictionaries_removed
+1

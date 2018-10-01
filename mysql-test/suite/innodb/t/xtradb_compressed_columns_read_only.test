@@ -1,0 +1,82 @@
+--echo # Defining compression dictionary content.
+SET @dictionary_data = 'one' 'two' 'three' 'four';
+
+--echo # Creating a compression dictionary.
+CREATE COMPRESSION_DICTIONARY numbers (@dictionary_data);
+
+CREATE TABLE t1(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ENGINE=InnoDB;
+
+--echo # Defining a JSON-formatted value which can be well compressed with the created dictionary.
+SET @json_value =
+  '[\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  }\n'
+  ']\n'
+;
+--let $permanent_json_value = `SELECT @json_value`
+--let $permanent_dictionary_data = `SELECT @dictionary_data`
+
+--echo # Filling the table with some records.
+INSERT INTO t1 VALUES(0, @json_value);
+
+--echo # Reading table data.
+SELECT COUNT(*) = 1 AS number_of_rows_matches FROM t1 WHERE a = @json_value;
+
+--echo # Restarting with --innodb-read-only.
+--source include/restart_innodb_read_only.inc
+
+--echo # Reading table data in read-only mode.
+eval SET @json_value = '$permanent_json_value';
+SELECT COUNT(*) = 1 AS number_of_rows_matches FROM t1 WHERE a = @json_value;
+
+--echo # Trying to create a compression dictionary in read-only mode.
+--error ER_READ_ONLY_MODE
+CREATE COMPRESSION_DICTIONARY dummy_dict('aaabbbcccddd');
+--error ER_READ_ONLY_MODE
+CREATE COMPRESSION_DICTIONARY numbers('aaabbbcccddd');
+
+--echo # Trying to drop a compression dictionary in read-only mode.
+--error ER_READ_ONLY_MODE
+DROP COMPRESSION_DICTIONARY dummy_dict;
+--error ER_READ_ONLY_MODE
+DROP COMPRESSION_DICTIONARY numbers;
+
+--echo # Check if 'information_schema' queries for 'compression_dictionary'
+--echo # and 'compression_dictionary_tables' work in read-only mode.
+eval SET @dictionary_data = '$permanent_dictionary_data';
+SELECT dict_name INTO @dict_name FROM information_schema.compression_dictionary WHERE dict_name = 'numbers';
+SELECT dict_data = @dictionary_data AS dictionary_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'numbers';
+SELECT dict_name = @dict_name AS dictionary_names_match FROM information_schema.compression_dictionary_tables WHERE TABLE_SCHEMA = DATABASE() AND
+TABLE_NAME = 't1' AND COLUMN_NAME='a';
+
+--echo # Restarting with default options.
+--source include/restart_mysqld.inc
+
+--echo # Cleaning up.
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY numbers;

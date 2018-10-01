@@ -1091,7 +1091,7 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
       if (field->is_virtual_gcol()) {
         dict_v_col_t *const col = dict_table_get_nth_v_col(table, nth_v_col++);
         dfield_t *fld1 = innobase_get_computed_value(
-            tuple, col, table, &gcol_heap, gcol_heap, thd,
+            &gcol_heap, tuple, col, table, &gcol_heap, gcol_heap, thd,
             mysql_table, nullptr, nullptr, nullptr);
 
         if (fld1 == nullptr) {
@@ -1137,7 +1137,7 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
         auto *field = share->field[col.s_pos];
 
         dfield_t *fld1 = innobase_compute_stored_gcol(
-            tuple, col, table, gcol_heap, thd, mysql_table);
+            &gcol_heap, tuple, col, table, gcol_heap, thd, mysql_table);
 
         if (fld1 == nullptr) {
           return DB_BULK_GCOL_INVALID_DATA;

@@ -3530,6 +3530,7 @@ struct HA_CREATE_INFO {
     @param[in] thd user session
    */
   bool set_db_type(THD *thd);
+  Item *zip_dict_name{nullptr};
 };
 
 /**
@@ -7600,6 +7601,7 @@ class handler {
 
   int get_lock_type() const { return m_lock_type; }
 
+
  public:
   /* Read-free replication interface */
 
@@ -8012,6 +8014,7 @@ bool ha_log_ddl_create_schema(const char *schema_name);
 class Create_field;
 int ha_create_table(THD *thd, const char *path, const char *db,
                     const char *table_name, HA_CREATE_INFO *create_info,
+                    const List<Create_field> *create_fields,
                     bool update_create_info, bool is_temp_table,
                     dd::Table *table_def);
 

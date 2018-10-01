@@ -119,6 +119,7 @@
 #include "sql/sql_plugin.h"  // plugin_foreach
 #include "sql/sql_select.h"  // actual_key_parts
 #include "sql/sql_table.h"   // build_table_filename
+#include "sql/sql_zip_dict.h"
 #include "sql/strfunc.h"     // strnncmp_nopads
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -2744,6 +2745,18 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     file->print_error(error, 0);
 
     thd->pop_internal_handler();
+  }
+
+  if (error == 0) {
+    bool failure = compression_dict::cols_table_delete(thd, *table_def);
+    if (failure) {
+      DBUG_LOG("zip_dict",
+               "Removing entry from compression dictionary cols"
+               " failed for table: "
+                   << table_def->name()
+                   << " and table_id: " << table_def->id());
+      error = ER_UNKNOWN_ERROR;
+    }
   }
 
   ::destroy_at(file);
@@ -5576,6 +5589,7 @@ void handler::update_global_index_stats() {
 */
 int ha_create_table(THD *thd, const char *path, const char *db,
                     const char *table_name, HA_CREATE_INFO *create_info,
+                    const List<Create_field> *create_fields,
                     bool update_create_info, bool is_temp_table,
                     dd::Table *table_def) {
   int error = 1;
@@ -5610,6 +5624,14 @@ int ha_create_table(THD *thd, const char *path, const char *db,
   }
 
   if (update_create_info) update_create_info_from_table(create_info, &table);
+
+  /*
+    Updating field definitions in 'table' with zip_dict_name values
+    from 'create_fields'
+  */
+  if (create_fields != nullptr) {
+    table.update_compressed_columns_info(*create_fields);
+  }
 
   name = get_canonical_filename(table.file, share.path.str, name_buff);
 

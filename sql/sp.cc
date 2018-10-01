@@ -2377,6 +2377,7 @@ uint sp_get_flags_for_command(LEX *lex) {
       flags = sp_head::HAS_SQLCOM_RESET;
       break;
     case SQLCOM_CREATE_INDEX:
+    case SQLCOM_CREATE_COMPRESSION_DICTIONARY:
     case SQLCOM_CREATE_DB:
     case SQLCOM_CREATE_VIEW:
     case SQLCOM_CREATE_TRIGGER:
@@ -2390,6 +2391,7 @@ uint sp_get_flags_for_command(LEX *lex) {
     case SQLCOM_RENAME_TABLE:
     case SQLCOM_RENAME_USER:
     case SQLCOM_DROP_INDEX:
+    case SQLCOM_DROP_COMPRESSION_DICTIONARY:
     case SQLCOM_DROP_DB:
     case SQLCOM_REVOKE_ALL:
     case SQLCOM_DROP_USER:

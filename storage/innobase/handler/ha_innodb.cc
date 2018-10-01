@@ -5759,6 +5759,9 @@ static int innodb_init(void *p) {
       innobase_page_track_get_num_page_ids;
   innobase_hton->page_track.get_status = innobase_page_track_get_status;
 
+  innobase_hton->upgrade_get_compression_dict_data =
+      dd_upgrade_get_compression_dict_data;
+
   static_assert(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
 #ifndef _WIN32
@@ -7304,6 +7307,8 @@ static void innobase_vcol_build_templ(const TABLE *table,
   templ->mbminlen = col->get_mbminlen();
   templ->mbmaxlen = col->get_mbmaxlen();
   templ->is_unsigned = col->prtype & DATA_UNSIGNED;
+  templ->compressed = (field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED);
+  templ->zip_dict_data = field->zip_dict_data;
 }
 
 /** Callback used by MySQL server layer to initialize
@@ -8890,6 +8895,8 @@ static mysql_row_templ_t *build_template_field(
   templ->mbminlen = col->get_mbminlen();
   templ->mbmaxlen = col->get_mbmaxlen();
   templ->is_unsigned = col->prtype & DATA_UNSIGNED;
+  templ->compressed = (field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED);
+  templ->zip_dict_data = field->zip_dict_data;
 
   if (!index->is_clustered() && templ->rec_field_no == ULINT_UNDEFINED) {
     prebuilt->need_to_access_clustered = true;
@@ -9443,7 +9450,8 @@ static void innobase_store_multi_value_low(json_binary::Value *bv,
         mysql_data = data;
       }
       row_mysql_store_col_in_innobase_format(dfield, buf, true, mysql_data,
-                                             col_len, comp);
+                                             col_len, comp, false, nullptr, 0,
+                                             nullptr);
     } else if (type == DATA_CHAR || type == DATA_VARCHAR ||
                type == DATA_VARMYSQL) {
       mysql_data = (byte *)elt.get_data();
@@ -9796,7 +9804,7 @@ static byte *innodb_fill_old_vcol_val(row_prebuilt_t *prebuilt,
   if (o_len != UNIV_SQL_NULL) {
     buf = row_mysql_store_col_in_innobase_format(
         vfield, buf, true, old_mysql_row_col, col_pack_len,
-        dict_table_is_comp(prebuilt->table));
+        dict_table_is_comp(prebuilt->table), false, nullptr, 0, nullptr);
   } else {
     dfield_set_null(vfield);
   }
@@ -9972,8 +9980,11 @@ static dberr_t calc_row_difference(
       case DATA_POINT:
       case DATA_VAR_POINT:
       case DATA_GEOMETRY:
-        o_ptr = row_mysql_read_blob_ref(&o_len, o_ptr, o_len);
-        n_ptr = row_mysql_read_blob_ref(&n_len, n_ptr, n_len);
+        /* Do not compress blob column while comparing */
+        o_ptr = row_mysql_read_blob_ref(&o_len, o_ptr, o_len, false, nullptr, 0,
+                                        &prebuilt->compress_heap);
+        n_ptr = row_mysql_read_blob_ref(&n_len, n_ptr, n_len, false, nullptr, 0,
+                                        &prebuilt->compress_heap);
 
         break;
 
@@ -10124,9 +10135,11 @@ static dberr_t calc_row_difference(
           innobase_get_multi_value(prebuilt->m_mysql_table, i, &dfield, nullptr,
                                    0, comp, uvect->per_stmt_heap);
         } else {
-          buf = row_mysql_store_col_in_innobase_format(&dfield, (byte *)buf,
-                                                       true, new_mysql_row_col,
-                                                       col_pack_len, comp);
+          buf = row_mysql_store_col_in_innobase_format(
+              &dfield, (byte *)buf, true, new_mysql_row_col, col_pack_len, comp,
+              field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED,
+              reinterpret_cast<const byte *>(field->zip_dict_data.str),
+              field->zip_dict_data.length, &prebuilt->compress_heap);
         }
 
         if (multi_value_calc_by_diff) {
@@ -10171,7 +10184,9 @@ static dberr_t calc_row_difference(
           } else {
             buf = row_mysql_store_col_in_innobase_format(
                 &dfield, (byte *)buf, true, old_mysql_row_col, col_pack_len,
-                comp);
+                comp, field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED,
+                reinterpret_cast<const byte *>(field->zip_dict_data.str),
+                field->zip_dict_data.length, &prebuilt->compress_heap);
           }
 
           if (multi_value_calc_by_diff) {
@@ -11986,6 +12001,7 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
   dberr_t err = DB_SUCCESS;
   ulint col_type;
   ulint col_len;
+  ulint compressed;
   ulint i;
   ulint j = 0;
   ulint doc_id_col = 0;
@@ -12242,6 +12258,10 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
 
     is_virtual = (innobase_is_v_fld(field)) ? DATA_VIRTUAL : 0;
     is_stored = innobase_is_s_fld(field);
+    /* Check if the the field has COMPRESSED attribute */
+    compressed = (field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED)
+                     ? DATA_COMPRESSED
+                     : 0;
 
     is_multi_val = innobase_is_multi_value_fld(field) ? DATA_MULTI_VALUE : 0;
 
@@ -12282,7 +12302,8 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
       dict_mem_table_add_col(
           table, heap, field_name, col_type,
           dtype_form_prtype((ulint)field->type() | nulls_allowed |
-                                unsigned_type | binary_type | long_true_varchar,
+                                unsigned_type | binary_type |
+                                long_true_varchar | compressed,
                             charset_no),
           col_len, !field->is_hidden_by_system(), phy_pos, v_added, v_dropped);
 
@@ -12303,7 +12324,8 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
           table, heap, field_name, col_type,
           dtype_form_prtype((ulint)field->type() | nulls_allowed |
                                 unsigned_type | binary_type |
-                                long_true_varchar | is_virtual | is_multi_val,
+                                long_true_varchar | is_virtual | is_multi_val |
+                                compressed,
                             charset_no),
           col_len, i, field->gcol_info->non_virtual_base_columns(),
           !field->is_hidden_by_system());
@@ -18992,6 +19014,11 @@ int ha_innobase::extra(enum ha_extra_function operation)
       if (m_prebuilt->blob_heap) {
         row_mysql_prebuilt_free_blob_heap(m_prebuilt);
       }
+
+      if (m_prebuilt->compress_heap) {
+        row_mysql_prebuilt_free_compress_heap(m_prebuilt);
+      }
+
       break;
     case HA_EXTRA_RESET_STATE:
       reset_template();
@@ -19055,6 +19082,10 @@ clue about the method. */
 int ha_innobase::end_stmt() {
   if (m_prebuilt->blob_heap) {
     row_mysql_prebuilt_free_blob_heap(m_prebuilt);
+  }
+
+  if (m_prebuilt->compress_heap) {
+    row_mysql_prebuilt_free_compress_heap(m_prebuilt);
   }
 
   m_prebuilt->end_stmt();
@@ -19308,7 +19339,9 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
        sql_command == SQLCOM_ALTER_TABLE || sql_command == SQLCOM_OPTIMIZE ||
        (sql_command == SQLCOM_CREATE_TABLE && lock_type == F_WRLCK) ||
        sql_command == SQLCOM_CREATE_INDEX || sql_command == SQLCOM_DROP_INDEX ||
-       sql_command == SQLCOM_DELETE)) {
+       sql_command == SQLCOM_DELETE ||
+       sql_command == SQLCOM_CREATE_COMPRESSION_DICTIONARY ||
+       sql_command == SQLCOM_DROP_COMPRESSION_DICTIONARY)) {
     if (sql_command == SQLCOM_CREATE_TABLE) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_INNODB_READ_ONLY);
       return HA_ERR_INNODB_READ_ONLY;
@@ -20129,7 +20162,9 @@ THR_LOCK_DATA **ha_innobase::store_lock(
        (sql_command == SQLCOM_CREATE_TABLE &&
         (lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE)) ||
        sql_command == SQLCOM_CREATE_INDEX || sql_command == SQLCOM_DROP_INDEX ||
-       sql_command == SQLCOM_DELETE)) {
+       sql_command == SQLCOM_DELETE ||
+       sql_command == SQLCOM_CREATE_COMPRESSION_DICTIONARY ||
+       sql_command == SQLCOM_DROP_COMPRESSION_DICTIONARY)) {
     ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 
   } else if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
@@ -20865,6 +20900,81 @@ bool ha_innobase::check_if_incompatible_data(HA_CREATE_INFO *info,
   }
 
   return (COMPATIBLE_DATA_YES);
+}
+
+/** This function reads zip dict-related info from SYS_ZIP_DICT
+and SYS_ZIP_DICT_COLS for all columns marked with
+COLUMN_FORMAT_TYPE_COMPRESSED flag and updates
+zip_dict_name / zip_dict_data for those which have associated
+compression dictionaries.
+
+@param	thd		Thread handle, used to determine whether it is
+necessary to lock dict_sys mutex
+@param	part_name	Full table name (including partition part).
+Must be non-NULL only if called from
+ha_partition.
+*/
+void ha_innobase::upgrade_update_field_with_zip_dict_info(
+    THD *thd, const char *part_name) {
+  DBUG_ENTER("upgrade_update_field_with_zip_dict_info");
+  ut_ad(srv_is_upgrade_mode);
+
+  char norm_name[FN_REFLEN];
+  normalize_table_name(
+      norm_name, part_name ? part_name : table_share->normalized_path.str);
+
+  const innodb_session_t *const innodb_session = thd_to_innodb_session(thd);
+  bool dict_locked = innodb_session->is_dict_mutex_locked();
+
+  dict_table_t *const ib_table = dict_table_open_on_name(
+      norm_name, dict_locked, false, DICT_ERR_IGNORE_NONE);
+
+  /* if dict_table_open_on_name() returns NULL, then it means that
+  TABLE_SHARE is populated for a table being created and we can
+  skip filling zip dict info here */
+  if (ib_table == nullptr) DBUG_VOID_RETURN;
+
+  const table_id_t ib_table_id = ib_table->id - DICT_MAX_DD_TABLES;
+  dict_table_close(ib_table, dict_locked, false);
+  for (uint i = 0; i < table_share->fields; ++i) {
+    Field *const field = table_share->field[i];
+    if (field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
+      bool reference_found = false;
+      ulint dict_id = 0;
+      switch (dict_get_dictionary_id_by_key(ib_table_id, i, &dict_id)) {
+        case DB_SUCCESS:
+          reference_found = true;
+          break;
+        case DB_RECORD_NOT_FOUND:
+          reference_found = false;
+          break;
+        default:
+          ut_error;
+      }
+      if (reference_found) {
+        char *local_name = nullptr;
+        ulint local_name_len = 0;
+        char *local_data = nullptr;
+        ulint local_data_len = 0;
+        if (dict_get_dictionary_info_by_id(dict_id, &local_name,
+                                           &local_name_len, &local_data,
+                                           &local_data_len) != DB_SUCCESS)
+          ut_error;
+        else {
+          field->zip_dict_name.str = local_name;
+          field->zip_dict_name.length = local_name_len;
+          field->zip_dict_data.str = local_data;
+          field->zip_dict_data.length = local_data_len;
+        }
+      } else {
+        field->zip_dict_name.str = nullptr;
+        field->zip_dict_name.length = 0;
+        field->zip_dict_data.str = nullptr;
+        field->zip_dict_data.length = 0;
+      }
+    }
+  }
+  DBUG_VOID_RETURN;
 }
 
 /** Update the system variable innodb_io_capacity_max using the "saved"
@@ -24030,6 +24140,19 @@ static MYSQL_SYSVAR_ENUM(
     "except for the deletion.",
     nullptr, nullptr, 0, &corrupt_table_action_typelib);
 
+static MYSQL_SYSVAR_UINT(
+    compressed_columns_zip_level, srv_compressed_columns_zip_level,
+    PLUGIN_VAR_RQCMDARG,
+    "Compression level used for compressed columns.  0 is no compression"
+    ", 1 is fastest and 9 is best compression. Default is 6.",
+    nullptr, nullptr, DEFAULT_COMPRESSION_LEVEL, 0, 9, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    compressed_columns_threshold, srv_compressed_columns_threshold,
+    PLUGIN_VAR_RQCMDARG,
+    "Compress column data if its length exceeds this value. Default is 96",
+    nullptr, nullptr, 96, 1, ~0UL, 0);
+
 static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(api_trx_level),
     MYSQL_SYSVAR(api_bk_commit_interval),
@@ -24262,6 +24385,8 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(parallel_read_threads),
     MYSQL_SYSVAR(segment_reserve_factor),
     MYSQL_SYSVAR(corrupt_table_action),
+    MYSQL_SYSVAR(compressed_columns_zip_level),
+    MYSQL_SYSVAR(compressed_columns_threshold),
     MYSQL_SYSVAR(ft_ignore_stopwords),
     nullptr};
 
@@ -24390,6 +24515,7 @@ void innobase_init_vc_templ(dict_table_t *table) {
   THD *thd = current_thd;
 
   {
+    innodb_session_dict_mutex_guard_t guard(*thd_to_innodb_session(thd));
 #ifdef UNIV_DEBUG
     bool ret =
 #endif /* UNIV_DEBUG */
@@ -24431,7 +24557,7 @@ static const dfield_t *innobase_get_field_from_update_vector(
   return upd_field ? &upd_field->new_val : nullptr;
 }
 
-dfield_t *innobase_get_computed_value(
+dfield_t *innobase_get_computed_value(mem_heap_t **compress_heap,
     const dtuple_t *row, const dict_v_col_t *col, const dict_table_t *table,
     mem_heap_t **local_heap, mem_heap_t *heap, THD *thd, TABLE *mysql_table,
     const dict_field_t *ifield, const dict_table_t *old_table,
@@ -24509,7 +24635,8 @@ dfield_t *innobase_get_computed_value(
     } else {
       row_sel_field_store_in_mysql_format(
           mysql_rec + templ->mysql_col_offset, templ, table->first_index(),
-          templ->clust_rec_field_no, (const byte *)data, len, ULINT_UNDEFINED);
+          templ->clust_rec_field_no, (const byte *)data, len, compress_heap,
+          ULINT_UNDEFINED);
 
       if (templ->mysql_null_bit_mask) {
         /* It is a nullable column with a
@@ -24549,7 +24676,8 @@ dfield_t *innobase_get_computed_value(
       byte *blob_mem = static_cast<byte *>(mem_heap_alloc(heap, max_len));
 
       row_mysql_store_blob_ref(mysql_rec + vctempl->mysql_col_offset,
-                               vctempl->mysql_col_len, blob_mem, max_len);
+                               vctempl->mysql_col_len, blob_mem, max_len, false,
+                               0, 0, compress_heap);
     }
 
     /* open a temporary table handle */
@@ -24601,7 +24729,8 @@ dfield_t *innobase_get_computed_value(
   } else {
     row_mysql_store_col_in_innobase_format(
         field, buf, true, mysql_rec + vctempl->mysql_col_offset,
-        vctempl->mysql_col_len, dict_table_is_comp(table));
+        vctempl->mysql_col_len, dict_table_is_comp(table), false, nullptr, 0,
+        nullptr);
   }
   field->type.prtype |= DATA_VIRTUAL;
 

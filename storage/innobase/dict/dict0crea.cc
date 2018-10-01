@@ -54,10 +54,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "que0que.h"
 #include "row0ins.h"
 #include "row0mysql.h"
+#include "row0sel.h"
 #include "srv0start.h"
 #include "trx0roll.h"
 #include "usr0sess.h"
 #include "ut0vec.h"
+
+#include "sql/sql_zip_dict.h"
 
 dberr_t dict_build_table_def(dict_table_t *table,
                              const HA_CREATE_INFO *create_info, trx_t *trx) {
@@ -358,7 +361,9 @@ void dict_build_index_def(const dict_table_t *table, /*!< in: table */
   if (!table->is_intrinsic()) {
     if (srv_is_upgrade_mode) {
       index->id = dd_upgrade_indexes_num++;
-      ut_ad(index->id <= dd_get_total_indexes_num());
+      ut_ad(index->id <=
+            dd_get_total_indexes_num() +
+                4 /* total indexes from compression dictionary tables */);
     } else {
       dict_hdr_get_new_id(nullptr, &index->id, nullptr, table, false);
     }
@@ -768,4 +773,229 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
 
   mem_heap_free(heap);
   return (table->first_index());
+}
+
+/** Fetch callback, just stores extracted zip_dict id in the external
+variable.
+@return TRUE if all OK */
+static bool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
+                                        void *user_arg) /*!< in: int32 id */
+{
+  sel_node_t *node = static_cast<sel_node_t *>(row);
+  dfield_t *dfield = que_node_get_val(node->select_list);
+  dtype_t *type = dfield_get_type(dfield);
+  ulint len = dfield_get_len(dfield);
+
+  ut_a(dtype_get_mtype(type) == DATA_INT);
+  ut_a(len == sizeof(uint32_t));
+
+  memcpy(user_arg, dfield_get_data(dfield), sizeof(uint32_t));
+
+  return (true);
+}
+
+/** Get a single compression dictionary id for the given
+(table id, column pos) pair.
+@return error code or DB_SUCCESS */
+dberr_t dict_create_get_zip_dict_id_by_reference(
+    table_id_t table_id, /*!< in: table id */
+    ulint column_pos,    /*!< in: column position */
+    ulint *dict_id,      /*!< out: dict id */
+    trx_t *trx)          /*!< in/out: transaction */
+{
+  ut_ad(dict_id);
+  ut_ad(srv_is_upgrade_mode);
+
+  pars_info_t *info = pars_info_create();
+
+  uint32_t dict_id_buf;
+  mach_write_to_4(reinterpret_cast<byte *>(&dict_id_buf), UINT32_UNDEFINED);
+
+  pars_info_add_int4_literal(info, "table_id", table_id);
+  pars_info_add_int4_literal(info, "column_pos", column_pos);
+  pars_info_bind_function(info, "my_func", dict_create_extract_int_aux,
+                          &dict_id_buf);
+
+  dberr_t error = que_eval_sql(info,
+                               "PROCEDURE P () IS\n"
+                               "DECLARE FUNCTION my_func;\n"
+                               "DECLARE CURSOR cur IS\n"
+                               "  SELECT DICT_ID FROM SYS_ZIP_DICT_COLS\n"
+                               "    WHERE TABLE_ID = :table_id AND\n"
+                               "          COLUMN_POS = :column_pos;\n"
+                               "BEGIN\n"
+                               "  OPEN cur;\n"
+                               "  FETCH cur INTO my_func();\n"
+                               "  CLOSE cur;\n"
+                               "END;\n",
+                               trx);
+  if (error == DB_SUCCESS) {
+    uint32_t local_dict_id =
+        mach_read_from_4(reinterpret_cast<const byte *>(&dict_id_buf));
+    if (local_dict_id == UINT32_UNDEFINED)
+      error = DB_RECORD_NOT_FOUND;
+    else
+      *dict_id = local_dict_id;
+  }
+  return error;
+}
+
+/** Auxiliary enum used to indicate zip dict data extraction result code */
+enum zip_dict_info_aux_code {
+  zip_dict_info_success,        /*!< success */
+  zip_dict_info_not_found,      /*!< zip dict record not found */
+  zip_dict_info_oom,            /*!< out of memory */
+  zip_dict_info_corrupted_name, /*!< corrupted zip dict name */
+  zip_dict_info_corrupted_data  /*!< corrupted zip dict data */
+};
+
+/** Auxiliary struct used to return zip dict info aling with result code */
+struct zip_dict_info_aux {
+  LEX_STRING name; /*!< zip dict name */
+  LEX_STRING data; /*!< zip dict data */
+  int code;        /*!< result code (0 - success) */
+};
+
+/** Fetch callback, just stores extracted zip_dict data in the external
+variable.
+@return always returns TRUE */
+static bool dict_create_get_zip_dict_info_by_id_aux(
+    void *row,      /*!< in: sel_node_t* */
+    void *user_arg) /*!< in: pointer to zip_dict_info_aux* */
+{
+  sel_node_t *node = static_cast<sel_node_t *>(row);
+  zip_dict_info_aux *result = static_cast<zip_dict_info_aux *>(user_arg);
+
+  result->code = zip_dict_info_success;
+  result->name.str = 0;
+  result->name.length = 0;
+  result->data.str = 0;
+  result->data.length = 0;
+
+  /* NAME field */
+  que_node_t *exp = node->select_list;
+  ut_a(exp != 0);
+
+  dfield_t *dfield = que_node_get_val(exp);
+  dtype_t *type = dfield_get_type(dfield);
+  ut_a(dtype_get_mtype(type) == DATA_VARCHAR);
+
+  ulint len = dfield_get_len(dfield);
+  void *data = dfield_get_data(dfield);
+
+  if (len == UNIV_SQL_NULL) {
+    result->code = zip_dict_info_corrupted_name;
+  } else {
+    result->name.str =
+        static_cast<char *>(my_malloc(PSI_INSTRUMENT_ME, len + 1, MYF(0)));
+    if (result->name.str == 0) {
+      result->code = zip_dict_info_oom;
+    } else {
+      memcpy(result->name.str, data, len);
+      result->name.str[len] = '\0';
+      result->name.length = len;
+    }
+  }
+
+  /* DATA field */
+  exp = que_node_get_next(exp);
+  ut_a(exp != 0);
+
+  dfield = que_node_get_val(exp);
+  type = dfield_get_type(dfield);
+  ut_a(dtype_get_mtype(type) == DATA_BLOB);
+
+  len = dfield_get_len(dfield);
+  data = dfield_get_data(dfield);
+
+  if (len == UNIV_SQL_NULL) {
+    result->code = zip_dict_info_corrupted_data;
+  } else {
+    result->data.str = static_cast<char *>(
+        my_malloc(PSI_INSTRUMENT_ME, len == 0 ? 1 : len, MYF(0)));
+    if (result->data.str == 0) {
+      result->code = zip_dict_info_oom;
+    } else {
+      memcpy(result->data.str, data, len);
+      result->data.length = len;
+    }
+  }
+
+  ut_ad(que_node_get_next(exp) == 0);
+
+  if (result->code != zip_dict_info_success) {
+    if (result->name.str == 0) {
+      my_free(result->name.str);
+      result->name.str = 0;
+      result->name.length = 0;
+    }
+    if (result->data.str == 0) {
+      my_free(result->data.str);
+      result->data.str = 0;
+      result->data.length = 0;
+    }
+  }
+
+  return true;
+}
+
+/** Get compression dictionary info (name and data) for the given id.
+Allocates memory for name and data on success.
+Must be freed with my_free().
+@return	error code or DB_SUCCESS */
+dberr_t dict_create_get_zip_dict_info_by_id(
+    ulint dict_id,   /*!< in: dict id */
+    char **name,     /*!< out: dict name */
+    ulint *name_len, /*!< out: dict name length*/
+    char **data,     /*!< out: dict data */
+    ulint *data_len, /*!< out: dict data length*/
+    trx_t *trx)      /*!< in/out: transaction */
+{
+  ut_ad(name);
+  ut_ad(data);
+  ut_ad(srv_is_upgrade_mode);
+
+  zip_dict_info_aux rec;
+  rec.code = zip_dict_info_not_found;
+  pars_info_t *info = pars_info_create();
+
+  pars_info_add_int4_literal(info, "id", dict_id);
+  pars_info_bind_function(info, "my_func",
+                          dict_create_get_zip_dict_info_by_id_aux, &rec);
+
+  dberr_t error = que_eval_sql(info,
+                               "PROCEDURE P () IS\n"
+                               "DECLARE FUNCTION my_func;\n"
+                               "DECLARE CURSOR cur IS\n"
+                               "  SELECT NAME, DATA FROM SYS_ZIP_DICT\n"
+                               "    WHERE ID = :id;\n"
+                               "BEGIN\n"
+                               "  OPEN cur;\n"
+                               "  FETCH cur INTO my_func();\n"
+                               "  CLOSE cur;\n"
+                               "END;\n",
+                               trx);
+  if (error == DB_SUCCESS) {
+    switch (rec.code) {
+      case zip_dict_info_success:
+        *name = rec.name.str;
+        *name_len = rec.name.length;
+        *data = rec.data.str;
+        *data_len = rec.data.length;
+        break;
+      case zip_dict_info_not_found:
+        error = DB_RECORD_NOT_FOUND;
+        break;
+      case zip_dict_info_oom:
+        error = DB_OUT_OF_MEMORY;
+        break;
+      case zip_dict_info_corrupted_name:
+      case zip_dict_info_corrupted_data:
+        error = DB_INVALID_NULL;
+        break;
+      default:
+        ut_error;
+    }
+  }
+  return error;
 }

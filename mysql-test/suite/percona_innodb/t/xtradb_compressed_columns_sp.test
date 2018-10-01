@@ -1,0 +1,231 @@
+SET @numbers = 'one' 'two' 'three' 'four';
+
+# define a stored procedure which would create a compression dictionary
+DELIMITER //;
+CREATE PROCEDURE create_zip_dict(IN data TEXT)
+BEGIN
+  SET @data_var = data;
+  CREATE COMPRESSION_DICTIONARY dict(@data_var);
+END //
+DELIMITER ;//
+
+# define a stored procedure which would create a new table referencing
+# a compression dictionary
+DELIMITER //;
+CREATE PROCEDURE create_table_referencing_zip_dict()
+BEGIN
+  CREATE TABLE t1(
+    id INT,
+    a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict
+  ) ENGINE=InnoDB;
+END //
+DELIMITER ;//
+
+# execute both procedures defined above
+CALL create_zip_dict(@numbers);
+CALL create_table_referencing_zip_dict();
+
+# check if corresponding records were added to 'compression_dictionary' and
+# 'compression_dictionary_tables' tables in 'information_schema'.
+#
+SELECT dict_data = @numbers AS zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'dict';
+SELECT dict_name = 'dict' AS dict_names_match FROM information_schema.compression_dictionary_tables
+ WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME = 't1' AND COLUMN_NAME = 'a';
+
+# define a stored procedure which would create both a compression dictionary
+# and a table referencing it inside a single call
+DELIMITER //;
+CREATE PROCEDURE create_zip_dict_and_table(IN data TEXT)
+BEGIN
+  SET @data_var = data;
+  CREATE COMPRESSION_DICTIONARY another_dict(@data_var);
+  CREATE TABLE t2(
+    id INT,
+    a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY another_dict
+  ) ENGINE=InnoDB;
+END //
+DELIMITER ;//
+
+# call this procedure
+CALL create_zip_dict_and_table(@numbers);
+
+# check if corresponding records were added to 'compression_dictionary' and
+# 'compression_dictionary_tables' tables in 'information_schema' for the
+# compression dictionary and table created by 'create_zip_dict_and_table()' .
+SELECT dict_data = @numbers AS another_zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'another_dict';
+SELECT dict_name= 'another_dict' AS another_dict_names_match FROM information_schema.compression_dictionary_tables
+ WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME = 'antoher_dict' AND COLUMN_NAME = 'a';
+
+# define a JSON-formatted value
+SET @json_value =
+  '[\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  }\n'
+  ']\n'
+;
+
+# define a stored procedure which would insert a record into
+# the first table
+DELIMITER //;
+CREATE PROCEDURE insert_zip_record(IN id INT, IN data TEXT)
+BEGIN
+  INSERT INTO t1 VALUES(id, data);
+END //
+DELIMITER ;//
+
+# call record insertion stored procedure
+CALL insert_zip_record(1, @json_value);
+
+# define a function which would return MD5 hash of the BLOB
+# by the given id
+DELIMITER //;
+CREATE FUNCTION get_zip_record_hash(k INT) RETURNS CHAR(32) READS SQL DATA
+BEGIN
+  DECLARE res CHAR(32);
+  DECLARE found INT DEFAULT TRUE;
+  DECLARE cur CURSOR FOR SELECT MD5(a) FROM t1 WHERE id = k;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET found = FALSE;
+  OPEN cur;
+  FETCH cur INTO res;
+  IF NOT found THEN
+    SET res = REPEAT('x', 32);
+  END IF;
+  CLOSE cur;
+  RETURN res;
+END //
+DELIMITER ;//
+
+# calculate MD5 hash of the BLOB directly from the first table
+SELECT MD5(a) INTO @expected_hash_value FROM t1 WHERE id = 1;
+
+# call the function and check if it returns expected result
+SELECT get_zip_record_hash(1) = @expected_hash_value AS hash_values_match;
+
+# define a stored procedure which would delete a record from
+# the first table by the given id
+DELIMITER //;
+CREATE PROCEDURE delete_zip_record(k INT)
+BEGIN
+  DELETE FROM t1 WHERE id = k;
+END //
+DELIMITER ;//
+
+# call record deletion stored procedure
+CALL delete_zip_record(1);
+
+# call the function 'get_zip_record_hash()' and check if it returns special
+# value
+SELECT get_zip_record_hash(1) = REPEAT('x', 32) AS hash_values_match;
+
+# define a stored procedure which would remove tables and compression
+# dictionaries created earlier
+DELIMITER //;
+CREATE PROCEDURE remove_zip_dicts_and_tables()
+BEGIN
+  DROP TABLE t1, t2;
+  DROP COMPRESSION_DICTIONARY dict;
+  DROP COMPRESSION_DICTIONARY another_dict;
+END //
+DELIMITER ;//
+
+# call clenup procedure
+CALL remove_zip_dicts_and_tables();
+
+# make sure that the changes are reflected in 'information_schema'
+SELECT COUNT(*) = 0 AS dictionary_references_removed FROM information_schema.compression_dictionary_tables WHERE table_name IN ('t1', 't2');
+SELECT COUNT(*) = 0 AS dictionaries_removed FROM information_schema.compression_dictionary WHERE dict_name IN ('dict', 'another_dict');
+
+# remove stored procedures created earlier
+DROP PROCEDURE create_zip_dict;
+DROP PROCEDURE create_table_referencing_zip_dict;
+DROP PROCEDURE create_zip_dict_and_table;
+DROP PROCEDURE insert_zip_record;
+DROP FUNCTION get_zip_record_hash;
+DROP PROCEDURE delete_zip_record;
+DROP PROCEDURE remove_zip_dicts_and_tables;
+
+# create a compression dictionary using prepared statement
+SET @create_zip_dict_sql = CONCAT('CREATE COMPRESSION_DICTIONARY dict(\'', @numbers, '\');');
+PREPARE create_zip_dict_stmt FROM @create_zip_dict_sql;
+EXECUTE create_zip_dict_stmt;
+DEALLOCATE PREPARE create_zip_dict_stmt;
+
+# create a table referencing a compression dictionary using prepared statement
+SET @create_table_referencing_zip_dict_sql =
+  'CREATE TABLE t1('
+  '  id INT,'
+  '  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict'
+  ') ENGINE=InnoDB;'
+;
+PREPARE create_table_referencing_zip_dict_stmt FROM @create_table_referencing_zip_dict_sql;
+EXECUTE create_table_referencing_zip_dict_stmt;
+DEALLOCATE PREPARE create_table_referencing_zip_dict_stmt;
+
+# make sure new records appear in the 'information_schema'
+SELECT dict_data = @numbers AS zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'dict';
+SELECT dict_name = 'dict' AS dict_names_match FROM information_schema.compression_dictionary_tables
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't1' AND COLUMN_NAME = 'a';
+
+# insert a record into the first table using prepared statement
+PREPARE insert_zip_record_stmt FROM 'INSERT INTO t1 VALUES(?, ?);';
+SET @blob_key = 1;
+EXECUTE insert_zip_record_stmt USING @blob_key, @json_value;
+DEALLOCATE PREPARE insert_zip_record_stmt;
+
+# calculate MD5 hash of the BLOB directly from the first table
+SELECT MD5(a) INTO @expected_hash_value FROM t1 WHERE id = 1;
+
+# get MD5 hash of the BLOB by the given id using prepared statement
+PREPARE get_zip_record_hash_stmt FROM 'SELECT IF(COUNT(*) = 0, REPEAT(\'x\', 32), MD5(MAX(a))) INTO @ps_hash_value FROM t1 WHERE id = ?;';
+EXECUTE get_zip_record_hash_stmt USING @blob_key;
+SELECT @ps_hash_value = @expected_hash_value AS hash_values_match;
+
+# delete a record from the first table using prepared statement
+PREPARE delete_zip_record_stmt FROM 'DELETE FROM t1 WHERE id = ?;';
+EXECUTE delete_zip_record_stmt USING @blob_key;
+DEALLOCATE PREPARE delete_zip_record_stmt;
+
+# get special value for MD5 hash from the 'get_zip_record_hash_stmt()'
+# prepared statement after deletion
+EXECUTE get_zip_record_hash_stmt USING @blob_key;
+DEALLOCATE PREPARE get_zip_record_hash_stmt;
+SELECT @ps_hash_value = REPEAT('x', 32) AS hash_values_match;
+
+# remove the table created by 'create_table_referencing_zip_dict_stmt()'
+# using prepared statement
+PREPARE remove_table_referencing_zip_dict_stmt FROM 'DROP TABLE t1';
+EXECUTE remove_table_referencing_zip_dict_stmt;
+DEALLOCATE PREPARE remove_table_referencing_zip_dict_stmt;
+
+# remove the compression dictionary created by 'create_zip_dict_stmt()'
+# using prepared statement
+PREPARE remove_zip_dict_stmt FROM 'DROP COMPRESSION_DICTIONARY dict;';
+EXECUTE remove_zip_dict_stmt;
+DEALLOCATE PREPARE remove_zip_dict_stmt;
+
+# make sure that the changes are reflected in 'information_schema'
+#
+SELECT COUNT(*) = 0 AS dictionary_references_removed FROM information_schema.compression_dictionary_tables WHERE table_name IN ('t1', 't2');
+SELECT COUNT(*) = 0 AS dictionaries_removed FROM information_schema.compression_dictionary WHERE dict_name IN ('dict', 'another_dict');

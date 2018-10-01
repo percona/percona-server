@@ -432,6 +432,21 @@ class ha_innobase : public handler {
                                   dd::Table *new_dd_tab) override;
   /** @} */
 
+  /** This function reads zip dict-related info from SYS_ZIP_DICT
+  and SYS_ZIP_DICT_COLS for all columns marked with
+  COLUMN_FORMAT_TYPE_COMPRESSED flag and updates
+  zip_dict_name / zip_dict_data for those which have associated
+  compression dictionaries.
+
+  @param	thd		Thread handle, used to determine whether it
+  is necessary to lock dict_sys mutex
+  @param	part_name	Full table name (including partition part).
+  Must be non-NULL only if called from
+  ha_partition.
+  */
+  virtual void upgrade_update_field_with_zip_dict_info(
+      THD *thd, const char *part_name) override;
+
   using Reader = Parallel_reader_adapter;
 
   /** Initializes a parallel scan. It creates a scan_ctx that has to

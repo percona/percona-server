@@ -25,6 +25,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include <string>
+#include <vector>
 #include "my_inttypes.h"
 
 class THD;
@@ -88,3 +90,14 @@ sets storage engine for rollback any changes.
 @param[in]      failed_upgrade  true when upgrade failed
 @return MySQL error code*/
 int dd_upgrade_finish(THD *thd, bool failed_upgrade);
+
+using compression_dict_data_vec_t =
+    std::vector<std::pair<std::string, std::string>>;
+
+/** Transfer compression dictionary data from SYS_ZIP_DICT to server
+@param[in,out]       thd            Session context
+@param[in,out]       data_vector    std::vector to hold compression dictionary
+data
+@return false on success, true on failure */
+bool dd_upgrade_get_compression_dict_data(
+    THD *thd, compression_dict_data_vec_t &data_vector);

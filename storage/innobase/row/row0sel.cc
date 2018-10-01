@@ -239,10 +239,10 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       row = row_build(ROW_COPY_POINTERS, clust_index, clust_rec, clust_offs,
                       nullptr, nullptr, nullptr, &ext, heap);
 
-      vfield = innobase_get_computed_value(row, v_col, clust_index, &heap, heap,
-                                           nullptr, thr_get_trx(thr)->mysql_thd,
-                                           thr->prebuilt->m_mysql_table,
-                                           nullptr, nullptr, nullptr);
+      vfield = innobase_get_computed_value(
+          row, v_col, clust_index, &heap, heap, nullptr,
+          thr_get_trx(thr)->mysql_thd, thr->prebuilt->m_mysql_table, nullptr,
+          nullptr, nullptr, &thr->prebuilt->compress_heap);
 
       if (vfield == nullptr) {
         /* This may happen e.g. when this statement is executed in
@@ -2399,7 +2399,8 @@ void row_sel_convert_mysql_key_to_innobase(dtuple_t *tuple, byte *buf,
     if (UNIV_LIKELY(!is_null)) {
       buf = row_mysql_store_col_in_innobase_format(
           dfield, buf, false, /* MySQL key value format col */
-          key_ptr + data_offset, data_len, dict_table_is_comp(index->table));
+          key_ptr + data_offset, data_len, dict_table_is_comp(index->table),
+          false, 0, 0, 0);
       ut_a(buf <= original_buf + buf_len);
     }
 
@@ -2495,6 +2496,8 @@ mysql_col_len, mbminlen, mbmaxlen
                                 or templ->icp_rec_field_no
 @param[in]      data            data to store
 @param[in]      len             length of the data
+@param[in]      compress_heap   memory heap used to compress/decompress
+                                blob column
 @param[in]      sec_field       secondary index field no if the secondary index
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
@@ -2502,7 +2505,7 @@ mysql_col_len, mbminlen, mbmaxlen
 void row_sel_field_store_in_mysql_format_func(
     byte *dest, const mysql_row_templ_t *templ, const dict_index_t *index,
     IF_DEBUG(ulint field_no, ) const byte *data,
-    ulint len IF_DEBUG(, ulint sec_field)) {
+    ulint len, mem_heap_t** compress_heap IF_DEBUG(, ulint sec_field)) {
   byte *ptr;
 #ifdef UNIV_DEBUG
   const dict_field_t *field =
@@ -2556,6 +2559,14 @@ void row_sel_field_store_in_mysql_format_func(
       field_end = dest + mysql_col_len;
 
       if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
+        /* If this is a compressed column,
+        decompress it first */
+        if (templ->compressed)
+          data = row_decompress_column(
+              data, &len,
+              reinterpret_cast<const byte *>(templ->zip_dict_data.str),
+              templ->zip_dict_data.length, compress_heap);
+
         /* This is a >= 5.0.3 type true VARCHAR. Store the
         length of the data to the first byte or the first
         two bytes of dest. */
@@ -2605,7 +2616,10 @@ void row_sel_field_store_in_mysql_format_func(
       /* Store a pointer to the BLOB buffer to dest: the BLOB was
       already copied to the buffer in row_sel_store_mysql_rec */
 
-      row_mysql_store_blob_ref(dest, mysql_col_len, data, len);
+      row_mysql_store_blob_ref(
+          dest, mysql_col_len, data, len, templ->compressed,
+          reinterpret_cast<const byte *>(templ->zip_dict_data.str),
+          templ->zip_dict_data.length, compress_heap);
       break;
 
     case DATA_POINT:
@@ -2818,7 +2832,7 @@ void row_sel_field_store_in_mysql_format_func(
 
     row_sel_field_store_in_mysql_format(mysql_rec + templ->mysql_col_offset,
                                         templ, rec_index, field_no, data, len,
-                                        ULINT_UNDEFINED);
+                                        &prebuilt->compress_heap, ULINT_UNDEFINED);
 
     if (heap != blob_heap) {
       mem_heap_free(heap);
@@ -2874,7 +2888,7 @@ void row_sel_field_store_in_mysql_format_func(
 
     row_sel_field_store_in_mysql_format(mysql_rec + templ->mysql_col_offset,
                                         templ, rec_index, field_no, data, len,
-                                        sec_field_no);
+                                        &prebuilt->compress_heap, sec_field_no);
   }
 
   ut_ad(rec_field_not_null_not_add_col_def(len));
@@ -2907,6 +2921,9 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
   if (blob_heap != nullptr && blob_heap == prebuilt->blob_heap) {
     mem_heap_empty(blob_heap);
   }
+
+  if (UNIV_LIKELY_NULL(prebuilt->compress_heap))
+    row_mysql_prebuilt_free_compress_heap(prebuilt);
 
   if (clust_templ_for_sec) {
     /* Store all clustered index column of secondary index record. */
@@ -2988,7 +3005,7 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
         row_sel_field_store_in_mysql_format(
             mysql_rec + templ->mysql_col_offset, templ, rec_index,
             templ->clust_rec_field_no, (const byte *)dfield->data, dfield->len,
-            ULINT_UNDEFINED);
+            &prebuilt->compress_heap, ULINT_UNDEFINED);
         if (templ->mysql_null_bit_mask) {
           mysql_rec[templ->mysql_null_byte_offset] &=
               ~(byte)templ->mysql_null_bit_mask;

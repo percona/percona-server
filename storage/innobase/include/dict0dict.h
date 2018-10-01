@@ -1658,6 +1658,36 @@ void dict_table_change_id_sys_tables();
 void dict_table_set_corrupt_by_space(space_id_t space_id,
                                      bool need_mutex) noexcept;
 
+/** SYS_ZIP_DICT and SYS_ZIP_DICT_COLS will be missing when upgrading
+mysql-5.7 to PS-8.0 */
+extern bool dict_upgrade_zip_dict_missing;
+
+/** Get single compression dictionary id for the given
+(table id, column pos) pair.
+@param[in]	table_id	table id
+@param[in]	column_pos	column position
+@param[out]	dict_id		zip_dict id
+@retval	DB_SUCCESS		if OK
+@retval	DB_RECORD_NOT_FOUND	if not found */
+MY_NODISCARD
+dberr_t dict_get_dictionary_id_by_key(table_id_t table_id, ulint column_pos,
+                                      ulint *dict_id);
+
+/** Get compression dictionary info (name and data) for the given id.
+Allocates memory in name->str and data->str on success.
+Must be freed with mem_free().
+@param[in]	dict_id		zip dict id
+@param[out]	name		dictionary name
+@param[out]	name_len	dictionary name length
+@param[out]	data		dictionary data
+@param[out]	data_len	dictionary data length
+@retval	DB_SUCCESS		if OK
+@retval	DB_RECORD_NOT_FOUND	if not found */
+MY_NODISCARD
+dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
+                                       ulint *name_len, char **data,
+                                       ulint *data_len);
+
 /** Set the compression type for the tablespace of a table
 @param[in]  table         The table that should be compressed
 @param[in]  algorithm     Text representation of the algorithm

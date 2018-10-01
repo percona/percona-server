@@ -491,7 +491,8 @@ introduced where a call to log_free_check() is bypassed. */
   ut_a(success);
 
   old_has = row_vers_old_has_index_entry(false, node->pcur.get_rec(), &mtr_vers,
-                                         index, entry, 0, 0);
+                                         index, entry, 0, 0,
+                                         thr->prebuilt);
   if (old_has) {
     err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG, btr_cur, true, thr,
                                        &mtr);

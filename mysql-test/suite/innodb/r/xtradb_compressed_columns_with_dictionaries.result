@@ -1,0 +1,457 @@
+CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('foo');
+CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('foo');
+Warnings:
+Note	7003	Compression dictionary 'ddd' already exists
+CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('bar');
+Warnings:
+Note	7003	Compression dictionary 'ddd' already exists
+DROP COMPRESSION_DICTIONARY IF EXISTS ddd;
+DROP COMPRESSION_DICTIONARY IF EXISTS ddd;
+Warnings:
+Note	7004	Compression dictionary 'ddd' does not exist
+CREATE COMPRESSION_DICTIONARY d1('');
+CREATE COMPRESSION_DICTIONARY d2(_ucs2'');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE COMPRESSION_DICTIONARY d3('aaaaaaaabbbbbbbbccccccccdddddddd');
+CREATE COMPRESSION_DICTIONARY d4(_ucs2'aaaaaaaabbbbbbbbccccccccdddddddd');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE COMPRESSION_DICTIONARY d5(' ');
+CREATE COMPRESSION_DICTIONARY d6('\0');
+CREATE COMPRESSION_DICTIONARY d7('\0aaaaaaaabbbbbbbbccccccccdddddddd');
+SET @dict_data8 = 'aaaaaaaabbbbbbbbccccccccdddddddd';
+CREATE COMPRESSION_DICTIONARY d8(@dict_data8);
+SET @dict_data9 = '';
+CREATE COMPRESSION_DICTIONARY d9(@dict_data9);
+SET @dict_data10 = 123;
+CREATE COMPRESSION_DICTIONARY d10(@dict_data10);
+SET @dict_data11 = STR_TO_DATE('02/29/2016', '%m/%d/%Y');
+CREATE COMPRESSION_DICTIONARY d11(@dict_data11);
+SET @dict_data12 = NULL;
+CREATE COMPRESSION_DICTIONARY d12(@dict_data12);
+CREATE COMPRESSION_DICTIONARY d12(@dict_data12 := 'blah');
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ':= 'blah')' at line 1
+SET @long_dictionary_name = REPEAT('d', 64);
+CREATE COMPRESSION_DICTIONARY dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd('abcd');
+CREATE COMPRESSION_DICTIONARY ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd('abcd');
+ERROR HY000: Compression dictionary name 'ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd' is too long (max length = 64)
+SET @long_dictionary_data = REPEAT('ab', 32506 / 2);
+CREATE COMPRESSION_DICTIONARY d13(@long_dictionary_data);
+SET @longer_dictionary_data = CONCAT(@long_dictionary_data, 'a');
+CREATE COMPRESSION_DICTIONARY d14(@longer_dictionary_data);
+ERROR HY000: Data for compression dictionary 'd14' is too long (max length = 32506)
+SELECT DICT_VERSION, DICT_NAME, MD5(DICT_DATA), LENGTH(DICT_DATA) FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY ORDER BY LENGTH(DICT_NAME) ASC, DICT_NAME ASC;
+DICT_VERSION	DICT_NAME	MD5(DICT_DATA)	LENGTH(DICT_DATA)
+1	d1	d41d8cd98f00b204e9800998ecf8427e	0
+1	d2	d41d8cd98f00b204e9800998ecf8427e	0
+1	d3	72dbd0ddead281f6bc7e550413de30d5	32
+1	d4	4afea7d073863b9dbe80cfac0ba75d5a	16
+1	d5	7215ee9c7d9dc229d2921a40e899ec5f	1
+1	d6	93b885adfe0da089cdf634904fd59f71	1
+1	d7	506cecad13db0f743abd3e9005013428	33
+1	d8	72dbd0ddead281f6bc7e550413de30d5	32
+1	d9	d41d8cd98f00b204e9800998ecf8427e	0
+1	d10	202cb962ac59075b964b07152d234b70	3
+1	d11	3accaabe743e73d754c5cb1616cd4be6	10
+1	d12	d41d8cd98f00b204e9800998ecf8427e	0
+1	d13	bf0065e1594c247ded0d765c0af28dca	32506
+1	dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd	e2fc714c4727ee9395f324cd2e7f331f	4
+SELECT dict_data = 'abcd' AS short_zip_dict_data_must_match
+FROM information_schema.compression_dictionary
+WHERE MD5(dict_name) = MD5(@long_dictionary_name);
+short_zip_dict_data_must_match
+1
+SELECT dict_data = @long_dictionary_data AS long_zip_dict_data_must_match
+FROM information_schema.compression_dictionary
+WHERE dict_name = 'd13';
+long_zip_dict_data_must_match
+1
+CREATE COMPRESSION_DICTIONARY d1('data');
+ERROR HY000: Compression dictionary 'd1' already exists
+CREATE TABLE t1(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED,
+b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d100
+) ENGINE=InnoDB;
+ERROR HY000: Compression dictionary 'd100' does not exist
+CREATE TABLE t1(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED,
+b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT table_id INTO @table_id FROM information_schema.innodb_tables
+WHERE name=CONCAT(DATABASE(), '/', 't1');
+SELECT COUNT(*) = 1 AS only_one_dictionary_reference FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME = 't1';
+only_one_dictionary_reference
+1
+SELECT dict_name = 'd1' AS dict_names_must_match FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME = 't1';
+dict_names_must_match
+1
+SET @long_string_value = REPEAT('a', 128);
+INSERT INTO t1 VALUES(1, @long_string_value, @long_string_value);
+SELECT a = @long_string_value AS a_match, b = @long_string_value AS b_match FROM t1
+WHERE id = 1;
+a_match	b_match
+1	1
+DROP COMPRESSION_DICTIONARY d100;
+ERROR HY000: Compression dictionary 'd100' does not exist
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Compression dictionary 'd1' is in use
+DROP COMPRESSION_DICTIONARY d13;
+SELECT COUNT(*) = 0 AS dict_must_be_deleted
+FROM information_schema.compression_dictionary
+WHERE dict_name = 'd13';
+dict_must_be_deleted
+1
+DROP COMPRESSION_DICTIONARY d2;
+DROP COMPRESSION_DICTIONARY d3;
+DROP COMPRESSION_DICTIONARY d4;
+DROP COMPRESSION_DICTIONARY d5;
+DROP COMPRESSION_DICTIONARY d6;
+DROP COMPRESSION_DICTIONARY d7;
+DROP COMPRESSION_DICTIONARY d8;
+DROP COMPRESSION_DICTIONARY d9;
+DROP COMPRESSION_DICTIONARY d10;
+DROP COMPRESSION_DICTIONARY d11;
+DROP COMPRESSION_DICTIONARY d12;
+DROP COMPRESSION_DICTIONARY dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd;
+SELECT dict_name, dict_data, LENGTH(dict_data)
+FROM information_schema.compression_dictionary;
+DICT_NAME	DICT_DATA	LENGTH(dict_data)
+d1		0
+DROP TABLE t1;
+SELECT COUNT(*) = 1 AS compression_dictionary_exists FROM information_schema.compression_dictionary
+WHERE dict_name = 'd1';
+compression_dictionary_exists
+1
+SELECT COUNT(*) = 0 AS references_cleared FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
+references_cleared
+1
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED,
+b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1
+) ENGINE=InnoDB;
+SELECT table_id INTO @table_id FROM information_schema.innodb_tables
+WHERE name=CONCAT('db1', '/', 't1');
+SELECT COUNT(*) = 1 AS only_one_dictionary_reference FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA='db1' AND TABLE_NAME='t1';
+only_one_dictionary_reference
+1
+SELECT dict_name = 'd1' AS dict_names_must_match FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA='db1' AND TABLE_NAME='t1' AND COLUMN_NAME = 'b';
+dict_names_must_match
+1
+DROP DATABASE db1;
+SELECT COUNT(*) = 1 AS compression_dictionary_exists FROM information_schema.compression_dictionary
+WHERE dict_name = 'd1';
+compression_dictionary_exists
+1
+SELECT COUNT(*) = 0 AS references_cleared FROM information_schema.compression_dictionary_tables
+WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'db1';
+references_cleared
+1
+SET @saved_default_storage_engine = @@default_storage_engine;
+# check if "CREATE TABLE ... LIKE ..." does not lose "COLUMN_FORMAT COMPRESSED" attribute
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=DEFAULT
+original_dictionary_reference_does_not_exist
+1
+*** after table alteration
+long_value_match
+short_value_match
+modified_dictionary_reference_does_not_exist
+1
+original_dictionary_references_cleaned
+1
+modified_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." discards "COLUMN_FORMAT COMPRESSED" attribute (implicit SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_does_not_exist
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+modified_dictionary_reference_does_not_exist
+1
+original_dictionary_references_cleaned
+1
+modified_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." discards "COLUMN_FORMAT COMPRESSED" attribute (explicit SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_does_not_exist
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+modified_dictionary_reference_does_not_exist
+1
+original_dictionary_references_cleaned
+1
+modified_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." discards "COLUMN_FORMAT COMPRESSED" attribute (implicitly changing SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_does_not_exist
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+original_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." discards "COLUMN_FORMAT COMPRESSED" attribute (explicitly changing SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_does_not_exist
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+original_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (no dictionary, implicit SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_does_not_exist
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+original_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (no dictionary, explicit SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_does_not_exist
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+original_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... LIKE ..." does not lose compression dictionary references
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1", ALGORITHM=DEFAULT
+original_dictionary_reference_exists
+1
+original_dictionary_reference_matches
+1
+*** after table alteration
+long_value_match
+short_value_match
+modified_dictionary_reference_exists
+1
+modified_dictionary_reference_matches
+1
+original_dictionary_references_cleaned
+1
+modified_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." discards compression dictionary references (implicit SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_exists
+1
+original_dictionary_reference_matches
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+original_dictionary_reference_cleared
+1
+modified_dictionary_reference_does_not_exist
+1
+original_dictionary_references_cleaned
+1
+modified_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." discards compression dictionary references (explicit SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_exists
+1
+original_dictionary_reference_matches
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+original_dictionary_reference_cleared
+1
+modified_dictionary_reference_does_not_exist
+1
+original_dictionary_references_cleaned
+1
+modified_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." discards compression dictionary references (implicitly changing SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_exists
+1
+original_dictionary_reference_matches
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+original_dictionary_reference_cleared
+1
+original_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." discards compression dictionary references (explicitly changing SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_exists
+1
+original_dictionary_reference_matches
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+original_dictionary_reference_cleared
+1
+original_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (with a dictionary, implicit SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_exists
+1
+original_dictionary_reference_matches
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+original_dictionary_reference_cleared
+1
+original_dictionary_references_cleaned
+1
+
+# check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (with a dictionary, explicit SE)
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1" -> "a BLOB", ALGORITHM=DEFAULT
+original_dictionary_reference_exists
+1
+original_dictionary_reference_matches
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+original_dictionary_reference_cleared
+1
+original_dictionary_references_cleaned
+1
+
+SET default_storage_engine = @saved_default_storage_engine;
+# check if "TRUNCATE TABLE ..." updates compression dictionary references in SYS_ZIP_DICT_COLS
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1", ALGORITHM=DEFAULT
+original_dictionary_reference_exists
+1
+original_dictionary_reference_matches
+1
+*** after table alteration
+long_value_match
+1
+short_value_match
+1
+modified_dictionary_reference_exists
+1
+modified_dictionary_reference_matches
+1
+original_dictionary_references_cleaned
+1
+modified_dictionary_references_cleaned
+1
+
+DROP COMPRESSION_DICTIONARY d1;
+SELECT COUNT(*) = 0 AS compression_dictionary_removed FROM information_schema.compression_dictionary
+WHERE dict_name = 'd1';
+compression_dictionary_removed
+1
+CREATE TABLE t1(id INT, a BLOB) ENGINE=InnoDB;
+DROP TABLE t1;
+CREATE TABLE t1(c1 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown);
+ERROR HY000: Compression dictionary 'unknown' does not exist
+CREATE TABLE t1(c1 TEXT COLUMN_FORMAT COMPRESSED);
+DROP TABLE t1;
+CREATE COMPRESSION_DICTIONARY existing_dict('aaaa');
+CREATE TABLE t1(
+c1 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY existing_dict,
+c2 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown
+);
+ERROR HY000: Compression dictionary 'unknown' does not exist
+SELECT COUNT(*) = 0 AS no_dict_references_created FROM information_schema.compression_dictionary_tables
+WHERE dict_name = 'existing_dict';
+no_dict_references_created
+1
+DROP COMPRESSION_DICTIONARY existing_dict;
+CREATE TABLE t1(
+c1 TEXT COLUMN_FORMAT COMPRESSED,
+c2 VARCHAR(1) COLUMN_FORMAT COMPRESSED
+);
+ALTER TABLE t1 ADD COLUMN b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1;
+ERROR HY000: Compression dictionary 'dict1' does not exist
+DROP TABLE t1;
+CREATE COMPRESSION_DICTIONARY existing_dict('aaaa');
+CREATE TABLE t1(
+c1 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY existing_dict
+);
+SELECT COUNT(*) = 1 AS one_dict_reference_created FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
+one_dict_reference_created
+1
+ALTER TABLE t1 ADD COLUMN c2 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown;
+ERROR HY000: Compression dictionary 'unknown' does not exist
+SELECT COUNT(*) = 1 AS one_dict_reference_after_adding_one_column FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
+one_dict_reference_after_adding_one_column
+1
+ALTER TABLE t1
+ADD COLUMN c2 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY existing_dict,
+ADD COLUMN c3 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown
+;
+ERROR HY000: Compression dictionary 'unknown' does not exist
+SELECT COUNT(*) = 1 AS one_dict_reference_after_adding_two_columns FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
+one_dict_reference_after_adding_two_columns
+1
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY existing_dict;

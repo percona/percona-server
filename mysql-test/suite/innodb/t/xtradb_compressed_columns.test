@@ -1,0 +1,232 @@
+
+--echo # only blob/text/varchar/varbinary/json are supported
+--error ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE
+CREATE TABLE t1 (a INT COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+CREATE TABLE t2 (a VARCHAR(100) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t2;
+CREATE TABLE t3 (a BLOB COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t3;
+CREATE TABLE t4 (a TEXT COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t4;
+CREATE TABLE t5 (a TEXT COLLATE utf8mb4_bin COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t5;
+CREATE TABLE t6(a TEXT CHARACTER SET gbk COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t6;
+CREATE TABLE t7(a TEXT CHARACTER SET gbk COLLATE gbk_bin COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t7;
+CREATE TABLE t8 (a VARBINARY(1000) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t8;
+CREATE TABLE t9 (a VARCHAR(1000) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t9;
+CREATE TABLE t10 (a JSON COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t10;
+
+--echo # test index creation
+--echo # compressed columns are not allowed to defined as a part or a key
+--error ER_COMPRESSED_COLUMN_USED_AS_KEY
+CREATE TABLE t1(a BLOB COLUMN_FORMAT COMPRESSED, KEY(a(10)));
+
+CREATE TABLE t1(a BLOB COLUMN_FORMAT COMPRESSED);
+--error ER_COMPRESSED_COLUMN_USED_AS_KEY
+ALTER TABLE t3 ADD KEY(a(10));
+
+DROP TABLE t1;
+CREATE TABLE t1 (a BLOB) ENGINE=InnoDB;
+--echo # it's ok if a blob column is not compressed
+ALTER TABLE t1 ADD KEY(a(10));
+
+--echo # test modifying column format
+DROP TABLE t1;
+CREATE TABLE t1 (a BLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (REPEAT('abc',5));
+INSERT INTO t1 VALUES (REPEAT('abc',100));
+SELECT * FROM t1;
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED;
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+CHECKSUM TABLE t1;
+ALTER TABLE t1 MODIFY COLUMN a VARCHAR(10000) COLUMN_FORMAT COMPRESSED;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 MODIFY COLUMN a VARCHAR(10000);
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED;
+CHECKSUM TABLE t1;
+
+--echo # test adding column with default value
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (NULL);
+ALTER TABLE t1 ADD COLUMN b TEXT COLUMN_FORMAT COMPRESSED;
+INSERT INTO t1 (a) VALUES (NULL);
+ALTER TABLE t1 ADD COLUMN c VARCHAR(1000) COLUMN_FORMAT COMPRESSED;
+INSERT INTO t1 (a,b,c) VALUES (NULL, "hello!", "world!");
+ALTER TABLE t1 ADD COLUMN d VARCHAR(10000) COLUMN_FORMAT COMPRESSED DEFAULT "hello, world! see you!";
+INSERT INTO t1 (a,b,c) VALUES (NULL, "hello", "world!");
+SELECT * FROM t1;
+
+--echo # test new option: innodb_compressed_columns_zip_level
+SHOW VARIABLES LIKE 'innodb_compressed_columns_zip_level';
+SET @old_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
+
+DROP TABLE t1;
+CREATE TABLE t1 (a BLOB COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SET GLOBAL innodb_compressed_columns_zip_level = -1;
+SELECT @@global.innodb_compressed_columns_zip_level;
+INSERT INTO t1 VALUES(REPEAT('abcd', 200));
+
+SET GLOBAL innodb_compressed_columns_zip_level = 5;
+SELECT @@global.innodb_compressed_columns_zip_level;
+INSERT INTO t1 VALUES(REPEAT('abcd', 200));
+
+SET GLOBAL innodb_compressed_columns_zip_level = 9;
+SELECT @@global.innodb_compressed_columns_zip_level;
+INSERT INTO t1 VALUES(REPEAT('abcd', 200));
+
+SET GLOBAL innodb_compressed_columns_zip_level = 10;
+SELECT @@global.innodb_compressed_columns_zip_level;
+
+SELECT MAX(LENGTH(a)) FROM t1;
+
+--echo # test new option: innodb_compressed_columns_threshold
+SHOW VARIABLES LIKE 'innodb_compressed_columns_threshold';
+SET @old_innodb_compressed_columns_threshold = @@global.innodb_compressed_columns_threshold;
+
+TRUNCATE TABLE t1;
+SET GLOBAL innodb_compressed_columns_threshold = 0;
+SELECT @@global.innodb_compressed_columns_threshold;
+INSERT INTO t1 VALUES (REPEAT('abc',10));
+
+SET GLOBAL innodb_compressed_columns_threshold = 96;
+SELECT @@global.innodb_compressed_columns_threshold;
+INSERT INTO t1 VALUES (REPEAT('abc',40));
+
+SET GLOBAL innodb_compressed_columns_threshold = 1000;
+SELECT @@global.innodb_compressed_columns_threshold;
+INSERT INTO t1 VALUES (REPEAT('abc',1000));
+
+SELECT MAX(LENGTH(a)) from t1;
+
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT, d BLOB COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 SELECT NULL, 100, 100, REPEAT('abc',100);
+INSERT INTO t1 SELECT NULL, 100, 100, REPEAT('abc',100) FROM t1;
+INSERT INTO t1 SELECT NULL, 100, 100, REPEAT('abc',100) FROM t1 a, t1 b;
+INSERT INTO t1 SELECT NULL, 100, 100, REPEAT('abc',100) FROM t1 a, t1 b;
+INSERT INTO t1 SELECT NULL, 100, 100, REPEAT('abc',100) FROM t1 a, t1 b;
+SELECT COUNT(*) FROM t1;
+SELECT a,b,c FROM t1 LIMIT 10;
+SELECT MAX(LENGTH(d)) FROM t1;
+
+--echo # test checksum
+DROP TABLE t2;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+ALTER TABLE t2 MODIFY COLUMN d BLOB;
+SHOW CREATE TABLE t2;
+
+CHECKSUM TABLE t1, t2;
+
+--echo # cleanup
+SET GLOBAL innodb_compressed_columns_zip_level = @old_innodb_compressed_columns_zip_level;
+SET GLOBAL innodb_compressed_columns_threshold = @old_innodb_compressed_columns_threshold;
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+
+--echo #
+--echo # Bug lp:1621708 "InnoDB: Failing assertion: len <= col->len || col->mtype == 5 || (col->len == 0 && col->mtype == 1) Edit"
+--echo #
+SET @saved_innodb_compressed_columns_threshold = @@global.innodb_compressed_columns_threshold;
+
+CREATE TABLE t1(
+  a VARCHAR(1) COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+INSERT IGNORE INTO t1 VALUES(REPEAT('abc',40));
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--let $threshold = `SELECT @@global.innodb_compressed_columns_threshold`
+--dec $threshold
+eval CREATE TABLE t1(
+  a VARCHAR($threshold) COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+INSERT IGNORE INTO t1 VALUES(REPEAT('abc',40));
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--inc $threshold
+eval CREATE TABLE t1(
+  a VARCHAR($threshold) COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+INSERT IGNORE INTO t1 VALUES(REPEAT('abc',40));
+SELECT * FROM t1;
+SET GLOBAL innodb_compressed_columns_threshold = 1;
+INSERT IGNORE INTO t1 VALUES(REPEAT('abc',40));
+SELECT * FROM t1;
+DROP TABLE t1;
+
+SET GLOBAL innodb_compressed_columns_threshold = @saved_innodb_compressed_columns_threshold;
+
+--echo #
+--echo # Bug lp:1622588 "handle_fatal_signal (sig=11) in free_root from TABLE_SHARE::destroy on ALTER TABLE t1 ADD COLUMN ... COLUMN_FORMAT COMPRESSED"
+--echo #
+CREATE TABLE t1(
+  id INT
+);
+ALTER TABLE t1 ADD COLUMN c VARCHAR(1000) COLUMN_FORMAT COMPRESSED;
+
+DROP TABLE t1;
+
+--echo #
+--echo # A bug in row_merge_buf_add(): "ut_ad(len <= col->len || col->mtype == DATA_BLOB)" assertion
+--echo #
+SET @saved_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
+SET GLOBAL innodb_compressed_columns_zip_level = 0;
+
+CREATE TABLE t1 (
+  a VARCHAR(254) COLUMN_FORMAT COMPRESSED,
+  b DATE DEFAULT NULL
+) ENGINE = InnoDB;
+
+SET @inserted_value = REPEAT('z', 254);
+INSERT INTO t1 SET a = @inserted_value;
+SELECT COUNT(*) AS number_of_rows_before_alteration FROM t1 WHERE a = @inserted_value;
+
+ALTER TABLE t1 DROP COLUMN b;
+SELECT COUNT(*) AS number_of_rows_after_alteration FROM t1 WHERE a = @inserted_value;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_compressed_columns_zip_level = @saved_innodb_compressed_columns_zip_level;
+
+--echo #
+--echo # Bug lp:1640810 "Adding COMPRESSED attributes to InnoDB special tables fields can lead to server crashes"
+--echo #
+call mtr.add_suppression("InnoDB: Column .* in table .* has unexpected COMPRESSED attribute");
+
+--error ER_NOT_ALLOWED_COMMAND
+ALTER TABLE mysql.innodb_index_stats
+  MODIFY stat_description VARCHAR(1024) COLLATE utf8_bin NOT NULL COLUMN_FORMAT COMPRESSED;
+
+--echo #
+--echo # Bug PS-5025 Assertion after altering a compressed column
+--echo #
+CREATE TABLE t1 (c1 VARBINARY(5) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+ALTER TABLE t1 ADD c2 CHAR(10) FIRST;
+INSERT INTO t1 VALUES(0,11111);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug PS-7657 crash seen with update query on a partition table having compressed column
+--echo #
+CREATE TABLE t1 (ip_col INT, i0 INT, v1 VARCHAR(29), v2 VARCHAR(23), lt3 LONGTEXT COLUMN_FORMAT COMPRESSED, b4 BLOB , v5 VARCHAR(10), g6  CHAR(9) AS  (CONCAT(SUBSTRING(ip_col,1,1),SUBSTRING(i0,1,3),SUBSTRING(lt3,1,3),SUBSTRING(v1,1,2))), INDEX tt_47_pi1(i0, v2 ASC, ip_col, v5 DESC, g6, v1)  )  ENGINE=INNODB PARTITION BY KEY (ip_col) PARTITIONS 13;
+
+INSERT INTO t1  ( ip_col ,i0 ,v1 ,v2 ,lt3 ,b4 ,v5 ,g6 ) VALUES( 23486, 49601, 'OQ7LVj1N0RhGn2EUxVHO9qD', 'oCwtfvdUs3', 'S6GaiUP5cMt7uS38D6B31KSJW0mkt7EQBu7sbK7G7LgYcQ3p6EE9HbTSGI9bMU4vQ8bJABIUbsjp0hIDtwgZOpSkc9xHvYPCx99DK6IDkEqioZu4808QqFCrtcGJWFceOMVyfG8f2NOQT58WAYPKBq5jkuHOtHBSIXyA1DFvWhifC0u0xXCULBrd9EF0Te0l5NcaQZTvJeKjoDjpRA4zfR7Z0t04QOhwVcad2ZbBWOfFiKiEz5DzOKzImrRLmcOtmgbPpTdBU8lND8r2FKSn0VwT7aYyyJHHJwvTlo8qepdbi4zdN1GPUAKeRtPLECGUkqQwLHacNWB2ZNlSDg788CXMsUgYpzB7TNqCB897PmOOPse0N', 'YAEFg2tZrqDiCF6CDpnZsIAf1VVnb0OSNToflk0970II8D04zLbXuL9w0l5eWvzXzaOlgqQwnWQHP547QM2cQuP2DTMkoEAWhghCXAgTTDrKcCspo0MrJ3L3BXmqvkdOXzVnro0I385cegV1U1sRuqp8lbtjoEtRmhZP3AzYIwJHR42Hny4KCmoPr6opoUtGoCrJxKCOyRKaWkEEinXAdEEkUpF9WhpasEc50fKENiHhXzidUm0vBLLurLsAcIkkf74YSIvQl30sM2a6eHK8x1dZUHvm50KvKBem21QkwKHlseYAqnaXoyckMN4PnAyRarRoFdVEA88Gwahc2wqRwC7Y2DFOijSvuwbbCVJhpO6G5DDLJotJpwdgyOotKyxWJmhWJFrRTOerNuNhK6kbaEmZAYXpHvi64JM0CK3slKNZ8CH1WgpRKcU3GSYRNulxECpei76HhY3jcBCG3diORUhjuWwLAc40jSmxVYlLCCaKOJJRukalTZ35XhSPRTqS8E8xuTzf5JUQDQLAJQW95GkOns2xbhctxuNv0nU1f6CvnPtMvbcY9DDaRW62uqzkMZP1rfsKc8J7cT6C4M0WxjHc1RkFmzAEexW1QYj2agnzb4UjEvUwWUWU6Z6gnqHr3Npo2EeEZVHsphaTMzM6pk09g9rBrV0ss8FJ1BZWnLopnsXDulc9a51cn51QNkkExx61PxEla6o2J9wzObCvAXfqAbcV8ovqt1SHXixvIUxN8dkTN6Em2idc5s1QJooc9TXAnPQlpGh3Vnc1EYLp05Hnl6phiIZuYtbY9qSsAd5bAojNhX70v7RjPDn5KAk3qgypDw9qXyJjKD3ICsr1IcOK3xiXlFe1dzs7d1ObjSBtGn0qUSyRBJKG86ZoNWRF4RC9juaQuHO14ha6dQFZ2c56LER60ptaYBhOMKBpfICkoHWZJWEmFxua36s2SYWdUVd3Z8JbtGuhv77h4TqP', 'x966Fv9V', default );
+
+UPDATE t1 SET ip_col=2680 WHERE ip_col = 23486;
+UPDATE t1 SET ip_col=23486 WHERE ip_col = 2680;
+
+--let $query_out=`SELECT COUNT(*) FROM t1 WHERE lt3='S6GaiUP5cMt7uS38D6B31KSJW0mkt7EQBu7sbK7G7LgYcQ3p6EE9HbTSGI9bMU4vQ8bJABIUbsjp0hIDtwgZOpSkc9xHvYPCx99DK6IDkEqioZu4808QqFCrtcGJWFceOMVyfG8f2NOQT58WAYPKBq5jkuHOtHBSIXyA1DFvWhifC0u0xXCULBrd9EF0Te0l5NcaQZTvJeKjoDjpRA4zfR7Z0t04QOhwVcad2ZbBWOfFiKiEz5DzOKzImrRLmcOtmgbPpTdBU8lND8r2FKSn0VwT7aYyyJHHJwvTlo8qepdbi4zdN1GPUAKeRtPLECGUkqQwLHacNWB2ZNlSDg788CXMsUgYpzB7TNqCB897PmOOPse0N'`
+--let $assert_text= 'value inside lt3 compressed column should be valid'
+--let $assert_cond= "$query_out" = 1
+--source include/assert.inc
+
+DROP TABLE t1;

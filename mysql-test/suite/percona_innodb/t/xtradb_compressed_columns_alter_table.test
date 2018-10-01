@@ -1,0 +1,130 @@
+--let $dict1_name = dict1
+--let $dict2_name = dict2
+--let $unknown_dict_name = unknown
+
+# create two compression dictionaries
+--eval CREATE COMPRESSION_DICTIONARY $dict1_name('foo')
+--eval CREATE COMPRESSION_DICTIONARY $dict2_name('bar')
+
+# define common parameters for xtradb_compressed_columns_alter_table.inc
+--let $original_table_name  = t1
+--let $original_column_name = a
+--let $original_column_type = BLOB
+--let $modified_table_name  = $original_table_name
+--let $modified_column_name = $original_column_name
+--let $modified_column_type = $original_column_type
+
+# checks for various 'ALTER TABLE' statements with 'ALGORITHM=DEFAULT'
+--let $alter_table_algorithm = DEFAULT
+--source ../include/xtradb_compressed_columns_alter_table_set.inc
+
+# checks for various 'ALTER TABLE' statements with 'ALGORITHM=COPY'
+--let $alter_table_algorithm = COPY
+--source ../include/xtradb_compressed_columns_alter_table_set.inc
+
+# checks for various 'ALTER TABLE' statements with 'ALGORITHM=INPLACE'
+--let $alter_table_algorithm = INPLACE
+--source ../include/xtradb_compressed_columns_alter_table_set.inc
+
+--echo # test if 'ALTER TABLE ... DISCARD/IMPORT TABLESPACE' works for tables without compressed columns
+--let $modified_table_name = t2
+--let $original_dict_name =
+--let $modified_dict_name =
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
+
+eval CREATE TABLE $modified_table_name LIKE $original_table_name;
+eval ALTER TABLE $modified_table_name DISCARD TABLESPACE;
+eval FLUSH TABLES $original_table_name FOR EXPORT;
+
+eval SELECT space INTO @original_tablespace_id FROM information_schema.innodb_tablespaces
+  WHERE name = CONCAT(DATABASE(), '/', '$original_table_name');
+SELECT path INTO @original_datafile_path FROM information_schema.innodb_datafiles
+  WHERE space = @original_tablespace_id;
+
+eval SELECT space INTO @modified_tablespace_id FROM information_schema.innodb_tablespaces
+  WHERE name = CONCAT(DATABASE(), '/', '$modified_table_name');
+SELECT path INTO @modified_datafile_path FROM information_schema.innodb_datafiles
+  WHERE space = @modified_tablespace_id;
+
+--let $original_datafile_absolute_path = `SELECT CONCAT(@@datadir, REPLACE(@original_datafile_path, './', ''))`
+--let $original_config_absolute_path = `SELECT REPLACE('$original_datafile_absolute_path', '.ibd', '.cfg')`
+
+--let $modified_datafile_absolute_path = `SELECT CONCAT(@@datadir, REPLACE(@modified_datafile_path, './', ''))`
+--let $modified_config_absolute_path = `SELECT REPLACE('$modified_datafile_absolute_path', '.ibd', '.cfg')`
+
+--copy_file $original_datafile_absolute_path $modified_datafile_absolute_path
+--copy_file $original_config_absolute_path $modified_config_absolute_path
+
+UNLOCK TABLES;
+eval DROP TABLE $original_table_name;
+eval ALTER TABLE $modified_table_name IMPORT TABLESPACE;
+
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # test if 'ALTER TABLE ... DISCARD/IMPORT TABLESPACE' returns an error for tables that have compressed columns
+--let $alter_table_algorithm = DEFAULT
+--let $modified_table_name = t1
+--let $original_dict_name = *
+--let $modified_dict_name = $original_dict_name
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
+--error ER_ILLEGAL_HA
+eval ALTER TABLE $original_table_name DISCARD TABLESPACE;
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # test if 'ALTER TABLE ... DISCARD/IMPORT TABLESPACE' returns an error for tables that have columns with associated compression dictionaries
+--let $modified_table_name = t1
+--let $original_dict_name = $dict1_name
+--let $modified_dict_name = $original_dict_name
+--source ../include/xtradb_compressed_columns_alter_table_pre.inc
+--error ER_ILLEGAL_HA
+eval ALTER TABLE $original_table_name DISCARD TABLESPACE;
+--source ../include/xtradb_compressed_columns_alter_table_post.inc
+
+# cleaning created compression dictionaries
+--eval DROP COMPRESSION_DICTIONARY $dict1_name
+--eval DROP COMPRESSION_DICTIONARY $dict2_name
+
+--echo #
+--echo # Bug PS-1108 : Changing a column from uncompressed to compressed for JSON crashes the server
+--echo #
+
+CREATE TABLE t1 (json_variables JSON);
+INSERT INTO t1 VALUES('{"name":"json test"}');
+ALTER TABLE t1 MODIFY json_variables JSON COLUMN_FORMAT COMPRESSED;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t2 (a TEXT);
+INSERT INTO t2 VALUES('test value');
+ALTER TABLE t2 MODIFY a TEXT COLUMN_FORMAT COMPRESSED;
+SELECT * FROM t2;
+DROP TABLE t2;
+
+CREATE TABLE t1 (json_variables JSON,t VARCHAR(3) AS (CONCAT(SUBSTRING(json_variables,1,1)))) PARTITION BY KEY(t) PARTITIONS 4;
+INSERT INTO t1 VALUES('{"name":"json test"}',DEFAULT);
+ALTER TABLE t1 MODIFY json_variables JSON COLUMN_FORMAT COMPRESSED;
+SELECT json_variables FROM t1;
+DROP TABLE t1;
+
+SET @dictionary_data='"name"';
+CREATE COMPRESSION_DICTIONARY test_dictionary (@dictionary_data);
+
+CREATE TABLE t1 (json_variables JSON);
+INSERT INTO t1 VALUES('{"name":"json test"}');
+ALTER TABLE t1 MODIFY json_variables JSON COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY test_dictionary;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (json_variables JSON COLUMN_FORMAT COMPRESSED);
+INSERT INTO t1 VALUES('{"name":"json test"}');
+ALTER TABLE t1 MODIFY json_variables JSON COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY test_dictionary;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (json_variables JSON COLUMN_FORMAT COMPRESSED);
+INSERT INTO t1 VALUES('{"name":"json test"}');
+ALTER TABLE t1 MODIFY json_variables JSON;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+DROP COMPRESSION_DICTIONARY test_dictionary;

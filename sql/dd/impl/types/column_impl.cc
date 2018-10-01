@@ -65,7 +65,7 @@ class Sdi_wcontext;
 
 static const std::set<String_type> default_valid_option_keys = {
     "column_format", "geom_type", "interval_count",
-    "not_secondary", "storage",   "treat_bit_as_char",
+    "not_secondary", "storage",   "treat_bit_as_char", "zip_dict_id",
     "is_array",      "gipk" /* generated implicit primary key column */};
 
 ///////////////////////////////////////////////////////////////////////////

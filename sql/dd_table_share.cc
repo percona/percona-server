@@ -90,7 +90,8 @@
 #include "sql/sql_plugin.h"     // plugin_unlock
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_table.h"  // primary_key_name
-#include "sql/strfunc.h"    // lex_cstring_handle
+#include "sql/sql_zip_dict.h"
+#include "sql/strfunc.h"  // lex_cstring_handle
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -1092,6 +1093,33 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   reg_field->set_storage_type(field_storage);
   reg_field->set_column_format(field_column_format);
+
+  if (column_options->exists("zip_dict_id")) {
+    uint64 zip_dict_id;
+    column_options->get("zip_dict_id", &zip_dict_id);
+
+    DBUG_LOG("zip_dict",
+             "Table_name: " << share->table_name.str
+                            << " field_name: " << reg_field->field_name
+                            << " has zip_dict_id: " << zip_dict_id);
+
+    if (compression_dict::acquire_dict_mdl(thd, MDL_SHARED_READ)) {
+      DBUG_LOG("zip_dict",
+               "MDL acquisition failed on compression dictionary"
+               " table for query: "
+                   << thd->query().str);
+      return (true);
+    }
+
+    assert(zip_dict_id != 0);
+
+    if (compression_dict::get_name_for_id(thd, zip_dict_id, share,
+                                          &reg_field->zip_dict_name,
+                                          &reg_field->zip_dict_data)) {
+      assert(0);
+      return (true);
+    }
+  }
 
   // Comments
   const dd::String_type comment = col_obj->comment();

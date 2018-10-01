@@ -388,6 +388,13 @@ class ha_innopart : public ha_innobase,
 
   int discard_or_import_tablespace(bool discard, dd::Table *table_def) override;
 
+  /** This function reads zip dict-related info from the base class.
+  @param    thd          Thread handler
+  @param    part_name    Must be always NULL.
+  */
+  virtual void upgrade_update_field_with_zip_dict_info(
+      THD *thd, const char *part_name) override;
+
   /** Compare key and rowid.
   Helper function for sorting records in the priority queue.
   a/b points to table->record[0] rows which must have the

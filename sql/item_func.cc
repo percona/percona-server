@@ -142,7 +142,8 @@
 #include "sql/sql_parse.h"      // check_stack_overrun
 #include "sql/sql_show.h"       // append_identifier
 #include "sql/sql_time.h"       // TIME_from_longlong_packed
-#include "sql/strfunc.h"        // find_type
+#include "sql/sql_zip_dict.h"
+#include "sql/strfunc.h"  // find_type
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
 #include "sql/val_int_compare.h"  // Integer_value
@@ -8736,13 +8737,18 @@ static bool check_table_and_trigger_access(Item **args, bool check_trigger_acl,
     return false;
   }
 
-  // Make sure we have safe string to access.
-  schema_name_ptr->c_ptr_safe();
-  table_name_ptr->c_ptr_safe();
+  const char *sch_name = schema_name_ptr->c_ptr_safe();
+  const char *tbl_name = table_name_ptr->c_ptr_safe();
 
   // Check if table is hidden.
   THD *thd = current_thd;
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr)) return false;
+
+  // Don't show compression dictionary tables in "SHOW TABLES"
+  if (compression_dict::is_hardcoded(dd::String_type(sch_name),
+                                     dd::String_type(tbl_name))) {
+    return false;
+  }
 
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr())) return true;

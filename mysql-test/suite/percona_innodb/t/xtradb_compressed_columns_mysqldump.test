@@ -1,0 +1,182 @@
+--let $current_database= compressed_db
+
+--let $first_dictionary_name= d1
+--let $second_dictionary_name= d2
+--let $third_dictionary_name= d3
+
+--let $first_table_name= t1
+--let $second_table_name= t2
+
+eval CREATE DATABASE $current_database;
+eval USE $current_database;
+
+SET @dictionary_word = 'abcd';
+SET @dictionary_content = CONCAT(@dictionary_word, '_first');
+eval CREATE COMPRESSION_DICTIONARY $first_dictionary_name(@dictionary_content);
+SET @dictionary_content = CONCAT(@dictionary_word, '_second');
+eval CREATE COMPRESSION_DICTIONARY $second_dictionary_name(@dictionary_content);
+SET @dictionary_content = CONCAT(@dictionary_word, '_third');
+eval CREATE COMPRESSION_DICTIONARY $third_dictionary_name(@dictionary_content);
+
+# Creating a few tables with compressed columns
+eval CREATE TABLE $first_table_name(
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  a BLOB COLUMN_FORMAT COMPRESSED,
+  b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $second_dictionary_name,
+  c BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $third_dictionary_name,
+  d BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $third_dictionary_name
+) ENGINE=InnoDB;
+
+eval CREATE TABLE $second_table_name(
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $first_dictionary_name,
+  b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $second_dictionary_name,
+  c BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $third_dictionary_name,
+  d BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $third_dictionary_name
+) ENGINE=InnoDB;
+
+SET SQL_QUOTE_SHOW_CREATE = OFF;
+eval SHOW CREATE TABLE $first_table_name;
+eval SHOW CREATE TABLE $second_table_name;
+
+SET SQL_QUOTE_SHOW_CREATE = ON;
+eval SHOW CREATE TABLE $first_table_name;
+eval SHOW CREATE TABLE $second_table_name;
+
+# Inserting a few records into the tables
+SET @short_value = REPEAT(@dictionary_word, 2);
+SET @long_value = REPEAT(@dictionary_word, @@innodb_compressed_columns_threshold / LENGTH(@dictionary_word) + 2);
+
+eval INSERT INTO $first_table_name(a, b, c, d) VALUES (@short_value, @short_value, @short_value, @short_value);
+eval INSERT INTO $first_table_name(a, b, c, d) VALUES (@long_value, @long_value, @long_value, @long_value);
+
+eval INSERT INTO $second_table_name(a, b, c, d) VALUES (@short_value, @short_value, @short_value, @short_value);
+eval INSERT INTO $second_table_name(a, b, c, d) VALUES (@long_value, @long_value, @long_value, @long_value);
+
+--let $dump_file= $MYSQLTEST_VARDIR/tmp/dump.sql
+--let $dump_cc_file= $MYSQLTEST_VARDIR/tmp/dump_cc.sql
+--let $dump_ccwd_file= $MYSQLTEST_VARDIR/tmp/dump_ccwd.sql
+--let $dump_ccwd_unquoted_file= $MYSQLTEST_VARDIR/tmp/dump_ccwd_unquoted.sql
+--let $dump_ccwd_skipped_create_cd_file= $MYSQLTEST_VARDIR/tmp/dump_ccwd_skipped_create_cd.sql
+--let $dump_dir= $MYSQLTEST_VARDIR/tmp/$current_database
+--let $dump_first_table_file= $dump_dir/$first_table_name.sql
+--let $dump_second_table_file= $dump_dir/$second_table_name.sql
+--let $dump_first_data_file= $dump_dir/$first_table_name.txt
+--let $dump_second_data_file= $dump_dir/$second_table_name.txt
+
+--exec $MYSQL_DUMP --skip-comments --result_file=$dump_file --databases $current_database
+--exec $MYSQL_DUMP --skip-comments --enable-compressed-columns --result_file=$dump_cc_file --databases $current_database
+--exec $MYSQL_DUMP --skip-comments --enable-compressed-columns-with-dictionaries --result_file=$dump_ccwd_file --databases $current_database
+--exec $MYSQL_DUMP --skip-comments --enable-compressed-columns-with-dictionaries --skip-quote-names --result_file=$dump_ccwd_unquoted_file --databases $current_database
+--exec $MYSQL_DUMP --skip-comments --enable-compressed-columns-with-dictionaries --skip-add-drop-compression-dictionary --result_file=$dump_ccwd_skipped_create_cd_file --databases $current_database
+--mkdir $dump_dir
+--exec $MYSQL_DUMP --skip-comments --enable-compressed-columns-with-dictionaries --tab=$dump_dir $current_database
+
+--disable_query_log
+
+--let $i= 7
+while($i)
+{
+  if($i == 7)
+  {
+    --echo # Importing SQL dump without compressed column extensions
+    --let $current_dump_file= $dump_file
+    --let $expected_number_of_dictionaries= 0
+  }
+  if($i == 6)
+  {
+    --echo # Importing SQL dump with compressed columns enabled and dictionaries disabled
+    --let $current_dump_file= $dump_cc_file
+    --let $expected_number_of_dictionaries= 0
+  }
+  if($i == 5)
+  {
+    --echo # Importing SQL dump with compressed columns and dictionaries enabled
+    --let $current_dump_file= $dump_ccwd_file
+    --let $expected_number_of_dictionaries= 3
+  }
+  if($i == 4)
+  {
+    --echo # Importing SQL dump with compressed columns and dictionaries enabled (unquoted)
+    --let $current_dump_file= $dump_ccwd_unquoted_file
+    --let $expected_number_of_dictionaries= 3
+  }
+  if($i == 3)
+  {
+    --echo # Importing SQL dump with compressed columns and dictionaries enabled (skipped CREATE COMPRESSION_DICTIONARY)
+    --let $current_dump_file= $dump_ccwd_skipped_create_cd_file
+    --let $expected_number_of_dictionaries= 3
+  }
+  if($i == 2)
+  {
+    --echo # Importing SQL dump from separate table files (original order)
+    --let $expected_number_of_dictionaries= 3
+    --let $per_table_mode= 1
+  }
+  if($i == 1)
+  {
+    --echo # Importing SQL dump from separate table files (reverse order)
+    --let $expected_number_of_dictionaries= 3
+    --let $per_table_mode= 1
+  }
+
+  eval DROP DATABASE $current_database;
+  eval DROP COMPRESSION_DICTIONARY IF EXISTS $first_dictionary_name;
+  eval DROP COMPRESSION_DICTIONARY IF EXISTS $second_dictionary_name;
+  eval DROP COMPRESSION_DICTIONARY IF EXISTS $third_dictionary_name;
+
+  if(!$per_table_mode)
+  {
+    --exec $MYSQL test < $current_dump_file
+  }
+  if($per_table_mode)
+  {
+    eval CREATE DATABASE $current_database;
+    eval USE $current_database;
+    if($i == 2)
+    {
+      --exec $MYSQL $current_database < $dump_first_table_file
+      eval LOAD DATA INFILE '$dump_first_data_file' INTO TABLE $first_table_name;
+      --exec $MYSQL $current_database < $dump_second_table_file
+      eval LOAD DATA INFILE '$dump_second_data_file' INTO TABLE $second_table_name;
+    }
+    if($i == 1)
+    {
+      --exec $MYSQL $current_database < $dump_second_table_file
+      eval LOAD DATA INFILE '$dump_second_data_file' INTO TABLE $second_table_name;
+      --exec $MYSQL $current_database < $dump_first_table_file
+      eval LOAD DATA INFILE '$dump_first_data_file' INTO TABLE $first_table_name;
+    }
+  }
+  eval USE $current_database;
+  eval SELECT COUNT(*) = 1 AS number_of_short_rows_in_first_match FROM $first_table_name
+    WHERE a = @short_value AND b = @short_value AND c = @short_value AND d = @short_value;
+  eval SELECT COUNT(*) = 1 AS number_of_long_rows_in_first_match FROM $first_table_name
+    WHERE a = @long_value AND b = @long_value AND c = @long_value AND d = @long_value;
+  eval SELECT COUNT(*) = 1 AS number_of_short_rows_in_second_match FROM $second_table_name
+    WHERE a = @short_value AND b = @short_value AND c = @short_value AND d = @short_value;
+  eval SELECT COUNT(*) = 1 AS number_of_long_rows_in_second_match FROM $second_table_name
+    WHERE a = @long_value AND b = @long_value AND c = @long_value AND d = @long_value;
+
+  eval SELECT COUNT(*) = $expected_number_of_dictionaries FROM information_schema.compression_dictionary
+    WHERE dict_name IN ('$first_dictionary_name', '$second_dictionary_name', '$third_dictionary_name');
+
+  --dec $i
+}
+
+--enable_query_log
+
+
+# Cleanup
+eval DROP DATABASE $current_database;
+
+eval DROP COMPRESSION_DICTIONARY IF EXISTS $first_dictionary_name;
+eval DROP COMPRESSION_DICTIONARY IF EXISTS $second_dictionary_name;
+eval DROP COMPRESSION_DICTIONARY IF EXISTS $third_dictionary_name;
+
+--remove_file $dump_file
+--remove_file $dump_cc_file
+--remove_file $dump_ccwd_file
+--remove_file $dump_ccwd_unquoted_file
+--remove_file $dump_ccwd_skipped_create_cd_file
+--force-rmdir $dump_dir

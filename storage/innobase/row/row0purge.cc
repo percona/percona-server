@@ -279,6 +279,8 @@ bool row_purge_poss_sec(purge_node_t *node,    /*!< in/out: row purge node */
 {
   bool can_delete;
   mtr_t mtr;
+  row_prebuilt_t *prebuilt =
+      static_cast<que_thr_t *>(node->common.parent)->prebuilt;
 
   ut_ad(!index->is_clustered());
   mtr_start(&mtr);
@@ -286,7 +288,7 @@ bool row_purge_poss_sec(purge_node_t *node,    /*!< in/out: row purge node */
   can_delete =
       !row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr) ||
       !row_vers_old_has_index_entry(true, node->pcur.get_rec(), &mtr, index,
-                                    entry, node->roll_ptr, node->trx_id);
+                                    entry, node->roll_ptr, node->trx_id, prebuilt);
 
   /* Persistent cursor is closed if reposition fails. */
   if (node->found_clust) {
@@ -1248,6 +1250,9 @@ que_thr_t *row_purge_step(que_thr_t *thr) {
   } else {
     row_purge_end(thr);
   }
+
+  if (thr->prebuilt != nullptr && thr->prebuilt->compress_heap != nullptr)
+    mem_heap_empty(thr->prebuilt->compress_heap);
 
   return (thr);
 }

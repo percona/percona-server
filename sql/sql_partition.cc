@@ -4042,6 +4042,7 @@ bool get_first_partition_name(THD *thd, Partition_handler *part_handler,
   Query_arena part_func_arena(thd->mem_root, Query_arena::STMT_INITIALIZED);
   thd->swap_query_arena(part_func_arena, &backup_arena);
   thd->stmt_arena = &part_func_arena;
+  partition_info *part_info = nullptr;
 
   //
   // Parsing the partition expression.
@@ -4061,31 +4062,31 @@ bool get_first_partition_name(THD *thd, Partition_handler *part_handler,
   sql_digest_state *parent_digest = thd->m_digest;
   PSI_statement_locker *parent_locker = thd->m_statement_psi;
 
-  Parser_state parser_state;
+  Partition_expr_parser_state parser_state;
   bool error = true;
   if ((error = parser_state.init(thd, partition_info_str, partition_info_len)))
     goto end;
 
-  // Create new partition_info object.
-  lex.part_info = new (std::nothrow) partition_info();
-  if (!lex.part_info) {
-    mem_alloc_error(sizeof(partition_info));
-    goto end;
-  }
-
   // Parse the string and filling the partition_info.
   thd->m_digest = nullptr;
   thd->m_statement_psi = nullptr;
-  error = parse_sql(thd, &parser_state, nullptr);
+
+  error = parse_sql(thd, &parser_state, nullptr) ||
+          parser_state.result->fix_parser_data(thd);
+
+  if (error == 0) {
+    part_info = parser_state.result;
+  }
+
   thd->m_digest = parent_digest;
   thd->m_statement_psi = parent_locker;
 
-  error = error || partition_default_handling(part_handler, lex.part_info,
-                                              false, normalized_path);
+  error = error || partition_default_handling(part_handler, part_info, false,
+                                              normalized_path);
 
   // Extract first_name from the part_info.
   error = error ||
-          fill_first_partition_name(lex.part_info, normalized_path, first_name);
+          fill_first_partition_name(part_info, normalized_path, first_name);
 end:
   // Free items from current arena.
   thd->free_items();

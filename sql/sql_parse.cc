@@ -173,7 +173,8 @@
 #include "sql/sql_table.h"          // mysql_create_table
 #include "sql/sql_trigger.h"        // add_table_for_trigger
 #include "sql/sql_udf.h"
-#include "sql/sql_view.h"  // mysql_create_view
+#include "sql/sql_view.h"      // mysql_create_view
+#include "sql/sql_zip_dict.h"  // mysqld_create_zip_dict, mysqld_drop_zip_dict
 #include "sql/strfunc.h"
 #include "sql/system_variables.h"  // System_status_var
 #include "sql/table.h"
@@ -584,6 +585,10 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_UPDATE] = CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                      CF_CAN_GENERATE_ROW_EVENTS |
                                      CF_OPTIMIZER_TRACE | CF_CAN_BE_EXPLAINED;
+  sql_command_flags[SQLCOM_CREATE_COMPRESSION_DICTIONARY] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_COMPRESSION_DICTIONARY] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_UPDATE_MULTI] =
       CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE | CF_CAN_GENERATE_ROW_EVENTS |
       CF_OPTIMIZER_TRACE | CF_CAN_BE_EXPLAINED;
@@ -928,6 +933,10 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_IMPORT] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_SRS] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_SRS] |= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_COMPRESSION_DICTIONARY] |=
+      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_COMPRESSION_DICTIONARY] |=
+      CF_DISALLOW_IN_RO_TRANS;
 
   /*
     Mark statements that are allowed to be executed by the plugins.
@@ -1541,7 +1550,12 @@ static bool deny_updates_if_read_only_option(THD *thd, Table_ref *all_tables) {
       (lex->sql_command == SQLCOM_CREATE_DB) ||
       (lex->sql_command == SQLCOM_DROP_DB);
 
-  if (update_real_tables || create_or_drop_databases) {
+  const bool create_or_drop_compression_dictionary =
+      (lex->sql_command == SQLCOM_CREATE_COMPRESSION_DICTIONARY) ||
+      (lex->sql_command == SQLCOM_DROP_COMPRESSION_DICTIONARY);
+
+  if (update_real_tables || create_or_drop_databases ||
+      create_or_drop_compression_dictionary) {
     /*
       An attempt was made to modify one or more non-temporary tables.
     */
@@ -3968,7 +3982,32 @@ int mysql_execute_command(THD *thd, bool first_level) {
       if (!lock_tables_for_backup(thd)) my_ok(thd);
 
       break;
+    case SQLCOM_CREATE_COMPRESSION_DICTIONARY: {
+      if (lex->create_info->zip_dict_name->fixed == 0)
+        lex->create_info->zip_dict_name->fix_fields(thd, 0);
+      String dict_data;
+      String *dict_data_ptr =
+          lex->create_info->zip_dict_name->val_str_ascii(&dict_data);
+      if (dict_data_ptr == nullptr || dict_data_ptr->ptr() == nullptr) {
+        dict_data.set("", 0, &my_charset_bin);
+        dict_data_ptr = &dict_data;
+      }
 
+      if ((res = compression_dict::create_zip_dict(
+               thd, lex->ident.str, lex->ident.length, dict_data_ptr->ptr(),
+               dict_data_ptr->length(),
+               (lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) != 0,
+               false)) == 0)
+        my_ok(thd);
+      break;
+    }
+    case SQLCOM_DROP_COMPRESSION_DICTIONARY: {
+      if ((res = compression_dict::drop_zip_dict(
+               thd, lex->ident.str, lex->ident.length, lex->drop_if_exists)) ==
+          0)
+        my_ok(thd);
+      break;
+    }
     case SQLCOM_CREATE_DB: {
       const char *alias;
       if (!(alias = thd->strmake(lex->name.str, lex->name.length)) ||
@@ -5687,8 +5726,9 @@ bool Alter_info::add_field(
     Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
     const char *change, List<String> *interval_list, const CHARSET_INFO *cs,
     bool has_explicit_collation, uint uint_geom_type,
-    Value_generator *gcol_info, Value_generator *default_val_expr,
-    const char *opt_after, std::optional<gis::srid_t> srid,
+    const LEX_CSTRING *zip_dict, Value_generator *gcol_info,
+    Value_generator *default_val_expr, const char *opt_after,
+    std::optional<gis::srid_t> srid,
     Sql_check_constraint_spec_list *col_check_const_spec_list,
     dd::Column::enum_hidden_type hidden, bool is_array) {
   const uint8 datetime_precision = decimals ? atoi(decimals) : 0;
@@ -5798,8 +5838,8 @@ bool Alter_info::add_field(
       new_field->init(thd, field_name->str, type, length, decimals,
                       type_modifier, default_value, on_update_value, comment,
                       change, interval_list, cs, has_explicit_collation,
-                      uint_geom_type, gcol_info, default_val_expr, srid, hidden,
-                      is_array))
+                      uint_geom_type, zip_dict, gcol_info, default_val_expr,
+                      srid, hidden, is_array))
     return true;
 
   for (const auto &a : cf_appliers) {

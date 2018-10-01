@@ -2870,6 +2870,27 @@ int ha_innopart::discard_or_import_tablespace(bool discard,
   return error;
 }
 
+/** This function reads zip dict-related info from the base class.
+@param    thd          Thread handler
+@param    part_name    Must be always NULL.
+*/
+void ha_innopart::upgrade_update_field_with_zip_dict_info(
+    THD *thd, const char *part_name) {
+  DBUG_ENTER("ha_innopart::upgrade_update_field_with_zip_dict_info");
+  char partition_name[FN_REFLEN];
+  bool res = get_first_partition_name(
+      thd, this, table_share->normalized_path.str,
+      table_share->partition_info_str, table_share->partition_info_str_len,
+      partition_name);
+  if (res) {
+    ut_ad(0);
+    DBUG_VOID_RETURN;
+  }
+
+  ha_innobase::upgrade_update_field_with_zip_dict_info(thd, partition_name);
+  DBUG_VOID_RETURN;
+}
+
 /** Compare key and rowid.
 Helper function for sorting records in the priority queue.
 a/b points to table->record[0] rows which must have the

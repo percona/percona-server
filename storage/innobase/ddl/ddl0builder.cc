@@ -574,7 +574,7 @@ dberr_t Key_sort_buffer_cursor::next() noexcept {
 }
 
 Builder::Thread_ctx::Thread_ctx(size_t id, Key_sort_buffer *key_buffer) noexcept
-    : m_id(id), m_key_buffer(key_buffer) {}
+    : m_id(id), m_key_buffer(key_buffer), m_compress_heap(nullptr) {}
 
 Builder::Thread_ctx::~Thread_ctx() noexcept {
   if (m_key_buffer != nullptr) {
@@ -583,6 +583,10 @@ Builder::Thread_ctx::~Thread_ctx() noexcept {
 
   if (m_rtree_inserter != nullptr) {
     ut::delete_(m_rtree_inserter);
+  }
+
+  if (m_compress_heap != nullptr) {
+    mem_heap_free(m_compress_heap);
   }
 }
 
@@ -790,6 +794,7 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
   const auto n_added = mv_rows_added;
   auto v_col = reinterpret_cast<const dict_v_col_t *>(col);
   auto key_buffer = m_thread_ctxs[ctx.m_thread_id]->m_key_buffer;
+  mem_heap_t **compress_heap = &m_thread_ctxs[ctx.m_thread_id]->m_compress_heap;
 
   if (col->is_multi_value()) {
     ut_a(m_index->is_multi_value());
@@ -802,8 +807,9 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
       auto p = m_v_heap.get();
 
       src_field = innobase_get_computed_value(
-          ctx.m_row.m_ptr, v_col, m_ctx.m_new_table, &p, key_buffer->heap(),
-          m_ctx.thd(), ctx.m_my_table, ifield, m_ctx.m_old_table);
+          compress_heap, ctx.m_row.m_ptr, v_col, m_ctx.m_new_table, &p,
+          key_buffer->heap(), m_ctx.thd(), ctx.m_my_table, ifield,
+          m_ctx.m_old_table);
 
       m_v_heap.reset(p);
 
@@ -833,8 +839,8 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
     auto p = m_v_heap.get();
 
     src_field = innobase_get_computed_value(
-        ctx.m_row.m_ptr, v_col, m_ctx.m_new_table, &p, nullptr, m_ctx.thd(),
-        ctx.m_my_table, ifield, m_ctx.m_old_table);
+        compress_heap, ctx.m_row.m_ptr, v_col, m_ctx.m_new_table, &p, nullptr,
+        m_ctx.thd(), ctx.m_my_table, ifield, m_ctx.m_old_table);
 
     m_v_heap.reset(p);
 

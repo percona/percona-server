@@ -346,7 +346,7 @@ void ins_node_set_new_row(
 
   update = row_upd_build_difference_binary(cursor->index, entry, rec, nullptr,
                                            true, thr_get_trx(thr), heap,
-                                           mysql_table, &err);
+                                           mysql_table, thr->prebuilt, &err);
   if (err != DB_SUCCESS) {
     return err;
   }
@@ -933,6 +933,8 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
   ulint n_diff;
   upd_field_t *upd_field;
   const dict_vcol_set *const v_cols = foreign->v_cols;
+  row_prebuilt_t *prebuilt =
+      static_cast<que_thr_t *>(node->common.parent)->prebuilt;
 
   update->old_vrow = row_build(ROW_COPY_POINTERS, index, rec, offsets, table,
                                nullptr, nullptr, &ext, update->heap);
@@ -956,7 +958,8 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
     }
 
     const dfield_t *const vfield = innobase_get_computed_value(
-        update->old_vrow, col, table, &v_heap, update->heap, thd, nullptr);
+        &prebuilt->compress_heap, update->old_vrow, col, table, &v_heap,
+        update->heap, thd, nullptr);
 
     if (vfield == nullptr) {
       *err = DB_COMPUTE_VALUE_FAILED;
@@ -978,8 +981,8 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
       dfield_copy(&(upd_field->new_val), vfield);
     } else {
       const dfield_t *const new_vfield = innobase_get_computed_value(
-          update->old_vrow, col, table, &v_heap, update->heap, thd, nullptr,
-          nullptr, nullptr, update);
+          &prebuilt->compress_heap, update->old_vrow, col, table, &v_heap,
+          update->heap, thd, nullptr, nullptr, nullptr, update);
 
       if (new_vfield == nullptr) {
         *err = DB_COMPUTE_VALUE_FAILED;

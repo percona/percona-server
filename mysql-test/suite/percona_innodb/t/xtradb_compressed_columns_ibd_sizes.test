@@ -2,10 +2,10 @@
 --let $partitioning =
 
 --let $field_type = BLOB
---source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc
+--source ../include/xtradb_compressed_columns_ibd_sizes.inc
 
 --let $field_type = TEXT
---source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc
+--source ../include/xtradb_compressed_columns_ibd_sizes.inc
 
 --let $field_type = JSON
---source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc
+--source ../include/xtradb_compressed_columns_ibd_sizes.inc

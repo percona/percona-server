@@ -509,6 +509,13 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
       assert(false);
       break;
   }
+
+  /* Make sure temporary fields are never compressed */
+  if (result->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED)
+    result->clear_flag(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+  result->zip_dict_name = null_lex_cstr;
+  result->zip_dict_data = null_lex_cstr;
+
   return result;
 }
 

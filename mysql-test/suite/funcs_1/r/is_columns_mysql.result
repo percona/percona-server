@@ -15,6 +15,13 @@ def	mysql	columns_priv	Column_priv	7		NO	set	31	93	NULL	NULL	NULL	utf8mb3	utf8mb
 def	mysql	component	component_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned	PRI	auto_increment	select,insert,update,references			NULL
 def	mysql	component	component_group_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
 def	mysql	component	component_urn	3	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	text			select,insert,update,references			NULL
+def	mysql	compression_dictionary	id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI	auto_increment	select,insert,update,references			NULL
+def	mysql	compression_dictionary	version	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
+def	mysql	compression_dictionary	name	3	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_general_ci	varchar(64)	UNI		select,insert,update,references			NULL
+def	mysql	compression_dictionary	data	4	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references			NULL
+def	mysql	compression_dictionary_cols	table_id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI		select,insert,update,references			NULL
+def	mysql	compression_dictionary_cols	column_id	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI		select,insert,update,references			NULL
+def	mysql	compression_dictionary_cols	dict_id	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	MUL		select,insert,update,references			NULL
 def	mysql	db	Host	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	db	Db	2		NO	char	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	char(64)	PRI		select,insert,update,references			NULL
 def	mysql	db	User	3		NO	char	32	96	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	char(32)	PRI		select,insert,update,references			NULL
@@ -336,6 +343,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 3.0000	set	utf8mb3	utf8mb3_general_ci
 3.0000	varchar	utf8mb3	utf8mb3_general_ci
 4.0000	char	utf8mb4	utf8mb4_0900_ai_ci
+4.0000	varchar	utf8mb4	utf8mb4_general_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -380,6 +388,13 @@ NULL	mysql	columns_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	component	component_id	int	NULL	NULL	NULL	NULL	int unsigned
 NULL	mysql	component	component_group_id	int	NULL	NULL	NULL	NULL	int unsigned
 1.0000	mysql	component	component_urn	text	65535	65535	utf8mb3	utf8mb3_general_ci	text
+NULL	mysql	compression_dictionary	id	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	mysql	compression_dictionary	version	int	NULL	NULL	NULL	NULL	int unsigned
+4.0000	mysql	compression_dictionary	name	varchar	64	256	utf8mb4	utf8mb4_general_ci	varchar(64)
+1.0000	mysql	compression_dictionary	data	blob	65535	65535	NULL	NULL	blob
+NULL	mysql	compression_dictionary_cols	table_id	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	mysql	compression_dictionary_cols	column_id	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	mysql	compression_dictionary_cols	dict_id	bigint	NULL	NULL	NULL	NULL	bigint unsigned
 1.0000	mysql	db	Host	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	db	Db	char	64	192	utf8mb3	utf8mb3_bin	char(64)
 3.0000	mysql	db	User	char	32	96	utf8mb3	utf8mb3_bin	char(32)

@@ -504,11 +504,20 @@ class Alter_info {
                  Item *on_update_value, LEX_CSTRING *comment,
                  const char *change, List<String> *interval_list,
                  const CHARSET_INFO *cs, bool has_explicit_collation,
-                 uint uint_geom_type, Value_generator *gcol_info,
-                 Value_generator *default_val_expr, const char *opt_after,
-                 std::optional<gis::srid_t> srid,
+                 uint uint_geom_type, const LEX_CSTRING *zip_dict,
+                 Value_generator *gcol_info, Value_generator *default_val_expr,
+                 const char *opt_after, std::optional<gis::srid_t> srid,
                  Sql_check_constraint_spec_list *check_cons_list,
                  dd::Column::enum_hidden_type hidden, bool is_array = false);
+
+  /**
+     Checks if there are any columns with COLUMN_FORMAT COMRPESSED
+     attribute among field definitions in create_list.
+
+     @retval false there are no compressed columns
+     @retval true there is at least one compressed column
+  */
+  bool has_compressed_columns() const;
 
  private:
   Alter_info &operator=(const Alter_info &rhs);  // not implemented

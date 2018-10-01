@@ -297,6 +297,8 @@ bool init_non_dd_based_system_view(THD *thd);
 */
 bool create_system_views(THD *thd);
 
+bool create_system_views(THD *thd, bool is_dd_based, bool only_comp_dict);
+
 /**
   Store the server I_S table metadata into dictionary, once during MySQL
   server bootstrap.

@@ -226,7 +226,8 @@ bool Sql_cmd_load_table::truncate_table_for_bulk_load(
 
   // Truncate table, attempt to reconstruct the table.
   if (ha_create_table(thd, path, table_ref->db, table_ref->table_name,
-                      &dummy_create_info, true, false, table_def) != 0) {
+                      &dummy_create_info, nullptr, true, false,
+                      table_def) != 0) {
     return true;
   }
   return false;

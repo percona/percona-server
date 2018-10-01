@@ -224,6 +224,7 @@ constexpr uint32_t DATA_VIRTUAL = 8192;
 /** Multi-value Virtual column */
 constexpr uint32_t DATA_MULTI_VALUE = 16384;
 
+#define DATA_COMPRESSED_57 16384 /* Used only for 5.7->8.0 upgrades */
 #define DATA_COMPRESSED                          \
   32768 /* this is ORed to the precise data      \
         type when the column has COLUMN_FORMAT = \

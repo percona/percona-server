@@ -72,11 +72,13 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       charset(old_field->charset()),  // May be NULL ptr
       field(old_field),
       is_nullable(old_field->is_nullable()),
+      zip_dict_name(old_field->zip_dict_name),
       gcol_info(old_field->gcol_info),
       stored_in_db(old_field->stored_in_db),
       m_default_val_expr(old_field->m_default_val_expr),
       m_masking_policy_name(old_field->masking_policy()),
       is_array(old_field->is_array()),
+      zip_dict_id(0),
       m_engine_attribute(old_field->m_engine_attribute),
       m_secondary_engine_attribute(old_field->m_secondary_engine_attribute),
       m_max_display_width_in_codepoints(old_field->char_length()) {
@@ -175,6 +177,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
   @param fld_charset           Column charset.
   @param has_explicit_collation Column has an explicit COLLATE attribute.
   @param fld_geom_type         Column geometry type (if any.)
+  @param fld_zip_dict_name     Column compression dictionary.
   @param fld_gcol_info         Generated column data
   @param fld_default_val_expr  The expression for generating default values
   @param fld_masking_policy    The name of the masking policy of this column,
@@ -197,7 +200,7 @@ bool Create_field::init(
     const LEX_CSTRING *fld_comment, const char *fld_change,
     List<String> *fld_interval_list, const CHARSET_INFO *fld_charset,
     bool has_explicit_collation, uint fld_geom_type,
-    Value_generator *fld_gcol_info, Value_generator *fld_default_val_expr,
+    const LEX_CSTRING *fld_zip_dict_name, Value_generator *fld_gcol_info, Value_generator *fld_default_val_expr,
     LEX_CSTRING fld_masking_policy, std::optional<gis::srid_t> srid,
     dd::Column::enum_hidden_type hidden, bool is_array_arg) {
   uint sign_len, allowed_type_modifier = 0;
@@ -574,6 +577,7 @@ bool Create_field::init(
     return true;
   }
 
+  if (fld_zip_dict_name) zip_dict_name = *fld_zip_dict_name;
   /*
     After all checks were carried out we should be able guarantee that column
     can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at the

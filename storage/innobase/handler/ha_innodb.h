@@ -433,6 +433,7 @@ class ha_innobase : public handler {
                                   dd::Table *new_dd_tab) override;
   /** @} */
 
+
   using Reader = Parallel_reader_adapter;
 
   /** Initializes a parallel scan. It creates a scan_ctx that has to

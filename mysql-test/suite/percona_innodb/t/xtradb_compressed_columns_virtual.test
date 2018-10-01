@@ -14,13 +14,13 @@ CREATE COMPRESSION_DICTIONARY numbers('one' 'two' 'three');
 --let $generated_column_name = g
 --let $generated_column_type = BLOB
 
---source suite/innodb/include/xtradb_compressed_columns_virtual_superset.inc
+--source ../include/xtradb_compressed_columns_virtual_superset.inc
 
 # setting zip level to 0 means skipping compressing for all values
 # (compressed column header will still be added)
 SET GLOBAL innodb_compressed_columns_zip_level = 0;
 
---source suite/innodb/include/xtradb_compressed_columns_virtual_superset.inc
+--source ../include/xtradb_compressed_columns_virtual_superset.inc
 
 # restoring default value
 SET GLOBAL innodb_compressed_columns_zip_level = DEFAULT;

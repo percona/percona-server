@@ -207,7 +207,7 @@ static bool generate_invisible_primary_key(THD *thd, Alter_info *alter_info) {
                      nullptr,
                      (UNSIGNED_FLAG | NOT_NULL_FLAG | AUTO_INCREMENT_FLAG),
                      nullptr, nullptr, &EMPTY_CSTR, nullptr, nullptr, nullptr,
-                     false, 0, nullptr, nullptr, EMPTY_CSTR, {},
+                     false, 0, nullptr, nullptr, nullptr, EMPTY_CSTR, {},
                      dd::Column::enum_hidden_type::HT_HIDDEN_USER, false))
     return true;
   if (alter_info->create_list.push_front(cr_field)) return true;

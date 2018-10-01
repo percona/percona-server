@@ -637,9 +637,11 @@ static bool row_vers_non_vc_index_entry_match(dict_index_t *index,
 @param[in,out]  row             the cluster index row in dtuple form
 @param[in]      clust_index     clustered index
 @param[in]      index           the secondary index
-@param[in]      heap            heap used to build virtual dtuple */
+@param[in]      heap            heap used to build virtual dtuple
+@param[in]      prebuilt        compress_heap must be taken from here */
 static void row_vers_build_clust_v_col(dtuple_t *row, dict_index_t *clust_index,
-                                       dict_index_t *index, mem_heap_t *heap) {
+                                       dict_index_t *index, mem_heap_t *heap,
+                                       row_prebuilt_t *prebuilt) {
   mem_heap_t *local_heap = nullptr;
   for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
     const dict_field_t *ind_field = index->get_field(i);
@@ -651,7 +653,7 @@ static void row_vers_build_clust_v_col(dtuple_t *row, dict_index_t *clust_index,
 
       innobase_get_computed_value(row, col, clust_index, &local_heap, heap,
                                   nullptr, current_thd, nullptr, nullptr,
-                                  nullptr, nullptr);
+                                  nullptr, nullptr, &prebuilt->compress_heap);
     }
   }
 
@@ -929,11 +931,13 @@ func_exit:
 @param[in,out]  heap            heap memory
 @param[in,out]  v_heap          heap memory to keep virtual column dtuple
 @param[in]      mtr             mtr holding the latch on rec
+@param[in]      prebuilt        compress_heap must be taken from here
 @return dtuple contains virtual column data */
 static const dtuple_t *row_vers_build_cur_vrow(
     bool in_purge, const rec_t *rec, dict_index_t *clust_index,
     ulint **clust_offsets, dict_index_t *index, roll_ptr_t roll_ptr,
-    trx_id_t trx_id, mem_heap_t *heap, mem_heap_t *v_heap, mtr_t *mtr) {
+    trx_id_t trx_id, mem_heap_t *heap, mem_heap_t *v_heap, mtr_t *mtr,
+    row_prebuilt_t *prebuilt) {
   const dtuple_t *cur_vrow = nullptr;
 
   roll_ptr_t t_roll_ptr =
@@ -951,7 +955,7 @@ static const dtuple_t *row_vers_build_cur_vrow(
         row_build(ROW_COPY_POINTERS, clust_index, rec, *clust_offsets, nullptr,
                   nullptr, nullptr, nullptr, heap);
 
-    row_vers_build_clust_v_col(row, clust_index, index, heap);
+    row_vers_build_clust_v_col(row, clust_index, index, heap, prebuilt);
     cur_vrow = dtuple_copy(row, v_heap);
     dtuple_dup_v_fld(cur_vrow, v_heap);
   } else {
@@ -983,7 +987,8 @@ bool row_vers_old_has_index_entry(
     dict_index_t *index,    /*!< in: the secondary index */
     const dtuple_t *ientry, /*!< in: the secondary index entry */
     roll_ptr_t roll_ptr,    /*!< in: roll_ptr for the purge record */
-    trx_id_t trx_id)        /*!< in: transaction ID on the purging record */
+    trx_id_t trx_id,        /*!< in: transaction ID on the purging record */
+    row_prebuilt_t *prebuilt) /*!< in: compress_heap must be taken from here */
 {
   const rec_t *version;
   rec_t *prev_version;
@@ -1135,7 +1140,7 @@ bool row_vers_old_has_index_entry(
     associated with current cluster index */
     cur_vrow =
         row_vers_build_cur_vrow(also_curr, rec, clust_index, &clust_offsets,
-                                index, roll_ptr, trx_id, heap, v_heap, mtr);
+                                index, roll_ptr, trx_id, heap, v_heap, mtr, prebuilt);
   }
 
   version = rec;

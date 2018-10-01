@@ -1,0 +1,236 @@
+CREATE TABLE row_formats(row_format VARCHAR(40) NOT NULL PRIMARY KEY);
+INSERT INTO row_formats VALUES ('DYNAMIC');
+INSERT INTO row_formats VALUES ('REDUNDANT');
+INSERT INTO row_formats VALUES ('COMPACT');
+INSERT INTO row_formats VALUES ('COMPRESSED');
+CREATE TABLE data_types(type_name VARCHAR(40) NOT NULL PRIMARY KEY,
+length_limit INT UNSIGNED DEFAULT NULL,
+base_or_full ENUM ('base', 'full'));
+INSERT INTO data_types VALUES ('VARCHAR', NULL, 'base');
+INSERT INTO data_types VALUES ('NATIONAL VARCHAR', NULL, 'base');
+INSERT INTO data_types VALUES ('VARBINARY', NULL, 'base');
+INSERT INTO data_types VALUES ('JSON', 4294967295, 'full');
+INSERT INTO data_types VALUES ('TINYTEXT', 255, 'full');
+INSERT INTO data_types VALUES ('TINYBLOB', 255, 'full');
+INSERT INTO data_types VALUES ('TEXT', 65535, 'full');
+INSERT INTO data_types VALUES ('BLOB', 65535, 'full');
+INSERT INTO data_types VALUES ('MEDIUMTEXT', 16777215, 'full');
+INSERT INTO data_types VALUES ('MEDIUMBLOB', 16777215, 'full');
+INSERT INTO data_types VALUES ('LONGTEXT', 4294967295, 'full');
+INSERT INTO data_types VALUES ('LONGBLOB', 4294967295, 'full');
+CREATE TABLE short_field_lengths(field_length INT UNSIGNED NOT NULL PRIMARY KEY);
+INSERT INTO short_field_lengths VALUES (0),(1),(2);
+INSERT INTO short_field_lengths VALUES (126),(127),(128),(129),(130);
+INSERT INTO short_field_lengths VALUES (254),(255),(256),(257),(258);
+INSERT INTO short_field_lengths VALUES (8190),(8191),(8192),(8193),(8194);
+INSERT INTO short_field_lengths VALUES (16382),(16383),(16384),(16385),(16386);
+INSERT INTO short_field_lengths VALUES (32766),(32767),(32768),(32769),(32770);
+INSERT INTO short_field_lengths VALUES (65532);
+CREATE TABLE full_field_lengths(field_length INT UNSIGNED NOT NULL PRIMARY KEY);
+INSERT INTO full_field_lengths VALUES (65534),(65535),(65536),(65537),(65538);
+INSERT INTO full_field_lengths VALUES (16777214),(16777215),(16777216),(16777217),(16777218);
+INSERT INTO full_field_lengths VALUES (33554430),(33554431),(33554432),(33554433),(33554434);
+SELECT MAX(field_length) INTO @max_field_length FROM full_field_lengths;
+CREATE PROCEDURE diagnose_test_error(IN code CHAR(1), IN data_type VARCHAR(40),
+IN length_limit INT UNSIGNED,
+IN base_or_full ENUM ('base', 'full'),
+IN field_length INT UNSIGNED,
+IN local_type_length_limit INT UNSIGNED)
+BEGIN
+# message_text is VARCHAR(100), so we dump somewhat random set of vars depending on what
+# was last debugged and instead of a proper location we only output a single-char location
+# "code"
+  SET @test_error = CONCAT(code, ': data_type = ', data_type, ', length_limit = ', length_limit,
+', base_or_full = ', base_or_full, ', field_length = ', field_length,
+', actual limit = ', local_type_length_limit);
+SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = @test_error;
+END|
+CREATE PROCEDURE test_null(IN code CHAR(1), IN data_type VARCHAR(40),
+IN length_limit INT UNSIGNED,
+IN base_or_full ENUM ('base', 'full'),
+IN field_length INT UNSIGNED,
+IN local_type_length_limit INT UNSIGNED)
+BEGIN
+DECLARE num_of_matches INT;
+SELECT COUNT(*) INTO num_of_matches FROM t1 WHERE a IS NULL;
+IF num_of_matches != 1 THEN
+CALL diagnose_test_error(code, data_type, length_limit,
+base_or_full, field_length, local_type_length_limit);
+END IF;
+END|
+CREATE PROCEDURE test_empty_string(IN code CHAR(1), IN data_type VARCHAR(40),
+IN length_limit INT UNSIGNED,
+IN base_or_full ENUM ('base', 'full'),
+IN field_length INT UNSIGNED,
+IN local_type_length_limit INT UNSIGNED)
+BEGIN
+DECLARE num_of_matches INT;
+SELECT COUNT(*) INTO num_of_matches FROM t1 WHERE a = '';
+IF num_of_matches != 1 THEN
+CALL diagnose_test_error(code, data_type, length_limit,
+base_or_full, field_length, local_type_length_limit);
+END IF;
+END|
+CREATE PROCEDURE test_string_prefix(IN code CHAR(1), IN data_type VARCHAR(40),
+IN length_limit INT UNSIGNED,
+IN base_or_full ENUM ('base', 'full'),
+IN field_length INT UNSIGNED,
+IN local_type_length_limit INT UNSIGNED)
+BEGIN
+DECLARE num_of_matches INT;
+IF data_type != 'JSON' THEN
+SELECT COUNT(*) INTO num_of_matches FROM t1 WHERE a = LEFT(@inserted_value, local_type_length_limit);
+ELSE
+SELECT COUNT(*) INTO num_of_matches FROM t1 WHERE a = CAST(@inserted_value AS JSON);
+END IF;
+IF num_of_matches != 1 THEN
+CALL diagnose_test_error(code, data_type, length_limit,
+base_or_full, field_length, local_type_length_limit);
+END IF;
+END|
+CREATE PROCEDURE test_data_type_with_field_length(IN row_format VARCHAR(40),
+IN data_type VARCHAR(40),
+IN length_limit INT UNSIGNED,
+IN base_or_full ENUM ('base', 'full'),
+IN field_length INT UNSIGNED)
+BEGIN
+DECLARE field_def VARCHAR(70);
+DECLARE current_value_length INT UNSIGNED;
+DECLARE max_value_length INT UNSIGNED;
+DECLARE local_type_length_limit INT UNSIGNED;
+DECLARE check_buffer_pool_evict INT DEFAULT 0;
+IF row_format LIKE 'COMPRESSED' THEN
+SELECT version() LIKE '%debug%' INTO check_buffer_pool_evict;
+END IF;
+IF check_buffer_pool_evict THEN
+PREPARE evict_unzip_bp_stmt FROM "SET GLOBAL innodb_buffer_pool_evict = 'uncompressed'";
+END IF;
+IF base_or_full = 'base' THEN
+SET field_def = CONCAT(data_type, '(', field_length, ') COLUMN_FORMAT COMPRESSED');
+SET local_type_length_limit = field_length;
+ELSE
+SET field_def = CONCAT(data_type, ' COLUMN_FORMAT COMPRESSED');
+SET local_type_length_limit = length_limit;
+END IF;
+SET @create_table_query = CONCAT('CREATE TABLE t1(a ', field_def, ') ROW_FORMAT=',
+row_format, ' ENGINE=InnoDB CHARSET=latin1');
+PREPARE create_table_stmt FROM @create_table_query;
+EXECUTE create_table_stmt;
+DEALLOCATE PREPARE create_table_stmt;
+INSERT INTO t1 VALUES(NULL);
+CALL test_null('1', data_type, length_limit, base_or_full, field_length, local_type_length_limit);
+IF check_buffer_pool_evict THEN
+EXECUTE evict_unzip_bp_stmt;
+CALL test_null('2', data_type, length_limit, base_or_full, field_length, local_type_length_limit);
+END IF;
+DELETE FROM t1;
+IF data_type != 'JSON' THEN
+INSERT INTO t1 VALUES('');
+CALL test_empty_string('3', data_type, length_limit, base_or_full, field_length, local_type_length_limit);
+IF check_buffer_pool_evict THEN
+EXECUTE evict_unzip_bp_stmt;
+CALL test_empty_string('4', data_type, length_limit, base_or_full, field_length, local_type_length_limit);
+END IF;
+DELETE FROM t1;
+END IF;
+IF base_or_full = 'base' THEN
+SET current_value_length = IF(field_length > 3, field_length - 3, 1);
+SET max_value_length = field_length + 3;
+ELSE
+SET current_value_length = IF(field_length > 0, field_length, 1);
+SET max_value_length = field_length;
+END IF;
+WHILE (current_value_length <= max_value_length) DO
+SET @inserted_value = REPEAT('z', current_value_length);
+IF data_type = 'JSON' THEN
+SET @inserted_value = CONCAT('"', @inserted_value, '"');
+END IF;
+INSERT IGNORE INTO t1 VALUES(@inserted_value);
+CALL test_string_prefix('5', data_type, length_limit, base_or_full, field_length, local_type_length_limit);
+IF check_buffer_pool_evict THEN
+EXECUTE evict_unzip_bp_stmt;
+CALL test_string_prefix('6', data_type, length_limit, base_or_full, field_length, local_type_length_limit);
+END IF;
+DELETE FROM t1;
+SET current_value_length = current_value_length + 1;
+END WHILE;
+IF check_buffer_pool_evict THEN
+DEALLOCATE PREPARE evict_unzip_bp_stmt;
+END IF;
+DROP TABLE t1;
+END|
+CREATE PROCEDURE test_data_type(IN row_format VARCHAR(40), IN data_type VARCHAR(40),
+IN length_limit INT UNSIGNED,
+IN base_or_full ENUM ('base', 'full'))
+BEGIN
+DECLARE done INT DEFAULT FALSE;
+DECLARE data_field_length INT UNSIGNED;
+DECLARE field_lengths_cur CURSOR FOR SELECT field_length FROM field_lengths;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+CREATE TEMPORARY TABLE field_lengths SELECT * FROM short_field_lengths;
+# max length of the NATIONAL VARCHAR(N) is 21845
+IF data_type = 'NATIONAL VARCHAR' THEN
+DELETE FROM field_lengths WHERE field_length > 21845;
+END IF;
+IF base_or_full = 'full' THEN
+INSERT INTO field_lengths SELECT * FROM full_field_lengths;
+END IF;
+OPEN field_lengths_cur;
+field_lengths_loop: LOOP
+FETCH field_lengths_cur INTO data_field_length;
+IF done THEN
+LEAVE field_lengths_loop;
+END IF;
+CALL test_data_type_with_field_length(row_format, data_type, length_limit,
+base_or_full, data_field_length);
+END LOOP;
+CLOSE field_lengths_cur;
+DROP TEMPORARY TABLE field_lengths;
+END|
+CREATE PROCEDURE test_data_types(IN row_format VARCHAR(40))
+BEGIN
+DECLARE done INT DEFAULT FALSE;
+DECLARE data_type VARCHAR(40);
+DECLARE type_length_limit INT UNSIGNED;
+DECLARE type_base_or_full ENUM('base', 'full');
+DECLARE data_type_cur CURSOR FOR SELECT type_name, length_limit, base_or_full FROM data_types;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+OPEN data_type_cur;
+data_type_loop: LOOP
+FETCH data_type_cur INTO data_type, type_length_limit, type_base_or_full;
+IF done THEN
+LEAVE data_type_loop;
+END IF;
+CALL test_data_type(row_format, data_type, type_length_limit, type_base_or_full);
+END LOOP;
+CLOSE data_type_cur;
+END|
+CREATE PROCEDURE test_row_formats()
+BEGIN
+DECLARE done int DEFAULT FALSE;
+DECLARE innodb_row_format VARCHAR(40);
+DECLARE row_format_cur CURSOR FOR SELECT row_format FROM row_formats;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+OPEN row_format_cur;
+row_format_loop: LOOP
+FETCH row_format_cur INTO innodb_row_format;
+IF done THEN
+LEAVE row_format_loop;
+END IF;
+CALL test_data_types(innodb_row_format);
+END LOOP;
+CLOSE row_format_cur;
+END|
+SET @saved_max_allowed_packet = @@GLOBAL.max_allowed_packet;
+SET GLOBAL max_allowed_packet = ((@max_field_length + 1023) DIV 1024 + 1) * 1024;
+CALL test_row_formats;
+SET GLOBAL max_allowed_packet = @saved_max_allowed_packet;
+DROP PROCEDURE test_row_formats;
+DROP PROCEDURE test_data_types;
+DROP PROCEDURE test_data_type;
+DROP PROCEDURE test_data_type_with_field_length;
+DROP PROCEDURE test_string_prefix;
+DROP PROCEDURE test_empty_string;
+DROP PROCEDURE test_null;
+DROP PROCEDURE diagnose_test_error;
+DROP TABLE data_types, short_field_lengths, full_field_lengths, row_formats;

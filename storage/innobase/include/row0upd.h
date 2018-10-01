@@ -195,13 +195,14 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]      heap            memory heap from which allocated
 @param[in]      mysql_table     NULL, or mysql table object when
                                 user thread invokes dml
+@param[in]      prebuilt        compress_heap must be taken from here
 @param[out]     error           error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 [[nodiscard]] upd_t *row_upd_build_difference_binary(
     dict_index_t *index, const dtuple_t *entry, const rec_t *rec,
     const ulint *offsets, bool no_sys, trx_t *trx, mem_heap_t *heap,
-    TABLE *mysql_table, dberr_t *error);
+    TABLE *mysql_table, row_prebuilt_t *prebuilt, dberr_t *error);
 
 /** Replaces the new column values stored in the update vector to the index
  entry given.
@@ -315,9 +316,10 @@ bool row_upd_changes_some_index_ord_field_binary(
 /** Stores to the heap the row on which the node->pcur is positioned.
 @param[in]      node            row update node
 @param[in]      thd             mysql thread handle
-@param[in,out]  mysql_table     NULL, or mysql table object when
-                                user thread invokes dml */
-void row_upd_store_row(upd_node_t *node, THD *thd, TABLE *mysql_table);
+@param[in,out]  prebuilt        NULL, or a prebuilt object: used to extract
+                                mysql table object when user thread invokes
+                                dml and for compress heap */
+void row_upd_store_row(upd_node_t *node, THD *thd, row_prebuilt_t *prebuilt);
 
 /** Updates a row in a table. This is a high-level function used
  in SQL execution graphs.

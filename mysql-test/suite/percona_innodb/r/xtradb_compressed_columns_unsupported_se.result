@@ -1,0 +1,98 @@
+# Defining compression dictionary content.
+SET @dictionary_data = 'one' 'two' 'three' 'four';
+# Trying to create a compression dictionary using MyISAM SE.
+SET default_storage_engine = MyISAM;
+CREATE COMPRESSION_DICTIONARY numbers (@dictionary_data);
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+# Creating a compression dictionary using InnoDB SE.
+SET default_storage_engine = InnoDB;
+CREATE COMPRESSION_DICTIONARY numbers (@dictionary_data);
+# Creating a table without compressed columns using explicit MyISAM SE.
+CREATE TABLE t1(
+id INT,
+a BLOB
+) ENGINE=MyISAM;
+# Trying to create a table with a compressed column using implicit MyISAM SE.
+SET default_storage_engine = MyISAM;
+CREATE TABLE t2(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED
+);
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+# Trying to create a table with a compressed column using explicit MyISAM SE.
+CREATE TABLE t2(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=MyISAM;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+# Creating a table with a compressed column using implicit InnoDB SE.
+SET default_storage_engine = InnoDB;
+CREATE TABLE t2(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED
+);
+# Trying to create a table with a compressed column referencing the dictionary
+# created before using implicit MyISAM SE.
+SET default_storage_engine = MyISAM;
+CREATE TABLE t3(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+);
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+# Trying to create a table with a compressed column referencing the dictionary
+# created before using explicit MyISAM SE.
+CREATE TABLE t3(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ENGINE=MyISAM;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+# Creating a table with a compressed column referencing the dictionary
+# created before using implicit InnoDB SE.
+SET default_storage_engine = InnoDB;
+CREATE TABLE t3(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+);
+# Showing CREATE TABLE statements
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int DEFAULT NULL,
+  `a` blob
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Trying to change compression attributes in a table created using MyISAM SE (Current SE is MyISAM).
+SET default_storage_engine = MyISAM;
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+# Trying to add a compression dictionary reference to a table created using MyISAM SE (Current SE is MyISAM).
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+# Trying to change compression attributes in a table created using MyISAM SE (Current SE is InnoDB).
+SET default_storage_engine = InnoDB;
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+# Trying to add a compression dictionary reference to a table created using MyISAM SE (Current SE is InnoDB).
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+# Dropping tables with compressed columns must work regardless of currently set default SE.
+SET default_storage_engine = MyISAM;
+DROP TABLE t1, t2, t3;
+# Trying to drop the compression dictionary created before using MyISAM SE.
+SET default_storage_engine = MyISAM;
+DROP COMPRESSION_DICTIONARY numbers;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+# Dropping the compression dictionary created before using InnoDB SE.
+SET default_storage_engine = InnoDB;
+DROP COMPRESSION_DICTIONARY numbers;

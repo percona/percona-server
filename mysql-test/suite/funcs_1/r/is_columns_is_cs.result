@@ -102,6 +102,13 @@ def	information_schema	COLUMN_STATISTICS	SCHEMA_NAME	1	NULL	NO	varchar	64	192	NU
 def	information_schema	COLUMN_STATISTICS	TABLE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	COLUMN_STATISTICS	COLUMN_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
 def	information_schema	COLUMN_STATISTICS	HISTOGRAM	4	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY	DICT_VERSION	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY	DICT_NAME	2	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_general_ci	varchar(64)			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY	DICT_DATA	3	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_SCHEMA	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY_TABLES	COLUMN_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8mb3	utf8mb3_bin	varchar(64)			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY_TABLES	DICT_NAME	4	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_general_ci	varchar(64)			select			NULL
 def	information_schema	ENABLED_ROLES	ROLE_NAME	1	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select			NULL
 def	information_schema	ENABLED_ROLES	ROLE_HOST	2	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select			NULL
 def	information_schema	ENABLED_ROLES	IS_DEFAULT	3	NULL	YES	varchar	3	9	NULL	NULL	NULL	utf8mb3	utf8mb3_general_ci	varchar(3)			select			NULL
@@ -602,6 +609,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 4.0000	varchar	utf8mb3	utf8mb3_general_ci
 3.0000	varchar	utf8mb3	utf8mb3_tolower_ci
 4.0000	varchar	utf8mb4	utf8mb4_0900_ai_ci
+4.0000	varchar	utf8mb4	utf8mb4_general_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -735,6 +743,13 @@ NULL	information_schema	COLUMNS_EXTENSIONS	SECONDARY_ENGINE_ATTRIBUTE	json	NULL	
 3.0000	information_schema	COLUMN_STATISTICS	TABLE_NAME	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 3.0000	information_schema	COLUMN_STATISTICS	COLUMN_NAME	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
 NULL	information_schema	COLUMN_STATISTICS	HISTOGRAM	json	NULL	NULL	NULL	NULL	json
+NULL	information_schema	COMPRESSION_DICTIONARY	DICT_VERSION	int	NULL	NULL	NULL	NULL	int unsigned
+4.0000	information_schema	COMPRESSION_DICTIONARY	DICT_NAME	varchar	64	256	utf8mb4	utf8mb4_general_ci	varchar(64)
+1.0000	information_schema	COMPRESSION_DICTIONARY	DICT_DATA	blob	65535	65535	NULL	NULL	blob
+3.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_SCHEMA	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
+3.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_NAME	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
+3.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	COLUMN_NAME	varchar	64	192	utf8mb3	utf8mb3_bin	varchar(64)
+4.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	DICT_NAME	varchar	64	256	utf8mb4	utf8mb4_general_ci	varchar(64)
 4.0000	information_schema	ENABLED_ROLES	ROLE_NAME	varchar	255	1020	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)
 4.0000	information_schema	ENABLED_ROLES	ROLE_HOST	varchar	255	1020	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)
 3.0000	information_schema	ENABLED_ROLES	IS_DEFAULT	varchar	3	9	utf8mb3	utf8mb3_general_ci	varchar(3)

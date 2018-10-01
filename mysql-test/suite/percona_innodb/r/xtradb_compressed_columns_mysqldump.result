@@ -1,0 +1,164 @@
+CREATE DATABASE compressed_db;
+USE compressed_db;
+SET @dictionary_word = 'abcd';
+SET @dictionary_content = CONCAT(@dictionary_word, '_first');
+CREATE COMPRESSION_DICTIONARY d1(@dictionary_content);
+SET @dictionary_content = CONCAT(@dictionary_word, '_second');
+CREATE COMPRESSION_DICTIONARY d2(@dictionary_content);
+SET @dictionary_content = CONCAT(@dictionary_word, '_third');
+CREATE COMPRESSION_DICTIONARY d3(@dictionary_content);
+CREATE TABLE t1(
+id INT PRIMARY KEY AUTO_INCREMENT,
+a BLOB COLUMN_FORMAT COMPRESSED,
+b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d2,
+c BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3,
+d BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3
+) ENGINE=InnoDB;
+CREATE TABLE t2(
+id INT PRIMARY KEY AUTO_INCREMENT,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1,
+b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d2,
+c BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3,
+d BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3
+) ENGINE=InnoDB;
+SET SQL_QUOTE_SHOW_CREATE = OFF;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE t1 (
+  id int NOT NULL AUTO_INCREMENT,
+  a blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  b blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d2 */,
+  c blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3 */,
+  d blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3 */,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE t2 (
+  id int NOT NULL AUTO_INCREMENT,
+  a blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1 */,
+  b blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d2 */,
+  c blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3 */,
+  d blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3 */,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SQL_QUOTE_SHOW_CREATE = ON;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d2` */,
+  `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d3` */,
+  `d` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d3` */,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1` */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d2` */,
+  `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d3` */,
+  `d` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d3` */,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET @short_value = REPEAT(@dictionary_word, 2);
+SET @long_value = REPEAT(@dictionary_word, @@innodb_compressed_columns_threshold / LENGTH(@dictionary_word) + 2);
+INSERT INTO t1(a, b, c, d) VALUES (@short_value, @short_value, @short_value, @short_value);
+INSERT INTO t1(a, b, c, d) VALUES (@long_value, @long_value, @long_value, @long_value);
+INSERT INTO t2(a, b, c, d) VALUES (@short_value, @short_value, @short_value, @short_value);
+INSERT INTO t2(a, b, c, d) VALUES (@long_value, @long_value, @long_value, @long_value);
+# Importing SQL dump without compressed column extensions
+number_of_short_rows_in_first_match
+1
+number_of_long_rows_in_first_match
+1
+number_of_short_rows_in_second_match
+1
+number_of_long_rows_in_second_match
+1
+COUNT(*) = 0
+1
+# Importing SQL dump with compressed columns enabled and dictionaries disabled
+Warnings:
+Note	7004	Compression dictionary 'd1' does not exist
+Warnings:
+Note	7004	Compression dictionary 'd2' does not exist
+Warnings:
+Note	7004	Compression dictionary 'd3' does not exist
+number_of_short_rows_in_first_match
+1
+number_of_long_rows_in_first_match
+1
+number_of_short_rows_in_second_match
+1
+number_of_long_rows_in_second_match
+1
+COUNT(*) = 0
+1
+# Importing SQL dump with compressed columns and dictionaries enabled
+Warnings:
+Note	7004	Compression dictionary 'd1' does not exist
+Warnings:
+Note	7004	Compression dictionary 'd2' does not exist
+Warnings:
+Note	7004	Compression dictionary 'd3' does not exist
+number_of_short_rows_in_first_match
+1
+number_of_long_rows_in_first_match
+1
+number_of_short_rows_in_second_match
+1
+number_of_long_rows_in_second_match
+1
+COUNT(*) = 3
+1
+# Importing SQL dump with compressed columns and dictionaries enabled (unquoted)
+number_of_short_rows_in_first_match
+1
+number_of_long_rows_in_first_match
+1
+number_of_short_rows_in_second_match
+1
+number_of_long_rows_in_second_match
+1
+COUNT(*) = 3
+1
+# Importing SQL dump with compressed columns and dictionaries enabled (skipped CREATE COMPRESSION_DICTIONARY)
+number_of_short_rows_in_first_match
+1
+number_of_long_rows_in_first_match
+1
+number_of_short_rows_in_second_match
+1
+number_of_long_rows_in_second_match
+1
+COUNT(*) = 3
+1
+# Importing SQL dump from separate table files (original order)
+number_of_short_rows_in_first_match
+1
+number_of_long_rows_in_first_match
+1
+number_of_short_rows_in_second_match
+1
+number_of_long_rows_in_second_match
+1
+COUNT(*) = 3
+1
+# Importing SQL dump from separate table files (reverse order)
+number_of_short_rows_in_first_match
+1
+number_of_long_rows_in_first_match
+1
+number_of_short_rows_in_second_match
+1
+number_of_long_rows_in_second_match
+1
+COUNT(*) = 3
+1
+DROP DATABASE compressed_db;
+DROP COMPRESSION_DICTIONARY IF EXISTS d1;
+DROP COMPRESSION_DICTIONARY IF EXISTS d2;
+DROP COMPRESSION_DICTIONARY IF EXISTS d3;

@@ -27,11 +27,12 @@ flush tables t1 for export;
 unlock tables;
 begin;
 insert into t1 values (6, repeat('%', 12));
-# Make the first page dirty for table t1
-set global innodb_saved_page_number_debug = 3;
+# Make the 4th page dirty, which is the last page written
+# by above flush tables for export
+set global innodb_saved_page_number_debug = 4;
 set global innodb_fil_make_page_dirty_debug = @space_id;
 # Kill the server
-# Make the 3rd page of the user tablespace
+# Make the 4th page of the user tablespace
 # corrupted
 # restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON
 check table t1;
@@ -66,6 +67,7 @@ commit work;
 select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 # Wait for purge to complete
+SET GLOBAL innodb_checkpoint_disabled = true;
 begin;
 insert into t1 values (6, repeat('%', 12));
 # Make the first page dirty for table t1

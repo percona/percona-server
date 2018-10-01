@@ -253,6 +253,10 @@ dberr_t dict_boot(void) {
     static_assert(DICT_NUM_FIELDS__SYS_FOREIGN_FOR_NAME == 2);
     static_assert(DICT_NUM_COLS__SYS_FOREIGN_COLS == 4);
     static_assert(DICT_NUM_FIELDS__SYS_FOREIGN_COLS == 6);
+    static_assert(DICT_NUM_COLS__SYS_ZIP_DICT == 3);
+    static_assert(DICT_NUM_FIELDS__SYS_ZIP_DICT == 5);
+    static_assert(DICT_NUM_COLS__SYS_ZIP_DICT_COLS == 3);
+    static_assert(DICT_NUM_FIELDS__SYS_ZIP_DICT_COLS == 5);
 
     heap = mem_heap_create(450, UT_LOCATION_HERE);
 

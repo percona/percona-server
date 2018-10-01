@@ -259,6 +259,9 @@ struct Builder {
 
     /** For spatial/Rtree rows handling. */
     RTree_inserter *m_rtree_inserter{};
+
+    /** For compressing operations. It is lazy initialized. */
+    mem_heap_t *m_compress_heap;
   };
 
   using Allocator = ut::allocator<Thread_ctx *>;

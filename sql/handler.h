@@ -2133,6 +2133,12 @@ typedef bool (*notify_truncate_table_t)(THD *thd, const MDL_key *mdl_key,
 */
 typedef bool (*rotate_encryption_master_key_t)(void);
 
+using compression_dict_data_vec_t =
+    std::vector<std::pair<std::string, std::string>>;
+
+using upgrade_get_compression_dict_data_t =
+    bool (*)(THD *thd, compression_dict_data_vec_t &names_vector);
+
 /**
   @brief
   Enable or Disable SE write ahead logging.
@@ -3019,6 +3025,7 @@ struct handlerton {
   notify_rename_table_t notify_rename_table;
   notify_truncate_table_t notify_truncate_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
+  upgrade_get_compression_dict_data_t upgrade_get_compression_dict_data;
   redo_log_set_state_t redo_log_set_state;
 
   get_table_statistics_t get_table_statistics;
@@ -3540,6 +3547,7 @@ struct HA_CREATE_INFO {
     @param[in] thd user session
    */
   bool set_db_type(THD *thd);
+  Item *zip_dict_name{nullptr};
 };
 
 /**
@@ -7595,6 +7603,22 @@ class handler {
 
   int get_lock_type() const { return m_lock_type; }
 
+  /**
+    This method is supposed to fill field definition objects with
+    compression dictionary info (name and data). This is used
+    only during upgrade from 5.7 to 8.0
+    If the handler does not support compression dictionaries
+    this method should be left empty (not overloaded).
+
+    @param    thd          Thread handle
+    @param    part_name    Full table name (including partition part).
+                           Optional.
+  */
+  virtual void upgrade_update_field_with_zip_dict_info(THD *thd
+                                                       [[maybe_unused]],
+                                                       const char *part_name
+                                                       [[maybe_unused]]) {}
+
  public:
   /* Read-free replication interface */
 
@@ -8009,6 +8033,7 @@ bool ha_log_ddl_create_schema(const char *schema_name);
 class Create_field;
 int ha_create_table(THD *thd, const char *path, const char *db,
                     const char *table_name, HA_CREATE_INFO *create_info,
+                    const List<Create_field> *create_fields,
                     bool update_create_info, bool is_temp_table,
                     dd::Table *table_def);
 

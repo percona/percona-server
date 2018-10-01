@@ -25,6 +25,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include <string>
+#include <vector>
 #include <cstdint>
 
 /** Add server and space version number to tablespace while upgrading.
@@ -32,3 +34,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]      server_version_only     leave space version unchanged
 @return false on success, true on failure. */
 bool upgrade_space_version(const uint32_t space_id, bool server_version_only);
+using compression_dict_data_vec_t =
+    std::vector<std::pair<std::string, std::string>>;
+
+/** Transfer compression dictionary data from SYS_ZIP_DICT to server
+@param[in,out]       thd            Session context
+@param[in,out]       data_vector    std::vector to hold compression dictionary
+data
+@return false on success, true on failure */
+bool dd_upgrade_get_compression_dict_data(
+    THD *thd, compression_dict_data_vec_t &data_vector);

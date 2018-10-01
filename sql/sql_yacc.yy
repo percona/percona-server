@@ -1503,6 +1503,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 */
 %token<lexer.keyword> CLIENT_STATS_SYM 1301
 %token CLUSTERING_SYM 1302
+%token<lexer.keyword> COMPRESSION_DICTIONARY_SYM 1303
 %token<lexer.keyword> INDEX_STATS_SYM 1304
 %token<lexer.keyword> TABLE_STATS_SYM 1305
 %token<lexer.keyword> THREAD_STATS_SYM 1306
@@ -1594,6 +1595,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         key_cache_name
         label_ident
         opt_table_alias
+        opt_with_compression_dictionary
         opt_replace_password
         sp_opt_label
         json_attribute
@@ -1690,6 +1692,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         signal_allowed_expr
         simple_target_specification
         condition_number
+        create_compression_dictionary_allowed_expr
         filter_db_ident
         filter_table_ident
         filter_string
@@ -3487,6 +3490,17 @@ create:
             Lex->m_sql_cmd=
               NEW_PTN Sql_cmd_create_server(&Lex->server_options);
           }
+        | CREATE COMPRESSION_DICTIONARY_SYM opt_if_not_exists ident
+          '(' create_compression_dictionary_allowed_expr ')'
+          {
+            Lex->sql_command= SQLCOM_CREATE_COMPRESSION_DICTIONARY;
+            Lex->create_info= YYTHD->alloc_typed<HA_CREATE_INFO>();
+            if (Lex->create_info == nullptr)
+              MYSQL_YYABORT; // OOM
+            Lex->create_info->options= $3 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
+            Lex->ident= $4;
+            Lex->create_info->zip_dict_name = $6;
+          }
         ;
 
 create_srs_stmt:
@@ -3599,6 +3613,16 @@ create_index_stmt:
                                              $11.algo.get_or_default(),
                                              $11.lock.get_or_default());
           }
+        ;
+/*
+  Only a limited subset of <expr> are allowed in
+  CREATE COMPRESSION_DICTIONARY.
+*/
+create_compression_dictionary_allowed_expr:
+          text_literal
+          { ITEMIZE($1, &$$); }
+        | rvalue_system_or_user_variable
+          { ITEMIZE($1, &$$); }
         ;
 
 server_options_list:
@@ -4039,7 +4063,7 @@ sp_fdparam:
                                       nullptr, nullptr, &NULL_CSTR, nullptr,
                                       $2->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
-                                      $3 != nullptr, $2->get_uint_geom_type(),
+                                      $3 != nullptr, $2->get_uint_geom_type(), nullptr,
                                       nullptr, nullptr, NULL_CSTR, {},
                                       dd::Column::enum_hidden_type::HT_VISIBLE))
             {
@@ -4100,7 +4124,7 @@ sp_pdparam:
                                       nullptr, nullptr, &NULL_CSTR, nullptr,
                                       $3->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
-                                      $4 != nullptr, $3->get_uint_geom_type(),
+                                      $4 != nullptr, $3->get_uint_geom_type(), nullptr,
                                       nullptr, nullptr, NULL_CSTR, {},
                                       dd::Column::enum_hidden_type::HT_VISIBLE))
             {
@@ -4230,7 +4254,7 @@ sp_decl:
                                         nullptr, nullptr, &NULL_CSTR, nullptr,
                                         $3->get_interval_list(),
                                         cs ? cs : thd->variables.collation_database,
-                                        $4 != nullptr, $3->get_uint_geom_type(),
+                                        $4 != nullptr, $3->get_uint_geom_type(), nullptr,
                                         nullptr, nullptr, NULL_CSTR, {},
                                         dd::Column::enum_hidden_type::HT_VISIBLE))
               {
@@ -7643,7 +7667,11 @@ column_attribute:
           }
         | COLUMN_FORMAT_SYM column_format
           {
-            $$= NEW_PTN PT_column_format_column_attr(@$, $2);
+            $$= NEW_PTN PT_column_format_column_attr(@$, $2, null_lex_cstr);
+          }
+        | COLUMN_FORMAT_SYM COMPRESSED_SYM opt_with_compression_dictionary
+          {
+            $$= NEW_PTN PT_column_format_column_attr(@$, COLUMN_FORMAT_TYPE_COMPRESSED, $3);
           }
         | STORAGE_SYM storage_media
           {
@@ -7691,6 +7719,14 @@ column_attribute:
         | visibility
           {
             $$ = NEW_PTN PT_column_visibility_attr(@$, $1);
+          }
+        ;
+
+opt_with_compression_dictionary:
+          %empty { $$= null_lex_cstr; }
+        | WITH COMPRESSION_DICTIONARY_SYM ident
+          {
+            $$= to_lex_cstring($3);
           }
         ;
 
@@ -13585,6 +13621,12 @@ drop_server_stmt:
             Lex->sql_command = SQLCOM_DROP_SERVER;
             Lex->m_sql_cmd= NEW_PTN Sql_cmd_drop_server($4, $3);
           }
+        | DROP COMPRESSION_DICTIONARY_SYM if_exists ident
+          {
+            Lex->sql_command= SQLCOM_DROP_COMPRESSION_DICTIONARY;
+            Lex->drop_if_exists= $3;
+            Lex->ident= $4;
+          }
         ;
 
 drop_srs_stmt:
@@ -16009,6 +16051,7 @@ ident_keywords_ambiguous_2_labels:
         | CLONE_SYM
         | COMMENT_SYM
         | COMMIT_SYM
+        | COMPRESSION_DICTIONARY_SYM
         | CONTAINS_SYM
         | DEALLOCATE_SYM
         | DO_SYM
@@ -18708,7 +18751,7 @@ sf_tail:
                                             $10->get_type_flags(), nullptr, nullptr, &NULL_CSTR, nullptr,
                                             $10->get_interval_list(),
                                             cs ? cs : YYTHD->variables.collation_database,
-                                            $11 != nullptr, $10->get_uint_geom_type(),
+                                            $11 != nullptr, $10->get_uint_geom_type(), nullptr,
                                             nullptr, nullptr, NULL_CSTR, {},
                                             dd::Column::enum_hidden_type::HT_VISIBLE))
             {

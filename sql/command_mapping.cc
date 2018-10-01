@@ -222,6 +222,8 @@ const char *Command_maps::sql_commands[] = {"select",
                                             "show_client_stats",
                                             "show_thread_stats",
                                             "lock_tables_for_backup",
+                                            "create_compression_dictionary",
+                                            "drop_compression_dictionary",
                                             ""};
 // keep the empty string last and add new elements before it.
 

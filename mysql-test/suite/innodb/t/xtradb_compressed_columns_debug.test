@@ -1,0 +1,44 @@
+#
+# Bug lp:1647530 "InnoDB: Failing assertion: success | InnoDB: page_zip_apply_log: 97>>1 > 1 | InnoDB: unable to decompress space 6 page 3"
+#
+--source include/have_debug.inc
+
+SET @old_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
+
+SET GLOBAL innodb_compressed_columns_zip_level = 0;
+
+CREATE TABLE t1(
+  a VARBINARY(255) COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+
+INSERT IGNORE INTO t1 VALUES(REPEAT('abc',1000));
+
+SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_compressed_columns_zip_level = @old_innodb_compressed_columns_zip_level;
+
+#
+# Bug lp:1663452 "Resource allocation failures in 'CREATE/DROP COMPRESSION_DICTIONARY' result in server crashes (debug mode) | handle_fatal_signal (sig=6) in innobase_create_zip_dict"
+#
+SET @dict_data = REPEAT('a', 16384);
+CREATE COMPRESSION_DICTIONARY d1(@dict_data);
+
+# Check for out of disk space simulation.
+SET SESSION debug = "+d,btr_store_big_rec_extern";
+--error ER_RECORD_FILE_FULL
+CREATE COMPRESSION_DICTIONARY d2(@dict_data);
+SET SESSION debug = "-d,btr_store_big_rec_extern";
+
+# Check for too many concurrent transactions simulation
+SET debug = '+d,ib_create_table_fail_too_many_trx';
+--error ER_TOO_MANY_CONCURRENT_TRXS
+DROP COMPRESSION_DICTIONARY d1;
+--error ER_TOO_MANY_CONCURRENT_TRXS
+CREATE COMPRESSION_DICTIONARY d2(@dict_data);
+SET debug = '-d,ib_create_table_fail_too_many_trx';
+
+DROP COMPRESSION_DICTIONARY d1;

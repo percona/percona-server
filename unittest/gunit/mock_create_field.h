@@ -30,6 +30,7 @@
 
 #include "sql/create_field.h"
 #include "sql/dd/types/column.h"
+#include "sql/sql_lex.h"
 
 class Mock_create_field : public Create_field {
   LEX_CSTRING m_lex_string{nullptr, 0};
@@ -62,6 +63,7 @@ class Mock_create_field : public Create_field {
          nullptr,        // const CHARSET_INFO *fld_charset,
          false,          // bool has_explicit_collation,
          0,              // uint fld_geom_type
+         &null_lex_cstr,  // zip_dict_name
          nullptr,        // gcol info
          nullptr,        // gen default val
          {},             // std::optional<gis::srid_t> srid

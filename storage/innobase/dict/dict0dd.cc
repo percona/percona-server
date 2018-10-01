@@ -2156,7 +2156,7 @@ bool dd_add_instant_columns(const dd::Table *old_dd_table,
 
     row_mysql_store_col_in_innobase_format(
         &dfield, reinterpret_cast<byte *>(&buf), true, mysql_data, size,
-        dict_table_is_comp(new_dict_table));
+        dict_table_is_comp(new_dict_table), false, nullptr, 0, nullptr);
 
     DD_instant_col_val_coder coder;
     size_t length = 0;
@@ -3436,15 +3436,19 @@ void get_field_types(const dd::Table *dd_tab, const dict_table_t *m_table,
     col_len = field->key_length();
   }
 
+  const ulint is_compressed =
+      field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED ? DATA_COMPRESSED
+                                                              : 0;
+
   if (!is_virtual) {
     prtype =
         dtype_form_prtype((ulint)field->type() | nulls_allowed | unsigned_type |
-                              binary_type | long_true_varchar,
+                              binary_type | long_true_varchar | is_compressed,
                           charset_no);
   } else {
     prtype = dtype_form_prtype(
         (ulint)field->type() | nulls_allowed | unsigned_type | binary_type |
-            long_true_varchar | is_virtual | is_multi_val,
+            long_true_varchar | is_virtual | is_multi_val | is_compressed,
         charset_no);
   }
 }

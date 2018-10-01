@@ -345,7 +345,7 @@ void ins_node_set_new_row(
 
   update = row_upd_build_difference_binary(cursor->index, entry, rec, nullptr,
                                            true, thr_get_trx(thr), heap,
-                                           mysql_table, &err);
+                                           mysql_table, thr->prebuilt, &err);
   if (err != DB_SUCCESS) {
     return (err);
   }
@@ -854,6 +854,8 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
   ulint n_diff;
   upd_field_t *upd_field;
   dict_vcol_set *v_cols = foreign->v_cols;
+  row_prebuilt_t *prebuilt =
+      static_cast<que_thr_t *>(node->common.parent)->prebuilt;
 
   update->old_vrow =
       row_build(ROW_COPY_POINTERS, index, rec, offsets, index->table, nullptr,
@@ -879,7 +881,7 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
 
     dfield_t *vfield = innobase_get_computed_value(
         update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-        nullptr, nullptr, nullptr, nullptr);
+        nullptr, nullptr, nullptr, nullptr, &prebuilt->compress_heap);
 
     if (vfield == nullptr) {
       *err = DB_COMPUTE_VALUE_FAILED;
@@ -917,7 +919,7 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
         }
         dfield_t *new_vfield = innobase_get_computed_value(
             update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-            nullptr, nullptr, node->update, foreign);
+            nullptr, nullptr, node->update, foreign, &prebuilt->compress_heap);
         dfield_copy(&(upd_field->new_val), new_vfield);
       }
     }
@@ -925,7 +927,7 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
     if (!node->is_delete && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
       dfield_t *new_vfield = innobase_get_computed_value(
           update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
-          nullptr, nullptr, node->update, foreign);
+          nullptr, nullptr, node->update, foreign, &prebuilt->compress_heap);
 
       if (new_vfield == nullptr) {
         *err = DB_COMPUTE_VALUE_FAILED;

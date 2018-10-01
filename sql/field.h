@@ -191,6 +191,7 @@ enum column_format_type {
   COLUMN_FORMAT_TYPE_DEFAULT = 0,   /* Not specified (use engine default) */
   COLUMN_FORMAT_TYPE_FIXED = 1,     /* FIXED format */
   COLUMN_FORMAT_TYPE_DYNAMIC = 2,   /* DYNAMIC format */
+  COLUMN_FORMAT_TYPE_COMPRESSED = 3 /* COMPRESSED format*/
 };
 
 /**
@@ -776,6 +777,8 @@ class Field {
 
    */
   bool is_created_from_null_item;
+  LEX_CSTRING zip_dict_name;  // associated compression dictionary name
+  LEX_CSTRING zip_dict_data;  // associated compression dictionary data
   /**
      True if this field belongs to some index (unlike part_of_key, the index
      might have only a prefix).
@@ -1253,6 +1256,17 @@ class Field {
     if (is_tmp_nullable()) return m_is_tmp_null;
 
     return false;
+  }
+
+  /**
+    Checks if the field has COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+    associated compression dictionary.
+  */
+  bool has_associated_compression_dictionary() const noexcept {
+    assert(zip_dict_name.str == 0 ||
+           column_format() == COLUMN_FORMAT_TYPE_COMPRESSED);
+    return column_format() == COLUMN_FORMAT_TYPE_COMPRESSED &&
+           zip_dict_name.str != 0;
   }
 
   /**
@@ -1861,6 +1875,20 @@ class Field {
   uchar *pack_int64(uchar *to, const uchar *from, size_t max_length) const;
 
   const uchar *unpack_int64(uchar *to, const uchar *from) const;
+
+ public:
+  /**
+    Checks if the current field definition and provided create field
+    definition have different compression attributes.
+
+    @param   new_field   create field definition to compare with
+
+    @return
+      true  - if compression attributes are different
+      false - if compression attributes are identical.
+  */
+  bool has_different_compression_attributes_with(
+      const Create_field &new_field) const noexcept;
 };
 
 /**

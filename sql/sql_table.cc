@@ -179,6 +179,7 @@
 #include "sql/sql_tablespace.h"  // validate_tablespace_name
 #include "sql/sql_time.h"        // make_truncated_value_warning
 #include "sql/sql_trigger.h"     // change_trigger_table_name
+#include "sql/sql_zip_dict.h"
 #include "sql/srs_fetcher.h"
 #include "sql/stateless_allocator.h"
 #include "sql/strfunc.h"  // find_type2
@@ -191,6 +192,7 @@
 #include "sql/trigger.h"
 #include "sql/xa.h"
 #include "sql_string.h"
+#include "sql_zip_dict.h"
 #include "string_with_len.h"
 #include "strmake.h"
 #include "strxmov.h"
@@ -459,7 +461,8 @@ static int copy_data_between_tables(
 static bool prepare_blob_field(THD *thd, Create_field *sql_field,
                                bool convert_character_set);
 static bool check_engine(THD *thd, const char *db_name, const char *table_name,
-                         HA_CREATE_INFO *create_info);
+                         HA_CREATE_INFO *create_info,
+                         const Alter_info *alter_info);
 
 static bool prepare_set_field(THD *thd, Create_field *sql_field);
 static bool prepare_enum_field(THD *thd, Create_field *sql_field);
@@ -1021,8 +1024,8 @@ static bool rea_create_tmp_table(
   }
 
   // Create the table in the storage engine.
-  if (ha_create_table(thd, path, db, table_name, create_info, false, false,
-                      tmp_table_ptr.get())) {
+  if (ha_create_table(thd, path, db, table_name, create_info, &create_fields,
+                      false, false, tmp_table_ptr.get())) {
     return true;
   }
 
@@ -1201,8 +1204,8 @@ static bool rea_create_base_table(
       create_info->db_type->post_ddl)
     *post_ddl_ht = create_info->db_type;
 
-  if (ha_create_table(thd, path, db, table_name, create_info, false, false,
-                      table_def)) {
+  if (ha_create_table(thd, path, db, table_name, create_info, &create_fields,
+                      false, false, table_def)) {
     /*
       Remove table from data-dictionary if it was added and rollback
       won't do this automatically.
@@ -1217,6 +1220,10 @@ static bool rea_create_base_table(
         (void)trans_intermediate_ddl_commit(thd, result);
     }
     return true;
+  } else {
+    if (compression_dict::cols_table_insert(thd, *table_def)) {
+      return true;
+    }
   }
 
   /*
@@ -5022,6 +5029,15 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     }
   }
 
+  /* compressed column is not allowed to be defined as a key part */
+  DBUG_EXECUTE_IF("remove_compressed_attributes_for_keys",
+                  sql_field->set_column_format(COLUMN_FORMAT_TYPE_DEFAULT););
+  if (sql_field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
+    my_error(ER_COMPRESSED_COLUMN_USED_AS_KEY, MYF(0),
+             column->get_field_name());
+    return true;
+  }
+
   uint column_length;
   if (key->type == KEYTYPE_FULLTEXT) {
     if ((sql_field->sql_type != MYSQL_TYPE_STRING &&
@@ -8352,6 +8368,54 @@ bool mysql_prepare_create_table(
   int blob_columns = 0;
   it.rewind();
   while ((sql_field = it++)) {
+    /*
+      Check if the column is compressible.
+      VIRTUAL generated columns cannot have COMPRESSED attribute.
+    */
+    if ((sql_field->sql_type == MYSQL_TYPE_TINY_BLOB ||
+         sql_field->sql_type == MYSQL_TYPE_MEDIUM_BLOB ||
+         sql_field->sql_type == MYSQL_TYPE_BLOB ||
+         sql_field->sql_type == MYSQL_TYPE_LONG_BLOB ||
+         sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
+         sql_field->sql_type == MYSQL_TYPE_JSON) &&
+        (sql_field->gcol_info == nullptr ||
+         sql_field->gcol_info->get_field_stored())) {
+      DBUG_EXECUTE_IF(
+          "enforce_all_compressed_columns",
+          sql_field->set_column_format(COLUMN_FORMAT_TYPE_COMPRESSED););
+
+    } else {
+      if (sql_field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
+        my_error(ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE, MYF(0),
+                 sql_field->field_name);
+	return true;
+      }
+    }
+
+    /* Verify if the compression dictionary entry exists. Open compression
+       dictionary table with MDL_SHARED_READ mode. If the entry exists,
+       do not release the MDL lock. This is because we don't want a concurrent
+       DROP COMPRESSION_DICTIONARY to remove the dictionary entry
+    */
+
+    if (sql_field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED &&
+        sql_field->zip_dict_name.str != nullptr &&
+        sql_field->zip_dict_name.length != 0) {
+      if (compression_dict::acquire_dict_mdl(thd, MDL_SHARED_READ)) {
+	      return true;
+      }
+
+      uint64 zip_dict_id =
+          compression_dict::get_id_for_name(thd, sql_field->zip_dict_name);
+
+      if (zip_dict_id == 0) {
+        my_error(ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST, MYF(0),
+                 sql_field->zip_dict_name.str);
+	return true;
+      }
+      sql_field->zip_dict_id = zip_dict_id;
+    }
+
     if (sql_field->auto_flags & Field::NEXT_NUMBER) auto_increment++;
     switch (sql_field->sql_type) {
       case MYSQL_TYPE_GEOMETRY:
@@ -9005,7 +9069,8 @@ static bool create_table_impl(
     return true;
   }
 
-  if (check_engine(thd, db, table_name, create_info)) return true;
+  if (check_engine(thd, db, table_name, create_info, alter_info))
+    return true;
 
   // Secondary engine cannot be defined for temporary tables.
   if (create_info->secondary_engine.str != nullptr &&
@@ -9160,6 +9225,14 @@ static bool create_table_impl(
         return true;
       }
       create_info->db_type = engine_type;
+    }
+    if (alter_info->has_compressed_columns() &&
+        !ha_check_storage_engine_flag(part_info->default_engine_type,
+                                      HTON_SUPPORTS_COMPRESSED_COLUMNS)) {
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+               ha_resolve_storage_engine_name(part_info->default_engine_type),
+               "COMPRESSED COLUMNS");
+      return true;
     }
   }
 
@@ -11597,10 +11670,18 @@ bool Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(
        missing tablespace.
   */
 
-  const bool discard =
-      (m_alter_info->flags & Alter_info::ALTER_DISCARD_TABLESPACE);
-  error = table_list->table->file->ha_discard_or_import_tablespace(discard,
-                                                                   table_def);
+  if (table_list->table->has_compressed_columns()) {
+    /*
+      ALTER TABLE ... DISCARD/IMPORT TABLESPACE is not supported for tables
+      with compressed columns.
+    */
+    error = HA_ERR_WRONG_COMMAND;
+  } else {
+    const bool discard =
+        (m_alter_info->flags & Alter_info::ALTER_DISCARD_TABLESPACE);
+    error = table_list->table->file->ha_discard_or_import_tablespace(discard,
+                                                                     table_def);
+  }
 
   THD_STAGE_INFO(thd, stage_end);
 
@@ -13956,6 +14037,13 @@ static bool mysql_inplace_alter_table(
       we call update on the new table definition.
     */
     altered_table_def->copy_triggers(table_def);
+
+    /* About the remove the old table definition, if there any columns
+    with compression dictionary, remove the entries from
+    mysql.compression_dictionary_cols table */
+    if (compression_dict::cols_table_delete(thd, *table_def)) {
+      goto cleanup2;
+    }
 
     if (thd->dd_client()->drop(table_def)) goto cleanup2;
     table_def = nullptr;
@@ -17076,7 +17164,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       create_info->db_type = table->s->db_type();
   }
 
-  if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
+  if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info,
+                   alter_info))
     return true;
 
   /*
@@ -17307,6 +17396,14 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       return true;
     }
   }
+  if (new_part_info != nullptr && alter_info->has_compressed_columns() &&
+      !ha_check_storage_engine_flag(new_part_info->default_engine_type,
+                                    HTON_SUPPORTS_COMPRESSED_COLUMNS)) {
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+             ha_resolve_storage_engine_name(new_part_info->default_engine_type),
+             "COMPRESSED COLUMNS");
+    return true;
+  }
 
   if ((alter_info->flags & Alter_info::ALTER_DROP_PARTITION) != 0U) {
     auto mdl_type = mdl_ticket->get_type();
@@ -17376,6 +17473,33 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   // Prepare check constraints for alter table operation.
   if (prepare_check_constraints_for_alter(thd, table, alter_info, &alter_ctx))
     return true;
+
+  if ((alter_info->flags & Alter_info::ALTER_ADD_COLUMN) != 0 &&
+      alter_info->has_compressed_columns()) {
+    switch (alter_info->requested_algorithm) {
+      case Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT:
+
+        DBUG_LOG("zip_dict",
+                 "ALTER query "
+                     << thd->query().str
+                     << " is using INPLACE for add column"
+                        " because one of the ADD COLUMN is compressed column");
+
+        alter_info->requested_algorithm =
+            Alter_info::ALTER_TABLE_ALGORITHM_INPLACE;
+        break;
+      case Alter_info::ALTER_TABLE_ALGORITHM_INSTANT:
+        // Not possible, error out.
+        my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0), "ALGORITHM=INSTANT",
+                 "ALGORITHM=INPLACE/COPY");
+	return true;
+      case Alter_info::ALTER_TABLE_ALGORITHM_COPY:
+      case Alter_info::ALTER_TABLE_ALGORITHM_INPLACE:
+        break;
+      default:
+	return 0;
+    }
+  }
 
   if (mysql_prepare_alter_table(thd, old_table_def, table, create_info,
                                 alter_info, &alter_ctx)) {
@@ -17826,6 +17950,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     update_altered_table(ha_alter_info, altered_table);
 
     /*
+    Updating field definitions in 'altered_table' with zip_dict_name values
+    from 'ha_alter_info.alter_info->create_list'
+    */
+    if (ha_alter_info.alter_info != 0 && altered_table != 0) {
+      altered_table->update_compressed_columns_info(
+          ha_alter_info.alter_info->create_list);
+    }
+
+    /*
       Mark all columns in 'altered_table' as used to allow usage
       of its record[0] buffer and Field objects during in-place
       ALTER TABLE.
@@ -17955,6 +18088,22 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                     fk_key_count, &fk_invalidator)) {
         return true;
       }
+
+      const dd::Table *new_table_def = nullptr;
+      if (thd->dd_client()->acquire(alter_ctx.new_db, alter_ctx.new_name,
+                                    &new_table_def)) {
+        DBUG_LOG("zip_dict",
+                 "Acquiring dictionary table object failed "
+                 " for query "
+                     << thd->query().str << " table_db: " << alter_ctx.new_db
+                     << " table_name: " << alter_ctx.new_name);
+	return true;
+      }
+      /* New table is successfully created, check if any columns have
+      compression dictionary and add entry for them in
+      mysql.compression_dictionary_cols table */
+      if (compression_dict::cols_table_insert(thd, *new_table_def))
+	return true;
 
       goto end_inplace;
     } else {
@@ -18099,8 +18248,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   {
     if (ha_create_table(thd, alter_ctx.get_tmp_path(), alter_ctx.new_db,
-                        alter_ctx.tmp_name, create_info, false, true,
-                        table_def))
+                        alter_ctx.tmp_name, create_info,
+                        &alter_info->create_list, false, true, table_def))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */
@@ -18428,6 +18577,22 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_with_mdl;
 
     if (thd->dd_client()->store(non_dd_table_def.get())) goto err_with_mdl;
+
+    const dd::Table *stored_table = nullptr;
+
+    if (thd->dd_client()->acquire(alter_ctx.new_db, alter_ctx.tmp_name,
+                                  &stored_table)) {
+      DBUG_LOG("zip_dict",
+               "Acquiring dictionary table object failed "
+               " for query "
+                   << thd->query().str << " table_db: " << alter_ctx.new_db
+                   << " table_name: " << alter_ctx.tmp_name);
+
+      goto err_with_mdl;
+    }
+
+    if (compression_dict::cols_table_insert(thd, *stored_table))
+      goto err_with_mdl;
 
     // Safety, in-memory dd::Table is no longer totally correct.
     non_dd_table_def.reset();
@@ -19393,7 +19558,8 @@ err:
   @retval false Engine available/supported.
 */
 static bool check_engine(THD *thd, const char *db_name, const char *table_name,
-                         HA_CREATE_INFO *create_info) {
+                         HA_CREATE_INFO *create_info,
+                         const Alter_info *alter_info) {
   DBUG_TRACE;
   handlerton **new_engine = &create_info->db_type;
   handlerton *req_engine = *new_engine;
@@ -19438,6 +19604,24 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
              ha_resolve_storage_engine_name(*new_engine), db_name, table_name);
     *new_engine = nullptr;
     return true;
+  }
+  /*
+    Check if the given table has compressed columns, and if the storage engine
+    does support it.
+  */
+  partition_info *part_info = thd->work_part_info;
+  bool check_compressed_columns =
+      part_info == 0 &&
+      !(create_info->db_type->partition_flags &&
+        (create_info->db_type->partition_flags() & HA_USE_AUTO_PARTITION));
+
+  if (check_compressed_columns && alter_info->has_compressed_columns() &&
+      !ha_check_storage_engine_flag(*new_engine,
+                                    HTON_SUPPORTS_COMPRESSED_COLUMNS)) {
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+             ha_resolve_storage_engine_name(*new_engine), "COMPRESSED COLUMNS");
+    *new_engine = 0;
+	return true;
   }
 
   // The storage engine must support secondary engines.

@@ -1269,6 +1269,12 @@ struct TABLE_SHARE {
   /** Returns whether this table is referenced by a foreign key. */
   bool is_referenced_by_foreign_key() const { return foreign_key_parents != 0; }
 
+  /**
+     Checks if TABLE_SHARE has at least one field with
+     COLUMN_FORMAT_TYPE_COMPRESSED flag.
+  */
+  bool has_compressed_columns() const;
+
  private:
   /// How many TABLE objects use this TABLE_SHARE.
   unsigned int m_ref_count{0};
@@ -2221,6 +2227,24 @@ struct TABLE {
 #ifndef NDEBUG
   void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id = arg; }
 #endif
+  /**
+    Checks if TABLE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag.
+  */
+  bool has_compressed_columns() const;
+
+  /**
+    Checks if TABLE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+    zip_dict.
+  */
+  bool has_compressed_columns_with_dictionaries() const;
+
+  /**
+    Updates zip_dict_name in the TABLE's field definitions based on the
+    values from the supplied list of Create_field objects.
+  */
+  void update_compressed_columns_info(const List<Create_field> &fields);
 
   /**
     Update covering keys depending on max read key length.

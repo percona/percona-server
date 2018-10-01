@@ -262,6 +262,10 @@ FILE *dict_foreign_err_file = nullptr;
 /* mutex protecting the foreign and unique error buffers */
 ib_mutex_t dict_foreign_err_mutex;
 
+/** SYS_ZIP_DICT and SYS_ZIP_DICT_COLS will be missing when upgrading
+mysql-5.7 to PS-8.0 */
+bool dict_upgrade_zip_dict_missing = false;
+
 /** Checks if the database name in two table names is the same.
  @return true if same db name */
 bool dict_tables_have_same_db(const char *name1, /*!< in: table name in the
@@ -5894,7 +5898,16 @@ void dict_table_change_id_sys_tables() {
   for (int i = SYS_NUM_SYSTEM_TABLES - 1; i >= 0; i--) {
     dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
-    ut_a(system_table != nullptr);
+    ut_a(system_table != nullptr || i == SYS_ZIP_DICT ||
+         i == SYS_ZIP_DICT_COLS);
+
+    /* SYS_ZIP_DICT and SYS_ZIP_DICT_COLS can be missing when mysql-5.7 to
+    PS-8.0 upgrade */
+    if (system_table == nullptr &&
+        (i == SYS_ZIP_DICT || i == SYS_ZIP_DICT_COLS)) {
+      ut_ad(dict_upgrade_zip_dict_missing);
+      continue;
+    }
     ut_ad(dict_sys_table_id[i] == system_table->id);
 
     /* During upgrade, table_id of user tables is also
@@ -6062,3 +6075,60 @@ void dict_validate_no_purge_rollback_threads() {
 }
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
+/** Get single compression dictionary id for the given
+(table id, column pos) pair.
+@param[in]	table_id	table id
+@param[in]	column_pos	column position
+@param[out]	dict_id		zip_dict id
+@retval	DB_SUCCESS		if OK
+@retval	DB_RECORD_NOT_FOUND	if not found */
+dberr_t dict_get_dictionary_id_by_key(table_id_t table_id, ulint column_pos,
+                                      ulint *dict_id) {
+  ut_ad(srv_is_upgrade_mode);
+  ut_ad(!mutex_own(&dict_sys->mutex));
+
+  trx_t *const trx = trx_allocate_for_background();
+  trx->op_info = "get zip dict id by composite key";
+  trx->dict_operation_lock_mode = RW_S_LATCH;
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
+
+  const dberr_t err = dict_create_get_zip_dict_id_by_reference(
+      table_id, column_pos, dict_id, trx);
+
+  trx_commit_for_mysql(trx);
+  trx->dict_operation_lock_mode = 0;
+  trx_free_for_background(trx);
+
+  return err;
+}
+
+/** Get compression dictionary info (name and data) for the given id.
+Allocates memory in name->str and data->str on success.
+Must be freed with mem_free().
+@param[in]	dict_id		dictionary id
+@param[out]	name		dictionary name
+@param[out]	name_len	dictionary name length
+@param[out]	data		dictionary data
+@param[out]	data_len	dictionary data lenght
+@retval	DB_SUCCESS		if OK
+@retval	DB_RECORD_NOT_FOUND	if not found */
+dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
+                                       ulint *name_len, char **data,
+                                       ulint *data_len) {
+  ut_ad(srv_is_upgrade_mode);
+  ut_ad(!mutex_own(&dict_sys->mutex));
+
+  trx_t *const trx = trx_allocate_for_background();
+  trx->op_info = "get zip dict name and data by id";
+  trx->dict_operation_lock_mode = RW_S_LATCH;
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
+
+  const dberr_t err = dict_create_get_zip_dict_info_by_id(
+      dict_id, name, name_len, data, data_len, trx);
+
+  trx_commit_for_mysql(trx);
+  trx->dict_operation_lock_mode = 0;
+  trx_free_for_background(trx);
+
+  return err;
+}

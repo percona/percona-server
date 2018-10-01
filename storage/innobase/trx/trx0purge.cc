@@ -269,7 +269,16 @@ void trx_purge_sys_initialize(uint32_t n_purge_threads,
       UT_NEW_THIS_FILE_PSI_KEY, purge_sys);
 }
 
+/************************************************************************
+Frees the global purge system control structure. */
 void trx_purge_sys_close() {
+  for (que_thr_t *thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
+       thr != nullptr; thr = UT_LIST_GET_NEXT(thrs, thr)) {
+    if (thr->prebuilt != nullptr && thr->prebuilt->compress_heap != nullptr) {
+      row_mysql_prebuilt_free_compress_heap(thr->prebuilt);
+    }
+  }
+
   que_graph_free(purge_sys->query);
 
   ut_a(purge_sys->trx->id == 0);

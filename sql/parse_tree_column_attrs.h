@@ -137,6 +137,8 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
   virtual bool set_constraint_enforcement(bool enforced [[maybe_unused]]) {
     return true;  // error
   }
+
+  virtual void apply_zip_dict(LEX_CSTRING *) const noexcept {}
 };
 
 /**
@@ -439,20 +441,22 @@ class PT_column_format_column_attr : public PT_column_attr_base {
 
  public:
   explicit PT_column_format_column_attr(const POS &pos,
-                                        column_format_type format)
-      : super(pos), format(format) {}
+      column_format_type format, const LEX_CSTRING &zip_dict_name) noexcept
+      : super(pos), format(format), m_zip_dict_name(zip_dict_name) {}
 
   void apply_type_flags(ulong *type_flags) const override {
     *type_flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     *type_flags |= format << FIELD_FLAGS_COLUMN_FORMAT;
   }
   bool do_contextualize(Column_parse_context *pc) override {
-    if (pc->is_generated) {
-      my_error(ER_WRONG_USAGE, MYF(0), "COLUMN_FORMAT", "generated column");
-      return true;
-    }
     return super::do_contextualize(pc);
   }
+  void apply_zip_dict(LEX_CSTRING *to) const noexcept override {
+    *to = m_zip_dict_name;
+  }
+
+ private:
+  const LEX_CSTRING m_zip_dict_name;
 };
 
 /**
@@ -927,6 +931,16 @@ class PT_field_def_base : public Parse_tree_node {
   std::optional<gis::srid_t> m_srid{};
   // List of column check constraint's specification.
   Sql_check_constraint_spec_list *check_const_spec_list = nullptr;
+  /**
+    Compression dictionary name (in column definition)
+    CREATE TABLE t1(
+    ...
+    <column_name> BLOB COLUMN_FORMAT COMPRESSED
+    WITH COMPRESSION_DICTIONARY <dict>
+    ...
+    );
+  */
+  LEX_CSTRING m_zip_dict;
 
  protected:
   PT_type *type_node;
@@ -966,6 +980,7 @@ class PT_field_def_base : public Parse_tree_node {
         attr->apply_gen_default_value(&default_val_info);
         attr->apply_on_update_value(&on_update_value);
         attr->apply_srid_modifier(&m_srid);
+        attr->apply_zip_dict(&m_zip_dict);
         if (attr->apply_collation(pc, &charset, &has_explicit_collation))
           return true;
         if (attr->add_check_constraints(check_const_spec_list)) return true;

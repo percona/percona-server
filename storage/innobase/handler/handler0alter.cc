@@ -3302,7 +3302,8 @@ static void online_retry_drop_dict_indexes(dict_table_t *table, bool locked) {
 @param field MySQL value for the column
 @param comp nonzero if in compact format */
 static void innobase_build_col_map_add(mem_heap_t *heap, dfield_t *dfield,
-                                       const Field *field, ulint comp) {
+                                       const Field *field, ulint comp,
+                                       row_prebuilt_t *prebuilt) {
   if (field->is_real_null()) {
     dfield_set_null(dfield);
     return;
@@ -3314,8 +3315,11 @@ static void innobase_build_col_map_add(mem_heap_t *heap, dfield_t *dfield,
 
   const byte *mysql_data = field->field_ptr();
 
-  row_mysql_store_col_in_innobase_format(dfield, buf, true, mysql_data, size,
-                                         comp);
+  row_mysql_store_col_in_innobase_format(
+      dfield, buf, true, mysql_data, size, comp,
+      field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED,
+      reinterpret_cast<const byte *>(field->zip_dict_data.str),
+      field->zip_dict_data.length, &prebuilt->compress_heap);
 }
 
 /** Construct the translation table for reordering, dropping or
@@ -3333,7 +3337,8 @@ to column numbers in altered_table */
 [[nodiscard]] static const ulint *innobase_build_col_map(
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *table, const dict_table_t *new_table,
-    const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap) {
+    const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap,
+    row_prebuilt_t *prebuilt) {
   DBUG_TRACE;
   assert(altered_table != table);
   assert(new_table != old_table);
@@ -3392,7 +3397,7 @@ to column numbers in altered_table */
     ut_ad(!is_v);
     innobase_build_col_map_add(heap, dtuple_get_nth_field(add_cols, i),
                                altered_table->field[i + num_v],
-                               dict_table_is_comp(new_table));
+                               dict_table_is_comp(new_table), prebuilt);
   found_col:
     if (is_v) {
       num_v++;
@@ -4406,7 +4411,8 @@ template <typename Table>
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *old_table, const Table *old_dd_tab, Table *new_dd_tab,
     const char *table_name, uint32_t flags, uint32_t flags2,
-    ulint fts_doc_id_col, bool add_fts_doc_id, bool add_fts_doc_id_idx) {
+    ulint fts_doc_id_col, bool add_fts_doc_id, bool add_fts_doc_id_idx,
+    row_prebuilt_t *prebuilt) {
   bool dict_locked = false;
   ulint *add_key_nums;         /* MySQL key numbers */
   ddl::Index_defn *index_defs; /* index definitions */
@@ -4729,6 +4735,9 @@ template <typename Table>
         }
       }
 
+      if (field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED)
+        field_type |= DATA_COMPRESSED;
+
       if (col_type == DATA_POINT) {
         /* DATA_POINT should be of fixed length,
         instead of the pack_length(blob length). */
@@ -4877,9 +4886,9 @@ template <typename Table>
       add_cols = nullptr;
     }
 
-    ctx->col_map =
-        innobase_build_col_map(ha_alter_info, altered_table, old_table,
-                               ctx->new_table, user_table, add_cols, ctx->heap);
+    ctx->col_map = innobase_build_col_map(ha_alter_info, altered_table,
+                                          old_table, ctx->new_table, user_table,
+                                          add_cols, ctx->heap, prebuilt);
     ctx->add_cols = add_cols;
   } else {
     assert(!innobase_need_rebuild(ha_alter_info));
@@ -6061,8 +6070,8 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
   return prepare_inplace_alter_table_dict(
       ha_alter_info, altered_table, table, old_dd_tab, new_dd_tab,
-      table_share->table_name.str, info.flags(), info.flags2(), fts_doc_col_no,
-      add_fts_doc_id, add_fts_doc_id_idx);
+      table_share->table_name.str, info.flags(), info.flags2(),
+      fts_doc_col_no, add_fts_doc_id, add_fts_doc_id_idx, m_prebuilt);
 }
 
 /** Check that the column is part of a virtual index(index contains

@@ -74,7 +74,8 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // acl_getroot
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/binlog.h"                      // mysql_bin_log
+#include "sql/binlog.h"  // mysql_bin_log
+#include "sql/create_field.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache_Dictionary_client
 #include "sql/dd/dd.h"                       // dd::get_dictionary
 #include "sql/dd/dictionary.h"               // dd::Dictionary
@@ -603,6 +604,22 @@ void TABLE_SHARE::destroy() {
   */
   MEM_ROOT own_root = std::move(mem_root);
   own_root.Clear();
+}
+
+/**
+  Checks if TABLE_SHARE has at least one field with
+  COLUMN_FORMAT_TYPE_COMPRESSED flag.
+*/
+bool TABLE_SHARE::has_compressed_columns() const {
+  DBUG_ENTER("has_compressed_columns");
+  assert(field != 0);
+
+  Field **field_ptr = field;
+  while (*field_ptr != nullptr &&
+         (*field_ptr)->column_format() != COLUMN_FORMAT_TYPE_COMPRESSED)
+    ++field_ptr;
+
+  DBUG_RETURN(*field_ptr != nullptr);
 }
 
 /**
@@ -2075,6 +2092,32 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   /* Sanity checks: */
   assert(share->fields >= frm_context->stored_fields);
   assert(share->reclength >= share->stored_rec_length);
+
+  /* update zip dict info (name + data) from the handler */
+  if (share->has_compressed_columns())
+    handler_file->upgrade_update_field_with_zip_dict_info(thd, NULL);
+
+  /* Use share mem root for zip dict name and data */
+  for (uint i2 = 0; i2 < share->fields; ++i2) {
+    Field *field = share->field[i2];
+    if (field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
+      if (field->zip_dict_data.str != nullptr) {
+        LEX_CSTRING saved_data = field->zip_dict_data;
+        field->zip_dict_data.str =
+            strmake_root(&share->mem_root, saved_data.str, saved_data.length);
+        field->zip_dict_data.length = saved_data.length;
+        my_free(const_cast<char *>(saved_data.str));
+      }
+
+      if (field->zip_dict_name.str != nullptr) {
+        LEX_CSTRING saved_data = field->zip_dict_name;
+        field->zip_dict_name.str =
+            strmake_root(&share->mem_root, saved_data.str, saved_data.length);
+        field->zip_dict_name.length = saved_data.length;
+        my_free(const_cast<char *>(saved_data.str));
+      }
+    }
+  }
 
   /* Fix key->name and key_part->field */
   if (key_parts) {
@@ -7114,6 +7157,57 @@ bool TABLE::check_read_removal(uint index) {
 
   bitmap_clear_all(&tmp_set);
   return retval;
+}
+
+/**
+  Checks if TABLE has at least one field with
+  COLUMN_FORMAT_TYPE_COMPRESSED flag.
+*/
+bool TABLE::has_compressed_columns() const {
+  DBUG_ENTER("has_compressed_columns");
+  assert(field != 0);
+
+  Field **field_ptr = field;
+  while (*field_ptr != nullptr &&
+         (*field_ptr)->column_format() != COLUMN_FORMAT_TYPE_COMPRESSED)
+    ++field_ptr;
+
+  DBUG_RETURN(*field_ptr != nullptr);
+}
+
+/**
+  Checks if TABLE has at least one field with
+  COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+  zip_dict.
+*/
+bool TABLE::has_compressed_columns_with_dictionaries() const {
+  DBUG_ENTER("has_compressed_columns_with_dictionaries");
+  assert(field != 0);
+
+  Field **field_ptr = field;
+  while (*field_ptr != nullptr &&
+         !(*field_ptr)->has_associated_compression_dictionary())
+    ++field_ptr;
+
+  DBUG_RETURN(*field_ptr != nullptr);
+}
+
+/**
+  Updates zip_dict_name in the TABLE's field definitions based on the
+  values from the supplied list of Create_field objects.
+*/
+void TABLE::update_compressed_columns_info(const List<Create_field> &fields) {
+  Field **field_ptr = field;
+  List_iterator<Create_field> it(const_cast<List<Create_field> &>(fields));
+  Create_field *field_definition = it++;
+
+  while (*field_ptr != nullptr && field_definition != nullptr) {
+    (*field_ptr)->zip_dict_name = field_definition->zip_dict_name;
+    ++field_ptr;
+    field_definition = it++;
+  }
+  assert(field_definition == nullptr);
+  assert(*field_ptr == nullptr);
 }
 
 /**

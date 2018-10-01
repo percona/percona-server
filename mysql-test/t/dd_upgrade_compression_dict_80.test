@@ -1,0 +1,56 @@
+--source include/have_debug.inc
+
+# This test simulates upgrade from mysql datadir to percona server by skipping
+# the creation of compression dictionary during bootstrap. This is achieved
+# by debug flag 'skip_compression_dict_create'
+# On startup, if compression dictionary tables are missing, they should be
+# created. I_S views on compression dictionary tables should also be created
+
+let $MYSQLD_BASEDIR= `select @@basedir`;
+let $START_PAGE_SIZE= `select @@innodb_page_size`;
+let $LOG_FILE_SIZE= `select @@innodb_log_file_size`;
+
+# Set path for --datadir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir;
+--mkdir $MYSQLD_DATADIR1
+
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+# Set the bootstrap parameters with undo log encryption enabled
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --secure-file-priv="" --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_undo_tablespaces=2 --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --debug=d,skip_compression_dict_create </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+
+--echo # Stop the MTR default DB server
+--source include/shutdown_mysqld.inc
+
+--echo # Run the bootstrap command which skips creation of compression dictionary tables
+--exec $NEW_CMD
+
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_log_files_in_group=2 --innodb_undo_tablespaces=2"
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR $LOG_FILE_SIZE LOG_FILE_SIZE
+--source include/start_mysqld.inc
+
+CREATE COMPRESSION_DICTIONARY d1('blah');
+CREATE TABLE t1(a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1);
+
+SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;
+SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES;
+
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY d1;
+
+SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;
+SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES;
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--force-rmdir $MYSQLD_DATADIR1
+--remove_file $BOOTSTRAP_SQL
+
+--let $restart_parameters=
+--source include/start_mysqld.inc

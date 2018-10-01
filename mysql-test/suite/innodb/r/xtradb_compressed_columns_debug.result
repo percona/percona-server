@@ -1,0 +1,27 @@
+SET @old_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
+SET GLOBAL innodb_compressed_columns_zip_level = 0;
+CREATE TABLE t1(
+a VARBINARY(255) COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+INSERT IGNORE INTO t1 VALUES(REPEAT('abc',1000));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+SELECT * FROM t1;
+a
+abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc
+DROP TABLE t1;
+SET GLOBAL innodb_compressed_columns_zip_level = @old_innodb_compressed_columns_zip_level;
+SET @dict_data = REPEAT('a', 16384);
+CREATE COMPRESSION_DICTIONARY d1(@dict_data);
+SET SESSION debug = "+d,btr_store_big_rec_extern";
+CREATE COMPRESSION_DICTIONARY d2(@dict_data);
+ERROR HY000: The table 'compression_dictionary' is full
+SET SESSION debug = "-d,btr_store_big_rec_extern";
+SET debug = '+d,ib_create_table_fail_too_many_trx';
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Too many active concurrent transactions
+CREATE COMPRESSION_DICTIONARY d2(@dict_data);
+ERROR HY000: Too many active concurrent transactions
+SET debug = '-d,ib_create_table_fail_too_many_trx';
+DROP COMPRESSION_DICTIONARY d1;

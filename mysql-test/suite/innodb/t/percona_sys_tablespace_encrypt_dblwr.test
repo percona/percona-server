@@ -59,16 +59,17 @@ unlock tables;
 begin;
 insert into t1 values (6, repeat('%', 12));
 
---echo # Make the first page dirty for table t1
-set global innodb_saved_page_number_debug = 3;
+--echo # Make the 4th page dirty, which is the last page written
+--echo # by above flush tables for export
+set global innodb_saved_page_number_debug = 4;
 set global innodb_fil_make_page_dirty_debug = @space_id;
 
 --source include/kill_mysqld.inc
 
---echo # Make the 3rd page of the user tablespace
+--echo # Make the 4th page of the user tablespace
 --echo # corrupted
 --let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
---let PAGE_NUM=3
+--let PAGE_NUM=4
 --source ../include/corrupt_page.inc
 
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
@@ -104,6 +105,7 @@ where name = 'test/t1' into @space_id;
 --echo # Wait for purge to complete
 --source include/wait_innodb_all_purged.inc
 
+SET GLOBAL innodb_checkpoint_disabled = true;
 begin;
 insert into t1 values (6, repeat('%', 12));
 
@@ -133,7 +135,5 @@ drop table t1;
 --source include/restart_mysqld.inc
 
 --remove_file $BOOTSTRAP_SQL
---let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1
---source include/cleanup_folder.inc
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
+--force-rmdir $MYSQL_TMP_DIR/datadir1
 --remove_file $MYSQLTEST_VARDIR/tmp/boot.log

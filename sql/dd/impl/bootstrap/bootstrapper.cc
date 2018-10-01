@@ -71,6 +71,7 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
 #include "sql/sd_notify.h"  // sysd::notify
+#include "sql/sql_zip_dict.h"
 #include "sql/thd_raii.h"
 #include "storage/perfschema/pfs_dd_version.h"  // PFS_DD_VERSION
 
@@ -851,6 +852,9 @@ bool initialize_dictionary(THD *thd, Dictionary_impl *d) {
       verify_contents(thd) || update_versions(thd))
     return true;
 
+  // Create compression dictionary tables
+  if (compression_dict::bootstrap(thd)) return true;
+
   DBUG_EXECUTE_IF(
       "schema_read_only",
       if (dd::execute_query(thd, "CREATE SCHEMA schema_read_only") ||
@@ -895,6 +899,55 @@ bool initialize(THD *thd) {
   LogErr(INFORMATION_LEVEL, ER_DD_VERSION_INSTALLED,
          d->get_target_dd_version());
   return false;
+}
+
+/** On startup from mysql datadir to Percona Server, compression dictionary
+tables and I_S views on them will be missing. We check if they are missing
+and create the tables mysql.compression_dictionary,
+mysql.compression_dictionary_cols
+@param[in,out]  thd  Session context
+@return false on success, true on failure */
+static bool check_and_create_compression_dict_tables(THD *thd) {
+  const dd::Table *comp_table_def = nullptr;
+  if (thd->dd_client()->acquire("mysql", "compression_dictionary",
+                                &comp_table_def)) {
+    return true;
+  }
+
+  const dd::Table *comp_cols_table_def = nullptr;
+  if (thd->dd_client()->acquire("mysql", "compression_dictionary_cols",
+                                &comp_cols_table_def)) {
+    return true;
+  }
+
+  if (comp_table_def && comp_cols_table_def) {
+    // Compression dictionary tables exist. Do nothing.
+    return false;
+  }
+
+  /*
+    We must also check if the DDSE is started in a way that makes the DD
+    read only. For now, we only support InnoDB as SE for the DD. The call
+    to retrieve the handlerton for the DDSE should be replaced by a more
+    generic mechanism.
+  */
+  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+
+  if (ddse->is_dict_readonly && ddse->is_dict_readonly()) {
+    LogErr(WARNING_LEVEL, ER_COMPRESSION_DICTIONARY_NO_CREATE, "InnoDB", " ");
+    return false;
+  }
+
+  // Create the compression dictionary tables
+  if (compression_dict::bootstrap(thd)) return true;
+
+  dd::info_schema::create_system_views(thd, true, true);
+
+  /*
+    We must commit the transaction before executing a new query, which
+    expects the transaction to be empty.
+  */
+  return (dd::end_transaction(thd, false));
 }
 
 // Initialize dictionary in case of server restart.
@@ -943,6 +996,7 @@ bool restart_dictionary(THD *thd) {
       DDSE_dict_recover(thd, DICT_RECOVERY_RESTART_SERVER,
                         d->get_actual_dd_version(thd)) ||
       upgrade::do_server_upgrade_checks(thd) || upgrade::upgrade_tables(thd) ||
+      check_and_create_compression_dict_tables(thd) ||
       repopulate_charsets_and_collations(thd) || verify_contents(thd) ||
       update_versions(thd)) {
     bootstrap_error_handler.set_log_error(true);

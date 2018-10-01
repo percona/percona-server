@@ -1,0 +1,103 @@
+# Defining compression dictionary content.
+SET @dictionary_data = 'one' 'two' 'three' 'four';
+# Creating a compression dictionary.
+CREATE COMPRESSION_DICTIONARY numbers (@dictionary_data);
+CREATE TABLE t1(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ENGINE=InnoDB;
+# Defining a JSON-formatted value which can be well compressed with the created dictionary.
+SET @json_value =
+'[\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  },\n'
+  '  {\n'
+  '    "one" = 0,\n'
+  '    "two" = 0,\n'
+  '    "three" = 0,\n'
+  '    "four" = 0\n'
+  '  }\n'
+  ']\n'
+;
+# Filling the table with some records.
+INSERT INTO t1 VALUES(0, @json_value);
+# Reading table data.
+SELECT COUNT(*) = 1 AS number_of_rows_matches FROM t1 WHERE a = @json_value;
+number_of_rows_matches
+1
+# Restarting with --innodb-read-only.
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
+# Reading table data in read-only mode.
+SET @json_value = '[
+  {
+    "one" = 0,
+    "two" = 0,
+    "three" = 0,
+    "four" = 0
+  },
+  {
+    "one" = 0,
+    "two" = 0,
+    "three" = 0,
+    "four" = 0
+  },
+  {
+    "one" = 0,
+    "two" = 0,
+    "three" = 0,
+    "four" = 0
+  },
+  {
+    "one" = 0,
+    "two" = 0,
+    "three" = 0,
+    "four" = 0
+  }
+]
+';
+SELECT COUNT(*) = 1 AS number_of_rows_matches FROM t1 WHERE a = @json_value;
+number_of_rows_matches
+1
+# Trying to create a compression dictionary in read-only mode.
+CREATE COMPRESSION_DICTIONARY dummy_dict('aaabbbcccddd');
+ERROR HY000: Running in read-only mode
+CREATE COMPRESSION_DICTIONARY numbers('aaabbbcccddd');
+ERROR HY000: Running in read-only mode
+# Trying to drop a compression dictionary in read-only mode.
+DROP COMPRESSION_DICTIONARY dummy_dict;
+ERROR HY000: Running in read-only mode
+DROP COMPRESSION_DICTIONARY numbers;
+ERROR HY000: Running in read-only mode
+# Check if 'information_schema' queries for 'compression_dictionary'
+# and 'compression_dictionary_tables' work in read-only mode.
+SET @dictionary_data = 'onetwothreefour';
+SELECT dict_name INTO @dict_name FROM information_schema.compression_dictionary WHERE dict_name = 'numbers';
+SELECT dict_data = @dictionary_data AS dictionary_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'numbers';
+dictionary_data_match
+1
+SELECT dict_name = @dict_name AS dictionary_names_match FROM information_schema.compression_dictionary_tables WHERE TABLE_SCHEMA = DATABASE() AND
+TABLE_NAME = 't1' AND COLUMN_NAME='a';
+dictionary_names_match
+1
+# Restarting with default options.
+# restart
+# Cleaning up.
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY numbers;

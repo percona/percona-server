@@ -70,7 +70,9 @@ eval INSERT INTO $I_S_view_names (name) VALUES
   ('ENABLED_ROLES'),
   ('ROLE_TABLE_GRANTS'),
   ('ROLE_COLUMN_GRANTS'),
-  ('ROLE_ROUTINE_GRANTS');
+  ('ROLE_ROUTINE_GRANTS'),
+  ('COMPRESSION_DICTIONARY'),
+  ('COMPRESSION_DICTIONARY_TABLES');
 --enable_result_log
 --enable_query_log
 

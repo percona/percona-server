@@ -1731,24 +1731,32 @@ static Table::enum_row_format dd_get_new_row_format(row_type old_format) {
   switch (old_format) {
     case ROW_TYPE_FIXED:
       return Table::RF_FIXED;
-    case ROW_TYPE_TOKU_UNCOMPRESSED:
     case ROW_TYPE_DYNAMIC:
       return Table::RF_DYNAMIC;
     case ROW_TYPE_COMPRESSED:
-    case ROW_TYPE_TOKU_ZLIB:
-    case ROW_TYPE_TOKU_SNAPPY:
-    case ROW_TYPE_TOKU_QUICKLZ:
-    case ROW_TYPE_TOKU_LZMA:
-    case ROW_TYPE_TOKU_FAST:
-    case ROW_TYPE_TOKU_SMALL:
-    case ROW_TYPE_TOKU_DEFAULT:
-      return Table::RF_COMPRESSED;
+     return Table::RF_COMPRESSED;
     case ROW_TYPE_REDUNDANT:
       return Table::RF_REDUNDANT;
     case ROW_TYPE_COMPACT:
       return Table::RF_COMPACT;
     case ROW_TYPE_PAGED:
       return Table::RF_PAGED;
+    case ROW_TYPE_TOKU_UNCOMPRESSED:
+      return Table::RF_TOKU_UNCOMPRESSED;
+    case ROW_TYPE_TOKU_ZLIB:
+      return Table::RF_TOKU_ZLIB;
+    case ROW_TYPE_TOKU_SNAPPY:
+      return Table::RF_TOKU_SNAPPY;
+    case ROW_TYPE_TOKU_QUICKLZ:
+      return Table::RF_TOKU_QUICKLZ;
+    case ROW_TYPE_TOKU_LZMA:
+      return Table::RF_TOKU_LZMA;
+    case ROW_TYPE_TOKU_FAST:
+      return Table::RF_TOKU_FAST;
+    case ROW_TYPE_TOKU_SMALL:
+      return Table::RF_TOKU_SMALL;
+    case ROW_TYPE_TOKU_DEFAULT:
+      return Table::RF_TOKU_DEFAULT;
     case ROW_TYPE_NOT_USED:
     case ROW_TYPE_DEFAULT:
     default:

@@ -296,6 +296,7 @@ send call tde_db.read_t_encrypt();
 --echo # kill and restart the server
 let $restart_parameters = $KEYRING_RESTART_PARAM;
 --sleep 1
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
 --source include/kill_and_restart_mysqld.inc
 
 --disconnect con1

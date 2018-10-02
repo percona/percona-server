@@ -245,9 +245,8 @@ SET GLOBAL innodb_file_per_table=OFF;
 
 CREATE TABLE t1 (c1 int);
 
---disable_warnings
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 COMPRESSION='zlib';
---enable_warnings
 
 --error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;

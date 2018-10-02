@@ -59,8 +59,11 @@ enum dict_system_id_t {
   SYS_TABLESPACES,
   SYS_DATAFILES,
   SYS_VIRTUAL,
+// Percona commented out until zip dictionary implementation in the new DD
+#if 0
   SYS_ZIP_DICT,
   SYS_ZIP_DICT_COLS,
+#endif
 
   /* This must be last item. Defines the number of system tables. */
   SYS_NUM_SYSTEM_TABLES

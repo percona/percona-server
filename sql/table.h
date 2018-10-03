@@ -912,7 +912,7 @@ struct TABLE_SHARE {
     without explicit pk and corresponding warning was issued to disable
     repeated warning.
   */
-  bool rfr_lookup_warning;
+  bool rfr_lookup_warning{false};
 
   /// For materialized derived tables; @see add_derived_key().
   SELECT_LEX *owner_of_possible_tmp_keys{nullptr};

@@ -562,22 +562,6 @@ static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format) {
       return ROW_TYPE_COMPACT;
     case dd::Table::RF_PAGED:
       return ROW_TYPE_PAGED;
-    case dd::Table::RF_TOKU_UNCOMPRESSED:
-      return ROW_TYPE_TOKU_UNCOMPRESSED;
-    case dd::Table::RF_TOKU_ZLIB:
-      return ROW_TYPE_TOKU_ZLIB;
-    case dd::Table::RF_TOKU_SNAPPY:
-      return ROW_TYPE_TOKU_SNAPPY;
-    case dd::Table::RF_TOKU_QUICKLZ:
-      return ROW_TYPE_TOKU_QUICKLZ;
-    case dd::Table::RF_TOKU_LZMA:
-      return ROW_TYPE_TOKU_LZMA;
-    case dd::Table::RF_TOKU_FAST:
-      return ROW_TYPE_TOKU_FAST;
-    case dd::Table::RF_TOKU_SMALL:
-      return ROW_TYPE_TOKU_SMALL;
-    case dd::Table::RF_TOKU_DEFAULT:
-      return ROW_TYPE_TOKU_DEFAULT;
     default:
       DBUG_ASSERT(0);
       break;

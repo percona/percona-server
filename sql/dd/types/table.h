@@ -77,15 +77,7 @@ class Table : virtual public Abstract_table {
     RF_COMPRESSED,
     RF_REDUNDANT,
     RF_COMPACT,
-    RF_PAGED,
-    RF_TOKU_UNCOMPRESSED,
-    RF_TOKU_ZLIB,
-    RF_TOKU_SNAPPY,
-    RF_TOKU_QUICKLZ,
-    RF_TOKU_LZMA,
-    RF_TOKU_FAST,
-    RF_TOKU_SMALL,
-    RF_TOKU_DEFAULT
+    RF_PAGED
   };
 
   /* Keep in sync with subpartition type for forward compatibility.*/

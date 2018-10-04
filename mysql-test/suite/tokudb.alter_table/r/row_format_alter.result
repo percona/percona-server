@@ -16,7 +16,7 @@ ALTER TABLE foo row_format=tokudb_lzma, add column c2 int not null;
 SELECT CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
 CREATE_OPTIONS
-row_format=TOKUDB_LZMA
+row_format=COMPRESSED
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
@@ -28,7 +28,7 @@ ALTER TABLE foo row_format=TOKUDB_QUICKLZ, add column c3 int not null;
 SELECT CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
 CREATE_OPTIONS
-row_format=TOKUDB_QUICKLZ
+row_format=COMPRESSED
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
@@ -41,7 +41,7 @@ ALTER TABLE foo row_format=TOKUDB_UNCOMPRESSED, add column c4 int not null;
 SELECT CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
 CREATE_OPTIONS
-row_format=TOKUDB_UNCOMPRESSED
+row_format=DYNAMIC
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
@@ -55,7 +55,7 @@ ALTER TABLE foo row_format=TOKUDB_ZLIB, add column c5 int not null;
 SELECT CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
 CREATE_OPTIONS
-row_format=TOKUDB_ZLIB
+row_format=COMPRESSED
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
@@ -70,7 +70,7 @@ ALTER TABLE foo row_format=TOKUDB_FAST, add column c6 int not null;
 SELECT CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
 CREATE_OPTIONS
-row_format=TOKUDB_FAST
+row_format=COMPRESSED
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
@@ -86,7 +86,7 @@ ALTER TABLE foo row_format=TOKUDB_SMALL, add column c7 int not null;
 SELECT CREATE_OPTIONS
 FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
 CREATE_OPTIONS
-row_format=TOKUDB_SMALL
+row_format=COMPRESSED
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (

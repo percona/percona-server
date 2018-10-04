@@ -30,7 +30,7 @@ CREATE TABLE seq_16_to_30 (seq INT) ENGINE=InnoDB;
 INSERT INTO  seq_16_to_30 SELECT seq FROM universal_seq WHERE seq <= 30 AND seq >= 16 ORDER BY seq;
 CREATE TABLE seq_31_to_40 (seq INT) ENGINE=InnoDB;
 INSERT INTO  seq_31_to_40 SELECT seq FROM universal_seq WHERE seq <= 40 AND seq >= 31 ORDER BY seq;
-CREATE TABLE t1(v VARCHAR(10), c CHAR(10), t TEXT, KEY(v), KEY(c), KEY(t(10)));
+CREATE TABLE t1(v VARCHAR(10), c CHAR(10), t TEXT, KEY(v), KEY(c), KEY(t(10))) CHARACTER SET=latin1;
 INSERT INTO t1(v) SELECT CONCAT(CHAR(ASCII('a') + s2.seq), REPEAT(' ', s1.seq))
 FROM seq_0_to_9 AS s1, seq_0_to_26 AS s2;
 UPDATE t1 SET c = v, t = v;

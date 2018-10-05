@@ -47,7 +47,7 @@ INSERT INTO  seq_31_to_40 SELECT seq FROM universal_seq WHERE seq <= 40 AND seq 
 #
 # filesort, my_b_pread, seeks in READ_CACHE
 #
-CREATE TABLE t1(v VARCHAR(10), c CHAR(10), t TEXT, KEY(v), KEY(c), KEY(t(10)));
+CREATE TABLE t1(v VARCHAR(10), c CHAR(10), t TEXT, KEY(v), KEY(c), KEY(t(10))) CHARACTER SET=latin1;
 INSERT INTO t1(v) SELECT CONCAT(CHAR(ASCII('a') + s2.seq), REPEAT(' ', s1.seq))
   FROM seq_0_to_9 AS s1, seq_0_to_26 AS s2;
 UPDATE t1 SET c = v, t = v;

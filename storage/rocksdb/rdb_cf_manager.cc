@@ -121,8 +121,9 @@ Rdb_cf_manager::get_or_create_cf(rocksdb::DB *const rdb,
       }
     } else {
       my_error(ER_WRONG_ARGUMENTS, MYF(0),
-               "CREATE | ALTER - can not find column family for storing index "
-               "data and creation is not allowed.");
+               "CREATE | ALTER | SET rocksdb_update_cf_options - can not find "
+               "column family for storing index data and creation is not "
+               "allowed.");
       cf_handle = nullptr;
     }
   }

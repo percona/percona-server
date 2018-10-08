@@ -82,7 +82,4 @@ perl;
        $ENV{SEARCH_FILE} =~ s{^.*?([^/\\]+)$}{$1};
        print "$res /$search_pattern/ in $ENV{SEARCH_FILE}\n";
     }
-    elsif ( $found == 0 ) {
-       die("# ERROR: Non of the files do not contain the expected pattern  $search_pattern\n");
-    }
 EOF

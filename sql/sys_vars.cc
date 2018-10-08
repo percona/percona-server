@@ -5321,7 +5321,8 @@ static Sys_var_have Sys_have_backup_locks(
 
 static Sys_var_have Sys_have_backup_safe_binlog_info(
     "have_backup_safe_binlog_info", "have_backup_safe_binlog_info",
-    READ_ONLY GLOBAL_VAR(have_backup_safe_binlog_info), NO_CMD_LINE);
+    READ_ONLY NON_PERSIST GLOBAL_VAR(have_backup_safe_binlog_info),
+    NO_CMD_LINE);
 
 static Sys_var_have Sys_have_snapshot_cloning(
     "have_snapshot_cloning", "have_snapshot_cloning",

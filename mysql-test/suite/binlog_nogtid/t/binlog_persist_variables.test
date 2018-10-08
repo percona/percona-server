@@ -49,8 +49,7 @@ INSERT INTO rplvars (varname, varvalue)
         VARIABLE_NAME LIKE '%rpl%' OR
         VARIABLE_NAME LIKE '%semi_sync%' OR
         VARIABLE_NAME LIKE '%slave%') AND
-       (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-        'innodb_master_thread_disabled_debug'))
+       (VARIABLE_NAME NOT LIKE 'innodb%')
        ORDER BY VARIABLE_NAME;
 --enable_warnings
 --let $countvars= `SELECT COUNT(*) FROM rplvars;`
@@ -70,7 +69,7 @@ while ( $varid <= $countvars )
   --let $varnames= `SELECT varname FROM rplvars WHERE id=$varid;`
 
   # Following variables are either non persistent or read only variables.
-  if (`SELECT '$varnames' IN ('binlog_gtid_simple_recovery', 'encrypt_binlog', 'gtid_executed', 'gtid_next', 'gtid_owned', 'have_backup_safe_binlog_info', 'log_bin', 'log_bin_basename', 'log_bin_index', 'log_slave_updates', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_index', 'relay_log_info_file', 'relay_log_recovery', 'relay_log_space_limit', 'slave_load_tmpdir', 'slave_load_tmpdir', 'slave_skip_errors')`)
+  if (`SELECT '$varnames' IN ('binlog_gtid_simple_recovery', 'binlog_space_limit', 'encrypt_binlog', 'gtid_executed', 'gtid_next', 'gtid_owned', 'have_backup_safe_binlog_info', 'log_bin', 'log_bin_basename', 'log_bin_index', 'log_slave_updates', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_index', 'relay_log_info_file', 'relay_log_recovery', 'relay_log_space_limit', 'slave_load_tmpdir', 'slave_load_tmpdir', 'slave_skip_errors')`)
   {
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
   }
@@ -80,8 +79,8 @@ while ( $varid <= $countvars )
 }
 
 --echo
---let $assert_text= 'Expect 66 persisted variables in persisted_variables table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 66
+--let $assert_text= 'Expect 65 persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 65
 --source include/assert.inc
 
 --echo
@@ -92,16 +91,16 @@ while ( $varid <= $countvars )
 --source include/wait_until_connected_again.inc
 
 --echo
---let $assert_text= 'Expect 66 persisted variables in persisted_variables table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 66
+--let $assert_text= 'Expect 65 persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 65
 --source include/assert.inc
 
---let $assert_text= 'Expect 66 persisted variables shown as PERSISTED in variables_info table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = 66
+--let $assert_text= 'Expect 65 persisted variables shown as PERSISTED in variables_info table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = 65
 --source include/assert.inc
 
---let $assert_text= 'Expect 66 persisted variables with matching peristed and global values.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = 66
+--let $assert_text= 'Expect 65 persisted variables with matching peristed and global values.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = 65
 --source include/assert.inc
 
 

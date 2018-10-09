@@ -18,11 +18,10 @@ VARIABLE_NAME LIKE '%relay%' OR
 VARIABLE_NAME LIKE '%rpl%' OR
 VARIABLE_NAME LIKE '%semi_sync%' OR
 VARIABLE_NAME LIKE '%slave%') AND
-(VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-'innodb_master_thread_disabled_debug'))
+(VARIABLE_NAME NOT LIKE 'innodb%')
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc ['Expect 80 variables in the table.']
+include/assert.inc ['Expect 83 variables in the table.']
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -43,9 +42,11 @@ SET PERSIST_ONLY binlog_row_image = @@GLOBAL.binlog_row_image;
 SET PERSIST_ONLY binlog_row_metadata = @@GLOBAL.binlog_row_metadata;
 SET PERSIST_ONLY binlog_row_value_options = @@GLOBAL.binlog_row_value_options;
 SET PERSIST_ONLY binlog_rows_query_log_events = @@GLOBAL.binlog_rows_query_log_events;
+SET PERSIST_ONLY binlog_space_limit = @@GLOBAL.binlog_space_limit;
 SET PERSIST_ONLY binlog_stmt_cache_size = @@GLOBAL.binlog_stmt_cache_size;
 SET PERSIST_ONLY binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
 SET PERSIST_ONLY binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+SET PERSIST_ONLY encrypt_binlog = @@GLOBAL.encrypt_binlog;
 SET PERSIST_ONLY enforce_gtid_consistency = @@GLOBAL.enforce_gtid_consistency;
 SET PERSIST_ONLY gtid_executed = @@GLOBAL.gtid_executed;
 ERROR HY000: Variable 'gtid_executed' is a non persistent read only variable
@@ -54,6 +55,8 @@ SET PERSIST_ONLY gtid_mode = @@GLOBAL.gtid_mode;
 SET PERSIST_ONLY gtid_owned = @@GLOBAL.gtid_owned;
 ERROR HY000: Variable 'gtid_owned' is a non persistent read only variable
 SET PERSIST_ONLY gtid_purged = @@GLOBAL.gtid_purged;
+SET PERSIST_ONLY have_backup_safe_binlog_info = @@GLOBAL.have_backup_safe_binlog_info;
+ERROR HY000: Variable 'have_backup_safe_binlog_info' is a non persistent read only variable
 SET PERSIST_ONLY init_slave = @@GLOBAL.init_slave;
 SET PERSIST_ONLY log_bin = @@GLOBAL.log_bin;
 ERROR HY000: Variable 'log_bin' is a non persistent read only variable
@@ -119,16 +122,16 @@ SET PERSIST_ONLY sync_master_info = @@GLOBAL.sync_master_info;
 SET PERSIST_ONLY sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST_ONLY sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
 
-include/assert.inc ['Expect 70 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 72 persisted variables in persisted_variables table.']
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc ['Expect 70 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 70 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 70 persisted variables with matching peristed and global values.']
+include/assert.inc ['Expect 72 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 72 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 72 persisted variables with matching peristed and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
@@ -148,9 +151,11 @@ RESET PERSIST binlog_row_image;
 RESET PERSIST binlog_row_metadata;
 RESET PERSIST binlog_row_value_options;
 RESET PERSIST binlog_rows_query_log_events;
+RESET PERSIST binlog_space_limit;
 RESET PERSIST binlog_stmt_cache_size;
 RESET PERSIST binlog_transaction_dependency_history_size;
 RESET PERSIST binlog_transaction_dependency_tracking;
+RESET PERSIST encrypt_binlog;
 RESET PERSIST enforce_gtid_consistency;
 RESET PERSIST gtid_executed;
 ERROR HY000: Variable gtid_executed does not exist in persisted config file
@@ -159,6 +164,8 @@ RESET PERSIST gtid_mode;
 RESET PERSIST gtid_owned;
 ERROR HY000: Variable gtid_owned does not exist in persisted config file
 RESET PERSIST gtid_purged;
+RESET PERSIST have_backup_safe_binlog_info;
+ERROR HY000: Variable have_backup_safe_binlog_info does not exist in persisted config file
 RESET PERSIST init_slave;
 RESET PERSIST log_bin;
 ERROR HY000: Variable log_bin does not exist in persisted config file

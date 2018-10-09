@@ -141,6 +141,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
     return 1;
   }
 
+  si->thd= NULL;
   thd->server_id= si->server_id= uint4korr(p);
   p+= 4;
   get_object(p,si->host, "Failed to register slave: too long 'report-host'");
@@ -159,7 +160,6 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   p += 4;
   if (!(si->master_id= uint4korr(p)))
     si->master_id= server_id;
-  si->thd= thd;
 
   mysql_mutex_lock(&LOCK_slave_list);
   unregister_slave(thd, false, false/*need_lock_slave_list=false*/);
@@ -172,6 +172,18 @@ err:
   my_message(ER_UNKNOWN_ERROR, errmsg, MYF(0)); /* purecov: inspected */
 err2:
   return 1;
+}
+
+static void register_slave_thd(THD* thd) {
+  if (thd->server_id)
+  {
+    mysql_mutex_lock(&LOCK_slave_list);
+    SLAVE_INFO* si;
+    if ((si = (SLAVE_INFO*)my_hash_search(&slave_list,
+                                         (uchar*)&thd->server_id, 4)))
+      si->thd= thd;
+    mysql_mutex_unlock(&LOCK_slave_list);
+  }
 }
 
 void unregister_slave(THD* thd, bool only_mine, bool need_lock_slave_list)
@@ -759,6 +771,7 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
   DBUG_PRINT("info", ("pos=%lu flags=%d server_id=%d", pos, flags, thd->server_id));
 
   kill_zombie_dump_threads(thd);
+  register_slave_thd(thd);
 
   general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
                     packet + 10, (long) pos);
@@ -813,6 +826,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
                       "'%s'.", thd->server_id, name, pos, gtid_string));
 
   kill_zombie_dump_threads(thd);
+  register_slave_thd(thd);
   general_log_print(thd, thd->get_command(), "Log: '%s' Pos: %llu GTIDs: '%s'",
                     name, pos, gtid_string);
   my_free(gtid_string);
@@ -2071,7 +2085,7 @@ String *get_slave_uuid(THD *thd, String *value)
 {
   uchar name[]= "slave_uuid";
 
-  if (value == NULL)
+  if (thd == NULL || value == NULL)
     return NULL;
   user_var_entry *entry=
     (user_var_entry*) my_hash_search(&thd->user_vars, name, sizeof(name)-1);

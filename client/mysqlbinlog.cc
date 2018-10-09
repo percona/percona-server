@@ -163,6 +163,7 @@ static uint my_end_arg;
 static const char* sock= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static my_bool opt_secure_auth= TRUE;
+static my_bool die_after_register_slave= FALSE;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name= 0;
@@ -1660,6 +1661,8 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
     &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"die-after-register-slave", 0, "Die after connecting to slave.",
+    &die_after_register_slave, &die_after_register_slave, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
    &filter_server_id, &filter_server_id, 0, GET_ULONG,
@@ -2419,6 +2422,33 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     server_id= connection_server_id;
 
 #endif
+
+  { // try to simulate lost packet
+    uchar buf[1024], *pos= buf;
+    const char *teststr = "test";
+    const char teststrlen = strlen(teststr);
+    int4store(pos, server_id); pos+= 4;
+    *pos= teststrlen; ++pos;
+    memcpy(pos, teststr, teststrlen); pos+= teststrlen;
+    *pos= teststrlen; ++pos;
+    memcpy(pos, teststr, teststrlen); pos+= teststrlen;
+    *pos= teststrlen; ++pos;
+    memcpy(pos, teststr, teststrlen); pos+= teststrlen;
+    int2store(pos, (uint16) 3306); pos+= 2;
+    int4store(pos, /* rpl_recovery_rank */ 0);    pos+= 4;
+    int4store(pos, 0);                    pos+= 4;
+
+    if (simple_command(mysql, COM_REGISTER_SLAVE, buf, (size_t) (pos-buf), 0))
+    {
+      error("Got fatal error sending the register slave command.");
+      DBUG_RETURN(ERROR_STOP);
+    }
+    if (die_after_register_slave)
+    {
+      error("Dying after register slave as requested.");
+      DBUG_RETURN(ERROR_STOP);
+    }
+  }
 
   size_t tlen = strlen(logname);
   if (tlen > UINT_MAX) 

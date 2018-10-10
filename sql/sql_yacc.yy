@@ -1235,14 +1235,6 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> INDEX_STATS_SYM
 %token<keyword> TABLE_STATS_SYM
 %token<keyword> THREAD_STATS_SYM
-%token<keyword> TOKU_UNCOMPRESSED_SYM
-%token<keyword> TOKU_ZLIB_SYM
-%token<keyword> TOKU_SNAPPY_SYM
-%token<keyword> TOKU_QUICKLZ_SYM
-%token<keyword> TOKU_LZMA_SYM
-%token<keyword> TOKU_FAST_SYM
-%token<keyword> TOKU_SMALL_SYM
-%token<keyword> TOKU_DEFAULT_SYM
 %token<keyword> USER_STATS_SYM
 
 /*
@@ -6082,14 +6074,6 @@ row_types:
         | COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
         | REDUNDANT_SYM  { $$= ROW_TYPE_REDUNDANT; }
         | COMPACT_SYM    { $$= ROW_TYPE_COMPACT; }
-        | TOKU_UNCOMPRESSED_SYM { $$= ROW_TYPE_TOKU_UNCOMPRESSED; }
-        | TOKU_ZLIB_SYM         { $$= ROW_TYPE_TOKU_ZLIB; }
-        | TOKU_SNAPPY_SYM       { $$= ROW_TYPE_TOKU_SNAPPY; }
-        | TOKU_QUICKLZ_SYM      { $$= ROW_TYPE_TOKU_QUICKLZ; }
-        | TOKU_LZMA_SYM         { $$= ROW_TYPE_TOKU_LZMA; }
-        | TOKU_FAST_SYM         { $$= ROW_TYPE_TOKU_FAST; }
-        | TOKU_SMALL_SYM        { $$= ROW_TYPE_TOKU_SMALL; }
-        | TOKU_DEFAULT_SYM      { $$= ROW_TYPE_TOKU_DEFAULT; }
         ;
 
 merge_insert_types:
@@ -14253,14 +14237,6 @@ role_or_label_keyword:
         | TIME_SYM
         | TRANSACTION_SYM
         | TRIGGERS_SYM
-        | TOKU_DEFAULT_SYM
-        | TOKU_FAST_SYM
-        | TOKU_LZMA_SYM
-        | TOKU_QUICKLZ_SYM
-        | TOKU_SMALL_SYM
-        | TOKU_SNAPPY_SYM
-        | TOKU_UNCOMPRESSED_SYM
-        | TOKU_ZLIB_SYM
         | TYPES_SYM
         | TYPE_SYM
         | UDF_RETURNS_SYM

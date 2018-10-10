@@ -1099,25 +1099,6 @@ bool ha_tokudb::inplace_alter_table(
     error = write_auto_inc_create(
         share->status_block, create_info->auto_increment_value, ctx->alter_txn);
   }
-  if (error == 0 &&
-      (ctx->handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) &&
-      (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
-    // Get the current compression
-    DB *db = share->key_file[0];
-    error = db->get_compression_method(db, &ctx->orig_compression_method);
-    assert_always(error == 0);
-
-    // Set the new compression
-    toku_compression_method method =
-        row_type_to_toku_compression_method(create_info->row_type);
-    uint32_t curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
-    for (uint32_t i = 0; i < curr_num_DBs; i++) {
-      db = share->key_file[i];
-      error = db->change_compression_method(db, method);
-      if (error) break;
-      ctx->compression_changed = true;
-    }
-  }
 
   // note: only one column expansion is allowed
 

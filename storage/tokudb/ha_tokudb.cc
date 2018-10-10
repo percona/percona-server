@@ -6101,16 +6101,6 @@ static toku_compression_method get_compression_method(DB *file) {
   return method;
 }
 
-#if defined(TOKU_INCLUDE_ROW_TYPE_COMPRESSION) && \
-    TOKU_INCLUDE_ROW_TYPE_COMPRESSION
-enum row_type ha_tokudb::get_row_type() const {
-  toku_compression_method compression_method =
-      get_compression_method(share->file);
-  return toku_compression_method_to_row_type(compression_method);
-}
-#endif  // defined(TOKU_INCLUDE_ROW_TYPE_COMPRESSION) &&
-        // TOKU_INCLUDE_ROW_TYPE_COMPRESSION
-
 static int create_sub_table(const char *table_name, DBT *row_descriptor,
                             DB_TXN *txn, uint32_t block_size,
                             uint32_t read_block_size,
@@ -6202,19 +6192,6 @@ void ha_tokudb::update_create_info(HA_CREATE_INFO *create_info) {
       create_info->auto_increment_value = stats.auto_increment_value;
     }
   }
-#if defined(TOKU_INCLUDE_ROW_TYPE_COMPRESSION) && \
-    TOKU_INCLUDE_ROW_TYPE_COMPRESSION
-  if (!(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
-    // show create table asks us to update this create_info, this makes it
-    // so we'll always show what compression type we're using
-    create_info->row_type = get_row_type();
-    if (create_info->row_type == ROW_TYPE_TOKU_ZLIB &&
-        tokudb::sysvars::hide_default_row_format(ha_thd()) != 0) {
-      create_info->row_type = ROW_TYPE_DEFAULT;
-    }
-  }
-#endif  // defined(TOKU_INCLUDE_ROW_TYPE_COMPRESSION) &&
-        // TOKU_INCLUDE_ROW_TYPE_COMPRESSION
 }
 
 //
@@ -6499,27 +6476,14 @@ int ha_tokudb::create(const char *name, TABLE *form,
 
   memset(&kc_info, 0, sizeof(kc_info));
 
-  // TDB-76 : CREATE TABLE ... LIKE ... does not use source row_format on
-  //          target table
-  // Original code would only use create_info->row_type if
-  // create_info->used_fields & HA_CREATE_USED_ROW_FORMAT was true. This
-  // would cause us to skip transferring the row_format for a table created
-  // via CREATE TABLE tn LIKE tn. We also take on more InnoDB like behavior
-  // and throw a warning if we get a row_format that we can't translate into
-  // a known TokuDB row_format.
-  tokudb::sysvars::row_format_t row_format = tokudb::sysvars::row_format(thd);
+  const toku_compression_method compression_method =
+      row_format_to_toku_compression_method(tokudb::sysvars::row_format(thd));
 
   if ((create_info->used_fields & HA_CREATE_USED_ROW_FORMAT) ||
       create_info->row_type != ROW_TYPE_DEFAULT) {
-    row_format = row_type_to_row_format(create_info->row_type);
-    if (row_format == tokudb::sysvars::SRV_ROW_FORMAT_DEFAULT &&
-        create_info->row_type != ROW_TYPE_DEFAULT) {
-      push_warning(thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA_CREATE_OPTION,
-                   "TokuDB: invalid ROW_FORMAT specifier.");
-    }
+    push_warning(thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA_CREATE_OPTION,
+                 "TokuDB: invalid ROW_FORMAT specifier.");
   }
-  const toku_compression_method compression_method =
-      row_format_to_toku_compression_method(row_format);
 
   bool create_from_engine =
       (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);

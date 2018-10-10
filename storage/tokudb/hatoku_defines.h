@@ -103,8 +103,6 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 // extreme cases though where one side (WRITE) is supported but perhaps
 // 'DISCOVERY' may not be, thus the need for individual indicators.
 #define TOKU_USE_DB_TYPE_TOKUDB 1  // has DB_TYPE_TOKUDB patch
-#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION \
-  1  // has tokudb row format compression patch
 #if defined(HTON_SUPPORTS_EXTENDED_KEYS)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif

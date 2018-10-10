@@ -64,8 +64,8 @@ SET @@global.rewriter_verbose = DEFAULT;
 
 --source suite/query_rewrite_plugins/include/load_error_log.inc
 
-SELECT LENGTH(search_error_log( '[Note]', '%Plugin Rewriter reported: ''Statement "SELECT * FROM test.t1 ' ||
-                           'WHERE a = "digest_collision.test"%' )) > 0 as should_be_1;
+SELECT search_error_log( '[Note]', '%Plugin Rewriter reported: ''Statement "SELECT * FROM test.t1 ' ||
+                           'WHERE a = "digest_collision.test"%' );
 
 DROP TABLE t1;
 

@@ -129,7 +129,10 @@ t1	CREATE TABLE `t1` (
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
-  `INFO` longtext
+  `INFO` longtext,
+  `TIME_MS` bigint(21) NOT NULL DEFAULT '0',
+  `ROWS_SENT` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 DROP TABLE t1;
 #########################################################
@@ -154,6 +157,7 @@ WHERE table_schema LIKE 'information_schema'
 SELECT * FROM v1;
 table_name
 CHARACTER_SETS
+CLIENT_STATISTICS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
@@ -162,6 +166,8 @@ COLUMN_STATISTICS
 ENGINES
 EVENTS
 FILES
+GLOBAL_TEMPORARY_TABLES
+INDEX_STATISTICS
 KEYWORDS
 KEY_COLUMN_USAGE
 OPTIMIZER_TRACE
@@ -182,8 +188,12 @@ TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
+TEMPORARY_TABLES
+THREAD_STATISTICS
 TRIGGERS
 USER_PRIVILEGES
+USER_STATISTICS
 VIEWS
 DROP VIEW v1;
 # 3. I_S tables/views/columns are not case sensitive, but on trunk, the
@@ -196,10 +206,10 @@ WHERE TABLE_NAME LIKE 'no_such_table';
 TABLE_NAME
 # 4. Names collate differently. On trunk, the queries below returns
 #    the same result set.
-SELECT count(*) = IF(@@lower_case_table_names = 0, 4, 9)
+SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 9)
 FROM information_schema.tables
 WHERE table_name LIKE 'TAB%';
-count(*) = IF(@@lower_case_table_names = 0, 4, 9)
+count(*) = IF(@@lower_case_table_names = 0, 5, 9)
 1
 SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 9)
 FROM information_schema.tables

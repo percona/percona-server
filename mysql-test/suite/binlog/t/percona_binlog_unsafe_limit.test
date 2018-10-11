@@ -40,13 +40,13 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 #    - nuk is a column of UNIQUE KEY, which can be NULL.
 #    - nnuk is a column of NOT NULL UNIQUE KEY
 #    - nnuk1 and nnuk2 are NOT NULL columns, and togather forms a UNIQUE KEY.
-#    - nnuk_str_long is a VARCHAR UNIQUE KEY column that is longer than MAX_LENGTH_SORT in this test.
-#    - nnuk_str_short is a VARCHAR UNIQUE KEY column that is shorter than MAX_LENGTH_SORT in this test.
+#    - nnuk_str_long is a VARCHAR UNIQUE KEY column that is longer than MAX_SORT_LENGTH in this test.
+#    - nnuk_str_short is a VARCHAR UNIQUE KEY column that is shorter than MAX_SORT_LENGTH in this test.
 #
 CREATE TABLE t (nokey INT, pk INT PRIMARY KEY, nnuk INT NOT NULL UNIQUE KEY, nuk INT UNIQUE KEY,
                 nnuk1 INT NOT NULL, nnuk2 INT NOT NULL, UNIQUE KEY(nnuk1, nnuk2),
 		nnuk_str_long VARCHAR(512) NOT NULL UNIQUE KEY,
-		nnuk_str_short VARCHAR(50) NOT NULL UNIQUE KEY);
+		nnuk_str_short VARCHAR(50) NOT NULL UNIQUE KEY) CHARACTER SET=latin1;
 CREATE TABLE t1 LIKE t;
 CREATE TABLE t2 LIKE t;
 CREATE TABLE t3 LIKE t;

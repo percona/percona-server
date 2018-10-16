@@ -337,6 +337,19 @@ static TYPELIB innodb_default_row_format_typelib = {
 	NULL
 };
 
+static const char* redo_log_encrypt_names[] = {
+	"off",
+	"master_key",
+	"keyring_key",
+	NullS
+};
+
+static TYPELIB redo_log_encrypt_typelib = {
+	array_elements(redo_log_encrypt_names) - 1,
+	"redo_log_encrypt_typelib",
+	redo_log_encrypt_names,
+	NULL
+};
 /* The following counter is used to convey information to InnoDB
 about server activity: in case of normal DML ops it is not
 sensible to call srv_active_wake_master_thread after each
@@ -22388,6 +22401,11 @@ static MYSQL_SYSVAR_ENUM(default_row_format, innodb_default_row_format,
   NULL, NULL, DEFAULT_ROW_FORMAT_DYNAMIC,
   &innodb_default_row_format_typelib);
 
+static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable or disable Encryption of REDO tablespace. Possible values: OFF, MASTER_KEY, KEYRING_KEY.",
+  NULL, NULL, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -22698,6 +22716,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(compression_failure_threshold_pct),
   MYSQL_SYSVAR(compression_pad_pct_max),
   MYSQL_SYSVAR(default_row_format),
+  MYSQL_SYSVAR(redo_log_encrypt),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
   MYSQL_SYSVAR(limit_optimistic_insert_debug),

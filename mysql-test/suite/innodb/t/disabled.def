@@ -9,3 +9,7 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+log_encrypt_4_mk : PS-4958 2018-10-24 Zsolt Parragi Testcase crashes with eatmydata in LD_PRELOAD
+log_encrypt_4_rk : PS-4958 2018-10-24 Zsolt Parragi Testcase crashes with eatmydata in LD_PRELOAD
+log_encrypt_6_mk : PS-4958 2018-10-24 Zsolt Parragi Testcase crashes with eatmydata in LD_PRELOAD
+log_encrypt_6_rk : PS-4958 2018-10-24 Zsolt Parragi Testcase crashes with eatmydata in LD_PRELOAD

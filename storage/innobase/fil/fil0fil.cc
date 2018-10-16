@@ -389,7 +389,6 @@ fil_space_get(
 	mutex_enter(&fil_system->mutex);
 	fil_space_t*	space = fil_space_get_by_id(id);
 	mutex_exit(&fil_system->mutex);
-	ut_ad(space == NULL || space->purpose != FIL_TYPE_LOG);
 	return(space);
 }
 #ifndef UNIV_HOTBACKUP
@@ -1743,6 +1742,15 @@ fil_space_close(
 	}
 
 	mutex_exit(&fil_system->mutex);
+}
+
+/** Close each fil_node_t of a fil_space_t if open.
+@param[in]	id	space id */
+void
+fil_space_close_by_id(
+	ulint	id)
+{
+	fil_space_close(fil_space_get_by_id(id)->name);
 }
 
 /** Returns the page size of the space and whether it is compressed or not.
@@ -5895,7 +5903,7 @@ fil_io_set_encryption(
 
 	/* For writing redo log, if encryption for redo log is disabled,
 	skip setting encryption. */
-	if (req_type.is_log() && req_type.is_write()) {
+	if (req_type.is_log() && req_type.is_write() && srv_redo_log_encrypt == REDO_LOG_ENCRYPT_OFF) {
 		req_type.clear_encrypted();
 		return;
 	}
@@ -7904,12 +7912,14 @@ fil_set_encryption(
 	}
 
 	ut_ad(algorithm != Encryption::NONE);
+
 	space->encryption_type = algorithm;
         if (space->crypt_data == NULL)
         	space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
 
 	if (key == NULL) {
 		Encryption::random_value(space->encryption_key);
+		space->encryption_key_version = REDO_LOG_ENCRYPT_NO_VERSION;
 	} else {
 		memcpy(space->encryption_key,
 		       key, ENCRYPTION_KEY_LEN);
@@ -7960,9 +7970,6 @@ fil_temp_update_encryption(
 	return(err);
 }
 
-/** Default master key id for bootstrap */
-static const ulint ENCRYPTION_DEFAULT_MASTER_KEY_ID = 0;
-
 /** Rotate the tablespace key by new master key.
 @param[in]	space	tablespace object
 @return true if the re-encrypt suceeds */
@@ -8006,9 +8013,11 @@ fil_encryption_rotate()
 	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL; ) {
 		/* Skip unencypted tablespaces. */
-		if (srv_is_undo_tablespace(space->id)
-		    || space->crypt_data
-		    || space->purpose == FIL_TYPE_LOG) {
+		/* Encrypted redo log tablespaces are handled in function
+		log_rotate_encryption. */
+		if (fsp_is_system_or_temp_tablespace(space->id)
+		    || space->purpose == FIL_TYPE_LOG
+		    || space->crypt_data) {
 			space = UT_LIST_GET_NEXT(space_list, space);
 			continue;
 		}

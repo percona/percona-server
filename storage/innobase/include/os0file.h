@@ -357,6 +357,10 @@ static const char ENCRYPTION_KEY_MAGIC_V2[] = "lCB";
 
 static const char ENCRYPTION_KEY_MAGIC_PS_V1[] = "PSA";
 
+/** Encryption magic bytes for rotated redo log encryption, it's for checking the 
+encryption information version. */
+static const char ENCRYPTION_KEY_MAGIC_RK[] = "lCR";
+
 /** Encryption master key prifix */
 static const char ENCRYPTION_MASTER_KEY_PRIFIX[] = "INNODBKey";
 
@@ -395,6 +399,9 @@ static const ulint ENCRYPTION_INFO_SIZE_V2 = (ENCRYPTION_MAGIC_SIZE \
 					 + 2 * sizeof(ulint));
 
 class IORequest;
+
+static const char ENCRYPTION_DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
+static const ulint ENCRYPTION_DEFAULT_MASTER_KEY_ID = 0;
 
 /** Encryption algorithm. */
 struct Encryption {
@@ -528,6 +535,12 @@ struct Encryption {
 	static bool is_encrypted_page(const byte* page)
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Check if a log block is encrypted or not
+	@param[in]	block	block which need to check
+	@return true if it is an encrypted block */
+	static bool is_encrypted_log(const byte* block)
+		MY_ATTRIBUTE((warn_unused_result));
+
 	/** Check the encryption option and set it
 	@param[in]	option		encryption option
 	@param[in/out]	encryption	The encryption type
@@ -621,6 +634,52 @@ struct Encryption {
 	static bool can_page_be_keyring_encrypted(ulint page_type);
 	static bool can_page_be_keyring_encrypted(byte* page);
 
+	/** Fill the encryption information.
+	@param[in]	key		encryption key
+	@param[in]	iv		encryption iv
+	@param[in,out]	encrypt_info	encryption information
+	@return true if success. */
+	MY_NODISCARD
+	static bool fill_encryption_info(byte*	key,
+					 byte*	iv,
+					 byte*	encrypt_info);
+
+	/** Decoding the encryption info from the first page of a tablespace.
+	@param[in,out]	key		key
+	@param[in,out]	iv		iv
+	@param[in]	encryption_info	encrytion info.
+	@return true if success */
+	MY_NODISCARD
+	static bool decode_encryption_info(byte*	key,
+					   byte*	iv,
+					   byte*	encryption_info);
+
+	/** Encrypt the redo log block.
+	@param[in]	type		IORequest
+	@param[in,out]	src_ptr		log block which need to encrypt
+	@param[in,out]	dst_ptr		destination area
+	@return true if success. */
+	MY_NODISCARD
+	bool encrypt_log_block(
+		const IORequest&	type,
+		byte*			src_ptr,
+		byte*			dst_ptr);
+
+	/** Encrypt the redo log data contents.
+	@param[in]	type		IORequest
+	@param[in,out]	src		page data which need to encrypt
+	@param[in]	src_len		size of the source in bytes
+	@param[in,out]	dst		destination area
+	@param[in,out]	dst_len		size of the destination in bytes
+	@return buffer data, dst_len will have the length of the data */
+	MY_NODISCARD
+	byte* encrypt_log(
+		const IORequest&	type,
+		byte*			src,
+		ulint			src_len,
+		byte*			dst,
+		ulint*			dst_len);
+
 	/** Encrypt the page data contents. Page type can't be
 	FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
 	FIL_PAGE_ENCRYPTED_RTREE.
@@ -637,6 +696,34 @@ struct Encryption {
 		byte*			dst,
 		ulint*			dst_len)
 		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Decrypt the log block.
+	@param[in]	type		IORequest
+	@param[in,out]	src		data read from disk, decrypted data will be
+					copied to this page
+	@param[in,out]	dst		scratch area to use for decryption
+	@return DB_SUCCESS or error code */
+	MY_NODISCARD
+	dberr_t decrypt_log_block(
+		const IORequest&	type,
+		byte*			src,
+		byte*			dst);
+
+	/** Decrypt the log data contents.
+	@param[in]	type		IORequest
+	@param[in,out]	src		data read from disk, decrypted data will be
+					copied to this page
+	@param[in]	src_len		source data length
+	@param[in,out]	dst		scratch area to use for decryption
+	@param[in]	dst_len		size of the scratch area in bytes
+	@return DB_SUCCESS or error code */
+	MY_NODISCARD
+	dberr_t decrypt_log(
+		const IORequest&	type,
+		byte*			src,
+		ulint			src_len,
+		byte*			dst,
+		ulint			dst_len);
 
 	/** Decrypt the page data contents. Page type must be
 	FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,

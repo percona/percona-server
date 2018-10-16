@@ -76,6 +76,7 @@ void vio_set_wait_callback(void (*before_wait)(void),
 /* Array of networks which have the proxy protocol activated */
 static struct st_vio_network *vio_pp_networks= NULL;
 static size_t vio_pp_networks_nb= 0;
+static mysql_rwlock_t proxy_protocol_lock;
 
 int vio_errno(Vio *vio MY_ATTRIBUTE((unused)))
 {
@@ -705,7 +706,9 @@ void vio_proxy_protocol_add(const struct st_vio_network *net)
 protocol header */
 static my_bool vio_client_must_be_proxied(const struct sockaddr *addr)
 {
+  my_bool ret = FALSE;
   size_t i;
+  mysql_rwlock_rdlock(&proxy_protocol_lock);
   for (i= 0; i < vio_pp_networks_nb; i++)
     if (vio_pp_networks[i].family == addr->sa_family) {
       if (vio_pp_networks[i].family == AF_INET) {
@@ -713,7 +716,7 @@ static my_bool vio_client_must_be_proxied(const struct sockaddr *addr)
         struct in_addr *addr= &vio_pp_networks[i].addr.in;
         struct in_addr *mask= &vio_pp_networks[i].mask.in;
         if ((check->s_addr & mask->s_addr) == addr->s_addr)
-          return TRUE;
+          ret = TRUE;
       }
 #ifdef HAVE_IPV6
       else {
@@ -728,11 +731,12 @@ static my_bool vio_client_must_be_proxied(const struct sockaddr *addr)
                 == addr->s6_addr32[2])
             && ((check->s6_addr32[3] & mask->s6_addr32[3])
                 == addr->s6_addr32[3]))
-          return TRUE;
+          ret = TRUE;
       }
 #endif
     }
-  return FALSE;
+  mysql_rwlock_unlock(&proxy_protocol_lock);
+  return ret;
 }
 
 /* Process the proxy protocol header. Return true on an error. */
@@ -1509,4 +1513,211 @@ int vio_getnameinfo(const struct sockaddr *sa,
                      hostname, hostname_size,
                      port, port_size,
                      flags);
+}
+
+
+/**
+  Set 'proxy_protocol_networks' parameter.
+  @param[in] spec : networks in CIDR format, separated by comma and/or space
+  @param[in] dry_run : do not really change anything,
+    just check if parameter is valid.
+  @return 0 if success, otherwise -1.
+*/
+int set_proxy_protocol_networks(const char *spec, const my_bool dry_run)
+{
+  const char *p;
+  struct st_vio_network net;
+
+  mysql_rwlock_wrlock(&proxy_protocol_lock);
+
+  if ( (!dry_run) && (vio_pp_networks_nb > 0) && (vio_pp_networks != NULL))
+  {
+    my_free(vio_pp_networks);
+    vio_pp_networks_nb = 0;
+    vio_pp_networks = NULL;
+  }
+
+  /* Check for special case '*'. */
+  if (strcmp(spec, "*") == 0) {
+    if (!dry_run)
+    {
+      memset(&net, 0, sizeof(net));
+      net.family= AF_INET;
+      vio_proxy_protocol_add(&net);
+#ifdef HAVE_IPV6
+      net.family= AF_INET6;
+      vio_proxy_protocol_add(&net);
+#endif
+    }
+    goto success;
+  }
+
+  p= spec;
+
+  while(1) {
+
+    const char *start;
+    char buffer[INET6_ADDRSTRLEN + 1 + 3 + 1];
+    unsigned bits;
+
+    /* jump spaces. */
+    while (*p == ' ')
+      p++;
+    if (*p == '\0')
+      break;
+    start= p;
+
+    /* look for separator */
+    while (*p != ',' && *p != '/' && *p != ' ' && *p != '\0')
+      p++;
+    if (p - start > INET6_ADDRSTRLEN) {
+      goto fail;
+    }
+    memcpy(buffer, start, p - start);
+    buffer[p - start]= '\0';
+
+    /* Try to convert to ipv4. */
+    if (inet_pton(AF_INET, buffer, &net.addr.in))
+      net.family= AF_INET;
+
+#ifdef HAVE_IPV6
+    /* Try to convert to ipv6. */
+    else if (inet_pton(AF_INET6, buffer, &net.addr.in6))
+      net.family= AF_INET6;
+#endif
+
+    else {
+        goto fail;
+    }
+
+    /* Look for network. */
+    if (*p == '/') {
+      if (!my_isdigit(&my_charset_bin, *++p)) {
+        goto fail;
+      }
+      start= p;
+      bits= 0;
+      while (my_isdigit(&my_charset_bin, *p) && p - start < 3)
+        bits= bits * 10 + *p++ - '0';
+
+      /* Check bits value. */
+      if (net.family == AF_INET && bits > 32) {
+        goto fail;
+      }
+#ifdef HAVE_IPV6
+      if (net.family == AF_INET6 && bits > 128) {
+        goto fail;
+      }
+#endif
+    }
+    else {
+      if (net.family == AF_INET)
+        bits= 32;
+#ifdef HAVE_IPV6
+      else {
+        DBUG_ASSERT(net.family == AF_INET6);
+        bits= 128;
+      }
+#endif
+    }
+
+    /* Build binary mask. */
+    if (net.family == AF_INET) {
+      struct in_addr check;
+
+      /* Process IPv4 mask. */
+      if (bits == 0)
+        net.mask.in.s_addr= 0x00000000;
+      else if (bits == 32)
+        net.mask.in.s_addr= 0xffffffff;
+      else
+        net.mask.in.s_addr= ~((0x80000000>>(bits-1))-1);
+      net.mask.in.s_addr= htonl(net.mask.in.s_addr);
+
+      /* Apply mask */
+      check= net.addr.in;
+      check.s_addr&= net.mask.in.s_addr;
+    }
+#ifdef HAVE_IPV6
+    else {
+      struct in6_addr check;
+
+      /* Process IPv6 mask */
+      memset(&net.mask.in6, 0, sizeof(net.mask.in6));
+      if (bits > 0 && bits < 32) {
+        net.mask.in6.s6_addr32[0]= ~((0x80000000>>(bits-1))-1);
+      }
+      else if (bits == 32) {
+        net.mask.in6.s6_addr32[0]= 0xffffffff;
+      }
+      else if (bits > 32 && bits <= 64) {
+        net.mask.in6.s6_addr32[0]= 0xffffffff;
+        net.mask.in6.s6_addr32[1]= (bits == 64)
+          ? 0xffffffff : ~((0x80000000>>(bits-32-1))-1);
+      }
+      else if (bits > 64 && bits <= 96) {
+        net.mask.in6.s6_addr32[0]= 0xffffffff;
+        net.mask.in6.s6_addr32[1]= 0xffffffff;
+        net.mask.in6.s6_addr32[2]= (bits == 96)
+          ? 0xffffffff : ~((0x80000000>>(bits-64-1))-1);
+      }
+      else if (bits > 96) {
+        DBUG_ASSERT(bits <= 128);
+        net.mask.in6.s6_addr32[0]= 0xffffffff;
+        net.mask.in6.s6_addr32[1]= 0xffffffff;
+        net.mask.in6.s6_addr32[2]= 0xffffffff;
+        net.mask.in6.s6_addr32[3]= (bits == 128)
+          ? 0xffffffff : ~((0x80000000>>(bits-96-1))-1);
+      }
+
+      net.mask.in6.s6_addr32[0]= htonl(net.mask.in6.s6_addr32[0]);
+      net.mask.in6.s6_addr32[1]= htonl(net.mask.in6.s6_addr32[1]);
+      net.mask.in6.s6_addr32[2]= htonl(net.mask.in6.s6_addr32[2]);
+      net.mask.in6.s6_addr32[3]= htonl(net.mask.in6.s6_addr32[3]);
+
+      /* Apply mask */
+      check= net.addr.in6;
+      check.s6_addr32[0]&= net.mask.in6.s6_addr32[0];
+      check.s6_addr32[1]&= net.mask.in6.s6_addr32[1];
+      check.s6_addr32[2]&= net.mask.in6.s6_addr32[2];
+      check.s6_addr32[3]&= net.mask.in6.s6_addr32[3];
+
+    }
+#endif
+
+    if (*p != '\0' && *p != ',') {
+      goto fail;
+    }
+
+    if (!dry_run)
+    {
+      /* add network. */
+      vio_proxy_protocol_add(&net);
+    }
+
+    /* stop the parsing. */
+    if (*p == '\0')
+      break;
+    p++;
+  }
+
+success:
+  mysql_rwlock_unlock(&proxy_protocol_lock);
+  return 0;
+
+fail:
+  mysql_rwlock_unlock(&proxy_protocol_lock);
+  return -1;
+}
+
+my_bool init_proxy_protocol_networks(const char* spec)
+{
+#ifdef HAVE_PSI_INTERFACE
+  static PSI_rwlock_key psi_rwlock_key;
+  static PSI_rwlock_info psi_rwlock_info={ &psi_rwlock_key, "rwlock", 0 };
+  mysql_rwlock_register("proxy_proto", &psi_rwlock_info, 1);
+#endif
+
+  mysql_rwlock_init(psi_rwlock_key, &proxy_protocol_lock);
+  return set_proxy_protocol_networks(spec, FALSE) ? FALSE : TRUE;
 }

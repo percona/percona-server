@@ -706,14 +706,36 @@ static Sys_var_charptr Sys_my_bind_addr(
        IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
 #endif
 
+#ifndef vio_violite_h_
+#include <violite.h>
+#endif
+static bool check_proxy_protocol_networks(sys_var *self, THD *, set_var *var)
+{
+  if (opt_disable_networking)
+    return true;
+  else if (!var->value)
+    return false;
+  else
+    return (bool)set_proxy_protocol_networks(var->save_result.string_value.str, TRUE);
+}
+
+static bool fix_proxy_protocol_networks(sys_var *self, THD *, enum_var_type type)
+{
+  if (opt_disable_networking)
+    return true;
+  else
+    return (bool)set_proxy_protocol_networks(my_proxy_protocol_networks, FALSE);
+}
+
 static Sys_var_charptr Sys_my_proxy_protocol_networks(
        "proxy_protocol_networks", "Enable proxy protocol for these source "
        "networks. The syntax is a comma separated list of IPv4 and IPv6 "
        "networks. If the network doesn't contain mask, it is considered to be "
        "a single host. \"*\" represents all networks and must the only "
        "directive on the line.",
-       READ_ONLY GLOBAL_VAR(my_proxy_protocol_networks),
-       CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(""));
+       GLOBAL_VAR(my_proxy_protocol_networks), CMD_LINE(REQUIRED_ARG),
+       IN_FS_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_proxy_protocol_networks), ON_UPDATE(fix_proxy_protocol_networks));
 
 static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {

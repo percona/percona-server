@@ -1,7 +1,5 @@
-SET DEFAULT_STORAGE_ENGINE='tokudb';
-DROP TABLE IF EXISTS foo;
 set session tokudb_disable_slow_alter=ON;
-create table foo(a int auto_increment, b int, primary key (a));
+create table foo(a int auto_increment, b int, primary key (a)) engine=tokudb;
 insert into foo (b) values (11),(21),(32);
 select * from foo;
 a	b
@@ -53,17 +51,15 @@ foo	CREATE TABLE `foo` (
   PRIMARY KEY (`a`)
 ) ENGINE=TokuDB AUTO_INCREMENT=1006 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table foo auto_increment=100000, add column c int;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
 alter table foo auto_increment=100000, drop column b;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
 alter table foo auto_increment=100000, add key b(b);
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
 alter table foo auto_increment=100000, change b b bigint;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
 alter table foo auto_increment=100000, change b c int;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
-alter table foo auto_increment=100000, ROW_FORMAT=TOKUDB_LZMA;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
 alter table foo auto_increment=100000, change b b int DEFAULT 111;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
-DROP TABLE foo;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+drop table foo;

@@ -11509,14 +11509,6 @@ const char *create_table_info_t::create_options_are_invalid() {
     case ROW_TYPE_FIXED:
     case ROW_TYPE_PAGED:
     case ROW_TYPE_NOT_USED:
-    case ROW_TYPE_TOKU_UNCOMPRESSED:
-    case ROW_TYPE_TOKU_ZLIB:
-    case ROW_TYPE_TOKU_SNAPPY:
-    case ROW_TYPE_TOKU_QUICKLZ:
-    case ROW_TYPE_TOKU_LZMA:
-    case ROW_TYPE_TOKU_FAST:
-    case ROW_TYPE_TOKU_SMALL:
-    case ROW_TYPE_TOKU_DEFAULT:
       push_warning(m_thd, Sql_condition::SL_WARNING,
                    ER_ILLEGAL_HA_CREATE_OPTION,
                    "InnoDB: invalid ROW_FORMAT specifier.");
@@ -12032,14 +12024,6 @@ bool create_table_info_t::innobase_table_flags() {
     case ROW_TYPE_NOT_USED:
     case ROW_TYPE_FIXED:
     case ROW_TYPE_PAGED:
-    case ROW_TYPE_TOKU_UNCOMPRESSED:
-    case ROW_TYPE_TOKU_ZLIB:
-    case ROW_TYPE_TOKU_SNAPPY:
-    case ROW_TYPE_TOKU_QUICKLZ:
-    case ROW_TYPE_TOKU_LZMA:
-    case ROW_TYPE_TOKU_FAST:
-    case ROW_TYPE_TOKU_SMALL:
-    case ROW_TYPE_TOKU_DEFAULT:
       push_warning(m_thd, Sql_condition::SL_WARNING,
                    ER_ILLEGAL_HA_CREATE_OPTION,
                    "InnoDB: assuming ROW_FORMAT=DYNAMIC.");

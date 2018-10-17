@@ -362,17 +362,6 @@ inline const char *get_row_format_name(enum row_type row_format) {
       return ("ROW_FORMAT=FIXED");
     case ROW_TYPE_PAGED:
       return ("ROW_FORMAT=PAGED");
-    case ROW_TYPE_TOKU_UNCOMPRESSED:
-    case ROW_TYPE_TOKU_ZLIB:
-    case ROW_TYPE_TOKU_SNAPPY:
-    case ROW_TYPE_TOKU_QUICKLZ:
-    case ROW_TYPE_TOKU_LZMA:
-    case ROW_TYPE_TOKU_FAST:
-    case ROW_TYPE_TOKU_SMALL:
-    case ROW_TYPE_TOKU_DEFAULT:
-      // InnoDB should not see TokuDB row types
-      ut_ad(false);
-      break;
     case ROW_TYPE_NOT_USED:
       break;
   }

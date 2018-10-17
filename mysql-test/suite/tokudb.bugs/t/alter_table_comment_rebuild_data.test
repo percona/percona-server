@@ -168,14 +168,6 @@ show create table t1;
 --let $assert_cond= "$ori_file" = "$new_file"
 --source include/assert.inc
 
-# Alter table with compression method
-alter table t1 row_format=tokudb_lzma;
-show create table t1;
---let $new_file=`select internal_file_name from information_schema.tokudb_file_map where table_schema='test' and table_name='t1' and table_dictionary_name='main'`
---let $assert_text= underlying ft file name not changed after alter compression method
---let $assert_cond= "$ori_file" = "$new_file"
---source include/assert.inc
-
 #
 # Case 3: alter create options that rebuild table using copy algorithm
 #

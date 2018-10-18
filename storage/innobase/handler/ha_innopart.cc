@@ -294,6 +294,8 @@ bool Ha_innopart_share::open_table_parts(THD *thd, const TABLE *table,
   char partition_name[FN_REFLEN];
   bool index_loaded = true;
 
+  if (dd_table == nullptr) return (true);
+
 #ifdef UNIV_DEBUG
   if (m_table_share->tmp_table == NO_TMP_TABLE) {
     mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);

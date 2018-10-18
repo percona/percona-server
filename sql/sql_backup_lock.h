@@ -73,6 +73,18 @@ class Sql_cmd_unlock_instance : public Sql_cmd {
 };
 
 /**
+  Check if a current user has the privilege BACKUP_ADMIN required to run
+  LOCK INSTANCE FOR BACKUP and LOCK TABLES FOR BACKUP.
+
+  @param thd    Current thread
+
+  @retval false  A user has the privilege BACKUP_ADMIN
+  @retval true   A user doesn't have the privilege BACKUP_ADMIN
+*/
+
+bool check_backup_admin_privilege(THD *thd);
+
+/**
   Acquire exclusive Backup Lock.
 
   @param[in] thd                Current thread context

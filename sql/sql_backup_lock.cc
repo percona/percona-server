@@ -45,7 +45,7 @@
   @retval true   A user doesn't have the privilege BACKUP_ADMIN
 */
 
-static bool check_backup_admin_privilege(THD *thd) {
+bool check_backup_admin_privilege(THD *thd) {
   Security_context *sctx = thd->security_context();
 
   if (!sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first) {

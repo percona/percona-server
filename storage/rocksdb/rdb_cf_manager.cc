@@ -67,14 +67,14 @@ void Rdb_cf_manager::cleanup() {
 
 /*
   @brief
-  Find column family by name. If it doesn't exist, create it
+  Find column family by name. If it doesn't exist, maybe create it
 
   @detail
     See Rdb_cf_manager::get_cf
 */
 rocksdb::ColumnFamilyHandle *
 Rdb_cf_manager::get_or_create_cf(rocksdb::DB *const rdb,
-                                 const std::string &cf_name_arg) {
+                                 const std::string &cf_name_arg, bool create) {
   DBUG_ASSERT(rdb != nullptr);
 
   rocksdb::ColumnFamilyHandle *cf_handle = nullptr;
@@ -97,23 +97,32 @@ Rdb_cf_manager::get_or_create_cf(rocksdb::DB *const rdb,
   } else {
     /* Create a Column Family. */
     rocksdb::ColumnFamilyOptions opts;
-    m_cf_options->get_cf_options(cf_name, &opts);
+    bool cf_name_found = m_cf_options->get_cf_options(cf_name, &opts);
 
-    // NO_LINT_DEBUG
-    sql_print_information("RocksDB: creating a column family %s",
-                          cf_name.c_str());
-    sql_print_information("    write_buffer_size=%ld", opts.write_buffer_size);
-    sql_print_information("    target_file_size_base=%" PRIu64,
-                          opts.target_file_size_base);
+    if (create || cf_name_found) {
+      // NO_LINT_DEBUG
+      sql_print_information("RocksDB: creating a column family %s",
+                            cf_name.c_str());
+      sql_print_information("    write_buffer_size=%ld",
+                            opts.write_buffer_size);
+      sql_print_information("    target_file_size_base=%" PRIu64,
+                            opts.target_file_size_base);
 
-    const rocksdb::Status s =
-        rdb->CreateColumnFamily(opts, cf_name, &cf_handle);
+      const rocksdb::Status s =
+          rdb->CreateColumnFamily(opts, cf_name, &cf_handle);
 
-    if (s.ok()) {
-      m_cf_name_map[cf_handle->GetName()] = cf_handle;
-      m_cf_id_map[cf_handle->GetID()] = cf_handle;
+      if (s.ok()) {
+        m_cf_name_map[cf_handle->GetName()] = cf_handle;
+        m_cf_id_map[cf_handle->GetID()] = cf_handle;
+      } else {
+        cf_handle = nullptr;
+      }
     } else {
-      cf_handle = nullptr;
+      RDB_MUTEX_UNLOCK_CHECK(m_mutex);
+      my_error(ER_WRONG_ARGUMENTS, MYF(0),
+               "CREATE | ALTER - can not find column family for storing index "
+               "data and creation is not allowed.");
+      return nullptr;
     }
   }
 

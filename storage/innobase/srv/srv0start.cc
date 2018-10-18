@@ -2411,16 +2411,13 @@ files_checked:
 
       /* If log tracking is enabled, make it catch up with
       the old logs synchronously. */
-      bool saved_srv_track_changed_pages = srv_track_changed_pages;
       if (srv_track_changed_pages) {
         const lsn_t checkpoint_lsn = log_sys->last_checkpoint_lsn;
-        ib::info() << "Tracking redo log synchronously "
-                      "until "
+        ib::info() << "Tracking redo log synchronously until "
                    << checkpoint_lsn;
         if (!log_online_follow_redo_log()) {
           return (srv_init_abort(DB_ERROR));
         }
-        srv_track_changed_pages = false;
       }
 
       /* Close and free the redo log files, so that
@@ -2440,18 +2437,6 @@ files_checked:
 
       if (err != DB_SUCCESS) {
         return (srv_init_abort(err));
-      }
-
-      if (saved_srv_track_changed_pages) {
-        const lsn_t checkpoint_lsn = log_sys->last_checkpoint_lsn;
-        log_sys->last_checkpoint_lsn = log_get_lsn(*log_sys);
-        ib::info() << "Tracking redo log synchronously until "
-                   << checkpoint_lsn;
-        srv_track_changed_pages = true;
-        if (!log_online_follow_redo_log()) {
-          return (srv_init_abort(DB_ERROR));
-        }
-        srv_track_changed_pages = false;
       }
 
       /* create_log_files() can increase system lsn that is

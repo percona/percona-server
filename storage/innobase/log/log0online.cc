@@ -24,6 +24,7 @@ Online database log parsing for changed page tracking */
 #include <dirent.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <array>
 
 #include "my_dbug.h"
 #include "my_dir.h"
@@ -44,37 +45,392 @@ Online database log parsing for changed page tracking */
 #include "my_sys.h"   /* DEBUG_SYNC_C */
 #endif
 
+/** For the given minilog record type determine if the record has (space; page)
+associated with it.
+@param[in] type the minilog record type
+@return true if the record has (space; page) in it */
+static constexpr bool log_online_rec_has_page(mlog_id_t type) noexcept {
+  static_assert(MLOG_BIGGEST_TYPE == 65,
+                "New MTR types must be reviewed for page presence");
+  return type != MLOG_MULTI_REC_END && type != MLOG_DUMMY_RECORD &&
+         type != MLOG_COMP_PAGE_CREATE_SDI && type != MLOG_PAGE_CREATE_SDI &&
+         type != MLOG_TABLE_DYNAMIC_META
+#ifdef UNIV_LOG_LSN_DEBUG
+         && type != MLOG_LSN
+#endif
+      ;
+}
+
+/* Mutex protecting log_bmp_sys and log buffers there */
+static ib_mutex_t log_bmp_sys_mutex;
+
+/** A redo log byte buffer with associated LSN values */
+template <std::size_t CAPACITY>
+class log_buffer {
+ protected:
+  using buffer_type = std::array<byte, CAPACITY>;
+
+ public:
+  using size_type = typename buffer_type::size_type;
+  using const_iterator = typename buffer_type::const_iterator;
+
+ protected:
+  buffer_type buffer;
+  static const constexpr auto capacity = CAPACITY;
+  size_type current_size{0};
+  lsn_t start_lsn{0};
+  lsn_t current_lsn{0};
+  const_iterator current_ptr{buffer.cbegin()};
+  lsn_t limit_lsn{0};
+
+  log_buffer() noexcept {}
+
+#ifdef UNIV_DEBUG
+  MY_NODISCARD bool invariants() const noexcept {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    ut_ad(start_lsn <= current_lsn);
+    ut_ad(current_lsn <= limit_lsn);
+    ut_ad(static_cast<decltype(start_lsn)>(current_ptr - buffer.cbegin()) <=
+          current_size);
+    return true;
+  }
+#endif
+
+ public:
+  MY_NODISCARD const_iterator ccurrent() const noexcept {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    return current_ptr;
+  }
+
+  void set_limit(lsn_t limit) {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    ut_ad(limit >= limit_lsn);
+    limit_lsn = limit;
+  }
+
+  MY_NODISCARD lsn_t get_current_lsn() const noexcept {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    return current_lsn;
+  }
+};
+
 static const constexpr auto FOLLOW_SCAN_SIZE = 4 * UNIV_PAGE_SIZE_MAX;
 
+static_assert(FOLLOW_SCAN_SIZE % OS_FILE_LOG_BLOCK_SIZE == 0,
+              "FOLLOW_SCAN_SIZE must be a multiple of OS_FILE_LOG_BLOCK_SIZE");
+
+static const constexpr auto LOG_BLOCK_SIZE_NO_TRL =
+    OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE;
+
+static const constexpr auto LOG_BLOCK_BOUNDARY_LSN_PAD =
+    LOG_BLOCK_HDR_SIZE + LOG_BLOCK_TRL_SIZE;
+
+/** The buffer for reading log data, filled in by recv_read_log_recs and moved
+in chunks to the parse buffer while skipping log block headers and trailers. */
+class log_read_buffer final : public log_buffer<FOLLOW_SCAN_SIZE> {
+ public:
+  void read(lsn_t read_start, lsn_t read_end) noexcept;
+
+  MY_NODISCARD bool is_data_available() const noexcept {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    const auto result = ccurrent() < cend() && get_current_lsn() < limit_lsn;
+    if (result) {
+      ut_ad(invariants());
+    }
+    return result;
+  }
+
+  /** Check the log block checksum.
+  @return true if the log block checksum is OK, false otherwise.  */
+  MY_NODISCARD bool is_current_block_valid() const noexcept;
+
+  MY_NODISCARD uint32_t get_current_block_data_len() const noexcept {
+    ut_ad(is_current_block_valid());
+    return log_block_get_data_len(ccurrent());
+  }
+
+  MY_NODISCARD const_iterator cend() const noexcept {
+    return &buffer[current_size];
+  }
+
+  void advance() noexcept {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    ut_ad(invariants());
+    current_lsn += OS_FILE_LOG_BLOCK_SIZE;
+    ut_ad(current_lsn - start_lsn <= current_size);
+    current_ptr += OS_FILE_LOG_BLOCK_SIZE;
+  }
+
+#ifdef UNIV_DEBUG
+ private:
+  MY_NODISCARD bool invariants() const noexcept {
+    ut_ad(log_buffer::invariants());
+    // Until C++17 overaligned allocation support verify the alignment manually
+    ut_ad(reinterpret_cast<uintptr_t>(&buffer[0]) %
+              INNODB_LOG_WRITE_AHEAD_SIZE_MAX ==
+          0);
+    ut_ad((ccurrent() - buffer.cbegin()) % OS_FILE_LOG_BLOCK_SIZE == 0);
+    ut_ad((buffer.cend() - ccurrent()) % OS_FILE_LOG_BLOCK_SIZE == 0);
+    return true;
+  }
+#endif
+};
+
+void log_read_buffer::read(lsn_t read_start, lsn_t read_end) noexcept {
+  ut_ad(mutex_own(&log_bmp_sys_mutex));
+  ut_ad(read_start < limit_lsn);
+  ut_ad(get_current_lsn() >= read_start || get_current_lsn() == 0);
+  current_size = read_end - read_start;
+  ut_ad(current_size <= capacity);
+  recv_read_log_seg(*log_sys, &buffer[0], read_start, read_end, true);
+  current_lsn = start_lsn = read_start;
+  current_ptr = buffer.cbegin();
+}
+
+bool log_read_buffer::is_current_block_valid() const noexcept {
+  ut_ad(mutex_own(&log_bmp_sys_mutex));
+  ut_ad(invariants());
+  ut_ad(cend() - ccurrent() >= OS_FILE_LOG_BLOCK_SIZE);
+  const auto checksum_is_ok = log_block_checksum_is_ok(ccurrent());
+
+  if (!checksum_is_ok) {
+    // We are reading empty log blocks in some cases (such as
+    // tracking log on server startup with log resizing). Such
+    // blocks are benign, silently accept them.
+    static const byte zero_block[OS_FILE_LOG_BLOCK_SIZE] = {0};
+    if (!memcmp(ccurrent(), zero_block, OS_FILE_LOG_BLOCK_SIZE)) {
+      return true;
+    }
+
+    const auto no = log_block_get_hdr_no(ccurrent());
+    const auto expected_no = log_block_convert_lsn_to_no(current_lsn);
+    ib::fatal() << "Log block checksum mismatch: LSN " << current_lsn
+                << ", expected " << log_block_get_checksum(ccurrent()) << ", "
+                << "calculated checksum " << log_block_calc_checksum(ccurrent())
+                << ", "
+                << "stored log block n:o " << no << ", "
+                << "expected log block n:o " << expected_no;
+  }
+
+  return checksum_is_ok;
+}
+
+/** The redo log parse buffer */
+class log_parse_buffer final : public log_buffer<RECV_PARSING_BUF_SIZE> {
+ private:
+  using iterator = typename buffer_type::iterator;
+  enum class parse_result { OK, INCOMPLETE, PAST_END };
+
+  parse_result parse_status{parse_result::OK};
+  iterator end_ptr{buffer.begin()};
+  lsn_t end_lsn{0};
+
+#ifdef UNIV_DEBUG
+  MY_NODISCARD size_type size() const noexcept {
+    return end_ptr - buffer.cbegin();
+  }
+
+  MY_NODISCARD bool invariants() const noexcept {
+    ut_ad(log_buffer::invariants());
+    ut_ad(current_ptr <= end_ptr);
+    ut_ad(buffer.begin() + current_size == end_ptr);
+    ut_ad(current_lsn <= end_lsn);
+    if (current_lsn == limit_lsn) ut_ad(parse_status == parse_result::OK);
+    return true;
+  }
+#endif
+
+  MY_NODISCARD bool advance(ulint delta) noexcept;
+
+  MY_NODISCARD const_iterator cend() const noexcept {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    return end_ptr;
+  }
+
+  void move_unprocessed_to_front(parse_result new_parse_status) noexcept;
+
+  MY_NODISCARD size_type unparsed_size() const noexcept {
+    return end_ptr - current_ptr;
+  }
+
+ public:
+  MY_NODISCARD bool parse_next_record(mlog_id_t *type, space_id_t *space,
+                                      page_no_t *page_no) noexcept;
+
+  MY_NODISCARD bool can_parse_current_data() const noexcept {
+    return parse_status == parse_result::OK && ccurrent() != cend() &&
+           current_lsn < limit_lsn;
+  }
+
+  MY_NODISCARD bool parsed_past_checkpoint() const noexcept {
+    return parse_status == parse_result::PAST_END;
+  }
+
+  void reset_parse_status() { parse_status = parse_result::OK; }
+
+  void add(log_read_buffer &from, log_buffer::size_type data_len,
+           log_buffer::size_type skip_len) noexcept;
+
+  MY_NODISCARD lsn_t get_end_lsn() const noexcept { return end_lsn; }
+
+#ifdef UNIV_DEBUG
+  MY_NODISCARD bool buffer_used_up() const noexcept {
+    ut_ad(invariants());
+    switch (parse_status) {
+      case parse_result::OK:
+        if (unparsed_size() == 0) {
+          ut_ad(current_lsn == end_lsn);
+        } else {
+          ut_ad(start_lsn == current_lsn);
+          ut_ad(current_lsn < end_lsn);
+        }
+        break;
+      case parse_result::INCOMPLETE:
+      case parse_result::PAST_END:
+        ut_ad(start_lsn == current_lsn);
+        ut_ad(current_lsn < end_lsn);
+        ut_ad(unparsed_size() > 0);
+        break;
+    }
+    return true;
+  }
+#endif
+};
+
+bool log_parse_buffer::advance(ulint delta) noexcept {
+  ut_ad(mutex_own(&log_bmp_sys_mutex));
+  ut_ad(invariants());
+  ut_ad(delta > 0);
+  ut_ad(!parsed_past_checkpoint());
+  ut_ad(parse_status == parse_result::OK);
+  ut_ad(unparsed_size() >= delta);
+  const auto new_current_lsn = recv_calc_lsn_on_data_add(current_lsn, delta);
+  ut_ad(new_current_lsn % OS_FILE_LOG_BLOCK_SIZE >= LOG_BLOCK_HDR_SIZE);
+  ut_ad(new_current_lsn % OS_FILE_LOG_BLOCK_SIZE < LOG_BLOCK_SIZE_NO_TRL);
+  ut_ad(new_current_lsn - current_lsn >= delta);
+  ut_ad(new_current_lsn <= end_lsn);
+  if (new_current_lsn > limit_lsn) return false;
+  current_lsn = new_current_lsn;
+  current_ptr += delta;
+  return true;
+}
+
+void log_parse_buffer::add(log_read_buffer &from,
+                           log_buffer::size_type data_len,
+                           log_buffer::size_type skip_len) noexcept {
+  ut_ad(mutex_own(&log_bmp_sys_mutex));
+  ut_ad(from.is_current_block_valid());
+  ut_ad(!parsed_past_checkpoint());
+  // Do not skip into middle of the header
+  ut_ad(!skip_len || skip_len >= LOG_BLOCK_HDR_SIZE);
+  // Do not call this if the whole block must be skipped
+  ut_ad(skip_len < LOG_BLOCK_SIZE_NO_TRL);
+  ut_ad(data_len > LOG_BLOCK_HDR_SIZE);
+  ut_ad(data_len <= OS_FILE_LOG_BLOCK_SIZE);
+
+  const auto start_offset = skip_len ? skip_len : LOG_BLOCK_HDR_SIZE;
+  const auto end_offset =
+      (data_len == OS_FILE_LOG_BLOCK_SIZE) ? LOG_BLOCK_SIZE_NO_TRL : data_len;
+  ut_ad(end_offset > start_offset);
+  const auto actual_data_len = end_offset - start_offset;
+  const auto copy_start_lsn = from.get_current_lsn() + start_offset;
+  const auto copy_end_lsn =
+      copy_start_lsn + actual_data_len +
+      ((data_len == OS_FILE_LOG_BLOCK_SIZE) ? LOG_BLOCK_BOUNDARY_LSN_PAD : 0);
+
+#ifdef UNIV_DEBUG
+  ut_ad(end_lsn < copy_end_lsn);
+  ut_ad(current_size + actual_data_len <= capacity);
+  if (parse_status == parse_result::OK) {
+    ut_ad(copy_start_lsn >= current_lsn + unparsed_size() || current_lsn == 0);
+    ut_ad(copy_start_lsn <=
+              current_lsn + unparsed_size() + LOG_BLOCK_BOUNDARY_LSN_PAD ||
+          current_lsn == 0);
+  } else {
+    ut_ad(size() == unparsed_size());
+    ut_ad(copy_start_lsn >= current_lsn + size() || current_lsn == 0);
+  }
+  ut_ad(current_lsn != 0 || ccurrent() == buffer.cbegin());
+  ut_ad(start_lsn != 0 || ccurrent() == buffer.cbegin());
+#endif
+  memcpy(end_ptr, from.ccurrent() + start_offset, actual_data_len);
+  end_ptr += actual_data_len;
+  current_size += actual_data_len;
+  end_lsn = copy_end_lsn;
+  if (current_lsn == 0) {
+    start_lsn = current_lsn = copy_start_lsn;
+  }
+  ut_ad(invariants());
+  ut_ad(current_lsn + actual_data_len <= from.get_current_lsn() + data_len);
+  from.advance();
+  reset_parse_status();
+}
+
+bool log_parse_buffer::parse_next_record(mlog_id_t *type, space_id_t *space,
+                                         page_no_t *page_no) noexcept {
+  ut_ad(mutex_own(&log_bmp_sys_mutex));
+  ut_ad(invariants());
+  ut_ad(can_parse_current_data());
+  byte *body;
+  /* recv_sys is not initialized, so on corrupt log we will SIGSEGV. But the log
+  of a live database should not be corrupt. */
+  const auto len = recv_parse_log_rec(type, const_cast<byte *>(&*ccurrent()),
+                                      const_cast<byte *>(&*cend()), space,
+                                      page_no, false, &body);
+  if (len > 0) {
+    if (advance(len)) {
+      ut_ad(len >= 3 || !log_online_rec_has_page(*type));
+      if (!can_parse_current_data())
+        move_unprocessed_to_front(parse_result::OK);
+      return true;
+    }
+    move_unprocessed_to_front(parse_result::PAST_END);
+    return false;
+  }
+  move_unprocessed_to_front(parse_result::INCOMPLETE);
+  return false;
+}
+
+void log_parse_buffer::move_unprocessed_to_front(
+    parse_result new_parse_status) noexcept {
+  ut_ad(mutex_own(&log_bmp_sys_mutex));
+  parse_status = new_parse_status;
+  const auto new_size = unparsed_size();
+  ut_ad(new_size <= current_size);
+  ut_ad(new_size <= capacity);
+  memmove(&buffer[0], ccurrent(), new_size);
+  current_size = new_size;
+  start_lsn = current_lsn;
+  current_ptr = buffer.cbegin();
+  end_ptr = buffer.begin() + current_size;
+  ut_ad(invariants());
+  ut_ad(buffer_used_up());
+}
+
 #ifdef UNIV_PFS_MUTEX
-/* Key to register log_bmp_sys->mutex with PFS */
+/** Key to register log_bmp_sys_mutex with PFS */
 mysql_pfs_key_t log_bmp_sys_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+/** On server startup with empty database the first LSN of actual log records
+will be this. */
+static const constexpr auto MIN_TRACKED_LSN =
+    LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
+
 /** Log parsing and bitmap output data structure */
 struct log_bitmap_struct {
-  byte *read_buf_ptr; /*!< Unaligned log read buffer */
-  byte *read_buf;     /*!< log read buffer */
-  byte parse_buf[RECV_PARSING_BUF_SIZE];
-  /*!< log parse buffer */
-  byte *parse_buf_end; /*!< parse buffer position where the
-                                  next read log data should be copied to.
-                                  If the previous log records were fully
-                                  parsed, it points to the start,
-                                  otherwise points immediatelly past the
-                                  end of the incomplete log record. */
+  log_read_buffer read_buf;
+  log_parse_buffer parse_buf;
   char bmp_file_home[FN_REFLEN];
   /*!< directory for bitmap files */
   log_online_bitmap_file_t out;  /*!< The current bitmap file */
   ulint out_seq_num;             /*!< the bitmap file sequence number */
-  lsn_t start_lsn;               /*!< the LSN of the next unparsed
+  lsn_t start_lsn{0};            /*!< the LSN of the next unparsed
                                        record and the start of the next LSN
                                        interval to be parsed.  */
-  lsn_t end_lsn;                 /*!< the end of the LSN interval to be
+  lsn_t end_lsn{0};              /*!< the end of the LSN interval to be
                                          parsed, equal to the next checkpoint
                                          LSN at the time of parse */
-  lsn_t next_parse_lsn;          /*!< the LSN of the next unparsed
-                                       record in the current parse */
   ib_rbt_t *modified_pages;      /*!< the current modified page set,
                                   organized as the RB-tree with the keys
                                   of (space, 4KB-block-start-page-id)
@@ -86,13 +442,37 @@ struct log_bitmap_struct {
                                   both the correct type and the tree does
                                   not mind its overwrite during
                                   rbt_next() tree traversal. */
+
+  MY_NODISCARD lsn_t has_parse_data_to() const noexcept {
+    const auto parse_buf_end_lsn = parse_buf.get_end_lsn();
+    return parse_buf_end_lsn ? parse_buf_end_lsn : start_lsn;
+  }
+
+  void follow_up_to(lsn_t end_lsn_) noexcept {
+    ut_ad(mutex_own(&log_bmp_sys_mutex));
+    ut_ad(end_lsn_ >= end_lsn);
+    end_lsn = end_lsn_;
+    read_buf.set_limit(end_lsn);
+    parse_buf.set_limit(end_lsn);
+  }
+
+  void start_at(lsn_t start_lsn_) noexcept {
+    ut_ad(start_lsn == 0);
+    ut_ad(end_lsn == 0);
+    ut_ad(start_lsn_ >= MIN_TRACKED_LSN);
+    start_lsn = start_lsn_;
+    log_sys->tracked_lsn.store(start_lsn_);
+    end_lsn = start_lsn;
+  }
 };
 
-/* The log parsing and bitmap output struct instance */
+static void *log_bmp_sys_unaligned;
+
+/** The log parsing and bitmap output struct instance */
 static struct log_bitmap_struct *log_bmp_sys;
 
-/* Mutex protecting log_bmp_sys */
-static ib_mutex_t log_bmp_sys_mutex;
+/** A read-only MetadataRecover instance to support log record parsing */
+MetadataRecover *log_online_metadata_recover = nullptr;
 
 /** File name stem for bitmap files. */
 static const constexpr char *bmp_file_name_stem = "ib_modified_log_";
@@ -101,11 +481,6 @@ static const constexpr char *bmp_file_name_stem = "ib_modified_log_";
 name, the 2nd tag is the stem, the 3rd tag is a file sequence number, the 4th
 tag is the start LSN for the file. */
 static const constexpr char *bmp_file_name_template = "%s%s%lu_" LSN_PF ".xdb";
-
-/** On server startup with empty database the first LSN of actual log records
-will be this. */
-static const constexpr auto MIN_TRACKED_LSN =
-    LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
 
 /* Tests if num bit of bitmap is set */
 #define IS_BIT_SET(bitmap, num) \
@@ -123,7 +498,7 @@ static const constexpr auto MODIFIED_PAGE_START_LSN =
     4; /* The starting tracked LSN of this and
                                         other blocks in the same write */
 static const constexpr auto MODIFIED_PAGE_END_LSN =
-    12; /* The ending tracked LSN of this and
+    12; /* One past the last tracked LSN of this and
                                         other blocks in the same write */
 static const constexpr auto MODIFIED_PAGE_SPACE_ID =
     20; /* The space ID of tracked pages in
@@ -163,12 +538,12 @@ static int log_online_compare_bmp_keys(
   const byte *const k1 = (const byte *)p1;
   const byte *const k2 = (const byte *)p2;
 
-  const ulint k1_space = mach_read_from_4(k1 + MODIFIED_PAGE_SPACE_ID);
-  const ulint k2_space = mach_read_from_4(k2 + MODIFIED_PAGE_SPACE_ID);
+  const space_id_t k1_space = mach_read_from_4(k1 + MODIFIED_PAGE_SPACE_ID);
+  const space_id_t k2_space = mach_read_from_4(k2 + MODIFIED_PAGE_SPACE_ID);
   if (k1_space == k2_space) {
-    const ulint k1_start_page =
+    const page_no_t k1_start_page =
         mach_read_from_4(k1 + MODIFIED_PAGE_1ST_PAGE_ID);
-    const ulint k2_start_page =
+    const page_no_t k2_start_page =
         mach_read_from_4(k2 + MODIFIED_PAGE_1ST_PAGE_ID);
     return k1_start_page < k2_start_page
                ? -1
@@ -178,14 +553,11 @@ static int log_online_compare_bmp_keys(
 }
 
 /** Set a bit for tracked page in the bitmap. Expand the bitmap tree as
-necessary. */
-static void log_online_set_page_bit(ulint space, /*!<in: log record space id */
-                                    ulint page_no) /*!<in: log record page id */
-{
+necessary.
+@param[in] space   log record space id
+@param[in] page_no log record page id */
+static void log_online_set_page_bit(space_id_t space, page_no_t page_no) {
   ut_ad(mutex_own(&log_bmp_sys_mutex));
-
-  ut_a(space != ULINT_UNDEFINED);
-  ut_a(page_no != ULINT_UNDEFINED);
 
   const ulint block_start_page =
       page_no / MODIFIED_PAGE_BLOCK_ID_COUNT * MODIFIED_PAGE_BLOCK_ID_COUNT;
@@ -355,7 +727,8 @@ static bool log_online_can_track_missing(
 file, handle this too. */
   last_tracked_lsn = std::max(last_tracked_lsn, MIN_TRACKED_LSN);
 
-  if (last_tracked_lsn > tracking_start_lsn) {
+  if ((last_tracked_lsn > tracking_start_lsn) &&
+      (last_tracked_lsn % OS_FILE_LOG_BLOCK_SIZE > LOG_BLOCK_HDR_SIZE)) {
     ib::fatal() << "Last tracked LSN " << last_tracked_lsn
                 << " is ahead of tracking start LSN " << tracking_start_lsn
                 << ".  This can be caused "
@@ -378,22 +751,19 @@ static void log_online_track_missing_on_startup(
   ut_ad(last_tracked_lsn != tracking_start_lsn);
   ut_ad(srv_track_changed_pages);
 
-  ib::warn() << "Last tracked LSN in \'" << log_bmp_sys->out.name << "\' is "
-             << last_tracked_lsn << ", but the last checkpoint LSN is "
-             << tracking_start_lsn
-             << ".  This might be due to a server "
-                "crash or a very fast shutdown.";
+  ib::info() << "Last tracked LSN in \'" << log_bmp_sys->out.name << "\' is "
+             << last_tracked_lsn << ", with the last checkpoint LSN is "
+             << tracking_start_lsn << '.';
 
   /* See if we can fully recover the missing interval */
   if (log_online_can_track_missing(last_tracked_lsn, tracking_start_lsn)) {
     ib::info() << "Reading the log to advance the last tracked LSN.";
 
-    log_bmp_sys->start_lsn = std::max(last_tracked_lsn, MIN_TRACKED_LSN);
-    log_sys->tracked_lsn.store(log_bmp_sys->start_lsn);
+    log_bmp_sys->start_at(std::max(last_tracked_lsn, MIN_TRACKED_LSN));
     if (!log_online_follow_redo_log()) {
       exit(1);
     }
-    ut_ad(log_bmp_sys->end_lsn >= tracking_start_lsn);
+    ut_ad(log_bmp_sys->end_lsn == tracking_start_lsn);
 
     ib::info() << "Continuing tracking changed pages from LSN "
                << log_bmp_sys->end_lsn;
@@ -402,8 +772,7 @@ static void log_online_track_missing_on_startup(
                   "capacity, tracking-based incremental backups will "
                   "work only from the higher LSN!";
 
-    log_bmp_sys->end_lsn = log_bmp_sys->start_lsn = tracking_start_lsn;
-    log_sys->tracked_lsn.store(log_bmp_sys->start_lsn);
+    log_bmp_sys->start_at(tracking_start_lsn);
 
     ib::info() << "Starting tracking changed pages from LSN "
                << log_bmp_sys->end_lsn;
@@ -457,6 +826,7 @@ static bool log_online_start_bitmap_file(void) noexcept {
     return false;
   }
 
+  ut_ad(!log_bmp_sys->out.file.is_closed());
   log_bmp_sys->out.offset = 0;
   return true;
 }
@@ -516,13 +886,17 @@ void log_online_read_init(void) {
 
   ut_ad(srv_track_changed_pages);
 
-  log_bmp_sys = static_cast<log_bitmap_struct *>(
-      ut_malloc(sizeof(*log_bmp_sys), mem_key_log_online_sys));
-  log_bmp_sys->read_buf_ptr = static_cast<byte *>(
-      ut_malloc(FOLLOW_SCAN_SIZE + INNODB_LOG_WRITE_AHEAD_SIZE_MAX,
-                mem_key_log_online_read_buf));
-  log_bmp_sys->read_buf = static_cast<byte *>(
-      ut_align(log_bmp_sys->read_buf_ptr, INNODB_LOG_WRITE_AHEAD_SIZE_MAX));
+  log_online_metadata_recover =
+      UT_NEW(MetadataRecover(true), mem_key_log_online_sys);
+
+  log_bmp_sys_unaligned =
+      ut_malloc(sizeof(*log_bmp_sys) + INNODB_LOG_WRITE_AHEAD_SIZE_MAX - 1,
+                mem_key_log_online_sys);
+  log_bmp_sys = new (
+      (reinterpret_cast<uintptr_t>(log_bmp_sys_unaligned) %
+       INNODB_LOG_WRITE_AHEAD_SIZE_MAX)
+          ? ut_align(log_bmp_sys_unaligned, INNODB_LOG_WRITE_AHEAD_SIZE_MAX)
+          : log_bmp_sys_unaligned) log_bitmap_struct;
 
   /* Initialize bitmap file directory from srv_data_home and add a path
   separator if needed.  */
@@ -639,8 +1013,7 @@ that's the cwd */
 
   ib::info() << "Starting tracking changed pages from LSN "
              << tracking_start_lsn;
-  log_bmp_sys->start_lsn = tracking_start_lsn;
-  log_sys->tracked_lsn.store(tracking_start_lsn);
+  log_bmp_sys->start_at(tracking_start_lsn);
 }
 
 /** Shut down the dynamic part of the log tracking subsystem */
@@ -665,43 +1038,20 @@ void log_online_read_shutdown(void) noexcept {
     free_list_node = next;
   }
 
-  ut_free(log_bmp_sys->read_buf_ptr);
-  ut_free(log_bmp_sys);
+  ut_free(log_bmp_sys_unaligned);
   log_bmp_sys = nullptr;
+  log_bmp_sys_unaligned = nullptr;
 
   srv_redo_log_thread_started = false;
+
+  UT_DELETE(log_online_metadata_recover);
+  log_online_metadata_recover = nullptr;
 
   mutex_exit(&log_bmp_sys_mutex);
 }
 
 /** Shut down the constant part of the log tracking subsystem */
 void log_online_shutdown(void) noexcept { mutex_free(&log_bmp_sys_mutex); }
-
-/** For the given minilog record type determine if the record has (space; page)
-associated with it.
-@return true if the record has (space; page) in it */
-static bool log_online_rec_has_page(
-    mlog_id_t type) /*!<in: the minilog record type */
-    noexcept {
-  static_assert(MLOG_BIGGEST_TYPE == 65,
-                "New MTR types must be reviewed for page presence");
-  return type != MLOG_MULTI_REC_END && type != MLOG_DUMMY_RECORD &&
-         type != MLOG_COMP_PAGE_CREATE_SDI && type != MLOG_PAGE_CREATE_SDI &&
-         type != MLOG_TABLE_DYNAMIC_META;
-}
-
-/** Check if a page field for a given log record type actually contains a page
-id. It does not for file operations and MLOG_LSN.
-@return true if page field contains actual page id, false otherwise */
-static bool log_online_rec_page_means_page(
-    mlog_id_t type) /*!<in: log record type */
-    noexcept {
-  return log_online_rec_has_page(type)
-#ifdef UNIV_LOG_LSN_DEBUG
-         && type != MLOG_LSN
-#endif
-      ;
-}
 
 /** Parse the log data in the parse buffer for the (space, page) pairs and add
 them to the modified page set as necessary.  Removes the fully-parsed records
@@ -710,123 +1060,52 @@ buffer. */
 static void log_online_parse_redo_log(void) {
   ut_ad(mutex_own(&log_bmp_sys_mutex));
 
-  byte *ptr = log_bmp_sys->parse_buf;
-  byte *end = log_bmp_sys->parse_buf_end;
-  ulint len = 0;
-
-  while (ptr != end && log_bmp_sys->next_parse_lsn < log_bmp_sys->end_lsn) {
+  while (log_bmp_sys->parse_buf.can_parse_current_data()) {
     mlog_id_t type;
     space_id_t space;
     page_no_t page_no;
-    byte *body;
 
-    /* recv_sys is not initialized, so on corrupt log we will
-    SIGSEGV.  But the log of a live database should not be
-    corrupt. */
-    len = recv_parse_log_rec(&type, ptr, end, &space, &page_no, false, &body);
-    if (len > 0) {
-      if (log_online_rec_page_means_page(type)) {
-        ut_a(len >= 3);
-        log_online_set_page_bit(space, page_no);
-      }
-
-      ptr += len;
-      ut_ad(ptr <= end);
-      log_bmp_sys->next_parse_lsn =
-          recv_calc_lsn_on_data_add(log_bmp_sys->next_parse_lsn, len);
-    } else {
-      /* Incomplete log record.  Shift it to the
-      beginning of the parse buffer and leave it to be
-      completed on the next read.  */
-      ut_memmove(log_bmp_sys->parse_buf, ptr, end - ptr);
-      log_bmp_sys->parse_buf_end = log_bmp_sys->parse_buf + (end - ptr);
-      ptr = end;
-    }
+    const auto rec_parsed =
+        log_bmp_sys->parse_buf.parse_next_record(&type, &space, &page_no);
+    ut_ad(log_bmp_sys->parse_buf.get_current_lsn() <=
+          log_bmp_sys->read_buf.get_current_lsn() + LOG_BLOCK_BOUNDARY_LSN_PAD);
+    if (rec_parsed && log_online_rec_has_page(type))
+      log_online_set_page_bit(space, page_no);
   }
-
-  if (len > 0) {
-    log_bmp_sys->parse_buf_end = log_bmp_sys->parse_buf;
-  }
-}
-
-/** Check the log block checksum.
-@return true if the log block checksum is OK, false otherwise.  */
-MY_ATTRIBUTE((warn_unused_result))
-static bool log_online_is_valid_log_seg(
-    const byte *log_block, /*!< in: read log data */
-    lsn_t log_block_lsn)   /*!< in: expected LSN of the log block */
-    noexcept {
-  const bool checksum_is_ok = log_block_checksum_is_ok(log_block);
-
-  if (!checksum_is_ok) {
-    // We are reading empty log blocks in some cases (such as
-    // tracking log on server startup with log resizing). Such
-    // blocks are benign, silently accept them.
-    static const byte zero_block[OS_FILE_LOG_BLOCK_SIZE] = {0};
-    if (!memcmp(log_block, zero_block, OS_FILE_LOG_BLOCK_SIZE)) return true;
-
-    const ulint no = log_block_get_hdr_no(log_block);
-    const ulint expected_no = log_block_convert_lsn_to_no(log_block_lsn);
-    ib::error() << "Log block checksum mismatch: LSN " << log_block_lsn
-                << ", expected " << log_block_get_checksum(log_block) << ", "
-                << "calculated checksum " << log_block_calc_checksum(log_block)
-                << ", "
-                << "stored log block n:o " << no << ", "
-                << "expected log block n:o " << expected_no;
-    ut_error;
-  }
-
-  return checksum_is_ok;
-}
-
-/** Copy new log data to the parse buffer while skipping log block header,
-trailer and already parsed data.  */
-static void log_online_add_to_parse_buf(
-    const byte *log_block, /*!< in: read log data */
-    ulint data_len,        /*!< in: length of read log data */
-    ulint skip_len)        /*!< in: how much of log data to
-                                   skip */
-    noexcept {
-  ut_ad(mutex_own(&log_bmp_sys_mutex));
-  // Do not skip into middle of the header
-  ut_ad(!skip_len || skip_len >= LOG_BLOCK_HDR_SIZE);
-  // Do not call this if the whole block must be skipped
-  ut_ad(skip_len < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
-
-  const ulint start_offset = skip_len ? skip_len : LOG_BLOCK_HDR_SIZE;
-  const ulint end_offset = (data_len == OS_FILE_LOG_BLOCK_SIZE)
-                               ? data_len - LOG_BLOCK_TRL_SIZE
-                               : data_len;
-  const ulint actual_data_len =
-      (end_offset >= start_offset) ? end_offset - start_offset : 0;
-
-  ut_memcpy(log_bmp_sys->parse_buf_end, log_block + start_offset,
-            actual_data_len);
-
-  log_bmp_sys->parse_buf_end += actual_data_len;
-
-  ut_a(log_bmp_sys->parse_buf_end - log_bmp_sys->parse_buf <=
-       RECV_PARSING_BUF_SIZE);
+  ut_ad(log_bmp_sys->parse_buf.buffer_used_up());
 }
 
 /** Parse the log block: first copies the read log data to the parse buffer
 while skipping log block header, trailer and already parsed data.  Then it
-actually parses the log to add to the modified page bitmap. */
+actually parses the log to add to the modified page bitmap.
+@param[in,out] from log read buffer to take data from
+@param[in] skip_already_parsed_len how many bytes of log data should be skipped
+as they were parsed before */
 static void log_online_parse_redo_log_block(
-    const byte *log_block,         /*!< in: read log data */
-    ulint skip_already_parsed_len) /*!< in: how many bytes of
-                                            log data should be skipped as
-                                            they were parsed before */
-{
+    log_read_buffer &from, size_t skip_already_parsed_len) noexcept {
   ut_ad(mutex_own(&log_bmp_sys_mutex));
+  ut_ad(skip_already_parsed_len <= LOG_BLOCK_SIZE_NO_TRL);
 
-  const ulint block_data_len = log_block_get_data_len(log_block);
+  const auto block_data_len = from.get_current_block_data_len();
+  ut_ad(block_data_len == 0 || block_data_len >= LOG_BLOCK_HDR_SIZE);
+  ut_ad(block_data_len <= OS_FILE_LOG_BLOCK_SIZE);
+  if (skip_already_parsed_len == block_data_len || block_data_len == 0) {
+    log_bmp_sys->read_buf.advance();
+    return;
+  }
+  ut_ad(skip_already_parsed_len < block_data_len);
+  if (skip_already_parsed_len == LOG_BLOCK_SIZE_NO_TRL &&
+      block_data_len == OS_FILE_LOG_BLOCK_SIZE) {
+    log_bmp_sys->read_buf.advance();
+    return;
+  }
+  if (block_data_len == LOG_BLOCK_HDR_SIZE) {
+    log_bmp_sys->read_buf.advance();
+    return;
+  }
 
-  ut_ad(block_data_len % OS_FILE_LOG_BLOCK_SIZE == 0 ||
-        block_data_len < OS_FILE_LOG_BLOCK_SIZE);
-
-  log_online_add_to_parse_buf(log_block, block_data_len,
-                              skip_already_parsed_len);
+  log_bmp_sys->parse_buf.add(log_bmp_sys->read_buf, block_data_len,
+                             skip_already_parsed_len);
   log_online_parse_redo_log();
 }
 
@@ -838,47 +1117,38 @@ static bool log_online_follow_log_seg(
 {
   ut_ad(mutex_own(&log_bmp_sys_mutex));
 
-  /* Pointer to the current OS_FILE_LOG_BLOCK-sized chunk of the read log
-  data to parse */
-  byte *log_block = log_bmp_sys->read_buf;
-  byte *log_block_end =
-      log_bmp_sys->read_buf + (block_end_lsn - block_start_lsn);
+  log_bmp_sys->read_buf.read(block_start_lsn, block_end_lsn);
 
-  recv_read_log_seg(*log_sys, log_bmp_sys->read_buf, block_start_lsn,
-                    block_end_lsn, true);
+  // Skip complete blocks already in the parse buffer
+  while (log_bmp_sys->read_buf.get_current_lsn() + OS_FILE_LOG_BLOCK_SIZE <=
+             log_bmp_sys->has_parse_data_to() &&
+         log_bmp_sys->read_buf.is_data_available()) {
+    log_bmp_sys->read_buf.advance();
+  }
 
-  while (log_block < log_block_end &&
-         log_bmp_sys->next_parse_lsn < log_bmp_sys->end_lsn) {
-    if (!log_online_is_valid_log_seg(log_block, block_start_lsn)) {
-      return false;
-    }
+  if (!log_bmp_sys->read_buf.is_data_available()) return true;
 
-    /* How many bytes of log data should we skip in the current log
-    block.  Skipping is necessary because we round down the next
-    parse LSN thus it is possible to read the already-processed log
-    data many times */
-    ulint skip_already_parsed_len = 0;
+  if (log_bmp_sys->has_parse_data_to() >
+      log_bmp_sys->read_buf.get_current_lsn()) {
+    // Seeking to the new read data to start parsing from, next block must be
+    // fully or partially new data to parse
+    ut_ad(log_bmp_sys->read_buf.get_current_lsn() <
+          log_bmp_sys->has_parse_data_to());
+    ut_ad(log_bmp_sys->read_buf.get_current_lsn() + OS_FILE_LOG_BLOCK_SIZE >
+          log_bmp_sys->has_parse_data_to());
 
-    if ((block_start_lsn <= log_bmp_sys->next_parse_lsn) &&
-        (block_start_lsn + OS_FILE_LOG_BLOCK_SIZE >
-         log_bmp_sys->next_parse_lsn)) {
-      /* The next parse LSN is inside the current block, skip
-      data preceding it. */
-      skip_already_parsed_len =
-          (ulint)(log_bmp_sys->next_parse_lsn - block_start_lsn);
-    } else {
-      /* If the next parse LSN is not inside the current
-      block, then the only option is that we have processed
-      ahead already. */
-      ut_a(block_start_lsn > log_bmp_sys->next_parse_lsn);
-    }
+    /* How many bytes of log data should we skip in the current log block. */
+    const auto skip_already_in_parse_buf_len =
+        static_cast<ulint>(log_bmp_sys->has_parse_data_to() -
+                           log_bmp_sys->read_buf.get_current_lsn());
+    log_online_parse_redo_log_block(log_bmp_sys->read_buf,
+                                    skip_already_in_parse_buf_len);
+  }
 
-    /* TODO: merge the copying to the parse buf code with
-    skip_already_len calculations */
-    log_online_parse_redo_log_block(log_block, skip_already_parsed_len);
-
-    log_block += OS_FILE_LOG_BLOCK_SIZE;
-    block_start_lsn += OS_FILE_LOG_BLOCK_SIZE;
+  while (log_bmp_sys->read_buf.is_data_available() &&
+         !log_bmp_sys->parse_buf.parsed_past_checkpoint()) {
+    if (!log_bmp_sys->read_buf.is_current_block_valid()) return false;
+    log_online_parse_redo_log_block(log_bmp_sys->read_buf, 0);
   }
 
   return true;
@@ -896,9 +1166,6 @@ static bool log_online_follow_log(
   lsn_t block_start_lsn = contiguous_lsn;
   lsn_t block_end_lsn;
 
-  log_bmp_sys->next_parse_lsn = log_bmp_sys->start_lsn;
-  log_bmp_sys->parse_buf_end = log_bmp_sys->parse_buf;
-
   do {
     block_end_lsn = block_start_lsn + FOLLOW_SCAN_SIZE;
 
@@ -908,16 +1175,13 @@ static bool log_online_follow_log(
     /* Next parse LSN can become higher than the last read LSN
     only in the case when the read LSN falls right on the block
     boundary, in which case next parse lsn is bumped to the actual
-    data LSN on the next (not yet read) block.  This assert is
-    slightly conservative.  */
-    ut_a(log_bmp_sys->next_parse_lsn <=
-         block_end_lsn + LOG_BLOCK_HDR_SIZE + LOG_BLOCK_TRL_SIZE);
+    data LSN on the next (not yet read) block. */
+    ut_a(log_bmp_sys->parse_buf.get_current_lsn() <=
+         block_end_lsn + LOG_BLOCK_BOUNDARY_LSN_PAD);
 
     block_start_lsn = block_end_lsn;
   } while (block_end_lsn < log_bmp_sys->end_lsn);
 
-  /* Assert that the last read log record is a full one */
-  ut_a(log_bmp_sys->parse_buf_end == log_bmp_sys->parse_buf);
   return true;
 }
 
@@ -930,16 +1194,13 @@ static bool log_online_write_bitmap_page(
 {
   ut_ad(srv_track_changed_pages);
   ut_ad(mutex_own(&log_bmp_sys_mutex));
+  ut_ad(!log_bmp_sys->out.file.is_closed());
 
   /* Simulate a write error */
   DBUG_EXECUTE_IF("bitmap_page_write_error", {
-    ulint space_id = mach_read_from_4(block + MODIFIED_PAGE_SPACE_ID);
-    if (space_id > 0) {
-      ib::error() << "simulating bitmap write "
-                     "error in "
-                     "log_online_write_bitmap_page "
-                     "for space ID "
-                  << space_id;
+    if (!srv_is_being_started) {
+      ib::error()
+          << "simulating bitmap write error in log_online_write_bitmap_page";
       return false;
     }
   });
@@ -947,7 +1208,8 @@ static bool log_online_write_bitmap_page(
   /* A crash injection site that ensures last checkpoint LSN > last
   tracked LSN, so that LSN tracking for this interval is tested. */
   DBUG_EXECUTE_IF("crash_before_bitmap_write", {
-    ulint space_id = mach_read_from_4(block + MODIFIED_PAGE_SPACE_ID);
+    const space_id_t space_id =
+        mach_read_from_4(block + MODIFIED_PAGE_SPACE_ID);
     if (space_id > 0) DBUG_SUICIDE();
   });
 
@@ -991,6 +1253,7 @@ static bool log_online_write_bitmap(void) {
       return false;
     }
   }
+  ut_ad(!log_bmp_sys->out.file.is_closed());
 
   ib_rbt_node_t *bmp_tree_node =
       (ib_rbt_node_t *)rbt_first(log_bmp_sys->modified_pages);
@@ -1002,6 +1265,10 @@ static bool log_online_write_bitmap(void) {
   while (bmp_tree_node) {
     byte *page = rbt_value(byte, bmp_tree_node);
 
+#ifdef UNIV_DEBUG
+    const space_id_t space_id = mach_read_from_4(page + MODIFIED_PAGE_SPACE_ID);
+#endif
+
     /* In case of a bitmap page write error keep on looping over
     the tree to reclaim its memory through the free list instead of
     returning immediatelly. */
@@ -1011,7 +1278,8 @@ static bool log_online_write_bitmap(void) {
       }
 
       mach_write_to_8(page + MODIFIED_PAGE_START_LSN, log_bmp_sys->start_lsn);
-      mach_write_to_8(page + MODIFIED_PAGE_END_LSN, log_bmp_sys->end_lsn);
+      mach_write_to_8(page + MODIFIED_PAGE_END_LSN,
+                      log_bmp_sys->parse_buf.get_current_lsn());
       mach_write_to_4(page + MODIFIED_PAGE_BLOCK_CHECKSUM,
                       log_online_calc_checksum(page));
 
@@ -1024,14 +1292,24 @@ static bool log_online_write_bitmap(void) {
     bmp_tree_node =
         (ib_rbt_node_t *)rbt_next(log_bmp_sys->modified_pages, bmp_tree_node);
 
-    DBUG_EXECUTE_IF("bitmap_page_2_write_error", if (bmp_tree_node) {
-      DBUG_SET("+d,bitmap_page_write_error");
-      DBUG_SET("-d,bitmap_page_2_write_error");
-    });
+    DBUG_EXECUTE_IF("bitmap_page_2_write_error",
+                    if (bmp_tree_node && fsp_is_ibd_tablespace(space_id)) {
+                      DBUG_SET("+d,bitmap_page_write_error");
+                      DBUG_SET("-d,bitmap_page_2_write_error");
+                    });
   }
 
   rbt_reset(log_bmp_sys->modified_pages);
   return success;
+}
+
+static void log_online_parse_complete_recs_past_previous_checkpoint() noexcept {
+  ut_ad(mutex_own(&log_bmp_sys_mutex));
+
+  if (!log_bmp_sys->parse_buf.parsed_past_checkpoint()) return;
+  log_bmp_sys->parse_buf.reset_parse_status();
+
+  log_online_parse_redo_log();
 }
 
 /** Read and parse the redo log up to last checkpoint LSN to build the changed
@@ -1052,18 +1330,21 @@ bool log_online_follow_redo_log(void) {
     return true;
   }
 
+  ut_ad(!log_bmp_sys->out.file.is_closed());
+
   /* Grab the LSN of the last checkpoint, we will parse up to it */
-  log_bmp_sys->end_lsn = log_get_checkpoint_lsn(*log_sys);
+  /* Parse up to the LSN of the last checkpoint */
+  log_bmp_sys->follow_up_to(log_get_checkpoint_lsn(*log_sys));
 
   if (log_bmp_sys->end_lsn == log_bmp_sys->start_lsn) {
     mutex_exit(&log_bmp_sys_mutex);
     return true;
   }
 
-  const lsn_t contiguous_start_lsn =
-      ut_uint64_align_down(log_bmp_sys->start_lsn, OS_FILE_LOG_BLOCK_SIZE);
+  log_online_parse_complete_recs_past_previous_checkpoint();
 
-  bool result = log_online_follow_log(contiguous_start_lsn);
+  bool result = log_online_follow_log(
+      ut_uint64_align_down(log_bmp_sys->start_lsn, OS_FILE_LOG_BLOCK_SIZE));
 
   if (result) {
     result = log_online_write_bitmap();
@@ -1085,6 +1366,7 @@ static void log_online_diagnose_inconsistent_dir(
   ib::warn() << "Inconsistent bitmap file directory for a "
                 "INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query";
   ut_free(bitmap_files->files);
+  bitmap_files->files = nullptr;
 }
 
 /** List the bitmap files in srv_data_home and setup their range that contains
@@ -1133,20 +1415,34 @@ static bool log_online_setup_bitmap_file_range(
 
     if (file_seq_num > last_file_seq_num) last_file_seq_num = file_seq_num;
 
-    if (file_start_lsn >= range_start ||
-        file_start_lsn == first_file_start_lsn ||
-        first_file_start_lsn > range_start) {
-      /* A file that falls into the range */
-      if (file_start_lsn < first_file_start_lsn)
+    if (file_start_lsn >= range_start) {
+      // A file that falls into the range
+      if (file_start_lsn < first_file_start_lsn) {
+        if (file_seq_num >= first_file_seq_num) {
+          log_online_diagnose_inconsistent_dir(bitmap_files);
+          my_dirend(bitmap_dir);
+          return false;
+        }
         first_file_start_lsn = file_start_lsn;
-      if (file_seq_num < first_file_seq_num)
+        ut_ad(file_seq_num < first_file_seq_num);
         first_file_seq_num = file_seq_num;
-      else if (file_start_lsn > first_file_start_lsn) {
-        /* A file that has LSN closer to the range start but smaller than
-it, replacing another such file */
+      }
+    } else if (first_file_start_lsn > range_start) {
+      // A file that does not fully fall into range but we haven't found the
+      // file containing the range start yet
+      ut_ad(file_start_lsn < range_start);
+      if (file_start_lsn > first_file_start_lsn ||
+          first_file_start_lsn == LSN_MAX) {
+        // A file whose starting LSN is less than range start LSN, but larger
+        // than the LSN of a previously considered file to start the range
         first_file_start_lsn = file_start_lsn;
         first_file_seq_num = file_seq_num;
       }
+    }
+    if ((file_start_lsn == first_file_start_lsn) &&
+        (file_seq_num < first_file_seq_num)) {
+      // An empty file with lower sequence number
+      first_file_seq_num = file_seq_num;
     }
   }
   my_dirend(bitmap_dir);
@@ -1513,6 +1809,7 @@ bool log_online_purge_changed_page_bitmaps(
   }
 
   if (srv_redo_log_thread_started && lsn > log_bmp_sys->end_lsn) {
+    ut_ad(log_bmp_sys->end_lsn > 0);
     /* If we have to delete the current output file, close it
     first. */
     os_file_close(log_bmp_sys->out.file);
@@ -1560,6 +1857,7 @@ bool log_online_purge_changed_page_bitmaps(
       }
     }
 
+    ut_ad(!log_bmp_sys->out.file.is_closed() || !srv_track_changed_pages);
     mutex_exit(&log_bmp_sys_mutex);
   }
 

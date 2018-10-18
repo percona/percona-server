@@ -1228,7 +1228,7 @@ void warn_about_deprecated_national(THD *thd)
 /*
    Tokens from Percona Server 5.7 and older
 */
-%token CHANGED_PAGE_BITMAPS_SYM
+%token<keyword> CHANGED_PAGE_BITMAPS_SYM
 %token<keyword> CLIENT_STATS_SYM
 %token CLUSTERING_SYM
 %token<keyword> COMPRESSION_DICTIONARY_SYM
@@ -13946,6 +13946,7 @@ role_or_label_keyword:
         | CATALOG_NAME_SYM
         | CHAIN_SYM
         | CHANGED
+        | CHANGED_PAGE_BITMAPS_SYM
         | CHANNEL_SYM
         | CIPHER_SYM
         | CLASS_ORIGIN_SYM

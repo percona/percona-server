@@ -27,7 +27,7 @@ let $t1_space_id =
 		INFORMATION_SCHEMA.INNODB_TABLES.NAME LIKE 'test/t1'`;
 
 --source include/restart_mysqld.inc
-                
+
 let $r1_start= `SELECT MIN(START_LSN) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES`;
 let $r1_end= `SELECT MAX(END_LSN) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES`;
 
@@ -162,7 +162,7 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
 SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE END_LSN = @max_end_lsn;
-  
+
 SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE
@@ -259,7 +259,7 @@ SELECT COUNT(*)
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE
   END_LSN >= (@max_end_lsn + 1);
-      
+
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE START_LSN = (@min_start_lsn - 1);
 
@@ -281,7 +281,7 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE (START_LSN > @cond_test_max_lsn AND END_LSN < @cond_test_max_lsn)
   OR (START_LSN > @cond_test_max_lsn + 10 AND END_LSN < @cond_test_max_lsn - 10);
-  
+
 # Test the combination of ICP and bitmap file selection
 --disable_query_log
 --disable_result_log
@@ -298,7 +298,7 @@ eval SET @r1_r2_pages= (SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_P
 
 eval SET @r2_r4_pages= (SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE START_LSN >= $r2_end AND END_LSN <= $r4_end);
-  
+
 eval SET @r2_r3_pages= (SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE START_LSN >= $r2_end AND END_LSN <= $r3_end);
 
@@ -307,10 +307,26 @@ eval SET @r3_r4_pages= (SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_P
 --enable_result_log
 --enable_query_log
 
-SELECT @total_pages=@r1_r4_pages AS should_be_1;
-SELECT @r1_r2_pages+@r2_r3_pages+@r3_r4_pages=@r1_r4_pages AS should_be_1;
-SELECT @r1_r2_pages+@r2_r3_pages=@r1_r3_pages AS should_be_1;
-SELECT @r2_r3_pages+@r3_r4_pages=@r2_r4_pages AS should_be_1;
+--let $assert_debug= SELECT $r1_start, $r1_end, $r2_start, $r2_end, $r3_start, $r3_end, $r4_start, $r4_end, @total_pages, @r1_r4_pages, @r1_r2_pages, @r2_r3_pages, @r3_r4_pages, @r1_r3_pages, @r2_r4_pages;
+
+# Cannot compare for equality total against r1-r4 due to further InnoDB workload
+--let $assert_text= Total changed pages must be no less than tracked pages between r1 and r4
+--let $assert_cond= @total_pages>=@r1_r4_pages
+--source include/assert.inc
+
+--let $assert_text= Sum of r1-r2, r2-r3, and r3-r4 tracked pages must be equal to r1-r4
+--let $assert_cond= @r1_r2_pages+@r2_r3_pages+@r3_r4_pages=@r1_r4_pages
+--source include/assert.inc
+
+--let $assert_text= Sum of r1-r2 and r2-r3 tracked pages must be equal to r1-r3
+--let $assert_cond= @r1_r2_pages+@r2_r3_pages=@r1_r3_pages
+--source include/assert.inc
+
+--let $assert_text= Sum of r2-r3 and r3-r4 tracked pages must be equal to r2-r4
+--let $assert_cond= @r2_r3_pages+@r3_r4_pages=@r2_r4_pages AS should_be_1
+--source include/assert.inc
+
+--let $assert_debug=
 
 ################################################
 # Check how limit for maximum rows count works #

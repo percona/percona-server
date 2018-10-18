@@ -3,6 +3,7 @@
 ########################################################################
 
 --source include/have_myisam.inc
+--source include/have_debug.inc
 --source include/have_log_bin.inc
 
 # Deletes all the binary logs
@@ -19,17 +20,15 @@ INSERT INTO t2 VALUES(2);
 
 LOCK TABLES FOR BACKUP;
 
---exec echo "restart: --log-error=$MYSQLTEST_VARDIR/log/my_restart.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
+--let $custom_log_file = $MYSQLTEST_VARDIR/log/my_restart.err
+--let $do_not_echo_parameters = 1
+--let $restart_parameters = restart: --debug=+d,ib_recovery_print_mysql_binlog_offset --log-error=$custom_log_file --log-error-verbosity=3
+--source include/kill_and_restart_mysqld.inc
 
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
---let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err
+--let SEARCH_FILE= $custom_log_file
 --let SEARCH_PATTERN= \[InnoDB\] Last MySQL binlog file position 0 $binlog_pos, file name $binlog_file
 --source include/search_pattern.inc
 
---remove_file $SEARCH_FILE
+--remove_file $custom_log_file
 
-DROP TABLE t1;
+DROP TABLE t1, t2;

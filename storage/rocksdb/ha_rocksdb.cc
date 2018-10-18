@@ -1195,7 +1195,8 @@ static MYSQL_SYSVAR_STR(override_cf_options, rocksdb_override_cf_options,
                         "");
 
 static MYSQL_SYSVAR_STR(update_cf_options, rocksdb_update_cf_options,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_NOCMDOPT,
                         "Option updates per column family for RocksDB",
                         rocksdb_validate_update_cf_options,
                         rocksdb_set_update_cf_options, nullptr);

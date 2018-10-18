@@ -116,6 +116,8 @@ SET SESSION long_query_time = @old_long_query_time;
 SET GLOBAL log_output = @old_log_output;
 SET GLOBAL slow_query_log = @old_slow_query_log;
 SET GLOBAL general_log = @old_general_log;
+TRUNCATE TABLE mysql.slow_log;
+TRUNCATE TABLE mysql.general_log;
 
 --echo #-----------------------------------------------------------------------
 --echo # Multi-threaded tests
@@ -258,9 +260,13 @@ INSERT INTO tt_csv VALUES(5);
 INSERT INTO tt_blackhole VALUES(5);
 INSERT INTO tt_archive VALUES(5);
 
+--connection default
+--echo # connection default
+
 UNLOCK TABLES;
 
-COMMIT;
+--connection con1
+--echo # connection con1
 
 DROP TEMPORARY TABLE tt_innodb;
 DROP TEMPORARY TABLE tt_myisam;
@@ -268,6 +274,9 @@ DROP TEMPORARY TABLE tt_memory;
 DROP TEMPORARY TABLE tt_csv;
 DROP TEMPORARY TABLE tt_blackhole;
 DROP TEMPORARY TABLE tt_archive;
+
+--connection default
+--echo # connection default
 
 --echo #-----------------------------------------------------------------------
 --echo # Cleanup

@@ -146,7 +146,8 @@
 #include "sql/sp_rcontext.h"
 #include "sql/sql_admin.h"
 #include "sql/sql_alter.h"
-#include "sql/sql_audit.h"   // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
+#include "sql/sql_audit.h"  // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
+#include "sql/sql_backup_lock.h"
 #include "sql/sql_base.h"    // find_temporary_table
 #include "sql/sql_binlog.h"  // mysql_client_binlog_statement
 #include "sql/sql_check_constraint.h"
@@ -2872,7 +2873,7 @@ err:
 static bool lock_tables_for_backup(THD *thd) {
   DBUG_ENTER("lock_tables_for_backup");
 
-  if (check_global_access(thd, RELOAD_ACL)) DBUG_RETURN(true);
+  if (check_backup_admin_privilege(thd)) DBUG_RETURN(true);
 
   if (delay_key_write_options == DELAY_KEY_WRITE_ALL) {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "delay_key_write=ALL");

@@ -258,9 +258,13 @@ INSERT INTO tt_csv VALUES(5);
 INSERT INTO tt_blackhole VALUES(5);
 INSERT INTO tt_archive VALUES(5);
 
+--connection default
+--echo # connection default
+
 UNLOCK TABLES;
 
-COMMIT;
+--connection con1
+--echo # connection con1
 
 DROP TEMPORARY TABLE tt_innodb;
 DROP TEMPORARY TABLE tt_myisam;
@@ -268,6 +272,9 @@ DROP TEMPORARY TABLE tt_memory;
 DROP TEMPORARY TABLE tt_csv;
 DROP TEMPORARY TABLE tt_blackhole;
 DROP TEMPORARY TABLE tt_archive;
+
+--connection default
+--echo # connection default
 
 --echo #-----------------------------------------------------------------------
 --echo # Cleanup

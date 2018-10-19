@@ -4926,7 +4926,8 @@ bool Rdb_dict_manager::init(rocksdb::TransactionDB *const rdb_dict,
 
   m_db = rdb_dict;
 
-  m_system_cfh = cf_manager->get_or_create_cf(m_db, DEFAULT_SYSTEM_CF_NAME);
+  m_system_cfh =
+      cf_manager->get_or_create_cf(m_db, DEFAULT_SYSTEM_CF_NAME, true);
   rocksdb::ColumnFamilyHandle *default_cfh =
       cf_manager->get_cf(DEFAULT_CF_NAME);
 

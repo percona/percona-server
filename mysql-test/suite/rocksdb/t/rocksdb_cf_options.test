@@ -49,6 +49,30 @@ select cf_name, option_type, value
                         'MAX_BYTES_FOR_LEVEL_MULTIPLIER')
   order by cf_name, option_type;
 
+# restart with no_create_column_family and column family options for new cf which is not yet created
+
+--let $restart_parameters=restart:--rocksdb_no_create_column_family=1 --rocksdb_override_cf_options=cf3={write_buffer_size=8m;target_file_size_base=2m};cf4={write_buffer_size=16m;max_bytes_for_level_multiplier=8};
+--source include/restart_mysqld.inc
+
+--let $assert_text="Expected cf3 and cf4 to not exist"
+--let $assert_cond="[select count(distinct cf_name) from information_schema.rocksdb_cf_options where cf_name in (\'cf3\', \'cf4\')]" = 0
+--source include/assert.inc
+
+create table t4 (a int,
+                 primary key (a) comment 'cf3') engine=rocksdb;
+
+--let $assert_text="Expected cf3 to exist"
+--let $assert_cond="[select count(distinct cf_name) from information_schema.rocksdb_cf_options where cf_name in (\'cf3\')]" = 1
+--source include/assert.inc
+
+--error ER_WRONG_ARGUMENTS
+create table t5 (a int,
+                 primary key (a) comment 'nobodyknows') engine=rocksdb;
+
+--let $assert_text="Expected cf4 to NOT exist"
+--let $assert_cond="[select count(distinct cf_name) from information_schema.rocksdb_cf_options where cf_name in (\'cf4\')]" = 0
+--source include/assert.inc
+
 # syntax error in options (no equal sign)
 
 --exec echo "restart:--rocksdb_override_cf_options=cf1" > $_expect_file_name
@@ -73,5 +97,4 @@ select cf_name, option_type, value
 --source include/restart_mysqld.inc
 
 --echo
-drop table t1,t2,t3;
-
+drop table t1,t2,t3,t4;

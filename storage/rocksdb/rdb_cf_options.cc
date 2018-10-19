@@ -65,7 +65,7 @@ bool Rdb_cf_options::init(
   return true;
 }
 
-void Rdb_cf_options::get(const std::string &cf_name,
+bool Rdb_cf_options::get(const std::string &cf_name,
                          rocksdb::ColumnFamilyOptions *const opts) {
   assert(opts != nullptr);
 
@@ -77,7 +77,9 @@ void Rdb_cf_options::get(const std::string &cf_name,
 
   if (it != m_name_map.end()) {
     rocksdb::GetColumnFamilyOptionsFromString(*opts, it->second, opts);
+    return true;
   }
+  return false;
 }
 
 void Rdb_cf_options::update(const std::string &cf_name,
@@ -326,16 +328,17 @@ Rdb_cf_options::get_cf_merge_operator(const std::string &cf_name) {
              : nullptr;
 }
 
-void Rdb_cf_options::get_cf_options(const std::string &cf_name,
+bool Rdb_cf_options::get_cf_options(const std::string &cf_name,
                                     rocksdb::ColumnFamilyOptions *const opts) {
   assert(opts != nullptr);
 
   *opts = m_default_cf_opts;
-  get(cf_name, opts);
+  bool ret = get(cf_name, opts);
 
   // Set the comparator according to 'rev:'
   opts->comparator = get_cf_comparator(cf_name);
   opts->merge_operator = get_cf_merge_operator(cf_name);
+  return ret;
 }
 
 }  // namespace myrocks

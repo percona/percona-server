@@ -8,7 +8,7 @@ pk int not null,
 a  int not null,
 b  int not null,
 primary key(pk),
-key(a) comment 'rev:cf1'
+key(a) comment 'cfname=rev:cf1'
 ) engine=rocksdb;
 insert into t2 select A.a, FLOOR(A.a/10), A.a from t1 A;
 #
@@ -292,7 +292,7 @@ pk int primary key,
 a int, 
 b int,
 c int,
-key(a,b,c) comment 'rev:cf2'
+key(a,b,c) comment 'cfname=rev:cf2'
 ) engine=rocksdb;
 insert into t5 select pk,pk,pk,pk from t2 where pk < 100;
 explain 

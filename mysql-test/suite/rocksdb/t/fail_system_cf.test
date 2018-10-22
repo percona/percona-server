@@ -4,4 +4,4 @@
 # Any create table using the system column family should fail
 
 --error ER_WRONG_ARGUMENTS
-CREATE TABLE t1 (i INT, PRIMARY KEY (i) COMMENT '__system__') ENGINE = ROCKSDB;
+CREATE TABLE t1 (i INT, PRIMARY KEY (i) COMMENT 'cfname=__system__') ENGINE = ROCKSDB;

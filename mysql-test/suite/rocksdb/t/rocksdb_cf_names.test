@@ -1,0 +1,92 @@
+--source include/have_rocksdb.inc
+
+# Column Family names and name specifications have some pretty strict rules:
+#
+# 1 - Column Family names may not contain leading or trailing spaces. These
+#     spaces will be stripped when specified in an index comment.  Example:
+#     'cfname=   asdf jkl  ;' will result in a parsed cfname of 'asdf jkl'.
+#
+# 2 - Column Family names are case sensitive, so 'Foo' and 'foo' will reference
+#     distinct Column Families.
+#
+# 3 - The 'cfname=' token must be EXACTLY 'cfname=' no internal spaces or
+#     uppercase, leading spaces will be stripped.
+#
+# 4 - Only the first 'cfname=' read from the comment will be used, the rest
+#     will be ignored.
+#
+# 5 - 'cfname=' may be terminated with a ';', Example:
+#     'cfname=foo; special column family' will result in a parsed cfname of
+#     'foo'
+#
+# 6 - Any failure to parse or detect a Column Family name will result in the
+#     index being placed within the 'default' column family with no warning.
+
+--echo Test rules 1 and 4
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT 'cfname=      asdf  jkl  ;cfname=foo') engine=rocksdb;
+--let $assert_text="Expected information_schema.rocksdb_ddl.cf to be exactly 'asdf  jkl'"
+--let $assert_cond="[select count(*) from information_schema.rocksdb_ddl where table_name=\'t1\' AND cf=\'asdf  jkl\']" = 1
+--source include/assert.inc
+DROP TABLE t1;
+
+
+--echo Test rule 2
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT 'cfname=foo') engine=rocksdb;
+CREATE TABLE t2(a INT, PRIMARY KEY(a) COMMENT 'cfname=Foo') engine=rocksdb;
+CREATE TABLE t3(a INT, PRIMARY KEY(a) COMMENT 'cfname=FOO') engine=rocksdb;
+--let $assert_text="Expected information_schema.rocksdb_ddl.cf for t1 to be exactly 'foo'"
+--let $assert_cond="[select count(*) from information_schema.rocksdb_ddl where table_name=\'t1\' AND cf=\'foo\']" = 1
+--source include/assert.inc
+--let $assert_text="Expected information_schema.rocksdb_ddl.cf for t2 to be exactly 'Foo'"
+--let $assert_cond="[select count(*) from information_schema.rocksdb_ddl where table_name=\'t2\' AND cf=\'Foo\']" = 1
+--source include/assert.inc
+--let $assert_text="Expected information_schema.rocksdb_ddl.cf for t3 to be exactly 'FOO'"
+--let $assert_cond="[select count(*) from information_schema.rocksdb_ddl where table_name=\'t3\' AND cf=\'FOO\']" = 1
+--source include/assert.inc
+--let $assert_text="Expected there to be three distinct column families of foo, Foo, and FOO"
+--let $assert_cond="[select count(*) from information_schema.rocksdb_cf_options where option_type=\'compression_type\' and cf_name in(\'foo\', \'Foo\', \'FOO\')]" = 3
+--source include/assert.inc
+DROP TABLE t1, t2, t3;
+
+
+--echo Test rule 3
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT '  cfname=foo   ') engine=rocksdb;
+--let $assert_text="Expected information_schema.rocksdb_ddl.cf to be exactly 'foo'"
+--let $assert_cond="[select count(*) from information_schema.rocksdb_ddl where table_name=\'t1\' AND cf=\'foo\']" = 1
+--source include/assert.inc
+DROP TABLE t1;
+
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT '  cfname = foo   ') engine=rocksdb;
+--let $assert_text="Expected information_schema.rocksdb_ddl.cf to be exactly 'default'"
+--let $assert_cond="[select count(*) from information_schema.rocksdb_ddl where table_name=\'t1\' AND cf=\'default\']" = 1
+--source include/assert.inc
+DROP TABLE t1;
+
+
+--echo Test rule 5
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT 'cfname=foo; This is a non-default column family') engine=rocksdb;
+--let $assert_text="Expected information_schema.rocksdb_ddl.cf to be exactly 'foo'"
+--let $assert_cond="[select count(*) from information_schema.rocksdb_ddl where table_name=\'t1\' AND cf=\'foo\']" = 1
+--source include/assert.inc
+DROP TABLE t1;
+
+
+# Test rule 6
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT 'cfname=   ') engine=rocksdb;
+--let $assert_text="Expected information_schema.rocksdb_ddl.cf to be exactly 'default'"
+--let $assert_cond="[select count(*) from information_schema.rocksdb_ddl where table_name=\'t1\' AND cf=\'default\']" = 1
+--source include/assert.inc
+DROP TABLE t1;
+
+
+# Test that space stripping matches allowed column families
+--let $restart_parameters=restart:--rocksdb_no_create_column_family=1 --rocksdb_override_cf_options=cf1={compression=kNoCompression};
+--source include/restart_mysqld.inc
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT 'cfname=  cf1  ;') engine=rocksdb;
+--let $assert_text="Expected information_schema.rocksdb_ddl.cf to be exactly 'cf1'"
+--let $assert_cond="[select count(*) from information_schema.rocksdb_ddl where table_name=\'t1\' AND cf=\'cf1\']" = 1
+--source include/assert.inc
+DROP TABLE t1;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

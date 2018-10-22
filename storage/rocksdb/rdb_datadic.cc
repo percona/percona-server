@@ -46,6 +46,8 @@
 #include "./rdb_psi.h"
 #include "./rdb_utils.h"
 
+#include "partitioning/partition_base.h"
+
 namespace myrocks {
 
 void get_mem_comparable_space(const CHARSET_INFO *cs,
@@ -4195,6 +4197,17 @@ bool Rdb_validate_tbls::check_frm_file(const std::string &fullpath,
                       fullfilename.ptr());
     return false;
   }
+
+  std::string partition_info_str;
+  if (!native_part::get_part_str_for_path(fullfilename.c_ptr(),
+                                          partition_info_str)) {
+    sql_print_warning("RocksDB: can't read partition info string from %s",
+                      fullfilename.ptr());
+    return false;
+  }
+
+  if (!partition_info_str.empty())
+    eng_type = DB_TYPE_PARTITION_DB;
 
   if (type == FRMTYPE_TABLE) {
     /* For a RocksDB table do we have a reference in the data dictionary? */

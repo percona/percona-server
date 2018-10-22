@@ -12,3 +12,25 @@ binlog-format=statement
 
 [mix]
 binlog-format=mixed
+
+[row-write-committed-native-partitioning]
+mtr-result-dir = r-native-partitioning
+mtr-tests-list = rpl_rocksdb_extra_col_slave
+binlog-format=row
+loose-rocksdb_write_policy=write_committed
+loose-rocksdb-enable-native-partition=on
+
+[row-write-prepared-native-partitioning]
+mtr-result-dir = r-native-partitioning
+mtr-tests-list = rpl_rocksdb_extra_col_slave
+binlog-format=row
+loose-rocksdb_write_policy=write_prepared
+loose-rocksdb_commit_time_batch_for_recovery=on
+loose-rocksdb-enable-native-partition=on
+
+[stmt-native-partitioning]
+mtr-result-dir = r-native-partitioning
+mtr-tests-list = rpl_skip_trx_api_binlog_format
+binlog-format=statement
+loose-rocksdb-enable-native-partition=on
+

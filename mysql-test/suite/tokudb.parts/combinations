@@ -1,0 +1,6 @@
+[non-native-partitioning]
+loose-tokudb-enable-native-partition=off
+
+[native-partitioning]
+loose-tokudb-enable-native-partition=on
+mtr-result-dir=r-native

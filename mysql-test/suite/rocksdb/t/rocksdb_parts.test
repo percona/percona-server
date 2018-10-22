@@ -41,7 +41,7 @@ create table t1 (
   pk int primary key,
   col1 int,
   col2 int,
-  key (col1) comment 'rev:cf_issue105'
+  key (col1) comment 'cfname=rev:cf_issue105'
 ) engine=rocksdb partition by hash(pk) partitions 2;
 
 insert into t1 values (1,10,10);

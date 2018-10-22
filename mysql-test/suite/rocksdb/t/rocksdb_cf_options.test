@@ -6,11 +6,11 @@ let file= $MYSQL_TMP_DIR/cf_configs.cnf;
 # create new column families with no configs in cf_configs.cnf file
 
 create table t1 (a int,
-                primary key (a) comment 'cf1') engine=rocksdb;
+                primary key (a) comment 'cfname=cf1') engine=rocksdb;
 create table t2 (a int,
-                primary key (a) comment 'cf2') engine=rocksdb;
+                primary key (a) comment 'cfname=cf2') engine=rocksdb;
 create table t3 (a int,
-                primary key (a) comment 'z') engine=rocksdb;
+                primary key (a) comment 'cfname=z') engine=rocksdb;
 
 insert into t1 values (1);
 insert into t2 values (2);
@@ -59,7 +59,7 @@ select cf_name, option_type, value
 --source include/assert.inc
 
 create table t4 (a int,
-                 primary key (a) comment 'cf3') engine=rocksdb;
+                 primary key (a) comment 'cfname=cf3') engine=rocksdb;
 
 --let $assert_text="Expected cf3 to exist"
 --let $assert_cond="[select count(distinct cf_name) from information_schema.rocksdb_cf_options where cf_name in (\'cf3\')]" = 1
@@ -67,7 +67,7 @@ create table t4 (a int,
 
 --error ER_WRONG_ARGUMENTS
 create table t5 (a int,
-                 primary key (a) comment 'nobodyknows') engine=rocksdb;
+                 primary key (a) comment 'cfname=nobodyknows') engine=rocksdb;
 
 --let $assert_text="Expected cf4 to NOT exist"
 --let $assert_cond="[select count(distinct cf_name) from information_schema.rocksdb_cf_options where cf_name in (\'cf4\')]" = 0

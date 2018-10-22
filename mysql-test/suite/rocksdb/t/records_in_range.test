@@ -1,9 +1,5 @@
 --source include/have_rocksdb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 # Create the table and insert some keys
 CREATE TABLE t1 (
        i INT,
@@ -11,7 +7,7 @@ CREATE TABLE t1 (
        b INT,
        PRIMARY KEY (i),
        KEY ka(a),
-       KEY kb(b) comment 'rev:cf1'
+       KEY kb(b) comment 'cfname=rev:cf1'
 ) ENGINE = rocksdb;
 
 --disable_query_log
@@ -104,8 +100,8 @@ CREATE TABLE `linktable` (
   `data` varchar(255) COLLATE latin1_bin NOT NULL DEFAULT '',
   `time` bigint(20) unsigned NOT NULL DEFAULT '0',
   `version` int(11) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`link_type`,`id1`,`id2`) COMMENT 'cf_link_pk',
-  KEY `id1_type` (`id1`,`link_type`,`visibility`,`time`,`version`,`data`) COMMENT 'cf_link_id1_type'
+  PRIMARY KEY (`link_type`,`id1`,`id2`) COMMENT 'cfname=cf_link_pk',
+  KEY `id1_type` (`id1`,`link_type`,`visibility`,`time`,`version`,`data`) COMMENT 'cfname=cf_link_id1_type'
 ) ENGINE=ROCKSDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
 
 insert into linktable values (1,1,1,1,1,1,1,1,1);
@@ -127,8 +123,8 @@ CREATE TABLE `linktable` (
   `data` varchar(255) COLLATE latin1_bin NOT NULL DEFAULT '',
   `time` bigint(20) unsigned NOT NULL DEFAULT '0',
   `version` int(11) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`link_type`,`id1`,`id2`) COMMENT 'cf_link_pk',
-  KEY `id1_type` (`id1`,`link_type`,`visibility`,`time`,`version`,`data`) COMMENT 'rev:cf_link_id1_type'
+  PRIMARY KEY (`link_type`,`id1`,`id2`) COMMENT 'cfname=cf_link_pk',
+  KEY `id1_type` (`id1`,`link_type`,`visibility`,`time`,`version`,`data`) COMMENT 'cfname=rev:cf_link_id1_type'
 ) ENGINE=ROCKSDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
 
 insert into linktable values (1,1,1,1,1,1,1,1,1);

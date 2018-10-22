@@ -3,19 +3,19 @@ SET rocksdb_bulk_load_size=15;
 CREATE TABLE t4 (a INT, b INT, c INT,
 PRIMARY KEY (a),
 KEY (b),
-KEY (c) COMMENT "rev:cf") ENGINE=ROCKSDB;
+KEY (c) COMMENT "cfname=rev:cf") ENGINE=ROCKSDB;
 CREATE TABLE t3 (a INT, b INT, c INT,
 PRIMARY KEY (a),
 KEY (b),
-KEY (c) COMMENT "rev:cf") ENGINE=ROCKSDB;
+KEY (c) COMMENT "cfname=rev:cf") ENGINE=ROCKSDB;
 CREATE TABLE t2 (a INT, b INT, c INT,
 PRIMARY KEY (a),
 KEY (b),
-KEY (c) COMMENT "rev:cf") ENGINE=ROCKSDB;
+KEY (c) COMMENT "cfname=rev:cf") ENGINE=ROCKSDB;
 CREATE TABLE t1 (a INT, b INT, c INT,
 PRIMARY KEY (a),
 KEY (b),
-KEY (c) COMMENT "rev:cf") ENGINE=ROCKSDB;
+KEY (c) COMMENT "cfname=rev:cf") ENGINE=ROCKSDB;
 SET rocksdb_bulk_load=1;
 INSERT INTO t1 SELECT * FROM t3 FORCE INDEX (PRIMARY) ORDER BY a;
 SELECT count(*) FROM t1 FORCE INDEX (PRIMARY);

@@ -17,7 +17,7 @@ create table t2 (
   kp1 int,
   kp2 int,
   col1 int,
-  key (kp1,kp2) comment '$cf_name'
+  key (kp1,kp2) comment 'cfname=$cf_name'
 ) engine=rocksdb;
 
 insert into t2 select a,a,a,a from t1;
@@ -37,7 +37,7 @@ create table t3 (
   kp1 int,
   kp2 varchar(10) collate utf8_general_ci,
   col1 int,
-  key (kp1,kp2) comment '$cf_name'
+  key (kp1,kp2) comment 'cfname=$cf_name'
 ) engine=rocksdb;
 
 insert into t3 select a,a/10,a,a from t1;
@@ -105,7 +105,7 @@ create table t4 (
   value int, 
   value2 varchar(100), 
   primary key (id), 
-  key id1_id2 (id1, id2) comment '$cf_name'
+  key id1_id2 (id1, id2) comment 'cfname=$cf_name'
 ) engine=rocksdb charset=latin1 collate latin1_bin;
 
 insert into t4 values 

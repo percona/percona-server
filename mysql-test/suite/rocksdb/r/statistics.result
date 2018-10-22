@@ -8,13 +8,13 @@ create table t2(
 id bigint not null primary key auto_increment,
 a varchar(255) not null,
 b bigint,
-index t2_1(b) comment 'cf_t3'
+index t2_1(b) comment 'cfname=cf_t3'
 ) engine=rocksdb;
 create table t3(
 id bigint not null primary key auto_increment,
 a varchar(255) not null,
 b bigint,
-index t3_1(b) comment 'rev:cf_t4'
+index t3_1(b) comment 'cfname=rev:cf_t4'
 ) engine=rocksdb;
 SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema = DATABASE() and table_name <> 't1';
 TABLE_NAME	TABLE_ROWS

@@ -9,8 +9,8 @@ CREATE TABLE t1 (
   b int NOT NULL,
   c int NOT NULL,
   PRIMARY KEY (a),
-  KEY kb (b) COMMENT 'kb',
-  KEY kc (c) COMMENT 'kc'
+  KEY kb (b) COMMENT 'cfname=kb',
+  KEY kc (c) COMMENT 'cfname=kc'
 ) ENGINE=ROCKSDB
 COMMENT='ttl_duration=1';
 
@@ -37,8 +37,8 @@ CREATE TABLE t1 (
   b int NOT NULL,
   c int NOT NULL,
   PRIMARY KEY (a),
-  KEY kb (b) COMMENT 'kb',
-  KEY kc (c) COMMENT 'kc'
+  KEY kb (b) COMMENT 'cfname=kb',
+  KEY kc (c) COMMENT 'cfname=kc'
 ) ENGINE=ROCKSDB
 COMMENT='ttl_duration=1';
 
@@ -65,8 +65,8 @@ CREATE TABLE t1 (
   b int NOT NULL,
   c int NOT NULL,
   PRIMARY KEY (a),
-  KEY kb (b) COMMENT 'kb',
-  KEY kc (c) COMMENT 'kc'
+  KEY kb (b) COMMENT 'cfname=kb',
+  KEY kc (c) COMMENT 'cfname=kc'
 ) ENGINE=ROCKSDB
 COMMENT='ttl_duration=1';
 

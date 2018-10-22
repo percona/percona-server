@@ -1329,8 +1329,8 @@ create table t1 (
   pk int primary key,
   col1 int, 
   col2 int,
-  key(col1) comment 'cf3',
-  key(col2) comment 'cf4'
+  key(col1) comment 'cfname=cf3',
+  key(col2) comment 'cfname=cf4'
 ) engine=rocksdb;
 
 insert into t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5);
@@ -1356,9 +1356,9 @@ create table t1 (
   pk int,
   col1 int, 
   col2 int,
-  key(col1) comment 'cf3',
-  key(col2) comment 'cf4',
-  primary key (pk) comment 'cf5'
+  key(col1) comment 'cfname=cf3',
+  key(col2) comment 'cfname=cf4',
+  primary key (pk) comment 'cfname=cf5'
 ) engine=rocksdb;
 insert into t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5);
 
@@ -1394,7 +1394,7 @@ create table t1 (
   id int not null,
   key1 int,
   PRIMARY KEY (id),
-  index (key1) comment '$per_index_cf'
+  index (key1) comment 'cfname=$per_index_cf'
 ) engine=rocksdb;
 
 
@@ -1409,7 +1409,7 @@ create table t1 (
   id2 int,
   value1 int,
   value2 int,
-  primary key(id1, id2) COMMENT 'new_column_family',
+  primary key(id1, id2) COMMENT 'cfname=new_column_family',
   key(id2)
 ) engine=rocksdb default charset=latin1 collate=latin1_bin;
 

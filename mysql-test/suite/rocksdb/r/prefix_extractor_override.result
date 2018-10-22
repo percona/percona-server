@@ -1,5 +1,5 @@
 SET @orig_rocksdb_update_cf_options = @@global.rocksdb_update_cf_options;
-CREATE TABLE t1 (id1 BIGINT, id2 BIGINT, id3 BIGINT, id4 BIGINT, PRIMARY KEY (id1, id2, id3, id4) comment 'cf1') ENGINE=rocksdb collate latin1_bin;
+CREATE TABLE t1 (id1 BIGINT, id2 BIGINT, id3 BIGINT, id4 BIGINT, PRIMARY KEY (id1, id2, id3, id4) comment 'cfname=cf1') ENGINE=rocksdb collate latin1_bin;
 set global rocksdb_force_flush_memtable_now = 1;
 
 Original Prefix Extractor:

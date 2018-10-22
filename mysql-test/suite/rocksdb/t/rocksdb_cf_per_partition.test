@@ -32,7 +32,7 @@ CREATE TABLE t1 (
     c2 INT,
     name VARCHAR(25) NOT NULL,
     event DATE,
-    PRIMARY KEY (`c1`, `c2`) COMMENT 'rev:testrevcomment'
+    PRIMARY KEY (`c1`, `c2`) COMMENT 'cfname=rev:testrevcomment'
 ) ENGINE=ROCKSDB
 PARTITION BY LIST(c1) (
     PARTITION custom_p0 VALUES IN (1, 4, 7),
@@ -470,7 +470,7 @@ DROP TABLE t2;
 #
 CREATE TABLE t1 (
   `a` int,
-  PRIMARY KEY (a) COMMENT "sharedcf"
+  PRIMARY KEY (a) COMMENT "cfname=sharedcf"
 ) ENGINE=ROCKSDB;
 
 SELECT DISTINCT(cf_name) FROM information_schema.rocksdb_cfstats WHERE cf_name='sharedcf';

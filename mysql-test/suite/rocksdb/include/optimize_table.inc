@@ -3,9 +3,9 @@ let $datadir = `SELECT @@datadir`;
 create table t1 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
 create table t2 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
 create table t3 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
-create table t4 (id int, value int, value2 varchar(200), primary key (id) comment 'rev:cf_i', index(value) comment 'rev:cf_i') engine=rocksdb;
-create table t5 (id int, value int, value2 varchar(200), primary key (id) comment 'rev:cf_i', index(value) comment 'rev:cf_i') engine=rocksdb;
-create table t6 (id int, value int, value2 varchar(200), primary key (id) comment 'rev:cf_i', index(value) comment 'rev:cf_i') engine=rocksdb;
+create table t4 (id int, value int, value2 varchar(200), primary key (id) comment 'cfname=rev:cf_i', index(value) comment 'cfname=rev:cf_i') engine=rocksdb;
+create table t5 (id int, value int, value2 varchar(200), primary key (id) comment 'cfname=rev:cf_i', index(value) comment 'cfname=rev:cf_i') engine=rocksdb;
+create table t6 (id int, value int, value2 varchar(200), primary key (id) comment 'cfname=rev:cf_i', index(value) comment 'cfname=rev:cf_i') engine=rocksdb;
 
 --disable_query_log
 let $t = 1;

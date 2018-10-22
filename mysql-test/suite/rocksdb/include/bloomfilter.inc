@@ -22,20 +22,20 @@ DELIMITER ;//
 --source suite/rocksdb/include/bloomfilter_load_select.inc
 
 #BF is always invoked but not useful at all
---exec sed s/##CF##/" COMMENT 'cf_short_prefix'"/g $tmpl_ddl > $ddl
+--exec sed s/##CF##/" COMMENT 'cfname=cf_short_prefix'"/g $tmpl_ddl > $ddl
 --source $ddl
 --source suite/rocksdb/include/bloomfilter_load_select.inc
 
---exec sed s/##CF##/" COMMENT 'rev:cf_short_prefix'"/g $tmpl_ddl > $ddl
+--exec sed s/##CF##/" COMMENT 'cfname=rev:cf_short_prefix'"/g $tmpl_ddl > $ddl
 --source $ddl
 --source suite/rocksdb/include/bloomfilter_load_select.inc
 
 #BF is most of the time invoked and useful
---exec sed s/##CF##/" COMMENT 'cf_long_prefix'"/g $tmpl_ddl > $ddl
+--exec sed s/##CF##/" COMMENT 'cfname=cf_long_prefix'"/g $tmpl_ddl > $ddl
 --source $ddl
 --source suite/rocksdb/include/bloomfilter_load_select.inc
 
---exec sed s/##CF##/" COMMENT 'rev:cf_long_prefix'"/g $tmpl_ddl > $ddl
+--exec sed s/##CF##/" COMMENT 'cfname=rev:cf_long_prefix'"/g $tmpl_ddl > $ddl
 --source $ddl
 --source suite/rocksdb/include/bloomfilter_load_select.inc
 

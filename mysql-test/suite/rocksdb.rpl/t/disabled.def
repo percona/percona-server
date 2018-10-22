@@ -1,3 +1,2 @@
 # 8.0
 rpl_rocksdb_snapshot : LOCK BINLOG FOR BACKUP
-rpl_skip_trx_api_binlog_format : native partitioning

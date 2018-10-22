@@ -5,11 +5,7 @@ CREATE TABLE `t1` (
 `val` varchar(32) DEFAULT NULL,
 PRIMARY KEY (`num`)
 ) PARTITION BY HASH (num) PARTITIONS 8;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 values (null,null);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 SELECT null,val FROM t1;
 INSERT INTO t1 SELECT null,val FROM t1;
 INSERT INTO t1 SELECT null,val FROM t1;

@@ -979,4 +979,13 @@ static inline bool key_is_clustering(const KEY *key) {
   return key->flags & HA_CLUSTERING;
 }
 
+static inline ulong index_flags(const KEY *key) {
+  ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY |
+                 HA_READ_RANGE | HA_DO_INDEX_COND_PUSHDOWN);
+  if (key_is_clustering(key)) {
+    flags |= HA_CLUSTERED_INDEX;
+  }
+  return flags;
+}
+
 #endif  // _HA_TOKUDB_H

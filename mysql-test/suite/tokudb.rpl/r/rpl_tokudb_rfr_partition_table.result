@@ -9,21 +9,13 @@ PARTITION BY RANGE (id)
 (PARTITION p_1 VALUES LESS THAN (10) ENGINE = TokuDB,
 PARTITION p_2 VALUES LESS THAN (20) ENGINE = TokuDB,
 PARTITION p_all VALUES LESS THAN MAXVALUE ENGINE = TokuDB);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1, 1), (2, 2), (3, 3), (11, 11), (12, 12), (13, 13);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE t2 (id int(11) NOT NULL, pid int(11), key idx_1(id)) ENGINE=TokuDB
 PARTITION BY RANGE (id)
 (PARTITION p_1 VALUES LESS THAN (10) ENGINE = TokuDB,
 PARTITION p_2 VALUES LESS THAN (20) ENGINE = TokuDB,
 PARTITION p_all VALUES LESS THAN MAXVALUE ENGINE = TokuDB);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t2 values (1, 1), (2, 2), (3, 3), (11, 11), (12, 12), (13, 13);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 include/stop_slave.inc
 set global debug= "+d,tokudb_crash_if_rpl_looks_up_row,tokudb_crash_if_rpl_does_uniqueness_check";
 include/start_slave.inc

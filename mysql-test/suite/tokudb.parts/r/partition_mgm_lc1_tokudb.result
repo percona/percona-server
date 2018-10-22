@@ -10,11 +10,7 @@ PARTITION BY KEY (a)
 PARTITION partB ,
 PARTITION Partc ,
 PARTITION PartD );
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO TableA VALUES (1), (2), (7), (8), (9), (10);
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO TableA VALUES (3), (4), (5), (6), (11), (12);
 SELECT * FROM TableA;
 a
@@ -41,8 +37,6 @@ ALTER TABLE TableA ADD PARTITION
 (PARTITION partE,
 PARTITION Partf,
 PARTITION PartG);
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -57,13 +51,11 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (a)
 (PARTITION parta ENGINE = TokuDB,
  PARTITION partB ENGINE = TokuDB,
@@ -72,11 +64,7 @@ TableA	CREATE TABLE `tablea` (
  PARTITION partE ENGINE = TokuDB,
  PARTITION Partf ENGINE = TokuDB,
  PARTITION PartG ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE TableA COALESCE PARTITION 4;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -91,99 +79,16 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (a)
 (PARTITION parta ENGINE = TokuDB,
  PARTITION partB ENGINE = TokuDB,
  PARTITION Partc ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of EXCHANGE PARTITION WITH TABLE
-SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA ='MySQL_Test_DB' AND TABLE_NAME = 'TableA';
-PARTITION_NAME	TABLE_ROWS
-parta	4
-partB	4
-Partc	4
-CREATE TABLE TableB LIKE TableA;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tableb', is deprecated and will be removed in a future release. Please use native partitioning instead.
-ALTER TABLE TableB REMOVE PARTITIONING;
-ALTER TABLE TableA EXCHANGE PARTITION parta WITH TABLE TableB;
-SELECT * FROM TableA;
-a
-1
-12
-2
-3
-6
-7
-8
-9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
-SHOW CREATE TABLE TableA;
-Table	Create Table
-TableA	CREATE TABLE `tablea` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
-(PARTITION parta ENGINE = TokuDB,
- PARTITION partB ENGINE = TokuDB,
- PARTITION Partc ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SELECT * FROM TableB;
-a
-10
-11
-4
-5
-SHOW CREATE TABLE TableB;
-Table	Create Table
-TableB	CREATE TABLE `tableb` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-SELECT PARTITION_NAME, IF(TABLE_ROWS, 'YES', 'NO') AS HAVE_TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA ='MySQL_Test_DB' AND TABLE_NAME = 'TableA';
-PARTITION_NAME	HAVE_TABLE_ROWS
-parta	NO
-partB	YES
-Partc	YES
-ALTER TABLE TableA EXCHANGE PARTITION parta WITH TABLE TableB;
-INSERT INTO TableB VALUES (11);
-ALTER TABLE TableA EXCHANGE PARTITION Partc WITH TABLE TableB;
-ERROR HY000: Found a row that does not match the partition
-DROP TABLE TableB;
-SELECT * FROM TableA;
-a
-1
-10
-11
-12
-2
-3
-4
-5
-6
-7
-8
-9
-SHOW CREATE TABLE TableA;
-Table	Create Table
-TableA	CREATE TABLE `tablea` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
-(PARTITION parta ENGINE = TokuDB,
- PARTITION partB ENGINE = TokuDB,
- PARTITION Partc ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of REORGANIZE PARTITIONS
 # Should not work on HASH/KEY
 ALTER TABLE TableA REORGANIZE PARTITION parta,partB,Partc INTO
@@ -197,8 +102,6 @@ ERROR HY000: When reorganizing a set of partitions they must be in consecutive o
 ALTER TABLE TableA REORGANIZE PARTITION parta,partB INTO
 (PARTITION partB  COMMENT="Previusly named parta",
 PARTITION parta  COMMENT="Previusly named partB");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -213,19 +116,15 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (a)
 (PARTITION partB COMMENT = 'Previusly named parta' ENGINE = TokuDB,
  PARTITION parta COMMENT = 'Previusly named partB' ENGINE = TokuDB,
  PARTITION Partc ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of RENAME TABLE
 RENAME TABLE TableA to TableB;
 SELECT * FROM TableB;
@@ -242,8 +141,6 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tableb', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 RENAME TABLE TableB to TableA;
 SELECT * FROM TableA;
 a
@@ -259,8 +156,6 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 # Checking name comparision Upper vs Lower case
 # Error if lower_case_table_names != 0
 # lower_case_table_names: 1
@@ -293,19 +188,15 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (a)
 (PARTITION partB COMMENT = 'Previusly named parta' ENGINE = TokuDB,
  PARTITION parta COMMENT = 'Previusly named partB' ENGINE = TokuDB,
  PARTITION Partc ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of REMOVE PARTITIONING
 ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
@@ -326,7 +217,7 @@ SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
 # Cleaning up after KEY PARTITIONING test
 DROP TABLE TableA;
 # 2.0 HASH partitioning mgm
@@ -347,11 +238,7 @@ PARTITION BY HASH (a)
 PARTITION partB ,
 PARTITION Partc ,
 PARTITION PartD );
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO TableA VALUES (1), (2), (7), (8), (9), (10);
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO TableA VALUES (3), (4), (5), (6), (11), (12);
 SELECT * FROM TableA;
 a
@@ -378,8 +265,6 @@ ALTER TABLE TableA ADD PARTITION
 (PARTITION partE,
 PARTITION Partf,
 PARTITION PartG);
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -394,14 +279,12 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY HASH (`a`)
 (PARTITION parta ENGINE = TokuDB,
  PARTITION partB ENGINE = TokuDB,
  PARTITION Partc ENGINE = TokuDB,
@@ -409,11 +292,7 @@ TableA	CREATE TABLE `tablea` (
  PARTITION partE ENGINE = TokuDB,
  PARTITION Partf ENGINE = TokuDB,
  PARTITION PartG ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE TableA COALESCE PARTITION 4;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -428,19 +307,15 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY HASH (`a`)
 (PARTITION parta ENGINE = TokuDB,
  PARTITION partB ENGINE = TokuDB,
  PARTITION Partc ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of REORGANIZE PARTITIONS
 # Should not work on HASH/KEY
 ALTER TABLE TableA REORGANIZE PARTITION parta,partB,Partc INTO
@@ -454,8 +329,6 @@ ERROR HY000: When reorganizing a set of partitions they must be in consecutive o
 ALTER TABLE TableA REORGANIZE PARTITION parta,partB INTO
 (PARTITION partB  COMMENT="Previusly named parta",
 PARTITION parta  COMMENT="Previusly named partB");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -470,19 +343,15 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY HASH (`a`)
 (PARTITION partB COMMENT = 'Previusly named parta' ENGINE = TokuDB,
  PARTITION parta COMMENT = 'Previusly named partB' ENGINE = TokuDB,
  PARTITION Partc ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of RENAME TABLE
 RENAME TABLE TableA to TableB;
 SELECT * FROM TableB;
@@ -499,8 +368,6 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tableb', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 RENAME TABLE TableB to TableA;
 SELECT * FROM TableA;
 a
@@ -516,8 +383,6 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 # Checking name comparision Upper vs Lower case
 # Error if lower_case_table_names != 0
 # lower_case_table_names: 1
@@ -550,19 +415,15 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY HASH (`a`)
 (PARTITION partB COMMENT = 'Previusly named parta' ENGINE = TokuDB,
  PARTITION parta COMMENT = 'Previusly named partB' ENGINE = TokuDB,
  PARTITION Partc ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of REMOVE PARTITIONING
 ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
@@ -583,7 +444,7 @@ SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
 # Cleaning up after HASH PARTITIONING test
 DROP TABLE TableA;
 # 3.0 RANGE partitioning mgm
@@ -595,11 +456,7 @@ PARTITION BY RANGE (a)
 PARTITION partB VALUES LESS THAN (7) ,
 PARTITION Partc VALUES LESS THAN (10) ,
 PARTITION PartD VALUES LESS THAN (13) );
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO TableA VALUES (1), (2), (7), (8), (9), (10);
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO TableA VALUES (3), (4), (5), (6), (11), (12);
 SELECT * FROM TableA;
 a
@@ -624,8 +481,6 @@ ALTER TABLE TableA ADD PARTITION
 (PARTITION partE VALUES LESS THAN (16),
 PARTITION Partf VALUES LESS THAN (19),
 PARTITION PartG VALUES LESS THAN (22));
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -640,14 +495,12 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION parta VALUES LESS THAN (4) ENGINE = TokuDB,
  PARTITION partB VALUES LESS THAN (7) ENGINE = TokuDB,
  PARTITION Partc VALUES LESS THAN (10) ENGINE = TokuDB,
@@ -655,18 +508,10 @@ TableA	CREATE TABLE `tablea` (
  PARTITION partE VALUES LESS THAN (16) ENGINE = TokuDB,
  PARTITION Partf VALUES LESS THAN (19) ENGINE = TokuDB,
  PARTITION PartG VALUES LESS THAN (22) ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE TableA DROP PARTITION partE, PartG;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE TableA DROP PARTITION Partf;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE TableA ADD PARTITION
 (PARTITION PartE VALUES LESS THAN (MAXVALUE));
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -681,21 +526,17 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION parta VALUES LESS THAN (4) ENGINE = TokuDB,
  PARTITION partB VALUES LESS THAN (7) ENGINE = TokuDB,
  PARTITION Partc VALUES LESS THAN (10) ENGINE = TokuDB,
  PARTITION PartD VALUES LESS THAN (13) ENGINE = TokuDB,
  PARTITION PartE VALUES LESS THAN MAXVALUE ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of REORGANIZE PARTITIONS
 # Error since it must reorganize a consecutive range
 ALTER TABLE TableA REORGANIZE PARTITION parta,Partc INTO
@@ -709,8 +550,6 @@ PARTITION partB VALUES LESS THAN (11)
 COMMENT="Previously partly Partc and partly PartD",
 PARTITION partC VALUES LESS THAN (MAXVALUE) 
 COMMENT="Previously partly PartD");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -725,20 +564,16 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION parta VALUES LESS THAN (4) ENGINE = TokuDB,
  PARTITION partD VALUES LESS THAN (8) COMMENT = 'Previously partB and partly Partc' ENGINE = TokuDB,
  PARTITION partB VALUES LESS THAN (11) COMMENT = 'Previously partly Partc and partly PartD' ENGINE = TokuDB,
  PARTITION partC VALUES LESS THAN MAXVALUE COMMENT = 'Previously partly PartD' ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of RENAME TABLE
 RENAME TABLE TableA to TableB;
 SELECT * FROM TableB;
@@ -755,8 +590,6 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tableb', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 RENAME TABLE TableB to TableA;
 SELECT * FROM TableA;
 a
@@ -772,8 +605,6 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 # Checking name comparision Upper vs Lower case
 # Error if lower_case_table_names != 0
 # lower_case_table_names: 1
@@ -806,20 +637,16 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION parta VALUES LESS THAN (4) ENGINE = TokuDB,
  PARTITION partD VALUES LESS THAN (8) COMMENT = 'Previously partB and partly Partc' ENGINE = TokuDB,
  PARTITION partB VALUES LESS THAN (11) COMMENT = 'Previously partly Partc and partly PartD' ENGINE = TokuDB,
  PARTITION partC VALUES LESS THAN MAXVALUE COMMENT = 'Previously partly PartD' ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of REMOVE PARTITIONING
 ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
@@ -840,7 +667,7 @@ SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
 # Cleaning up after RANGE PARTITIONING test
 DROP TABLE TableA;
 # 4.0 LIST partitioning mgm
@@ -852,11 +679,7 @@ PARTITION BY LIST (a)
 PARTITION partB VALUES IN (2,10,11) ,
 PARTITION Partc VALUES IN (3,4,7) ,
 PARTITION PartD VALUES IN (5,6,12) );
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO TableA VALUES (1), (2), (7), (8), (9), (10);
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO TableA VALUES (3), (4), (5), (6), (11), (12);
 SELECT * FROM TableA;
 a
@@ -881,8 +704,6 @@ ALTER TABLE TableA ADD PARTITION
 (PARTITION partE VALUES IN (16),
 PARTITION Partf VALUES IN (19),
 PARTITION PartG VALUES IN (22));
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -897,14 +718,12 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION parta VALUES IN (1,8,9) ENGINE = TokuDB,
  PARTITION partB VALUES IN (2,10,11) ENGINE = TokuDB,
  PARTITION Partc VALUES IN (3,4,7) ENGINE = TokuDB,
@@ -912,18 +731,10 @@ TableA	CREATE TABLE `tablea` (
  PARTITION partE VALUES IN (16) ENGINE = TokuDB,
  PARTITION Partf VALUES IN (19) ENGINE = TokuDB,
  PARTITION PartG VALUES IN (22) ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE TableA DROP PARTITION partE, PartG;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE TableA DROP PARTITION Partf;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE TableA ADD PARTITION
 (PARTITION PartE VALUES IN (13));
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -938,21 +749,17 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION parta VALUES IN (1,8,9) ENGINE = TokuDB,
  PARTITION partB VALUES IN (2,10,11) ENGINE = TokuDB,
  PARTITION Partc VALUES IN (3,4,7) ENGINE = TokuDB,
  PARTITION PartD VALUES IN (5,6,12) ENGINE = TokuDB,
  PARTITION PartE VALUES IN (13) ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of REORGANIZE PARTITIONS
 ALTER TABLE TableA REORGANIZE PARTITION parta,Partc INTO
 (PARTITION Partc VALUES IN (1,7) 
@@ -969,8 +776,6 @@ PARTITION parta VALUES IN (3,9)
 COMMENT = "Mix 2 of old parta and Partc",
 PARTITION partB VALUES IN (4,8) 
 COMMENT = "Mix 3 of old parta and Partc");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM TableA;
 a
 1
@@ -982,21 +787,17 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION Partc VALUES IN (1,7) COMMENT = 'Mix 1 of old parta and Partc' ENGINE = TokuDB,
  PARTITION parta VALUES IN (3,9) COMMENT = 'Mix 2 of old parta and Partc' ENGINE = TokuDB,
  PARTITION partB VALUES IN (4,8) COMMENT = 'Mix 3 of old parta and Partc' ENGINE = TokuDB,
  PARTITION PartD VALUES IN (5,6,12) ENGINE = TokuDB,
  PARTITION PartE VALUES IN (13) ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of RENAME TABLE
 RENAME TABLE TableA to TableB;
 SELECT * FROM TableB;
@@ -1010,8 +811,6 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tableb', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 RENAME TABLE TableB to TableA;
 SELECT * FROM TableA;
 a
@@ -1024,8 +823,6 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 # Checking name comparision Upper vs Lower case
 # Error if lower_case_table_names != 0
 # lower_case_table_names: 1
@@ -1055,21 +852,17 @@ a
 7
 8
 9
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
-Warnings:
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION Partc VALUES IN (1,7) COMMENT = 'Mix 1 of old parta and Partc' ENGINE = TokuDB,
  PARTITION parta VALUES IN (3,9) COMMENT = 'Mix 2 of old parta and Partc' ENGINE = TokuDB,
  PARTITION partB VALUES IN (4,8) COMMENT = 'Mix 3 of old parta and Partc' ENGINE = TokuDB,
  PARTITION PartD VALUES IN (5,6,12) ENGINE = TokuDB,
  PARTITION PartE VALUES IN (13) ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.tablea', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Test of REMOVE PARTITIONING
 ALTER TABLE TableA REMOVE PARTITIONING;
 SELECT * FROM TableA;
@@ -1087,7 +880,7 @@ SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `tablea` (
   `a` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4
 # Cleaning up after LIST PARTITIONING test
 DROP TABLE TableA;
 # Testing TRUNCATE PARTITION
@@ -1099,24 +892,18 @@ PARTITION BY RANGE (a)
 (PARTITION LT1000 VALUES LESS THAN (1000),
 PARTITION LT2000 VALUES LESS THAN (2000),
 PARTITION MAX VALUES LESS THAN MAXVALUE);
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "First"), (NULL, "Second"), (999, "Last in LT1000"), (NULL, "First in LT2000"), (NULL, "Second in LT2000"), (1999, "Last in LT2000"), (NULL, "First in MAX"), (NULL, "Second in MAX");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) NOT NULL AUTO_INCREMENT,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=TokuDB AUTO_INCREMENT=2002 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
+) ENGINE=TokuDB AUTO_INCREMENT=2002 DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (`a`)
 (PARTITION LT1000 VALUES LESS THAN (1000) ENGINE = TokuDB,
  PARTITION LT2000 VALUES LESS THAN (2000) ENGINE = TokuDB,
  PARTITION MAX VALUES LESS THAN MAXVALUE ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	First
@@ -1130,12 +917,9 @@ a	b
 ALTER TABLE t1 ANALYZE PARTITION MAX;
 Table	Op	Msg_type	Msg_text
 mysql_test_db.t1	analyze	status	OK
-mysql_test_db.t1	analyze	warning	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Truncate without FLUSH
 ALTER TABLE t1 TRUNCATE PARTITION MAX;
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE MAX (1)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 WHERE a >= 2000;
 a	b
 2000	First after TRUNCATE MAX (1)
@@ -1143,38 +927,26 @@ a	b
 ALTER TABLE t1 TRUNCATE PARTITION MAX;
 FLUSH TABLES;
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE MAX (2)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 WHERE a >= 2000;
 a	b
 2000	First after TRUNCATE MAX (2)
 # Truncate with FLUSH before
 FLUSH TABLES;
 ALTER TABLE t1 TRUNCATE PARTITION MAX;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE MAX (3)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 WHERE a >= 2000;
 a	b
 2000	First after TRUNCATE MAX (3)
 # Truncate with FLUSH after INSERT
 FLUSH TABLES;
 ALTER TABLE t1 TRUNCATE PARTITION MAX;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE MAX (4)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 WHERE a >= 2000;
 a	b
 2000	First after TRUNCATE MAX (4)
 # Truncate without FLUSH
 ALTER TABLE t1 TRUNCATE PARTITION LT1000;
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT1000 (1)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY a;
 a	b
 1000	First in LT2000
@@ -1186,8 +958,6 @@ a	b
 ALTER TABLE t1 TRUNCATE PARTITION LT1000;
 FLUSH TABLES;
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT1000 (2)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY a;
 a	b
 1000	First in LT2000
@@ -1199,11 +969,7 @@ a	b
 # Truncate with FLUSH before
 FLUSH TABLES;
 ALTER TABLE t1 TRUNCATE PARTITION LT1000;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT1000 (3)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY a;
 a	b
 1000	First in LT2000
@@ -1216,11 +982,7 @@ a	b
 # Truncate with FLUSH after INSERT
 FLUSH TABLES;
 ALTER TABLE t1 TRUNCATE PARTITION LT1000;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT1000 (4)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY a;
 a	b
 1000	First in LT2000
@@ -1234,8 +996,6 @@ a	b
 # Truncate without FLUSH
 ALTER TABLE t1 TRUNCATE PARTITION LT2000;
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT2000 (1)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY a;
 a	b
 2000	First after TRUNCATE MAX (4)
@@ -1248,8 +1008,6 @@ a	b
 ALTER TABLE t1 TRUNCATE PARTITION LT2000;
 FLUSH TABLES;
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT2000 (2)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY a;
 a	b
 2000	First after TRUNCATE MAX (4)
@@ -1262,11 +1020,7 @@ a	b
 # Truncate with FLUSH before
 FLUSH TABLES;
 ALTER TABLE t1 TRUNCATE PARTITION LT2000;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT2000 (3)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY a;
 a	b
 2000	First after TRUNCATE MAX (4)
@@ -1280,11 +1034,7 @@ a	b
 # Truncate with FLUSH after INSERT
 FLUSH TABLES;
 ALTER TABLE t1 TRUNCATE PARTITION LT2000;
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE LT2000 (4)");
-Warnings:
-Warning	1287	The partition engine, used by table 'mysql_test_db.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY a;
 a	b
 2000	First after TRUNCATE MAX (4)

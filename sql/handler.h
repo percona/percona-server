@@ -4168,6 +4168,10 @@ class handler {
   */
 
   virtual bool is_ignorable_error(int error);
+  MY_NODISCARD virtual bool continue_partition_copying_on_error(
+    int error MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /**
     @brief Determine whether an error is fatal or not.

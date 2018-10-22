@@ -7,11 +7,11 @@
 --source suite/rocksdb/include/i_s_basic.inc
 
 CREATE TABLE is_ddl_t1 (i INT, j INT, k INT, l INT,
-                        PRIMARY KEY (i), KEY (j), KEY (k, l) COMMENT 'kl_cf')
+                        PRIMARY KEY (i), KEY (j), KEY (k, l) COMMENT 'cfname=kl_cf')
                         ENGINE = ROCKSDB;
 
 CREATE TABLE is_ddl_t2 (x INT, y INT, z INT,
-                        PRIMARY KEY (z, y) COMMENT 'zy_cf',
+                        PRIMARY KEY (z, y) COMMENT 'cfname=zy_cf',
                         KEY (x)) ENGINE = ROCKSDB;
 
 CREATE TABLE is_ddl_t3 (a INT, b INT, c INT, PRIMARY KEY (a)) ENGINE = ROCKSDB

@@ -15,8 +15,8 @@ Three *Percona Toolkit* UDFs that provide faster checksums are provided:
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
-    Feature ported from |Percona Server| 5.6
+  * :rn:`8.0.12-1`:
+    Feature ported from |Percona Server| 5.7.
 
 Other Information
 =================

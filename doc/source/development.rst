@@ -17,13 +17,14 @@ You should also be familiar with our |Jenkins| setup.
 
 Overview
 ~~~~~~~~
-At Percona we use `Bazaar <http://www.bazaar-vcs.org>`_ for source
-control and `launchpad <http://www.launchpad.net>`_ for both
-code hosting and release management.
 
-Changes to our software projects could be because of a new feature
-(blueprint) or fixing a bug (bug). Projects such as refactoring could
-be classed as a blueprint or a bug depending on the scope of the work.
+At Percona we use `Git <https://git-scm.com>`_ for source control, `Github
+<https://github.com/percona>`_ for code hosting, and `Jira
+<https://jira.percona.com>`_ for release management.
+
+Changes to our software projects could be because of a new feature (blueprint)
+or fixing a bug (bug). Projects such as refactoring could be classed as a
+blueprint or a bug depending on the scope of the work.
 
 Blueprints and bugs are targeted to specific milestones (releases). A
 milestone is part of a series - e.g. 1.6 is a series in Percona
@@ -52,44 +53,45 @@ must propose two branches: one for 5.1 version of patch and one for
 
 Making a change to a project
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In this case we're going to use percona-xtrabackup as an
-example. workflow is similar for Percona Server, but patch will need
-to be modified both in 5.1 and 5.5 branches.
 
-* ``bzr branch lp:percona-xtrabackup featureX`` (where 'featureX' is a
+In this case we're going to use percona-xtrabackup as an example. workflow is
+similar for Percona Server, but the patch will need to be modified both in 5.1
+and 5.5 branches.
+
+* ``git branch https://github.com/percona/percona-xtrabackup/featureX`` (where 'featureX' is a
   sensible name for the task at hand)
 * (developer makes changes in featureX, testing locally)
-* Developer pushes to ``lp:~username/percona-xtrabackup/featureX``
+* Developer pushes to ``https://github.com/percona/username/percona-xtrabackup/featureX``
 * When the developer thinks the branch may be ready to be merged, they
   will run the branch through param build.
 * If there are any build or test failures, developer fixes them (in
   the case of failing tests in trunk... no more tests should
   fail. Eventually all tests will pass in trunk)
-* Developer can then submit a merge proposal to lp:percona-xtrabackup,
+* Developer can then submit a pull request to https://github.com/percona/percona-xtrabackup,
   referencing URL for the param build showing that build and test
   passes
 * Code undergoes review
 * Once code is accepted, it can be merged (see other section)
 
-If the change also applies to a stable release (e.g. 1.6) then changes
-should be made on a branch of 1.6 and merged to a branch of trunk. In
-this case there should be two branches run through param build and two
-merge proposals (one for 1.6 and one with the changes merged to
-trunk). This prevents somebody else having to guess how to merge your
-changes.
+If the change also applies to a stable release (e.g. 1.6) then changes should be
+made on a branch of 1.6 and merged to a branch of trunk. In this case there
+should be two branches run through param build and two merge proposals (one for
+1.6 and one with the changes merged to trunk). This prevents somebody else
+having to guess how to merge your changes.
 
 Merging approved branches
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before code hits trunk, it goes through a "staging" branch, where some
-extra tests may be run (e.g. valgrind) along with testing that all
-branches behave well together (build and test) before pushing to
-trunk.
+Before code hits trunk, it goes through a "staging" branch, where some extra
+tests may be run (e.g. valgrind) along with testing that all branches behave
+well together (build and test) before pushing to trunk.
 
 To ensure quality, **DO NOT push directly to trunk!** everything must go through adequate testing first. This ensures that at any point trunk is in a releasable state.
 
 Please note that **ALL changes must go through staging first** This is to ensure that several approved merge requests do not interact badly with each
 other.
+
+.. TODO: Update for Git and GitHub
 
 * Merge captain (for lack of a better term for the person merging
   approved code into trunk) may collate several approved branches that

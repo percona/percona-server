@@ -1,22 +1,20 @@
 .. _upgrading_guide:
 
 ==========================================================
- Percona Server In-Place Upgrading Guide: From 5.6 to 5.7
+ Percona Server In-Place Upgrading Guide: From 5.7 to 8.0
 ==========================================================
 
 In-place upgrades are those which are done using the existing data in the server. Generally speaking, this is stopping the server, installing the new server and starting it with the same data files. While they may not be suitable for high-complexity environments, they may be adequate for many scenarios.
 
 The following is a summary of the more relevant changes in the 5.7 series. It's strongly recommended to that you read the following guides as they contain the list of incompatible changes that could cause automatic upgrade to fail: 
 
-  * :ref:`changed_in_57`
-
-  * `Upgrading MySQL <http://dev.mysql.com/doc/refman/5.7/en/upgrading.html>`_
-
-  * `Upgrading from MySQL 5.6 to 5.7 <http://dev.mysql.com/doc/refman/5.7/en/upgrading-from-previous-series.html>`_
+  * :ref:`changed_in_8.0`
+  * `Upgrading MySQL <http://dev.mysql.com/doc/refman/8.0/en/upgrading.html>`_
+  * `Upgrading from MySQL 5.7 to 8.0 <http://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html>`_
 
 .. warning:: 
 
- Upgrade from 5.6 to 5.7 on a crashed instance is not recommended. If the server instance has crashed, crash recovery should be run before proceeding with the upgrade. 
+ Upgrade from 5.7 to 8.0 on a crashed instance is not recommended. If the server instance has crashed, crash recovery should be run before proceeding with the upgrade. 
 
 Upgrading using the Percona repositories
 ========================================
@@ -34,7 +32,7 @@ Instructions for enabling the repositories in a system can be found in:
 
 .. note::
 
-  Following commands will need to be run either as a root user or with :program:`sudo`.
+  The following commands will need to be run either as a root user or with :program:`sudo`.
 
 Having done the full backup (or dump if possible), stop the server: 
 
@@ -50,15 +48,22 @@ and proceed to do the modifications needed in your configuration file, as explai
 
 Then install the new server with: 
 
-.. code-block:: bash
-
-  $ apt-get install percona-server-server-5.7
-
-If you're using |Percona Server| 5.6 with |TokuDB| you'll need to specify the |TokuDB| package as well:
+Enable the repository:
 
 .. code-block:: bash
 
-  $ apt-get install percona-server-server-5.7 percona-server-tokudb-5.7
+  $ sudo percona-release enable ps-80 testing
+  $ sudo apt-get update
+
+.. code-block:: bash
+
+  $ apt-get install percona-server
+
+If you're using |Percona Server| 8.0 with |TokuDB| you'll need to specify the |TokuDB| package as well:
+
+.. code-block:: bash
+
+  $ apt-get install percona-server percona-server-tokudb-8.0
 
 The installation script will *NOT* run automatically :command:`mysql_upgrade` as it was the case in previous versions. You'll need to run the command manually and restart the service after it's finished.
 
@@ -103,12 +108,12 @@ and check your installed packages with:
 .. code-block:: bash
 
   $ rpm -qa | grep Percona-Server
-  Percona-Server-shared-56-5.6.28-rel76.1.el7.x86_64
-  Percona-Server-server-56-5.6.28-rel76.1.el7.x86_64
-  Percona-Server-devel-56-5.6.28-rel76.1.el7.x86_64
-  Percona-Server-client-56-5.6.28-rel76.1.el7.x86_64
-  Percona-Server-test-56-5.6.28-rel76.1.el7.x86_64
-  Percona-Server-56-debuginfo-5.6.28-rel76.1.el7.x86_64
+  Percona-Server-shared-80-8.0.12-rel76.1.el7.x86_64
+  Percona-Server-server-80-8.0.12-rel76.1.el7.x86_64
+  Percona-Server-devel-80-8.0.12-rel76.1.el7.x86_64
+  Percona-Server-client-80-8.0.12-rel76.1.el7.x86_64
+  Percona-Server-test-80-8.0.12-rel76.1.el7.x86_64
+  Percona-Server-80-debuginfo-8.0.12-rel76.1.el7.x86_64
 
 After checking, proceed to remove them without dependencies: 
 
@@ -122,17 +127,17 @@ Note that this procedure is the same for upgrading from |MySQL| 5.6 or 5.7 to |P
 
 You will have to install the following package:
 
-  * ``Percona-Server-server-57``
+  * ``percona-server``
 
 .. code-block:: bash
 
-  $ yum install Percona-Server-server-57 
+  $ yum install percona-server
 
-If you're using |Percona Server| 5.6 with |TokuDB| you'll need to specify the |TokuDB| package as well when doing the upgrade: 
+If you're using |Percona Server| 8.0 with |TokuDB| you'll need to specify the |TokuDB| package as well when doing the upgrade: 
 
 .. code-block:: bash
 
-  $ yum install Percona-Server-server-57 Percona-Server-tokudb-57
+  $ yum install percona-server Percona-Server-tokudb-80
 
 Once installed, proceed to modify your configuration file - :file:`my.cnf` - and reinstall the plugins if necessary. 
 
@@ -181,7 +186,7 @@ Having done the full backup (and dump if possible), stop the server: ::
 
 and remove the installed packages with their dependencies: ::
 
-  $ sudo apt-get autoremove percona-server-server-5.6 percona-server-client-5.6
+  $ sudo apt-get autoremove percona-server percona-client
 
 Once removed, proceed to do the modifications needed in your configuration file, as explained at the beginning of this guide.
 
@@ -195,7 +200,7 @@ Then, download the following packages for your architecture:
 
   * ``libperconaserverclient20``
 
-Following example will download |Percona Server| :rn:`5.7.10-3` release packages for *Debian* 8.0:
+The following example will download |Percona Server| :rn:`8.0.12-1` release packages for *Debian* 8.0:
 
 .. code-block:: bash
 
@@ -255,10 +260,10 @@ and check your installed packages:
 
   $ rpm -qa | grep Percona-Server
   
-  Percona-Server-shared-56-5.6.28-rel76.1.el6.x86_64
-  Percona-Server-server-56-5.6.28-rel76.1.el6.x86_64
-  Percona-Server-client-56-5.6.28-rel76.1.el6.x86_64
-  Percona-Server-tokudb-56-5.6.28-rel76.1.el6.x86_64
+  Percona-Server-shared-57-5.7.23-rel76.1.el6.x86_64
+  Percona-Server-server-57-5.7.23-rel76.1.el6.x86_64
+  Percona-Server-client-57-5.7.23-rel76.1.el6.x86_64
+  Percona-Server-tokudb-57-5.7.23-rel76.1.el6.x86_64
 
 You may have a fourth, ``shared-compat``, which is for compatibility purposes.
 
@@ -268,13 +273,13 @@ After checked that, proceed to remove them without dependencies: ::
 
 It is important that you remove it without dependencies as many packages may depend on these (as they replace ``mysql``) and will be removed if ommited.
 
-Note that this procedure is the same for upgrading from |MySQL| 5.6 to |Percona Server| 5.7, just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
+Note that this procedure is the same for upgrading from |MySQL| 5.7 to |Percona Server| 8.0, just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
 
-Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.7.10-3 release packages for *CentOS* 7:
+Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-8.0/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.7.10-3 release packages for *CentOS* 7:
 
 .. code-block:: bash
 
-  $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-3/binary/redhat/7/x86_64/Percona-Server-5.7.10-3-r63dafaf-el7-x86_64-bundle.tar
+  $ wget https://www.percona.com/downloads/Percona-Server-8.0/Percona-Server-8.0.12-1/binary/redhat/7/x86_64/Percona-Server-8.0.12-1-r63dafaf-el7-x86_64-bundle.tar
 
 You should then unpack the bundle to get the packages:
 

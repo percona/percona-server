@@ -4,6 +4,8 @@
 XtraDB Performance Improvements for I/O-Bound Highly-Concurrent Workloads
 =========================================================================
 
+.. _ps.buffer-pool.free-list.priority-refill:
+
 Priority refill for the buffer pool free list
 =============================================
 
@@ -47,7 +49,7 @@ the ``backoff`` is selected, |Percona| implementation will be used.
 Multi-threaded LRU flusher
 ==========================
 
-|Percona Server| :rn:`5.7.10-3` has introduced a true multi-threaded LRU
+|Percona Server| :rn:`5.7.10-3` introduced a true multi-threaded LRU
 flushing. In this scheme, each buffer pool instance has its own dedicated LRU
 manager thread that is tasked with performing LRU flushes and evictions to
 refill the free list of that buffer pool instance. Existing multi-threaded
@@ -89,7 +91,7 @@ bottleneck with increased flusher parallelism, limiting the effect of extra
 cleaner threads. In addition, single page flushes, if they are performed, are
 subject to above and also contend on the doublewrite mutex.
 
-To address these issues |Percona Server| :rn:`5.7.11-4` has introduced private
+To address these issues |Percona Server| :rn:`5.7.11-4` introduced private
 doublewrite buffers for each buffer pool instance, for each batch flushing mode
 (LRU or flush list). For example, with four buffer pool instances, there will
 be eight doublewrite shards. Only one flusher thread can access any shard at a
@@ -129,11 +131,11 @@ Interaction with :variable:`innodb_flush_method`
 Regardless of :variable:`innodb_flush_method` setting, the parallel doublewrite
 file is opened with ``O_DIRECT`` flag to remove OS caching, then its access is
 further governed by the exact value set: if it's set to ``O_DSYNC``, the
-parallel doublewrite is opened with ``O_SYNC`` flag too. Further, if it's one
-of ``O_DSYNC``, ``O_DIRECT_NO_FSYNC``, or ``ALL_O_DIRECT``, then the
-doublewrite file is not flushed after a batch of writes to it is completed.
-With other :variable:`innodb_flush_method` values the doublewrite buffer is
-flushed only if setting ``O_DIRECT`` has failed.
+parallel doublewrite is opened with ``O_SYNC`` flag too. Further, if it's one of
+``O_DSYNC``, ``O_DIRECT_NO_FSYNC``, then the doublewrite file is not flushed
+after a batch of writes to it is completed.  With other
+:variable:`innodb_flush_method` values the doublewrite buffer is flushed only if
+setting ``O_DIRECT`` has failed.
 
 .. variable:: innodb_parallel_doublewrite_path
 
@@ -162,17 +164,14 @@ compiled with ``UNIV_PERF_DEBUG`` C preprocessor define.
 Version Specific Information
 ============================
 
+  * :rn:`8.0.12-1`
+    Feature ported from |Percona Server| 5.7
   * :rn:`5.7.10-1`
-
-        * Feature partially ported from |Percona Server| 5.6
-
+    Feature partially ported from |Percona Server| 5.6
   * :rn:`5.7.10-3`
-
-        * Implemented support for multi-threaded LRU
-
+    Implemented support for multi-threaded LRU
   * :rn:`5.7.11-4`
-
-        * Implemented support for parallel doublewrite buffer
+    Implemented support for parallel doublewrite buffer
 
 Other Reading
 =============

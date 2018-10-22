@@ -10,13 +10,11 @@ Supported Releases:
 
 * Debian:
 
- * 7.0 (wheezy)
  * 8.0 (jessie)
  * 9.0 (stretch)
 
 * Ubuntu:
 
- * 14.04LTS (trusty)
  * 16.04LTS (xenial) 
  * 17.04 (zesty)
  * 17.10 (artful)
@@ -53,31 +51,37 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-     wget https://repo.percona.com/apt/percona-release_0.1-6.$(lsb_release -sc)_all.deb
+     wget https://repo.percona.com/apt/percona-release_0.1-8.$(lsb_release -sc)_all.deb
 
-2. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`: 
+#. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`: 
 
    .. code-block:: bash
 
-     dpkg -i percona-release_0.1-6.$(lsb_release -sc)_all.deb
+     dpkg -i percona-release_0.1-8.$(lsb_release -sc)_all.deb
 
    Once you install this package the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-release.list` file.
 
-3. Remember to update the local cache:
+#. Enable the repository:
+
+   .. code-block:: bash
+
+     $ sudo percona-release enable ps-80 testing
+
+#. Remember to update the local cache:
 
    .. code-block:: bash
 
      $ sudo apt-get update
 
-4. After that you can install the server package:
+#. After that you can install the server package:
 
    .. code-block:: bash
 
-     $ sudo apt-get install percona-server-server-5.7 
+     $ sudo apt-get install percona-server
 
 .. note:: 
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  |Percona Server| 8.0 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
 
 Percona ``apt`` Testing repository
 ----------------------------------

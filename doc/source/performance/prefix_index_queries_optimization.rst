@@ -32,3 +32,8 @@ cluster lookup.
 
 This variable shows the number of times prefix optimization avoided
 triggering cluster lookup.
+
+Version Specific Information
+================================================================================
+
+* :rn:`8.0.12-1`: The feature was ported from |Percona Server| 5.7

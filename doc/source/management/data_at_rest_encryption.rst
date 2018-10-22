@@ -4,7 +4,6 @@
 Data at Rest Encryption
 =======================
 
-This feature is considered **BETA** quality.
 
 .. contents::
    :local:
@@ -23,6 +22,13 @@ encrypted.
 This feature extends the  `CREATE TABLESPACE
 <https://dev.mysql.com/doc/refman/5.7/en/create-tablespace.html>`_
 statement to accept the ``ENCRYPTION='Y/N'`` option.
+
+.. important::
+
+   In |Percona Server| 8.0, the data at rest encryption feature is not
+   available in the 8.0.12-2rc1 release candidate version. However, it will be
+   available in |Percona Server| 8.0 GA.
+
 
 Prerequisites
 -------------
@@ -126,6 +132,8 @@ Turning this option off at runtime makes server to create all subsequent
 temporary file-per-table tablespaces unencrypted, but does not turn off
 encryption of system temporary tablespace.
 
+This feature is considered **BETA** quality.
+
 .. note:: To use this option, keyring plugin must be loaded, otherwise server
    will give error message and refuse to create new temporary tables.
 
@@ -141,6 +149,8 @@ encryption of system temporary tablespace.
 This variable has 3 possible values. ``ON`` makes |InnoDB| tables encrypted by
 default. ``FORCE`` disables creation of unencrypted tables. ``OFF`` restores
 the like-before behavior.
+
+This feature is considered **BETA** quality.
 
 .. note:: ``innodb_encrypt_tables=ON`` still allows to create unencrypted
    table with ``ENCRYPTED=NO`` statement, and also allows to create unencrypted
@@ -200,10 +210,10 @@ option.
 Temporary files are currently used in |Percona Server| for the following
 purposes:
 
+This feature is considered **BETA** quality.
+
 * filesort (for example, ``SELECT`` statements with ``SQL_BIG_RESULT`` hints),
-
 * binary log transactional caches,
-
 * Group Replication caches.
 
 For each temporary file, an encryption key is generated locally, only kept

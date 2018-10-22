@@ -4,33 +4,18 @@
 Extended Show Engine |InnoDB| Status
 ====================================
 
-This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS`` for
-better readability and prints the amount of memory used by the internal hash
-tables. In addition, new variables are available to control the output.
+This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS``
+for better readability and prints the amount of memory used by the
+internal hash tables. The variable :variable:`innodb_show_locks_held`
+controls the umber of locks held to print for each |InnoDB|
+transaction.
 
 This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 
-  * Added two variables to control ``SHOW ENGINE INNODB STATUS`` information
-    presented (bugfix for upstream bug :mysqlbug:`29126`):
-
-    * :variable:`innodb_show_verbose_locks` - Whether to show records locked
-
-    * :variable:`innodb_show_locks_held` - Number of locks held to print for
-      each |InnoDB| transaction
-
-  * Added extended information about |InnoDB| internal hash table sizes (in
-    bytes) in the ``BUFFER POOL AND MEMORY`` section; also added buffer pool
-    size in bytes.
-
-  * Added additional LOG section information.
-
-Version Specific Information
-============================
-
-  * :rn:`5.7.10-1`:
-
-    Feature ported from |Percona Server| 5.6.
-
+* Added extended information about |InnoDB| internal hash table sizes
+  (in bytes) in the ``BUFFER POOL AND MEMORY`` section; also added
+  buffer pool size in bytes.
+* Added additional LOG section information.
 
 Other Information
 =================
@@ -38,25 +23,8 @@ Other Information
   * Author / Origin:
     Baron Schwartz, http://lists.mysql.com/internals/35174
 
-
 System Variables
 ================
-
-.. variable:: innodb_show_verbose_locks
-
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: ULONG
-     :default: 0
-     :range: 0 - 1
-
-Specifies to show records locked in ``SHOW ENGINE INNODB STATUS``. The default
-is ``0``, which means only the higher-level information about the lock (which
-table and index is locked, etc.) is printed. If set to ``1``, then traditional
-|InnoDB| behavior is enabled: the records that are locked are dumped to the
-output.
 
 .. variable:: innodb_show_locks_held
 

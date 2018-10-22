@@ -74,7 +74,7 @@ The :table:`TOKUDB_TRX` table in the ``INFORMATION_SCHEMA`` maps |TokuDB| transa
 
 The following query returns the |MySQL| clients that have a live |TokuDB| transaction:
 
-.. code-block:: mysql
+.. code-block:: guess
 
  SELECT * FROM INFORMATION_SCHEMA.TOKUDB_TRX,
    INFORMATION_SCHEMA.PROCESSLIST
@@ -87,13 +87,13 @@ The :table:`tokudb_locks` table in the information schema contains the set of lo
 
 The following query returns all of the locks granted to some |TokuDB| transaction:
 
-.. code-block:: mysql
+.. code-block:: guess
 
  SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCKS;
 
 The following query returns the locks granted to some |MySQL| client:
 
-.. code-block:: mysql
+.. code-block:: guess
 
  SELECT id FROM INFORMATION_SCHEMA.TOKUDB_LOCKS,
    INFORMATION_SCHEMA.PROCESSLIST
@@ -106,7 +106,7 @@ The :table:`tokudb_lock_waits` table in the information schema contains the set 
 
 The following query returns the locks that are waiting to be granted due to a lock conflict with some other transaction:
 
-.. code-block:: mysql
+.. code-block:: guess
 
  SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCK_WAITS;
 
@@ -145,7 +145,7 @@ Example
 
 Suppose that we create a table with a single column that is the primary key.
 
-.. code-block:: mysql
+.. code-block:: guess
 
  mysql> SHOW CREATE TABLE table;
 
@@ -155,7 +155,7 @@ Suppose that we create a table with a single column that is the primary key.
 
 Suppose that we have 2 |MySQL| clients with ID's 1 and 2 respectively. Suppose that |MySQL| client 1 inserts some values into ``table``. |TokuDB| transaction 51 is created for the insert statement. Since autocommit is disabled, transaction 51 is still live after the insert statement completes, and we can query the :table:`tokudb_locks` table in information schema to see the locks that are held by the transaction.
 
-.. code-block:: mysql
+.. code-block:: guess
 
  mysql> SET AUTOCOMMIT=OFF;
  mysql> INSERT INTO table VALUES (1),(10),(100);
@@ -181,7 +181,7 @@ The keys are currently hex dumped.
 
 Now we switch to the other |MySQL| client with ID 2.
 
-.. code-block:: mysql
+.. code-block:: guess
 
  mysql> INSERT INTO table VALUES (2),(20),(100);
 
@@ -189,7 +189,7 @@ The insert gets blocked since there is a conflict on the primary key with value 
 
 The granted |TokuDB| locks are:
 
-.. code-block:: mysql
+.. code-block:: guess
 
  mysql> SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCKS;
 
@@ -205,7 +205,7 @@ The granted |TokuDB| locks are:
 
 The locks that are pending due to a conflict are:
 
-.. code-block:: mysql
+.. code-block:: guess
 
  SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCK_WAITS;
 
@@ -217,7 +217,7 @@ The locks that are pending due to a conflict are:
 
 Eventually, the lock for client 2 times out, and we can retrieve a JSON document that describes the conflict.
 
-.. code-block:: mysql
+.. code-block:: guess
 
  ERROR 1205 (HY000): Lock wait timeout exceeded; try restarting transaction
 
@@ -233,7 +233,7 @@ Eventually, the lock for client 2 times out, and we can retrieve a JSON document
 
 Since transaction 62 was rolled back, all of the locks taken by it are released.
 
-.. code-block:: mysql
+.. code-block:: guess
 
  mysql> SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCKS;
 
@@ -254,7 +254,7 @@ Engine status provides details about the inner workings of |TokuDB| and can be
 useful in tuning your particular environment. The engine status can be
 determined by running the following command:
 
-.. code-block:: mysql
+.. code-block:: guess
 
  SHOW ENGINE tokudb STATUS;
 

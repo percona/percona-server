@@ -12,8 +12,8 @@ You can use *Percona-Toolkit*'s `pt-query-digest <http://www.percona.com/doc/per
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
-     * Feature ported from |Percona Server| 5.6.
+  * :rn:`8.0.12-1`:
+     * Feature ported from |Percona Server| 5.7.
 
 System Variables
 ================

@@ -1,7 +1,7 @@
 .. _innodb_fts_improvements:
 
 ====================================
-InnoDB Full-Text Search improvements
+InnoDB Full-Text Search Improvements
 ====================================
 
 .. contents::
@@ -10,7 +10,7 @@ InnoDB Full-Text Search improvements
 .. _ignoring_stopword_list:
 
 ======================
-Ignoring Stopword list
+Ignoring Stopword List
 ======================
 
 By default all Full-Text Search indexes check the `stopwords list
@@ -22,9 +22,9 @@ item that contains ``a`` or ``i`` will be ignored. Another word that can't be
 searched is ``east``, this one will find no matches because ``a`` is on the
 FTS stopword list.
 
-To resolve this issue, in |Percona Server| :rn:`5.7.20-18` a new
-:variable:`innodb_ft_ignore_stopwords` variable has been implemented
-which controls whether |InnoDB| Full-Text Search should ignore stopword list.
+To resolve this issue, a new :variable:`innodb_ft_ignore_stopwords` variable was
+implemented in |Percona Server| :rn:`5.7.20-18` which controls whether |InnoDB|
+Full-Text Search should ignore stopword list.
 
 Although this variable is introduced to resolve n-gram issues, it affects
 all Full-Text Search indexes as well.

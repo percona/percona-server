@@ -21,8 +21,8 @@ Server| now provides the following counters as status variables:
 Version Specific Information
 ============================
 
-  * :rn:`5.7.20-18`:
-    Feature Implemented
+* :rn:`8.0.12-1`: The feature was ported from |Percona Server| 5.7
+* :rn:`5.7.20-18`: The feature was implemented
 
 Status Variables
 ================

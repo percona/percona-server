@@ -4,7 +4,7 @@
 Compressed columns with dictionaries
 ====================================
 
-In :rn:`5.7.17-11` |Percona Server| has been extended with a new per-column
+In :rn:`5.7.17-11`, |Percona Server| was extended with a new per-column
 compression feature. It is a data type modifier, independent from user-level SQL
 and |InnoDB| data compression, that causes the data stored in the column to be
 compressed on writing to storage and decompressed on reading. For all other
@@ -24,6 +24,12 @@ This feature provides:
   row compression method)
   
 This feature is based on a patch provided by Weixiang Zhai.
+
+.. important::
+
+   Compressed columns with dictionaries is not available in |Percona
+   Server| |release|. This feature will be included into a later
+   release.
 
 Specifications
 ==============
@@ -267,8 +273,8 @@ options to do this safely:
 Version Specific Information
 ============================
 
-  * :rn:`5.7.17-11`
-    Feature implemented in |Percona Server| 5.7
+  * :rn:`8.0.12-1`
+    Feature ported from |Percona Server| 5.7.
 
 System Variables
 ================

@@ -32,5 +32,5 @@ available:
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`
-    Feature ported from |Percona Server| 5.6
+* :rn:`8.0.12-1`: The feature was ported from |Percona Server| 5.7
+* :rn:`5.7.10-1`: The feature was ported from |Percona Server| 5.6

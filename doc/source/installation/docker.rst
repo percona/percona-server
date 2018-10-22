@@ -21,22 +21,22 @@ For more information about using Docker, see the `Docker Docs`_.
 Using the Percona Server Images
 ===============================
 
-The following procedure describes how to run and access Percona Server 5.7
+The following procedure describes how to run and access Percona Server 8.0
 using Docker.
 
 Starting a Percona Server Instance in a Container
 -------------------------------------------------
 
 To start a container named ``ps``
-running the latest version in the Percona Server 5.7 series,
+running the release candidate of Percona Server 8.0,
 with the root password set to ``root``::
 
  [root@docker-host] $ docker run -d \
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
-   percona/percona-server:5.7
+   percona/percona-server:8.0
 
-.. note:: ``root`` is not a secure password.
+.. important:: ``root`` is not a secure password.
 
 Accessing the Percona Server Container
 --------------------------------------
@@ -59,7 +59,7 @@ to access the database directly::
  mysql: [Warning] Using a password on the command line interface can be insecure.
  Welcome to the MySQL monitor.  Commands end with ; or \g.
  Your MySQL connection id is 4
- Server version: 5.7.19-17 Percona Server (GPL), Release '17', Revision 'e19a6b7b73f'
+ Server version: 8.0.12-1 Percona Server (GPL), Release '17', Revision 'e19a6b7b73f'
 
  Copyright (c) 2009-2017 Percona LLC and/or its affiliates
  Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
@@ -218,7 +218,7 @@ you run the container with the following command::
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
    -v /local/datadir:/var/lib/mysql \
-   percona/percona-server:5.7
+   percona/percona-server:8.0
 
 The ``-v /local/datadir:/var/lib/mysql`` option
 mounts the ``/local/datadir`` directory on the host
@@ -253,7 +253,7 @@ To map the standard MySQL port 3306 to port 6603 on the host::
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
    -p 6603:3306 \
-   percona/percona-server:5.7
+   percona/percona-server:8.0
 
 Passing Options to Percona Server
 =================================
@@ -267,7 +267,7 @@ and collation for all databases::
   [root@docker-host] $ docker run -d \
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
-   percona/percona-server:5.7 \
+   percona/percona-server:8.0 \
    --character-set-server=utf8 \
    --collation-server=utf8_general_ci
 

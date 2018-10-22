@@ -16,6 +16,8 @@ Supported Releases:
 
  * *Amazon Linux AMI* (works the same as *CentOS* 6)
 
+ * Amazon Linux 2
+
 The *CentOS* repositories should work well with *Red Hat Enterprise Linux* too, provided that :program:`yum` is installed on the server.
 
 Supported Platforms:
@@ -51,7 +53,7 @@ Installing |Percona Server| from Percona ``yum`` repository
 
    .. code-block:: bash
 
-     yum install http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-6.noarch.rpm
+     $ sudo yum install https://repo.percona.com/centos/7/RPMS/noarch/percona-release-0.1-8.noarch.rpm
 
    You should see some output such as the following: 
 
@@ -61,40 +63,23 @@ Installing |Percona Server| from Percona ``yum`` repository
      Preparing...                ########################################### [100%]
         1:percona-release        ########################################### [100%]
 
-2. Testing the repository
-   
-   Make sure packages are now available from the repository, by executing the following command: 
+#. Enable the repository:
 
    .. code-block:: bash
 
-     yum list | grep percona
+      $ sudo percona-release enable ps-80 testing
 
-   You should see output similar to the following:
-
-   .. code-block:: bash
-
-     ...
-     Percona-Server-57-debuginfo.x86_64      5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-client-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-devel-57.x86_64          5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-server-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-shared-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-shared-compat-57.x86_64  5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-test-57.x86_64           5.7.10-3.1.el7                 @percona-release-x86_64
-     Percona-Server-tokudb-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
-     ...
-
-3. Install the packages
+#. Install the packages
 
    You can now install |Percona Server| by running:
 
    .. code-block:: bash
 
-     yum install Percona-Server-server-57
+     sudo yum install percona-server
 
 .. note::
 
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
+  |Percona Server| 8.0 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
 
 Percona `yum` Testing repository
 --------------------------------

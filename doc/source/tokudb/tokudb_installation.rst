@@ -4,13 +4,13 @@
  TokuDB Installation
 =====================
 
-|Percona Server| is compatible with the separately available |TokuDB| storage engine package. The |TokuDB| engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard |Percona Server| 5.7 releases and does not require any specially adapted version of |Percona Server|.
+|Percona Server| is compatible with the separately available |TokuDB| storage engine package. The |TokuDB| engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard |Percona Server| 8.0 releases and does not require any specially adapted version of |Percona Server|.
 
 The |TokuDB| storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing. To learn more about Fractal Tree indexing, you can visit the following `Wikipedia page <http://en.wikipedia.org/wiki/Fractal_tree_index>`_.
 
 .. warning:: 
 
-  Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-5.7/LATEST/>`_ |TokuDB| engine should be used with |Percona Server| 5.7. A |TokuDB| engine downloaded from other sources is not compatible. |TokuDB| file formats are not the same across |MySQL| variants. Migrating from one variant to any other variant requires a logical data dump and reload.
+  Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-8.0/LATEST/>`_ |TokuDB| engine should be used with |Percona Server| 8.0. A |TokuDB| engine downloaded from other sources is not compatible. |TokuDB| file formats are not the same across |MySQL| variants. Migrating from one variant to any other variant requires a logical data dump and reload.
 
 Prerequisites 
 =============
@@ -64,7 +64,7 @@ or
 
 .. code-block:: bash
 
- root@wheezy:~# apt-get install percona-server-tokudb-5.7
+ root@wheezy:~# apt-get install percona-server-tokudb-8.0
 
 .. _tokudb_quick_install:
 
@@ -80,9 +80,9 @@ Once the |TokuDB| server package has been installed following output will be sho
 
       ps_tokudb_admin --enable -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]
 
-     * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_installation.html for more installation details
+     * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_installation.html for more installation details
 
-     * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_intro.html for an introduction to TokuDB
+     * See http://www.percona.com/doc/percona-server/8.0/tokudb/tokudb_intro.html for an introduction to TokuDB
 
 |Percona Server| has implemented ``ps_tokudb_admin`` script to make the enabling the |TokuDB| storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install and enable the |TokuDB| storage engine with all the required plugins. You need to run this script as root or with :program:`sudo`. After you run the script with required parameters:
 
@@ -174,7 +174,7 @@ TokuDB Version
    +------------------+
    | @@tokudb_version |
    +------------------+
-   | 5.7.10-1rc1      |
+   | 8.0.12-1rc1      |
    +------------------+
    1 row in set (0.00 sec)
 

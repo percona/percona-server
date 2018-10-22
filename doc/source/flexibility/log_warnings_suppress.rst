@@ -15,6 +15,8 @@ This feature is intended to provide a general mechanism (using ``log_warnings_si
 Version Specific Information
 ============================
 
+  * :rn:`8.0.12-1`: The feature was ported from |Percona Server| 5.7
+
   * :rn:`5.7.10-1`:
     Variable :variable:`log_warnings_suppress` ported from |Percona Server| 5.6.
 

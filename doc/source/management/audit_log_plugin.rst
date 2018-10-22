@@ -63,19 +63,19 @@ Installation
 
 Audit Log plugin is shipped with |Percona Server|, but it is not installed by default. To enable the plugin you must run the following command: 
 
-.. code-block:: mysql
+.. code-block:: guess
 
    INSTALL PLUGIN audit_log SONAME 'audit_log.so';
 
 You can check if the plugin is loaded correctly by running:
 
-.. code-block:: mysql
+.. code-block:: guess
 
    SHOW PLUGINS;
 
 Audit log should be listed in the output:
     
-.. code-block:: mysql
+.. code-block:: guess
 
    +--------------------------------+----------+--------------------+--------------+---------+
    | Name                           | Status   | Type               | Library      | License |
@@ -88,6 +88,11 @@ Log Format
 ==========
 
 The audit log plugin supports four log formats: ``OLD``, ``NEW``, ``JSON``, and ``CSV``. ``OLD`` and ``NEW`` formats are based on XML, where the former outputs log record properties as XML attributes and the latter as XML tags. Information logged is the same in all four formats. The log format choice is controlled by :variable:`audit_log_format` variable.
+
+.. note::
+
+   The ``JSON`` format is fully compatible with that provided by
+   |MySQL| 8.0. Enterprise Edition.
 
 Example of the ``OLD`` format: ::
 
@@ -170,7 +175,7 @@ Example
 
 Following example shows adding users who will be monitored: 
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> SET GLOBAL audit_log_include_accounts = 'user1@localhost,root@localhost';
   Query OK, 0 rows affected (0.00 sec)
@@ -178,7 +183,7 @@ Following example shows adding users who will be monitored:
 If you you try to add users to both include and exclude lists server will show
 you the following error:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> SET GLOBAL audit_log_exclude_accounts = 'user1@localhost,root@localhost';
   ERROR 1231 (42000): Variable 'audit_log_exclude_accounts' can't be set to the value of 'user1@localhost,root@localhost'
@@ -186,7 +191,7 @@ you the following error:
 To switch from filtering by included user list to the excluded one or back,
 first set the currently active filtering variable to ``NULL``:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> SET GLOBAL audit_log_include_accounts = NULL;
   Query OK, 0 rows affected (0.00 sec)
@@ -205,7 +210,7 @@ first set the currently active filtering variable to ``NULL``:
 
 To see what users are currently in the on the list you can run:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> SELECT @@audit_log_exclude_accounts;
   +------------------------------+
@@ -218,7 +223,7 @@ To see what users are currently in the on the list you can run:
 Account names from :table:`mysql.user` table are the one that are logged in the
 audit log. For example when you create a user:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> CREATE USER 'user1'@'%' IDENTIFIED BY '111';
   Query OK, 0 rows affected (0.00 sec)
@@ -244,7 +249,7 @@ This is what you'll see when ``user1`` connected from ``localhost``:
 
 To exclude ``user1`` from logging in |Percona Server| 5.7 you must set:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   SET GLOBAL audit_log_exclude_accounts = 'user1@%';
 
@@ -280,7 +285,7 @@ Example
 
 The available command types can be listed by running:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> SELECT name FROM performance_schema.setup_instruments WHERE name LIKE "statement/sql/%" ORDER BY name;
   +------------------------------------------+
@@ -310,13 +315,13 @@ The available command types can be listed by running:
 
 You can add commands to the include filter by running:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> SET GLOBAL audit_log_include_commands= 'set_option,create_db';
 
 If you now create a database:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> CREATE DATABASE world;
 
@@ -342,7 +347,7 @@ You'll see it the audit log:
 To switch command type filtering type from included type list to excluded one
 or back, first reset the currently-active list to ``NULL``:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> SET GLOBAL audit_log_include_commands = NULL;
   Query OK, 0 rows affected (0.00 sec)
@@ -393,7 +398,7 @@ Example
 
 To add databases to be monitored you should run:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> SET GLOBAL audit_log_include_databases = 'test,mysql,db1';
   Query OK, 0 rows affected (0.00 sec)
@@ -404,7 +409,7 @@ To add databases to be monitored you should run:
 If you you try to add databases to both include and exclude lists server will
 show you the following error:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> SET GLOBAL audit_log_exclude_databases = 'test,mysql,db1';
   ERROR 1231 (42000): Variable 'audit_log_exclude_databases can't be set to the value of 'test,mysql,db1'
@@ -412,7 +417,7 @@ show you the following error:
 To switch from filtering by included database list to the excluded one or back,
 first set the currently active filtering variable to ``NULL``:
 
-.. code-block:: mysql
+.. code-block:: guess
 
   mysql> SET GLOBAL audit_log_include_databases = NULL;
   Query OK, 0 rows affected (0.00 sec)
@@ -643,11 +648,11 @@ This variable is used to specify the ``priority`` value for syslog. This variabl
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`
-    Feature ported from |Percona Server| 5.6
+  * :rn:`8.0.12-1`
+    Feature ported from |Percona Server| 5.7
 
   * :rn:`5.7.14-7` 
-    |Percona Server| :ref:`audit_log_plugin` now supports filtering by
+    |Percona Server| :ref:`audit_log_plugin` began supporting filtering by
     :ref:`user <filtering_by_user>`,  
     :ref:`sql_command <filtering_by_sql_command_type>`, and
     :ref:`databases <filtering_by_database>`.

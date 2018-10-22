@@ -6,7 +6,7 @@ Percona MyRocks Installation Guide
 
 
 Percona MyRocks is distributed as a separate package
-that can be enabled as a plugin for Percona Server 5.7 and later versions.
+that can be enabled as a plugin for Percona Server 8.0 and later versions.
 
 .. note:: File formats across different MyRocks variants may not be compatible.
    Percona Server supports only *Percona MyRocks*.
@@ -23,7 +23,6 @@ Percona provides packages for most popular 64-bit Linux distributions:
 
 * Debian 8 ("jessie")
 * Debian 9 ("stretch")
-* Ubuntu 14.04 LTS (Trusty Tahr)
 * Ubuntu 16.04 LTS (Xenial Xerus)
 * Ubuntu 16.10 (Yakkety Yak)
 * Ubuntu 17.04 (Zesty Zapus)
@@ -44,11 +43,11 @@ It is recommended to install Percona software from official repositories:
 
    * For Debian or Ubuntu::
 
-      $ sudo apt-get install percona-server-rocksdb-5.7
+      $ sudo apt-get install percona-server-rocksdb-8.0
 
    * For RHEL or CentOS::
 
-      $ sudo yum install Percona-Server-rocksdb-57.x86_64
+      $ sudo yum install Percona-Server-rocksdb-80.x86_64
 
 After you install the Percona MyRocks package,
 you should see the following output::
@@ -137,11 +136,11 @@ remove the Percona MyRocks package:
 
 * For Debian or Ubuntu::
 
-  $ sudo apt-get remove percona-server-rocksdb-5.7
+  $ sudo apt-get remove percona-server-rocksdb-8.0
 
 * For RHEL or CentOS::
 
-  $ sudo yum remove Percona-Server-rocksdb-57.x86_64
+  $ sudo yum remove Percona-Server-rocksdb-80.x86_64
 
 Finally, remove all the :ref:`myrocks_server_variables`
 from the configuration file (:file:`my.cnf`)

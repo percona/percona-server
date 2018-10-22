@@ -62,8 +62,8 @@ Certain types of workloads (large result sets, BLOBs, slow clients) can have lon
 Version Specific Information
 ============================
 
- * :rn:`5.7.10-1`
-    ``Thread Pool`` feature ported from |Percona Server| 5.6. 
+ * :rn:`8.0.12-1`
+    ``Thread Pool`` feature ported from |Percona Server| 5.7. 
 
 System Variables
 ================

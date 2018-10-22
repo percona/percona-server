@@ -16,7 +16,7 @@ eval CREATE TABLE t1(
   pk CHAR(5),
   a char(30),
   b char(30),
-  PRIMARY KEY(pk) COMMENT "$pk_cf",
+  PRIMARY KEY(pk) COMMENT "cfname=$pk_cf",
   KEY(a)
 ) ENGINE=ROCKSDB COLLATE 'latin1_bin';
 
@@ -26,7 +26,7 @@ eval CREATE TABLE t2(
   pk CHAR(5),
   a CHAR(30),
   b CHAR(30),
-  PRIMARY KEY(pk) COMMENT "$pk_cf",
+  PRIMARY KEY(pk) COMMENT "cfname=$pk_cf",
   KEY(a)
 ) ENGINE=ROCKSDB COLLATE 'latin1_bin';
 
@@ -36,7 +36,7 @@ eval CREATE TABLE t3(
   pk CHAR(5),
   a CHAR(30),
   b CHAR(30),
-  PRIMARY KEY(pk) COMMENT "$pk_cf",
+  PRIMARY KEY(pk) COMMENT "cfname=$pk_cf",
   KEY(a)
 ) ENGINE=ROCKSDB COLLATE 'latin1_bin' PARTITION BY KEY() PARTITIONS 4;
 

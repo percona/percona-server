@@ -1,0 +1,32 @@
+Test rules 1 and 4
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT 'cfname=      asdf  jkl  ;cfname=foo') engine=rocksdb;
+include/assert.inc ["Expected information_schema.rocksdb_ddl.cf to be exactly 'asdf  jkl'"]
+DROP TABLE t1;
+Test rule 2
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT 'cfname=foo') engine=rocksdb;
+CREATE TABLE t2(a INT, PRIMARY KEY(a) COMMENT 'cfname=Foo') engine=rocksdb;
+CREATE TABLE t3(a INT, PRIMARY KEY(a) COMMENT 'cfname=FOO') engine=rocksdb;
+include/assert.inc ["Expected information_schema.rocksdb_ddl.cf for t1 to be exactly 'foo'"]
+include/assert.inc ["Expected information_schema.rocksdb_ddl.cf for t2 to be exactly 'Foo'"]
+include/assert.inc ["Expected information_schema.rocksdb_ddl.cf for t3 to be exactly 'FOO'"]
+include/assert.inc ["Expected there to be three distinct column families of foo, Foo, and FOO"]
+DROP TABLE t1, t2, t3;
+Test rule 3
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT '  cfname=foo   ') engine=rocksdb;
+include/assert.inc ["Expected information_schema.rocksdb_ddl.cf to be exactly 'foo'"]
+DROP TABLE t1;
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT '  cfname = foo   ') engine=rocksdb;
+include/assert.inc ["Expected information_schema.rocksdb_ddl.cf to be exactly 'default'"]
+DROP TABLE t1;
+Test rule 5
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT 'cfname=foo; This is a non-default column family') engine=rocksdb;
+include/assert.inc ["Expected information_schema.rocksdb_ddl.cf to be exactly 'foo'"]
+DROP TABLE t1;
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT 'cfname=   ') engine=rocksdb;
+include/assert.inc ["Expected information_schema.rocksdb_ddl.cf to be exactly 'default'"]
+DROP TABLE t1;
+# restart:--rocksdb_no_create_column_family=1 --rocksdb_override_cf_options=cf1={compression=kNoCompression};
+CREATE TABLE t1(a INT, PRIMARY KEY(a) COMMENT 'cfname=  cf1  ;') engine=rocksdb;
+include/assert.inc ["Expected information_schema.rocksdb_ddl.cf to be exactly 'cf1'"]
+DROP TABLE t1;
+# restart

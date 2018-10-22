@@ -10,8 +10,8 @@ CREATE TABLE t1 (
   a int not null,
   b int not null,
   c varchar(500) not null,
-  primary key (a,b) comment 'cf1',
-  key (b) comment 'rev:cf2'
+  primary key (a,b) comment 'cfname=cf1',
+  key (b) comment 'cfname=rev:cf2'
 ) ENGINE=ROCKSDB;
 
 # Populate tables

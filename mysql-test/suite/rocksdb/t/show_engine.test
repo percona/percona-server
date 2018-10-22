@@ -6,21 +6,14 @@
 # If it starts producing an actual result, the result file
 # will need to be updated, and possibly masked.
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
-DROP TABLE IF EXISTS t3;
-DROP TABLE IF EXISTS t4;
---enable_warnings
-
-CREATE TABLE t1 (i INT, PRIMARY KEY (i) COMMENT 'cf_t1') ENGINE = ROCKSDB;
-CREATE TABLE t2 (j INT, PRIMARY KEY (j) COMMENT 'rev:cf_t2') ENGINE = ROCKSDB;
-CREATE TABLE t3 (k INT, PRIMARY KEY (k) COMMENT 'cf_t1') ENGINE = ROCKSDB;
+CREATE TABLE t1 (i INT, PRIMARY KEY (i) COMMENT 'cfname=cf_t1') ENGINE = ROCKSDB;
+CREATE TABLE t2 (j INT, PRIMARY KEY (j) COMMENT 'cfname=rev:cf_t2') ENGINE = ROCKSDB;
+CREATE TABLE t3 (k INT, PRIMARY KEY (k) COMMENT 'cfname=cf_t1') ENGINE = ROCKSDB;
 
 # With partition based column family creation we now expect all the partitions
 # to belong to a default column family because mapping wasn't specified in
 # this case.
-CREATE TABLE t4 (l INT, PRIMARY KEY (l) COMMENT 'cf_t4') ENGINE = ROCKSDB
+CREATE TABLE t4 (l INT, PRIMARY KEY (l) COMMENT 'cfname=cf_t4') ENGINE = ROCKSDB
     PARTITION BY KEY(l) PARTITIONS 4;
 
 SET @save.rocksdb_max_background_jobs= @@global.rocksdb_max_background_jobs;

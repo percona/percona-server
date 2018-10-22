@@ -500,6 +500,7 @@ static uint64_t rocksdb_write_policy =
     rocksdb::TxnDBWritePolicy::WRITE_COMMITTED;
 static my_bool rocksdb_error_on_suboptimal_collation = FALSE;
 static uint32_t rocksdb_stats_recalc_rate = 0;
+static my_bool rocksdb_no_create_column_family = FALSE;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -1214,7 +1215,8 @@ static MYSQL_SYSVAR_STR(override_cf_options, rocksdb_override_cf_options,
                         "");
 
 static MYSQL_SYSVAR_STR(update_cf_options, rocksdb_update_cf_options,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_NOCMDOPT,
                         "Option updates per column family for RocksDB",
                         rocksdb_validate_update_cf_options,
                         rocksdb_set_update_cf_options, nullptr);
@@ -1518,6 +1520,12 @@ static MYSQL_SYSVAR_BOOL(error_on_suboptimal_collation,
                          "collation is used",
                          nullptr, nullptr, false);
 
+static MYSQL_SYSVAR_BOOL(
+    no_create_column_family, rocksdb_no_create_column_family,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "Do not allow creation of new Column Families through index comments.",
+    nullptr, nullptr, false);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct st_mysql_sys_var *rocksdb_system_variables[] = {
@@ -1665,6 +1673,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(large_prefix),
     MYSQL_SYSVAR(allow_to_start_after_corruption),
     MYSQL_SYSVAR(error_on_suboptimal_collation),
+    MYSQL_SYSVAR(no_create_column_family),
     MYSQL_SYSVAR(stats_recalc_rate),
     nullptr};
 
@@ -6240,7 +6249,8 @@ int ha_rocksdb::create_cfs(
     // Here's how `get_or_create_cf` will use the input parameters:
     //
     // `cf_name` - will be used as a CF name.
-    cf_handle = cf_manager.get_or_create_cf(rdb, cf_name);
+    cf_handle = cf_manager.get_or_create_cf(rdb, cf_name,
+                                            !rocksdb_no_create_column_family);
 
     if (!cf_handle) {
       DBUG_RETURN(HA_EXIT_FAILURE);

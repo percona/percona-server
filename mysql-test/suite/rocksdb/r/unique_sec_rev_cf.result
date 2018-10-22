@@ -4,12 +4,12 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 CREATE TABLE t1 (id1 INT NOT NULL, id2 INT NOT NULL, id3 VARCHAR(32),
 id4 INT, id5 VARCHAR(32),
 value1 INT, value2 INT, value3 VARCHAR(32),
-PRIMARY KEY (id1, id2)  COMMENT 'rev:cf',
-UNIQUE INDEX (id2, id1)  COMMENT 'rev:cf',
-UNIQUE INDEX (id2, id3, id4)  COMMENT 'rev:cf',
-INDEX (id1)  COMMENT 'rev:cf',
-INDEX (id3, id1)  COMMENT 'rev:cf',
-UNIQUE INDEX(id5)  COMMENT 'rev:cf',
+PRIMARY KEY (id1, id2)  COMMENT 'cfname=rev:cf',
+UNIQUE INDEX (id2, id1)  COMMENT 'cfname=rev:cf',
+UNIQUE INDEX (id2, id3, id4)  COMMENT 'cfname=rev:cf',
+INDEX (id1)  COMMENT 'cfname=rev:cf',
+INDEX (id3, id1)  COMMENT 'cfname=rev:cf',
+UNIQUE INDEX(id5)  COMMENT 'cfname=rev:cf',
 INDEX (id2, id5)) ENGINE=ROCKSDB;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -168,12 +168,12 @@ SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 CREATE TABLE t1 (id1 INT NOT NULL, id2 INT NOT NULL, id3 VARCHAR(32),
 id4 INT, id5 VARCHAR(32),
 value1 INT, value2 INT, value3 VARCHAR(32),
-PRIMARY KEY (id1, id2)  COMMENT 'rev:cf',
-UNIQUE INDEX (id2, id1)  COMMENT 'rev:cf',
-UNIQUE INDEX (id2, id3, id4)  COMMENT 'rev:cf',
-INDEX (id1)  COMMENT 'rev:cf',
-INDEX (id3, id1)  COMMENT 'rev:cf',
-UNIQUE INDEX(id5)  COMMENT 'rev:cf',
+PRIMARY KEY (id1, id2)  COMMENT 'cfname=rev:cf',
+UNIQUE INDEX (id2, id1)  COMMENT 'cfname=rev:cf',
+UNIQUE INDEX (id2, id3, id4)  COMMENT 'cfname=rev:cf',
+INDEX (id1)  COMMENT 'cfname=rev:cf',
+INDEX (id3, id1)  COMMENT 'cfname=rev:cf',
+UNIQUE INDEX(id5)  COMMENT 'cfname=rev:cf',
 INDEX (id2, id5)) ENGINE=ROCKSDB;
 SELECT COUNT(*) FROM t1;
 COUNT(*)

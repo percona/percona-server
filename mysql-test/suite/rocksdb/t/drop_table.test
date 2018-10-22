@@ -13,29 +13,29 @@ set global rocksdb_signal_drop_index_thread = 1;
 CREATE TABLE t1 (
   a int not null,
   b int not null,
-  primary key (a,b) comment 'cf1',
-  key (b) comment 'rev:cf2'
+  primary key (a,b) comment 'cfname=cf1',
+  key (b) comment 'cfname=rev:cf2'
 ) ENGINE=ROCKSDB;
 
 CREATE TABLE t2 (
   a int not null,
   b int not null,
-  primary key (a,b) comment 'cf1',
-  key (b) comment 'rev:cf2'
+  primary key (a,b) comment 'cfname=cf1',
+  key (b) comment 'cfname=rev:cf2'
 ) ENGINE=ROCKSDB;
 
 CREATE TABLE t3 (
   a int not null,
   b int not null,
-  primary key (a,b) comment 'cf1',
-  key (b) comment 'rev:cf2'
+  primary key (a,b) comment 'cfname=cf1',
+  key (b) comment 'cfname=rev:cf2'
 ) ENGINE=ROCKSDB;
 
 CREATE TABLE t4 (
   a int not null,
   b int not null,
-  primary key (a,b) comment 'cf1',
-  key (b) comment 'rev:cf2'
+  primary key (a,b) comment 'cfname=cf1',
+  key (b) comment 'cfname=rev:cf2'
 ) ENGINE=ROCKSDB;
 
 # Populate tables
@@ -77,8 +77,8 @@ drop table t4;
 CREATE TABLE t5 (
   a int not null,
   b int not null,
-  primary key (a,b) comment 'cf1',
-  key (b) comment 'rev:cf2'
+  primary key (a,b) comment 'cfname=cf1',
+  key (b) comment 'cfname=rev:cf2'
 ) ENGINE=ROCKSDB;
 
 let $max = 1000;

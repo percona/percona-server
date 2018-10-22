@@ -108,8 +108,8 @@ TRUNCATE TABLE t1;
 DROP TABLE t1;
 
 ## secondary indexes live in reverse column families
-CREATE TABLE t1 (a INT, b CHAR(8), KEY ka(a) comment 'rev:cf1', KEY kb(b)
-comment 'rev:cf1', KEY kab(a,b) comment 'rev:cf2') ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b CHAR(8), KEY ka(a) comment 'cfname=rev:cf1', KEY kb(b)
+comment 'cfname=rev:cf1', KEY kab(a,b) comment 'cfname=rev:cf2') ENGINE=rocksdb;
 --source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 

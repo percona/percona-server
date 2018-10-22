@@ -1,5 +1,7 @@
 --source include/have_rocksdb.inc
 
+call mtr.add_suppression("Column family 'cf1' not found");
+call mtr.add_suppression("Column family 'rev:cf2' not found");
 -- let $truncate_table = 1
 -- let $drop_table = 0
 -- source suite/rocksdb/include/drop_table3.inc

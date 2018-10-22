@@ -1,7 +1,7 @@
 --source include/have_rocksdb.inc
 
 create table r1 (id bigint primary key, value bigint) engine=rocksdb;
-create table r2 (id bigint, value bigint, primary key (id) comment 'cf2') engine=rocksdb;
+create table r2 (id bigint, value bigint, primary key (id) comment 'cfname=cf2') engine=rocksdb;
 set session rocksdb_bulk_load=1;
 --disable_query_log
 let $t = 1;

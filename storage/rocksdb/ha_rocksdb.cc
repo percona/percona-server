@@ -8386,13 +8386,13 @@ ha_rocksdb::generate_cf_name(const uint index, const TABLE *const table_arg,
     return "";
   }
 
-  // If we didn't find any partitioned/non-partitioned qualifiers, return the
-  // comment itself.  NOTE: this currently handles returning the cf name
-  // specified in the index comment in the case of no partitions, which doesn't
-  // use any qualifiers at the moment. (aka its a special case)
-  if (cf_name.empty() && !key_comment.empty()) {
-    return key_comment;
-  }
+  // If we didn't find any partitioned/non-partitioned qualifiers, DO NOT return
+  // the comment itself. FB 5.6 Behavior is exactly the opposite which then
+  // causes any index comment to create a new column family.
+
+  // Strip leading and trailing whitespace as that is not part of a valid name
+  if (!cf_name.empty())
+    rdb_trim_whitespace_from_edges(cf_name);
 
   return cf_name;
 }

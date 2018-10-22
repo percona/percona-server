@@ -12,10 +12,10 @@ CREATE TABLE `linktable` (
   `data` varchar(255) NOT NULL DEFAULT '',
   `time` bigint(20) unsigned NOT NULL DEFAULT '0',
   `version` int(11) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (link_type, `id1`,`id2`) COMMENT 'cf_link_pk',
-  KEY `id1_type` (`id1`,`link_type`,`visibility`,`time`,`version`,`data`) COMMENT 'rev:cf_link_id1_type',
-  KEY `id1_type2` (`id1`,`link_type`,`time`,`version`,`data`,`visibility`) COMMENT 'rev:cf_link_id1_type2',
-  KEY `id1_type3` (`id1`,`visibility`,`time`,`version`,`data`,`link_type`) COMMENT 'rev:cf_link_id1_type3'
+  PRIMARY KEY (link_type, `id1`,`id2`) COMMENT 'cfname=cf_link_pk',
+  KEY `id1_type` (`id1`,`link_type`,`visibility`,`time`,`version`,`data`) COMMENT 'cfname=rev:cf_link_id1_type',
+  KEY `id1_type2` (`id1`,`link_type`,`time`,`version`,`data`,`visibility`) COMMENT 'cfname=rev:cf_link_id1_type2',
+  KEY `id1_type3` (`id1`,`visibility`,`time`,`version`,`data`,`link_type`) COMMENT 'cfname=rev:cf_link_id1_type3'
 ) ENGINE=ROCKSDB DEFAULT COLLATE=latin1_bin;
 
 --disable_query_log
@@ -92,7 +92,7 @@ create table t1 (
   kp1 bigint not null,
   kp2 bigint not null,
   kp3 bigint not null,
-  key kp12(kp0, kp1, kp2, kp3) comment 'rev:x1'
+  key kp12(kp0, kp1, kp2, kp3) comment 'cfname=rev:x1'
 ) engine=rocksdb;
 
 insert into t1 values (1, 1,1,         1,1);

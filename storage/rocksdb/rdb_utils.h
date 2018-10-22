@@ -188,6 +188,24 @@ inline const uchar *rdb_slice_to_uchar_ptr(const rocksdb::Slice *item) {
 }
 
 /*
+  Helper function to trim whitespace from leading and trailing edge of the given
+  string.
+*/
+inline void rdb_trim_whitespace_from_edges(std::string &str) {
+  const auto start = str.find_first_not_of(" ");
+  const auto end = str.find_last_not_of(" ");
+
+  if (start == std::string::npos && end == std::string::npos) {
+    str.erase();
+  } else {
+    if (end != std::string::npos)
+      str.erase(end + 1, std::string::npos);
+    if (start != std::string::npos)
+      str.erase(0, start);
+  }
+}
+
+/*
   Call this function in cases when you can't rely on garbage collector and need
   to explicitly purge all unused dirty pages. This should be a relatively rare
   scenario for cases where it has been verified that this intervention has

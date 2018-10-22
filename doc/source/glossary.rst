@@ -81,8 +81,11 @@
     is basically accessible from everywhere, but at a potentially higher latency
     and lower performance.
 
-  Percona Server
+  Percona Server for MySQL
     Percona's branch of :term:`MySQL` with performance and management improvements.
+
+  Percona Server
+    See :term:`Percona Server for MySQL`
 
   Storage Engine
     A :term:`Storage Engine` is a piece of software that implements the

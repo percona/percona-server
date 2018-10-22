@@ -1,8 +1,8 @@
 .. _ps_variables:
 
-====================================================
- List of variables introduced in Percona Server 5.7
-====================================================
+================================================================================
+ List of variables introduced in |Percona Server| 8.0
+================================================================================
 
 System Variables
 ================
@@ -132,12 +132,12 @@ System Variables
      - Yes
      - Global
      - Yes
-  * - :variable:`innodb_encrypt_online_alter_logs`
+   * - :variable:`innodb_encrypt_online_alter_logs`
      - Yes
      - Yes
      - Global
      - Yes
-  * - :variable:`innodb_encrypt_tables`
+   * - :variable:`innodb_encrypt_tables`
      - Yes
      - Yes
      - Global
@@ -167,11 +167,6 @@ System Variables
      - Yes
      - Global
      - Yes
-   * - :variable:`innodb_show_verbose_locks`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`innodb_temp_tablespace_encrypt`
      - Yes
      - Yes
@@ -182,11 +177,6 @@ System Variables
      - Yes
      - Global
      - No
-   * - :variable:`innodb_use_global_flush_log_at_trx_commit`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`keyring_vault_config`
      - Yes
      - Yes
@@ -227,31 +217,11 @@ System Variables
      - Yes
      - Global
      - Yes
-   * - :variable:`max_binlog_files`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`max_slowlog_files`
-     - Yes
-     - Yes
-     - Global
-     - Yes
-   * - :variable:`max_slowlog_size`
-     - Yes
-     - Yes
-     - Global
-     - Yes
    * - :variable:`proxy_protocol_networks`
      - Yes
      - Yes
      - Global
      - No
-   * - :variable:`pseudo_server_id`
-     - Yes
-     - No
-     - Session
-     - Yes
    * - :variable:`query_response_time_flush`
      - Yes
      - No

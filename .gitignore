@@ -157,6 +157,7 @@ INSTALL-WIN-SOURCE
 Logs/*
 MIRRORS
 Makefile
+!doc/Makefile
 Makefile.in
 Makefile.in'
 PENDING/*

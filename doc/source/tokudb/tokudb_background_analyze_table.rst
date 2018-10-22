@@ -125,11 +125,4 @@ INFORMATION_SCHEMA Tables
 
 This table holds the information on scheduled and running background ``ANALYZE TABLE`` jobs for |TokuDB| tables.
 
-Version Specific Information
-============================
 
-  * :rn:`5.7.10-1`:
-    Feature ported from |Percona Server| 5.6
-
-  * :rn:`5.7.11-4`:
-    :variable:`tokudb_analyze_in_background` is now set to ``ON`` by default and :variable:`tokudb_auto_analyze` is set to ``30`` 

@@ -1,15 +1,15 @@
 .. _compressed_columns:
 
-====================================
-Compressed columns with dictionaries
-====================================
+================================================================================
+|feature|
+================================================================================
 
-In :rn:`5.7.17-11` |Percona Server| has been extended with a new per-column
-compression feature. It is a data type modifier, independent from user-level SQL
-and |InnoDB| data compression, that causes the data stored in the column to be
-compressed on writing to storage and decompressed on reading. For all other
-purposes, the data type is identical to the one without the modifier, i.e. no
-new data types are created. Compression is done by using the ``zlib`` library.
+The ``per-column compression`` feature is a data type modifier, independent from
+user-level SQL and |InnoDB| data compression, that causes the data stored in the
+column to be compressed on writing to storage and decompressed on reading. For
+all other purposes, the data type is identical to the one without the modifier,
+i.e. no new data types are created. Compression is done by using the ``zlib``
+library.
 
 Additionally, it is possible to pre-define a set of strings for each compressed
 column to achieve a better compression ratio on relatively small individual
@@ -31,15 +31,11 @@ Specifications
 The feature is limited to InnoDB/XtraDB storage engine and to columns of the
 following data types:
 
-* ``BLOB`` (including ``TINYBLOB``, ``MEDIUMBLOB``, ``LONGBLOG``)
-
-* ``TEXT`` (including ``TINYTEXT``, ``MEDUUMTEXT``, ``LONGTEXT``)
-
-* ``VARCHAR`` (including ``NATIONAL VARCHAR``)
-
-* ``VARBINARY``
-
-* ``JSON``
+- ``BLOB`` (including ``TINYBLOB``, ``MEDIUMBLOB``, ``LONGBLOG``)
+- ``TEXT`` (including ``TINYTEXT``, ``MEDUUMTEXT``, ``LONGTEXT``)
+- ``VARCHAR`` (including ``NATIONAL VARCHAR``)
+- ``VARBINARY``
+- ``JSON``
 
 The syntax to declare a compressed column is using an extension of an existing
 ``COLUMN_FORMAT`` modifier: ``COLUMN_FORMAT COMPRESSED``. If this modifier is
@@ -248,27 +244,11 @@ following fragment (regardless of the values of
 
   /*!50633 CREATE COMPRESSION_DICTIONARY IF NOT EXISTS <dictionary>(...); */
 
-Downgrade scenario
-==================
-
-If it is necessary to perform |Percona Server| downgrade from a version
-:rn:`5.7.17-11` (or newer) to a version older than :rn:`5.7.17-11` and if
-user databases have one or more table with compressed columns, there are two
-options to do this safely:
-
-1. Use ``mysqldump`` in compatible mode (no compressed columns extensions must
-   be specified).
-
-2. Manually remove the ``COMPRESSED`` attribute from all columns which have it
-   via ``ALTER TABLE ... MODIFY ... COLUMN_FORMAT DEFAULT`` before updating
-   server binaries.
-   In this case, the downgraded server can start safely with old data files.
-
 Version Specific Information
 ============================
 
-  * :rn:`5.7.17-11`
-    Feature implemented in |Percona Server| 5.7
+  * :rn:`8.0.13-3`
+    Feature ported from |Percona Server| 5.7.
 
 System Variables
 ================
@@ -313,9 +293,9 @@ This parameter can be tuned in order to skip unnecessary attempts of data
 compression for values that are known in advance by the user to have bad
 compression ratio of their first N bytes.
 
-Other reading
-=============
+.. seealso::
+   
+   How to find a good/optimal dictionary for zlib 'setDictionary' when processing a given set of data?
+      http://stackoverflow.com/questions/2011653/how-to-find-a-good-optimal-dictionary-for-zlib-setdictionary-when-processing-a
 
-* `How to find a good/optimal dictionary for zlib 'setDictionary' when
-  processing a given set of data?
-  <http://stackoverflow.com/questions/2011653/how-to-find-a-good-optimal-dictionary-for-zlib-setdictionary-when-processing-a>`_
+.. |feature| replace:: Compressed columns with dictionaries

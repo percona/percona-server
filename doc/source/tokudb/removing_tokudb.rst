@@ -67,13 +67,9 @@ After the engine and the plugins have been uninstalled you can remove the TokuDB
 
 .. code-block:: bash
 
- [root@centos ~]# yum remove Percona-Server-tokudb-57.x86_64
+ [root@centos ~]# yum remove Percona-Server-tokudb-80.x86_64
 
-or
-
-.. code-block:: bash
-
- root@wheezy:~# apt-get remove percona-server-tokudb-5.7
+or :bash:`apt remove percona-server-tokudb-8.0`
  
 .. note::
 

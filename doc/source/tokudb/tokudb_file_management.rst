@@ -13,16 +13,14 @@ protect you from doing any further damage to your data.
 This document contains examples of common file maintenance operations and
 instructions on how to safely execute these operations.
 
-Beginning in Percona Server :rn:`5.7.15-9` a new server option was
-introduced called :variable:`tokudb_dir_per_db`. This feature addressed two
+The :variable:`tokudb_dir_per_db` option addressed two
 shortcomings the :ref:`renaming of data files
 <improved_table_renaming_functionality>` on table/index rename, and the ability
 to :ref:`group data files together <improved_directory_layout_functionality>`
 within a directory that represents a single database. This feature is enabled
 by default.
 
-In |Percona Server| :rn:`5.7.18-14` new :variable:`tokudb_dir_cmd` variable
-has been implemented that can be used to edit the contents of the
+The :variable:`tokudb_dir_cmd` variable can be used to edit the contents of the
 TokuDB/PerconaFT directory map.
 
 Moving TokuDB data files to a location outside of the default MySQL datadir
@@ -138,8 +136,7 @@ This makes it difficult to quickly match database/table/index names to their
 actual files on disk, requiring you to use the
 :table:`INFORMATION_SCHEMA.TOKUDB_FILE_MAP` table to cross reference.
 
-Beginning with |Percona Server| :rn:`5.7.15-9` a new server option was
-introduced called :variable:`tokudb_dir_per_db` to address this issue.
+The :variable:`tokudb_dir_per_db` variable is implemented to address this issue.
 
 When :variable:`tokudb_dir_per_db` is enabled (``ON`` by default), this is no
 longer the case. When you rename a table, the mapping in the |Percona FT|
@@ -152,10 +149,8 @@ Improved directory layout functionality
 ---------------------------------------
 
 Many users have had issues with managing the huge volume of individual files
-that |TokuDB| and |Percona FT| use.
-
-Beginning with |Percona Server| :rn:`5.7.15-9` a new server option was
-introduced called :variable:`tokudb_dir_per_db` to address this issue.
+that |TokuDB| and |Percona FT| use. The :variable:`tokudb_dir_per_db` variable
+addresses this issue.
 
 When :variable:`tokudb_dir_per_db` variable is enabled (``ON`` by default),
 all new tables and indices will be placed within their corresponding database
@@ -204,10 +199,9 @@ Editing |TokuDB| directory map with :variable:`tokudb_dir_cmd`
 
   This feature is currently considered *Experimental*.
 
-In |Percona Server| :rn:`5.7.18-14` new :variable:`tokudb_dir_cmd` variable
-has been implemented that can be used to edit the |TokuDB| directory map.
-**WARNING:** Use this variable only if you know what you're doing otherwise
-it **WILL** lead to data loss.
+The :variable:`tokudb_dir_cmd` variable can be used to edit the |TokuDB|
+directory map.  **WARNING:** Use this variable only if you know what you're
+doing otherwise it **WILL** lead to data loss.
 
 This method can be used if any kind of system issue causes the loss of specific
 :file:`.tokudb` files for a given table, because the |TokuDB| tablespace file
@@ -256,7 +250,6 @@ System Variables
 
 .. variable:: tokudb_dir_cmd
 
-     :version 5.7.18-14: Implemented
      :cli: Yes
      :conf: Yes
      :scope: Global

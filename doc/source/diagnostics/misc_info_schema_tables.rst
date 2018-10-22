@@ -19,7 +19,7 @@ Only the temporary tables that were explicitly created with `CREATE TEMPORARY TA
 
 .. table:: INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES
  
-   :version 5.7.10-1: Feature ported from |Percona Server| 5.6
+   :version 8.0.12-1: Feature ported from |Percona Server| 5.7
    :column SESSION_ID: |MySQL| connection id
    :column TABLE_SCHEMA: Schema in which the temporary table is created
    :column TABLE_NAME: Name of the temporary table
@@ -36,7 +36,7 @@ This table holds information on the temporary tables existing for all connection
 
 .. table:: INFORMATION_SCHEMA.TEMPORARY_TABLES
 
-   :version 5.7.10-1: Feature ported from |Percona Server| 5.6
+   :version 8.0.12-1: Feature ported from |Percona Server| 5.7
    :column SESSION_ID: |MySQL| connection id
    :column TABLE_SCHEMA: Schema in which the temporary table is created
    :column TABLE_NAME: Name of the temporary table
@@ -51,46 +51,5 @@ This table holds information on the temporary tables existing for all connection
 
 This table holds information on the temporary tables existing for the running connection.
 
-Multiple Rollback Segments
-==========================
 
-|Percona Server|, in addition to the upstream multiple rollback segment implementation, provides the additional Information Schema table: ``INFORMATION_SCHEMA.XTRADB_RSEG``.
-
-``INFORMATION_SCHEMA`` Tables
-=============================
-
-This feature provides the following table:
-
-.. table:: INFORMATION_SCHEMA.XTRADB_RSEG
-
-   :column rseg_id: rollback segment id
-   :column space_id: space where the segment placed
-   :column physical_page_size: physical page size
-   :column logical_page_size: logical page size
-   :column is_compressed: is the page compressed
-   :column page_no: page number of the segment header
-   :column max_size: max size in pages
-   :column curr_size: current size in pages
-
-This table shows information about all the rollback segments (the default segment and the extra segments).
-
-Here is an example of output with ``innodb_rollback_segments = 8``:
-
-.. code-block:: mysql
-
-  mysql> SELECT * FROM INFORMATION_SCHEMA.XTRADB_RSEG;
-  +---------+----------+--------------------+-------------------+---------------+---------+------------+-----------+
-  | rseg_id | space_id | physical_page_size | logical_page_size | is_compressed | page_no | max_size   | curr_size |
-  +---------+----------+--------------------+-------------------+---------------+---------+------------+-----------+
-  |       0 |        0 |              16384 |             16384 |             0 |       6 | 4294967294 |         2 |
-  |       1 |       24 |              16384 |             16384 |             0 |       3 | 4294967294 |         1 |
-  |       2 |       24 |              16384 |             16384 |             0 |       4 | 4294967294 |         1 |
-  |       3 |       24 |              16384 |             16384 |             0 |       5 | 4294967294 |         1 |
-  |       4 |       24 |              16384 |             16384 |             0 |       6 | 4294967294 |         1 |
-  |       5 |       24 |              16384 |             16384 |             0 |       7 | 4294967294 |         1 |
-  |       6 |       24 |              16384 |             16384 |             0 |       8 | 4294967294 |         1 |
-  |       7 |       24 |              16384 |             16384 |             0 |       9 | 4294967294 |         1 |
-  |       8 |       24 |              16384 |             16384 |             0 |      10 | 4294967294 |         1 |
-  +---------+----------+--------------------+-------------------+---------------+---------+------------+-----------+
-  9 rows in set (0.00 sec)
 

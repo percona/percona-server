@@ -23,14 +23,13 @@ With this feature |InnoDB| submits multiple page I/O requests.
 Version Specific Information
 ============================
 
- * :rn:`5.7.20-18`- Feature ported from the *Facebook MySQL* patch.
+* :rn:`8.0.12-1` - The feature was ported from |Percona Server| 5.7.
 
 Status Variables
 ================
 
 .. variable:: Innodb_buffered_aio_submitted
 
-  :version 5.7.20-18: Implemented
   :vartype: Numeric
   :scope: Global
 

@@ -6,24 +6,24 @@ MyRocks Limitations
 
 The MyRocks storage engine lacks the following features compared to InnoDB:
 
-* `Online DDL <https://dev.mysql.com/doc/refman/5.7/en/innodb-online-ddl.html>`_
+* `Online DDL <https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl.html>`_
 
 * `ALTER TABLE ... EXCHANGE PARTITION
-  <https://dev.mysql.com/doc/refman/5.7/en/partitioning-management-exchange.html>`_
+  <https://dev.mysql.com/doc/refman/8.0/en/partitioning-management-exchange.html>`_
 
-* `SAVEPOINT <https://dev.mysql.com/doc/refman/5.7/en/savepoint.html>`_
+* `SAVEPOINT <https://dev.mysql.com/doc/refman/8.0/en/savepoint.html>`_
 
-* `Transportable tablespace <https://dev.mysql.com/doc/refman/5.7/en/innodb-transportable-tablespace-examples.html>`_
+* `Transportable tablespace <https://dev.mysql.com/doc/refman/8.0/en/innodb-transportable-tablespace-examples.html>`_
 
-* `Foreign keys <https://dev.mysql.com/doc/refman/5.7/en/create-table-foreign-keys.html>`_
+* `Foreign keys <https://dev.mysql.com/doc/refman/8.0/en/create-table-foreign-keys.html>`_
 
-* `Spatial indexes <https://dev.mysql.com/doc/refman/5.7/en/using-spatial-indexes.html>`_
+* `Spatial indexes <https://dev.mysql.com/doc/refman/8.0/en/using-spatial-indexes.html>`_
 
-* `Fulltext indexes <https://dev.mysql.com/doc/refman/5.7/en/innodb-fulltext-index.html>`_
+* `Fulltext indexes <https://dev.mysql.com/doc/refman/8.0/en/innodb-fulltext-index.html>`_
 
-* `Gap locks <https://dev.mysql.com/doc/refman/5.7/en/innodb-locking.html#innodb-gap-locks>`_
+* `Gap locks <https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-gap-locks>`_
 
-* `Group Replication <https://dev.mysql.com/doc/refman/5.7/en/group-replication.html>`_
+* `Group Replication <https://dev.mysql.com/doc/refman/8.0/en/group-replication.html>`_
 
 You should also consider the following:
 
@@ -51,7 +51,7 @@ You should also consider the following:
   in any replication topology that is not exclusively row-based.
   Statement-based and mixed-format binary logging is not supported.
   For more information, see `Replication Formats
-  <https://dev.mysql.com/doc/refman/5.7/en/replication-formats.html>`_.
+  <https://dev.mysql.com/doc/refman/8.0/en/replication-formats.html>`_.
 
 * When converting from large MyISAM/InnoDB tables, either by using the
   ``ALTER`` or ``INSERT INTO SELECT`` statements it's recommended that you
@@ -74,8 +74,17 @@ You should also consider the following:
     size is small enough. All modifications of the ongoing transactions are
     kept in memory.
 
-* The`XA protocol <https://dev.mysql.com/doc/refman/5.7/en/xa.html>`_ support,
+* The`XA protocol <https://dev.mysql.com/doc/refman/8.0/en/xa.html>`_ support,
   which allows distributed transactions combining multiple separate
   transactional resources, is an experimental feature in MyRocks: the 
   implementation is less tested, it may lack some functionality and be not as
   stable as in case of InnoDB.
+
+* With partitioned tables that use the |TokuDB| or |MyRocks| storage engine, the
+  upgrade only works with native partitioning.
+
+  .. seealso::
+
+     |MySQL| Documentation: Preparing Your Installation for Upgrade
+        https://dev.mysql.com/doc/refman/8.0/en/upgrade-prerequisites.html
+

@@ -20,7 +20,7 @@ c1 INT,
 c2 INT,
 name VARCHAR(25) NOT NULL,
 event DATE,
-PRIMARY KEY (`c1`, `c2`) COMMENT 'rev:testrevcomment'
+PRIMARY KEY (`c1`, `c2`) COMMENT 'cfname=rev:testrevcomment'
 ) ENGINE=ROCKSDB
 PARTITION BY LIST(c1) (
 PARTITION custom_p0 VALUES IN (1, 4, 7),
@@ -468,7 +468,7 @@ INSERT INTO t2 VALUES (500, 0x6789A, 0x5, 1, 0x7);
 DROP TABLE t2;
 CREATE TABLE t1 (
 `a` int,
-PRIMARY KEY (a) COMMENT "sharedcf"
+PRIMARY KEY (a) COMMENT "cfname=sharedcf"
 ) ENGINE=ROCKSDB;
 SELECT DISTINCT(cf_name) FROM information_schema.rocksdb_cfstats WHERE cf_name='sharedcf';
 cf_name

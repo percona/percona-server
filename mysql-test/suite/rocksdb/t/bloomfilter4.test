@@ -12,7 +12,7 @@ CREATE TABLE t1 (
   `data` varchar(255) NOT NULL DEFAULT '',
   `time` int unsigned NOT NULL DEFAULT '0',
   `version` int unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (id1, link_type, visibility, id2) COMMENT 'rev:cf_link_pk'
+  PRIMARY KEY (id1, link_type, visibility, id2) COMMENT 'cfname=rev:cf_link_pk'
 ) ENGINE=ROCKSDB DEFAULT COLLATE=latin1_bin;
 
 DELIMITER //;

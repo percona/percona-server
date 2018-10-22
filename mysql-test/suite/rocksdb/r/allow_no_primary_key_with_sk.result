@@ -686,16 +686,16 @@ a	b	c	d
 1	99	3	4
 TRUNCATE TABLE t1;
 DROP TABLE t1;
-CREATE TABLE t1 (a INT, b CHAR(8), KEY ka(a) comment 'rev:cf1', KEY kb(b)
-comment 'rev:cf1', KEY kab(a,b) comment 'rev:cf2') ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b CHAR(8), KEY ka(a) comment 'cfname=rev:cf1', KEY kb(b)
+comment 'cfname=rev:cf1', KEY kab(a,b) comment 'cfname=rev:cf2') ENGINE=rocksdb;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int DEFAULT NULL,
   `b` char(8) DEFAULT NULL,
-  KEY `ka` (`a`) COMMENT 'rev:cf1',
-  KEY `kb` (`b`) COMMENT 'rev:cf1',
-  KEY `kab` (`a`,`b`) COMMENT 'rev:cf2'
+  KEY `ka` (`a`) COMMENT 'cfname=rev:cf1',
+  KEY `kb` (`b`) COMMENT 'cfname=rev:cf1',
+  KEY `kab` (`a`,`b`) COMMENT 'cfname=rev:cf2'
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra

@@ -39,7 +39,7 @@ while ($i <= $max) {
 }
 --enable_query_log
 
-ALTER TABLE t1 ADD INDEX kb(b) comment 'rev:cf1', ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD INDEX kb(b) comment 'cfname=rev:cf1', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 SELECT COUNT(*) FROM t1 FORCE INDEX(kb);
 DROP TABLE t1;

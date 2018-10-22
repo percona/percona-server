@@ -4,8 +4,8 @@ a int NOT NULL,
 b int NOT NULL,
 c int NOT NULL,
 PRIMARY KEY (a),
-KEY kb (b) COMMENT 'kb',
-KEY kc (c) COMMENT 'kc'
+KEY kb (b) COMMENT 'cfname=kb',
+KEY kc (c) COMMENT 'cfname=kc'
 ) ENGINE=ROCKSDB
 COMMENT='ttl_duration=1';
 set global rocksdb_debug_ttl_rec_ts = -100;
@@ -31,8 +31,8 @@ a int NOT NULL,
 b int NOT NULL,
 c int NOT NULL,
 PRIMARY KEY (a),
-KEY kb (b) COMMENT 'kb',
-KEY kc (c) COMMENT 'kc'
+KEY kb (b) COMMENT 'cfname=kb',
+KEY kc (c) COMMENT 'cfname=kc'
 ) ENGINE=ROCKSDB
 COMMENT='ttl_duration=1';
 set global rocksdb_debug_ttl_rec_ts = -100;
@@ -58,8 +58,8 @@ a int NOT NULL,
 b int NOT NULL,
 c int NOT NULL,
 PRIMARY KEY (a),
-KEY kb (b) COMMENT 'kb',
-KEY kc (c) COMMENT 'kc'
+KEY kb (b) COMMENT 'cfname=kb',
+KEY kc (c) COMMENT 'cfname=kc'
 ) ENGINE=ROCKSDB
 COMMENT='ttl_duration=1';
 set global rocksdb_debug_ttl_rec_ts = -100;

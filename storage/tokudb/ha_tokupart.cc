@@ -85,12 +85,6 @@ ulong ha_tokupart::index_flags(uint idx, TOKUDB_UNUSED(uint part),
   DBUG_RETURN(::index_flags(&table_share->key_info[idx]));
 }
 
-const char **ha_tokupart::bas_ext() const {
-  static const char *null_ext = nullptr;
-  TOKUDB_HANDLER_DBUG_ENTER("");
-  DBUG_RETURN(&null_ext);
-}
-
 #if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 /*
   Check whether we need to perform row lookup when executing

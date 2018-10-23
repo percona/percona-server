@@ -64,7 +64,7 @@ ulong debug = 0;
 bool debug_pause_background_job_manager = false;
 #endif  // defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
 bool directio = false;
-bool enable_partial_eviction = true;
+bool enable_partial_eviction = false;
 // file system reserve as a percentage of total disk space
 int fs_reserve_percent = 0;
 uint fsync_log_period = 0;
@@ -173,7 +173,7 @@ static void enable_partial_eviction_update(TOKUDB_UNUSED(THD *thd),
 
 static MYSQL_SYSVAR_BOOL(enable_partial_eviction, enable_partial_eviction, 0,
                          "enable partial node eviction", NULL,
-                         enable_partial_eviction_update, true);
+                         enable_partial_eviction_update, false);
 
 static MYSQL_SYSVAR_INT(fs_reserve_percent, fs_reserve_percent,
                         PLUGIN_VAR_READONLY,
@@ -280,7 +280,7 @@ static MYSQL_THDVAR_ULONGLONG(auto_analyze, 0,
                               30, 0, ~0U, 1);
 
 static MYSQL_THDVAR_UINT(block_size, 0, "fractal tree block size", NULL, NULL,
-                         4 << 20, 4096, ~0U, 1);
+                         1 << 18, 4096, ~0U, 1);
 
 static MYSQL_THDVAR_BOOL(bulk_fetch, PLUGIN_VAR_THDLOCAL, "enable bulk fetch",
                          NULL, NULL, true);
@@ -370,7 +370,7 @@ static MYSQL_THDVAR_BOOL(prelock_empty, 0, "prelock empty table", NULL, NULL,
                          true);
 
 static MYSQL_THDVAR_UINT(read_block_size, 0, "fractal tree read block size",
-                         NULL, NULL, 64 * 1024, 4096, ~0U, 1);
+                         NULL, NULL, 1 << 14, 4096, ~0U, 1);
 
 static MYSQL_THDVAR_UINT(read_buf_size, 0, "range query read buffer size", NULL,
                          NULL, 128 * 1024, 0, 1 * 1024 * 1024, 1);
@@ -389,7 +389,7 @@ static MYSQL_THDVAR_ENUM(
     "Specifies the compression method for a table created during this session. "
     "Possible values are TOKUDB_UNCOMPRESSED, TOKUDB_ZLIB, TOKUDB_SNAPPY, "
     "TOKUDB_QUICKLZ, TOKUDB_LZMA, TOKUDB_FAST, TOKUDB_SMALL and TOKUDB_DEFAULT",
-    NULL, NULL, SRV_ROW_FORMAT_ZLIB, &tokudb_row_format_typelib);
+    NULL, NULL, SRV_ROW_FORMAT_QUICKLZ, &tokudb_row_format_typelib);
 
 #if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 static MYSQL_THDVAR_BOOL(rpl_check_readonly, PLUGIN_VAR_THDLOCAL,

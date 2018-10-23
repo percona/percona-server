@@ -4,14 +4,14 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 # restart:--rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;disable_auto_compactions=true;level0_stop_writes_trigger=1000
 select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
-select case when variable_value - @a > 20 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
-case when variable_value - @a > 20 then 'true' else 'false' end
+select case when variable_value - @a > 5 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
+case when variable_value - @a > 5 then 'true' else 'false' end
 false
 select count(*) from t1;
 count(*)
 50000
-select case when variable_value - @a > 100 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
-case when variable_value - @a > 100 then 'true' else 'false' end
+select case when variable_value - @a > 25 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
+case when variable_value - @a > 25 then 'true' else 'false' end
 true
 DROP TABLE t1;
 # restart

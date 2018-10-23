@@ -896,7 +896,7 @@ rocksdb_allow_mmap_writes	OFF
 rocksdb_allow_to_start_after_corruption	OFF
 rocksdb_block_cache_size	536870912
 rocksdb_block_restart_interval	16
-rocksdb_block_size	4096
+rocksdb_block_size	16384
 rocksdb_block_size_deviation	10
 rocksdb_bulk_load	OFF
 rocksdb_bulk_load_allow_sk	OFF
@@ -927,7 +927,7 @@ rocksdb_debug_ttl_ignore_pk	OFF
 rocksdb_debug_ttl_read_filter_ts	0
 rocksdb_debug_ttl_rec_ts	0
 rocksdb_debug_ttl_snapshot_ts	0
-rocksdb_default_cf_options	compression=kLZ4Compression;bottommost_compression=kLZ4Compression
+rocksdb_default_cf_options	block_based_table_factory={cache_index_and_filter_blocks=1;filter_policy=bloomfilter:10:false;whole_key_filtering=1};level_compaction_dynamic_level_bytes=true;optimize_filters_for_hits=true;compaction_pri=kMinOverlappingRatio;compression=kLZ4Compression;bottommost_compression=kLZ4Compression;
 rocksdb_delayed_write_rate	0
 rocksdb_delete_obsolete_files_period_micros	21600000000
 rocksdb_enable_bulk_load_api	ON
@@ -961,7 +961,7 @@ rocksdb_max_log_file_size	0
 rocksdb_max_manifest_file_size	18446744073709551615
 rocksdb_max_row_locks	1048576
 rocksdb_max_subcompactions	1
-rocksdb_max_total_wal_size	0
+rocksdb_max_total_wal_size	2147483648
 rocksdb_merge_buf_size	67108864
 rocksdb_merge_combine_read_size	1073741824
 rocksdb_merge_tmp_file_removal_delay_ms	0

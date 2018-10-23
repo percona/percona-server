@@ -24,12 +24,12 @@ select variable_value into @a from performance_schema.global_status where variab
 --exec $MYSQL_DUMP --skip-comments --single-transaction --master-data=2 test > /dev/null
 
 # verifying block cache was not filled
-select case when variable_value - @a > 20 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
+select case when variable_value - @a > 5 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
 
 select count(*) from t1;
 
 # verifying block cache was filled
-select case when variable_value - @a > 100 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
+select case when variable_value - @a > 25 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
 
 #cleanup
 DROP TABLE t1;

@@ -29,7 +29,7 @@ class ha_rockspart : public native_part::Partition_base {
       : Partition_base(hton, share, part_info_arg, clone_arg,
                        clone_mem_root_arg) {}
 
-  ~ha_rockspart() {}
+  ~ha_rockspart() override {}
 
   int open(const char *name, int mode, uint test_if_locked,
            const dd::Table *table_def) override;

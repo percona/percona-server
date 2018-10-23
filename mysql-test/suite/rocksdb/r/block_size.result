@@ -1,6 +1,6 @@
 select @@global.rocksdb_block_size;
 @@global.rocksdb_block_size
-4096
+16384
 call mtr.add_suppression("option 'rocksdb-block-size': unsigned value 12 adjusted to 1024");
 # restart:--rocksdb_block_size=12
 select @@global.rocksdb_block_size;

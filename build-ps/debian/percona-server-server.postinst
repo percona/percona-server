@@ -34,7 +34,7 @@ check_exit_status() {
 }
 
 MY_BASEDIR_VERSION=$(my_print_defaults --loose-verbose mysqld server | grep basedir | awk -F'=' '{print $2}')
-TOKUDB=$(dpkg -l | grep -c 'percona-server-tokudb-8.0')
+TOKUDB=$(dpkg -l | grep -c 'percona-server-tokudb')
 if [ $TOKUDB = 1 ]
 then
   path=$(dpkg-query -L `dpkg -l | grep libjemalloc | awk '{print $2}'` | grep libjemalloc.so.1)
@@ -76,9 +76,9 @@ case "$1" in
 		fi
 		if [ ! -e "$OVERRIDEFILE" ];
 		then
-			db_input high percona-server-server-8.0/default-auth-override || true
+			db_input high percona-server-server/default-auth-override || true
 			db_go
-			db_get percona-server-server-8.0/default-auth-override && OVERRIDE=${RET}
+			db_get percona-server-server/default-auth-override && OVERRIDE=${RET}
 			if [ "$OVERRIDE" = "Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)" ]; then
 				if [ "$RET" = "Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)" ]; then
 					install -m 0644 /dev/null "$OVERRIDEFILE"
@@ -103,14 +103,14 @@ case "$1" in
 		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
 		then
-			db_get percona-server-server-8.0/root-pass && PASSWD=${RET}
+			db_get percona-server-server/root-pass && PASSWD=${RET}
 			if [ ! -z "${PASSWD}" ];
 			then
 				SQL=/var/lib/mysql-files/SQL
 				install /dev/null -m0600 -omysql -gmysql "${SQL}"
 
-				db_set percona-server-server-8.0/root-pass ""
-				db_set percona-server-server-8.0/re-root-pass ""
+				db_set percona-server-server/root-pass ""
+				db_set percona-server-server/re-root-pass ""
 				cat << EOF > ${SQL}
 USE mysql;
 ALTER user 'root'@'localhost' IDENTIFIED BY '${PASSWD}';

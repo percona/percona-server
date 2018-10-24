@@ -80,9 +80,9 @@ case "$1" in
 
 	server_stop
 
-	db_input high percona-server-server-8.0/remove-data-dir || true
+	db_input high percona-server-server/remove-data-dir || true
 	db_go
-	db_get percona-server-server-8.0/remove-data-dir && RMDATADIR=${RET}
+	db_get percona-server-server/remove-data-dir && RMDATADIR=${RET}
 	if [ "${RMDATADIR}" = "true" ];
 	then
 		if [ -d ${MYSQLRUN} ] || [ -L ${MYSQLRUN} ];

@@ -1,20 +1,20 @@
-Template: percona-server-server-8.0/root-pass
+Template: percona-server-server/root-pass
 Type: password
 Description: Enter root password:
  Please provide a strong password that will be set for the root account of your MySQL database.
  Leave it blank to enable password less login using UNIX socket based authentication.
 
-Template: percona-server-server-8.0/re-root-pass
+Template: percona-server-server/re-root-pass
 Type: password
 Description: Re-enter root password:
  Now that you have selected a password for the root account, please confirm by typing it again. Do not share the password with anyone.
 
-Template: percona-server-server-8.0/root-pass-mismatch
+Template: percona-server-server/root-pass-mismatch
 Type: error
 Description: The two passwords did not match
  Please try again. Make sure you type the exact same password twice.
 
-Template: percona-server-server-8.0/remove-data-dir
+Template: percona-server-server/remove-data-dir
 Type: boolean
 Default: false
 Description: Remove data directories ?
@@ -23,7 +23,7 @@ Description: Remove data directories ?
  /var/lib/mysql-keyring.
  It is highly recommended to take data backup before removing the data directories.
 
-Template: percona-server-server-8.0/data-dir
+Template: percona-server-server/data-dir
 Type: note
 Description: Data directory found when no Percona Server package is installed
  A data directory '/var/lib/mysql' is present on this system when no MySQL server 
@@ -34,7 +34,7 @@ Description: Data directory found when no Percona Server package is installed
  It is highly recommended to take data backup. If you have not done so, now would be
  the time to take backup in another shell. Once completed, press 'Ok' to continue.
 
-Template: percona-server-server-8.0/default-auth-override
+Template: percona-server-server/default-auth-override
 Type: select
 Choices: Use Strong Password Encryption (RECOMMENDED), Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)
 Description: Select default authentication plugin

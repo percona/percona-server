@@ -1,4 +1,4 @@
-percona-server-8.0 (8.0.12-1) unstable; urgency=low
+percona-server (8.0.12-1) unstable; urgency=low
 
   * Packaging for 8.0
 

@@ -35,7 +35,7 @@ CREATE TABLE t1 (
   KEY (b),
   UNIQUE KEY uniq(c,a),
   FOREIGN KEY (a) REFERENCES t2(a) ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 INSERT INTO t1(a,b,c) VALUES (0, "0", 0.0), (1, "1", 1.1), (2, "2", 2.2);
 
@@ -309,7 +309,7 @@ CREATE TABLE `t1` (
    `c1` int(11) DEFAULT NULL,
    PRIMARY KEY (`id`),
    KEY `c1` (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (id)
 PARTITIONS 2*/;
 
@@ -427,6 +427,39 @@ INSERT INTO t2(`prefix`) VALUES (13);
 --remove_file $file
 
 DROP TABLE t1, t2;
+
+#############################################################################
+# Check optimization with FOREIGN KEYs with different table names
+# (t11 is chosen deliberately as t1 is a prefix of t11)
+#############################################################################
+
+CREATE TABLE t11 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t11 VALUES (0), (1), (2);
+
+CREATE TABLE t1 (
+  id INT NOT NULL PRIMARY KEY,
+  fk1 INT NOT NULL,
+  fk2 INT,
+  FOREIGN KEY (fk1) REFERENCES t1(id),
+  FOREIGN KEY (fk2) REFERENCES t11(a) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO t1(id,fk1,fk2) VALUES (0, 0, 1), (1, 1, 2), (2, 2, 0);
+
+
+--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 t11 >$file
+
+--echo ######################################
+--cat_file $file
+--echo ######################################
+
+# Check that the resulting dump can be imported back
+
+--exec $MYSQL test < $file
+
+--remove_file $file
+
+DROP TABLE t1, t11;
 
 
 # Wait till we reached the initial number of concurrent sessions

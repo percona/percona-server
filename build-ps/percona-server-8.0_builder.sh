@@ -514,10 +514,10 @@ build_rpm(){
         echo "It is not possible to build rpm here"
         exit 1
     fi
-    SRC_RPM=$(basename $(find $WORKDIR/srpm -name 'Percona-Server-*.src.rpm' | sort | tail -n1))
+    SRC_RPM=$(basename $(find $WORKDIR/srpm -name 'percona-server-*.src.rpm' | sort | tail -n1))
     if [ -z $SRC_RPM ]
     then
-        SRC_RPM=$(basename $(find $CURDIR/srpm -name 'Percona-Server-*.src.rpm' | sort | tail -n1))
+        SRC_RPM=$(basename $(find $CURDIR/srpm -name 'percona-server-*.src.rpm' | sort | tail -n1))
         if [ -z $SRC_RPM ]
         then
             echo "There is no src rpm for build"
@@ -590,11 +590,12 @@ build_source_deb(){
     TMPREL=$(echo ${TARFILE}| awk -F '-' '{print $4}')
     RELEASE=${TMPREL%.tar.gz}
 
-    NEWTAR=${NAME}-${SHORTVER}_${VERSION}-${RELEASE}.orig.tar.gz
+    NEWTAR=percona-server_${VERSION}-${RELEASE}.orig.tar.gz
     mv ${TARFILE} ${NEWTAR}
 
     tar xzf ${NEWTAR}
-    cd ${NAME}-${VERSION}-${RELEASE}
+    ls -la
+    cd percona-server-${VERSION}-${RELEASE}
     cp -ap build-ps/debian/ .
     dch -D unstable --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}" "Update to new upstream release Percona Server ${VERSION}-${RELEASE}-1"
     dpkg-buildpackage -S
@@ -635,8 +636,8 @@ build_deb(){
 
     DSC=$(basename $(find . -name '*.dsc' | sort | tail -n 1))
     DIRNAME=$(echo ${DSC%-${DEB_RELEASE}.dsc} | sed -e 's:_:-:g')
-    VERSION=$(echo ${DSC} | sed -e 's:_:-:g' | awk -F'-' '{print $4}')
-    RELEASE=$(echo ${DSC} | sed -e 's:_:-:g' | awk -F'-' '{print $5}')
+    VERSION=$(echo ${DSC} | sed -e 's:_:-:g' | awk -F'-' '{print $3}')
+    RELEASE=$(echo ${DSC} | sed -e 's:_:-:g' | awk -F'-' '{print $4}')
     ARCH=$(uname -m)
     export EXTRAVER=${MYSQL_VERSION_EXTRA#-}
     #

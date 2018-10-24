@@ -7,7 +7,7 @@ export DH_VERBOSE=1
 export CFLAGS=
 export CXXFLAGS=
 
-PACKAGE=percona-server-8.0
+PACKAGE=percona-server
 PS_VERSION_EXTRA = '@@PERCONA_VERSION_EXTRA@@'
 REVISION = '@@REVISION@@'
 COMPILATION_COMMENT_RELEASE = "Percona Server (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
@@ -35,7 +35,7 @@ TOKUDB_OPTS_DEFAULT ?= -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OF
 TOKUDB_OPTS_RELEASE ?= $(TOKUDB_OPTS_DEFAULT) -DTOKU_DEBUG_PARANOID=OFF
 TOKUDB_OPTS_DEBUG ?= $(TOKUDB_OPTS_DEFAULT) -DTOKU_DEBUG_PARANOID=ON
 
-EXPORTED_SOURCE_TARBALL = debian/percona-server-source-8.0.tar.gz
+EXPORTED_SOURCE_TARBALL = debian/percona-server-source.tar.gz
 
 DISTRIBUTION = $(shell lsb_release -i -s)
 DISTRELEASE = $(shell lsb_release -c -s)
@@ -123,7 +123,7 @@ override_dh_auto_build:
 	
 	[ -f $(EXPORTED_SOURCE_TARBALL) ] || tar -zcf $(EXPORTED_SOURCE_TARBALL) \
 	--exclude=debian . \
-	--transform="s,^\./,percona-server-8.0/,"
+	--transform="s,^\./,percona-server/,"
 
 ifeq ($(SKIP_DEBUG_BINARY),)
 	cd $(builddebug) && $(MAKE) -j$(NCPU)
@@ -160,7 +160,7 @@ override_dh_auto_install:
 	install -D -m 0644 $(EXPORTED_SOURCE_TARBALL) $(TMP)/usr/src/percona-server/`basename $(EXPORTED_SOURCE_TARBALL)`
 
 override_dh_strip:
-	dh_strip --dbg-package=percona-server-8.0-dbg
+	dh_strip --dbg-package=percona-server-dbg
 
 override_dh_installinit:
 	@echo "RULES.$@"

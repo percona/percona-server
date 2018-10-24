@@ -10,7 +10,7 @@ id4 int not null,
 id5 int not null,
 value bigint,
 value2 varchar(100),
-primary key (id1, id2, id3, id4) COMMENT 'rev:bf5_1'
+primary key (id1, id2, id3, id4) COMMENT 'cfname=rev:bf5_1'
 ) engine=rocksdb;
 create table t2(a int) engine=rocksdb;
 insert into t2 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -58,7 +58,7 @@ pk int unsigned not null primary key,
 kp1 int unsigned not null,
 kp2 int unsigned not null,
 col1 int unsigned,
-key(kp1, kp2) comment 'rev:bf5_2'
+key(kp1, kp2) comment 'cfname=rev:bf5_2'
 ) engine=rocksdb;
 insert into t4 values (1, 0xFFFF, 0xFFF, 12345);
 # This must not fail an assert:

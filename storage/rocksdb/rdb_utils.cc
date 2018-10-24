@@ -224,9 +224,10 @@ const std::vector<std::string> parse_into_tokens(const std::string &s,
   std::vector<std::string> tokens;
   std::string t;
   std::stringstream ss(s);
-
   while (getline(ss, t, delim)) {
-    tokens.push_back(t);
+    rdb_trim_whitespace_from_edges(t);
+    if (!t.empty())
+      tokens.push_back(t);
   }
 
   return tokens;

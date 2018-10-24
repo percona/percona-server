@@ -136,7 +136,7 @@
 %global license_type          GPLv2
 %endif
 
-Name:           Percona-Server%{product_suffix}
+Name:           percona-server
 Summary:        Percona-Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        %{mysql_version}
@@ -223,7 +223,7 @@ Percona recommends that all production deployments be protected with a support
 contract (http://www.percona.com/mysql-suppport/) to ensure the highest uptime,
 be eligible for hot fixes, and boost your team's productivity.
 
-%package -n Percona-Server-server%{product_suffix}
+%package -n percona-server-server
 Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       coreutils
@@ -231,8 +231,8 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
-Requires(pre):  Percona-Server-shared%{product_suffix}
-Requires:       Percona-Server-client%{product_suffix}
+Requires(pre):  percona-server-shared
+Requires:       percona-server-client
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
@@ -248,7 +248,7 @@ Requires(preun):  /sbin/chkconfig
 Requires(preun):  /sbin/service
 %endif
 
-%description -n Percona-Server-server%{product_suffix}
+%description -n percona-server-server
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. Percona Server
 is intended for mission-critical, heavy-load production systems.
@@ -261,22 +261,22 @@ This package includes the Percona Server with XtraDB binary
 as well as related utilities to run and administer Percona Server.
 
 If you want to access and work with the database, you have to install
-package "Percona-Server-client%{product_suffix}" as well!
+package "percona-server-client" as well!
 
 
-%package -n Percona-Server-client%{product_suffix}
+%package -n percona-server-client
 Summary:        Percona Server - Client
 Group:          Applications/Databases
-Requires:       Percona-Server-shared%{product_suffix}
+Requires:       percona-server-shared
 Provides:       mysql-client MySQL-client mysql MySQL
 Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55 Percona-Server-client-56 Percona-Server-client-57
 
-%description -n Percona-Server-client%{product_suffix}
+%description -n percona-server-client
 This package contains the standard Percona Server client and administration tools.
 
 For a description of Percona Server see http://www.percona.com/software/percona-server/
 
-%package -n Percona-Server-test%{product_suffix}
+%package -n percona-server-test
 Summary:        Test suite for the Percona Server
 Group:          Applications/Databases
 Requires:       perl(Carp)
@@ -315,12 +315,12 @@ Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56 Percona-Server-test-57
 
-%description -n Percona-Server-test%{product_suffix}
+%description -n percona-server-test
 This package contains the Percona Server regression test suite.
 
 For a description of Percona Server see http://www.percona.com/software/percona-server/
 
-%package -n Percona-Server-devel%{product_suffix}
+%package -n percona-server-devel
 Summary:        Percona Server - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel = %{version}-%{release}
@@ -330,27 +330,27 @@ Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-deve
 Obsoletes:      mariadb-devel
 %endif
 
-%description -n Percona-Server-devel%{product_suffix}
+%description -n percona-server-devel
 This package contains the development header files and libraries necessary
 to develop Percona Server client applications.
 
 For a description of Percona Server see http://www.percona.com/software/percona-server/
 
-%package -n Percona-Server-shared%{product_suffix}
+%package -n percona-server-shared
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Provides:       mysql-shared
-Requires(pre):  Percona-Server-shared-compat%{product_suffix}
+Requires(pre):  percona-server-shared-compat
 
-%description -n Percona-Server-shared%{product_suffix}
+%description -n percona-server-shared
 This package contains the shared libraries (*.so*) which certain languages
 and applications need to dynamically load and use Percona Server.
 
 %if 0%{?compatlib}
-%package -n Percona-Server-shared-compat%{product_suffix}
+%package -n percona-server-shared-compat
 Summary:        Shared compat libraries for Percona Server %{compatver}--%{percona_compatver} database client applications
 Group:          Applications/Databases
 Provides:       mysql-libs-compat = %{version}-%{release}
@@ -370,36 +370,36 @@ Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-56
 Conflicts:      Percona-Server-shared-57
 
-%description -n Percona-Server-shared-compat%{product_suffix}
+%description -n percona-server-shared-compat
 This package contains the shared compat libraries for Percona Server %{compatver}-%{percona_compatver} client
 applications.
 %endif
 
 %if 0%{?tokudb}
 # ----------------------------------------------------------------------------
-%package -n Percona-Server-tokudb%{product_suffix}
+%package -n percona-server-tokudb
 Summary:        Percona Server - TokuDB package
 Group:          Applications/Databases
-Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
-Requires:       Percona-Server-shared%{product_suffix} = %{version}-%{release}
-Requires:       Percona-Server-client%{product_suffix} = %{version}-%{release}
+Requires:       percona-server-server = %{version}-%{release}
+Requires:       percona-server-shared = %{version}-%{release}
+Requires:       percona-server-client = %{version}-%{release}
 Requires:       jemalloc >= 3.3.0
 Provides:       tokudb-plugin = %{version}-%{release}
 
-%description -n Percona-Server-tokudb%{product_suffix}
+%description -n percona-server-tokudb
 This package contains the TokuDB plugin for Percona Server %{version}-%{release}
 %endif
 
 %if 0%{?rocksdb}
 # ----------------------------------------------------------------------------
-%package -n Percona-Server-rocksdb%{product_suffix}
+%package -n percona-server-rocksdb
 Summary:        Percona Server - RocksDB package
 Group:          Applications/Databases
-Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
-Requires:       Percona-Server-shared%{product_suffix} = %{version}-%{release}
-Requires:       Percona-Server-client%{product_suffix} = %{version}-%{release}
+Requires:       percona-server-server = %{version}-%{release}
+Requires:       percona-server-shared = %{version}-%{release}
+Requires:       percona-server-client = %{version}-%{release}
 
-%description -n Percona-Server-rocksdb%{product_suffix}
+%description -n percona-server-rocksdb
 This package contains the RocksDB plugin for Percona Server %{version}-%{release}
 %endif
 
@@ -591,12 +591,12 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
   rm -r $(readlink var) var
 %endif
 
-%pre -n Percona-Server-server%{product_suffix}
+%pre -n percona-server-server
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "Percona Server" -u 27 mysql >/dev/null 2>&1 || :
 
-%post -n Percona-Server-server%{product_suffix}
+%post -n percona-server-server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 /bin/chmod 0751 "$datadir" >/dev/null 2>&1 || :
 if [ ! -e /var/log/mysqld.log ]; then
@@ -628,7 +628,7 @@ echo "mysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\"
 echo "mysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""
 echo "See http://www.percona.com/doc/percona-server/8.0/management/udf_percona_toolkit.html for more details"
 
-%preun -n Percona-Server-server%{product_suffix}
+%preun -n percona-server-server
 %if 0%{?systemd}
   %systemd_preun mysqld.service
 %else
@@ -644,7 +644,7 @@ if [ "$1" = 0 ]; then
   fi
 fi
 
-%postun -n Percona-Server-server%{product_suffix}
+%postun -n percona-server-server
 %if 0%{?systemd}
   %systemd_postun_with_restart mysqld.service
 %else
@@ -653,13 +653,13 @@ fi
   fi
 %endif
 
-%post -n Percona-Server-shared%{product_suffix} -p /sbin/ldconfig
+%post -n percona-server-shared -p /sbin/ldconfig
 
-%postun -n Percona-Server-shared%{product_suffix} -p /sbin/ldconfig
+%postun -n percona-server-shared -p /sbin/ldconfig
 
 %if 0%{?compatlib}
 %if 0%{?rhel} > 6
-%post -n Percona-Server-shared-compat%{product_suffix}
+%post -n percona-server-shared-compat
 for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
   if [ ! -f %{_libdir}/mysql/${lib} ]; then
     ln -s libmysqlclient.so.18.1.0 %{_libdir}/mysql/${lib};
@@ -667,7 +667,7 @@ for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
 done
 /sbin/ldconfig
 
-%postun -n Percona-Server-shared-compat%{product_suffix}
+%postun -n percona-server-shared-compat
 for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
   if [ -h %{_libdir}/mysql/${lib} ]; then
     rm -f %{_libdir}/mysql/${lib};
@@ -675,7 +675,7 @@ for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
 done
 /sbin/ldconfig
 %else
-%post -n Percona-Server-shared-compat%{product_suffix}
+%post -n percona-server-shared-compat
 for lib in libmysqlclient{.so.16.0.0,.so.16,_r.so.16.0.0,_r.so.16}; do
   if [ ! -f %{_libdir}/mysql/${lib} ]; then
     ln -s libmysqlclient.so.16.1.0 %{_libdir}/mysql/${lib};
@@ -683,7 +683,7 @@ for lib in libmysqlclient{.so.16.0.0,.so.16,_r.so.16.0.0,_r.so.16}; do
 done
 /sbin/ldconfig
 
-%postun -n Percona-Server-shared-compat%{product_suffix}
+%postun -n percona-server-shared-compat
 for lib in libmysqlclient{.so.16.0.0,.so.16,_r.so.16.0.0,_r.so.16}; do
   if [ -h %{_libdir}/mysql/${lib} ]; then
     rm -f %{_libdir}/mysql/${lib};
@@ -694,7 +694,7 @@ done
 %endif
 
 %if 0%{?tokudb}
-%post -n Percona-Server-tokudb%{product_suffix}
+%post -n percona-server-tokudb
 if [ $1 -eq 1 ] ; then
   echo -e "\n\n * This release of Percona Server is distributed with TokuDB storage engine."
   echo -e " * Run the following script to enable the TokuDB storage engine in Percona Server:\n"
@@ -705,7 +705,7 @@ fi
 %endif
 
 %if 0%{?rocksdb}
-%post -n Percona-Server-rocksdb%{product_suffix}
+%post -n percona-server-rocksdb
 if [ $1 -eq 1 ] ; then
   echo -e "\n\n * This release of Percona Server is distributed with RocksDB storage engine."
   echo -e " * Run the following script to enable the RocksDB storage engine in Percona Server:\n"
@@ -714,7 +714,7 @@ fi
 %endif
 
 
-%files -n Percona-Server-server%{product_suffix}
+%files -n percona-server-server
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
@@ -919,7 +919,7 @@ fi
 %attr(755, root, root) %{_datadir}/percona-server/ukrainian/
 %attr(755, root, root) %{_datadir}/percona-server/mysql_system_users.sql
 
-%files -n Percona-Server-client%{product_suffix}
+%files -n percona-server-client
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(755, root, root) %{_bindir}/mysql
@@ -946,7 +946,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config_editor.1*
 
-%files -n Percona-Server-devel%{product_suffix}
+%files -n percona-server-devel
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
@@ -960,7 +960,7 @@ fi
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so
 %{_libdir}/pkgconfig/%{shared_lib_pri_name}.pc
 
-%files -n Percona-Server-shared%{product_suffix}
+%files -n percona-server-shared
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
@@ -968,7 +968,7 @@ fi
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so.21*
 
 %if 0%{?compatlib}
-%files -n Percona-Server-shared-compat%{product_suffix}
+%files -n percona-server-shared-compat
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %dir %attr(755, root, root) %{_libdir}/mysql
@@ -977,7 +977,7 @@ fi
 %{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.*
 %endif
 
-%files -n Percona-Server-test%{product_suffix}
+%files -n percona-server-test
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
@@ -1124,7 +1124,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 
 %if 0%{?tokudb}
-%files -n Percona-Server-tokudb%{product_suffix}
+%files -n percona-server-tokudb
 %attr(-, root, root)
 %{_bindir}/tokuftdump
 %{_libdir}/mysql/plugin/ha_tokudb.so
@@ -1137,7 +1137,7 @@ fi
 %endif
 
 %if 0%{?rocksdb}
-%files -n Percona-Server-rocksdb%{product_suffix}
+%files -n percona-server-rocksdb
 %attr(-, root, root)
 %{_libdir}/mysql/plugin/ha_rocksdb.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_rocksdb.so

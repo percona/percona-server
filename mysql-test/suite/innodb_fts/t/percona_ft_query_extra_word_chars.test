@@ -1,0 +1,110 @@
+#
+# Test functionality of ft_query_extra_word_chars option with InnoDB
+#
+
+--let $ft_query_extra_word_chars = setup
+--source include/percona_ft_query_extra_word_chars.inc
+
+--echo #
+--echo # Test that ft_query_extra_word_chars value does not affect
+--echo # tokenizing on writes, default InnoDB parser
+--echo #
+CREATE TABLE fts_innodb (id INT PRIMARY KEY AUTO_INCREMENT,
+                 a TEXT COLLATE utf8mb4_bin, FULLTEXT KEY a(a)) ENGINE=InnoDB;
+
+INSERT INTO fts_innodb SELECT * FROM words;
+
+SET @saved_innodb_ft_aux_table = @@GLOBAL.innodb_ft_aux_table;
+
+SET GLOBAL innodb_ft_aux_table = "test/fts_innodb";
+CREATE TABLE tmp1 AS SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+SET SESSION ft_query_extra_word_chars = ON;
+
+CREATE TABLE fts_2 LIKE fts_innodb;
+
+INSERT INTO fts_2 SELECT * FROM words;
+
+SET GLOBAL innodb_ft_aux_table = "test/fts_2";
+CREATE TABLE tmp2 AS SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+DROP TABLE fts_2;
+
+--let $diff_tables= tmp1, tmp2
+--source include/diff_tables.inc
+
+DROP TABLE tmp1, tmp2;
+
+--echo #
+--echo # Test that ft_query_extra_word_chars value does not affect
+--echo # tokenizing on writes, ngram parser
+--echo #
+SET SESSION ft_query_extra_word_chars = OFF;
+
+CREATE TABLE fts_ngram (id INT PRIMARY KEY AUTO_INCREMENT,
+                 a TEXT COLLATE utf8mb4_bin, FULLTEXT KEY a(a) WITH PARSER ngram)
+                 ENGINE=InnoDB;
+
+INSERT INTO fts_ngram SELECT * FROM words;
+
+SET GLOBAL innodb_ft_aux_table = "test/fts_ngram";
+CREATE TABLE tmp1 AS SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+SET SESSION ft_query_extra_word_chars = ON;
+
+CREATE TABLE fts_2 LIKE fts_ngram;
+
+INSERT INTO fts_2 SELECT * FROM words;
+
+SET GLOBAL innodb_ft_aux_table = "test/fts_2";
+CREATE TABLE tmp2 AS SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+
+DROP TABLE fts_2;
+
+--let $diff_tables= tmp1, tmp2
+--source include/diff_tables.inc
+
+DROP TABLE tmp1, tmp2;
+
+--echo # Test querying in natural language mode, default parser, extra chars off
+SET SESSION ft_query_extra_word_chars = OFF;
+CALL run_queries('fts_innodb', 'nl');
+
+--echo # Test querying in natural language mode, default parser, extra chars on
+SET SESSION ft_query_extra_word_chars = ON;
+CALL run_queries('fts_innodb', 'nl');
+
+--echo # Test querying in natural language mode, ngram parser, extra chars off
+SET SESSION ft_query_extra_word_chars = OFF;
+CALL run_queries('fts_ngram', 'nl');
+
+--echo # Test querying in natural language mode, ngram parser, extra chars on
+SET SESSION ft_query_extra_word_chars = ON;
+CALL run_queries('fts_ngram', 'nl');
+
+--echo # Test querying in boolean mode, default parser, extra chars off
+SET SESSION ft_query_extra_word_chars = OFF;
+CALL run_queries('fts_innodb', 'bool');
+
+--echo # Test querying in boolean mode, default parser, extra chars on
+SET SESSION ft_query_extra_word_chars = ON;
+CALL run_queries('fts_innodb', 'bool');
+
+--echo # Test querying in boolean mode, ngram parser, extra chars off
+SET SESSION ft_query_extra_word_chars = OFF;
+CALL run_queries('fts_ngram', 'bool');
+
+--echo # Test querying in boolean mode, ngram parser, extra chars on
+SET SESSION ft_query_extra_word_chars = ON;
+CALL run_queries('fts_ngram', 'bool');
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE fts_innodb, fts_ngram;
+
+SET GLOBAL innodb_ft_aux_table = @saved_innodb_ft_aux_table;
+
+--let $ft_query_extra_word_chars = cleanup
+--source include/percona_ft_query_extra_word_chars.inc

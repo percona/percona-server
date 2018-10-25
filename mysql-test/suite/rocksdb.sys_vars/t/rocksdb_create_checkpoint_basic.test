@@ -25,5 +25,5 @@
 --eval SET @@global.ROCKSDB_CREATE_CHECKPOINT = @start_value
 
 # clean up
---exec rm -r $MYSQL_TMP_DIR/abc
---exec rm -r $MYSQL_TMP_DIR/def
+--force-rmdir $MYSQL_TMP_DIR/abc
+--force-rmdir $MYSQL_TMP_DIR/def

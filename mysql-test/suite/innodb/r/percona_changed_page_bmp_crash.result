@@ -23,6 +23,7 @@ CREATE TABLE t2 (x INT) ENGINE=InnoDB;
 INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
 SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 1st restart
+ib_modified_log_1_0.xdb
 # restart
 include/assert.inc [There should not be a hole in the tracked LSN range]
 2nd restart

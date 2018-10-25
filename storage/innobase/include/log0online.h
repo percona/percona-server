@@ -62,6 +62,10 @@ bitmap file sequence, otherwise continue it.
 bool log_online_purge_changed_page_bitmaps(
     lsn_t lsn); /*!<in: LSN to purge files up to */
 
+class MetadataRecover;
+/** A read-only MetadataRecover instance to support log record parsing */
+extern MetadataRecover *log_online_metadata_recover;
+
 #define LOG_BITMAP_ITERATOR_START_LSN(i) ((i).start_lsn)
 #define LOG_BITMAP_ITERATOR_END_LSN(i) ((i).end_lsn)
 #define LOG_BITMAP_ITERATOR_SPACE_ID(i) ((i).space_id)

@@ -5,6 +5,8 @@
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 call mtr.add_suppression("last tracked LSN in");
 
 RESET CHANGED_PAGE_BITMAPS;
@@ -38,7 +40,9 @@ INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
 SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 
 --echo 1st restart
---source include/restart_mysqld.inc
+--source include/shutdown_mysqld.inc
+list_files $MYSQLD_DATADIR ib_modified_log*;
+--source include/start_mysqld.inc
 
 --let $assert_text= There should not be a hole in the tracked LSN range
 --let $assert_cond= COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES

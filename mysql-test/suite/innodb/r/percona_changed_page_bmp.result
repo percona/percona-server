@@ -77,17 +77,9 @@ SELECT @@innodb_track_changed_pages;
 0
 11th restart
 # restart
-call mtr.add_suppression("New log files created");
-call mtr.add_suppression("Creating foreign key constraint system tables");
-call mtr.add_suppression("Cannot open table mysql/[a-z_]+ from the internal data dictionary");
-call mtr.add_suppression("Info table is not ready to be used");
-call mtr.add_suppression("Can't open the mysql.plugin table.");
-call mtr.add_suppression("Gtid table is not ready to be used");
-call mtr.add_suppression("Failed to open optimizer cost constant tables");
-call mtr.add_suppression("Can't open and lock time zone table");
-call mtr.add_suppression("Can't open and lock privilege tables");
 12th restart
-# restart:--innodb-data-home-dir=tmpdatadir
+# restart:--innodb-data-home-dir=tmpdatadir --datadir=MYSQLD_DATADIR1
 ib_modified_log_1
+include/assert.inc [INFORMATION_SCHEMA.INNODB_CHANGED_PAGES is not empty]
 13th restart
-# restart
+# restart:--innodb-track-changed-pages=TRUE

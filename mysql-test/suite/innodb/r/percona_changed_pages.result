@@ -206,18 +206,10 @@ WHERE (START_LSN > @cond_test_max_lsn AND END_LSN < @cond_test_max_lsn)
 OR (START_LSN > @cond_test_max_lsn + 10 AND END_LSN < @cond_test_max_lsn - 10);
 COUNT(*)
 0
-SELECT @total_pages=@r1_r4_pages AS should_be_1;
-should_be_1
-1
-SELECT @r1_r2_pages+@r2_r3_pages+@r3_r4_pages=@r1_r4_pages AS should_be_1;
-should_be_1
-1
-SELECT @r1_r2_pages+@r2_r3_pages=@r1_r3_pages AS should_be_1;
-should_be_1
-1
-SELECT @r2_r3_pages+@r3_r4_pages=@r2_r4_pages AS should_be_1;
-should_be_1
-1
+include/assert.inc [Total changed pages must be no less than tracked pages between r1 and r4]
+include/assert.inc [Sum of r1-r2, r2-r3, and r3-r4 tracked pages must be equal to r1-r4]
+include/assert.inc [Sum of r1-r2 and r2-r3 tracked pages must be equal to r1-r3]
+include/assert.inc [Sum of r2-r3 and r3-r4 tracked pages must be equal to r2-r4]
 SET GLOBAL INNODB_MAX_CHANGED_PAGES = 1;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 COUNT(*)

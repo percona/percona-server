@@ -55,6 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
+#include "log0online.h"
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "mtr0mtr.h"
@@ -267,10 +268,13 @@ the metadata locally
 @param[in]	version	table dynamic metadata version
 @param[in]	ptr	redo log start
 @param[in]	end	end of redo log
+@param[in]      apply   if false, this is coming from changed page
+                        tracking and changes should be parsed only
 @retval ptr to next redo log record, nullptr if this log record
 was truncated */
 byte *MetadataRecover::parseMetadataLog(table_id_t id, uint64_t version,
-                                        byte *ptr, byte *end) {
+                                        byte *ptr, byte *end, bool apply) {
+  ut_ad(!(read_only && apply));
   if (ptr + 2 > end) {
     /* At least we should get type byte and another one byte
     for data, if not, it's an incomplete log */
@@ -303,6 +307,7 @@ byte *MetadataRecover::parseMetadataLog(table_id_t id, uint64_t version,
 /** Apply the collected persistent dynamic metadata to in-memory
 table objects */
 void MetadataRecover::apply() {
+  ut_ad(!read_only);
   PersistentTables::iterator iter;
 
   for (iter = m_tables.begin(); iter != m_tables.end(); ++iter) {
@@ -603,7 +608,7 @@ void recv_sys_init(ulint max_mem) {
 
   new (&recv_sys->missing_ids) recv_sys_t::Missing_Ids();
 
-  recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover());
+  recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover(false));
 
   mutex_exit(&recv_sys->mutex);
 }
@@ -2501,8 +2506,9 @@ ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
           mlog_parse_initial_dict_log_record(ptr, end_ptr, type, &id, &version);
 
       if (new_ptr != nullptr) {
-        new_ptr = recv_sys->metadata_recover->parseMetadataLog(
-            id, version, new_ptr, end_ptr);
+        new_ptr =
+            (apply ? recv_sys->metadata_recover : log_online_metadata_recover)
+                ->parseMetadataLog(id, version, new_ptr, end_ptr, apply);
       }
 
       return (new_ptr == nullptr ? 0 : new_ptr - ptr);

@@ -2966,18 +2966,22 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
     case SQLCOM_PURGE: {
       Security_context *sctx = thd->security_context();
-      if (!sctx->check_access(SUPER_ACL) &&
-          !sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first) {
-        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                 "SUPER or BINLOG_ADMIN");
-        goto error;
-      }
       if (lex->type == 0) {
         /* PURGE MASTER LOGS TO 'file' */
+        if (!sctx->check_access(SUPER_ACL) &&
+            !sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first) {
+          my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                   "SUPER or BINLOG_ADMIN");
+          goto error;
+        }
         res = purge_master_logs(thd, lex->to_log);
         break;
       } else if (lex->type == PURGE_BITMAPS_TO_LSN) {
         /* PURGE CHANGED_PAGE_BITMAPS BEFORE lsn */
+        if (!sctx->check_access(SUPER_ACL)) {
+          my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+          goto error;
+        }
         ulonglong lsn = 0;
         Item *it = lex->purge_value_list.head();
         if ((!it->fixed && it->fix_fields(lex->thd, &it)) ||

@@ -46,6 +46,8 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE USER mysqltest_1@localhost;
 GRANT ALL ON *.* TO mysqltest_1@localhost;
 REVOKE SUPER ON *.* FROM mysqltest_1@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 FLUSH CHANGED_PAGE_BITMAPS;
 ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 RESET CHANGED_PAGE_BITMAPS;

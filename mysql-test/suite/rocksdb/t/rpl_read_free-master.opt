@@ -1,1 +1,1 @@
---sync_binlog=0 --binlog_format=row --loose-rocksdb_read_free_rpl_tables="t.*" --slave-exec-mode=strict
+--sync_binlog=0 --loose-rocksdb_read_free_rpl_tables="t.*"

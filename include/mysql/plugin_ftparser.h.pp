@@ -120,6 +120,7 @@ void thd_set_ha_data(void * thd, const struct handlerton *hton,
                      const void *ha_data);
 void remove_ssl_err_thread_state();
 unsigned int thd_get_num_vcpus();
+int thd_get_ft_query_extra_word_chars(void);
 enum enum_ftparser_mode {
   MYSQL_FTPARSER_SIMPLE_MODE = 0,
   MYSQL_FTPARSER_WITH_STOPWORDS = 1,

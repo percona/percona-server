@@ -16,7 +16,7 @@ flush logs;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="+d,crash_during_online_index_creation";
---error 2013
+--error CR_SERVER_LOST
 ALTER TABLE t1 ADD INDEX kb(b), ALGORITHM=INPLACE;
 
 --enable_reconnect
@@ -49,7 +49,7 @@ flush logs;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="+d,crash_during_index_creation_partition";
---error 2013
+--error CR_SERVER_LOST
 ALTER TABLE t1 ADD INDEX kij(i,j), ALGORITHM=INPLACE;
 
 --enable_reconnect
@@ -88,7 +88,7 @@ flush logs;
 
 SET SESSION debug="+d,myrocks_simulate_index_create_rollback";
 
---error 1105
+--error ER_UNKNOWN_ERROR
 ALTER TABLE t1 ADD INDEX kij(i,j), ALGORITHM=INPLACE;
 SET SESSION debug="-d,myrocks_simulate_index_create_rollback";
 SHOW CREATE TABLE t1;

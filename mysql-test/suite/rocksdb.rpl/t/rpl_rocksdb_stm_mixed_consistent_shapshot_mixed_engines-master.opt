@@ -1,1 +1,1 @@
---gtid_mode=ON --enforce_gtid_consistency --log_bin --log_slave_updates --loose-rocksdb_unsafe_for_binlog=true
+--gtid_mode=ON --enforce_gtid_consistency --loose-rocksdb_unsafe_for_binlog=true

@@ -1,1 +1,1 @@
---skip-slave-start --relay-log-info-repository=TABLE --relay-log-recovery=1 --transaction_isolation=READ-COMMITTED
+--skip-slave-start --relay-log-recovery=1 --transaction_isolation=READ-COMMITTED

@@ -28,6 +28,6 @@ SELECT * FROM t1 WHERE a = 1;
 # not cross platform safe, but there is a nested directory hierarchy in place
 # that would need discovering and manual removal since 5.7 seems not to support
 # the force-rmdir command yet
---exec rm -rf $cache_dir_name
+--force-rmdir $cache_dir_name
 
 DROP TABLE t1;

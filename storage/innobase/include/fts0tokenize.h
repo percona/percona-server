@@ -36,7 +36,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Macros and structs below are from ftdefs.h in MyISAM */
 /** Check a char is true word */
-#define true_word_char(c, ch) ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_')
+inline bool true_word_char(char c, bool extra_word_chars, char ch) {
+  bool result =
+      ((extra_word_chars) ? !((c) & (_MY_SPC))
+                          : ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_'));
+  return result;
+}
 
 /** Boolean search syntax */
 static const char *fts_boolean_syntax = DEFAULT_FTB_SYNTAX;
@@ -72,8 +77,9 @@ Differences: a. code format changed; b. stopword processing removed.
 @retval 2       left bracket
 @retval 3       right bracket
 @retval 4       stopword found */
-inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
-                          FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *info) {
+inline uchar fts_get_word(const CHARSET_INFO *cs, bool extra_word_chars,
+                          uchar **start, uchar *end, FT_WORD *word,
+                          MYSQL_FTPARSER_BOOLEAN_INFO *info) {
   uchar *doc = *start;
   int ctype;
   uint length;
@@ -86,10 +92,6 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
   while (doc < end) {
     for (; doc < end; doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
       mbl = cs->cset->ctype(cs, &ctype, doc, end);
-
-      if (true_word_char(ctype, *doc)) {
-        break;
-      }
 
       if (*doc == FTB_RQUOT && info->quot) {
         *start = doc + 1;
@@ -135,6 +137,10 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
         }
       }
 
+      if (true_word_char(ctype, extra_word_chars, *doc)) {
+        break;
+      }
+
       info->prev = *doc;
       info->yesno = (FTB_YES == ' ') ? 1 : (info->quot != nullptr);
       info->weight_adjust = info->wasign = 0;
@@ -145,7 +151,11 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
          length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
       mbl = cs->cset->ctype(cs, &ctype, doc, end);
 
-      if (!true_word_char(ctype, *doc)) {
+      if (extra_word_chars && *doc == FTB_RQUOT) {
+        break;
+      }
+      
+      if (!true_word_char(ctype, extra_word_chars, *doc)) {
         break;
       }
     }

@@ -366,6 +366,8 @@ struct System_variables {
   */
   bool show_create_table_verbosity;
 
+  bool ft_query_extra_word_chars;
+
   // Used for replication delay and lag monitoring
   ulonglong original_commit_timestamp;
 

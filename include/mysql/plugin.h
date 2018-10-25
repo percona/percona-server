@@ -889,6 +889,15 @@ void remove_ssl_err_thread_state();
   Interface to get the number of VCPUs.
 */
 unsigned int thd_get_num_vcpus();
+
+/**
+  Check whether ft_query_extra_word_chars server variable is enabled for the
+  current session
+
+  @return ft_query_extra_word_chars value
+*/
+int thd_get_ft_query_extra_word_chars(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -28,7 +28,7 @@ insert into t1 values (1,1),(2,2),(3,3);
 select * from t1 where pk=1;
 set session debug= "+d,rocksdb_return_status_corrupted";
 --source include/expect_crash.inc
---error 2013
+--error CR_SERVER_LOST
 select * from t1 where pk=1;
 --source include/wait_until_disconnected.inc
 --let SEARCH_PATTERN=data corruption detected
@@ -44,7 +44,7 @@ select * from t1 where pk=1;
 select * from t1;
 set session debug= "+d,rocksdb_return_status_corrupted";
 --source include/expect_crash.inc
---error 2013
+--error CR_SERVER_LOST
 select * from t1;
 --source include/wait_until_disconnected.inc
 --let SEARCH_PATTERN=data corruption detected
@@ -66,7 +66,7 @@ select * from t1;
 --echo #  Remove corruption file and restart cleanly
 --echo #
 
---exec rm $MYSQLTEST_VARDIR/mysqld.$_server_id/data/.rocksdb/ROCKSDB_CORRUPTED
+--remove_file $MYSQLTEST_VARDIR/mysqld.$_server_id/data/.rocksdb/ROCKSDB_CORRUPTED
 --let $restart_parameters=
 --source include/start_mysqld.inc
 

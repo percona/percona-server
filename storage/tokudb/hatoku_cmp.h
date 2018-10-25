@@ -100,7 +100,128 @@ typedef struct st_multi_col_pack_info {
   uint32_t len_of_offsets;    // length of the offset bytes in a packed row
 } MULTI_COL_PACK_INFO;
 
-typedef struct st_key_and_col_info {
+class KEY_AND_COL_INFO {
+ public:
+  KEY_AND_COL_INFO();
+  KEY_AND_COL_INFO(const KEY_AND_COL_INFO &) = delete;
+  KEY_AND_COL_INFO &operator=(const KEY_AND_COL_INFO &) = delete;
+  ~KEY_AND_COL_INFO();
+
+  MY_NODISCARD int32_t allocate(const TABLE_SHARE &table_share);
+
+  MY_NODISCARD int32_t initialize(const TABLE_SHARE &table_share,
+                                  const TABLE &table,
+                                  uint32_t hidden_primary_key,
+                                  uint32_t primary_key);
+
+  MY_NODISCARD int32_t initialize_col_pack_info(const TABLE_SHARE &table_share,
+                                                uint32_t keynr);
+  void free();
+
+  // reset the kc_info state at keynr
+  void reset(uint32_t keynr);
+
+  MY_NODISCARD inline bool is_fixed_field(uint32_t field_num) const {
+    return field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_FIXED_FIELD;
+  }
+
+  MY_NODISCARD inline bool is_variable_field(uint32_t field_num) const {
+    return field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_VARIABLE_FIELD;
+  }
+
+  MY_NODISCARD inline bool is_blob_field(uint32_t field_num) const {
+    return field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_BLOB_FIELD;
+  }
+
+  //
+  // This offset is calculated starting from AFTER the NULL bytes
+  //
+  MY_NODISCARD uint32_t get_fixed_field_size(const TABLE_SHARE &table_share,
+                                             uint32_t keynr) const;
+
+  MY_NODISCARD uint32_t get_len_of_offsets(const TABLE_SHARE &table_share,
+                                           uint32_t keynr) const;
+
+  MY_NODISCARD inline uint32_t get_max_desc_size(const TABLE &form) const
+      noexcept {
+    uint32_t max_row_desc_buff_size;
+    // upper bound of key comparison descriptor
+    max_row_desc_buff_size = 2 * (form.s->fields * 6) + 10;
+    // upper bound for sec. key part
+    max_row_desc_buff_size += get_max_secondary_key_pack_desc_size();
+    // upper bound for clustering val part
+    max_row_desc_buff_size += get_max_clustering_val_pack_desc_size(*form.s);
+    return max_row_desc_buff_size;
+  }
+
+  MY_NODISCARD inline uint32_t get_max_secondary_key_pack_desc_size() const
+      noexcept {
+    uint32_t ret_val = 0;
+    //
+    // the fixed stuff:
+    //  byte that states if main dictionary
+    //  byte that states if hpk
+    //  the things in pack_some_row_info
+    ret_val++;
+    ret_val++;
+    ret_val += sizeof(uint32_t) + sizeof(MULTI_COL_PACK_INFO) + 1;
+    //
+    // now variable sized stuff
+    //
+
+    //  first the blobs
+    ret_val += sizeof(num_blobs);
+    ret_val += num_blobs;
+
+    // then the pk
+    // one byte for num key parts
+    // two bytes for each key part
+    ret_val++;
+    ret_val += MAX_REF_PARTS * 2;
+
+    // then the key
+    // null bit, then null byte,
+    // then 1 byte stating what it is, then 4 for offset, 4 for key length,
+    //      1 for if charset exists, and 4 for charset
+    ret_val +=
+        MAX_REF_PARTS * (1 + sizeof(uint32_t) + 1 + 3 * sizeof(uint32_t) + 1);
+    //
+    // four bytes storing the length of this portion
+    //
+    ret_val += 4;
+    return ret_val;
+  }
+
+  MY_NODISCARD static inline uint32_t get_max_clustering_val_pack_desc_size(
+      const TABLE_SHARE &table_share) {
+    uint32_t ret_val = 0;
+    //
+    // the fixed stuff:
+    //  first the things in pack_some_row_info
+    //  second another mcp_info
+    //  third a byte that states if blobs exist
+    ret_val += sizeof(uint32_t) + sizeof(MULTI_COL_PACK_INFO) + 1;
+    ret_val += sizeof(MULTI_COL_PACK_INFO);
+    ret_val++;
+    //
+    // now the variable stuff
+    //  an upper bound is, for each field, byte stating if it is fixed or var,
+    //  followed
+    // by 8 bytes for endpoints
+    //
+    ret_val += (table_share.fields) * (1 + 2 * sizeof(uint32_t));
+    //
+    // four bytes storing the length of this portion
+    //
+    ret_val += 4;
+
+    return ret_val;
+  }
+
+ private:
+  bool allocated;
+
+ public:
   //
   // bitmaps for each key. key_filters[i] is associated with the i'th
   // dictionary States what columns are not stored in the vals of each key,
@@ -147,20 +268,7 @@ typedef struct st_key_and_col_info {
   // mcp_info[i].len_of_offsets/num_offset_bytes.
   //
   uint32_t num_offset_bytes;  // number of bytes needed to encode the offset
-} KEY_AND_COL_INFO;
-
-static bool is_fixed_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
-  return kcinfo->field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_FIXED_FIELD;
-}
-
-static bool is_variable_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
-  return kcinfo->field_types[field_num] ==
-         KEY_AND_COL_INFO::TOKUDB_VARIABLE_FIELD;
-}
-
-static bool is_blob_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
-  return kcinfo->field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_BLOB_FIELD;
-}
+};
 
 static bool field_valid_for_tokudb_table(Field *field);
 
@@ -230,7 +338,7 @@ typedef enum {
   toku_type_unknown
 } TOKU_TYPE;
 
-static TOKU_TYPE mysql_to_toku_type(Field *field);
+static TOKU_TYPE mysql_to_toku_type(const Field &field);
 
 static uchar *pack_toku_varbinary_from_desc(
     uchar *to_tokudb, const uchar *from_desc,
@@ -331,8 +439,6 @@ static int create_toku_key_descriptor(uchar *buf, bool is_first_hpk,
 
 static uint32_t create_toku_main_key_pack_descriptor(uchar *buf);
 
-static uint32_t get_max_clustering_val_pack_desc_size(TABLE_SHARE *table_share);
-
 static uint32_t create_toku_clustering_val_pack_descriptor(
     uchar *buf, uint pk_index, TABLE_SHARE *table_share,
     KEY_AND_COL_INFO *kc_info, uint32_t keynr, bool is_clustering);
@@ -344,8 +450,6 @@ static inline bool is_key_clustering(uint32_t row_desc_size) {
 static uint32_t pack_clustering_val_from_desc(uchar *buf, void *row_desc,
                                               uint32_t row_desc_size,
                                               const DBT *pk_val);
-
-static uint32_t get_max_secondary_key_pack_desc_size(KEY_AND_COL_INFO *kc_info);
 
 static uint32_t create_toku_secondary_key_pack_descriptor(
     uchar *buf, bool has_hpk, uint pk_index, TABLE_SHARE *table_share,

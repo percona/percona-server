@@ -31,7 +31,7 @@ exec ls $rdb_ddir/MANIFEST-0000* | wc -l;
 
 # Clean up
 remove_files_wildcard $ddir *;
-exec rm -rf $ddir;
+force-rmdir $ddir;
 remove_files_wildcard $rdb_ddir *;
-exec rm -rf $rdb_ddir;
+force-rmdir $rdb_ddir;
 remove_file $sql_file;

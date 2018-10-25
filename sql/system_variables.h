@@ -381,6 +381,9 @@ struct System_variables {
     'COLUMN_TYPE' field.
   */
   bool show_old_temporals;
+
+  bool ft_query_extra_word_chars;
+
   // Used for replication delay and lag monitoring
   ulonglong original_commit_timestamp;
 

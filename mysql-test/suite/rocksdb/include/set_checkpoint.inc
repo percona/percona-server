@@ -14,7 +14,7 @@ if ($succeeds)
   --exec ls $checkpoint/CURRENT | sed s/.*CURRENT/CURRENT/g
 
   # Cleanup
-  --exec rm -rf $checkpoint
+  --force-rmdir $checkpoint
 }
 if (!$succeeds)
 {

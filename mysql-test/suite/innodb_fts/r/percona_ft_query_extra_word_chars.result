@@ -1,0 +1,253 @@
+#
+# Setup ft_query_extra_word_chars testing
+#
+SET NAMES utf8mb4;
+CREATE TABLE words(id INT PRIMARY KEY AUTO_INCREMENT,
+a TEXT COLLATE utf8mb4_bin);
+INSERT INTO words (a) VALUES ('abcdef');
+INSERT INTO words (a) VALUES ('ąbčdėf');
+INSERT INTO words (a) VALUES ('ąbč_dėf');
+INSERT INTO words (a) VALUES ('ąbč!dėf');
+INSERT INTO words (a) VALUES ('ąbč,dėf');
+INSERT INTO words (a) VALUES ('ąbč dėf');
+INSERT INTO words (a) VALUES ('+bčę');
+INSERT INTO words (a) VALUES ('>ąbč <dėf');
+INSERT INTO words (a) VALUES ('-(ąbč xyz)');
+INSERT INTO words (a) VALUES ('ąbč* ~dėf');
+INSERT INTO words (a) VALUES ('single"');
+INSERT INTO words (a) VALUES ('-ųtū');
+CREATE PROCEDURE run_queries(table_name VARCHAR(20), query_type ENUM('nl', 'bool'))
+BEGIN
+DECLARE q, fts_query VARCHAR(100);
+SET @q = CONCAT("SELECT a AS matches FROM ",
+table_name,
+" WHERE MATCH(a) AGAINST (? IN ");
+IF query_type = 'nl'
+             THEN SET @q = CONCAT(@q, "NATURAL LANGUAGE");
+ELSE SET @q = CONCAT(@q, "BOOLEAN");
+END IF;
+SET @q = CONCAT(@q, " MODE)");
+PREPARE query_stmt FROM @q;
+SET @fts_query = 'č,d'; SELECT @fts_query; EXECUTE query_stmt USING @fts_query;
+SET @fts_query = '+bc'; SELECT @fts_query; EXECUTE query_stmt USING @fts_query;
+SET @fts_query = 'single'; SELECT @fts_query; EXECUTE query_stmt USING @fts_query;
+# Surprising result with default parser, NL query, extra chars ON: '-' becomes a part
+# of the query token, result is empty set
+SET @fts_query = '-ųtū'; SELECT @fts_query; EXECUTE query_stmt USING @fts_query;
+SET @fts_query = '"-ųtū"'; SELECT @fts_query; EXECUTE query_stmt USING @fts_query;
+DEALLOCATE PREPARE query_stmt;
+END|
+#
+# Test that ft_query_extra_word_chars value does not affect
+# tokenizing on writes, default InnoDB parser
+#
+CREATE TABLE fts_innodb (id INT PRIMARY KEY AUTO_INCREMENT,
+a TEXT COLLATE utf8mb4_bin, FULLTEXT KEY a(a)) ENGINE=InnoDB;
+INSERT INTO fts_innodb SELECT * FROM words;
+SET @saved_innodb_ft_aux_table = @@GLOBAL.innodb_ft_aux_table;
+SET GLOBAL innodb_ft_aux_table = "test/fts_innodb";
+CREATE TABLE tmp1 AS SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SET SESSION ft_query_extra_word_chars = ON;
+CREATE TABLE fts_2 LIKE fts_innodb;
+INSERT INTO fts_2 SELECT * FROM words;
+SET GLOBAL innodb_ft_aux_table = "test/fts_2";
+CREATE TABLE tmp2 AS SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+DROP TABLE fts_2;
+include/diff_tables.inc [tmp1, tmp2]
+DROP TABLE tmp1, tmp2;
+#
+# Test that ft_query_extra_word_chars value does not affect
+# tokenizing on writes, ngram parser
+#
+SET SESSION ft_query_extra_word_chars = OFF;
+CREATE TABLE fts_ngram (id INT PRIMARY KEY AUTO_INCREMENT,
+a TEXT COLLATE utf8mb4_bin, FULLTEXT KEY a(a) WITH PARSER ngram)
+ENGINE=InnoDB;
+INSERT INTO fts_ngram SELECT * FROM words;
+SET GLOBAL innodb_ft_aux_table = "test/fts_ngram";
+CREATE TABLE tmp1 AS SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SET SESSION ft_query_extra_word_chars = ON;
+CREATE TABLE fts_2 LIKE fts_ngram;
+INSERT INTO fts_2 SELECT * FROM words;
+SET GLOBAL innodb_ft_aux_table = "test/fts_2";
+CREATE TABLE tmp2 AS SELECT WORD FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+DROP TABLE fts_2;
+include/diff_tables.inc [tmp1, tmp2]
+DROP TABLE tmp1, tmp2;
+# Test querying in natural language mode, default parser, extra chars off
+SET SESSION ft_query_extra_word_chars = OFF;
+CALL run_queries('fts_innodb', 'nl');
+@fts_query
+č,d
+matches
+@fts_query
++bc
+matches
+@fts_query
+single
+matches
+single"
+@fts_query
+-ųtū
+matches
+-ųtū
+@fts_query
+"-ųtū"
+matches
+-ųtū
+# Test querying in natural language mode, default parser, extra chars on
+SET SESSION ft_query_extra_word_chars = ON;
+CALL run_queries('fts_innodb', 'nl');
+@fts_query
+č,d
+matches
+@fts_query
++bc
+matches
+@fts_query
+single
+matches
+single"
+@fts_query
+-ųtū
+matches
+@fts_query
+"-ųtū"
+matches
+# Test querying in natural language mode, ngram parser, extra chars off
+SET SESSION ft_query_extra_word_chars = OFF;
+CALL run_queries('fts_ngram', 'nl');
+@fts_query
+č,d
+matches
+ąbč,dėf
+@fts_query
++bc
+matches
+abcdef
++bčę
+@fts_query
+single
+matches
+single"
+@fts_query
+-ųtū
+matches
+-ųtū
+@fts_query
+"-ųtū"
+matches
+-ųtū
+# Test querying in natural language mode, ngram parser, extra chars on
+SET SESSION ft_query_extra_word_chars = ON;
+CALL run_queries('fts_ngram', 'nl');
+@fts_query
+č,d
+matches
+ąbč,dėf
+@fts_query
++bc
+matches
+abcdef
++bčę
+@fts_query
+single
+matches
+single"
+@fts_query
+-ųtū
+matches
+-ųtū
+@fts_query
+"-ųtū"
+matches
+-ųtū
+# Test querying in boolean mode, default parser, extra chars off
+SET SESSION ft_query_extra_word_chars = OFF;
+CALL run_queries('fts_innodb', 'bool');
+@fts_query
+č,d
+matches
+@fts_query
++bc
+matches
+@fts_query
+single
+matches
+single"
+@fts_query
+-ųtū
+matches
+@fts_query
+"-ųtū"
+matches
+-ųtū
+# Test querying in boolean mode, default parser, extra chars on
+SET SESSION ft_query_extra_word_chars = ON;
+CALL run_queries('fts_innodb', 'bool');
+@fts_query
+č,d
+matches
+@fts_query
++bc
+matches
+@fts_query
+single
+matches
+single"
+@fts_query
+-ųtū
+matches
+@fts_query
+"-ųtū"
+matches
+# Test querying in boolean mode, ngram parser, extra chars off
+SET SESSION ft_query_extra_word_chars = OFF;
+CALL run_queries('fts_ngram', 'bool');
+@fts_query
+č,d
+matches
+@fts_query
++bc
+matches
+abcdef
+@fts_query
+single
+matches
+single"
+@fts_query
+-ųtū
+matches
+@fts_query
+"-ųtū"
+matches
+-ųtū
+# Test querying in boolean mode, ngram parser, extra chars on
+SET SESSION ft_query_extra_word_chars = ON;
+CALL run_queries('fts_ngram', 'bool');
+@fts_query
+č,d
+matches
+ąbč,dėf
+@fts_query
++bc
+matches
+abcdef
+@fts_query
+single
+matches
+single"
+@fts_query
+-ųtū
+matches
+@fts_query
+"-ųtū"
+matches
+-ųtū
+#
+# Cleanup
+#
+DROP TABLE fts_innodb, fts_ngram;
+SET GLOBAL innodb_ft_aux_table = @saved_innodb_ft_aux_table;
+DROP PROCEDURE run_queries;
+DROP TABLE words;

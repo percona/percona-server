@@ -13,7 +13,7 @@ Variable_name	Value
 Handler_read_next	0
 explain select * from foo where a between 5 and 6 and c=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	foo	NULL	range	a	a	5	NA	800	10.00	Using where
+1	SIMPLE	foo	NULL	range	a	a	5	NA	779	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`foo`.`a` AS `a`,`test`.`foo`.`b` AS `b`,`test`.`foo`.`c` AS `c`,`test`.`foo`.`d` AS `d`,`test`.`foo`.`e` AS `e` from `test`.`foo` where ((`test`.`foo`.`c` = 10) and (`test`.`foo`.`a` between 5 and 6))
 select * from foo where a between 5 and 6 and c=10;
@@ -67,7 +67,7 @@ Variable_name	Value
 Handler_read_prev	0
 explain select * from foo where a between 5 and 6 and c=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	foo	NULL	range	a	a	5	NA	800	10.00	Using where
+1	SIMPLE	foo	NULL	range	a	a	5	NA	779	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`foo`.`a` AS `a`,`test`.`foo`.`b` AS `b`,`test`.`foo`.`c` AS `c`,`test`.`foo`.`d` AS `d`,`test`.`foo`.`e` AS `e` from `test`.`foo` where ((`test`.`foo`.`c` = 10) and (`test`.`foo`.`a` between 5 and 6))
 select * from foo where a between 5 and 6 and c=10 order by a desc;
@@ -121,7 +121,7 @@ Variable_name	Value
 Handler_read_prev	0
 explain select * from foo where a > 19 and c=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	foo	NULL	range	a	a	5	NA	1402	10.00	Using where
+1	SIMPLE	foo	NULL	range	a	a	5	NA	568	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`foo`.`a` AS `a`,`test`.`foo`.`b` AS `b`,`test`.`foo`.`c` AS `c`,`test`.`foo`.`d` AS `d`,`test`.`foo`.`e` AS `e` from `test`.`foo` where ((`test`.`foo`.`c` = 10) and (`test`.`foo`.`a` > 19))
 select * from foo where a > 19 and c=10 order by a desc;
@@ -155,7 +155,7 @@ Variable_name	Value
 Handler_read_next	0
 explain select * from foo where a > 19 and c=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	foo	NULL	range	a	a	5	NA	1402	10.00	Using where
+1	SIMPLE	foo	NULL	range	a	a	5	NA	568	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`foo`.`a` AS `a`,`test`.`foo`.`b` AS `b`,`test`.`foo`.`c` AS `c`,`test`.`foo`.`d` AS `d`,`test`.`foo`.`e` AS `e` from `test`.`foo` where ((`test`.`foo`.`c` = 10) and (`test`.`foo`.`a` > 19))
 select * from foo where a > 19 and c=10;

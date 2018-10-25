@@ -2201,6 +2201,12 @@ static Sys_var_charptr Sys_ft_stopword_file(
     READ_ONLY NON_PERSIST GLOBAL_VAR(ft_stopword_file), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT(nullptr));
 
+static Sys_var_bool Sys_ft_query_extra_word_chars(
+    "ft_query_extra_word_chars",
+    "If enabled, all non-whitespace characters are considered word symbols "
+    "for full text search queries",
+    SESSION_VAR(ft_query_extra_word_chars), CMD_LINE(OPT_ARG), DEFAULT(false));
+
 static bool check_init_string(sys_var *, THD *, set_var *var) {
   if (var->save_result.string_value.str == nullptr) {
     var->save_result.string_value.str = const_cast<char *>("");

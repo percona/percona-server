@@ -120,6 +120,7 @@ void thd_set_ha_data(void * thd, const struct handlerton *hton,
                      const void *ha_data);
 void remove_ssl_err_thread_state();
 unsigned int thd_get_num_vcpus();
+int thd_get_ft_query_extra_word_chars(void);
 struct st_mysql_keyring {
   int interface_version;
   bool (*mysql_key_store)(const char *key_id, const char *key_type,

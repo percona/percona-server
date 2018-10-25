@@ -67,7 +67,7 @@ SELECT * FROM articles_1 WHERE
 SELECT * FROM articles_1 WHERE
 	MATCH(title_varchar) AGAINST('nd');
 SELECT * FROM articles_1 WHERE
-	MATCH(title_varchar) AGAINST('50');
+	MATCH(title_varchar) AGAINST('0,');
 SELECT * FROM articles_1 WHERE
 	MATCH(title_text) AGAINST('se');
 SELECT * FROM articles_1 WHERE
@@ -221,7 +221,7 @@ SHOW CREATE TABLE articles;
 
 # natural language search
 SELECT * FROM articles WHERE
-	MATCH(c1) AGAINST('救命');
+	MATCH(c1) AGAINST('啊! ');
 SELECT * FROM articles WHERE
 	MATCH(c2) AGAINST('我幾');
 
@@ -279,7 +279,7 @@ SELECT * FROM articles WHERE
         MATCH(j3) AGAINST(">の長" IN BOOLEAN MODE);
 
 SELECT * FROM articles WHERE
-        MATCH(k2) AGAINST('-Ch +해요');
+        MATCH(k2) AGAINST('-Ch +요*');
 
 SELECT * FROM articles WHERE
         MATCH(e1) AGAINST("row1 -row" IN BOOLEAN MODE) ;
@@ -287,7 +287,7 @@ SELECT * FROM articles WHERE
 
 # Query expansion mode
 SELECT * FROM articles WHERE
-        MATCH(c1) AGAINST('命啊' WITH QUERY EXPANSION);
+        MATCH(c1) AGAINST('啊! ' WITH QUERY EXPANSION);
 SELECT * FROM articles WHERE
         MATCH(j2) AGAINST('やっそう' WITH QUERY EXPANSION);
 SELECT * FROM articles WHERE
@@ -321,7 +321,7 @@ SELECT COUNT(*) FROM articles t1,articles t2
         WHERE MATCH(t2.j1,t2.j3) AGAINST("右さ +の長" IN BOOLEAN MODE)
         AND t1.seq = t2.seq ;
 SELECT COUNT(*) FROM articles t1,articles t2
-        WHERE MATCH(t1.c1) AGAINST("命啊")
+        WHERE MATCH(t1.c1) AGAINST("啊! ")
         AND t1.seq != t2.seq
         AND MATCH(t2.k2) AGAINST("국말" IN BOOLEAN MODE) ;
 SELECT COUNT(*) FROM articles t1,articles t2
@@ -353,7 +353,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 ALTER TABLE 名字 ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SELECT * FROM 名字 WHERE
-        MATCH(c1) AGAINST('命啊');
+        MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
         MATCH(さようなら,j3) AGAINST('やっ');
 SELECT * FROM 名字 WHERE
@@ -411,7 +411,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
    ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 
 SELECT * FROM 名字 WHERE
-        MATCH(c1) AGAINST('命啊');
+        MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
         MATCH(さようなら,j3) AGAINST('やっ');
 SELECT * FROM 名字 WHERE
@@ -437,7 +437,7 @@ ANALYZE TABLE 名字;
 -- enable_result_log
 
 SELECT * FROM 名字 WHERE
-        MATCH(c1) AGAINST('命啊');
+        MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
         MATCH(さようなら,j3) AGAINST('やっ');
 SELECT * FROM 名字 WHERE
@@ -468,7 +468,7 @@ INSERT INTO 名字 (c1,c2,c3,さようなら,j2,j3,행운을빈다,k2,e1) VALUES
    ('救命啊!','火啊! 你好','生日快樂 ','雨季','雨が降りそう つやってみよう','雨雲','저분은 영어를 잘 합니다','저는 서울에서 살고 있습니다.','recording test');
 
 SELECT * FROM 名字 WHERE
-        MATCH(c1) AGAINST('命啊');
+        MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
         MATCH(さようなら,j3) AGAINST('やっ');
 SELECT * FROM 名字 WHERE
@@ -529,7 +529,7 @@ ANALYZE TABLE 名字;
 -- enable_result_log
 
 SELECT * FROM 名字 WHERE
-        MATCH(c1) AGAINST('命啊');
+        MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
         MATCH(さようなら,j3) AGAINST('やっ');
 SELECT * FROM 名字 WHERE
@@ -583,7 +583,7 @@ ANALYZE TABLE 名字;
 -- enable_result_log
 
 SELECT * FROM 名字 WHERE
-        MATCH(c1) AGAINST('命啊');
+        MATCH(c1) AGAINST('啊! ');
 SELECT * FROM 名字 WHERE
         MATCH(さようなら,j3) AGAINST('やっ');
 SELECT * FROM 名字 WHERE
@@ -630,10 +630,10 @@ ANALYZE TABLE 名字;
 -- enable_result_log
 
 SELECT * FROM 名字 WHERE
-        MATCH(c1) AGAINST('命啊');
+        MATCH(c1) AGAINST('啊! ');
 UPDATE 名字 SET c1 = '你好嗎?' WHERE MATCH(c2) AGAINST('啊!');
 SELECT * FROM 名字 WHERE
-        MATCH(c1) AGAINST('命啊');
+        MATCH(c1) AGAINST('啊! ');
 DELETE FROM 名字 WHERE
         MATCH(さようなら,j3) AGAINST("てみ -雨が" IN BOOLEAN MODE);
 SELECT * FROM 名字 WHERE

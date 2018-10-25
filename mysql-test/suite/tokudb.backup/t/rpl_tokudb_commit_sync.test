@@ -50,8 +50,8 @@ SELECT @@session.tokudb_backup_last_error_string;
 --source include/rpl_stop_server.inc
 
 --echo ### Restore backup
---exec rm -rf $SLAVE_DATA_DIR;
---exec mv $BACKUP_MYSQL_DATA_DIR $SLAVE_DATA_DIR;
+--force-rmdir $SLAVE_DATA_DIR
+--move_file $BACKUP_MYSQL_DATA_DIR $SLAVE_DATA_DIR
 
 --echo ### Start slave server and slave threads
 --connection slave

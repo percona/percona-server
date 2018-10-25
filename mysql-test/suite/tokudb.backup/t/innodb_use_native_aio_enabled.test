@@ -14,8 +14,4 @@
 --error ER_WRONG_VALUE_FOR_VAR
 --eval SET SESSION tokudb_backup_dir='$BACKUP_DIR'
 
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"BACKUP_DIR"};
-rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $BACKUP_DIR

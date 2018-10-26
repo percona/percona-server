@@ -5,8 +5,6 @@ fileops-3: tokutek not_5_5
 fileops-4: tokutek not_5_5
 memcache_dirty: tokutek FB port
 xa-2: tokutek not_5_5
-tokudb_drop_part_table_668: upgrade from tokudb 6.6.8
-tokudb_drop_simple_table_668: upgrade from tokudb 6.6.8
 checkpoint_lock_2: test can not work when the checkpoint_safe_lock is a fair rwlock
 6053: tokudb is not the default storage engine
 1883: tokutek's auto inc singleton patch missing

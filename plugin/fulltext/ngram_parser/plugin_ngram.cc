@@ -42,7 +42,6 @@ static int ngram_token_size;
 @retval	0	on success
 @retval	1	on failure. */
 static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
-                       bool extra_word_chars,
                        MYSQL_FTPARSER_BOOLEAN_INFO *bool_info) {
   const CHARSET_INFO *cs = param->cs;
   char *start;
@@ -67,12 +66,8 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
     if (next + char_len > end || char_len == 0) {
       break;
     } else {
-      /* Skip SPACE or ","/"." etc as they are not words*/
-      int ctype;
-      cs->cset->ctype(cs, &ctype, (uchar *)next, (uchar *)end);
-
-      if (char_len == 1 &&
-          (*next == ' ' || !true_word_char(ctype, extra_word_chars, *next))) {
+      /* Skip SPACE */
+      if (char_len == 1 && *next == ' ') {
         start = next + 1;
         next = start;
         n_chars = 0;
@@ -151,8 +146,7 @@ static int ngram_get_token_size(const CHARSET_INFO *cs, const char *token,
 @retval	0	on success
 @retval	1	on failure. */
 static int ngram_term_convert(MYSQL_FTPARSER_PARAM *param, const char *token,
-                              int len, bool extra_word_chars,
-                              MYSQL_FTPARSER_BOOLEAN_INFO *bool_info) {
+                              int len, MYSQL_FTPARSER_BOOLEAN_INFO *bool_info) {
   MYSQL_FTPARSER_BOOLEAN_INFO token_info = {FT_TOKEN_WORD, 0, 0, 0, 0, 0,
                                             ' ',           0};
   const CHARSET_INFO *cs = param->cs;
@@ -180,7 +174,7 @@ static int ngram_term_convert(MYSQL_FTPARSER_PARAM *param, const char *token,
     ret = param->mysql_add_word(param, NULL, 0, bool_info);
     RETURN_IF_ERROR(ret);
 
-    ret = ngram_parse(param, token, len, extra_word_chars, &token_info);
+    ret = ngram_parse(param, token, len, &token_info);
     RETURN_IF_ERROR(ret);
 
     bool_info->type = FT_TOKEN_RIGHT_PAREN;
@@ -210,8 +204,7 @@ static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
   switch (param->mode) {
     case MYSQL_FTPARSER_SIMPLE_MODE:
     case MYSQL_FTPARSER_WITH_STOPWORDS:
-      ret = ngram_parse(param, param->doc, param->length, extra_word_chars,
-                        &bool_info);
+      ret = ngram_parse(param, param->doc, param->length, &bool_info);
 
       break;
 
@@ -225,11 +218,11 @@ static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
           if (bool_info.quot != NULL) {
             /* Phrase search */
             ret = ngram_parse(param, reinterpret_cast<char *>(word.pos),
-                              word.len, extra_word_chars, &bool_info);
+                              word.len, &bool_info);
           } else {
             /* Term serach */
             ret = ngram_term_convert(param, reinterpret_cast<char *>(word.pos),
-                                     word.len, extra_word_chars, &bool_info);
+                                     word.len, &bool_info);
             DBUG_ASSERT(bool_info.quot == NULL);
             DBUG_ASSERT(bool_info.type == FT_TOKEN_WORD);
           }

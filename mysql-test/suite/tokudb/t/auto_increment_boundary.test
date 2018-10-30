@@ -9,7 +9,7 @@ insert into t set id=0xff;
 show warnings;
 select * from t;
 select last_insert_id() from t limit 1;
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t set id=null;
 show warnings;
 select * from t;
@@ -22,7 +22,7 @@ insert into t set id=0xffff;
 show warnings;
 select * from t;
 select last_insert_id() from t limit 1;
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t set id=null;
 show warnings;
 select * from t;
@@ -34,7 +34,7 @@ insert into t set id=0xffffffff;
 show warnings;
 select * from t;
 select last_insert_id() from t limit 1;
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t set id=null;
 show warnings;
 select * from t;
@@ -46,7 +46,7 @@ insert into t set id=0xffffffffffffffff;
 show warnings;
 select * from t;
 select last_insert_id() from t limit 1;
---error 1467
+--error ER_AUTOINC_READ_FAILED
 insert into t set id=null;
 show warnings;
 select * from t;

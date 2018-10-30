@@ -104,7 +104,7 @@ set autocommit= 0|
 begin |
 insert into t1 values (1)|
 savepoint x|
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 set @a:= bug13825_0()|
 --error ER_SP_DOES_NOT_EXIST
 insert into t2 values (2)|

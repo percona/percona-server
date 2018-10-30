@@ -1,5 +1,4 @@
 set default_storage_engine='tokudb';
-DROP TABLE IF EXISTS t1, t2;
 SET NAMES latin1;
 #
 # Testing functions CURRENT_TIME and CURRENT_TIMESTAMP
@@ -81,7 +80,7 @@ t1	CREATE TABLE `t1` (
   `NOW(4)` datetime(4) NOT NULL DEFAULT '0000-00-00 00:00:00.0000',
   `NOW(5)` datetime(5) NOT NULL DEFAULT '0000-00-00 00:00:00.00000',
   `NOW(6)` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 SYSDATE(0),
@@ -97,7 +96,7 @@ t1	CREATE TABLE `t1` (
   `SYSDATE(4)` datetime(4) NOT NULL DEFAULT '0000-00-00 00:00:00.0000',
   `SYSDATE(5)` datetime(5) NOT NULL DEFAULT '0000-00-00 00:00:00.00000',
   `SYSDATE(6)` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 FROM_UNIXTIME(1),
@@ -115,7 +114,7 @@ t1	CREATE TABLE `t1` (
   `FROM_UNIXTIME(1.12345)` datetime(5) DEFAULT NULL,
   `FROM_UNIXTIME(1.123456)` datetime(6) DEFAULT NULL,
   `FROM_UNIXTIME(1.1234567)` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing rounding from VARCHAR and TIME(6) to TIME(N)
@@ -2526,7 +2525,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` time NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing bad FSPs
@@ -2869,11 +2868,10 @@ a
 #
 # Testing Item_temporal_with_ref::print
 #
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a IN (990000,0);
+EXPLAIN SELECT * FROM t1 WHERE a IN (990000,0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	14	20.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in ('99:00:00.000000','00:00:00.000000'))
 #
 # Testing IN with index: field->store_packed
@@ -2904,7 +2902,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2, t1;
 #
 # Testing CREATE TABLE .. SELECT
@@ -2915,7 +2913,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2, t1;
 #
 # Testing JOIN between TIME(6) and TIME(6)
@@ -3167,7 +3165,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `LEAST(TIME'00:00:00.1', TIME'00:00:00.12')` time(2) NOT NULL DEFAULT '00:00:00.00',
   `GREATEST(TIME'00:00:00.1', TIME'00:00:00.12')` time(2) NOT NULL DEFAULT '00:00:00.00'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing INSERT with near-maximum and near-minimum supported values.
@@ -3492,7 +3490,7 @@ t2	CREATE TABLE `t2` (
   `i` decimal(14,6) DEFAULT NULL,
   `d` decimal(14,6) DEFAULT NULL,
   `f` double DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 #
 # Testing that TIME behaves as INT/DECIMAL for numeric arithmetic
@@ -3543,7 +3541,7 @@ t2	CREATE TABLE `t2` (
   `TIME'10:10:10' / 1` decimal(11,4) DEFAULT NULL,
   `TIME'10:10:10.123' / 1` decimal(14,7) DEFAULT NULL,
   `TIME'10:10:10.123456' / 1` decimal(17,10) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -3604,7 +3602,7 @@ t2	CREATE TABLE `t2` (
   `MAX(t6)` time(6) DEFAULT NULL,
   `AVG(t6)` decimal(17,10) DEFAULT NULL,
   `SUM(t6)` decimal(35,6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -3727,14 +3725,14 @@ t2	CREATE TABLE `t2` (
   `TIMEDIFF(a,'00:00:00.000001')` time(6) DEFAULT NULL,
   `TIMEDIFF(a,a)` time(6) DEFAULT NULL,
   `TIMEDIFF(CAST(a AS TIME(0)), CAST('10:10:10' AS TIME(0)))` time DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT MAX(ADDTIME(a, '00:00:00.1')) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `MAX(ADDTIME(a, '00:00:00.1'))` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 MAX(ADDTIME(a, '00:00:00.1'))
 01:00:00.100001
@@ -3809,7 +3807,7 @@ t1	CREATE TABLE `t1` (
   `TIMEDIFF(TIME'00:00:00.0000', TIME'00:00:00')` time(4) DEFAULT NULL,
   `TIMEDIFF(TIME'00:00:00.00000', TIME'00:00:00')` time(5) DEFAULT NULL,
   `TIMEDIFF(TIME'00:00:00.000000', TIME'00:00:00')` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SELECT ADDTIME(TIME'00:00:00', TIME'00:00:00');
 ADDTIME(TIME'00:00:00', TIME'00:00:00')
@@ -3999,8 +3997,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `SEC_TO_TIME(3661)` time DEFAULT NULL,
-  `CAST(SEC_TO_TIME(3661) AS CHAR)` varchar(10) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `CAST(SEC_TO_TIME(3661) AS CHAR)` varchar(10) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 SEC_TO_TIME(3661)	CAST(SEC_TO_TIME(3661) AS CHAR)
 01:01:01	01:01:01
@@ -4023,7 +4021,7 @@ t1	CREATE TABLE `t1` (
   `SEC_TO_TIME(3661.11111)` time(5) DEFAULT NULL,
   `SEC_TO_TIME(3661.111111)` time(6) DEFAULT NULL,
   `SEC_TO_TIME(3661.1111111)` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 SEC_TO_TIME(3661.1)	SEC_TO_TIME(3661.11)	SEC_TO_TIME(3661.111)	SEC_TO_TIME(3661.1111)	SEC_TO_TIME(3661.11111)	SEC_TO_TIME(3661.111111)	SEC_TO_TIME(3661.1111111)
 01:01:01.1	01:01:01.11	01:01:01.111	01:01:01.1111	01:01:01.11111	01:01:01.111111	01:01:01.111111
@@ -4140,55 +4138,47 @@ t6	d	ts6	dt6
 DROP TABLE t1;
 SET @@timestamp=default;
 #
-# Testing EXPLAIN EXTENDED SELECT for CAST(TIME(N))
+# Testing EXPLAIN SELECT for CAST(TIME(N))
 #
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME);
+EXPLAIN SELECT CAST('10:10:10' AS TIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time) AS `CAST('10:10:10' AS TIME)`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(0));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(0));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time) AS `CAST('10:10:10' AS TIME(0))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(1));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(1)) AS `CAST('10:10:10' AS TIME(1))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(2));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(2)) AS `CAST('10:10:10' AS TIME(2))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(3));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(3));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(3)) AS `CAST('10:10:10' AS TIME(3))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(4));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(4));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(4)) AS `CAST('10:10:10' AS TIME(4))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(5));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(5));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(5)) AS `CAST('10:10:10' AS TIME(5))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(6));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(6));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(6)) AS `CAST('10:10:10' AS TIME(6))`
 #
 # Testing CAST with bad FSPs
@@ -4293,8 +4283,8 @@ CREATE TABLE t2 AS SELECT CAST(a AS CHAR) AS a FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(17) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(17) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT a, LENGTH(a) FROM t2;
 a	LENGTH(a)
 11:22:33.123000	15
@@ -4312,7 +4302,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` time(6) NOT NULL DEFAULT '11:22:33.123456'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Mixing TIME(6) with another TIME(6) in IF
@@ -4323,7 +4313,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -4335,7 +4325,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` time(2) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -4387,7 +4377,7 @@ t2	CREATE TABLE `t2` (
   `CASE WHEN 1 THEN t6 ELSE t1 END` time(6) DEFAULT NULL,
   `CASE WHEN 1 THEN t6 ELSE t3 END` time(6) DEFAULT NULL,
   `CASE WHEN 1 THEN t6 ELSE t4 END` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -4408,7 +4398,7 @@ t2	CREATE TABLE `t2` (
   `COALESCE(e,f)` time(4) DEFAULT NULL,
   `COALESCE(c,e)` time(3) DEFAULT NULL,
   `COALESCE(c,f)` time(4) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT
 CONCAT(COALESCE(a, b)), CONCAT(COALESCE(c, b)),
@@ -4418,13 +4408,13 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `CONCAT(COALESCE(a, b))` varchar(17) DEFAULT NULL,
-  `CONCAT(COALESCE(c, b))` varchar(17) DEFAULT NULL,
-  `CONCAT(COALESCE(c, d))` varchar(10) DEFAULT NULL,
-  `CONCAT(COALESCE(e, f))` varchar(15) DEFAULT NULL,
-  `CONCAT(COALESCE(c, e))` varchar(14) DEFAULT NULL,
-  `CONCAT(COALESCE(c, f))` varchar(15) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `CONCAT(COALESCE(a, b))` varchar(17) CHARACTER SET latin1 DEFAULT NULL,
+  `CONCAT(COALESCE(c, b))` varchar(17) CHARACTER SET latin1 DEFAULT NULL,
+  `CONCAT(COALESCE(c, d))` varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  `CONCAT(COALESCE(e, f))` varchar(15) CHARACTER SET latin1 DEFAULT NULL,
+  `CONCAT(COALESCE(c, e))` varchar(14) CHARACTER SET latin1 DEFAULT NULL,
+  `CONCAT(COALESCE(c, f))` varchar(15) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -4436,7 +4426,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` time(6) NOT NULL DEFAULT '00:00:00.000000'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -4449,7 +4439,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` time(6) NOT NULL DEFAULT '00:00:00.000000'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2 ORDER BY a;
 a
 00:11:22.123456
@@ -4467,7 +4457,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `t0` time(6) NOT NULL DEFAULT '00:00:00.000000'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2 ORDER BY t0;
 t0
 00:11:22.123456
@@ -4478,7 +4468,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `t6` time(6) NOT NULL DEFAULT '00:00:00.000000'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2 ORDER BY t6;
 t6
 00:11:22.123456
@@ -4489,7 +4479,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `t3` time(4) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2 ORDER BY t3;
 t3
 00:11:23.1230
@@ -4504,29 +4494,29 @@ CREATE TABLE t2 AS SELECT a FROM t1 UNION SELECT b FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(17) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(17) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT a FROM t1 UNION SELECT c FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(22) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(22) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT a FROM t1 UNION SELECT d FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(22) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(22) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT a FROM t1 UNION SELECT e FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(20) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -4617,11 +4607,7 @@ DROP TABLE t1;
 # Testing partitions
 #
 CREATE TABLE t1 (a TIME(6)) PARTITION BY KEY(a) PARTITIONS 4;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('00:00:00.000000');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('00:00:00.000001');
 INSERT INTO t1 VALUES ('00:00:00.000002');
 INSERT INTO t1 VALUES ('00:00:00.000003');
@@ -4720,8 +4706,6 @@ PARTITION p1 VALUES LESS THAN ('00:00:01'),
 PARTITION p2 VALUES LESS THAN ('00:00:02.000003'),
 PARTITION p3 VALUES LESS THAN MAXVALUE
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 PARTITION(p0);
 a
 00:00:00.000000
@@ -4745,8 +4729,6 @@ a
 00:00:00.000114
 00:00:00.000115
 00:00:00.000116
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 PARTITION(p1);
 a
 00:00:00.000210
@@ -4781,17 +4763,13 @@ DROP TABLE t1;
 CREATE TABLE t1 (s1 TIME(6))
 PARTITION BY RANGE COLUMNS (s1)
 (PARTITION p1 VALUES LESS THAN (TIME'01:01:01.000001'));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY RANGE  COLUMNS(s1)
 (PARTITION p1 VALUES LESS THAN ('01:01:01.000001') ENGINE = TokuDB) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 #
 # Testing MAKETIME()
@@ -4828,8 +4806,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` time DEFAULT NULL,
-  `b` varchar(10) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `b` varchar(10) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 MAKETIME(1, 1, 1),
@@ -4849,7 +4827,7 @@ t1	CREATE TABLE `t1` (
   `MAKETIME(1, 1, 1.0000)` time(4) DEFAULT NULL,
   `MAKETIME(1, 1, 1.00000)` time(5) DEFAULT NULL,
   `MAKETIME(1, 1, 1.000000)` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing rounding with MAKETIME()
@@ -4971,7 +4949,7 @@ t1	CREATE TABLE `t1` (
   `CAST(1.1 AS TIME(6))` time(6) DEFAULT NULL,
   `CAST('1' AS TIME(6))` time(6) DEFAULT NULL,
   `CAST(1e0 AS TIME(6))` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 CAST(100000000 AS TIME),
@@ -4986,7 +4964,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `CAST(a AS TIME)` time DEFAULT NULL,
   `CAST(b AS TIME)` time DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT CAST(a AS TIME(0)), CAST(b AS TIME(0)) FROM t1;
 SHOW CREATE TABLE t2;
@@ -4994,7 +4972,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `CAST(a AS TIME(0))` time DEFAULT NULL,
   `CAST(b AS TIME(0))` time DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT CAST(a AS TIME(6)), CAST(b AS TIME(6)) FROM t1;
 SHOW CREATE TABLE t2;
@@ -5002,7 +4980,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `CAST(a AS TIME(6))` time(6) DEFAULT NULL,
   `CAST(b AS TIME(6))` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 #
 # Testing Item_time_typecast::val_str
@@ -5118,7 +5096,7 @@ t1	CREATE TABLE `t1` (
   `TIME(TIMESTAMP('2001-01-01 00:00:00.1234'))` time(4) DEFAULT NULL,
   `TIME(TIMESTAMP('2001-01-01 00:00:00.12345'))` time(5) DEFAULT NULL,
   `TIME(TIMESTAMP('2001-01-01 00:00:00.123456'))` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing comparison between a TIME(6) field and a TIME(N) type cast
@@ -5244,8 +5222,8 @@ CREATE TABLE t1 AS SELECT @a AS a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` longtext
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+  `a` longtext CHARACTER SET latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a
 11:22:33.123456
@@ -5261,12 +5239,12 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIME(6);
 SET a='11:22:33.123';
 SELECT a;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 CALL p1//
 a
 11:22:33.123000
@@ -5277,10 +5255,10 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIME(6))
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIME(6))
 BEGIN
 SELECT a;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 CALL p1(112233)//
 a
 11:22:33.000000
@@ -5303,18 +5281,18 @@ DROP TABLE t1;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIME(6);
 CREATE TABLE t1 AS SELECT a;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 CALL p1//
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` time(6) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP PROCEDURE p1//
 CREATE FUNCTION p1 (a TIME(6)) RETURNS TIME(6)
 BEGIN
@@ -5322,10 +5300,10 @@ RETURN a;
 END//
 SHOW CREATE FUNCTION p1//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIME(6)) RETURNS time(6)
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIME(6)) RETURNS time(6)
 BEGIN
 RETURN a;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SELECT p1(112233.123)//
 p1(112233.123)
 11:22:33.123000
@@ -5356,6 +5334,7 @@ EXTRA
 PRIVILEGES	#
 COLUMN_COMMENT	
 GENERATION_EXPRESSION	
+SRS_ID	NULL
 DROP TABLE t1;
 #
 # SELECT from a subquery
@@ -5434,7 +5413,7 @@ Warnings:
 Warning	1441	Datetime function: time field overflow
 SELECT DATE_ADD(TIME'00:00:00.0', INTERVAL 1000000000000000000000.1 SECOND);
 DATE_ADD(TIME'00:00:00.0', INTERVAL 1000000000000000000000.1 SECOND)
-00:00:00.0
+NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '1000000000000000000000.1'
 CREATE TABLE t1 AS SELECT
@@ -5469,7 +5448,7 @@ t1	CREATE TABLE `t1` (
   `t5s0` time(5) DEFAULT NULL,
   `t6s0` time(6) DEFAULT NULL,
   `t0ms` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 ADDTIME(TIME'00:00:00', TIME'00:00:01') AS t0s0,
@@ -5501,7 +5480,7 @@ t1	CREATE TABLE `t1` (
   `t4s0` time(4) DEFAULT NULL,
   `t5s0` time(5) DEFAULT NULL,
   `t6s0` time(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing that CAST from various fields to TIME rounds.
@@ -5604,7 +5583,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing internal representation format for DATETIME(N)
@@ -7200,7 +7179,6 @@ DROP TABLE t1;
 SET sql_mode=no_zero_in_date;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
 INSERT INTO t1 VALUES ('1999-00-00 00:00:00', '1999-00-00 00:00:00');
 Warnings:
@@ -7691,11 +7669,10 @@ a
 #
 # Testing Item_temporal_with_ref::print
 #
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a IN (0.000001,0);
+EXPLAIN SELECT * FROM t1 WHERE a IN (0.000001,0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	22.22	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in ('0000-00-00 00:00:00.000001','0000-00-00 00:00:00.000000'))
 #
 # Testing IN with index: involves field->store_packed()
@@ -7727,7 +7704,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2, t1;
 #
 # Testing CREATE TABLE .. SELECT
@@ -7738,7 +7715,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2, t1;
 #
 # Testing JOIN between DATETIME(6) and DATETIME(6)
@@ -7975,7 +7952,7 @@ a
 2001-01-01 00:00:00.100000
 SELECT LEAST(CAST('2001-01-01 00:00:00.1' as DATETIME(6)), '2001-01-02 00:00:00.1') + 0 AS a;
 a
-20010101000000.1
+20010101000000.100000
 SELECT CAST(LEAST(CAST('2001-01-01 00:00:00.1' as DATETIME(6)), '2001-01-02 00:00:00.1') AS SIGNED) AS a;
 a
 20010101000000
@@ -7984,10 +7961,10 @@ a
 20010101000000.100000
 SELECT GREATEST(CAST('2001-01-01 00:00:00.1' as DATETIME(6)), '2001-01-02 00:00:00.1') AS a;
 a
-2001-01-02 00:00:00.1
+2001-01-02 00:00:00.100000
 SELECT GREATEST(CAST('2001-01-01 00:00:00.1' as DATETIME(6)), '2001-01-02 00:00:00.1') + 0 AS a;
 a
-20010102000000.1
+20010102000000.100000
 SELECT CAST(GREATEST(CAST('2001-01-01 00:00:00.1' as DATETIME(6)), '2001-01-02 00:00:00.1') AS SIGNED) AS a;
 a
 20010102000000
@@ -8004,7 +7981,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `l` datetime(2) DEFAULT NULL,
   `g` datetime(2) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing INSERT, MAX and MIN values
@@ -8297,7 +8274,7 @@ t2	CREATE TABLE `t2` (
   `i` decimal(21,6) DEFAULT NULL,
   `d` decimal(21,6) DEFAULT NULL,
   `f` double DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 #
 # Testing that DATETIME behaves as INT/DECIMAL for numeric arithmetic
@@ -8348,7 +8325,7 @@ t2	CREATE TABLE `t2` (
   `TIMESTAMP'2001-01-01 10:10:10' / 1` decimal(18,4) DEFAULT NULL,
   `TIMESTAMP'2001-01-01 10:10:10.123' / 1` decimal(21,7) DEFAULT NULL,
   `TIMESTAMP'2001-01-01 10:10:10.123456' / 1` decimal(24,10) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -8409,7 +8386,7 @@ t2	CREATE TABLE `t2` (
   `MAX(t6)` datetime(6) DEFAULT NULL,
   `AVG(t6)` decimal(24,10) DEFAULT NULL,
   `SUM(t6)` decimal(42,6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -8505,7 +8482,7 @@ t2	CREATE TABLE `t2` (
   `ADDTIME(CAST(a AS DATETIME(0)), CAST('10:00:00' AS TIME(0)))` datetime DEFAULT NULL,
   `ADDTIME(CAST(a AS DATETIME(6)), CAST('10:00:00' AS TIME(0)))` datetime(6) DEFAULT NULL,
   `ADDTIME(CAST(a AS DATETIME(0)), CAST('10:00:00' AS TIME(6)))` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SELECT TIMESTAMP(a, '10:00:00') FROM t1;
 TIMESTAMP(a, '10:00:00')
@@ -8552,7 +8529,7 @@ t2	CREATE TABLE `t2` (
   `TIMESTAMP(CAST(a AS DATETIME(0)), CAST('00:00:00' AS TIME(0)))` datetime DEFAULT NULL,
   `TIMESTAMP(CAST(a AS DATETIME(6)), CAST('00:00:00' AS TIME(0)))` datetime(6) DEFAULT NULL,
   `TIMESTAMP(CAST(a AS DATETIME(0)), CAST('00:00:00' AS TIME(6)))` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SELECT SUBTIME(a, '00:00:00.000001') FROM t1 ORDER BY a;
 SUBTIME(a, '00:00:00.000001')
@@ -8691,14 +8668,14 @@ t2	CREATE TABLE `t2` (
   `DATE_SUB(CAST(a AS DATETIME), INTERVAL 1 SECOND)` datetime DEFAULT NULL,
   `DATE_ADD(CAST(a AS DATETIME), INTERVAL 1 MICROSECOND)` datetime(6) DEFAULT NULL,
   `DATE_SUB(CAST(a AS DATETIME), INTERVAL 1 MICROSECOND)` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT MAX(ADDTIME(a, '00:00:00.1')) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `MAX(ADDTIME(a, '00:00:00.1'))` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 MAX(ADDTIME(a, '00:00:00.1'))
 2001-01-01 01:00:00.100001
@@ -8736,7 +8713,7 @@ t1	CREATE TABLE `t1` (
   `t5s0` datetime(5) DEFAULT NULL,
   `t6s0` datetime(6) DEFAULT NULL,
   `t0ms` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 CONVERT_TZ(TIMESTAMP'2001-01-01 00:00:00', '+00:00', '+01:00') AS d0,
@@ -8756,7 +8733,7 @@ t1	CREATE TABLE `t1` (
   `d4` datetime(4) DEFAULT NULL,
   `d5` datetime(5) DEFAULT NULL,
   `d6` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing copy from DATETIME to DATETIME(6) and vice versa
@@ -8850,55 +8827,47 @@ a	b	c
 10:10:10.100000	2001-01-01 10:10:10.100000	2001-01-01
 DROP TABLE t1;
 #
-# Testing EXPLAIN EXTENDED SELECT for CAST(DATETIME(N))
+# Testing EXPLAIN SELECT for CAST(DATETIME(N))
 #
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME);
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime) AS `CAST('10:10:10' AS DATETIME)`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(0));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(0));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime) AS `CAST('10:10:10' AS DATETIME(0))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(1));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(1)) AS `CAST('10:10:10' AS DATETIME(1))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(2));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(2)) AS `CAST('10:10:10' AS DATETIME(2))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(3));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(3));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(3)) AS `CAST('10:10:10' AS DATETIME(3))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(4));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(4));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(4)) AS `CAST('10:10:10' AS DATETIME(4))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(5));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(5));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(5)) AS `CAST('10:10:10' AS DATETIME(5))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(6));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(6));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(6)) AS `CAST('10:10:10' AS DATETIME(6))`
 #
 # Testing CAST with bad FSPs
@@ -9012,8 +8981,8 @@ CREATE TABLE t2 AS SELECT CAST(a AS CHAR) AS a FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(26) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(26) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT a, LENGTH(a) FROM t2;
 a	LENGTH(a)
 2001-01-01 11:22:33.123000	26
@@ -9144,7 +9113,7 @@ CONCAT(LEAST(a,b))	CONCAT(LEAST(b,a))
 # So the result format depends on which value wins, with the first value having higher precedence:
 SELECT LEAST(a,b,'2001-01-02'), LEAST(b,a,'2001-01-02'), LEAST(a,b,'2000-01-01') FROM t1;
 LEAST(a,b,'2001-01-02')	LEAST(b,a,'2001-01-02')	LEAST(a,b,'2000-01-01')
-10:20:30	2001-01-01 10:20:30	2000-01-01
+2001-01-01 10:20:30	2001-01-01 10:20:30	2000-01-01 00:00:00
 # More tests with LEAST:
 SELECT a, b FROM t1 WHERE a=LEAST(a,a);
 a	b
@@ -9320,7 +9289,7 @@ t1	CREATE TABLE `t1` (
   `TIMESTAMP(TIMESTAMP('2001-01-01 00:00:00.1234'))` datetime(4) DEFAULT NULL,
   `TIMESTAMP(TIMESTAMP('2001-01-01 00:00:00.12345'))` datetime(5) DEFAULT NULL,
   `TIMESTAMP(TIMESTAMP('2001-01-01 00:00:00.123456'))` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing DEFAULT value
@@ -9330,7 +9299,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime(6) NOT NULL DEFAULT '2000-01-01 11:22:33.123456'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Mixing varios DATETIME(N) in CASE
@@ -9382,7 +9351,7 @@ t2	CREATE TABLE `t2` (
   `CASE WHEN 1 THEN t6 ELSE t1 END` datetime(6) DEFAULT NULL,
   `CASE WHEN 1 THEN t6 ELSE t3 END` datetime(6) DEFAULT NULL,
   `CASE WHEN 1 THEN t6 ELSE t4 END` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -9409,7 +9378,7 @@ t2	CREATE TABLE `t2` (
   `COALESCE(e, f)` datetime(4) DEFAULT NULL,
   `COALESCE(c, e)` datetime(3) DEFAULT NULL,
   `COALESCE(c, f)` datetime(4) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT
 CONCAT(COALESCE(a, b)), CONCAT(COALESCE(c, b)),
@@ -9419,13 +9388,13 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `CONCAT(COALESCE(a, b))` varchar(26) DEFAULT NULL,
-  `CONCAT(COALESCE(c, b))` varchar(26) DEFAULT NULL,
-  `CONCAT(COALESCE(c, d))` varchar(19) DEFAULT NULL,
-  `CONCAT(COALESCE(e, f))` varchar(24) DEFAULT NULL,
-  `CONCAT(COALESCE(c, e))` varchar(23) DEFAULT NULL,
-  `CONCAT(COALESCE(c, f))` varchar(24) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `CONCAT(COALESCE(a, b))` varchar(26) CHARACTER SET latin1 DEFAULT NULL,
+  `CONCAT(COALESCE(c, b))` varchar(26) CHARACTER SET latin1 DEFAULT NULL,
+  `CONCAT(COALESCE(c, d))` varchar(19) CHARACTER SET latin1 DEFAULT NULL,
+  `CONCAT(COALESCE(e, f))` varchar(24) CHARACTER SET latin1 DEFAULT NULL,
+  `CONCAT(COALESCE(c, e))` varchar(23) CHARACTER SET latin1 DEFAULT NULL,
+  `CONCAT(COALESCE(c, f))` varchar(24) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -9437,7 +9406,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -9450,7 +9419,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `IF(1, a, b)` datetime(2) DEFAULT NULL,
   `IF(1, b, a)` datetime(2) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -9462,7 +9431,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -9474,21 +9443,21 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `t0` datetime(1) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT t1 FROM t1 UNION SELECT t3 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `t1` datetime(3) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT t3 FROM t1 UNION SELECT t4 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `t3` datetime(4) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -9499,29 +9468,29 @@ CREATE TABLE t2 AS SELECT a FROM t1 UNION SELECT b FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(26) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(26) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT a FROM t1 UNION SELECT c FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(26) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(26) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT a FROM t1 UNION SELECT d FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(26) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(26) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT a FROM t1 UNION SELECT e FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(26) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -9583,11 +9552,7 @@ DROP TABLE t1;
 # Testing partitions
 #
 CREATE TABLE t1 (a DATETIME(6)) PARTITION BY KEY(a) PARTITIONS 4;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000000');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000001');
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000002');
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000003');
@@ -9686,8 +9651,6 @@ PARTITION p1 VALUES LESS THAN ('2001-01-01 00:00:01'),
 PARTITION p2 VALUES LESS THAN ('2001-01-01 00:00:02.000003'),
 PARTITION p3 VALUES LESS THAN MAXVALUE
 );
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 PARTITION(p0);
 a
 2001-01-01 00:00:00.000000
@@ -9711,8 +9674,6 @@ a
 2001-01-01 00:00:00.000114
 2001-01-01 00:00:00.000115
 2001-01-01 00:00:00.000116
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 PARTITION(p1);
 a
 2001-01-01 00:00:00.000210
@@ -9748,18 +9709,14 @@ CREATE TABLE t1 (s1 DATETIME(6))
 PARTITION BY RANGE COLUMNS (s1)
 (PARTITION p1 VALUES LESS THAN (TIMESTAMP'2001-01-01 01:01:01.000001'),
 PARTITION p2 VALUES LESS THAN (DATE'2002-01-01'));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` datetime(6) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY RANGE  COLUMNS(s1)
 (PARTITION p1 VALUES LESS THAN ('2001-01-01 01:01:01.000001') ENGINE = ENGINE,
  PARTITION p2 VALUES LESS THAN ('2002-01-01') ENGINE = ENGINE) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 #
 # Testing CAST to DATETIME and DATETIME(6)
@@ -9792,7 +9749,7 @@ t1	CREATE TABLE `t1` (
   `CAST(111.1 AS DATETIME(6))` datetime(6) DEFAULT NULL,
   `CAST('20001111' AS DATETIME(6))` datetime(6) DEFAULT NULL,
   `CAST(111e0 AS DATETIME(6))` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 CAST(100000000 AS DATETIME),
@@ -9807,7 +9764,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `CAST(a AS DATETIME)` datetime DEFAULT NULL,
   `CAST(b AS DATETIME)` datetime DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT CAST(a AS DATETIME(0)), CAST(b AS DATETIME(0)) FROM t1;
 SHOW CREATE TABLE t2;
@@ -9815,7 +9772,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `CAST(a AS DATETIME(0))` datetime DEFAULT NULL,
   `CAST(b AS DATETIME(0))` datetime DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT CAST(a AS DATETIME(6)), CAST(b AS DATETIME(6)) FROM t1;
 SHOW CREATE TABLE t2;
@@ -9823,7 +9780,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `CAST(a AS DATETIME(6))` datetime(6) DEFAULT NULL,
   `CAST(b AS DATETIME(6))` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 #
 # Testing Item_datetime_typecast::val_str
@@ -10029,8 +9986,8 @@ CREATE TABLE t1 AS SELECT @a AS a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` longtext
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+  `a` longtext CHARACTER SET latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a
 2001-01-01 11:22:33.123456
@@ -10046,12 +10003,12 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a DATETIME(6);
 SET a='2001-01-01 11:22:33.123';
 SELECT a;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 CALL p1//
 a
 2001-01-01 11:22:33.123000
@@ -10062,10 +10019,10 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a DATETIME(6))
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a DATETIME(6))
 BEGIN
 SELECT a;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 CALL p1(20010101112233)//
 a
 2001-01-01 11:22:33.000000
@@ -10087,18 +10044,18 @@ DROP TABLE t1;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a DATETIME(6);
 CREATE TABLE t1 AS SELECT a;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 CALL p1//
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime(6) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP PROCEDURE p1//
 CREATE FUNCTION p1 (a DATETIME(6)) RETURNS DATETIME(6)
 BEGIN
@@ -10106,10 +10063,10 @@ RETURN a;
 END//
 SHOW CREATE FUNCTION p1//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a DATETIME(6)) RETURNS datetime(6)
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a DATETIME(6)) RETURNS datetime(6)
 BEGIN
 RETURN a;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SELECT p1(20010101112233)//
 p1(20010101112233)
 2001-01-01 11:22:33.000000
@@ -10143,6 +10100,7 @@ EXTRA
 PRIVILEGES	#
 COLUMN_COMMENT	
 GENERATION_EXPRESSION	
+SRS_ID	NULL
 DROP TABLE t1;
 #
 # SELECT from a subquery
@@ -10433,7 +10391,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing internal representation format for DATETIME(N)
@@ -11666,7 +11624,7 @@ INSERT INTO t1 VALUES ('2001-01-01 10:10:10.999999');
 ALTER TABLE t1 MODIFY a TIMESTAMP(5);
 SELECT * FROM t1;
 a
-2001-01-01 10:10:10.99999
+2001-01-01 10:10:11.00000
 DROP TABLE t1;
 CREATE TABLE t1 (a TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6));
 INSERT INTO t1 VALUES ('2001-01-01 10:10:10.999999');
@@ -12324,7 +12282,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2, t1;
 #
 # Testing CREATE TABLE .. SELECT
@@ -12335,7 +12293,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2, t1;
 #
 # Testing JOIN between TIMESTAMP(6) and TIMESTAMP(6)
@@ -12477,7 +12435,7 @@ a
 2001-01-01 00:00:00.100000
 SELECT LEAST(a, '2001-01-02 00:00:00.1') + 0 AS a FROM t1;
 a
-20010101000000.1
+20010101000000.100000
 SELECT CAST(LEAST(a, '2001-01-02 00:00:00.1') AS SIGNED) AS a FROM t1;
 a
 20010101000000
@@ -12486,10 +12444,10 @@ a
 20010101000000.100000
 SELECT GREATEST(a, '2001-01-02 00:00:00.1') AS a FROM t1;
 a
-2001-01-02 00:00:00.1
+2001-01-02 00:00:00.100000
 SELECT GREATEST(a, '2001-01-02 00:00:00.1') + 0 AS a FROM t1;
 a
-20010102000000.1
+20010102000000.100000
 SELECT CAST(GREATEST(a, '2001-01-02 00:00:00.1') AS SIGNED) AS a FROM t1;
 a
 20010102000000
@@ -12835,7 +12793,7 @@ t2	CREATE TABLE `t2` (
   `i` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `d` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `f` double NOT NULL DEFAULT '0'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 #
 # Testing that TIMESTAMP behaves as INT/DECIMAL for numeric arithmetic
@@ -12886,7 +12844,7 @@ t2	CREATE TABLE `t2` (
   `TIMESTAMP'2001-01-01 10:10:10' / 1` decimal(18,4) DEFAULT NULL,
   `TIMESTAMP'2001-01-01 10:10:10.123' / 1` decimal(21,7) DEFAULT NULL,
   `TIMESTAMP'2001-01-01 10:10:10.123456' / 1` decimal(24,10) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -12947,7 +12905,7 @@ t2	CREATE TABLE `t2` (
   `MAX(t6)` datetime(6) DEFAULT NULL,
   `AVG(t6)` decimal(24,10) DEFAULT NULL,
   `SUM(t6)` decimal(42,6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -13057,7 +13015,7 @@ t2	CREATE TABLE `t2` (
   `ADDTIME(CAST(a AS DATETIME(0)), 100000)` datetime DEFAULT NULL,
   `ADDTIME(CAST(a AS DATETIME(0)), 100000.1)` datetime(1) DEFAULT NULL,
   `ADDTIME(a,a)` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SELECT TIMESTAMP(a, '10:00:00') FROM t1;
 TIMESTAMP(a, '10:00:00')
@@ -13112,7 +13070,7 @@ t2	CREATE TABLE `t2` (
   `TIMESTAMP(CAST(a AS DATETIME(0)), CAST('00:00:00' AS TIME(0)))` datetime DEFAULT NULL,
   `TIMESTAMP(CAST(a AS DATETIME(6)), CAST('00:00:00' AS TIME(0)))` datetime(6) DEFAULT NULL,
   `TIMESTAMP(CAST(a AS DATETIME(0)), CAST('00:00:00' AS TIME(6)))` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SELECT SUBTIME(a, '00:00:00.000001') FROM t1 ORDER BY a;
 SUBTIME(a, '00:00:00.000001')
@@ -13159,7 +13117,7 @@ t2	CREATE TABLE `t2` (
   `SUBTIME(CAST(a AS DATETIME(0)), 100000)` datetime DEFAULT NULL,
   `SUBTIME(CAST(a AS DATETIME(0)), 100000.1)` datetime(1) DEFAULT NULL,
   `SUBTIME(a,a)` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SELECT DATE_ADD(a, INTERVAL 1 MINUTE) FROM t1 ORDER BY a;
 DATE_ADD(a, INTERVAL 1 MINUTE)
@@ -13258,14 +13216,14 @@ t2	CREATE TABLE `t2` (
   `DATE_SUB(CAST(a AS DATETIME), INTERVAL 1 SECOND)` datetime DEFAULT NULL,
   `DATE_ADD(CAST(a AS DATETIME), INTERVAL 1 MICROSECOND)` datetime(6) DEFAULT NULL,
   `DATE_SUB(CAST(a AS DATETIME), INTERVAL 1 MICROSECOND)` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT MAX(DATE_ADD(a, INTERVAL 1 MINUTE)) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `MAX(DATE_ADD(a, INTERVAL 1 MINUTE))` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 MAX(DATE_ADD(a, INTERVAL 1 MINUTE))
 2001-01-01 01:01:00.000001
@@ -13439,8 +13397,8 @@ CREATE TABLE t2 AS SELECT CAST(a AS CHAR) AS a FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(26) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` varchar(26) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT a, LENGTH(a) FROM t2;
 a	LENGTH(a)
 2001-01-01 11:22:33.123000	26
@@ -13456,42 +13414,42 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp(1) NOT NULL DEFAULT CURRENT_TIMESTAMP(1) ON UPDATE CURRENT_TIMESTAMP(1)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (a TIMESTAMP(2) NOT NULL DEFAULT CURRENT_TIMESTAMP(2) ON UPDATE CURRENT_TIMESTAMP(2));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp(2) NOT NULL DEFAULT CURRENT_TIMESTAMP(2) ON UPDATE CURRENT_TIMESTAMP(2)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (a TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (a TIMESTAMP(4) NOT NULL DEFAULT CURRENT_TIMESTAMP(4) ON UPDATE CURRENT_TIMESTAMP(4));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp(4) NOT NULL DEFAULT CURRENT_TIMESTAMP(4) ON UPDATE CURRENT_TIMESTAMP(4)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (a TIMESTAMP(5) NOT NULL DEFAULT CURRENT_TIMESTAMP(5) ON UPDATE CURRENT_TIMESTAMP(5));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp(5) NOT NULL DEFAULT CURRENT_TIMESTAMP(5) ON UPDATE CURRENT_TIMESTAMP(5)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (a TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing DEFAULT value
@@ -13501,7 +13459,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp(6) NOT NULL DEFAULT '2000-01-01 11:22:33.123456'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing DEFAULT CURRENT_TIMESTAMP
@@ -13648,7 +13606,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp(6) NOT NULL DEFAULT '1971-01-01 00:00:00.000000' ON UPDATE CURRENT_TIMESTAMP(6)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (a DATETIME(6) ON UPDATE CURRENT_TIMESTAMP);
 ERROR HY000: Invalid ON UPDATE clause for 'a' column
@@ -13670,17 +13628,13 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime(6) DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(6)
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Testing partitions
 #
 CREATE TABLE t1 (a TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)) PARTITION BY KEY(a) PARTITIONS 4;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000000');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000001');
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000002');
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000003');
@@ -13842,7 +13796,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `CAST(a AS DATETIME)` datetime DEFAULT NULL,
   `CAST(b AS DATETIME)` datetime DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 CAST(a AS DATETIME)	CAST(b AS DATETIME)
 2001-01-01 11:22:33	2001-01-01 11:22:33
@@ -13853,7 +13807,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `CAST(a AS DATETIME(0))` datetime DEFAULT NULL,
   `CAST(b AS DATETIME(0))` datetime DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 CAST(a AS DATETIME(0))	CAST(b AS DATETIME(0))
 2001-01-01 11:22:33	2001-01-01 11:22:33
@@ -13864,7 +13818,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `CAST(a AS DATETIME(6))` datetime(6) DEFAULT NULL,
   `CAST(b AS DATETIME(6))` datetime(6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 CAST(a AS DATETIME(6))	CAST(b AS DATETIME(6))
 2001-01-01 11:22:33.000000	2001-01-01 11:22:33.123456
@@ -13983,8 +13937,8 @@ CREATE TABLE t1 AS SELECT @a AS a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` longtext
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` longtext CHARACTER SET latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a
 2001-01-01 11:22:33.123456
@@ -14000,12 +13954,12 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIMESTAMP(6);
 SET a='2001-01-01 11:22:33.123';
 SELECT a;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 CALL p1//
 a
 2001-01-01 11:22:33.123000
@@ -14016,10 +13970,10 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIMESTAMP(6))
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIMESTAMP(6))
 BEGIN
 SELECT a;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 CALL p1(20010101112233)//
 a
 2001-01-01 11:22:33.000000
@@ -14042,19 +13996,19 @@ DROP TABLE t1;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIMESTAMP(6);
 CREATE TABLE t1 AS SELECT a;
 # replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 CALL p1//
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp(6) NULL DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP PROCEDURE p1//
 CREATE FUNCTION p1 (a TIMESTAMP(6)) RETURNS TIMESTAMP(6)
 BEGIN
@@ -14062,10 +14016,10 @@ RETURN a;
 END//
 SHOW CREATE FUNCTION p1//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIMESTAMP(6)) RETURNS timestamp(6)
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIMESTAMP(6)) RETURNS timestamp(6)
 BEGIN
 RETURN a;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SELECT p1(20010101112233)//
 p1(20010101112233)
 2001-01-01 11:22:33.000000
@@ -14099,6 +14053,7 @@ EXTRA	on update CURRENT_TIMESTAMP(6)
 PRIVILEGES	#
 COLUMN_COMMENT	
 GENERATION_EXPRESSION	
+SRS_ID	NULL
 DROP TABLE t1;
 #
 # SELECT from a subquery
@@ -14807,7 +14762,7 @@ SELECT @@timestamp;
 CREATE TABLE t1 AS SELECT @@timestamp;
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-@@timestamp	double(21,6)	YES		NULL	
+@@timestamp	double(22,6)	YES		NULL	
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 #
@@ -14827,7 +14782,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` time(3) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Bug#12546965 - 60990: INCORRECT DATE COMPARISON 
@@ -14880,8 +14835,6 @@ s0	s6
 DROP TABLE t1;
 SET @@timestamp=default;
 SET sql_mode='' /* not 'no_zero_in_date' */;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (s1 DATETIME);
 INSERT INTO t1 VALUES ('1000-00-01 00:00:00');
 INSERT INTO t1 VALUES (TIMESTAMP'1000-00-01 00:00:00');
@@ -14998,8 +14951,8 @@ CREATE TABLE t1 AS SELECT UNIX_TIMESTAMP(CURRENT_TIMESTAMP(6));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `UNIX_TIMESTAMP(CURRENT_TIMESTAMP(6))` decimal(16,6) NOT NULL DEFAULT '0.000000'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `UNIX_TIMESTAMP(CURRENT_TIMESTAMP(6))` decimal(17,6) NOT NULL DEFAULT '0.000000'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 UNIX_TIMESTAMP(CURRENT_TIMESTAMP(6))
 1316637605.123456
@@ -15117,8 +15070,6 @@ KEY col_datetime_3_key (col_datetime_3_key),
 KEY col_time_not_null_key (col_time_not_null_key),
 KEY col_time_4_not_null_key (col_time_4_not_null_key))
 /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT ANY_VALUE(col_datetime_3_key) , COUNT( col_timestamp_5_key )
 FROM t1 FORCE KEY
 (PRIMARY, col_datetime_5_not_null_key, col_datetime_6_key, col_time_5_key, col_time_2_key) 
@@ -15153,7 +15104,6 @@ AND
 GROUP BY col_datetime_6_not_null_key;
 ANY_VALUE(col_datetime_3_key)	COUNT( col_timestamp_5_key )
 Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1292	Incorrect time value: '2002-01-01 21:50:38.023562' for column 'col_time_4_not_null_key' at row 1
 Note	1292	Incorrect time value: '20090504151448.022774' for column 'col_time_4_not_null_key' at row 1
 Note	1292	Incorrect time value: '2000-07-13 21:35:51.034786' for column 'col_time_1_not_null_key' at row 1
@@ -15183,8 +15133,6 @@ KEY col_time_2_key (col_time_2_key),
 KEY col_timestamp_3_not_null_key (col_timestamp_3_not_null_key),
 KEY col_datetime_5_key (col_datetime_5_key))
 /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (
 '00:20:00.00000',
 '15:50:06.1',
@@ -15194,8 +15142,6 @@ INSERT INTO t1 VALUES (
 '2009-10-14 21:00:00.000',
 '1971-01-01 00:00:00.00000',
 '22:59:36.734');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_datetime_5_key AS c1
 FROM t1
 WHERE col_datetime_not_null NOT BETWEEN col_time_5 AND
@@ -15382,8 +15328,6 @@ PRIMARY KEY (pk),
 KEY col_timestamp_4_not_null_key (col_timestamp_4_not_null_key),
 KEY col_timestamp_5_not_null_key (col_timestamp_5_not_null_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT
 LEAST('2008-05-18', LOCALTIMESTAMP(), col_timestamp_5_not_null_key ) AS c1
 FROM t1
@@ -15401,7 +15345,6 @@ CONCAT_WS('-', '%I', '%S', '%v' )),
 CONCAT_WS('-', '%V', '%H' ));
 c1
 Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Warning	1411	Incorrect datetime value: 'May:Mon:2009:00:124' for function str_to_date
 Warning	1411	Incorrect datetime value: 'May:Mon:2009:00:124' for function str_to_date
 DROP TABLE t1;
@@ -15424,11 +15367,7 @@ KEY col_time_4_key (col_time_4_key),
 KEY col_time_2_key (col_time_2_key),
 KEY col_time_3_key (col_time_3_key)
 )/*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2004-06-28 22:47:21.052552','17:11:33.0','00:20:09.0000','00:20:04.0','02:05:58.4461','08:36:44.02','1971-01-01 00:00:00','1971-01-01 00:00:00.00000','02:17:50.049','07:31:13.030');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_datetime_6 AS c1, col_datetime AS c2 
 FROM t1 
 WHERE col_time_2_key
@@ -15457,8 +15396,6 @@ KEY col_time_6_not_null_key (col_time_6_not_null_key),
 KEY col_time_key (col_time_key),
 KEY col_time_2_not_null_key (col_time_2_not_null_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (
 CURRENT_TIME(4),
 CURRENT_TIME(),
@@ -15468,8 +15405,6 @@ CURRENT_TIME(2),
 CURRENT_TIME(4),
 CURRENT_TIME(3),
 CURRENT_TIMESTAMP(2));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_datetime_2 AS c1, col_time_not_null AS c2
 FROM t1
 WHERE
@@ -15493,8 +15428,6 @@ KEY col_time_5_key (col_time_5_key),
 KEY col_time_key (col_time_key),
 KEY col_datetime_key (col_datetime_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES
 ('03:07:29.013169',NULL,'1971-01-01 00:00:00','18:29:54','2000-06-10 19:41:30',
 '13:56:51','2011-09-07 23:08:20.8362'),('00:20:06.000000','08:25:11.04580',
@@ -15513,8 +15446,6 @@ INSERT INTO t1 VALUES
 '1971-01-01 00:00:00','07:55:21','1971-01-01 00:00:00','14:48:29',
 '2011-09-07 23:08:25.8362'),('06:00:36.034953','00:20:01.00000','2007-03-15 21:00:00',
 '00:20:01',NULL,'23:29:59','2011-09-07 23:08:27.8362');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_time_5_key AS c1, col_time_key AS c2, col_timestamp AS c3 
 FROM t1 
 WHERE col_time_not_null
@@ -15533,41 +15464,6 @@ NULL	18:29:54	1971-01-01 00:00:00
 Warnings:
 Warning	1292	Incorrect time value: '197101' for column 'col_time_not_null' at row 1
 DROP TABLE t1;
-SET @@timestamp=UNIX_TIMESTAMP('2011-09-21 10:20:30.123456');
-CREATE TABLE t1 (
-col_time_5_not_null TIME(5) NOT NULL,
-col_timestamp_4_not_null_key TIMESTAMP(4) NOT NULL DEFAULT '1971-01-01 00:00:00.0000',
-col_timestamp_1 TIMESTAMP(1) NOT NULL DEFAULT '1971-01-01 00:00:00.0',
-pk TIMESTAMP NOT NULL DEFAULT '1971-01-01 00:00:00',
-col_date_key date DEFAULT NULL,
-col_time TIME DEFAULT NULL,
-col_timestamp TIMESTAMP NOT NULL DEFAULT '1971-01-01 00:00:00',
-col_time_3_not_null_key TIME(3) NOT NULL,
-PRIMARY KEY (pk),
-KEY col_timestamp_4_not_null_key (col_timestamp_4_not_null_key),
-KEY col_date_key (col_date_key),
-KEY col_time_3_not_null_key (col_time_3_not_null_key)
-) ENGINE=MEMORY /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-INSERT INTO t1 VALUES (
-CURRENT_TIME(5),
-CURRENT_TIMESTAMP(4),
-CURRENT_TIMESTAMP(1),
-CURRENT_TIMESTAMP(),
-CURRENT_DATE(),
-CURRENT_TIME(),
-CURRENT_TIMESTAMP(),CURRENT_TIME());
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SELECT col_time_3_not_null_key AS c1
-FROM t1
-WHERE col_timestamp <> col_date_key
-AND col_time <=> MAKETIME(24, 60, 4)
-ORDER BY 1;
-c1
-DROP TABLE t1;
-SET @@timestamp=DEFAULT;
 SET @@timestamp=UNIX_TIMESTAMP('2011-09-21 09:30:40');
 CREATE TABLE t1 (
 col_datetime_5 DATETIME(5) DEFAULT NULL,
@@ -15664,11 +15560,7 @@ KEY col_time_5_not_null_key (col_time_5_not_null_key),
 KEY col_time_2_not_null_key (col_time_2_not_null_key),
 KEY col_time_2_key (col_time_2_key)
 )/*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2007-11-05 00:00:00.0','00:20:01.00000','1971-01-01 00:00:00.00','1971-01-01 00:00:00.00','00:20:08.00','07:54:36.06','1971-01-01 00:00:00.000','2008-02-19 21:00:00.0000'),('2001-09-22 23:10:01.0','00:20:00.00000','1971-01-01 00:00:00.00','2011-09-09 20:59:53.03','00:20:01.00','00:20:02.00','1971-01-01 00:00:00.000','2003-07-11 13:55:04.0379'),('2007-10-20 00:00:00.0','22:15:28.06072','1971-01-01 00:00:00.00','2011-09-09 20:59:54.03','00:20:03.00','00:20:07.00','1971-01-01 00:00:00.000','1971-01-01 00:00:00.0000'),('1971-01-01 00:00:00.0','00:20:03.00000','2009-01-27 00:00:00.00','2011-09-09 20:59:55.03','03:34:18.06','14:32:24.01','1971-01-01 00:00:00.000','2003-11-17 09:58:11.0160'),('2008-04-10 00:00:00.0','00:20:05.00000','2004-10-16 01:19:20.06','2011-09-09 20:59:56.03','21:14:08.05','02:32:00.04','2008-09-15 17:48:32.047','2003-01-16 21:00:00.0000'),('1971-01-01 00:00:00.0','00:20:03.00000','1971-01-01 00:00:00.00','2011-09-09 20:59:57.03','00:20:05.00','22:08:39.02','1971-01-01 00:00:00.000','2003-03-19 02:39:29.0637'),('2009-04-10 21:16:38.0','00:20:07.00000','2001-05-17 15:25:33.04','2011-09-09 20:59:58.03','00:20:05.00','09:36:28.04','2005-01-12 10:44:24.031','1971-01-01 00:00:00.0000'),('2001-06-10 20:23:08.0','07:38:25.03484','2002-06-22 00:00:00.00','2011-09-09 20:59:59.03','02:05:30.01','04:24:09.06','2002-05-25 21:00:00.000','2006-05-16 06:48:03.0399');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT
 col_datetime_2_not_null AS c1,
 col_time_2_key AS c2,
@@ -15700,8 +15592,6 @@ PRIMARY KEY (pk),
 KEY col_datetime_6_not_null_key (col_datetime_6_not_null_key),
 KEY col_timestamp_key (col_timestamp_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (
 CURRENT_TIME(1),
 CURRENT_TIME(6),
@@ -15713,8 +15603,6 @@ CURRENT_TIMESTAMP,
 CURRENT_TIMESTAMP(3),
 CURRENT_TIME(6),
 CURRENT_TIMESTAMP(3));
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_timestamp_not_null AS c1, col_datetime_6_not_null_key AS c2 
 FROM t1 
 WHERE col_timestamp IS NOT NULL
@@ -15816,11 +15704,7 @@ KEY col_datetime_5_not_null_key (col_datetime_5_not_null_key),
 KEY col_timestamp_6_key (col_timestamp_6_key),
 KEY col_time_2_key (col_time_2_key)
 )/*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('00:20:02','2007-08-09 05:14:12.05054','2007-06-20 21:00:00.000000','06:16:36.0','2011-09-09 21:37:45.2','19:15:37.02'),('18:00:14','1971-01-01 00:00:00.00000','2000-12-10 12:35:01.029761','00:20:04.0','2011-09-09 21:37:46.2','06:21:03.03');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_time_1 AS c1 
 FROM t1 
 WHERE col_time_not_null_key <= col_timestamp_6_key
@@ -15850,32 +15734,6 @@ SELECT SUBTIME(col_timestamp_3_not_null_key , SYSDATE()) AS c1 FROM t1
 WHERE col_timestamp_1_not_null_key NOT IN 
 (col_datetime_4_key , GREATEST(DATE('2006-04-26'), UTC_DATE()))
 ORDER BY col_datetime_6 , col_time_2_not_null_key , col_time_5_not_null_key;
-DROP TABLE t1;
-CREATE TABLE t1 (
-col_time_1_not_null_key time(1) NOT NULL,
-pk timestamp NOT NULL DEFAULT '1971-01-01 00:00:00',
-col_datetime_3_not_null_key datetime(3) NOT NULL,
-col_time_2_key time(2) DEFAULT NULL,
-PRIMARY KEY (pk),
-KEY col_time_1_not_null_key (col_time_1_not_null_key),
-KEY col_datetime_3_not_null_key (col_datetime_3_not_null_key),
-KEY col_time_2_key (col_time_2_key)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-INSERT INTO t1 VALUES ('00:20:05.0','1999-12-31 21:00:01','1971-01-01 00:00:00.000','04:25:59.01');
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-INSERT INTO t1 VALUES ('00:15:56.0','1999-12-31 21:00:03','1971-01-01 00:00:00.000','00:20:06.00');
-INSERT INTO t1 VALUES ('00:20:03.0','1999-12-31 21:00:05','2002-10-18 16:08:58.006','00:20:00.00');
-INSERT INTO t1 VALUES ('00:20:09.0','1999-12-31 21:00:07','2002-11-11 17:21:02.045','18:39:12.05');
-INSERT INTO t1 VALUES ('13:51:22.0','1999-12-31 21:00:09','2002-08-07 10:27:35.055','00:20:07.00');
-INSERT INTO t1 VALUES ('00:20:06.0','1971-01-01 00:00:00','2003-08-12 00:00:00.000','20:35:34.01');
-SELECT col_time_1_not_null_key AS c1
-FROM t1
-WHERE col_datetime_3_not_null_key NOT IN
-(LEAST( DATE('1971-01-01 00:00:00'), CURDATE()), col_time_2_key);
 DROP TABLE t1;
 SET timestamp=UNIX_TIMESTAMP('2001-11-07 15:13:00');
 CREATE TABLE t1 (
@@ -15957,8 +15815,11 @@ SELECT ADDTIME(GREATEST(col_date_not_null_key, '2007-03-11 08:51:19.009408'),
 FROM t1;
 ADDTIME(GREATEST(col_date_not_null_key, '2007-03-11 08:51:19.009408'),
 '12:20:40.029940')
-21:11:59.039348
-21:11:59.039348
+12:40:47.029940
+12:40:47.029940
+Warnings:
+Warning	1292	Truncated incorrect time value: '2007-03-11'
+Warning	1292	Truncated incorrect time value: '2007-03-11'
 DROP TABLE t1;
 #
 # BUG#13386657 ASSERT FAILURE IN ITEM::GET_DATE_FROM_NON_TEMPORAL
@@ -16261,7 +16122,6 @@ c1
 Warnings:
 Warning	1292	Truncated incorrect time value: '1971-01-01'
 Warning	1292	Truncated incorrect time value: '1971-01-01'
-Warning	1292	Truncated incorrect time value: '1971-01-01'
 DROP VIEW v1;
 DROP TABLE t1;
 #
@@ -16309,7 +16169,6 @@ Warnings:
 Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
 Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
 Warning	1292	Incorrect date value: '31525200' for column 'col_date' at row 1
-Warning	1292	Incorrect datetime value: '00:00:00.000000'
 Warning	1292	Incorrect datetime value: '00:00:00.000000'
 DROP TABLE t1;
 #
@@ -16576,73 +16435,124 @@ INSERT INTO t1 VALUES ('1971-01-01 00:00:00.000');
 # Testing INT number
 SELECT GREATEST(a, 1323) FROM t1;
 GREATEST(a, 1323)
-20000716055804.035
-20080821000000.000
-19710101000000.000
+2000-07-16 05:58:04.035
+2008-08-21 00:00:00.000
+1971-01-01 00:00:00.000
+Warnings:
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 3
 (SELECT GREATEST(a, 1323) FROM t1) UNION ALL (SELECT GREATEST(a, 1323) FROM t1 LIMIT 0);
 GREATEST(a, 1323)
-20000716055804.035
-20080821000000.000
-19710101000000.000
+2000-07-16 05:58:04.035
+2008-08-21 00:00:00.000
+1971-01-01 00:00:00.000
+Warnings:
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 3
 SELECT LEAST(a, 1323) FROM t1;
 LEAST(a, 1323)
-1323.000
-1323.000
-1323.000
+1323
+1323
+1323
+Warnings:
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 3
 (SELECT LEAST(a, 1323) FROM t1) UNION ALL (SELECT LEAST(a, 1323) FROM t1 LIMIT 0);
 LEAST(a, 1323)
-1323.000
-1323.000
-1323.000
+1323
+1323
+1323
+Warnings:
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 3
 # Testing DECIMAL number 
 SELECT GREATEST(a, 1323.123456) FROM t1;
 GREATEST(a, 1323.123456)
-20000716055804.035000
-20080821000000.000000
-19710101000000.000000
+2000-07-16 05:58:04.035000
+2008-08-21 00:00:00.000000
+1971-01-01 00:00:00.000000
+Warnings:
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 3
 (SELECT GREATEST(a, 1323.123456) FROM t1) UNION ALL (SELECT GREATEST(a, 1323.123456) FROM t1 LIMIT 0);
 GREATEST(a, 1323.123456)
-20000716055804.035000
-20080821000000.000000
-19710101000000.000000
+2000-07-16 05:58:04.035000
+2008-08-21 00:00:00.000000
+1971-01-01 00:00:00.000000
+Warnings:
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 3
 SELECT LEAST(a, 1323.123456) FROM t1;
 LEAST(a, 1323.123456)
 1323.123456
 1323.123456
 1323.123456
+Warnings:
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 3
 (SELECT LEAST(a, 1323.123456) FROM t1) UNION ALL (SELECT LEAST(a, 1323.123456) FROM t1 LIMIT 0);
 LEAST(a, 1323.123456)
 1323.123456
 1323.123456
 1323.123456
+Warnings:
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323.123456' for column 'a' at row 3
 # Testing REAL number
 SELECT GREATEST(a, 1323e0) FROM t1;
 GREATEST(a, 1323e0)
-20000716055804.035
-20080821000000
-19710101000000
+2000-07-16 05:58:04.035000
+2008-08-21 00:00:00.000000
+1971-01-01 00:00:00.000000
+Warnings:
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 3
 (SELECT GREATEST(a, 1323e0) FROM t1) UNION ALL (SELECT GREATEST(a, 1323e0) FROM t1 LIMIT 0);
 GREATEST(a, 1323e0)
-20000716055804.035
-20080821000000
-19710101000000
+2000-07-16 05:58:04.035000
+2008-08-21 00:00:00.000000
+1971-01-01 00:00:00.000000
+Warnings:
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 3
 SELECT LEAST(a, 1323e0) FROM t1;
 LEAST(a, 1323e0)
 1323
 1323
 1323
+Warnings:
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 3
 (SELECT LEAST(a, 1323e0) FROM t1) UNION ALL (SELECT LEAST(a, 1323e0) FROM t1 LIMIT 0);
 LEAST(a, 1323e0)
 1323
 1323
 1323
+Warnings:
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 2
+Warning	1292	Incorrect datetime value: '1323' for column 'a' at row 3
 DROP TABLE t1;
 # Make sure precision of 6 fractional digits does not get lost
 CREATE TABLE t1 (a DATETIME(6));
 INSERT INTO t1 VALUES ('2001-01-01 01:01:01.123456');
 SELECT GREATEST(a,10), LEAST(a,10) FROM t1;
 GREATEST(a,10)	LEAST(a,10)
-20010101010101.123456	10.000000
+2001-01-01 01:01:01.123456	10
+Warnings:
+Warning	1292	Incorrect datetime value: '10' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '10' for column 'a' at row 1
 DROP TABLE t1;
 #
 # Bug#13976233 ASSERTION FAILED: !CHECK_TIME_MMSSFF_RANGE(LTIME), FILE SQL_TIME.CC, LINE 304

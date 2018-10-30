@@ -12,7 +12,7 @@ insert into t values (1,0),(2,0),(3,0),(4,0);
 # verify that a before delete trigger can not insert into the target table
 create trigger t_delete before delete on t for each row insert into t values (1000000,0);
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 delete from t where x=0;
 rollback;
 drop trigger t_delete;
@@ -20,7 +20,7 @@ drop trigger t_delete;
 # verify that an after delete trigger can not insert into the target table
 create trigger t_delete after delete on t for each row insert into t values (1000000,0);
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 delete from t where x=0;
 rollback;
 drop trigger t_delete;
@@ -28,7 +28,7 @@ drop trigger t_delete;
 # verify that a before delete trigger can not delete from the target table
 create trigger t_delete before delete on t for each row delete from t where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 delete from t where x=0;
 rollback;
 drop trigger t_delete;
@@ -36,7 +36,7 @@ drop trigger t_delete;
 # verify that an after delete trigger can not delete from the target table
 create trigger t_delete after delete on t for each row delete from t where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 delete from t where x=0;
 rollback;
 drop trigger t_delete;
@@ -44,7 +44,7 @@ drop trigger t_delete;
 # verify that a before delete trigger can not update the target table
 create trigger t_delete before delete on t for each row update t set x=x+1 where id=1000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 delete from t where x=0;
 rollback;
 drop trigger t_delete;
@@ -52,7 +52,7 @@ drop trigger t_delete;
 # verify that an after delete trigger can not update the target table
 create trigger t_delete after delete on t for each row update t set x=x+1 where id=10000000;
 begin;
-error 1442;
+error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG;
 delete from t where x=0;
 rollback;
 drop trigger t_delete;

@@ -26,7 +26,7 @@ send insert into t (id) values (2) on duplicate key update b=b+1;
 
 connection conn1;
 sleep 1;
-error 1205,1213;
+error ER_LOCK_WAIT_TIMEOUT,ER_LOCK_DEADLOCK;
 insert into t (id) values (1) on duplicate key update b=b-1;
 rollback;
 

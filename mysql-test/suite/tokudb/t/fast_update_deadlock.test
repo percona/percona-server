@@ -25,7 +25,7 @@ send update t set b=b+1 where id=2;
 
 connection conn1;
 sleep 1;
-error 1205,1213;
+error ER_LOCK_WAIT_TIMEOUT,ER_LOCK_DEADLOCK;
 update t set b=b-1 where id=1;
 rollback;
 

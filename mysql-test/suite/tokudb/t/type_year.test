@@ -7,7 +7,7 @@ set default_storage_engine='tokudb';
 drop table if exists t1;
 --enable_warnings
 
---error 1818
+--error ER_INVALID_YEAR_COLUMN_LENGTH
 create table t1 (y year(2));
 
 create table t1 (y year,y2 year(4));
@@ -147,7 +147,7 @@ DROP TABLE t2, t4;
 --echo #
 
 CREATE TABLE t1 (y YEAR NOT NULL, s VARCHAR(4));
---error 1364
+--error ER_NO_DEFAULT_FOR_FIELD
 INSERT INTO t1 (s) VALUES ('bad');
 INSERT INTO t1 (y, s) VALUES (0, 0), (2000, 2000), (2001, 2001);
 
@@ -174,7 +174,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (c1 YEAR(4), c2 YEAR(4));
---error 1818
+--error ER_INVALID_YEAR_COLUMN_LENGTH
 ALTER TABLE t1 MODIFY COLUMN c2 YEAR(2);
 DROP TABLE t1;
 

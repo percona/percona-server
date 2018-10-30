@@ -20,7 +20,7 @@ xa end 'a','ab';
 SET SESSION debug="d,tokudb_crash_prepare_before";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---error 2013
+--error CR_SERVER_LOST
 xa prepare 'a','ab';
 
 --enable_reconnect
@@ -44,7 +44,7 @@ SET SESSION debug="d,tokudb_crash_prepare_after";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 
---error 2013
+--error CR_SERVER_LOST
 xa prepare 'a','ab';
 
 
@@ -64,7 +64,7 @@ xa end 'a','ab';
 SET SESSION debug="d,tokudb_crash_prepare_after";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---error 2013
+--error CR_SERVER_LOST
 xa prepare 'a','ab';
 
 
@@ -85,7 +85,7 @@ SET SESSION debug="d,tokudb_crash_commit_before";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 xa prepare 'a','ab';
---error 2013
+--error CR_SERVER_LOST
 xa commit 'a','ab';
 
 --enable_reconnect
@@ -106,7 +106,7 @@ SET SESSION debug="d,tokudb_crash_commit_before";
 
 
 xa prepare 'a','ab';
---error 2013
+--error CR_SERVER_LOST
 xa commit 'a','ab';
 
 --enable_reconnect

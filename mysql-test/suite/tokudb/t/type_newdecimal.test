@@ -54,40 +54,40 @@ drop table t1;
 #
 
 create table t1 (a decimal(4,2));
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 value (10000);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (1.1e10);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("11111");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (100000.1);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 value (-10000);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-1.1e10);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-11111");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-100000.1);
 select a from t1;
 drop table t1;
 create table t1 (a decimal(4,2) unsigned);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 value (10000);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (1.1e10);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("11111");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (100000.1);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 value (-10000);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-1.1e10);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-11111");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-100000.1);
 select a from t1;
 drop table t1;
@@ -97,27 +97,27 @@ drop table t1;
 # saving in field with overflow from decimal
 #
 create table t1 (a bigint);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (18446744073709551615.0);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (9223372036854775808.0);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-18446744073709551615.0);
 select * from t1;
 drop table t1;
 create table t1 (a bigint unsigned);
 insert into t1 values (18446744073709551615.0);
 insert into t1 values (9223372036854775808.0);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (9999999999999999999999999.000);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-1.0);
 select * from t1;
 drop table t1;
 create table t1 (a tinyint);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (18446744073709551615.0);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (9223372036854775808.0);
 select * from t1;
 drop table t1;
@@ -867,18 +867,18 @@ INSERT INTO Sow6_2f VALUES (-10.5555);
 #-- should return OK
 INSERT INTO Sow6_2f VALUES (11);
 #-- should return OK
--- error 1264
+-- error ER_WARN_DATA_OUT_OF_RANGE
 INSERT INTO Sow6_2f VALUES (101.55);
 #-- should return SQLSTATE 22003 numeric value out of range
--- error 1264
+-- error ER_WARN_DATA_OUT_OF_RANGE
 UPDATE Sow6_2f SET col1 = col1 * 50 WHERE col1 = 11;
 #-- should return SQLSTATE 22003 numeric value out of range
--- error 1365
+-- error ER_DIVISION_BY_ZERO
 UPDATE Sow6_2f SET col1 = col1 / 0 WHERE col1 > 0;
 #-- should return SQLSTATE 22012 division by zero
 SELECT MOD(col1,0) FROM Sow6_2f;
 #-- should return SQLSTATE 22012 division by zero
--- error 1366
+-- error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 INSERT INTO Sow6_2f VALUES ('a59b');
 #-- should return SQLSTATE 22018 invalid character value for cast
 drop table Sow6_2f;
@@ -937,13 +937,13 @@ select abs(NULL);
 #
 set @@sql_mode='traditional';
 create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values(1,-1,-1);
 drop table t1;
 create table t1 (col1 decimal(5,2), col2 numeric(5,2));
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (999.999,999.999);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-999.999,-999.999);
 select * from t1;
 drop table t1;
@@ -989,21 +989,21 @@ select cast('1.00000001335143196001808973960578441619873046875E-10' as decimal(3
 # Bug #11708 (conversion to decimal fails in decimal part)
 #
 select ln(14000) c1, convert(ln(14000),decimal(5,3)) c2, cast(ln(14000) as decimal(5,3)) c3;
---error 1427
+--error ER_M_BIGGER_THAN_D
 select convert(ln(14000),decimal(2,3)) c1;
---error 1427
+--error ER_M_BIGGER_THAN_D
 select cast(ln(14000) as decimal(2,3)) c1;
  
 #
 # Bug #8449 (Silent column changes)
 #
---error 1426
+--error ER_TOO_BIG_PRECISION
 create table t1 (sl decimal(70,30));
---error 1425
+--error ER_TOO_BIG_SCALE
 create table t1 (sl decimal(32,31));
---error 1425
+--error ER_TOO_BIG_SCALE
 create table t1 (sl decimal(0,38));
---error 1427
+--error ER_M_BIGGER_THAN_D
 create table t1 (sl decimal(0,30));
 create table t1 (sl decimal(5, 5));
 replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
@@ -1073,7 +1073,7 @@ select cast(@non_existing_user_var/2 as DECIMAL);
 #
 # Bug #13667 (Inconsistency for decimal(m,d) specification
 #
---error 1427
+--error ER_M_BIGGER_THAN_D
 create table t (d decimal(0,10));
 
 #

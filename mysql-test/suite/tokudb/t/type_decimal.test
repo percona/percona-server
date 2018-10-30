@@ -173,36 +173,36 @@ insert into t1 values (".1");
 insert into t1 values ("00000000000001");
 insert into t1 values ("+0000000000001");
 insert into t1 values ("-0000000000001");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("+111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("111111111.11");
 insert into t1 values ("-11111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("+1111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("1111111111.11");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e+1000");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e-1000");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("-1e+1000");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e+4294967296");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e-4294967296");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e+18446744073709551615");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e+18446744073709551616");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e-9223372036854775807");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e-9223372036854775809");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("123.4e");
 insert into t1 values ("123.4e+2");
 insert into t1 values ("123.4e-2");
@@ -217,35 +217,35 @@ insert into t1 values ("-0.0");
 insert into t1 values ("+0.0");
 insert into t1 values ("01.0");
 insert into t1 values ("+01.0");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-01.0");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-.1");
 insert into t1 values ("+.1");
 insert into t1 values (".1");
 insert into t1 values ("00000000000001");
 insert into t1 values ("+0000000000001");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-0000000000001");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("+111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-11111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("+1111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("1111111111.11");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e+1000");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e-1000");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("-1e+1000");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("123.4e");
 insert into t1 values ("123.4e+2");
 insert into t1 values ("123.4e-2");
@@ -260,35 +260,35 @@ insert into t1 values ("-0.0");
 insert into t1 values ("+0.0");
 insert into t1 values ("01.0");
 insert into t1 values ("+01.0");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-01.0");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-.1");
 insert into t1 values ("+.1");
 insert into t1 values (".1");
 insert into t1 values ("00000000000001");
 insert into t1 values ("+0000000000001");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-0000000000001");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("+111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-11111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("+1111111111.11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("1111111111.11");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e+1000");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e-1000");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("-1e+1000");
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("123.4e");
 insert into t1 values ("123.4e+2");
 insert into t1 values ("123.4e-2");
@@ -312,21 +312,21 @@ insert into t1 values (.1);
 insert into t1 values (00000000000001);
 insert into t1 values (+0000000000001);
 insert into t1 values (-0000000000001);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (+111111111.11);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (111111111.11);
 insert into t1 values (-11111111.11);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-111111111.11);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (+1111111111.11);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (1111111111.11);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (1e+100);
 insert into t1 values (1e-100);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-1e+100);
 insert into t1 values (123.4e0);
 insert into t1 values (123.4e+2);
@@ -344,65 +344,65 @@ drop  table t1;
 #
 
 create table t1 (a decimal);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-99999999999999);
 insert into t1 values (-1);
 insert into t1 values ('+1');
 insert into t1 values ('01');
 insert into t1 values ('+00000000000001');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+12345678901');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (99999999999999);
 select * from t1;
 drop table t1;
 create table t1 (a decimal unsigned);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-99999999999999);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-1);
 insert into t1 values ('+1');
 insert into t1 values ('01');
 insert into t1 values ('+00000000000001');
 insert into t1 values ('+1234567890');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (99999999999999);
 select * from t1;
 drop table t1;
 create table t1 (a decimal zerofill);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-99999999999999);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-1);
 insert into t1 values ('+1');
 insert into t1 values ('01');
 insert into t1 values ('+00000000000001');
 insert into t1 values ('+1234567890');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (99999999999999);
 select * from t1;
 drop table t1;
 create table t1 (a decimal unsigned zerofill);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-99999999999999);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-1);
 insert into t1 values ('+1');
 insert into t1 values ('01');
 insert into t1 values ('+00000000000001');
 insert into t1 values ('+1234567890');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (99999999999999);
 select * from t1;
 drop table t1;
 
 #  Exponent overflow bug
 create table t1(a decimal(10,0));
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values ("1e4294967295");
 select * from t1;
 delete from t1;
---error 1366
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into t1 values("1e4294967297");
 select * from t1;
 drop table t1;
@@ -411,13 +411,13 @@ drop table t1;
 # Test of wrong decimal type
 #
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (a_dec DECIMAL(-1,0));
---error 1064
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (a_dec DECIMAL(-2,1));
---error 1064
+--error ER_PARSE_ERROR
 CREATE TABLE t1 (a_dec DECIMAL(-1,1));
---error 1427
+--error ER_M_BIGGER_THAN_D
 CREATE TABLE t1 (a_dec DECIMAL(0,11));
 
 #
@@ -449,291 +449,291 @@ insert into t1 values ('-1000');
 insert into t1 values ('0000001000');
 insert into t1 values ('+0000001000');
 insert into t1 values ('-0000001000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('10000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+10000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-10000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0000010000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0000010000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000010000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0000100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0000100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('1000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+1000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0001000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0001000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0001000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('10000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+10000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-10000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0010000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0010000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0010000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000000000');
 select * from t1;
 drop table t1;
 create table t1(a decimal(7,3) unsigned);
 insert into t1 values ('1');
 insert into t1 values ('+1');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1');
 insert into t1 values ('0000000001');
 insert into t1 values ('+0000000001');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000000001');
 insert into t1 values ('10');
 insert into t1 values ('+10');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-10');
 insert into t1 values ('0000000010');
 insert into t1 values ('+0000000010');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000000010');
 insert into t1 values ('100');
 insert into t1 values ('+100');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-100');
 insert into t1 values ('0000000100');
 insert into t1 values ('+0000000100');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000000100');
 insert into t1 values ('1000');
 insert into t1 values ('+1000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000');
 insert into t1 values ('0000001000');
 insert into t1 values ('+0000001000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000001000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('10000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+10000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-10000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0000010000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0000010000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000010000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0000100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0000100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('1000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+1000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0001000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0001000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0001000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('10000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+10000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-10000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0010000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0010000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0010000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000000000');
 select * from t1;
 drop table t1;
 create table t1(a decimal(7,3) zerofill);
 insert into t1 values ('1');
 insert into t1 values ('+1');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1');
 insert into t1 values ('0000000001');
 insert into t1 values ('+0000000001');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000000001');
 insert into t1 values ('10');
 insert into t1 values ('+10');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-10');
 insert into t1 values ('0000000010');
 insert into t1 values ('+0000000010');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000000010');
 insert into t1 values ('100');
 insert into t1 values ('+100');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-100');
 insert into t1 values ('0000000100');
 insert into t1 values ('+0000000100');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000000100');
 insert into t1 values ('1000');
 insert into t1 values ('+1000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000');
 insert into t1 values ('0000001000');
 insert into t1 values ('+0000001000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000001000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('10000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+10000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-10000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0000010000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0000010000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000010000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0000100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0000100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0000100000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('1000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+1000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0001000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0001000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0001000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('10000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+10000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-10000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0010000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0010000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0010000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('0100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+0100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-0100000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('+1000000000');
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ('-1000000000');
 --enable_warnings
 select * from t1;
@@ -785,7 +785,7 @@ create table t1 (d decimal);
 replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 drop table t1;
---error 1426
+--error ER_TOO_BIG_PRECISION
 create table t1 (d decimal(66,0));
 
 #

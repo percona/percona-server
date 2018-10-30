@@ -370,7 +370,7 @@ static char *make_argv(char *buf, size_t len, int argc, char **argv) noexcept {
   size_t left = len;
 
   buf[0] = 0;
-  while (argc > 0 || left > 0) {
+  while (argc > 0 && left > 0) {
     const int ret =
         snprintf(buf + len - left, left, "%s%c", *argv, argc > 1 ? ' ' : 0);
     DBUG_ASSERT(ret > 0);

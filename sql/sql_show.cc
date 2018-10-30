@@ -2823,6 +2823,8 @@ static int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
   TABLE *const table = tables->table;
 
   mysql_mutex_lock(&LOCK_global_table_stats);
+  DEBUG_SYNC(thd, "fill_schema_table_stats");
+
   for (const auto &it : *global_table_stats) {
     restore_record(table, s->default_values);
 
@@ -4005,9 +4007,9 @@ class Fill_global_temporary_tables final : public Do_THD_Impl {
 #ifndef DBUG_OFF
     const char *tmp_proc_info = thd->proc_info;
     if (tmp_proc_info &&
-        !strncmp(tmp_proc_info,
-                 STRING_WITH_LEN(
-                     "debug sync point: before_open_in_get_all_tables"))) {
+        !strncmp(
+            tmp_proc_info,
+            STRING_WITH_LEN("debug sync point: fill_schema_table_stats"))) {
       DEBUG_SYNC(m_client_thd,
                  "fill_global_temporary_tables_thd_item_at_tables_debug_sync");
     }

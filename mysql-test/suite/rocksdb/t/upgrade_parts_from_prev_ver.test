@@ -9,25 +9,17 @@
 # due to difference in path format.
 --source include/not_windows.inc
 
---source ../../parts/inc/update_parts_from_prev_ver_suppressions.inc
+--source include/upgrade_from_prev_ver_suppressions.inc
 
 --let $ADDITIONAL_OPTS=
---let $DATA_DIR_NAME=data_prev_ver_part_rocksdb
+--let $ARCH_DATA=data_prev_ver_part_rocksdb
 
-# Set different paths for --datadir
---let $MYSQLD_DATADIR1=$MYSQL_TMP_DIR/$DATA_DIR_NAME
---let $DATA_ARCH_PATH=$MYSQL_TMP_DIR/$DATA_DIR_NAME.zip
+--source include/begin_upgrade_from_prev_ver_mysql_upgrade.inc
 
---echo # Copy the remote tablespace & DB zip files from suite location to working location.
---copy_file $MYSQLTEST_VARDIR/std_data/$DATA_DIR_NAME.zip $DATA_ARCH_PATH
+--echo # Check test table after upgrade
+SHOW CREATE TABLE test.t1;
+SELECT * FROM test.t1 ORDER BY a;
+--source include/table_files_replace_pattern.inc
+--list_files $MYSQLD_DATADIR1/test/
 
---echo # Check that the file exists in the working folder.
---file_exists $DATA_ARCH_PATH
-
---echo # Stop DB server which was created by MTR default
---source include/shutdown_mysqld.inc
-
---source ../../parts/inc/upgrade_parts_from_prev_ver_mysql_upgrade.inc
-
---echo # Restart the server with default options.
---source include/start_mysqld.inc
+--source include/end_upgrade_from_prev_ver_mysql_upgrade.inc

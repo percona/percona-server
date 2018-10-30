@@ -111,12 +111,9 @@ start(){
                 done
             fi
             # Now create the database
-            action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
-            ret=$?
-            [ $ret -ne 0 ] && return $ret
             initfile="$(install_validate_password_sql_file)"
             action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql --init-file="$initfile"
-            
+            ret=$?
             rm -f "$initfile"
             [ $ret -ne 0 ] && return $ret
             if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then

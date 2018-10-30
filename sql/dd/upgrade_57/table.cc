@@ -694,7 +694,18 @@ static void fill_create_info_for_upgrade(HA_CREATE_INFO *create_info,
 
   create_info->init_create_options_from_share(table->s, 0);
 
-  create_info->row_type = table->s->row_type;
+  /*
+    For TokuDB upgrades where ROW_FORMAT was used with a Toku specific
+    format, we need to rip that from the table definition.  It will not change
+    the underlying TokuDB tables compression.  It simply eliminates the
+    ROW_FORMAT specification from the table definition.  Users can continue to
+    specify compression via session variable tokudb_row_format.
+  */
+  if (ha_legacy_type(table->s->db_type()) == DB_TYPE_TOKUDB &&
+      table->s->row_type > ROW_TYPE_PAGED)
+    create_info->row_type = ROW_TYPE_DEFAULT;
+  else
+    create_info->row_type = table->s->row_type;
 
   // DD framework handles only these options
   uint db_create_options = table->s->db_create_options;

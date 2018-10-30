@@ -48,6 +48,8 @@ Created 6/2/1994 Heikki Tuuri
 #include "ut0new.h"
 #include "dict0boot.h"
 
+extern my_bool srv_immediate_scrub_data_uncompressed;
+
 /**************************************************************//**
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
@@ -638,6 +640,18 @@ btr_page_free_low(
 
 	buf_block_modify_clock_inc(block);
 
+	const bool scrub = srv_immediate_scrub_data_uncompressed;
+
+	if (scrub) {
+		/* MariaDB code says that we can only use this code for blobs,
+		 * but apparently, and can only scrub parts of normal pages -
+		 * but with this approach, data remains there, and this doesn't
+		 * cause any test failures.
+		 */
+                page_t* page = buf_block_get_frame(block);
+                memset(page + PAGE_HEADER, 0,
+                       srv_page_size - PAGE_HEADER);
+	} 
 	if (dict_index_is_ibuf(index)) {
 
 		btr_page_free_for_ibuf(index, block, mtr);
@@ -659,6 +673,14 @@ btr_page_free_low(
 			(long) block->page.id.page_no());
 	}
 #endif
+
+        if (scrub) {
+                /**
+                * Reset page type so that scrub thread won't try to scrub it
+                */
+                mlog_write_ulint(buf_block_get_frame(block) + FIL_PAGE_TYPE,
+                                 FIL_PAGE_TYPE_ALLOCATED, MLOG_2BYTES, mtr);
+        }
 
 	fseg_free_page(seg_header,
 		       block->page.id.space(),

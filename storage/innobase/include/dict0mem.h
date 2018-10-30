@@ -1640,6 +1640,13 @@ struct dict_table_t {
 	proceeding. */
 	#define BG_STAT_IN_PROGRESS		(1 << 0)
 
+        #define BG_SCRUB_IN_PROGRESS    ((byte)(1 << 2))
+                                /*!< BG_SCRUB_IN_PROGRESS is set in
+                                stats_bg_flag when the background
+                                scrub code is working on this table. The DROP
+                                TABLE code waits for this to be cleared
+                                before proceeding. */
+
 	/** Set in 'stats_bg_flag' when DROP TABLE starts waiting on
 	BG_STAT_IN_PROGRESS to be cleared. The background stats thread will
 	detect this and will eventually quit sooner. */

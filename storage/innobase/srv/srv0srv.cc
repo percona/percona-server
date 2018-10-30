@@ -50,6 +50,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
+#include "btr0scrub.h"
 #include "dict0boot.h"
 #include "dict0load.h"
 #include "dict0stats_bg.h"
@@ -100,6 +101,8 @@ ibool	srv_buf_dump_thread_active = FALSE;
 bool	srv_buf_resize_thread_active = false;
 
 ibool	srv_dict_stats_thread_active = FALSE;
+
+my_bool srv_scrub_log;
 
 const char*	srv_main_thread_op_info = "";
 
@@ -1586,6 +1589,7 @@ srv_export_innodb_status(void)
 	ulint			free_len;
 	ulint			flush_list_len;
 	fil_crypt_stat_t	crypt_stat;
+	btr_scrub_stat_t        scrub_stat;
 	ulint			mem_adaptive_hash, mem_dictionary;
 	ReadView*		oldest_view;
 	ulint			i;
@@ -1595,6 +1599,7 @@ srv_export_innodb_status(void)
 	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
 	if (!srv_read_only_mode) {
 		fil_crypt_total_stat(&crypt_stat);
+		btr_scrub_total_stat(&scrub_stat);
 	}
 
 	os_rmb;
@@ -1857,7 +1862,22 @@ srv_export_innodb_status(void)
 		srv_stats.n_key_requests;
 	export_vars.innodb_key_rotation_list_length =
 		srv_stats.key_rotation_list_length;
-	}
+
+        export_vars.innodb_scrub_page_reorganizations =
+                scrub_stat.page_reorganizations;
+        export_vars.innodb_scrub_page_splits =
+                scrub_stat.page_splits;
+        export_vars.innodb_scrub_page_split_failures_underflow =
+                scrub_stat.page_split_failures_underflow;
+        export_vars.innodb_scrub_page_split_failures_out_of_filespace =
+                scrub_stat.page_split_failures_out_of_filespace;
+        export_vars.innodb_scrub_page_split_failures_missing_index =
+                scrub_stat.page_split_failures_missing_index;
+        export_vars.innodb_scrub_page_split_failures_unknown =
+                scrub_stat.page_split_failures_unknown;
+        export_vars.innodb_scrub_log = srv_stats.n_log_scrubs;
+	
+        }
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }

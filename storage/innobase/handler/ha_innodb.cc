@@ -201,6 +201,17 @@ static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 extern uint srv_fil_crypt_rotate_key_age;
 extern uint srv_n_fil_crypt_iops;
 
+extern my_bool srv_immediate_scrub_data_uncompressed;
+extern my_bool srv_background_scrub_data_uncompressed;
+extern my_bool srv_background_scrub_data_compressed;
+extern uint srv_background_scrub_data_interval;
+extern uint srv_background_scrub_data_check_interval;
+#ifdef UNIV_DEBUG
+extern my_bool srv_scrub_force_testing;
+#endif
+
+extern mysql_pfs_key_t scrub_stat_mutex_key;
+
 /** Note we cannot use rec_format_enum because we do not allow
 COMPRESSED row format for innodb_default_row_format option. */
 enum default_row_format_enum {
@@ -482,6 +493,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(zip_pad_mutex),
 	PSI_KEY(row_drop_list_mutex),
 	PSI_KEY(master_key_id_mutex),
+	PSI_KEY(scrub_stat_mutex),
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -1165,6 +1177,29 @@ static SHOW_VAR innodb_status_variables[]= {
   {"scan_deleted_recs_size",
   (char*) &export_vars.innodb_fragmentation_stats.scan_deleted_recs_size,
   SHOW_LONG, SHOW_SCOPE_GLOBAL},
+
+  /* scrubing */
+  {"scrub_background_page_reorganizations",
+   (char*) &export_vars.innodb_scrub_page_reorganizations,
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scrub_background_page_splits",
+   (char*) &export_vars.innodb_scrub_page_splits,
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scrub_background_page_split_failures_underflow",
+   (char*) &export_vars.innodb_scrub_page_split_failures_underflow,
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scrub_background_page_split_failures_out_of_filespace",
+   (char*) &export_vars.innodb_scrub_page_split_failures_out_of_filespace,
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scrub_background_page_split_failures_missing_index",
+   (char*) &export_vars.innodb_scrub_page_split_failures_missing_index,
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scrub_background_page_split_failures_unknown",
+   (char*) &export_vars.innodb_scrub_page_split_failures_unknown,
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scrub_log",
+   (char*) &export_vars.innodb_scrub_log,
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
 
   /* Encryption */
   {"encryption_rotation_pages_read_from_cache",
@@ -22516,6 +22551,69 @@ static MYSQL_SYSVAR_UINT(encryption_rotation_iops, srv_n_fil_crypt_iops,
 			 innodb_encryption_rotation_iops_update,
 			 srv_n_fil_crypt_iops, 0, UINT_MAX32, 0);
 
+
+static MYSQL_SYSVAR_BOOL(scrub_log, srv_scrub_log,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Enable background redo log (ib_logfile0, ib_logfile1...) scrubbing",
+  0, 0, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(scrub_log_speed, innodb_scrub_log_speed,
+  PLUGIN_VAR_OPCMDARG,
+  "Background redo log scrubbing speed in bytes/sec",
+  NULL, NULL,
+  256,              /* 256 bytes/sec, corresponds to 2000 ms scrub_log_interval */
+  1,                /* min */
+  50000, 0);        /* 50Kbyte/sec, corresponds to 10 ms scrub_log_interval */
+
+static MYSQL_SYSVAR_BOOL(immediate_scrub_data_uncompressed,
+                         srv_immediate_scrub_data_uncompressed,
+                         0,
+                         "Enable scrubbing of data",
+                         NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(background_scrub_data_uncompressed,
+                         srv_background_scrub_data_uncompressed,
+                         0,
+                         "Enable scrubbing of uncompressed data by "
+                         "background threads (same as encryption_threads)",
+                         NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(background_scrub_data_compressed,
+                         srv_background_scrub_data_compressed,
+                         0,
+                         "Enable scrubbing of compressed data by "
+                         "background threads (same as encryption_threads)",
+                         NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_UINT(background_scrub_data_check_interval,
+                         srv_background_scrub_data_check_interval,
+                         0,
+                         "check if spaces needs scrubbing every "
+                         "innodb_background_scrub_data_check_interval "
+                         "seconds",
+                         NULL, NULL,
+                         srv_background_scrub_data_check_interval,
+                         1,
+                         UINT_MAX32, 0);
+
+static MYSQL_SYSVAR_UINT(background_scrub_data_interval,
+                         srv_background_scrub_data_interval,
+                         0,
+                         "scrub spaces that were last scrubbed longer than "
+                         " innodb_background_scrub_data_interval seconds ago",
+                         NULL, NULL,
+                         srv_background_scrub_data_interval,
+                         1,
+                         UINT_MAX32, 0);
+
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_BOOL(debug_force_scrubbing,
+                         srv_scrub_force_testing,
+                         0,
+                         "Perform extra scrubbing to increase test exposure",
+                         NULL, NULL, FALSE);
+#endif /* UNIV_DEBUG */
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),
   MYSQL_SYSVAR(api_bk_commit_interval),
@@ -22723,6 +22821,17 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(encryption_rotation_iops),
   MYSQL_SYSVAR(default_encryption_key_id),
   MYSQL_SYSVAR(encrypt_tables),
+  /* Scrubing feature */
+  MYSQL_SYSVAR(scrub_log),
+  MYSQL_SYSVAR(scrub_log_speed),
+  MYSQL_SYSVAR(immediate_scrub_data_uncompressed),
+  MYSQL_SYSVAR(background_scrub_data_uncompressed),
+  MYSQL_SYSVAR(background_scrub_data_compressed),
+  MYSQL_SYSVAR(background_scrub_data_interval),
+  MYSQL_SYSVAR(background_scrub_data_check_interval),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(debug_force_scrubbing),
+#endif
   NULL
 };
 
@@ -22778,7 +22887,8 @@ i_s_innodb_sys_tablespaces,
 i_s_innodb_sys_datafiles,
 i_s_innodb_changed_pages,
 i_s_innodb_sys_virtual,
-i_s_innodb_tablespaces_encryption
+i_s_innodb_tablespaces_encryption,
+i_s_innodb_tablespaces_scrubbing
 mysql_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.

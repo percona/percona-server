@@ -25,9 +25,9 @@ insert into t1 values(1234567890,1234567890);
 insert into t1 values(1e+10,1e+10);
 insert into t1 values(1e+15,1e+15);
 insert into t1 values(1e+20,1e+20);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values(1e+50,1e+50);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values(1e+150,1e+150);
 insert into t1 values(-10,-10);
 insert into t1 values(1e-5,1e-5);
@@ -94,22 +94,22 @@ select a from t1 order by a;
 select min(a) from t1;
 drop table t1;
 
---error 1425
+--error ER_TOO_BIG_SCALE
 create table t1 (a float(200,100), b double(200,100));
 
 #
 # float in a char(1) field
 #
 create table t1 (c20 char);
---error 1406
+--error ER_DATA_TOO_LONG
 insert into t1 values (5000.0);
---error 1406
+--error ER_DATA_TOO_LONG
 insert into t1 values (0.5e4);
 drop table t1;
 
 # Errors
 
---error 1063
+--error ER_WRONG_FIELD_SPEC
 create table t1 (f float(54));	# Should give an error
 --disable_warnings
 drop table if exists t1;
@@ -118,7 +118,7 @@ drop table if exists t1;
 # Don't allow 'double unsigned' to be set to a negative value (Bug #7700)
 create table t1 (d1 double, d2 double unsigned);
 insert into t1 set d1 = -1.0;
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 update t1 set d2 = d1;
 select * from t1;
 drop table t1;
@@ -126,32 +126,32 @@ drop table t1;
 # Ensure that maximum values as the result of number of decimals
 # being specified in table schema are enforced (Bug #7361)
 create table t1 (f float(4,3));
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-11.0);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-11);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (11.0);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (11);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("11");
 select * from t1;
 drop table if exists t1;
 create table t1 (f double(4,3));
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-11.0);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (-11);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("-11");
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (11.0);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (11);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values ("11");
 select * from t1;
 drop table if exists t1;
@@ -257,9 +257,9 @@ drop table t1;
 # bug #12694 (float(m,d) specifications)
 #
 
---error 1427
+--error ER_M_BIGGER_THAN_D
 create table t1 (s1 float(0,2));
---error 1427
+--error ER_M_BIGGER_THAN_D
 create table t1 (s1 float(1,2));
 
 #
@@ -285,7 +285,7 @@ DROP TABLE t1;
 create table t1 (f1 double(200, 0));
 insert into t1 values (1e199), (-1e199);
 insert into t1 values (1e200), (-1e200);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (2e200), (-2e200);
 select f1 + 0e0 from t1;
 drop table t1;
@@ -293,7 +293,7 @@ drop table t1;
 create table t1 (f1 float(30, 0));
 insert into t1 values (1e29), (-1e29);
 insert into t1 values (1e30), (-1e30);
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 values (2e30), (-2e30);
 select f1 + 0e0 from t1;
 drop table t1;

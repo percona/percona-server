@@ -1,5 +1,5 @@
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+ERROR HY000: Partition management on a not partitioned table is not possible
 DROP TABLE IF EXISTS t_10;
 DROP TABLE IF EXISTS t_100;
 DROP TABLE IF EXISTS t_1000;

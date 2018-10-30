@@ -108,7 +108,7 @@ explain select last_insert_id();
 --error ER_DUP_ENTRY
 insert into t1 set i = 254;
 select last_insert_id();
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 set i = null;
 select last_insert_id();
 drop table t1;
@@ -117,7 +117,7 @@ create table t1 (i tinyint unsigned not null auto_increment, key (i));
 insert into t1 set i = 254;
 insert into t1 set i = null;
 select last_insert_id();
---error 1264
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into t1 set i = null;
 select last_insert_id();
 drop table t1;

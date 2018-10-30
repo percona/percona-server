@@ -38,7 +38,7 @@ SELECT dictionary_name, internal_file_name
 SELECT * FROM t1;
 
 --echo ### Test for errors notification
---error 1231
+--error ER_WRONG_VALUE_FOR_VAR
 SET tokudb_dir_cmd = "detach foo";
 SELECT @@tokudb_dir_cmd_last_error;
 SELECT @@tokudb_dir_cmd_last_error_string;

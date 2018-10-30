@@ -136,7 +136,7 @@ send LOAD DATA INFILE 'leak172_t2.data' INTO TABLE `t2` CHARACTER SET latin1 FIE
 connection default;
 let $wait_condition= select count(*)=1 from information_schema.processlist where info like 'LOAD DATA INFILE%' and state like 'DBUG sleep';
 source include/wait_condition.inc;
---error 1205
+--error ER_LOCK_WAIT_TIMEOUT
 UPDATE t1, t2 SET t1.`c5` = 4 WHERE t1.`c6` <= 'o';
 
 connection conn1;

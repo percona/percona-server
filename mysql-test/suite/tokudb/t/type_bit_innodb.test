@@ -20,10 +20,10 @@ select 0 + b'1000000000000001';
 drop table if exists t1;
 --enable_warnings
 
---error 1439
+--error ER_TOO_BIG_DISPLAYWIDTH
 create table t1 (a bit(65)) engine=innodb;
 
---error 3013
+--error ER_INVALID_FIELD_SIZE
 create table t1 (a bit(0)) engine=innodb;
 
 create table t1 (a bit(64)) engine=innodb;
@@ -40,7 +40,7 @@ create table t1 (a bit) engine=innodb;
 insert into t1 values (b'0');
 insert into t1 values (b'1');
 insert into t1 values (b'000');
---error 1406
+--error ER_DATA_TOO_LONG
 insert into t1 values (b'100');
 insert into t1 values (b'001');
 select hex(a) from t1;
@@ -54,7 +54,7 @@ create table t1 (a bit(2)) engine=innodb;
 insert into t1 values (b'00');
 insert into t1 values (b'01');
 insert into t1 values (b'10');
---error 1406
+--error ER_DATA_TOO_LONG
 insert into t1 values (b'100');
 select a+0 from t1;
 alter table t1 add key (a);

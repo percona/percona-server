@@ -22,7 +22,7 @@ INSERT INTO t2 VALUES (2);
 SET SESSION debug="d,crash_commit_before";
 
 --source include/expect_crash.inc
---error 2013
+--error CR_SERVER_LOST
 COMMIT;
 
 --source include/start_mysqld.inc
@@ -45,7 +45,7 @@ INSERT INTO t2 VALUES (2);
 SET SESSION debug="d,crash_commit_after";
 
 --source include/expect_crash.inc
---error 2013
+--error CR_SERVER_LOST
 COMMIT;
 
 --source include/start_mysqld.inc

@@ -28,16 +28,16 @@ insert into t1 values ("1230");
 insert into t1 values ("12:30");
 insert into t1 values ("12:30:35");
 insert into t1 values ("1 12:30:31.32");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("10.22.22");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (1234567);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (123456789);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (123456789.10);
 insert into t1 values ("10 22:22");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("12.45a");
 select * from t1;
 drop table t1;
@@ -177,13 +177,13 @@ DROP TABLE t1;
 --echo # Before WL#946 TIME did not reject too big negative minutes/seconds
 --echo #
 CREATE TABLE t1 (a TIME);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 INSERT INTO t1 VALUES ('-10:60:59');
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 INSERT INTO t1 VALUES  ('-10:59:60');
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 INSERT INTO t1 VALUES  (-106059);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 INSERT INTO t1 VALUES  (-105960);
 SELECT * FROM t1;
 DROP TABLE t1;
@@ -295,7 +295,7 @@ SELECT TIME(NAME_CONST('a', 0));
 --echo # Item_cache_datetime::get_time
 --echo #
 CREATE TABLE t1 (a DATE);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 INSERT INTO t1 VALUES (0);
 SELECT TIME(MIN(a)) FROM t1;
 DROP TABLE t1;

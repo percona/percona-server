@@ -21,9 +21,9 @@ insert into t1 values (700101000000);
 insert into t1 values (991231235959);
 insert into t1 values (10000101000000);
 insert into t1 values (99991231235959);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (20030100000000);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (20030000000000);
 select * from t1;
 delete from t1 where t > 0;
@@ -43,9 +43,9 @@ insert into t1 values ("700101000000");
 insert into t1 values ("991231235959");
 insert into t1 values ("10000101000000");
 insert into t1 values ("99991231235959");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("20030100000000");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("20030000000000");
 
 # Strange dates
@@ -57,7 +57,7 @@ select * from t1;
 
 # Test some wrong dates
 truncate table t1;
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values("2003-0303 12:13:14");
 select * from t1;
 drop table t1;
@@ -67,7 +67,7 @@ drop table t1;
 #
 
 CREATE TABLE t1 (a datetime not null);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (0);
 select * from t1 where a is null;
 drop table t1;
@@ -114,37 +114,37 @@ drop table t1;
 # warnings (for both strings and numbers)
 #
 create table t1 (t datetime);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (20030102030460);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (20030102036301);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (20030102240401);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (20030132030401);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (20031302030401);
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values (100001202030401);
 select * from t1;
 delete from t1;
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("2003-01-02 03:04:60");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("2003-01-02 03:63:01");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("2003-01-02 24:04:01");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("2003-01-32 03:04:01");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("2003-13-02 03:04:01");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("10000-12-02 03:04:00");
 select * from t1;
 delete from t1;
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("0000-00-00 00:00:00 some trailer");
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ("2003-01-01 00:00:00 some trailer");
 select * from t1 order by t;
 drop table t1;
@@ -462,13 +462,13 @@ set @@sql_mode='ansi,traditional';
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 insert into t1 set dt='2007-03-23 13:49:38',da=dt;
 # Test error handling
---error 1292
+--error ER_TRUNCATED_WRONG_VALUE
 insert into t1 values ('2007-03-32','2007-03-23 13:49:38');
 select * from t1;
 drop table t1;
---error 1067
+--error ER_INVALID_DEFAULT
 create table t1 (da date default '1962-03-32 23:33:34', dt datetime default '1962-03-03');
---error 1067
+--error ER_INVALID_DEFAULT
 create table t1 (t time default '916:00:00 a');
 set @@sql_mode= @org_mode;
 

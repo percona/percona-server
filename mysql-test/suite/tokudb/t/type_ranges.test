@@ -110,7 +110,7 @@ CREATE TABLE t2 (
   PRIMARY KEY (auto)
 );
 
---error 1406
+--error ER_DATA_TOO_LONG
 INSERT INTO t2 (string,mediumblob_col,new_field) SELECT string,mediumblob_col,new_field from t1 where auto > 10;
 
 select * from t2;
@@ -150,7 +150,7 @@ drop table t1,t2;
 create table t1 (c int);
 insert into t1 values(1),(2);
 create table t2 select * from t1;
---error 1060
+--error ER_DUP_FIELDNAME
 create table t3 select * from t1, t2; # Should give an error
 create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
 # We mask out the Privileges column because it differs with embedded server

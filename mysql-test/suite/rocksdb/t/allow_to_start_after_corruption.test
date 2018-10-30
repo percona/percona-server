@@ -66,7 +66,7 @@ select * from t1;
 --echo #  Remove corruption file and restart cleanly
 --echo #
 
---exec rm $MYSQLTEST_VARDIR/mysqld.$_server_id/data/.rocksdb/ROCKSDB_CORRUPTED
+--remove_file $MYSQLTEST_VARDIR/mysqld.$_server_id/data/.rocksdb/ROCKSDB_CORRUPTED
 --let $restart_parameters=
 --source include/start_mysqld.inc
 

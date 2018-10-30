@@ -1,10 +1,11 @@
+#########
+# Begin upgrade testing with mysql_upgrade
+###
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Stop DB server which was created by MTR default
-#########
-# Test for upgrade partitioning with mysql_upgrade
-###
 # Unzip the zip file.
+# Remove copied files
 # restart:<hidden args>
 # Execute mysql_upgrade
 mysql.columns_priv                                 OK
@@ -43,6 +44,9 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 sys.sys_config                                     OK
 test.t1                                            OK
+#########
+# Performing test specific validation
+###
 # Check test table after upgrade
 SHOW CREATE TABLE test.t1;
 Table	Create Table
@@ -69,7 +73,10 @@ a	b	c
 350	350	350
 355	355	355
 t1_id.sdi
+#########
+# End upgrade testing with mysql_upgrade
+###
 # Stop the server
-# Remove copied files
+# Remove temp datadir
 # Restart the server with default options.
 # restart

@@ -39,6 +39,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "rem0types.h"
 #include "row0types.h"
 #include "trx0types.h"
+#include "trx0sys.h"
 #include "ut0byte.h"
 #include "ut0mem.h"
 #include "ut0new.h"
@@ -1732,6 +1733,26 @@ struct dict_sys_t{
 					evicted from the cache */
 	autoinc_map_t*	autoinc_map;	/*!< Map to store table id and autoinc
 					when table is evicted */
+
+	/** The first ID of the redo log pseudo-tablespace */
+	static const ulint		s_log_space_first_id = 0xFFFFFFF0UL;
+ 	/** Use maximum UINT value to indicate invalid space ID. */
+	static const ulint		s_invalid_space_id = 0xFFFFFFFF;
+ 	/** The data dictionary tablespace ID. The data dictionary
+	    tablespace does not exist in 5.7, but its ID added here
+	    for assertion checking. */
+	static const ulint		s_space_id = 0xFFFFFFFE;
+ 	/** The innodb_temporary tablespace ID. */
+	static const ulint		s_temp_space_id = 0xFFFFFFFD;
+ 	/** The lowest undo tablespace ID. */
+	static const ulint		s_min_undo_space_id
+		= s_log_space_first_id - TRX_SYS_N_RSEGS;
+ 	/** The highest undo  tablespace ID. */
+	static const ulint		s_max_undo_space_id
+		= s_log_space_first_id - 1;
+ 	/** The first reserved tablespace ID */
+	static const ulint		s_reserved_space_id =
+		s_min_undo_space_id;
 };
 #endif /* !UNIV_HOTBACKUP */
 

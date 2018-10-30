@@ -341,6 +341,9 @@ extern ulonglong	srv_max_changed_pages;
 extern const ulint	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char*	srv_log_group_home_dir;
+ 
+/** Enable or Disable Encrypt of REDO tablespace. */
+extern my_bool	srv_undo_log_encrypt;
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */

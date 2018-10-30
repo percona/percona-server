@@ -369,6 +369,29 @@ fsp_header_init_fields(
 	ulint	flags);		/*!< in: tablespace flags (FSP_SPACE_FLAGS):
 				0, or table->flags if newer than COMPACT */
 
+/** Get the offset of encrytion information in page 0.
+ * @param[in]	page_size	page size.
+ * @return	offset on success, otherwise 0. */
+MY_NODISCARD
+ulint
+fsp_header_get_encryption_offset(
+	const page_size_t&	page_size);
+
+/** Write the encryption info into the space header.
+@param[in]      space_id                tablespace id
+@param[in]      space_flags             tablespace flags
+@param[in]      encrypt_info            buffer for re-encrypt key
+@param[in]      update_fsp_flags        if it need to update the space flags
+@param[in,out]  mtr                     mini-transaction
+@return true if success. */
+bool
+fsp_header_write_encryption(
+        ulint                   space_id,
+        ulint                   space_flags,
+        byte*                   encrypt_info,
+        bool                    update_fsp_flags,
+        mtr_t*                  mtr);
+
 /** Rotate the encryption info in the space header.
 @param[in]	space		tablespace
 @param[in]      encrypt_info	buffer for re-encrypt key.
@@ -392,6 +415,9 @@ fsp_header_fill_encryption_info(
 	uint key_version,
 	byte* iv,
 	byte*			encrypt_info);
+
+bool
+fsp_is_undo_tablespace(uint32 space_id);
 
 MY_NODISCARD
 bool

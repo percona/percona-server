@@ -5916,6 +5916,13 @@ fil_io_set_encryption(
 		return;
 	}
 
+	/* For writting undo log, if encryption for undo log is disabled,
+	skip set encryption. */
+	if (fsp_is_undo_tablespace(space->id)
+	    && !srv_undo_log_encrypt && req_type.is_write()) {
+		req_type.clear_encrypted();
+		return;
+	}
 
 	/* Don't encrypt the log, page 0 of all tablespaces, all pages
 	   don't encrypt TRX_SYS_SPACE.TRX_SYS_PAGE_NO as it contains address to dblwr buffer */
@@ -8018,6 +8025,17 @@ fil_encryption_rotate()
 		if (fsp_is_system_or_temp_tablespace(space->id)
 		    || space->purpose == FIL_TYPE_LOG
 		    || space->crypt_data) {
+			space = UT_LIST_GET_NEXT(space_list, space);
+			continue;
+		}
+
+		/* Skip the undo tablespace when it's in default
+		key status, since it's the first server startup
+		after bootstrap, and the server uuid is not ready
+		yet. */
+		if (fsp_is_undo_tablespace(space->id)
+		    && Encryption::master_key_id ==
+			ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
 			space = UT_LIST_GET_NEXT(space_list, space);
 			continue;
 		}

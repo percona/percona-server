@@ -5,8 +5,6 @@
 [mysqld.2]
 
 [mysqld.3]
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 
 [ENV]
 SERVER_MYPORT_3=		@mysqld.3.port

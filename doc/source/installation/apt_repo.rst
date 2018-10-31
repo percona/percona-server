@@ -10,35 +10,32 @@ Supported Releases:
 
 * Debian:
 
- * 8.0 (jessie)
  * 9.0 (stretch)
 
 * Ubuntu:
 
  * 16.04LTS (xenial) 
  * 17.04 (zesty)
- * 17.10 (artful)
  * 18.04 (bionic)
 
 Supported Platforms:
 
- * x86
  * x86_64 (also known as ``amd64``)
 
 What's in each DEB package?
 ===========================
 
-The ``percona-server-server-5.7`` package contains the database server itself, the ``mysqld`` binary and associated files.
+The ``percona-server-server`` package contains the database server itself, the ``mysqld`` binary and associated files.
 
-The ``percona-server-common-5.7`` package contains files common to the server and client.
+The ``percona-server-common`` package contains files common to the server and client.
 
-The ``percona-server-client-5.7`` package contains the command line client.
+The ``percona-server-client`` package contains the command line client.
 
-The ``percona-server-5.7-dbg`` package contains debug symbols for the server.
+The ``percona-server-dbg`` package contains debug symbols for the server.
 
-The ``percona-server-test-5.7`` package contains the database test suite.
+The ``percona-server-test`` package contains the database test suite.
 
-The ``percona-server-source-5.7`` package contains the server source.
+The ``percona-server-source`` package contains the server source.
 
 The ``libperconaserverclient20-dev`` package contains header files needed to compile software to use the client library.
 
@@ -83,16 +80,6 @@ Installing |Percona Server| from Percona ``apt`` repository
 
   |Percona Server| 8.0 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
 
-Percona ``apt`` Testing repository
-----------------------------------
-
-Percona offers pre-release builds from the testing repository. To enable it add the just uncomment the testing repository lines in the Percona repository definition in your repository file (default :file:`/etc/apt/sources.list.d/percona-release.list`). It should looks like this (in this example ``VERSION`` is the name of your distribution): :: 
-
-  # Testing & pre-release packages
-  #
-  deb http://repo.percona.com/apt VERSION testing
-  deb-src http://repo.percona.com/apt VERSION testing
-
 Apt-Pinning the packages
 ------------------------
 
@@ -103,56 +90,6 @@ In some cases you might need to "pin" the selected packages to avoid the upgrade
   Pin-Priority: 1001
 
 For more information about the pinning you can check the official `debian wiki <http://wiki.debian.org/AptPreferences>`_.
-
-.. _standalone_deb:
-
-Installing |Percona Server| using downloaded deb packages
-=========================================================
-
-Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| :rn:`5.7.10-3` release packages for *Debian* 8.0:  
-
- .. code-block:: bash
-
-   $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-3/binary/debian/jessie/x86_64/Percona-Server-5.7.10-3-r63dafaf-jessie-x86_64-bundle.tar
-
-You should then unpack the bundle to get the packages:
-
- .. code-block:: bash
-
-   $ tar xvf Percona-Server-5.7.10-3-r63dafaf-jessie-x86_64-bundle.tar
-
-After you unpack the bundle you should see the following packages:
-
-  .. code-block:: bash
-
-    $ ls *.deb
-    libperconaserverclient20-dev_5.7.10-3-1.jessie_amd64.deb
-    libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb
-    percona-server-5.7-dbg_5.7.10-3-1.jessie_amd64.deb
-    percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb
-    percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb
-    percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb
-    percona-server-source-5.7_5.7.10-3-1.jessie_amd64.deb
-    percona-server-test-5.7_5.7.10-3-1.jessie_amd64.deb
-    percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb
-
-
-Now you can install |Percona Server| by running:
-
-  .. code-block:: bash 
-
-    $ sudo dpkg -i *.deb
-
-This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running |Percona Server| installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want |TokuDB| storage engine). 
-
-.. note::
-
-  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide. 
-
-.. warning:: 
-
-  When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself. Following packages will need to be installed before you can manually install Percona Server: ``mysql-common``, ``libjemalloc1``, ``libaio1`` and ``libmecab2``
-
 
 Running |Percona Server|
 ========================
@@ -197,7 +134,7 @@ Running |Percona Server|
 
 .. note:: 
 
-  *Debian* 8.0 (jessie) and *Ubuntu* 15.04 (vivid) come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently both are supported.
+  *Debian* 9.0 (stretch) and *Ubuntu* 16.04 (xenial) come with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager so you can invoke all the above commands with ``sytemctl`` instead of ``service``. Currently both are supported.
      
 Uninstalling |Percona Server|
 =============================

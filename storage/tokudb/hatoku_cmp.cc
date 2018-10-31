@@ -156,9 +156,9 @@ static void get_blob_field_info(uint32_t *start_offset, uint32_t len_of_offsets,
 
 // this function is pattern matched from
 // InnoDB's get_innobase_type_from_mysql_type
-static TOKU_TYPE mysql_to_toku_type(Field *field) {
+static TOKU_TYPE mysql_to_toku_type(const Field &field) {
   TOKU_TYPE ret_val = toku_type_unknown;
-  enum_field_types mysql_type = field->real_type();
+  enum_field_types mysql_type = field.real_type();
   switch (mysql_type) {
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
@@ -191,14 +191,14 @@ static TOKU_TYPE mysql_to_toku_type(Field *field) {
       ret_val = toku_type_fixbinary;
       goto exit;
     case MYSQL_TYPE_STRING:
-      if (field->binary()) {
+      if (field.binary()) {
         ret_val = toku_type_fixbinary;
       } else {
         ret_val = toku_type_fixstring;
       }
       goto exit;
     case MYSQL_TYPE_VARCHAR:
-      if (field->binary()) {
+      if (field.binary()) {
         ret_val = toku_type_varbinary;
       } else {
         ret_val = toku_type_varstring;
@@ -944,7 +944,7 @@ static int create_toku_key_descriptor_for_key(KEY *key, uchar *buf) {
     //
     // The second byte for each field is the type
     //
-    TOKU_TYPE type = mysql_to_toku_type(field);
+    TOKU_TYPE type = mysql_to_toku_type(*field);
     assert_always((int)type < 256);
     *pos = (uchar)(type & 255);
     pos++;
@@ -1183,7 +1183,7 @@ static uchar *pack_toku_key_field(
 ) {
   uchar *new_pos = NULL;
   uint32_t num_bytes = 0;
-  TOKU_TYPE toku_type = mysql_to_toku_type(field);
+  TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   switch (toku_type) {
     case (toku_type_int):
       assert_always(key_part_length == field->pack_length());
@@ -1254,7 +1254,7 @@ static uchar *pack_key_toku_key_field(
                               // pack_cmp stuff
 ) {
   uchar *new_pos = NULL;
-  TOKU_TYPE toku_type = mysql_to_toku_type(field);
+  TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   switch (toku_type) {
     case (toku_type_int):
     case (toku_type_double):
@@ -1293,7 +1293,7 @@ uchar *unpack_toku_key_field(uchar *to_mysql, uchar *from_tokudb, Field *field,
   uchar *new_pos = NULL;
   uint32_t num_bytes = 0;
   uint32_t num_bytes_copied;
-  TOKU_TYPE toku_type = mysql_to_toku_type(field);
+  TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   switch (toku_type) {
     case (toku_type_int):
       assert_always(key_part_length == field->pack_length());
@@ -1623,13 +1623,254 @@ exit:
          sizeof(uint32_t));                                          \
   pos += sizeof(uint32_t);
 
+KEY_AND_COL_INFO::KEY_AND_COL_INFO()
+    : allocated(false),
+      multi_ptr(nullptr),
+      field_types(nullptr),
+      field_lengths(nullptr),
+      length_bytes(nullptr),
+      blob_fields(nullptr),
+      num_blobs(0),
+      num_offset_bytes(0) {
+  memset(&mcp_info, 0, sizeof(mcp_info));
+  memset(&cp_info, 0, sizeof(cp_info));
+}
+
+KEY_AND_COL_INFO::~KEY_AND_COL_INFO() { free(); }
+
+int32_t KEY_AND_COL_INFO::allocate(const TABLE_SHARE &table_share) {
+  int32_t error;
+
+  assert_always(!allocated);
+
+  //
+  // initialize all of the bitmaps
+  //
+  for (uint32_t i = 0; i < MAX_KEY + 1; i++) {
+    error = bitmap_init(&key_filters[i], nullptr, table_share.fields, false);
+    if (error) {
+      goto exit;
+    }
+  }
+
+  //
+  // create the field lengths
+  //
+  multi_ptr = tokudb::memory::multi_malloc(
+      MYF(MY_WME + MY_ZEROFILL), &field_types,
+      (uint)(table_share.fields * sizeof(uint8_t)), &field_lengths,
+      (uint)(table_share.fields * sizeof(uint16_t)), &length_bytes,
+      (uint)(table_share.fields * sizeof(uint8_t)), &blob_fields,
+      (uint)(table_share.fields * sizeof(uint32_t)), NullS);
+  if (multi_ptr == nullptr) {
+    error = ENOMEM;
+    goto exit;
+  }
+exit:
+  if (error) {
+    for (uint32_t i = 0; MAX_KEY + 1; i++) {
+      bitmap_free(&key_filters[i]);
+    }
+    tokudb::memory::free(multi_ptr);
+  } else {
+    allocated = true;
+  }
+  return error;
+}
+
+int32_t KEY_AND_COL_INFO::initialize(const TABLE_SHARE &table_share,
+                                     const TABLE &table,
+                                     uint32_t hidden_primary_key,
+                                     uint32_t primary_key) {
+  int32_t error = 0;
+  uint32_t curr_blob_field_index = 0;
+  uint32_t max_var_bytes = 0;
+  //
+  // fill in the field lengths. 0 means it is a variable sized field length
+  // fill in length_bytes, 0 means it is fixed or blob
+  //
+  for (uint32_t i = 0; i < table_share.fields; i++) {
+    const Field *field = table_share.field[i];
+    TOKU_TYPE toku_type = mysql_to_toku_type(*field);
+    uint32_t pack_length = 0;
+    switch (toku_type) {
+      case toku_type_int:
+      case toku_type_double:
+      case toku_type_float:
+      case toku_type_fixbinary:
+      case toku_type_fixstring:
+        pack_length = field->pack_length();
+        assert_always(pack_length < 1 << 16);
+        field_types[i] = KEY_AND_COL_INFO::TOKUDB_FIXED_FIELD;
+        field_lengths[i] = static_cast<uint16_t>(pack_length);
+        length_bytes[i] = 0;
+        break;
+      case toku_type_blob:
+        field_types[i] = KEY_AND_COL_INFO::TOKUDB_BLOB_FIELD;
+        field_lengths[i] = 0;
+        length_bytes[i] = 0;
+        blob_fields[curr_blob_field_index] = i;
+        curr_blob_field_index++;
+        break;
+      case toku_type_varstring:
+      case toku_type_varbinary:
+        field_types[i] = KEY_AND_COL_INFO::TOKUDB_VARIABLE_FIELD;
+        field_lengths[i] = 0;
+        length_bytes[i] = static_cast<uchar>(
+            static_cast<const Field_varstring *>(field)->length_bytes);
+        max_var_bytes += field->field_length;
+        break;
+      default:
+        assert_unreachable();
+    }
+  }
+  num_blobs = curr_blob_field_index;
+
+  //
+  // initialize share->num_offset_bytes
+  // because MAX_REF_LENGTH is 65536, we
+  // can safely set num_offset_bytes to 1 or 2
+  //
+  if (max_var_bytes < 256) {
+    num_offset_bytes = 1;
+  } else {
+    num_offset_bytes = 2;
+  }
+
+  for (uint32_t i = 0; i < table_share.keys + tokudb_test(hidden_primary_key);
+       i++) {
+    //
+    // do the cluster/primary key filtering calculations
+    //
+    if (!(i == primary_key && hidden_primary_key)) {
+      if (i == primary_key) {
+        set_key_filter(&key_filters[primary_key],
+                       &table_share.key_info[primary_key], table, true);
+      } else {
+        set_key_filter(&key_filters[i], &table_share.key_info[i], table, true);
+        if (!hidden_primary_key) {
+          set_key_filter(&key_filters[i], &table_share.key_info[primary_key],
+                         table, true);
+        }
+      }
+    }
+    if (i == primary_key || key_is_clustering(&table_share.key_info[i])) {
+      error = initialize_col_pack_info(table_share, i);
+      if (error) {
+        goto exit;
+      }
+    }
+  }
+exit:
+  return error;
+}
+
+int32_t KEY_AND_COL_INFO::initialize_col_pack_info(
+    const TABLE_SHARE &table_share, uint32_t keynr) {
+  int32_t error = ENOSYS;
+  //
+  // set up the cp_info
+  //
+  assert_always(cp_info[keynr] == nullptr);
+  cp_info[keynr] = (COL_PACK_INFO *)tokudb::memory::malloc(
+      table_share.fields * sizeof(COL_PACK_INFO), MYF(MY_WME | MY_ZEROFILL));
+  if (cp_info[keynr] == nullptr) {
+    error = ENOMEM;
+    goto exit;
+  }
+  {
+    uint32_t curr_fixed_offset = 0;
+    uint32_t curr_var_index = 0;
+    for (uint32_t j = 0; j < table_share.fields; j++) {
+      COL_PACK_INFO *curr = &cp_info[keynr][j];
+      //
+      // need to set the offsets / indexes
+      // offsets are calculated AFTER the NULL bytes
+      //
+      if (!bitmap_is_set(&key_filters[keynr], j)) {
+        if (is_fixed_field(j)) {
+          curr->col_pack_val = curr_fixed_offset;
+          curr_fixed_offset += field_lengths[j];
+        } else if (is_variable_field(j)) {
+          curr->col_pack_val = curr_var_index;
+          curr_var_index++;
+        }
+      }
+    }
+
+    //
+    // set up the mcp_info
+    //
+    mcp_info[keynr].fixed_field_size = get_fixed_field_size(table_share, keynr);
+    mcp_info[keynr].len_of_offsets = get_len_of_offsets(table_share, keynr);
+
+    error = 0;
+  }
+exit:
+  return error;
+}
+
+void KEY_AND_COL_INFO::free() {
+  if (allocated) {
+    for (uint32_t i = 0; i < MAX_KEY + 1; i++) {
+      bitmap_free(&key_filters[i]);
+    }
+
+    for (uint32_t i = 0; i < MAX_KEY + 1; i++) {
+      tokudb::memory::free(cp_info[i]);
+      cp_info[i] = nullptr;  // 3144
+    }
+
+    tokudb::memory::free(multi_ptr);
+    field_types = nullptr;
+    field_lengths = nullptr;
+    length_bytes = nullptr;
+    blob_fields = nullptr;
+    num_blobs = 0;
+    memset(&mcp_info, 0, sizeof(mcp_info));
+    memset(&cp_info, 0, sizeof(cp_info));
+    num_offset_bytes = 0;
+
+    allocated = false;
+  }
+}
+
+void KEY_AND_COL_INFO::reset(uint32_t keynr) {
+  bitmap_clear_all(&key_filters[keynr]);
+  tokudb::memory::free(cp_info[keynr]);
+  cp_info[keynr] = nullptr;
+  mcp_info[keynr] = (MULTI_COL_PACK_INFO){0, 0};
+}
+
+uint32_t KEY_AND_COL_INFO::get_fixed_field_size(const TABLE_SHARE &table_share,
+                                                uint32_t keynr) const {
+  uint32_t offset = 0;
+  for (uint32_t i = 0; i < table_share.fields; i++) {
+    if (is_fixed_field(i) && !bitmap_is_set(&key_filters[keynr], i)) {
+      offset += field_lengths[i];
+    }
+  }
+  return offset;
+}
+
+uint32_t KEY_AND_COL_INFO::get_len_of_offsets(const TABLE_SHARE &table_share,
+                                              uint32_t keynr) const {
+  uint32_t len = 0;
+  for (uint32_t i = 0; i < table_share.fields; i++) {
+    if (is_variable_field(i) && !bitmap_is_set(&key_filters[keynr], i)) {
+      len += num_offset_bytes;
+    }
+  }
+  return len;
+}
+
 static uint32_t pack_desc_pk_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
                                   TABLE_SHARE *table_share,
                                   KEY_PART_INFO *key_part) {
   uchar *pos = buf;
-  uint16 field_index = key_part->field->field_index;
+  uint16_t field_index = key_part->field->field_index;
   Field *field = table_share->field[field_index];
-  TOKU_TYPE toku_type = mysql_to_toku_type(field);
+  TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   uint32_t key_part_length = key_part->length;
   uint32_t field_length;
   uchar len_bytes = 0;
@@ -1717,7 +1958,7 @@ static uint32_t pack_desc_offset_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
   uchar *pos = buf;
   uint16 field_index = key_part->field->field_index;
   Field *field = table_share->field[field_index];
-  TOKU_TYPE toku_type = mysql_to_toku_type(field);
+  TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   bool found_index = false;
 
   switch (toku_type) {
@@ -1768,7 +2009,7 @@ static uint32_t pack_desc_key_length_info(uchar *buf, KEY_AND_COL_INFO *kc_info,
   uchar *pos = buf;
   uint16 field_index = key_part->field->field_index;
   Field *field = table_share->field[field_index];
-  TOKU_TYPE toku_type = mysql_to_toku_type(field);
+  TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   uint32_t key_part_length = key_part->length;
   uint32_t field_length;
 
@@ -1805,7 +2046,7 @@ static uint32_t pack_desc_char_info(uchar *buf, TABLE_SHARE *table_share,
   uchar *pos = buf;
   uint16 field_index = key_part->field->field_index;
   Field *field = table_share->field[field_index];
-  TOKU_TYPE toku_type = mysql_to_toku_type(field);
+  TOKU_TYPE toku_type = mysql_to_toku_type(*field);
   uint32_t charset_num = 0;
 
   switch (toku_type) {
@@ -1863,32 +2104,6 @@ static uint32_t pack_some_row_info(uchar *buf, uint pk_index,
   return pos - buf;
 }
 
-static uint32_t get_max_clustering_val_pack_desc_size(
-    TABLE_SHARE *table_share) {
-  uint32_t ret_val = 0;
-  //
-  // the fixed stuff:
-  //  first the things in pack_some_row_info
-  //  second another mcp_info
-  //  third a byte that states if blobs exist
-  ret_val += sizeof(uint32_t) + sizeof(MULTI_COL_PACK_INFO) + 1;
-  ret_val += sizeof(MULTI_COL_PACK_INFO);
-  ret_val++;
-  //
-  // now the variable stuff
-  //  an upper bound is, for each field, byte stating if it is fixed or var,
-  //  followed
-  // by 8 bytes for endpoints
-  //
-  ret_val += (table_share->fields) * (1 + 2 * sizeof(uint32_t));
-  //
-  // four bytes storing the length of this portion
-  //
-  ret_val += 4;
-
-  return ret_val;
-}
-
 static uint32_t create_toku_clustering_val_pack_descriptor(
     uchar *buf, uint pk_index, TABLE_SHARE *table_share,
     KEY_AND_COL_INFO *kc_info, uint32_t keynr, bool is_clustering) {
@@ -1937,7 +2152,7 @@ static uint32_t create_toku_clustering_val_pack_descriptor(
   last_col = 0;
   for (uint i = 0; i < table_share->fields; i++) {
     bool col_filtered = bitmap_is_set(&kc_info->key_filters[keynr], i);
-    if (!is_fixed_field(kc_info, i)) {
+    if (!kc_info->is_fixed_field(i)) {
       //
       // not a fixed field, continue
       //
@@ -1984,7 +2199,7 @@ static uint32_t create_toku_clustering_val_pack_descriptor(
   last_col = 0;
   for (uint i = 0; i < table_share->fields; i++) {
     bool col_filtered = bitmap_is_set(&kc_info->key_filters[keynr], i);
-    if (!is_variable_field(kc_info, i)) {
+    if (!kc_info->is_variable_field(i)) {
       //
       // not a var field, continue
       //
@@ -2157,44 +2372,6 @@ static uint32_t pack_clustering_val_from_desc(uchar *buf, void *row_desc,
     var_dest_data_ptr += num_blob_bytes;
   }
   return var_dest_data_ptr - buf;
-}
-
-static uint32_t get_max_secondary_key_pack_desc_size(
-    KEY_AND_COL_INFO *kc_info) {
-  uint32_t ret_val = 0;
-  //
-  // the fixed stuff:
-  //  byte that states if main dictionary
-  //  byte that states if hpk
-  //  the things in pack_some_row_info
-  ret_val++;
-  ret_val++;
-  ret_val += sizeof(uint32_t) + sizeof(MULTI_COL_PACK_INFO) + 1;
-  //
-  // now variable sized stuff
-  //
-
-  //  first the blobs
-  ret_val += sizeof(kc_info->num_blobs);
-  ret_val += kc_info->num_blobs;
-
-  // then the pk
-  // one byte for num key parts
-  // two bytes for each key part
-  ret_val++;
-  ret_val += MAX_REF_PARTS * 2;
-
-  // then the key
-  // null bit, then null byte,
-  // then 1 byte stating what it is, then 4 for offset, 4 for key length,
-  //      1 for if charset exists, and 4 for charset
-  ret_val +=
-      MAX_REF_PARTS * (1 + sizeof(uint32_t) + 1 + 3 * sizeof(uint32_t) + 1);
-  //
-  // four bytes storing the length of this portion
-  //
-  ret_val += 4;
-  return ret_val;
 }
 
 static uint32_t create_toku_secondary_key_pack_descriptor(
@@ -2717,8 +2894,8 @@ static bool fields_are_same_type(Field *a, Field *b) {
   bool retval = true;
   enum_field_types a_mysql_type = a->real_type();
   enum_field_types b_mysql_type = b->real_type();
-  TOKU_TYPE a_toku_type = mysql_to_toku_type(a);
-  TOKU_TYPE b_toku_type = mysql_to_toku_type(b);
+  TOKU_TYPE a_toku_type = mysql_to_toku_type(*a);
+  TOKU_TYPE b_toku_type = mysql_to_toku_type(*b);
   // make sure have same names
   // make sure have same types
   if (a_mysql_type != b_mysql_type) {

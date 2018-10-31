@@ -295,7 +295,7 @@ static uint32_t fill_dynamic_row_mutator(uchar *buf, uint32_t *columns,
         pos++;
       }
     }
-    if (is_fixed_field(src_kc_info, curr_index)) {
+    if (src_kc_info->is_fixed_field(curr_index)) {
       // we have a fixed field being dropped
       // store the offset and the number of bytes
       pos[0] = COL_FIXED;
@@ -310,12 +310,12 @@ static uint32_t fill_dynamic_row_mutator(uchar *buf, uint32_t *columns,
       memcpy(pos, &num_bytes, sizeof(num_bytes));
       pos += sizeof(num_bytes);
       if (is_add && !is_null_default) {
-        uint curr_field_offset = field_offset(curr_field, src_table);
+        uint curr_field_offset = field_offset(*curr_field, *src_table);
         memcpy(pos, src_table->s->default_values + curr_field_offset,
                num_bytes);
         pos += num_bytes;
       }
-    } else if (is_variable_field(src_kc_info, curr_index)) {
+    } else if (src_kc_info->is_variable_field(curr_index)) {
       pos[0] = COL_VAR;
       pos++;
       // store the index of the variable column
@@ -324,7 +324,7 @@ static uint32_t fill_dynamic_row_mutator(uchar *buf, uint32_t *columns,
       memcpy(pos, &var_field_index, sizeof(var_field_index));
       pos += sizeof(var_field_index);
       if (is_add && !is_null_default) {
-        uint curr_field_offset = field_offset(curr_field, src_table);
+        uint curr_field_offset = field_offset(*curr_field, *src_table);
         uint32_t len_bytes = src_kc_info->length_bytes[curr_index];
         uint32_t data_length = get_var_data_length(
             src_table->s->default_values + curr_field_offset, len_bytes);
@@ -373,7 +373,7 @@ static uint32_t fill_dynamic_blob_row_mutator(uchar *buf, uint32_t *columns,
   for (uint32_t i = 0; i < num_columns; i++) {
     uint32_t curr_field_index = columns[i];
     Field *curr_field = src_table->field[curr_field_index];
-    if (is_blob_field(src_kc_info, curr_field_index)) {
+    if (src_kc_info->is_blob_field(curr_field_index)) {
       // find out which blob it is
       uint32_t blob_index = src_kc_info->num_blobs;
       for (uint32_t j = 0; j < src_kc_info->num_blobs; j++) {
@@ -622,7 +622,7 @@ class tokudb_alter_ctx : public inplace_alter_handler_ctx {
         table_kc_info(NULL),
         altered_table_kc_info(NULL) {}
   ~tokudb_alter_ctx() {
-    if (altered_table_kc_info) free_key_and_col_info(altered_table_kc_info);
+    if (altered_table_kc_info) altered_table_kc_info->free();
   }
 
  public:
@@ -670,7 +670,7 @@ void ha_tokudb::print_alter_info(TABLE *altered_table,
         "name: %s, types: %u %u, nullable: %d, null_offset: %d, is_null_field: "
         "%d, is_null %d, pack_length %u",
         curr_field->field_name, curr_field->real_type(),
-        mysql_to_toku_type(curr_field), curr_field->null_bit, null_offset,
+        mysql_to_toku_type(*curr_field), curr_field->null_bit, null_offset,
         curr_field->real_maybe_null(),
         curr_field->real_maybe_null()
             ? table->s->default_values[null_offset] & curr_field->null_bit
@@ -686,7 +686,7 @@ void ha_tokudb::print_alter_info(TABLE *altered_table,
         "name: %s, types: %u %u, nullable: %d, null_offset: %d, "
         "is_null_field: %d, is_null %d, pack_length %u",
         curr_field->field_name, curr_field->real_type(),
-        mysql_to_toku_type(curr_field), curr_field->null_bit, null_offset,
+        mysql_to_toku_type(*curr_field), curr_field->null_bit, null_offset,
         curr_field->real_maybe_null(),
         curr_field->real_maybe_null()
             ? altered_table->s->default_values[null_offset] &
@@ -857,7 +857,6 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
       fix_handler_flags(thd, table, altered_table, ha_alter_info);
   ctx->table_kc_info = &share->kc_info;
   ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
-  memset(ctx->altered_table_kc_info, 0, sizeof(KEY_AND_COL_INFO));
 
   if (tokudb::sysvars::disable_hot_alter(thd)) {
     ;  // do nothing
@@ -1407,11 +1406,10 @@ bool ha_tokudb::commit_inplace_alter_table(
 // Setup the altered table's key and col info.
 int ha_tokudb::setup_kc_info(TABLE *altered_table,
                              KEY_AND_COL_INFO *altered_kc_info) {
-  int error = allocate_key_and_col_info(altered_table->s, altered_kc_info);
+  int error = altered_kc_info->allocate(*altered_table->s);
   if (error == 0)
-    error = initialize_key_and_col_info(altered_table->s, altered_table,
-                                        altered_kc_info, hidden_primary_key,
-                                        primary_key);
+    error = altered_kc_info->initialize(*altered_table->s, *altered_table,
+                                        hidden_primary_key, primary_key);
   return error;
 }
 
@@ -1592,9 +1590,9 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table,
       static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
 
   Field *old_field = table->field[expand_field_num];
-  TOKU_TYPE old_field_type = mysql_to_toku_type(old_field);
+  TOKU_TYPE old_field_type = mysql_to_toku_type(*old_field);
   Field *new_field = altered_table->field[expand_field_num];
-  TOKU_TYPE new_field_type = mysql_to_toku_type(new_field);
+  TOKU_TYPE new_field_type = mysql_to_toku_type(*new_field);
   assert_always(old_field_type == new_field_type);
 
   uchar operation;
@@ -1868,7 +1866,7 @@ int ha_tokudb::new_row_descriptor(TABLE *altered_table,
   tokudb_alter_ctx *ctx =
       static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
   row_descriptor->size =
-      get_max_desc_size(ctx->altered_table_kc_info, altered_table);
+      ctx->altered_table_kc_info->get_max_desc_size(*altered_table);
   row_descriptor->data =
       (uchar *)tokudb::memory::malloc(row_descriptor->size, MYF(MY_WME));
   if (row_descriptor->data == NULL) {

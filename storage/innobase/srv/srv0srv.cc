@@ -3613,7 +3613,7 @@ function: */
 					mtr_commit(&mtr);
 					return;
 				} else {
-					ib::error() << "Encryption is enabled"
+					ib::info() << "Encryption is enabled"
 						" for undo tablespace number "
 						<< space_id << ".";
 #ifdef UNIV_ENCRYPT_DEBUG
@@ -3661,7 +3661,7 @@ function: */
 				" tablespace number "
 				<< space_id << ".";
 		} else {
-			ib::error() << "Encryption is enabled"
+			ib::info() << "Encryption is enabled"
 				" for undo tablespace number "
 				<< space_id << ".";
 		}

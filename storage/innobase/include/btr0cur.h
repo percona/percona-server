@@ -156,7 +156,7 @@ to node pointer page number fields on the upper levels of the tree!
 Note that if mode is PAGE_CUR_LE, which is used in inserts, then
 cursor->up_match and cursor->low_match both will have sensible values.
 If mode is PAGE_CUR_GE, then up_match will a have a sensible value. */
-void
+dberr_t
 btr_cur_search_to_nth_level(
 /*========================*/
 	dict_index_t*	index,	/*!< in: index */
@@ -223,7 +223,7 @@ btr_cur_search_to_nth_level_with_no_latch(
 
 /*****************************************************************//**
 Opens a cursor at either end of an index. */
-void
+dberr_t
 btr_cur_open_at_index_side_func(
 /*============================*/
 	bool		from_left,	/*!< in: true if open to the low end,

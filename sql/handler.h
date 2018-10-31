@@ -545,6 +545,8 @@ namespace AQP {
 /** ENCRYPTION="Y" used during table create. */
 #define HA_CREATE_USED_ENCRYPT          (1L << 27)
 
+#define HA_CREATE_USED_ENCRYPTION_KEY_ID (1L << 28)
+
 /*
   These structures are used to pass information from a set of SQL commands
   on add/drop/change tablespace definitions to the proper hton.
@@ -1235,6 +1237,8 @@ typedef struct st_ha_create_information
   and ignored by the Server layer. */
 
   LEX_STRING encrypt_type;
+  uint32_t encryption_key_id;
+  bool was_encryption_key_id_set;
 
   const char *data_file_name, *index_file_name;
   const char *alias;

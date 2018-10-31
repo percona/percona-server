@@ -853,7 +853,10 @@ buf_dblwr_process(void)
 					<< ". Trying to recover it from the"
 					<< " doublewrite buffer.";
 
-				dberr_t	err = os_dblwr_decrypt_page(
+				dberr_t	err = DB_SUCCESS;
+
+				if (space->crypt_data == NULL) // if it was crypt_data encrypted it was already decrypted
+					err = os_dblwr_decrypt_page(
 					space, page);
 
 				if (err != DB_SUCCESS || buf_page_is_corrupted(
@@ -1124,8 +1127,8 @@ buf_dblwr_check_block(
 		/* TODO: validate also non-index pages */
 		return;
 	case FIL_PAGE_TYPE_ALLOCATED:
-		/* empty pages should never be flushed */
-		break;
+		/* empty pages could be flushed by encryption threads */
+		return;
 	}
 
 	buf_dblwr_assert_on_corrupt_block(block);
@@ -1301,7 +1304,9 @@ buf_dblwr_flush_buffered_writes(
 		buffer has sane LSN values. */
 		buf_dblwr_check_page_lsn(dblwr_page);
 
-		if (encrypt_parallel_dblwr
+		// it can be already encrypted by encryption threads
+		FilSpace space (TRX_SYS_SPACE);
+		if (encrypt_parallel_dblwr && space()->crypt_data == NULL
 		    && !buf_dblwr_disable_encryption(block)) {
 			buf_dblwr_encrypt_page(block, dblwr_page);
 		}

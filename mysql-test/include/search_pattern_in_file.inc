@@ -59,9 +59,12 @@
 #
 
 perl;
+
     use strict;
     die "SEARCH_FILE not set" unless $ENV{'SEARCH_FILE'};
     my $print_search_result=   $ENV{PRINT_SEARCH_RESULT} or 0;
+    my $abort_on=              $ENV{ABORT_ON} or "NOT_FOUND";
+    #my $abort_on_found=        $ENV{ABORT_ON_FOUND} or 0;
     my @search_files=          glob($ENV{'SEARCH_FILE'});
     my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
     my $file_content=          "";
@@ -76,12 +79,20 @@ perl;
        }
        close(FILE);
     }
-    if ( $print_search_result ) {
+
+    if ( $print_search_result == 0 ) {
+      if ( $abort_on eq "NOT_FOUND" and $found == 0 ) {
+        die ("# ERROR: Non of the files do not contain the expected pattern $search_pattern\n");
+      }
+      if ( $abort_on eq "FOUND" and $found ) {
+        die ("# ERROR: Some of the files contain pattern that we expected not to find $search_pattern\n");
+      }
+    } else {
        my $res=$found ? "FOUND" : "NOT FOUND";
        $ENV{SEARCH_FILE} =~ s{^.*?([^/\\]+)$}{$1};
        print "$res /$search_pattern/ in $ENV{SEARCH_FILE}\n";
     }
-    elsif ( $found == 0 ) {
-       die("# ERROR: Non of the files do not contain the expected pattern  $search_pattern\n");
-    }
+    #elsif ( $found == 0 and $abort_on_found eq "Disabled" ) {
+       #die("# ERROR: Non of the files do not contain the expected pattern  $search_pattern\n");
+    #}
 EOF

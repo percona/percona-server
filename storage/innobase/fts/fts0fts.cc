@@ -41,6 +41,8 @@ Full Text Search interface
 #include "sync0sync.h"
 #include "ut0new.h"
 
+#include "fil0crypt.h"
+
 static const ulint FTS_MAX_ID_LEN = 32;
 
 /** Column name from the FTS config table */
@@ -1857,7 +1859,8 @@ fts_create_one_common_table(
 			FTS_CONFIG_TABLE_VALUE_COL_LEN);
 	}
 
-	error = row_create_table_for_mysql(new_table, NULL, trx, false);
+	error = row_create_table_for_mysql(new_table, NULL, trx, false,
+					   FIL_ENCRYPTION_DEFAULT, CreateInfoEncryptionKeyId());
 
 	if (error == DB_SUCCESS) {
 
@@ -2071,7 +2074,8 @@ fts_create_one_index_table(
 		(DATA_MTYPE_MAX << 16) | DATA_UNSIGNED | DATA_NOT_NULL,
 		FTS_INDEX_ILIST_LEN);
 
-	error = row_create_table_for_mysql(new_table, NULL, trx, false);
+	error = row_create_table_for_mysql(new_table, NULL, trx, false,
+					   FIL_ENCRYPTION_DEFAULT, CreateInfoEncryptionKeyId());
 
 	if (error == DB_SUCCESS) {
 		dict_index_t*	index = dict_mem_index_create(

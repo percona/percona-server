@@ -5299,7 +5299,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       goto err;
     }
     DBUG_EXECUTE_IF("check_consecutive_binlog_key_versions",
-                    { static uint next_key_version = 0;
+                    { static uint next_key_version = 1;
                       DBUG_ASSERT(crypto.get_key_version() == next_key_version++);});
 
     uchar nonce[Binlog_crypt_data::BINLOG_NONCE_LENGTH];

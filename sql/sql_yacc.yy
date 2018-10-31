@@ -563,6 +563,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  COMPRESSION_DICTIONARY_SYM
 %token  COMPRESSION_SYM
 %token  ENCRYPTION_SYM
+%token  ENCRYPTION_KEY_ID_SYM
 %token  CONCURRENT
 %token  CONDITION_SYM                 /* SQL-2003-R, SQL-2008-R */
 %token  CONNECTION_SYM
@@ -6022,6 +6023,12 @@ create_table_option:
             Lex->create_info.used_fields|= HA_CREATE_USED_ENCRYPT;
             Lex->create_info.encrypt_type= $3;
 	  }
+        | ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
+          {
+            Lex->create_info.used_fields|= HA_CREATE_USED_ENCRYPTION_KEY_ID;
+            Lex->create_info.was_encryption_key_id_set= true;
+            Lex->create_info.encryption_key_id= $3;
+          }
         | AUTO_INC opt_equal ulonglong_num
           {
             Lex->create_info.auto_increment_value=$3;
@@ -13661,6 +13668,7 @@ keyword_sp:
         | COMPRESSION_DICTIONARY_SYM {}
         | COMPRESSION_SYM          {}
         | ENCRYPTION_SYM           {}
+        | ENCRYPTION_KEY_ID_SYM    {}
         | CONCURRENT               {}
         | CONNECTION_SYM           {}
         | CONSISTENT_SYM           {}

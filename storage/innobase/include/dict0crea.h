@@ -34,6 +34,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "fsp0space.h"
 
+#include "create_info_encryption_key.h"
+
 /*********************************************************************//**
 Creates a table create graph.
 @return own: table create node */
@@ -42,7 +44,9 @@ tab_create_graph_create(
 /*====================*/
 	dict_table_t*	table,		/*!< in: table to create, built as
 					a memory data structure */
-	mem_heap_t*	heap);		/*!< in: heap where created */
+	mem_heap_t*	heap,    /*!< in: heap where created */
+	fil_encryption_t mode,	/*!< in: encryption mode */
+	const CreateInfoEncryptionKeyId &create_info_encryption_key_id); /*!< in: encryption key_id */
 /** Creates an index create graph.
 @param[in]	index	index to create, built as a memory data structure
 @param[in,out]	heap	heap where created
@@ -68,14 +72,16 @@ dict_create_table_step(
 @return DB_SUCCESS or error code. */
 dberr_t
 dict_build_tablespace(
-	Tablespace*	tablespace);
+	Tablespace*	tablespace,
+	tab_node_t*	node); // TODO : change this parameter only to encryption mode
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]	table	Table to build in its own tablespace.
 @return DB_SUCCESS or error code */
 dberr_t
 dict_build_tablespace_for_table(
-	dict_table_t*	table);
+	dict_table_t*	table,
+	tab_node_t*	node); // TODO : change this parameter only to encryption mode
 
 /** Assign a new table ID and put it into the table cache and the transaction.
 @param[in,out]	table	Table that needs an ID
@@ -378,6 +384,8 @@ struct tab_node_t{
 	/* Local storage for this graph node */
 	ulint		state;		/*!< node execution state */
 	ulint		col_no;		/*!< next column definition to insert */
+	fil_encryption_t mode;	/*!< encryption mode */
+	CreateInfoEncryptionKeyId create_info_encryption_key_id;  /*!< encryption key_id */
 	ulint		base_col_no;	/*!< next base column to insert */
 	mem_heap_t*	heap;		/*!< memory heap used as auxiliary
 					storage */

@@ -1135,7 +1135,7 @@ row_undo_mod_parse_undo_rec(
 		return;
 	}
 
-	if (node->table->ibd_file_missing ||
+	if (node->table->file_unreadable ||
 	    fil_space_is_being_truncated(node->table->space) ) {
 		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;

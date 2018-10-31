@@ -5085,12 +5085,12 @@ ER_UNSUPPORTED_PS
         eng "This command is not supported in the prepared statement protocol yet"
         ger "Dieser Befehl wird im Protokoll für vorbereitete Anweisungen noch nicht unterstützt"
 ER_GET_ERRMSG  
-        dan "Modtog fejl %d '%-.100s' fra %s"
-        eng "Got error %d '%-.100s' from %s"
-        ger "Fehler %d '%-.100s' von %s"
-        jpn "エラー %d '%-.100s' が %s から返されました。"
-        nor "Mottok feil %d '%-.100s' fa %s"
-        norwegian-ny "Mottok feil %d '%-.100s' fra %s"
+        dan "Modtog fejl %d '%-.200s' fra %s"
+        eng "Got error %d '%-.200s' from %s"
+        ger "Fehler %d '%-.200s' von %s"
+        jpn "エラー %d '%-.200s' が %s から返されました。"
+        nor "Mottok feil %d '%-.200s' fa %s"
+        norwegian-ny "Mottok feil %d '%-.200s' fra %s"
 ER_GET_TEMPORARY_ERRMSG  
         dan "Modtog temporary fejl %d '%-.100s' fra %s"
         eng "Got temporary error %d '%-.100s' from %s"

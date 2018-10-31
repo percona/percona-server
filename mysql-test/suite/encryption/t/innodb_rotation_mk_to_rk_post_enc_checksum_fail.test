@@ -1,0 +1,119 @@
+--skip
+-- source include/have_innodb.inc
+#-- source include/have_file_key_management_plugin.inc
+--source include/have_debug.inc
+
+# embedded does not support restart
+-- source include/not_embedded.inc
+
+#--echo $KEYRING_PLUGIN_OPT
+#--echo $KEYRING_PLUGIN_LOAD
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/mysecret_keyring";
+
+let MYSQLD_DATADIR=`select @@datadir`;
+--let $MYSQLD_DATADIR=`select @@datadir`
+--let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd
+--let SEARCH_RANGE = 10000000
+
+--disable_warnings
+SET GLOBAL innodb_file_per_table = ON;
+SET GLOBAL innodb_file_format = `Barracuda`;
+--enable_warnings
+
+create table t1 (a TEXT) engine=innodb encryption='Y';
+
+BEGIN;
+INSERT INTO t1 (a) VALUES ('foobarsecret');
+--disable_query_log
+--let $i = 100
+while ($i)
+{
+  INSERT INTO t1 (a) VALUES (REPEAT('foobarsecret', 100));
+  dec $i;
+}
+--enable_query_log
+COMMIT;
+
+--source include/shutdown_mysqld.inc
+
+# Make sure t1 is encrypted
+--let SEARCH_PATTERN=foobarsecret
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t1.ibd.MK
+
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb-encrypt-tables=ON --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
+--source include/start_mysqld.inc
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--echo $encrypted_tables_count
+--let $wait_timeout= 600
+# encrypted_tables_count + 1 because INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION contains additional,
+# artificial innodb_system table
+--let $wait_condition=SELECT COUNT(*) = $tables_count + 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0
+--source include/wait_condition.inc
+
+--let $assert_text= All encrypted tables should have encrypted flag set
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE FLAG = 8225]" = $tables_count
+--source include/assert.inc
+
+let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+
+--source include/shutdown_mysqld.inc
+
+--let SEARCH_PATTERN=foobarsecret
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+
+--echo # Backup t1 before corrupting
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t1.ibd.backup
+
+--echo # Corrupt t1
+
+perl;
+open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t1.ibd") or die "open";
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 26 + 100, SEEK_SET) or die "seek";
+print FILE pack("H*", "c00lcafedeadb017");
+close FILE or die "close";
+EOF
+
+--echo # Now restart server with encryption turned off and wait for threads to decrypt everything
+--echo # Apart from t1 which is corrupted and it should not be possible to decrypt this table
+
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb-encrypt-tables=OFF --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
+--source include/start_mysqld.inc
+
+--let $wait_timeout= 600
+# Note that INNODB_TABLESPACES_ENCRYPTION whill contain also artificail innodb_system tablespace
+# thus $tables_count == all tables, but one in INNODB_TABLESPACES_ENCRYPTION
+--let $wait_condition=SELECT COUNT(*) = $tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+--let $assert_text= Table t1 should stayed encrypted as some of its pages were corrupted
+--let $assert_cond= "[SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0]" = "test/t1"
+--source include/assert.inc
+
+--let $assert_text= Table t1 should be the only one with encrypted flag set
+--let $assert_cond= "[SELECT NAME FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE FLAG = 8225]" = "test/t1"
+--source include/assert.inc
+
+--error ER_GET_ERRMSG
+SELECT * FROM t1;
+
+--source include/shutdown_mysqld.inc
+
+--echo # Restore the original t1
+
+--move_file $MYSQLD_DATADIR/test/t1.ibd.MK $MYSQLD_DATADIR/test/t1.ibd
+--source include/start_mysqld.inc
+
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;

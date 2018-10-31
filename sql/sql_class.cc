@@ -5175,3 +5175,84 @@ bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const
           is_current_stmt_binlog_format_row() &&
           !is_current_stmt_binlog_disabled());
 }
+
+static my_bool lock_keyring(THD *thd, plugin_ref plugin, void *arg);
+
+class KeyringsLocker
+{
+public:
+  static KeyringsLocker &get_instance()
+  {
+    static KeyringsLocker instance;
+    return instance;
+  }
+
+  ~KeyringsLocker()
+  {
+    mysql_mutex_destroy(&mutex);
+  }
+
+  int lock_keyrings(THD *thd)
+  {
+    mysql_mutex_lock(&mutex);
+
+    uint number_of_keyrings_locked= locked_keyring_plugins.size();
+    if (number_of_keyrings_locked > 0)
+    {
+      mysql_mutex_unlock(&mutex);
+      return number_of_keyrings_locked; // keyrings were already locked
+    }
+    plugin_foreach(thd, lock_keyring, MYSQL_KEYRING_PLUGIN, this);
+
+    number_of_keyrings_locked= locked_keyring_plugins.size();
+
+    mysql_mutex_unlock(&mutex);
+    return number_of_keyrings_locked;
+  }
+
+  int unlock_keyrings(THD *thd)
+  {
+    mysql_mutex_lock(&mutex);
+
+    for(LockedKeyringsPlugins::reverse_iterator riter = locked_keyring_plugins.rbegin();
+        riter != locked_keyring_plugins.rend(); ++riter)
+    {
+      plugin_unlock(thd, *riter);
+      locked_keyring_plugins.pop_back();
+    }
+
+    mysql_mutex_unlock(&mutex);
+    return 0;
+  }
+
+  // esentialy I am using this vector as a stack, but I did not want to import stack.h just for
+  // this usage
+  typedef std::vector<plugin_ref> LockedKeyringsPlugins;
+  LockedKeyringsPlugins locked_keyring_plugins;
+
+private:
+  KeyringsLocker()
+  {
+    mysql_mutex_init(0, &mutex, MY_MUTEX_INIT_FAST);
+  }
+  mysql_mutex_t mutex;
+};
+
+static my_bool lock_keyring(THD *thd, plugin_ref plugin, void *arg)
+{
+  KeyringsLocker *keyrings_locker= reinterpret_cast<KeyringsLocker*>(arg);
+  plugin= plugin_lock(thd, &plugin);
+  if (plugin)
+    keyrings_locker->locked_keyring_plugins.push_back(plugin);
+  return FALSE;
+}
+
+int lock_keyrings(THD *thd)
+{
+  return KeyringsLocker::get_instance().lock_keyrings(thd); 
+}
+
+int unlock_keyrings(THD *thd)
+{
+  return KeyringsLocker::get_instance().unlock_keyrings(thd);
+}

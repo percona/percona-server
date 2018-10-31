@@ -1,3 +1,4 @@
+--skip # test disabled as it is unstable on Jenkins
 -- source include/have_innodb.inc
 # embedded does not support restart
 -- source include/not_embedded.inc

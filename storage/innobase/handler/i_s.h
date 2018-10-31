@@ -60,7 +60,7 @@ extern struct st_mysql_plugin	i_s_innodb_sys_datafiles;
 extern struct st_mysql_plugin	i_s_innodb_changed_pages;
 extern struct st_mysql_plugin	i_s_innodb_sys_virtual;
 extern struct st_mysql_plugin	i_s_innodb_tablespaces_encryption;
-//extern struct st_maria_plugin	i_s_innodb_tablespaces_scrubbing;
+extern struct st_mysql_plugin	i_s_innodb_tablespaces_scrubbing;
 
 
 /** Fill handlerton based INFORMATION_SCHEMA.FILES table.

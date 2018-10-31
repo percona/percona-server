@@ -667,6 +667,67 @@ srv_undo_tablespace_create(
 
 	return(err);
 }
+
+/** Try to read encryption metadata from an undo tablespace.
+@param[in]	fh		file handle of undo log file
+@param[in]	space		undo tablespace
+@return DB_SUCCESS if success */
+static
+dberr_t
+srv_undo_tablespace_read_encryption(
+	pfs_os_file_t	fh,
+	fil_space_t*	space)
+{
+	IORequest	request;
+	ulint		n_read = 0;
+	size_t		page_size = UNIV_PAGE_SIZE_MAX;
+	dberr_t		err = DB_ERROR;
+ 	byte* first_page_buf = static_cast<byte*>(
+		ut_malloc_nokey(2 * UNIV_PAGE_SIZE_MAX));
+	/* Align the memory for a possible read from a raw device */
+	byte* first_page = static_cast<byte*>(
+		ut_align(first_page_buf, UNIV_PAGE_SIZE));
+ 	/* Don't want unnecessary complaints about partial reads. */
+	request.disable_partial_io_warnings();
+ 	err = os_file_read_no_error_handling(
+		request, fh, first_page, 0, page_size, &n_read);
+ 	if (err != DB_SUCCESS) {
+		ib::info()
+			<< "Cannot read first page of '"
+			<< space->name << "' "
+			<< ut_strerr(err);
+		ut_free(first_page_buf);
+		return(err);
+	}
+ 	ulint			offset;
+	const page_size_t	space_page_size(space->flags);
+ 	offset = fsp_header_get_encryption_offset(space_page_size);
+	ut_ad(offset);
+ 	/* Return if the encryption metadata is empty. */
+	if (memcmp(first_page + offset,
+		   ENCRYPTION_KEY_MAGIC_V2,
+		   ENCRYPTION_MAGIC_SIZE) != 0) {
+		ut_free(first_page_buf);
+		return(DB_SUCCESS);
+	}
+ 	byte	key[ENCRYPTION_KEY_LEN];
+	byte	iv[ENCRYPTION_KEY_LEN];
+	if (fsp_header_get_encryption_key(space->flags, key,
+					  iv, first_page)) {
+ 		space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+		err = fil_set_encryption(space->id,
+					 Encryption::AES,
+					 key,
+					 iv);
+		ut_ad(err == DB_SUCCESS);
+	} else {
+		ut_free(first_page_buf);
+		return(DB_FAIL);
+	}
+ 	ut_free(first_page_buf);
+ 	return(DB_SUCCESS);
+}
+
 /*********************************************************************//**
 Open an undo tablespace.
 @return DB_SUCCESS or error code */
@@ -724,9 +785,6 @@ srv_undo_tablespace_open(
 		size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t) -1);
 
-		ret = os_file_close(fh);
-		ut_a(ret);
-
 		/* Load the tablespace into InnoDB's internal
 		data structures. */
 
@@ -751,11 +809,26 @@ srv_undo_tablespace_open(
 		is 64 bits. It is OK to cast the n_pages to ulint because
 		the unit has been scaled to pages and page number is always
 		32 bits. */
-		if (fil_node_create(
+		if (!fil_node_create(
 			name, (ulint) n_pages, space, false, atomic_write)) {
-
-			err = DB_SUCCESS;
+			os_file_close(fh);
+			ib::error() << "Error creating file node for " << undo_name;
+			return(DB_ERROR);
 		}
+
+		err = DB_SUCCESS;
+		/* Read the encryption metadata in this undo tablespace.
+		If the encryption info in the first page cannot be decrypted
+		by the master key, this table cannot be opened. */
+		err = srv_undo_tablespace_read_encryption(fh, space);
+ 		/* The file handle will no longer be needed. */
+		os_file_close(fh);
+
+		if (err != DB_SUCCESS) {
+			ib::error() << "Error reading encryption for " << undo_name;
+			return(err);
+		}
+
 	}
 
 	return(err);

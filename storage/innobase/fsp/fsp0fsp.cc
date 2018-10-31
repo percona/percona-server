@@ -213,6 +213,20 @@ fsp_flags_to_dict_tf(
 	return(flags);
 }
 
+/** Check whether a space id is an undo tablespace ID
+ * Undo tablespaces have space_id's starting 1 less than the redo logs.
+ * They are numbered down from this.  Since rseg_id=0 always refers to the
+ * system tablespace, undo_space_num values start at 1.  The current limit
+ * is 127. The translation from an undo_space_num is:
+ *    undo space_id = log_first_space_id - undo_space_num
+ *    @param[in]	space_id	space id to check
+ *    @return true if it is undo tablespace else false. */
+bool
+fsp_is_undo_tablespace(uint32 space_id)
+{
+	return srv_is_undo_tablespace(space_id);
+}
+
 bool
 fsp_is_system_or_temp_tablespace(uint32 space_id)
 {
@@ -868,7 +882,7 @@ fsp_header_init_fields(
 /** Get the offset of encrytion information in page 0.
 @param[in]	page_size	page size.
 @return	offset on success, otherwise 0. */
-static
+MY_NODISCARD
 ulint
 fsp_header_get_encryption_offset(
 	const page_size_t&	page_size)
@@ -1019,42 +1033,34 @@ fsp_header_fill_encryption_info(
 	return(true);
 }
 
-/** Rotate the encryption info in the space header.
-@param[in]	space		tablespace
-@param[in]      encrypt_info	buffer for re-encrypt key.
-@param[in,out]	mtr		mini-transaction
+/** Write the encryption info into the space header.
+@param[in]      space_id		tablespace id
+@param[in]      space_flags		tablespace flags
+@param[in]      encrypt_info		buffer for re-encrypt key
+@param[in]      update_fsp_flags	if it need to update the space flags
+@param[in,out]	mtr			mini-transaction
 @return true if success. */
 bool
-fsp_header_rotate_encryption(
-	fil_space_t*		space,
+fsp_header_write_encryption(
+	ulint			space_id,
+	ulint			space_flags,
 	byte*			encrypt_info,
+	bool			update_fsp_flags,
 	mtr_t*			mtr)
 {
+	const page_size_t	page_size(space_flags);
 	buf_block_t*	block;
 	ulint		offset;
 	page_t*		page;
 	ulint		master_key_id;
 
-	ut_ad(mtr);
-	ut_ad(space->encryption_type != Encryption::NONE);
-
-	const page_size_t	page_size(space->flags);
-
-	DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure",
-			return(false););
-
-	/* Fill encryption info. */
-	if (!fsp_header_fill_encryption_info(space->encryption_key, 
-	     space->encryption_iv, encrypt_info)) {
-		return(false);
-	}
-
 	/* Save the encryption info to the page 0. */
-	block = buf_page_get(page_id_t(space->id, 0),
+	block = buf_page_get(page_id_t(space_id, 0),
 			     page_size,
 			     RW_SX_LATCH, mtr);
+
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-	ut_ad(space->id == page_get_space_id(buf_block_get_frame(block)));
+	ut_ad(space_id == page_get_space_id(buf_block_get_frame(block)));
 
 	offset = fsp_header_get_encryption_offset(page_size);
 	ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
@@ -1081,7 +1087,44 @@ fsp_header_rotate_encryption(
 			  ENCRYPTION_INFO_SIZE_V2,
 			  mtr);
 
+	/* Write the new fsp flags into be update to the header if needed */
+	if (update_fsp_flags) {
+		mlog_write_ulint(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS,
+				 space_flags, MLOG_4BYTES, mtr);
+	}
+
 	return(true);
+}
+
+/** Rotate the encryption info in the space header.
+@param[in]	space		tablespace
+@param[in]      encrypt_info	buffer for re-encrypt key.
+@param[in,out]	mtr		mini-transaction
+@return true if success. */
+bool
+fsp_header_rotate_encryption(
+	fil_space_t*		space,
+	byte*			encrypt_info,
+	mtr_t*			mtr)
+{
+	ut_ad(mtr);
+	ut_ad(space->encryption_type != Encryption::NONE);
+
+	DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure",
+			return(false););
+
+	/* Fill encryption info. */
+	if (!fsp_header_fill_encryption_info(space->encryption_key, 
+	     space->encryption_iv, encrypt_info)) {
+		return(false);
+	}
+
+	/* Write encryption info into space header. */
+	return(fsp_header_write_encryption(space->id,
+					   space->flags,
+					   encrypt_info,
+					   false,
+					   mtr));
 }
 
 /** Enable encryption for already existing tablespace.

@@ -390,25 +390,6 @@ fil_space_merge_crypt_data(
 	mutex_exit(&dst->mutex);
 }
 
-static
-ulint
-fsp_header_get_encryption_offset(
-	const page_size_t&	page_size) {
-	ulint	offset;
-#ifdef UNIV_DEBUG
-	ulint	left_size;
-#endif
-
-	offset = XDES_ARR_OFFSET + XDES_SIZE * xdes_arr_size(page_size);
-#ifdef UNIV_DEBUG
-	left_size = page_size.physical() - FSP_HEADER_OFFSET - offset
-		- FIL_PAGE_DATA_END;
-	ut_ad(left_size >= fil_get_encrypt_info_size(CRYPT_SCHEME_1_IV_LEN));
-#endif
-
-	return offset;
-}
-
 fil_space_crypt_t*
 fil_space_read_crypt_data(const page_size_t& page_size, const byte* page) {
 

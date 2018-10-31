@@ -346,6 +346,15 @@ extern char*	srv_log_group_home_dir;
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
 extern ulong	srv_n_log_files;
+
+extern ulong	srv_redo_log_encrypt;
+
+enum redo_log_encrypt_enum {
+	REDO_LOG_ENCRYPT_OFF = 0,
+	REDO_LOG_ENCRYPT_MK = 1,
+	REDO_LOG_ENCRYPT_RK = 2,
+};
+
 /** At startup, this is the current redo log file size.
 During startup, if this is different from srv_log_file_size_requested
 (innodb_log_file_size), the redo log will be rebuilt and this size

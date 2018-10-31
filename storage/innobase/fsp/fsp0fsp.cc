@@ -212,6 +212,15 @@ fsp_flags_to_dict_tf(
 
 	return(flags);
 }
+
+bool
+fsp_is_system_or_temp_tablespace(uint32 space_id)
+{
+	return(space_id == srv_sys_space.space_id()
+	       || fsp_is_system_temporary(space_id));
+}
+
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Validate the tablespace flags.
@@ -880,13 +889,54 @@ fsp_header_get_encryption_offset(
 	return offset;
 }
 
+bool
+fsp_header_fill_encryption_info(
+	uint key_version,
+	byte* iv,
+	byte*			encrypt_info)
+{
+	byte*			ptr = encrypt_info;
+	ulint			crc;
+
+	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
+
+	memcpy(ptr, ENCRYPTION_KEY_MAGIC_RK, ENCRYPTION_MAGIC_SIZE);
+	ptr += ENCRYPTION_MAGIC_SIZE;
+
+	/* Write master key id. */
+	mach_write_to_4(ptr, key_version);
+	ptr += sizeof(ulint);
+
+	/* Write server uuid. */
+	memcpy(ptr, Encryption::uuid, ENCRYPTION_SERVER_UUID_LEN);
+	ptr += ENCRYPTION_SERVER_UUID_LEN;
+
+	/* Write tablespace iv. */
+	memcpy(ptr,
+	       iv,
+	       ENCRYPTION_KEY_LEN);
+
+	ptr += ENCRYPTION_KEY_LEN * 2;
+
+	/* Write checksum bytes. */
+	crc = ut_crc32(encrypt_info, ENCRYPTION_KEY_LEN * 2);
+	mach_write_to_4(ptr, crc);
+
+#ifdef UNIV_ENCRYPT_DEBUG
+	fprintf(stderr, "Encrypting log with key version: %u\n", key_version);
+#endif
+
+	return true;
+}
+
 /** Fill the encryption info.
 @param[in]	space		tablespace
 @param[in,out]	encrypt_info	buffer for encrypt key.
 @return true if success. */
 bool
 fsp_header_fill_encryption_info(
-	fil_space_t*		space,
+	byte* key,
+	byte* iv,
 	byte*			encrypt_info)
 {
 	byte*			ptr;
@@ -896,10 +946,6 @@ fsp_header_fill_encryption_info(
 	byte			key_info[ENCRYPTION_KEY_LEN * 2];
 	ulint			crc;
 	Encryption::Version	version;
-#ifdef	UNIV_ENCRYPT_DEBUG
-	const byte*		data;
-	ulint			i;
-#endif
 
 	/* Get master key from key ring */
 	Encryption::get_master_key(&master_key_id, &master_key, &version);
@@ -940,30 +986,14 @@ fsp_header_fill_encryption_info(
 
 	/* Write tablespace key to temp space. */
 	memcpy(key_info,
-	       space->encryption_key,
+	       key,
 	       ENCRYPTION_KEY_LEN);
 
 	/* Write tablespace iv to temp space. */
 	memcpy(key_info + ENCRYPTION_KEY_LEN,
-	       space->encryption_iv,
+	       iv,
 	       ENCRYPTION_KEY_LEN);
 
-#ifdef	UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, "Set %lu:%lu ",space->id,
-		Encryption::master_key_id);
-	for (data = (const byte*) master_key, i = 0;
-	     i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, " ");
-	for (data = (const byte*) space->encryption_key,
-	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, " ");
-	for (data = (const byte*) space->encryption_iv,
-	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, "\n");
-#endif
 	/* Encrypt tablespace key and iv. */
 	elen = my_aes_encrypt(
 		key_info,
@@ -1014,8 +1044,8 @@ fsp_header_rotate_encryption(
 			return(false););
 
 	/* Fill encryption info. */
-	if (!fsp_header_fill_encryption_info(space,
-					     encrypt_info)) {
+	if (!fsp_header_fill_encryption_info(space->encryption_key, 
+	     space->encryption_iv, encrypt_info)) {
 		return(false);
 	}
 
@@ -1066,7 +1096,7 @@ fsp_enable_encryption(
 
 	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 
-	if (!fsp_header_fill_encryption_info(space, encrypt_info)) {
+	if (!fsp_header_fill_encryption_info(space->encryption_key, space->encryption_iv, encrypt_info)) {
 		return(false);
 	}
 
@@ -1171,8 +1201,8 @@ fsp_header_init(
 		if (offset == 0)
 			return(false);
 
-		if (!fsp_header_fill_encryption_info(space,
-						     encryption_info)) {
+		if (!fsp_header_fill_encryption_info(space->encryption_key, 
+	               space->encryption_iv, encryption_info)) {
 			space->encryption_type = Encryption::NONE;
 			memset(space->encryption_key, 0, ENCRYPTION_KEY_LEN);
 			memset(space->encryption_iv, 0, ENCRYPTION_KEY_LEN);

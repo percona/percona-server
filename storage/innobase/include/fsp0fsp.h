@@ -380,6 +380,24 @@ fsp_header_rotate_encryption(
 	byte*			encrypt_info,
 	mtr_t*			mtr);
 
+MY_NODISCARD
+bool
+fsp_header_fill_encryption_info(
+	byte* key, byte* iv,
+	byte*			encrypt_info);
+
+MY_NODISCARD
+bool
+fsp_header_fill_encryption_info(
+	uint key_version,
+	byte* iv,
+	byte*			encrypt_info);
+
+MY_NODISCARD
+bool
+fsp_is_system_or_temp_tablespace(
+	uint32 space_id);
+
 /** Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0.
 @param[in]	space_id	space id

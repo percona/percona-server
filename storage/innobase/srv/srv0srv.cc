@@ -229,6 +229,9 @@ extern bool		trx_commit_disallowed;
 /*------------------------- LOG FILES ------------------------ */
 char*	srv_log_group_home_dir	= NULL;
 
+/** Enable or disable Encrypt of REDO tablespace. */
+ulong	srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
+
 ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 /** At startup, this is the current redo log file size.
 During startup, if this is different from srv_log_file_size_requested
@@ -2847,6 +2850,8 @@ loop:
 		} else {
 			srv_master_do_idle_tasks();
 		}
+
+		log_enable_encryption_if_set();
 	}
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS

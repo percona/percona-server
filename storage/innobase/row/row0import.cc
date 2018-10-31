@@ -1240,18 +1240,22 @@ matches the in memory table definition.
 dberr_t row_import::match_schema(THD *thd,
                                  const dd::Table *dd_table) UNIV_NOTHROW {
   /* Do some simple checks. */
+  const auto relevant_flags = m_flags & ~DICT_TF_MASK_DATA_DIR;
+  const auto relevant_table_flags = m_table->flags & ~DICT_TF_MASK_DATA_DIR;
 
-  if (m_flags != m_table->flags) {
-    if (dict_tf_to_row_format_string(m_flags) !=
-        dict_tf_to_row_format_string(m_table->flags)) {
+  if (relevant_flags != relevant_table_flags) {
+    if (dict_tf_to_row_format_string(relevant_flags) !=
+        dict_tf_to_row_format_string(relevant_table_flags)) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
               "Table flags don't match, server table has %s"
               " and the meta-data file has %s",
-              (const char *)dict_tf_to_row_format_string(m_table->flags),
-              (const char *)dict_tf_to_row_format_string(m_flags));
+              (const char *)dict_tf_to_row_format_string(relevant_table_flags),
+              (const char *)dict_tf_to_row_format_string(relevant_flags));
     } else {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Table flags don't match");
+              "Table flags don't match, server table has 0x%x "
+              "and the meta-data file has 0x%lx",
+              relevant_table_flags, relevant_flags);
     }
     return (DB_ERROR);
   } else if (m_table->n_cols != m_n_cols) {

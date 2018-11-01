@@ -2778,17 +2778,23 @@ void Rdb_key_def::pack_with_varchar_space_pad(
   const CHARSET_INFO *const charset = field->charset();
   const auto field_var = static_cast<Field_varstring *>(field);
 
+  const char *src =
+      reinterpret_cast<const char *>(field_var->ptr + field_var->length_bytes);
+
   const size_t value_length = (field_var->length_bytes == 1)
                                   ? (uint)*field->ptr
                                   : uint2korr(field->ptr);
 
-  const size_t trimmed_len = charset->cset->lengthsp(
-      charset, (const char *)field_var->ptr + field_var->length_bytes,
-      value_length);
+  const size_t trimmed_len =
+      charset->cset->lengthsp(charset, src, value_length);
+
+  const size_t max_xfrm_len = charset->cset->charpos(
+      charset, src, src + trimmed_len, field_var->char_length());
+
   const size_t xfrm_len = charset->coll->strnxfrm(
       charset, buf, fpi->m_max_image_len, field_var->char_length(),
-      field_var->ptr + field_var->length_bytes, trimmed_len,
-      MY_STRXFRM_NOPAD_WITH_SPACE);
+      reinterpret_cast<const uchar *>(src),
+      std::min<size_t>(trimmed_len, max_xfrm_len), MY_STRXFRM_NOPAD_WITH_SPACE);
 
   /* Got a mem-comparable image in 'buf'. Now, produce varlength encoding */
   uchar *const buf_end = buf + xfrm_len;

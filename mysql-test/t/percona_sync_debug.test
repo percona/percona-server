@@ -1,0 +1,5 @@
+# PS-4988: Uninitialized btr stat mutex caused assertion failure
+--source include/have_debug.inc
+-- disable_result_log
+show status like '';
+-- enable_result_log

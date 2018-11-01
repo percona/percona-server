@@ -896,6 +896,12 @@ struct TABLE_SHARE
     return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id.id();
   }
 
+  /** Determine if the table is missing a PRIMARY KEY. */
+  bool is_missing_primary_key() const {
+    DBUG_ASSERT(primary_key <= MAX_KEY);
+    return primary_key == MAX_KEY;
+  }
+
   bool visit_subgraph(Wait_for_flush *waiting_ticket,
                       MDL_wait_for_graph_visitor *gvisitor);
 

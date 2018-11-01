@@ -153,6 +153,12 @@ enum enum_binlog_row_image {
   BINLOG_ROW_IMAGE_FULL= 2
 };
 
+// Values for binlog_row_metadata sysvar
+enum enum_binlog_row_metadata {
+  BINLOG_ROW_METADATA_MINIMAL= 0,
+  BINLOG_ROW_METADATA_FULL= 1
+};
+
 enum enum_session_track_gtids {
   OFF= 0,
   OWN_GTID= 1,
@@ -165,6 +171,8 @@ enum enum_binlog_format {
   BINLOG_FORMAT_ROW=   2, ///< row-based
   BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
 };
+
+
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT              1

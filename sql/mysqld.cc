@@ -441,6 +441,7 @@ const char *binlog_checksum_default= "NONE";
 ulong binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
+ulong binlog_row_metadata;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;

@@ -132,6 +132,7 @@ drop table t7_partitioned;
 
 drop tablespace ts_encrypted1;
 drop tablespace ts_encrypted2;
+drop tablespace ts_unencrypted1;
 
 eval set global innodb_encrypt_tables=$initial_encrypt_tables_value;
 

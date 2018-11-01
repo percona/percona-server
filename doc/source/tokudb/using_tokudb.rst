@@ -158,16 +158,7 @@ Compression in |TokuDB| occurs on background threads, which means that high comp
 
 The ultimate choice depends on the particulars of how a database is used, and we recommend that users use the default settings unless they have profiled their system with high compression in place.
 
-Compression is set on a per-table basis and is controlled by setting row format during a ``CREATE TABLE`` or ``ALTER TABLE``. For example:
-
-.. code-block:: mysql
-
- CREATE TABLE table (
-   column_a INT NOT NULL PRIMARY KEY,
-   column_b INT NOT NULL) ENGINE=TokuDB
-   ROW_FORMAT=row_format;
-
-If no row format is specified in a ``CREATE TABLE``, the table is compressed using whichever row format is specified in the session variable :variable:`tokudb_row_format`. If no row format is set nor is :variable:`tokudb_row_format`, the zlib compressor is used.
+In |Percona Server| |version|, setting compression on a per-table basis is not supported in ``CREATE TABLE`` or ``ALTER TABLE`` statements. The table is compressed using whichever row format is specified in the session variable :variable:`tokudb_row_format`. If no row format is set nor is :variable:`tokudb_row_format`, the ``zlib`` compressor is used.
 
 :variable:`row_format` and :variable:`tokudb_row_format` variables accept the following values:
 
@@ -188,16 +179,6 @@ In addition, you can choose a compression library directly, which will override 
 * ``TOKUDB_SNAPPY`` - This compression is using `snappy <http://google.github.io/snappy/>`_ library and aims for very high speeds and reasonable compression.
 
 * ``TOKUDB_UNCOMPRESSED``: This setting turns off compression and is useful for tables with data that cannot be compressed.
-
-Changing Compression of a Table
--------------------------------
-
-Modify the compression used on a particular table with the following command:
-
-.. code-block:: mysql
-
- ALTER TABLE table
-   ROW_FORMAT=row_format;
 
 .. note:: Changing the compression of a table only affects newly written data (dirtied blocks). After changing a table's compression you can run ``OPTIMZE TABLE`` to rewrite all blocks of the table and its indexes.
 
@@ -303,3 +284,5 @@ Migrating to TokuDB
 To convert an existing table to use the |TokuDB| engine, run ``ALTER TABLE... ENGINE=TokuDB``. If you wish to load from a file, use ``LOAD DATA INFILE`` and not ``mysqldump``. Using ``mysqldump`` will be much slower. To create a file that can be loaded with ``LOAD DATA INFILE``, refer to the ``INTO OUTFILE`` option of the `SELECT Syntax <http://dev.mysql.com/doc/refman/5.7/en/select.html>`_.
 
 .. note:: Creating this file does not save the schema of your table, so you may want to create a copy of that as well.
+
+.. |version| replace:: 8.0

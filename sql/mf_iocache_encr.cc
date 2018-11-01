@@ -157,9 +157,12 @@ static int my_b_encr_read(IO_CACHE *info, uchar *Buffer, size_t Count)
 
     copied= MY_MIN(Count, length - pos_offset);
 
-    memcpy(Buffer, info->buffer + pos_offset, copied);
-    Count-= copied;
-    Buffer+= copied;
+    if (copied) {
+      DBUG_ASSERT(Buffer != NULL);
+      memcpy(Buffer, info->buffer + pos_offset, copied);
+      Count-= copied;
+      Buffer+= copied;
+    }
 
     info->read_pos= info->buffer + pos_offset + copied;
     info->read_end= info->buffer + length;
@@ -192,6 +195,10 @@ static int my_b_encr_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
       DBUG_RETURN(0);
   }
 
+#ifndef DBUG_OFF
+  if (info->pos_in_file == 0) crypt_data->block_length= 0;
+#endif
+
   if (info->seek_not_done)
   {
     DBUG_ASSERT(info->pos_in_file % info->buffer_length == 0);
@@ -216,10 +223,6 @@ static int my_b_encr_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
       DBUG_RETURN(1);
     }
     crypt_data->counter= 0;
-
-#ifndef DBUG_OFF
-    crypt_data->block_length= 0;
-#endif
   }
 
   do

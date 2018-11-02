@@ -1149,7 +1149,7 @@ log_read_encryption()
 		size_t klen;
 		if (my_key_fetch(percona_redo_with_ver_ss.str().c_str(), &key_type, NULL,
 					reinterpret_cast<void**>(&rkey), &klen) ||
-				key == NULL)
+				rkey == NULL)
 		{
 			ib::error() << "Couldn't fetch redo log encryption key: " << percona_redo_with_ver_ss.str() << ".";
 		} else if(key_type == NULL || strncmp(key_type, "AES", 3) != 0) {

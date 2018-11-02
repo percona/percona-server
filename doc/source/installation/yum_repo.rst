@@ -141,7 +141,7 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 
    .. code-block:: bash
 
-    yum remove Percona-Server*
+    yum remove percona-server*
 
 3. Remove the data and configuration files
 

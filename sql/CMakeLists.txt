@@ -257,6 +257,7 @@ SET(SQL_SHARED_SOURCES
   unireg.cc
   xa.cc
   binlog_crypt_data.cc
+  userstat.cc
 )
 
 IF(WIN32)

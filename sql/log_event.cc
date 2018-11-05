@@ -4912,7 +4912,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
-        mysql_parse(thd, &parser_state);
+        mysql_parse(thd, &parser_state, true);
 
         /*
           Transaction isolation level of pure row based replicated transactions

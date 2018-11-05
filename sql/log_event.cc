@@ -4908,7 +4908,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
-        mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+        mysql_parse(thd, thd->query(), thd->query_length(),
+                    &parser_state, true);
         /* Finalize server status flags after executing a statement. */
         thd->update_server_status();
         log_slow_statement(thd);

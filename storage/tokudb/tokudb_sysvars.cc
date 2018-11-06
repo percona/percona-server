@@ -337,7 +337,9 @@ static MYSQL_THDVAR_BOOL(hide_default_row_format, 0,
 static MYSQL_THDVAR_ULONGLONG(killed_time, 0, "killed time", NULL, NULL,
                               DEFAULT_TOKUDB_KILLED_TIME, 0, ~0ULL, 1);
 
-static MYSQL_THDVAR_STR(last_lock_timeout, PLUGIN_VAR_MEMALLOC,
+static MYSQL_THDVAR_STR(last_lock_timeout,
+                        PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NOCMDOPT |
+                            PLUGIN_VAR_READONLY,
                         "last lock timeout", NULL, NULL, NULL);
 
 static MYSQL_THDVAR_BOOL(

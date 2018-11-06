@@ -10442,7 +10442,6 @@ Encryption::encrypt(
 #endif
 		ut_ad(m_key_version != 0); // Since we are encrypting key_version cannot be 0 (i.e. page unencrypted)
 
-		mach_write_to_4(src + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
 
 		if (page_type == FIL_PAGE_COMPRESSED) {
 			mach_write_to_4(dst +  FIL_PAGE_DATA, m_checksum);

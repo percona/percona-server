@@ -234,4 +234,5 @@ drop table t5_off_explicit_off_dup;
 drop table t7_partitioned;
 drop tablespace ts_encrypted1;
 drop tablespace ts_encrypted2;
+drop tablespace ts_unencrypted1;
 set global innodb_encrypt_tables=OFF;

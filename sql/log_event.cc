@@ -1009,6 +1009,7 @@ bool Log_event::wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t
 {
   DBUG_EXECUTE_IF("simulate_temp_file_write_error",
                   {
+                    memset(file->write_pos, 0, file->write_end - file->write_pos);
                     file->write_pos=file->write_end;
                     DBUG_SET("+d,simulate_file_write_error");
                   });

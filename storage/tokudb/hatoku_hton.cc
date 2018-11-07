@@ -159,6 +159,9 @@ static char *tokudb_home;
 // static ulong tokudb_cache_parts = 1;
 const char *tokudb_hton_name = "TokuDB";
 
+// All TokuDB and PerconaFT exts that might appear in a database dir
+static const char *ha_tokudb_exts[]{".tokudb", nullptr};
+
 #if defined(_WIN32)
 extern "C" {
 #include "ydb.h"
@@ -319,6 +322,7 @@ static int tokudb_init_func(void *p) {
   tokudb_hton->panic = tokudb_end;
   tokudb_hton->flush_logs = tokudb_flush_logs;
   tokudb_hton->show_status = tokudb_show_status;
+  tokudb_hton->file_extensions = ha_tokudb_exts;
 
   if (!tokudb_home) tokudb_home = mysql_real_data_home;
   DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));

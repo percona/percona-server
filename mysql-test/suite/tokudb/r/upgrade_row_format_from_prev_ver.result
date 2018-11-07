@@ -43,39 +43,95 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 sys.sys_config                                     OK
-test.t1                                            OK
+test.t_lzma                                        OK
+test.t_quicklz                                     OK
+test.t_snappy                                      OK
+test.t_uncompressed                                OK
+test.t_zlib                                        OK
 #########
 # Performing test specific validation
 ###
 # Check test table after upgrade
-SHOW CREATE TABLE test.t1;
+id.sdi
+t_lzma_main_id.tokudb
+t_lzma_status_id.tokudb
+id.sdi
+t_quicklz_main_id.tokudb
+t_quicklz_status_id.tokudb
+id.sdi
+t_snappy_main_id.tokudb
+t_snappy_status_id.tokudb
+id.sdi
+t_uncompressed_main_id.tokudb
+t_uncompressed_status_id.tokudb
+id.sdi
+t_zlib_main_id.tokudb
+t_zlib_status_id.tokudb
+# uncompressed - compression_method=0
+SHOW CREATE TABLE test.t_uncompressed;
 Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL,
-  PRIMARY KEY (`a`)
+t_uncompressed	CREATE TABLE `t_uncompressed` (
+  `a` int(11) DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (`a`)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = TokuDB,
- PARTITION p1 VALUES LESS THAN (200) ENGINE = TokuDB,
- PARTITION p2 VALUES LESS THAN (300) ENGINE = TokuDB,
- PARTITION p3 VALUES LESS THAN (400) ENGINE = TokuDB) */
-SELECT * FROM test.t1 ORDER BY a;
+SELECT * FROM test.t_uncompressed ORDER BY a;
 a
-50
-55
-250
-255
-350
-355
-t1_id.sdi
-t1_P_p0_main_id.tokudb
-t1_P_p0_status_id.tokudb
-t1_P_p1_main_id.tokudb
-t1_P_p1_status_id.tokudb
-t1_P_p2_main_id.tokudb
-t1_P_p2_status_id.tokudb
-t1_P_p3_main_id.tokudb
-t1_P_p3_status_id.tokudb
+0
+1
+2
+3
+Pattern "compression_method=0" found
+# SNAPPY - compression_method=7
+SHOW CREATE TABLE test.t_snappy;
+Table	Create Table
+t_snappy	CREATE TABLE `t_snappy` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SELECT * FROM test.t_snappy ORDER BY a;
+a
+0
+1
+2
+3
+Pattern "compression_method=7" found
+# QUICKLZ - compression_method=9
+SHOW CREATE TABLE test.t_quicklz;
+Table	Create Table
+t_quicklz	CREATE TABLE `t_quicklz` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SELECT * FROM test.t_quicklz ORDER BY a;
+a
+0
+1
+2
+3
+Pattern "compression_method=9" found
+# LZMA - compression_method=10
+SHOW CREATE TABLE test.t_lzma;
+Table	Create Table
+t_lzma	CREATE TABLE `t_lzma` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SELECT * FROM test.t_lzma ORDER BY a;
+a
+0
+1
+2
+3
+Pattern "compression_method=10" found
+# ZLIB (without checksum) - compression_method=11
+SHOW CREATE TABLE test.t_zlib;
+Table	Create Table
+t_zlib	CREATE TABLE `t_zlib` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+SELECT * FROM test.t_zlib ORDER BY a;
+a
+0
+1
+2
+3
+Pattern "compression_method=11" found
 #########
 # End upgrade testing with mysql_upgrade
 ###

@@ -1787,3 +1787,18 @@
    fun:ldap_int_tls_start
    fun:ldap_start_tls_s
 }
+# The issue with GNU libc version 2.17 when linux hosts doesn't have IPv6 configured.
+# This is because libc points the cache (that is freed on exit) to a static variable
+# if there is no ipv6 address, which later results in freeing an invalid pointer.
+{
+   libc_217_ipv6_issue
+   Memcheck:Free
+   fun:free
+   fun:__libc_freeres
+   fun:_vgnU_freeres
+   fun:__run_exit_handlers
+   fun:exit
+   fun:*mysqld_exit*
+   fun:*mysqld_main*
+   fun:main
+}

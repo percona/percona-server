@@ -113,6 +113,7 @@
 #include "table_cache.h"      // table_cache_manager
 #include "transaction.h"      // trans_commit_implicit
 #include "sql_query_rewrite.h"
+#include "userstat.h"
 
 #include "rpl_group_replication.h"
 #include <algorithm>
@@ -1321,6 +1322,12 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
     thd->status_var.questions++;
 
+  /* Declare userstat variables and start timer */
+  double start_busy_usecs = 0.0;
+  double start_cpu_nsecs = 0.0;
+  if (unlikely(opt_userstat))
+    userstat_start_timer(&start_busy_usecs, &start_cpu_nsecs);
+
   /**
     Clear the set of flags that are expected to be cleared at the
     beginning of each command.
@@ -1513,7 +1520,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     if (parser_state.init(thd, thd->query().str, thd->query().length))
       break;
 
-    mysql_parse(thd, &parser_state);
+    mysql_parse(thd, &parser_state, false);
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
            ! thd->is_error())
@@ -1595,7 +1602,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->set_time(); /* Reset the query start time. */
       parser_state.reset(beginning_of_next_stmt, length);
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-      mysql_parse(thd, &parser_state);
+      mysql_parse(thd, &parser_state, false);
     }
 
     /* Need to set error to true for graceful shutdown */
@@ -1925,6 +1932,18 @@ done:
   DBUG_ASSERT(thd->derived_tables == NULL &&
               (thd->open_tables == NULL ||
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
+
+  /* Update user statistics only if at least one timer was initialized */
+  if (unlikely(start_busy_usecs > 0.0 || start_cpu_nsecs > 0.0))
+  {
+    userstat_finish_timer(start_busy_usecs, start_cpu_nsecs, &thd->busy_time,
+                          &thd->cpu_time);
+    /* Updates THD stats and the global user stats. */
+    thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
+    update_global_user_stats(thd, true, time(NULL));
+#endif
+  }
 
   /* Finalize server status flags after executing a command. */
   thd->update_server_status();
@@ -5687,7 +5706,7 @@ void mysql_init_multi_delete(LEX *lex)
                                the next query in the query text.
 */
 
-void mysql_parse(THD *thd, Parser_state *parser_state)
+void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
 {
   int error MY_ATTRIBUTE((unused));
   DBUG_ENTER("mysql_parse");
@@ -5714,33 +5733,11 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   mysql_reset_thd_for_next_command(thd);
   lex_start(thd);
 
-  int start_time_error=   0;
-  int end_time_error=     0;
-  struct timeval start_time, end_time;
-  double start_usecs=     0;
-  double end_usecs=       0;
-  /* cpu time */
-  int cputime_error=      0;
-#ifdef HAVE_CLOCK_GETTIME
-  struct timespec tp;
-#endif
-  double start_cpu_nsecs= 0;
-  double end_cpu_nsecs=   0;
-
-  if (opt_userstat)
-  {
-#ifdef HAVE_CLOCK_GETTIME
-    /* get start cputime */
-    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
-      start_cpu_nsecs = tp.tv_sec*1000000000.0+tp.tv_nsec;
-#endif
-
-    // Gets the start time, in order to measure how long this command takes.
-    if (!(start_time_error = gettimeofday(&start_time, NULL)))
-    {
-      start_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
-    }
-  }
+  /* Declare userstat variables and start timer */
+  double start_busy_usecs = 0.0;
+  double start_cpu_nsecs = 0.0;
+  if (unlikely(opt_userstat && update_userstat))
+    userstat_start_timer(&start_busy_usecs, &start_cpu_nsecs);
 
   thd->m_parser_state= parser_state;
   invoke_pre_parse_rewrite_plugins(thd);
@@ -5935,52 +5932,13 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
     parser_state->m_lip.found_semicolon= NULL;
   }
 
-  if (opt_userstat)
+  /* Update user statistics only if at least one timer was initialized */
+  if (unlikely(update_userstat &&
+               (start_busy_usecs > 0.0 || start_cpu_nsecs > 0.0)))
   {
-    // Gets the end time.
-    if (!(end_time_error= gettimeofday(&end_time, NULL)))
-    {
-      end_usecs= end_time.tv_sec * 1000000.0 + end_time.tv_usec;
-    }
-
-    // Calculates the difference between the end and start times.
-    if (start_usecs && end_usecs >= start_usecs && !start_time_error && !end_time_error)
-    {
-      thd->busy_time= (end_usecs - start_usecs) / 1000000;
-      // In case there are bad values, 2629743 is the #seconds in a month.
-      if (thd->busy_time > 2629743)
-      {
-        thd->busy_time= 0;
-      }
-    }
-    else
-    {
-      // end time went back in time, or gettimeofday() failed.
-      thd->busy_time= 0;
-    }
-
-#ifdef HAVE_CLOCK_GETTIME
-    /* get end cputime */
-    if (!cputime_error &&
-        !(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
-      end_cpu_nsecs = tp.tv_sec*1000000000.0+tp.tv_nsec;
-#endif
-    if (start_cpu_nsecs && !cputime_error)
-    {
-      thd->cpu_time = (end_cpu_nsecs - start_cpu_nsecs) / 1000000000;
-      // In case there are bad values, 2629743 is the #seconds in a month.
-      if (thd->cpu_time > 2629743)
-      {
-        thd->cpu_time = 0;
-      }
-    }
-    else
-      thd->cpu_time = 0;
-  }
-
-  // Updates THD stats and the global user stats.
-  if (unlikely(opt_userstat))
-  {
+    userstat_finish_timer(start_busy_usecs, start_cpu_nsecs, &thd->busy_time,
+                          &thd->cpu_time);
+    /* Updates THD stats and the global user stats. */
     thd->update_stats(true);
 #ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));

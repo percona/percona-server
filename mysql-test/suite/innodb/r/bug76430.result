@@ -1,4 +1,4 @@
 CREATE VIEW t AS SELECT table_name FROM INFORMATION_SCHEMA.VIEWS;
 ALTER TABLE t TRUNCATE PARTITION a;
-ERROR HY000: Partition management on a not partitioned table is not possible
+ERROR HY000: Information schema queries do not support the 'FOR UPDATE' clause.
 DROP VIEW t;

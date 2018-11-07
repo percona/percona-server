@@ -480,6 +480,11 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                 CF_SHOW_TABLE_COMMAND |
                                                 CF_REEXECUTION_FRAGILE);
+  sql_command_flags[SQLCOM_SHOW_USER_STATS]=   CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_TABLE_STATS]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_INDEX_STATS]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CLIENT_STATS]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_THREAD_STATS]= CF_STATUS_COMMAND;
 
   sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
@@ -3084,6 +3089,11 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_COLLATIONS:
   case SQLCOM_SHOW_STORAGE_ENGINES:
   case SQLCOM_SHOW_PROFILE:
+  case SQLCOM_SHOW_USER_STATS:
+  case SQLCOM_SHOW_TABLE_STATS:
+  case SQLCOM_SHOW_INDEX_STATS:
+  case SQLCOM_SHOW_CLIENT_STATS:
+  case SQLCOM_SHOW_THREAD_STATS:
   case SQLCOM_SELECT:
   {
     thd->status_var.last_query_cost= 0.0;

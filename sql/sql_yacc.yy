@@ -12860,35 +12860,35 @@ show_param:
         | CLIENT_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           Lex->sql_command= SQLCOM_SELECT;
+           Lex->sql_command= SQLCOM_SHOW_CLIENT_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_CLIENT_STATS))
              MYSQL_YYABORT;
           }
         | USER_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_USER_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_USER_STATS))
              MYSQL_YYABORT;
           }
         | THREAD_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           Lex->sql_command= SQLCOM_SELECT;
+           Lex->sql_command= SQLCOM_SHOW_THREAD_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_THREAD_STATS))
              MYSQL_YYABORT;
           }
         | TABLE_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_TABLE_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_STATS))
              MYSQL_YYABORT;
           }
         | INDEX_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_INDEX_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
              MYSQL_YYABORT;
           }

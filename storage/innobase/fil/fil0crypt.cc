@@ -1718,9 +1718,6 @@ fil_crypt_rotate_page(
 			/* force rotation by dummy updating page */
 			mlog_write_ulint(frame + FIL_PAGE_SPACE_ID,
 					 space_id, MLOG_4BYTES, &mtr);
-			// assign key version to a page in a buffer - so it would not be rotated more times
-			mlog_write_ulint(frame + FIL_PAGE_ENCRYPTION_KEY_VERSION, crypt_data->encrypting_with_key_version, MLOG_4BYTES, &mtr);
-
 			/* statistics */
 			state->crypt_stat.pages_modified++;
 		} else {

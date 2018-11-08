@@ -181,9 +181,10 @@ get_sources(){
 
     if [ -z "${DESTINATION:-}" ]; then
         export DESTINATION=experimental
-    fi 
+    fi
+    TIMESTAMP=$(date "+%Y%m%d-%H%M%S") 
     echo "DESTINATION=${DESTINATION}" >> ../percona-server-8.0.properties
-    echo "UPLOAD=UPLOAD/${DESTINATION}/BUILDS/${PRODUCT}/${PRODUCT_FULL}/${BRANCH_NAME}/${REVISION}" >> ../percona-server-8.0.properties
+    echo "UPLOAD=UPLOAD/${DESTINATION}/BUILDS/${PRODUCT}/${PRODUCT_FULL}/${BRANCH_NAME}/${REVISION}/${TIMESTAMP}" >> ../percona-server-8.0.properties
 
     rm -rf storage/tokudb/PerconaFT
     rm -rf plugin/tokudb-backup-plugin/Percona-TokuBackup

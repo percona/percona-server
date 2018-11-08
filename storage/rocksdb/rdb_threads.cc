@@ -22,14 +22,19 @@
 /* The C++ file's header */
 #include "./rdb_threads.h"
 
+/* MySQL header files */
+#include "sql_class.h"
+
 namespace myrocks {
 
 void *Rdb_thread::thread_func(void *const thread_ptr) {
   assert(thread_ptr != nullptr);
   my_thread_init();
   Rdb_thread *const thread = static_cast<Rdb_thread *>(thread_ptr);
+
   if (!thread->m_run_once.exchange(true)) {
     thread->run();
+
     thread->uninit();
   }
 

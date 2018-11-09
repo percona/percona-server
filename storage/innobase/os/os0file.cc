@@ -1489,8 +1489,10 @@ os_file_compress_page(
 
 	len += FIL_PAGE_DATA;
 
-	if (will_be_encrypted_with_keyring)
+	if (will_be_encrypted_with_keyring) {
+		mach_write_to_8(dst + len, 0);
 		len += 8;
+	}
 
 	// For encryption with keyring keys we required that there will be at least 8 bytes left 
 	// 4 bytes for key version and 4 bytes for post encryption checksum

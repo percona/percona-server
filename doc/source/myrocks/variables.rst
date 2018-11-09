@@ -66,7 +66,7 @@ Also, all variables can exist in one or both of the following scopes:
      - Global
    * - :variable:`rocksdb_block_cache_size`
      - Yes
-     - No
+     - Yes
      - Global
    * - :variable:`rocksdb_block_restart_interval`
      - Yes
@@ -369,6 +369,10 @@ Also, all variables can exist in one or both of the following scopes:
      - No
      - Global
    * - :variable:`rocksdb_no_block_cache`
+     - Yes
+     - No
+     - Global
+   * - :variable:`rocksdb_no_create_column_family`
      - Yes
      - No
      - Global
@@ -1805,6 +1809,20 @@ input files without impacting table readers used for user queries.
 Specifies whether to disable the block cache for column families.
 Variable is disabled by default,
 meaning that using the block cache is allowed.
+
+.. variable:: rocksdb_no_create_column_family
+
+  :version 5.7.23-24: Implemented
+  :cli: ``--rocksdb-no-create-column-family``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+Specifies whether column families can created implicitly via an index comment.
+If this variable is set to ``ON``, then column families must already exist or
+must be present within the :variable:`rocksdb_override_cf_options` for a user to
+assign and index to a column family.
 
 .. variable:: rocksdb_override_cf_options
 

@@ -4,8 +4,6 @@
 Data at Rest Encryption
 =======================
 
-This feature is considered **BETA** quality.
-
 .. contents::
    :local:
 
@@ -105,6 +103,34 @@ number 13 set if tablespace is encrypted. This bit can be ckecked with
 System Variables
 ----------------
 
+.. variable:: innodb_sys_tablespace_encrypt
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--innodb-sys-tablespace-encrypt``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``Off``	      
+
+When this variable is enabled, all data in the InnoDB system tablespace are
+encrypted.
+
+This feature is considered **ALPHA** quality.
+
+.. variable:: innodb_parallel_dblwr_encrypt
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--innodb_parallel_dblwr_encrypt``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``Off``	      
+
+When this variable is enabled, all data in the parallel double write buffer are
+encrypted.
+
+This feature is considered **ALPHA** quality.
+
 .. variable:: innodb_temp_tablespace_encrypt
 
   :version 5.7.21-21: Implemented
@@ -114,7 +140,9 @@ System Variables
   :vartype: Boolean
   :default: ``Off``
 
-When this option is turned on, server starts to encrypt temporary tablespace
+This feature is considered **BETA** quality.
+
+When this option is turned on, the server starts to encrypt temporary tablespace
 and temporary |InnoDB| file-per-table tablespaces. The option does not force
 encryption of temporary tables which are currently opened, and it doesn't
 rebuild system temporary tablespace to encrypt data which are already written.
@@ -126,8 +154,8 @@ Turning this option off at runtime makes server to create all subsequent
 temporary file-per-table tablespaces unencrypted, but does not turn off
 encryption of system temporary tablespace.
 
-.. note:: To use this option, keyring plugin must be loaded, otherwise server
-   will give error message and refuse to create new temporary tables.
+.. note:: To use this option, the keyring plugin must be loaded, otherwise
+   server will give an error message and refuse to create new temporary tables.
 
 .. variable:: innodb_encrypt_tables
 
@@ -137,6 +165,8 @@ encryption of system temporary tablespace.
   :scope: Global
   :vartype: Text
   :default: ``OFF``
+
+This feature is considered **BETA** quality.
 
 This variable has 3 possible values. ``ON`` makes |InnoDB| tables encrypted by
 default. ``FORCE`` disables creation of unencrypted tables. ``OFF`` restores
@@ -196,6 +226,8 @@ Temporary file encryption
 A new feature, implemented since |Percona Server| :rn:`5.7.22-22`, is
 encryption of temporary files, triggered by the :variable:`encrypt-tmp-files`
 option.
+
+This feature is considered **BETA** quality.
 
 Temporary files are currently used in |Percona Server| for the following
 purposes:

@@ -139,7 +139,28 @@ Closes the log.
 @return lsn */
 lsn_t
 log_close(void);
-/*===========*/
+
+/** Write the encryption info into the log file header(the 3rd block).
+It just need to flush the file header block with current master key.
+@param[in]	key	encryption key
+@param[in]	iv	encryption iv
+@param[in]	is_boot	if it is for bootstrap
+@return true if success. */
+bool
+log_write_encryption(
+	byte*	key,
+	byte*	iv);
+
+/** Rotate the redo log encryption
+ * It will re-encrypt the redo log encryption metadata and write it to
+ * redo log file header.
+ * @return true if success. */
+bool
+log_rotate_encryption();
+
+/** Enables redo log encryption. */
+void
+log_enable_encryption_if_set();
 /************************************************************//**
 Gets the current lsn.
 @return current lsn */
@@ -187,6 +208,12 @@ void
 log_io_complete(
 /*============*/
 	log_group_t*	group);	/*!< in: log group */
+/* Read the first log file header to get the encryption
+information if it exist.
+@return true if success */
+MY_NODISCARD
+bool
+log_read_encryption();
 /******************************************************//**
 This function is called, e.g., when a transaction wants to commit. It checks
 that the log has been written to the log file up to the last log entry written
@@ -366,9 +393,24 @@ ulint
 log_block_calc_checksum_crc32(
 	const byte*	block);
 
+/** Gets a log block encrypt bit.
+@param[in]	log_block	log block
+@return TRUE if this block was encrypted */
+MY_NODISCARD
+UNIV_INLINE
+bool
+log_block_get_encrypt_bit(
+	const byte*	log_block);
 /** Calculates the checksum for a log block using the "no-op" algorithm.
 @param[in]	block	the redo log block
 @return		the calculated checksum value */
+/** Sets the log block encrypt bit.
+@param[in,out]	log_block	log block
+@param[in]	val		value to set */
+UNIV_INLINE
+void
+log_block_set_encrypt_bit(byte* log_block, bool val);
+
 UNIV_INLINE
 ulint
 log_block_calc_checksum_none(const byte*	block);
@@ -509,6 +551,11 @@ extern my_bool	innodb_log_checksums;
 #define LOG_BLOCK_FLUSH_BIT_MASK 0x80000000UL
 					/* mask used to get the highest bit in
 					the preceding field */
+#define LOG_BLOCK_ENCRYPT_BIT_MASK 0x8000UL
+					/* mask used to get the highest bit in
+					the data len field, this bit is to
+					indicate if this block is encrypted or
+					not */
 #define	LOG_BLOCK_HDR_DATA_LEN	4	/* number of bytes of log written to
 					this block */
 #define	LOG_BLOCK_FIRST_REC_GROUP 6	/* offset of the first start of an
@@ -555,6 +602,7 @@ because InnoDB never supported more than one copy of the redo log. */
 LOG_FILE_START_LSN started here, 4 bytes earlier than LOG_HEADER_START_LSN,
 which the LOG_FILE_START_LSN was renamed to. */
 #define LOG_HEADER_PAD1		4
+#define LOG_HEADER_ENCRYPT_VER	4
 /** LSN of the start of data in this log file (with format version 1;
 in format version 0, it was called LOG_FILE_START_LSN and at offset 4). */
 #define LOG_HEADER_START_LSN	8
@@ -822,6 +870,14 @@ struct log_t{
 	mutex_exit(&log_sys->mutex);		\
 	mutex_exit(&log_sys->write_mutex);	\
 } while (0)
+
+/* log scrubbing speed, in bytes/sec */
+extern ulonglong innodb_scrub_log_speed;
+
+/** Event to wake up log_scrub_thread */
+extern os_event_t       log_scrub_event;
+/** Whether log_scrub_thread is active */
+extern bool             log_scrub_thread_active;
 
 /** Calculate the offset of an lsn within a log group.
 @param[in]	lsn	log sequence number

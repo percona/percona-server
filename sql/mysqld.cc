@@ -2989,7 +2989,7 @@ int init_common_variables()
   /* TODO: remove this when my_time_t is 64 bit compatible */
   if (!IS_TIME_T_VALID_FOR_TIMESTAMP(server_start_time))
   {
-    sql_print_error("This MySQL server doesn't support dates later then 2038");
+    sql_print_error("This MySQL server doesn't support dates later than 2038");
     return 1;
   }
 
@@ -3679,9 +3679,11 @@ static int init_ssl()
         " Disabling FIPS.");
     FIPS_mode_set(0);
   }
-#endif /* HAVE_YASSL */
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   CRYPTO_malloc_init();
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  OPENSSL_malloc_init();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
@@ -3708,8 +3710,8 @@ static int init_ssl()
                                           opt_ssl_crl, opt_ssl_crlpath, ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-    ERR_remove_state(0);
-#endif
+    ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     if (!ssl_acceptor_fd)
     {
       /*
@@ -3840,8 +3842,8 @@ static int generate_server_uuid()
 
   strncpy(server_uuid, uuid.c_ptr(), sizeof(server_uuid));
   DBUG_EXECUTE_IF("server_uuid_deterministic",
-                  strncpy(server_uuid, "00000000-1111-0000-1111-000000000000",
-                          sizeof(server_uuid)););
+                  memcpy(server_uuid, "00000000-1111-0000-1111-000000000000",
+                         UUID_LENGTH););
   server_uuid[UUID_LENGTH]= '\0';
   return 0;
 }
@@ -4626,6 +4628,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   {
     mysql_bin_log.purge_logs_maximum_number(max_binlog_files);
   }
+  if (opt_bin_log && binlog_space_limit)
+  {
+    mysql_bin_log.purge_logs_by_size(true);
+  }
 #endif
 
   if (opt_myisam_log)
@@ -5138,6 +5144,20 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  /* Server generates uuid after innodb is initialized. But during
+  initialization, if tablespaces like system, redo, temporary are encrypted,
+  they are initialized with "empty" UUID. Now UUID is available, fix the
+  empty UUID of such tablespaces now */
+  if (innodb_hton != NULL && innodb_hton->fix_tablespaces_empty_uuid)
+  {
+    if (innodb_hton->fix_tablespaces_empty_uuid())
+    {
+      sql_print_error("Fixing empty UUID with InnoDB Engine failed. Please"
+		      " check if keyring plugin is loaded and execute"
+		      " \"ALTER INSTANCE ROTATE INNODB MASTER KEY\"");
+    }
+  }
+
   /*
     Add server_uuid to the sid_map.  This must be done after
     server_uuid has been initialized in init_server_auto_options and
@@ -5333,6 +5353,8 @@ int mysqld_main(int argc, char **argv)
       grant_init(opt_noacl))
   {
     abort_loop= true;
+    sql_print_error("Fatal error: Failed to initialize ACL/grant/time zones "
+                    "structures or failed to remove temporary table files.");
 
     delete_pid_file(MYF(MY_WME));
 

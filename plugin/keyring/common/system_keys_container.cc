@@ -98,7 +98,7 @@ bool System_keys_container::rotate_key_id_if_system_key_without_version(IKey *ke
   if (!is_system_key_without_version(key))
     return false;
 
-  uint key_version = 0; // if we rotate from plain system key, we assign version 0 to it
+  uint key_version = 1; // if we rotate from plain system key, we assign version 1 to it
   if (system_key_id_to_system_key.count(*key->get_key_id()) != 0)
   {
     key_version = system_key_id_to_system_key[*key->get_key_id()]->get_key_version();

@@ -1,0 +1,8 @@
+[non-native-partitioning]
+loose-tokudb-enable-native-partition=off
+
+[native-partitioning]
+loose-tokudb-enable-native-partition=on
+mtr-result-dir = r-native-partitioning
+mtr-tests-list = ai_part,drop_add_pk_part_104,hcad_part,rename_column_cold_part_104
+

@@ -1,0 +1,5 @@
+--source include/have_innodb.inc
+
+--skip Not implemented
+
+SELECT @@global.innodb_encryption_rotation_iops;

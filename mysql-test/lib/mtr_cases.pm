@@ -545,7 +545,17 @@ sub collect_one_suite($)
 	my $comb= {};
 	$comb->{name}= $group->name();
         foreach my $option ( $group->options() ) {
-	  push(@{$comb->{comb_opt}}, $option->option());
+        my $option_string = $option->option();
+        if ($option_string =~ m/--mtr[-_]result[-_]dir\s*=\s*(.+)/) {
+          mtr_verbose("The result dir was changed to $1");
+          $comb->{result_dir} = $1;
+        } elsif ($option_string =~ m/--mtr[-_]tests[-_]list\s*=\s*(.+)/) {
+          my @comb_tests_array = split (/,/, $1);
+          my %comb_tests_set = map { $_ => 1 } @comb_tests_array;
+          $comb->{tests_set} = \%comb_tests_set;
+        } else {
+          push(@{$comb->{comb_opt}}, $option->option());
+        }
 	}
 	push(@combinations, $comb);
       }
@@ -564,6 +574,8 @@ sub collect_one_suite($)
 
 	  next if ( $test->{'skip'} );
 
+    next if ($comb->{tests_set} and not
+             $comb->{tests_set}->{$test->{shortname}});
 	  # Skip this combination if the values it provides
 	  # already are set in master_opt or slave_opt
 	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
@@ -584,6 +596,16 @@ sub collect_one_suite($)
 	  # Append the combination options to master_opt and slave_opt
 	  push(@{$new_test->{master_opt}}, @{$comb->{comb_opt}});
 	  push(@{$new_test->{slave_opt}}, @{$comb->{comb_opt}});
+
+    if ($comb->{result_dir}) {
+      my $result_file = "$suitedir/$comb->{result_dir}/".
+                        "$new_test->{shortname}.result";
+      if (-f $result_file) {
+        $new_test->{result_file} = $result_file;
+      } else {
+        $new_test->{record_file} =  $result_file;
+      }
+    }
 
 	  # Add combination name short name
 	  $new_test->{combination}= $comb->{name};

@@ -25,7 +25,7 @@
 #include <openssl/ssl.h>
 #include "aes.hpp"
 
-using yaSSL::yaERR_remove_state;
+using yaSSL::yaERR_remove_thread_state;
 
 #define EVP_CIPH_ECB_MODE     0x1
 #define EVP_CIPH_CBC_MODE     0x2

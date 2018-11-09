@@ -25,6 +25,7 @@
 
 /* C++ standard header files */
 #include <algorithm>
+#include <inttypes.h>
 #include <limits>
 #include <map>
 #include <queue>
@@ -41,6 +42,7 @@
 #include "mysql/thread_pool_priv.h"
 #include "mysys_err.h"
 #include "sql_audit.h"
+#include "sql_partition.h"
 #include "sql_table.h"
 
 // Both MySQL and RocksDB define the same constant. To avoid compilation errors
@@ -64,6 +66,7 @@
 /* MyRocks includes */
 #include "./event_listener.h"
 #include "./ha_rocksdb_proto.h"
+#include "./ha_rockspart.h"
 #include "./logger.h"
 #include "./rdb_cf_manager.h"
 #include "./rdb_cf_options.h"
@@ -332,6 +335,7 @@ static void rocksdb_drop_index_wakeup_thread(
 
 static my_bool rocksdb_pause_background_work = 0;
 static mysql_mutex_t rdb_sysvars_mutex;
+static mysql_mutex_t rdb_block_cache_resize_mutex;
 
 static void rocksdb_set_pause_background_work(
     my_core::THD *const thd MY_ATTRIBUTE((__unused__)),
@@ -414,6 +418,9 @@ static void rocksdb_set_wal_bytes_per_sync(THD *thd,
                                            struct st_mysql_sys_var *const var,
                                            void *const var_ptr,
                                            const void *const save);
+static int rocksdb_validate_set_block_cache_size(
+    THD *thd, struct st_mysql_sys_var *const var, void *var_ptr,
+    struct st_mysql_value *value);
 //////////////////////////////////////////////////////////////////////////////
 // Options definitions
 //////////////////////////////////////////////////////////////////////////////
@@ -469,6 +476,7 @@ static char *rocksdb_strict_collation_exceptions = nullptr;
 static my_bool rocksdb_collect_sst_properties = TRUE;
 static my_bool rocksdb_force_flush_memtable_now_var = FALSE;
 static my_bool rocksdb_force_flush_memtable_and_lzero_now_var = FALSE;
+static my_bool rocksdb_enable_native_partition = FALSE;
 static my_bool rocksdb_enable_ttl = TRUE;
 static my_bool rocksdb_enable_ttl_read_filtering = TRUE;
 static int rocksdb_debug_ttl_rec_ts = 0;
@@ -495,6 +503,7 @@ static uint64_t rocksdb_write_policy =
     rocksdb::TxnDBWritePolicy::WRITE_COMMITTED;
 static my_bool rocksdb_error_on_suboptimal_collation = FALSE;
 static uint32_t rocksdb_stats_recalc_rate = 0;
+static my_bool rocksdb_no_create_column_family = FALSE;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -549,7 +558,7 @@ static void rocksdb_set_rocksdb_info_log_level(
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
   rocksdb_info_log_level = *static_cast<const uint64_t *>(save);
   rocksdb_db_options->info_log->SetInfoLogLevel(
-      static_cast<const rocksdb::InfoLogLevel>(rocksdb_info_log_level));
+      static_cast<rocksdb::InfoLogLevel>(rocksdb_info_log_level));
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
@@ -1107,8 +1116,9 @@ static MYSQL_SYSVAR_BOOL(
     "DBOptions::enable_thread_tracking for RocksDB", nullptr, nullptr, true);
 
 static MYSQL_SYSVAR_LONGLONG(block_cache_size, rocksdb_block_cache_size,
-                             PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                             "block_cache size for RocksDB", nullptr, nullptr,
+                             PLUGIN_VAR_RQCMDARG,
+                             "block_cache size for RocksDB",
+                             rocksdb_validate_set_block_cache_size, nullptr,
                              /* default */ RDB_DEFAULT_BLOCK_CACHE_SIZE,
                              /* min */ RDB_MIN_BLOCK_CACHE_SIZE,
                              /* max */ LLONG_MAX,
@@ -1208,7 +1218,8 @@ static MYSQL_SYSVAR_STR(override_cf_options, rocksdb_override_cf_options,
                         "");
 
 static MYSQL_SYSVAR_STR(update_cf_options, rocksdb_update_cf_options,
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_NOCMDOPT,
                         "Option updates per column family for RocksDB",
                         rocksdb_validate_update_cf_options,
                         rocksdb_set_update_cf_options, nullptr);
@@ -1297,6 +1308,12 @@ static MYSQL_SYSVAR_BOOL(pause_background_work, rocksdb_pause_background_work,
                          PLUGIN_VAR_RQCMDARG,
                          "Disable all rocksdb background operations", nullptr,
                          rocksdb_set_pause_background_work, false);
+
+static MYSQL_SYSVAR_BOOL(
+    enable_native_partition, rocksdb_enable_native_partition,
+    PLUGIN_VAR_READONLY,
+    "Enable native partitioning", nullptr,
+    nullptr, false);
 
 static MYSQL_SYSVAR_BOOL(
     enable_ttl, rocksdb_enable_ttl, PLUGIN_VAR_RQCMDARG,
@@ -1512,6 +1529,12 @@ static MYSQL_SYSVAR_BOOL(error_on_suboptimal_collation,
                          "collation is used",
                          nullptr, nullptr, false);
 
+static MYSQL_SYSVAR_BOOL(
+    no_create_column_family, rocksdb_no_create_column_family,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "Do not allow creation of new Column Families through index comments.",
+    nullptr, nullptr, false);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct st_mysql_sys_var *rocksdb_system_variables[] = {
@@ -1628,6 +1651,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(collect_sst_properties),
     MYSQL_SYSVAR(force_flush_memtable_now),
     MYSQL_SYSVAR(force_flush_memtable_and_lzero_now),
+    MYSQL_SYSVAR(enable_native_partition),
     MYSQL_SYSVAR(enable_ttl),
     MYSQL_SYSVAR(enable_ttl_read_filtering),
     MYSQL_SYSVAR(debug_ttl_rec_ts),
@@ -1659,6 +1683,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(large_prefix),
     MYSQL_SYSVAR(allow_to_start_after_corruption),
     MYSQL_SYSVAR(error_on_suboptimal_collation),
+    MYSQL_SYSVAR(no_create_column_family),
     MYSQL_SYSVAR(stats_recalc_rate),
     nullptr};
 
@@ -2818,6 +2843,13 @@ error:
   get_for_update(rocksdb::ColumnFamilyHandle *const column_family,
                  const rocksdb::Slice &key, rocksdb::PinnableSlice *const value,
                  bool exclusive) override {
+    if (value == nullptr) {
+      rocksdb::PinnableSlice pin_val;
+      rocksdb::Status s = get(column_family, key, &pin_val);
+      pin_val.Reset();
+      return s;
+    }
+
     return get(column_family, key, value);
   }
 
@@ -3394,6 +3426,7 @@ private:
     if (!path_entry.path.empty() && !path_entry.limit_exceeded) {
       const auto& deadlocking_txn = *(path_entry.path.end() - 1);
       deadlock_info.victim_trx_id = deadlocking_txn.m_txn_id;
+      deadlock_info.deadlock_time = path_entry.deadlock_time;
     }
     return deadlock_info;
   }
@@ -3837,6 +3870,8 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   return status;
 }
 
+static uint rocksdb_partition_flags() { return (HA_CANNOT_PARTITION_FK); }
+
 /*
   Storage Engine initialization function, invoked when plugin is loaded.
 */
@@ -3893,6 +3928,8 @@ static int rocksdb_init_func(void *const p) {
 
   mysql_mutex_init(rdb_sysvars_psi_mutex_key, &rdb_sysvars_mutex,
                    MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(rdb_block_cache_resize_mutex_key,
+                   &rdb_block_cache_resize_mutex, MY_MUTEX_INIT_FAST);
   Rdb_transaction::init_mutex();
 
   rocksdb_hton->state = SHOW_OPTION_YES;
@@ -3916,6 +3953,9 @@ static int rocksdb_init_func(void *const p) {
 
   rocksdb_hton->flags = HTON_TEMPORARY_NOT_SUPPORTED |
                         HTON_SUPPORTS_EXTENDED_KEYS | HTON_CAN_RECREATE;
+
+  if (rocksdb_enable_native_partition)
+    rocksdb_hton->partition_flags = rocksdb_partition_flags;
 
   DBUG_ASSERT(!mysqld_embedded);
 
@@ -4321,6 +4361,7 @@ static int rocksdb_done_func(void *const p) {
 
   mysql_mutex_destroy(&rdb_open_tables.m_mutex);
   mysql_mutex_destroy(&rdb_sysvars_mutex);
+  mysql_mutex_destroy(&rdb_block_cache_resize_mutex);
 
   delete rdb_collation_exceptions;
   mysql_mutex_destroy(&rdb_collation_data_mutex);
@@ -4767,6 +4808,18 @@ void Rdb_open_tables_map::release_table_handler(
 static handler *rocksdb_create_handler(my_core::handlerton *const hton,
                                        my_core::TABLE_SHARE *const table_arg,
                                        my_core::MEM_ROOT *const mem_root) {
+
+  if (rocksdb_enable_native_partition &&
+      table_arg && table_arg->db_type() == rocksdb_hton &&
+      table_arg->partition_info_str && table_arg->partition_info_str_len) {
+    ha_rockspart *file = new (mem_root) ha_rockspart(hton, table_arg);
+    if (file && file->init_partitioning(mem_root)) {
+      delete file;
+      return nullptr;
+    }
+    return (file);
+  }
+
   return new (mem_root) ha_rocksdb(hton, table_arg);
 }
 
@@ -4814,7 +4867,8 @@ bool ha_rocksdb::init_with_fields() {
   const uint pk = table_share->primary_key;
   if (pk != MAX_KEY) {
     const uint key_parts = table_share->key_info[pk].user_defined_key_parts;
-    check_keyread_allowed(pk /*PK*/, key_parts - 1, true);
+    check_keyread_allowed(m_pk_can_be_decoded, table_share, pk /*PK*/,
+                          key_parts - 1, true);
   } else
     m_pk_can_be_decoded = false;
 
@@ -6223,7 +6277,8 @@ int ha_rocksdb::create_cfs(
     // Here's how `get_or_create_cf` will use the input parameters:
     //
     // `cf_name` - will be used as a CF name.
-    cf_handle = cf_manager.get_or_create_cf(rdb, cf_name);
+    cf_handle = cf_manager.get_or_create_cf(rdb, cf_name,
+                                            !rocksdb_no_create_column_family);
 
     if (!cf_handle) {
       DBUG_RETURN(HA_EXIT_FAILURE);
@@ -6863,8 +6918,9 @@ error:
   See comment in ha_rocksdb::index_flags() for details.
 */
 
-bool ha_rocksdb::check_keyread_allowed(uint inx, uint part,
-                                       bool all_parts) const {
+bool ha_rocksdb::check_keyread_allowed(bool &pk_can_be_decoded,
+                                       const TABLE_SHARE *table_share, uint inx,
+                                       uint part, bool all_parts) {
   bool res = true;
   KEY *const key_info = &table_share->key_info[inx];
 
@@ -6890,7 +6946,7 @@ bool ha_rocksdb::check_keyread_allowed(uint inx, uint part,
   const uint pk = table_share->primary_key;
   if (inx == pk && all_parts &&
       part + 1 == table_share->key_info[pk].user_defined_key_parts) {
-    m_pk_can_be_decoded = res;
+    pk_can_be_decoded = res;
   }
 
   return res;
@@ -7212,13 +7268,16 @@ int ha_rocksdb::read_row_from_secondary_key(uchar *const buf,
     yet).
 */
 
-ulong ha_rocksdb::index_flags(uint inx, uint part, bool all_parts) const {
+ulong ha_rocksdb::index_flags(bool &pk_can_be_decoded,
+                              const TABLE_SHARE *table_share, uint inx,
+                              uint part, bool all_parts) {
   DBUG_ENTER_FUNC();
 
   ulong base_flags = HA_READ_NEXT | // doesn't seem to be used
                      HA_READ_ORDER | HA_READ_RANGE | HA_READ_PREV;
 
-  if (check_keyread_allowed(inx, part, all_parts))
+  if (check_keyread_allowed(pk_can_be_decoded, table_share, inx, part,
+                            all_parts))
     base_flags |= HA_KEYREAD_ONLY;
 
   if (inx == table_share->primary_key) {
@@ -7238,6 +7297,10 @@ ulong ha_rocksdb::index_flags(uint inx, uint part, bool all_parts) const {
   }
 
   DBUG_RETURN(base_flags);
+}
+
+ulong ha_rocksdb::index_flags(uint inx, uint part, bool all_parts) const {
+  return index_flags(m_pk_can_be_decoded, table_share, inx, part, all_parts);
 }
 
 /**
@@ -8303,7 +8366,7 @@ bool ha_rocksdb::is_pk(const uint index, const TABLE *const table_arg,
          is_hidden_pk(index, table_arg, tbl_def_arg);
 }
 
-uint ha_rocksdb::max_supported_key_part_length() const {
+uint ha_rocksdb::max_supported_key_part_length(HA_CREATE_INFO *) const {
   DBUG_ENTER_FUNC();
   DBUG_RETURN(rocksdb_large_prefix ? MAX_INDEX_COL_LEN_LARGE
                                    : MAX_INDEX_COL_LEN_SMALL);
@@ -8497,8 +8560,7 @@ int ha_rocksdb::check_and_lock_unique_pk(const uint &key_id,
     /*
       If the keys are the same, then no lock is needed
     */
-    if (!Rdb_pk_comparator::bytewise_compare(row_info.new_pk_slice,
-                                             row_info.old_pk_slice)) {
+    if (!row_info.new_pk_slice.compare(row_info.old_pk_slice)) {
       *found = false;
       return HA_EXIT_SUCCESS;
     }
@@ -8606,7 +8668,7 @@ int ha_rocksdb::check_and_lock_sk(const uint &key_id,
       If the old and new keys are the same we're done since we've already taken
       the lock on the old key
     */
-    if (!Rdb_pk_comparator::bytewise_compare(new_slice, old_slice)) {
+    if (!new_slice.compare(old_slice)) {
       return HA_EXIT_SUCCESS;
     }
   }
@@ -10146,7 +10208,7 @@ Rdb_tbl_def *ha_rocksdb::get_table_if_exists(const char *const tablename) {
     other            HA_ERR error code (can be SE-specific)
 */
 
-int ha_rocksdb::delete_table(const char *const tablename) {
+int ha_rocksdb::delete_non_partitioned_table(const char *const tablename) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(tablename != nullptr);
@@ -10174,6 +10236,44 @@ int ha_rocksdb::delete_table(const char *const tablename) {
   rdb_drop_idx_thread.signal();
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
+}
+
+static int init_partition_handler(THD *thd, const std::string &partition_string,
+                                  ha_rockspart &file) {
+  DBUG_ASSERT(thd);
+  MEM_ROOT *mem_root = thd->mem_root;
+
+  partition_info *part_info =
+      native_part::parse_partition_info(thd, partition_string);
+
+  if (file.init_partitioning(mem_root))
+    return HA_ERR_CANNOT_INITIALIZE_PARTITIONING;
+
+  file.set_part_info(part_info, false);
+
+  if (file.initialize_partition(mem_root))
+    return HA_ERR_CANNOT_INITIALIZE_PARTITIONING;
+
+  return 0;
+}
+
+int ha_rocksdb::delete_partitioned_table(
+    const char *const tablename, const std::string &partition_info_str) {
+  ha_rockspart file(rocksdb_hton, nullptr);
+  int result = init_partition_handler(ha_thd(), partition_info_str, file);
+  if (result)
+    return result;
+  return file.delete_table(tablename);
+}
+
+int ha_rocksdb::delete_table(const char *const tablename) {
+  DBUG_ASSERT(tablename);
+  std::string partition_info_str;
+  if (!native_part::get_part_str_for_table(tablename, partition_info_str))
+    return HA_ERR_TABLE_CORRUPT;
+  if (partition_info_str.empty())
+    return delete_non_partitioned_table(tablename);
+  return delete_partitioned_table(tablename, partition_info_str);
 }
 
 int ha_rocksdb::remove_rows(Rdb_tbl_def *const tbl) {
@@ -10236,12 +10336,23 @@ int ha_rocksdb::remove_rows(Rdb_tbl_def *const tbl) {
   return HA_EXIT_SUCCESS;
 }
 
+int ha_rocksdb::rename_partitioned_table(const char *const from,
+                                         const char *const to,
+                                         const std::string &partition_string) {
+  ha_rockspart file(rocksdb_hton, nullptr);
+  int result = init_partition_handler(ha_thd(), partition_string, file);
+  if (result)
+    return result;
+  return file.rename_table(from, to);
+}
+
 /**
   @return
     HA_EXIT_SUCCESS  OK
     other            HA_ERR error code (cannot be SE-specific)
 */
-int ha_rocksdb::rename_table(const char *const from, const char *const to) {
+int ha_rocksdb::rename_non_partitioned_table(const char *const from,
+                                             const char *const to) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(from != nullptr);
@@ -10296,6 +10407,17 @@ int ha_rocksdb::rename_table(const char *const from, const char *const to) {
   dict_manager.unlock();
 
   DBUG_RETURN(rc);
+}
+
+int ha_rocksdb::rename_table(const char *const from, const char *const to) {
+  DBUG_ASSERT(from);
+  DBUG_ASSERT(to);
+  std::string partition_info_str;
+  if (!native_part::get_part_str_for_table(from, partition_info_str))
+    return HA_ERR_TABLE_CORRUPT;
+  if (partition_info_str.empty())
+    return rename_non_partitioned_table(from, to);
+  return rename_partitioned_table(from, to, partition_info_str);
 }
 
 /**
@@ -12576,6 +12698,42 @@ static void rocksdb_set_wal_bytes_per_sync(
   }
 
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
+}
+
+/*
+  Validating and updating block cache size via sys_var::check path.
+  SetCapacity may take seconds when reducing block cache, and
+  sys_var::update holds LOCK_global_system_variables mutex, so
+  updating block cache size is done at check path instead.
+*/
+static int rocksdb_validate_set_block_cache_size(
+    THD *thd MY_ATTRIBUTE((__unused__)),
+    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
+    void *var_ptr, struct st_mysql_value *value) {
+  DBUG_ASSERT(value != nullptr);
+
+  long long new_value;
+
+  /* value is NULL */
+  if (value->val_int(value, &new_value)) {
+    return HA_EXIT_FAILURE;
+  }
+
+  if (new_value < RDB_MIN_BLOCK_CACHE_SIZE ||
+      (uint64_t)new_value > (uint64_t)LLONG_MAX) {
+    return HA_EXIT_FAILURE;
+  }
+
+  RDB_MUTEX_LOCK_CHECK(rdb_block_cache_resize_mutex);
+  const rocksdb::BlockBasedTableOptions &table_options =
+      rdb_get_table_options();
+
+  if (rocksdb_block_cache_size != new_value && table_options.block_cache) {
+    table_options.block_cache->SetCapacity(new_value);
+  }
+  *static_cast<int64_t *>(var_ptr) = static_cast<int64_t>(new_value);
+  RDB_MUTEX_UNLOCK_CHECK(rdb_block_cache_resize_mutex);
+  return HA_EXIT_SUCCESS;
 }
 
 static int rocksdb_validate_update_cf_options(

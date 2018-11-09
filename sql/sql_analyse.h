@@ -1,7 +1,7 @@
 #ifndef SQL_ANALYSE_INCLUDED
 #define SQL_ANALYSE_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,8 +67,7 @@ int compare_ulonglong(const ulonglong *s, const ulonglong *t);
 int compare_ulonglong2(void* cmp_arg MY_ATTRIBUTE((unused)),
 		       const ulonglong *s, const ulonglong *t);
 int compare_decimal2(int* len, const char *s, const char *t);
-void free_string(void* key, TREE_FREE action MY_ATTRIBUTE((unused)),
-                 const void *param MY_ATTRIBUTE((unused)));
+void free_string(void*, TREE_FREE, const void*);
 class Query_result_analyse;
 
 class field_info :public Sql_alloc

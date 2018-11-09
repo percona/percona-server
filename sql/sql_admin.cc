@@ -281,8 +281,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                                             HA_CHECK_OPT *),
                               int (view_operator_func)(THD *, TABLE_LIST*))
 {
-  Disable_autocommit_guard autocommit_guard(thd);
-
   TABLE_LIST *table;
   SELECT_LEX *select= thd->lex->select_lex;
   List<Item> field_list;
@@ -294,7 +292,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     ((thd->variables.gtid_next.type == GTID_GROUP ||
       thd->variables.gtid_next.type == ANONYMOUS_GROUP) &&
     (!thd->skip_gtid_rollback));
-  bool ignore_grl_on_analyze= operator_func == &handler::ha_analyze;
   DBUG_ENTER("mysql_admin_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
@@ -595,8 +592,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       length= my_snprintf(buff, sizeof(buff), ER(ER_OPEN_AS_READONLY),
                           table_name);
       protocol->store(buff, length, system_charset_info);
-      trans_commit_stmt(thd, ignore_grl_on_analyze);
-      trans_commit(thd, ignore_grl_on_analyze);
+      trans_commit_stmt(thd);
+      trans_commit(thd);
       /* Make sure this table instance is not reused after the operation. */
       if (table->table)
         table->table->m_needs_reopen= true;
@@ -827,8 +824,8 @@ send_result_message:
         reopen the table and do ha_innobase::analyze() on it.
         We have to end the row, so analyze could return more rows.
       */
-      trans_commit_stmt(thd, ignore_grl_on_analyze);
-      trans_commit(thd, ignore_grl_on_analyze);
+      trans_commit_stmt(thd);
+      trans_commit(thd);
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
 
@@ -873,8 +870,8 @@ send_result_message:
       */
       if (thd->get_stmt_da()->is_ok())
         thd->get_stmt_da()->reset_diagnostics_area();
-      trans_commit_stmt(thd, ignore_grl_on_analyze);
-      trans_commit(thd, ignore_grl_on_analyze);
+      trans_commit_stmt(thd);
+      trans_commit(thd);
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
       /* Clear references to TABLE and MDL_ticket after releasing them. */
@@ -1085,8 +1082,7 @@ send_result_message:
     }
     else
     {
-      if (trans_commit_stmt(thd, ignore_grl_on_analyze) ||
-          trans_commit_implicit(thd, ignore_grl_on_analyze))
+      if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
         goto err;
     }
     close_thread_tables(thd);
@@ -1215,7 +1211,6 @@ bool Sql_cmd_analyze_table::execute(THD *thd)
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error;
-
   thd->set_slow_log_for_admin_command();
   res= mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                          "analyze", lock_type, 1, 0, 0, 0,

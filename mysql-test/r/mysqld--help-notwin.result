@@ -136,6 +136,9 @@ The following options may be given as the first argument:
  FULL).
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
+ --binlog-space-limit=# 
+ Maximum space to use for all binary logs. Default is 0,
+ this feature is disabled.
  --binlog-stmt-cache-size=# 
  The size of the statement cache for updates to
  non-transactional engines for the binary log. If you
@@ -577,7 +580,8 @@ The following options may be given as the first argument:
  Maximum number of binlog files. Used with
  --max-binlog-size this can be used to limit the total
  amount of disk space used for the binlog. Default is 0,
- don't limit.
+ don't limit. This variable is deprecated and will be
+ removed in a future release.
  --max-binlog-size=# Binary log will be rotated automatically when the size
  exceeds this value. Will also apply to relay logs if
  max_relay_log_size is 0
@@ -1395,6 +1399,7 @@ binlog-order-commits TRUE
 binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
+binlog-space-limit 0
 binlog-stmt-cache-size 32768
 binlog-transaction-dependency-history-size 25000
 binlog-transaction-dependency-tracking COMMIT_ORDER

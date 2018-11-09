@@ -1991,6 +1991,7 @@ void plugin_shutdown(void)
   st_plugin_int **plugins, *plugin;
   st_plugin_dl **dl;
   bool skip_binlog = true;
+  std::list<st_plugin_int*> keyring_plugins;
 
   DBUG_ENTER("plugin_shutdown");
 
@@ -2015,16 +2016,19 @@ void plugin_shutdown(void)
       {
         plugin= plugin_array->at(i);
 
-	if (plugin->state == PLUGIN_IS_READY
-	    && strcmp(plugin->name.str, "binlog") == 0 && skip_binlog)
-	{
-		skip_binlog = false;
-
-	} else if (plugin->state == PLUGIN_IS_READY)
+	if (plugin->state == PLUGIN_IS_READY)
         {
-          plugin->state= PLUGIN_IS_DELETED;
-          reap_needed= true;
-        }
+	    if(strcmp(plugin->name.str, "binlog") == 0 && skip_binlog)
+	    {
+		skip_binlog = false;
+            }
+	    else if (plugin->plugin->type != MYSQL_KEYRING_PLUGIN)
+            {
+              plugin->state= PLUGIN_IS_DELETED;
+              reap_needed= true;
+            } else if (plugin->plugin->type == MYSQL_KEYRING_PLUGIN)
+              keyring_plugins.push_back(plugin);
+         }
       }
       if (!reap_needed)
       {
@@ -2049,6 +2053,13 @@ void plugin_shutdown(void)
         plugins[i]->state= PLUGIN_IS_DYING;
     }
     mysql_mutex_unlock(&LOCK_plugin);
+
+    for(std::list<st_plugin_int*>::iterator keyring_iter = keyring_plugins.begin();
+        keyring_iter != keyring_plugins.end(); ++keyring_iter)
+    {
+       if (!((*keyring_iter)->state & PLUGIN_IS_UNINITIALIZED))
+          plugin_deinitialize(*keyring_iter, false);
+    }
 
     /*
       We loop through all plugins and call deinit() if they have one.
@@ -2442,6 +2453,15 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
              "Plugin is busy, it cannot be uninstalled. To force a"
              " stop run STOP GROUP_REPLICATION and then UNINSTALL"
              " PLUGIN group_replication.");
+    goto err;
+  }
+
+  if (plugin->ref_count && plugin->plugin->type == MYSQL_KEYRING_PLUGIN)
+  {
+    mysql_mutex_unlock(&LOCK_plugin);
+    
+    my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name->str,
+             "Plugin is busy, it cannot be uninstalled. ");
     goto err;
   }
 #endif

@@ -346,7 +346,15 @@ row_undo_mod_clust(
 		}
 	}
 
-	ut_ad(rec_get_trx_id(btr_pcur_get_rec(pcur), index)
+        /**
+        * when scrubbing, and records gets cleared,
+        *   the transaction id is not present afterwards.
+        *   this is safe as: since the record is on free-list
+        *   it can be reallocated at any time after this mtr-commits
+        *   which is just below
+        */
+        ut_ad(srv_immediate_scrub_data_uncompressed
+	      || rec_get_trx_id(btr_pcur_get_rec(pcur), index)
 	      == node->new_trx_id);
 
 	btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -1135,7 +1143,7 @@ row_undo_mod_parse_undo_rec(
 		return;
 	}
 
-	if (node->table->ibd_file_missing ||
+	if (node->table->file_unreadable ||
 	    fil_space_is_being_truncated(node->table->space) ) {
 		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;

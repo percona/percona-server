@@ -39,3 +39,5 @@ select variable_name as `There should be *no* variables listed below:` from t2
 
 drop table t1;
 drop table t2;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/rocksdb_sys_vars.all_vars.txt

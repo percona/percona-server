@@ -24,12 +24,20 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #include "hatoku_hton.h"
-#include "hatoku_cmp.h"
 #include "tokudb_buffer.h"
 #include "tokudb_status.h"
-#include "tokudb_card.h"
 #include "ha_tokudb.h"
+#include "ha_tokupart.h"
+#include "hatoku_cmp.h"
+#include "partition_info.h"
+#include "partitioning/partition_base.h"
 #include "sql_db.h"
+#include "sql_parse.h"
+#include "sql_table.h"
+#include "table.h"
+#include "tokudb_card.h"
+
+#include "mysql/psi/mysql_file.h"
 
 pfs_key_t ha_tokudb_mutex_key;
 pfs_key_t num_DBs_lock_key;
@@ -441,23 +449,6 @@ static inline bool is_insert_ignore (THD* thd) {
 
 static inline bool is_replace_into(THD* thd) {
     return thd->lex->duplicates == DUP_REPLACE;
-}
-
-static inline bool do_ignore_flag_optimization(
-    THD* thd,
-    TABLE* table,
-    bool opt_eligible) {
-
-    bool do_opt = false;
-    if (opt_eligible &&
-        (is_replace_into(thd) || is_insert_ignore(thd)) &&
-        !table->triggers &&
-        !(mysql_bin_log.is_open() &&
-         thd->variables.binlog_format != BINLOG_FORMAT_STMT)) {
-        do_opt = true;
-    }
-
-    return do_opt;
 }
 
 ulonglong ha_tokudb::table_flags() const {
@@ -1572,39 +1563,6 @@ exit:
     return error;
 }
 
-bool ha_tokudb::can_replace_into_be_fast(
-    TABLE_SHARE* table_share,
-    KEY_AND_COL_INFO* kc_info,
-    uint pk) {
-
-    uint curr_num_DBs = table_share->keys + tokudb_test(hidden_primary_key);
-    bool ret_val;
-    if (curr_num_DBs == 1) {
-        ret_val = true;
-        goto exit;
-    }
-    ret_val = true;
-    for (uint curr_index = 0; curr_index < table_share->keys; curr_index++) {
-        if (curr_index == pk) continue;
-        KEY* curr_key_info = &table_share->key_info[curr_index];
-        for (uint i = 0; i < curr_key_info->user_defined_key_parts; i++) {
-            uint16 curr_field_index = curr_key_info->key_part[i].field->field_index;
-            if (!bitmap_is_set(&kc_info->key_filters[curr_index],curr_field_index)) {
-                ret_val = false;
-                goto exit;
-            }
-            if (bitmap_is_set(&kc_info->key_filters[curr_index], curr_field_index) &&
-                !bitmap_is_set(&kc_info->key_filters[pk], curr_field_index)) {
-                ret_val = false;
-                goto exit;
-            }
-            
-        }
-    }
-exit:
-    return ret_val;
-}
-
 int ha_tokudb::initialize_share(const char* name, int mode) {
     int error = 0;
     uint64_t num_rows = 0;
@@ -1704,11 +1662,6 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
             }
         }
     }
-    share->replace_into_fast =
-        can_replace_into_be_fast(
-            table_share,
-            &share->kc_info,
-            primary_key);
 
     share->pk_has_string = false;
     if (!hidden_primary_key) {
@@ -3836,41 +3789,15 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
 }
 
 // set the put flags for the main dictionary
-void ha_tokudb::set_main_dict_put_flags(
-    THD* thd,
-    uint32_t* put_flags) {
-
+void ha_tokudb::set_main_dict_put_flags(THD* thd,
+                                        uint32_t* put_flags) {
     uint32_t old_prelock_flags = 0;
-    uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
-    bool in_hot_index = share->num_DBs > curr_num_DBs;
-    bool using_ignore_flag_opt =
-        do_ignore_flag_optimization(
-            thd,
-            table,
-            share->replace_into_fast && !using_ignore_no_key);
-    //
-    // optimization for "REPLACE INTO..." (and "INSERT IGNORE") command
-    // if the command is "REPLACE INTO" and the only table
-    // is the main table (or all indexes are a subset of the pk), 
-    // then we can simply insert the element
-    // with DB_YESOVERWRITE. If the element does not exist,
-    // it will act as a normal insert, and if it does exist, it 
-    // will act as a replace, which is exactly what REPLACE INTO is supposed
-    // to do. We cannot do this if otherwise, because then we lose
-    // consistency between indexes
-    //
-    if (hidden_primary_key) {
-        *put_flags = old_prelock_flags;
-    } else if (!do_unique_checks(thd, in_rpl_write_rows | in_rpl_update_rows) &&
-               !is_replace_into(thd) &&
-               !is_insert_ignore(thd)) {
-        *put_flags = old_prelock_flags;
-    } else if (using_ignore_flag_opt && is_replace_into(thd) && !in_hot_index) {
+
+    if (hidden_primary_key ||
+        (!do_unique_checks(thd, in_rpl_write_rows | in_rpl_update_rows) &&
+         !is_replace_into(thd) && !is_insert_ignore(thd))) {
         *put_flags = old_prelock_flags;
     } else {
-        // GL on DB-937 : The server expects an SE to return ER_DUP_ENTRY on a
-        // dup key hit even when IGNORE is in use. This is so the server can
-        // set the correct warnings on the statement.
         *put_flags = DB_NOOVERWRITE | old_prelock_flags;
     }
 }
@@ -3997,11 +3924,10 @@ int ha_tokudb::write_row(uchar * record) {
     int error;
     THD *thd = ha_thd();
     bool has_null;
-    DB_TXN* sub_trans = NULL;
-    DB_TXN* txn = NULL;
-    tokudb_trx_data *trx = NULL;
+    DB_TXN* sub_trans = nullptr;
+    DB_TXN* txn = nullptr;
+    tokudb_trx_data* trx = nullptr;
     uint curr_num_DBs;
-    bool create_sub_trans = false;
     bool num_DBs_locked = false;
 
     //
@@ -4078,25 +4004,15 @@ int ha_tokudb::write_row(uchar * record) {
         goto cleanup;
     }
 
-    create_sub_trans =
-        (using_ignore &&
-        !(do_ignore_flag_optimization(
-            thd,
-            table,
-            share->replace_into_fast && !using_ignore_no_key)));
-    if (create_sub_trans) {
-        error =
-            txn_begin(
-                db_env,
-                transaction,
-                &sub_trans,
-                DB_INHERIT_ISOLATION,
-                thd);
+    if (using_ignore) {
+        error = txn_begin(
+            db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION, thd);
         if (error) {
             goto cleanup;
         }
     }
-    txn = create_sub_trans ? sub_trans : transaction;
+
+    txn = using_ignore ? sub_trans : transaction;
     TOKUDB_HANDLER_TRACE_FOR_FLAGS(TOKUDB_DEBUG_TXN, "txn %p", txn);
     if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_CHECK_KEY))) {
         test_row_packing(record,&prim_key,&row);
@@ -4163,7 +4079,7 @@ cleanup:
     if (error == DB_KEYEXIST) {
         error = HA_ERR_FOUND_DUPP_KEY;
     }
-    if (sub_trans) {
+    if (using_ignore) {
         // no point in recording error value of abort.
         // nothing we can do about it anyway and it is not what
         // we want to return.
@@ -6536,7 +6452,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                       This happens if the thread didn't update any rows
                       We must in this case commit the work to keep the row locks
                     */
-                    DBUG_PRINT("trans", ("commiting non-updating transaction"));
+                    DBUG_PRINT("trans", ("committing non-updating transaction"));
                     reset_stmt_progress(&trx->stmt_progress);
                     commit_txn(trx->stmt, 0);
                     trx->stmt = NULL;
@@ -7648,16 +7564,7 @@ cleanup:
     return error;
 }
 
-
-//
-// Drops table
-// Parameters:
-//      [in]    name - name of table to be deleted
-// Returns:
-//      0 on success
-//      error otherwise
-//
-int ha_tokudb::delete_table(const char *name) {
+int ha_tokudb::delete_non_partitioned_table(const char* name) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", name);
     TOKUDB_SHARE* share = TOKUDB_SHARE::get_share(name, NULL, false);
     if (share) {
@@ -7682,7 +7589,49 @@ int ha_tokudb::delete_table(const char *name) {
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
-static bool tokudb_check_db_dir_exist_from_table_name(const char *table_name) {
+int ha_tokudb::delete_rename_partitioned_table(
+    const char* from,
+    const char* to,
+    const std::string& partition_info_str) {
+    THD* thd = ha_thd();
+    DBUG_ASSERT(thd);
+    MEM_ROOT* mem_root = thd->mem_root;
+
+    partition_info* part_info =
+        native_part::parse_partition_info(ha_thd(), partition_info_str);
+    ha_tokupart file(tokudb_hton, nullptr);
+    if (file.init_partitioning(mem_root))
+        return HA_ERR_CANNOT_INITIALIZE_PARTITIONING;
+
+    file.set_part_info(part_info, false);
+    if (file.initialize_partition(mem_root))
+        return HA_ERR_CANNOT_INITIALIZE_PARTITIONING;
+
+    if (to)
+        return file.rename_table(from, to);
+
+    return file.delete_table(from);
+}
+
+//
+// Drops table
+// Parameters:
+//      [in]    name - name of table to be deleted
+// Returns:
+//      0 on success
+//      error otherwise
+//
+int ha_tokudb::delete_table(const char* name) {
+    DBUG_ASSERT(name);
+    std::string partition_info_str;
+    if (!native_part::get_part_str_for_table(name, partition_info_str))
+        return HA_ERR_TABLE_CORRUPT;
+    if (partition_info_str.empty())
+        return delete_non_partitioned_table(name);
+    return delete_rename_partitioned_table(name, nullptr, partition_info_str);
+}
+
+static bool tokudb_check_db_dir_exist_from_table_name(const char* table_name) {
     DBUG_ASSERT(table_name);
     bool mysql_dir_exists;
     char db_name[FN_REFLEN];
@@ -7710,16 +7659,7 @@ static bool tokudb_check_db_dir_exist_from_table_name(const char *table_name) {
     return mysql_dir_exists;
 }
 
-//
-// renames table from "from" to "to"
-// Parameters:
-//      [in]    name - old name of table
-//      [in]    to - new name of table
-// Returns:
-//      0 on success
-//      error otherwise
-//
-int ha_tokudb::rename_table(const char *from, const char *to) {
+int ha_tokudb::rename_non_partitioned_table(const char* from, const char* to) {
     TOKUDB_HANDLER_DBUG_ENTER("%s %s", from, to);
     TOKUDB_SHARE* share = TOKUDB_SHARE::get_share(from, NULL, false);
     if (share) {
@@ -7755,6 +7695,25 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
+//
+// renames table from "from" to "to"
+// Parameters:
+//      [in]    name - old name of table
+//      [in]    to - new name of table
+// Returns:
+//      0 on success
+//      error otherwise
+//
+int ha_tokudb::rename_table(const char* from, const char* to) {
+    DBUG_ASSERT(from);
+    DBUG_ASSERT(to);
+    std::string partition_info_str;
+    if (!native_part::get_part_str_for_table(from, partition_info_str))
+        return DB_NOTFOUND;  // TODO: set correct error code here
+    if (partition_info_str.empty())
+        return rename_non_partitioned_table(from, to);
+    return delete_rename_partitioned_table(from, to, partition_info_str);
+}
 
 /*
   Returns estimate on number of seeks it will take to read through the table
@@ -8990,6 +8949,7 @@ bool ha_tokudb::rpl_lookup_rows() {
 #include "ha_tokudb_mrr_mysql.cc"
 
 // handlerton
+#include "ha_tokupart.cc"
 #include "hatoku_hton.cc"
 
 // generate template functions

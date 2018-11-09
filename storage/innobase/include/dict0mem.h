@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -695,6 +695,8 @@ be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
 
 /** Data structure for a field in an index */
 struct dict_field_t{
+	dict_field_t() { memset(this, 0, sizeof(*this)); }
+
 	dict_col_t*	col;		/*!< pointer to the table column */
 	id_name_t	name;		/*!< name of the column */
 	unsigned	prefix_len:12;	/*!< 0 or the length of the column
@@ -1023,6 +1025,14 @@ struct dict_index_t{
 		ut_ad(committed || !(type & DICT_CLUSTERED));
 		uncommitted = !committed;
 	}
+
+	/** @return whether this index is readable
+	@retval	true	normally
+	@retval	false	if this is a single-table tablespace
+			and the .ibd file is missing, or a
+			page cannot be read or decrypted */
+	inline bool is_readable() const;
+
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1334,6 +1344,25 @@ struct dict_table_t {
 	/** Release the table handle. */
 	inline void release();
 
+	/** @return whether this table is readable
+	@retval	true	normally
+	@retval	false	if this is a single-table tablespace
+			and the .ibd file is missing, or a
+			page cannot be read or decrypted */
+	
+	bool is_readable() const {
+		return(UNIV_LIKELY(!file_unreadable));
+	}
+
+	void set_file_unreadable() {
+		file_unreadable = true;
+	}
+
+	void set_file_readable() {
+		file_unreadable = false;
+	}
+
+
 	/** Id of the table. */
 	table_id_t				id;
 
@@ -1390,10 +1419,10 @@ struct dict_table_t {
 	Use DICT_TF2_FLAG_IS_SET() to parse this flag. */
 	unsigned				flags2:DICT_TF2_BITS;
 
-	/** TRUE if this is in a single-table tablespace and the .ibd file is
-	missing. Then we must return in ha_innodb.cc an error if the user
-	tries to query such an orphaned table. */
-	unsigned				ibd_file_missing:1;
+	/*!< whether this is in a single-table tablespace and the .ibd
+	file is missing or page decryption failed and page is corrupted */
+
+	unsigned				file_unreadable:1;
 
 	/** TRUE if the table object has been added to the dictionary cache. */
 	unsigned				cached:1;
@@ -1611,6 +1640,13 @@ struct dict_table_t {
 	proceeding. */
 	#define BG_STAT_IN_PROGRESS		(1 << 0)
 
+        #define BG_SCRUB_IN_PROGRESS    ((byte)(1 << 2))
+                                /*!< BG_SCRUB_IN_PROGRESS is set in
+                                stats_bg_flag when the background
+                                scrub code is working on this table. The DROP
+                                TABLE code waits for this to be cleared
+                                before proceeding. */
+
 	/** Set in 'stats_bg_flag' when DROP TABLE starts waiting on
 	BG_STAT_IN_PROGRESS to be cleared. The background stats thread will
 	detect this and will eventually quit sooner. */
@@ -1730,7 +1766,13 @@ public:
 
 	/** encryption iv, it's only for export/import */
 	byte*					encryption_iv;
+
+	Keyring_encryption_info keyring_encryption_info;
 };
+
+inline bool dict_index_t::is_readable() const {
+	return(UNIV_LIKELY(!table->file_unreadable));
+}
 
 /*******************************************************************//**
 Initialise the table lock list. */

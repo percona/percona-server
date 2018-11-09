@@ -501,10 +501,14 @@ is the global server default. */
 #define HA_ERR_NOT_ALLOWED_COMMAND     200  /* Operation is not allowed */
 #define HA_ERR_COMPUTE_FAILED          201  /* Compute generated column value failed */
 #define HA_ERR_DEST_SCHEMA_NOT_EXIST   202  /* Destination schema does not exist */
-#define HA_ERR_LAST                    202  /* Copy of last error nr */
+#define HA_ERR_CANNOT_INITIALIZE_PARTITIONING 203 /* Partitioning can't be initialized */
+#define HA_ERR_LAST                    203  /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
+
+#define HA_ERR_DECRYPTION_FAILED 500 /* Table encrypted but decypt failed */
+
 
 	/* Other constants */
 

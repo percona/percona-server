@@ -186,6 +186,7 @@ extern bool opt_using_transactions;
 extern ulong max_long_data_size;
 extern ulong current_pid;
 extern ulong expire_logs_days;
+extern ulonglong binlog_space_limit;
 extern ulong max_binlog_files;
 extern ulong max_slowlog_size;
 extern ulong max_slowlog_files;

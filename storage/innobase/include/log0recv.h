@@ -426,6 +426,10 @@ struct recv_sys_t{
 
 	encryption_list_t*	/*!< Encryption information list */
 			encryption_list;
+
+	void set_corrupt_log() {
+		found_corrupt_log = true;
+	}
 };
 
 /** The recovery system */

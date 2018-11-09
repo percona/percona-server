@@ -1,0 +1,273 @@
+--skip # test disabled as it is unstable on Jenkins
+-- source include/have_innodb.inc
+# embedded does not support restart
+-- source include/not_embedded.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/mysecret_keyring";
+
+#
+# MDEV-8138: strange results from encrypt-and-grep test
+#
+--let $MYSQLD_DATADIR=`select @@datadir`
+#TODO: Robert - dlaczego tu jest ibdata1
+--let ib1_IBD = $MYSQLD_DATADIR/ibdata1
+--let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd
+--let SEARCH_RANGE = 10000000
+
+--disable_warnings
+SET GLOBAL innodb_file_per_table = ON;
+SET GLOBAL innodb_file_format = `Barracuda`;
+--enable_warnings
+
+create table t1 (a varchar(255)) engine=innodb;
+
+--let $assert_text= Table t1 should be included in INNODB_TABLESPACES_ENCRYPTION yet - since it is not RK
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t1\\"]" = 0
+--source include/assert.inc
+
+insert t1 values (repeat('foobarsecret', 12));
+select * from t1;
+
+--echo # 1. Alter from unencrypted to RK
+ALTER TABLE t1 encryption='KEYRING';
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+--let $assert_text= Table t1 should be the only one appearing in INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = "test/t1"
+--source include/assert.inc
+
+CREATE TABLE t2 (a varchar(255)) engine=innodb encryption='y';
+SHOW CREATE TABLE t2;
+INSERT t2 VALUES (repeat('foobarsecret', 12));
+
+--let $assert_text= Table t2 should not be included in INNODB_TABLESPACES_ENCRYPTION - since it is not RK
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t2\\"]" = 0
+--source include/assert.inc
+
+--echo # 2. Alter from MK encryption to RK
+ALTER TABLE t2 encryption='KEYRING';
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+
+--let $assert_text= Table t2 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted)
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t2\\"]" = 1
+--source include/assert.inc
+
+--echo # 3. Alter from RK to MK
+ALTER TABLE t1 encryption='Y';
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+--let $assert_text= Table t1 has been re_encrypted to Master key encryption - should disappear from INNODB_TABLESPACES_ENCRYPTION => thus only t2 should remain
+--let $assert_cond= "[SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = "test/t2"
+--source include/assert.inc
+
+--echo # 4. Alter from MK to unencrypted
+ALTER TABLE t1 encryption='n';
+SHOW CREATE TABLE t1;
+
+--let $assert_text= t1 should be marked as unencrypted in INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0]" = "test/t1"
+--source include/assert.inc
+--let $assert_text= t1 should be only table from test database in INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME LIKE \\"test/%\\"]" = 1
+
+SELECT NAME, MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION;
+
+--echo # 5. Alter from unencrypted to RK
+ALTER TABLE t1 ENCRYPTION='KEYRING';
+SHOW CREATE TABLE t1;
+
+--let $assert_text= Table t1 should be included in INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t1\\"]" = 1
+--source include/assert.inc
+
+--echo # 6. Alter from RK to unencrypted
+ALTER TABLE t1 ENCRYPTION='n';
+SHOW CREATE TABLE t1;
+--let $assert_text= Table t1 should appear in INNODB_TABLESPACES_ENCRYPTION but with MIN_KEY_VERSION (0) UNENCRYPTED
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t1\\"]" = 0
+--source include/assert.inc
+
+--echo # 7. Alter to RK INPLACE
+
+ALTER TABLE t1 ENCRYPTION='KEYRING', ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+--let $assert_text= Table t1 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1) ENCRYPTED
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t1\\"]" = 1
+--source include/assert.inc
+
+--echo # 8. Alter to UNENCRYPTED INPLACE
+
+ALTER TABLE t1 ENCRYPTION='N', ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+--let $assert_text= Table t1 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (0) UNENCRYPTED
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t1\\"]" = 0
+--source include/assert.inc
+
+--echo # 9. Alter ENCRYPTION_KEY_ID
+
+ALTER TABLE t1 ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=5;
+SHOW CREATE TABLE t1;
+--let $assert_text= Table t1 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1) ENCRYPTED KEY_ID =5
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t1\\" AND CURRENT_KEY_ID = 5]" = 1
+--source include/assert.inc
+
+--echo # 10. Alter ENCRYPTION_KEY_ID INPLACE
+
+ALTER TABLE t1 ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=6, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+--let $assert_text= Table t1 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1) ENCRYPTED KEY_ID =6
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t1\\" AND CURRENT_KEY_ID = 6]" = 1
+--source include/assert.inc
+
+ALTER TABLE t1 ENCRYPTION_KEY_ID=8;
+SHOW CREATE TABLE t1;
+--let $assert_text= Table t1 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1) ENCRYPTED KEY_ID =8
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t1\\" AND CURRENT_KEY_ID = 8]" = 1
+--source include/assert.inc
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION;
+
+ALTER TABLE t1 ENCRYPTION_KEY_ID=9, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION;
+--let $assert_text= Table t1 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1) ENCRYPTED KEY_ID =9
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t1\\" AND CURRENT_KEY_ID = 9]" = 1
+--source include/assert.inc
+
+--echo # It should not be possible to alter table to Master Key encryption INPLACE
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ENCRYPTION='Y', ALGORITHM=INPLACE;
+
+--echo # It should not be possible to decrypt with ENCRYPTION_KEY_ID set
+ALTER TABLE t1 ENCRYPTION='N' ENCRYPTION_KEY_ID=6;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ENCRYPTION='N';
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t3 (a varchar(255)) engine=innodb;
+SHOW CREATE TABLE t3;
+INSERT t3 VALUES (repeat('foobarsecret', 12));
+
+CREATE TABLE t_rk_with_encryption_key_id (a varchar(255)) engine=innodb ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=5;
+CREATE TABLE t_alter_encryption_key_id (a varchar(255)) engine=innodb;
+CREATE TABLE t_alter_to_rk (a varchar(255)) engine=innodb;
+ALTER TABLE t_alter_to_rk ENCRYPTION='KEYRING';
+ALTER TABLE t_alter_encryption_key_id ENCRYPTION_KEY_ID = 6;
+
+SHOW CREATE TABLE t_alter_encryption_key_id;
+SHOW CREATE TABLE t_alter_to_rk;
+
+--echo # Testing alters with innodb-encrypt-tables ONLINE_TO_KEYRING
+--let $restart_parameters=restart:--innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
+--source include/restart_mysqld.inc
+
+--echo # Check that tables' definitions are correct after the reset
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t_rk_with_encryption_key_id;
+SHOW CREATE TABLE t_alter_to_rk;
+SHOW CREATE TABLE t_alter_encryption_key_id;
+
+--let encrypted_tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`
+--echo #Wait for all tables to get encrypted (apart from t1)
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = $encrypted_tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--echo # Alter ENCRYPTION_KEY_ID when t3 was encrypted with encryption thread
+ALTER TABLE t3 ENCRYPTION_KEY_ID=3;
+SHOW CREATE TABLE t3;
+
+--let $assert_text= Table t3 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1) ENCRYPTED KEY_ID =3
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t3\\" AND CURRENT_KEY_ID = 3]" = 1
+--source include/assert.inc
+
+--echo # Alter ENCRYPTION_KEY_ID INPLACE when t3 was encrypted with encryption thread
+ALTER TABLE t3 ENCRYPTION_KEY_ID=4, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t3;
+
+--let $assert_text= Table t3 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1) ENCRYPTED KEY_ID =4
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t3\\" AND CURRENT_KEY_ID = 4]" = 1
+--source include/assert.inc
+
+--echo # Now decrypt t3. It should it should still be possible to change the ENCRYPTION_KEY_ID.
+
+SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+
+--echo #Wait for all tables to get decrypted (apart from t2, t_rk_with_encryption_key_id, t_alter_to_rk)
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--echo # Alter ENCRYPTION_KEY_ID of unencrypted table. The key_id 5 should be used during encryption with encryption
+--echo # threads. However note that t3 was already encrypted with rotated threads.
+ALTER TABLE t3 ENCRYPTION_KEY_ID=5, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t3;
+
+--let $assert_text= Table t3 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (0 => UNECRYPTED) AND ENCRYPTED KEY_ID=5
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t3\\" AND CURRENT_KEY_ID = 5]" = 0
+--source include/assert.inc
+
+--echo # After the re-encryption t3 should get encrypted with key 5
+
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+
+--echo #Wait for all tables to get encrypted (apart from t1)
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = $encrypted_tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--let $assert_text= Table t3 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1) ENCRYPTED KEY_ID =5
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t3\\" AND CURRENT_KEY_ID = 5]" = 1
+--source include/assert.inc
+
+SHOW CREATE TABLE t3;
+
+--echo # Testing if alter encryption_encryption_key_id works on tables which was not previously encrypted with KEYRING
+--echo # i.e. on plain innodb tables.
+
+--echo # Turn off encryption threads and encryption
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+
+CREATE TABLE t4 (a varchar(255)) engine=innodb;
+SHOW CREATE TABLE t4;
+
+INSERT t4 VALUES (repeat('foobarsecret', 12));
+
+--let $assert_text= Table t4 should NOT appear in INNODB_TABLESPACES_ENCRYPTION
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t4\\"]" = 0
+--source include/assert.inc
+
+ALTER TABLE t4 ENCRYPTION_KEY_ID=6;
+SHOW CREATE TABLE t4;
+
+--let $assert_text= Table t4 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (0 => UNENCRYPTED) AND ENCRYPTION_KEY_ID =6
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t4\\" AND CURRENT_KEY_ID = 6]" = 0
+--source include/assert.inc
+
+--echo # Encrypt all tables and check if t4 got encrypted with ENCRYPTION KEY 6
+SET GLOBAL innodb_encryption_threads=4;
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+
+#--sleep 15
+#SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION;
+
+--let encrypted_tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`
+--echo #Wait for all tables to get encrypted (apart from t1)
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = $encrypted_tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--let $assert_text= Table t4 should appear in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERSION (1 => ENCRYPTED) AND ENCRYPTION_KEY_ID =6
+--let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t4\\" AND CURRENT_KEY_ID = 6]" = 1
+--source include/assert.inc
+
+drop table t1,t2,t3,t4,t_rk_with_encryption_key_id,t_alter_to_rk,t_alter_encryption_key_id;

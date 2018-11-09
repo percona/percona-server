@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -272,6 +272,9 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
   create_info->extra_size+= 2 + create_info->encrypt_type.length;
 
+  if (create_info->was_encryption_key_id_set)
+    create_info->extra_size += strlen("ENCRYPTION_KEY_ID") + 4;
+
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys, key_info)) < 0)
   {
@@ -458,6 +461,17 @@ bool mysql_create_frm(THD *thd, const char *file_name,
         mysql_file_write(file, (uchar*) create_info->encrypt_type.str,
                          create_info->encrypt_type.length, MYF(MY_NABP)))
       goto err;
+  }
+
+  if (create_info->was_encryption_key_id_set)
+  {
+      uchar encryption_key_id_buff[4];
+      int4store(encryption_key_id_buff, create_info->encryption_key_id);
+
+      if (mysql_file_write(file, (uchar*) "ENCRYPTION_KEY_ID",
+                           strlen("ENCRYPTION_KEY_ID"), MYF(MY_NABP)) ||
+          mysql_file_write(file, encryption_key_id_buff, 4, MYF(MY_NABP)))
+        goto err;
   }
 
   mysql_file_seek(file, filepos, MY_SEEK_SET, MYF(0));
@@ -1298,8 +1312,6 @@ static bool make_empty_rec(THD *thd, File file,
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
-  memset(static_cast<void*>(&table), 0, sizeof(table));
-  memset(static_cast<void*>(&share), 0, sizeof(share));
   table.s= &share;
 
   if (!(buff=(uchar*) my_malloc(key_memory_frm,

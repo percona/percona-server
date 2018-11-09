@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2018
+.\"      Date: 06/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.83.\ \& This table describes command\-line options for the ndb_config program
+.B Table\ \&21.319.\ \&Command\-line options for the ndb_config program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -77,7 +77,7 @@ Format
 T}:T{
 Description
 T}:T{
-Added or Removed
+Added, Deprecated, or Removed
 T}
 .T&
 l l l
@@ -111,7 +111,7 @@ T{
 --config_from_node=#
 T}:T{
 Obtain configuration data from the node having this ID (must be a data
-          node).
+              node).
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -121,8 +121,8 @@ T{
 --configinfo
 T}:T{
 Dumps information about all NDB configuration parameters in text format
-          with default, maximum, and minimum values. Use with --xml to
-          obtain XML output.
+              with default, maximum, and minimum values. Use with --xml
+              to obtain XML output.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -132,9 +132,9 @@ T{
 --connections
 T}:T{
 Print connections information ([tcp], [tcp default], [sci], [sci
-          default], [shm], or [shm default] sections of cluster
-          configuration file) only. Cannot be used with --system or
-          --nodes.
+              default], [shm], or [shm default] sections of cluster
+              configuration file) only. Cannot be used with --system or
+              --nodes.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -193,8 +193,8 @@ T{
 --nodes
 T}:T{
 Print node information ([ndbd] or [ndbd default] section of cluster
-          configuration file) only. Cannot be used with --system or
-          --connections.
+              configuration file) only. Cannot be used with --system or
+              --connections.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -246,7 +246,7 @@ T{
 --system
 T}:T{
 Print SYSTEM section information only (see ndb_config --configinfo
-          output). Cannot be used with --nodes or --connections.
+              output). Cannot be used with --nodes or --connections.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -265,8 +265,8 @@ T{
 --configinfo --xml
 T}:T{
 Use --xml with --configinfo to obtain a dump of all NDB configuration
-          parameters in XML format with default, maximum, and minimum
-          values.
+              parameters in XML format with default, maximum, and
+              minimum values.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -416,7 +416,7 @@ T}:T{
 file name
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -460,17 +460,17 @@ T}:T{
 numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 none
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 48
 T}
@@ -515,7 +515,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -533,9 +533,9 @@ information only\(emthat is, information about parameters found in the
 [shm], or
 [shm default]
 sections of the cluster configuration file (see
-Section\ \&21.3.3.9, \(lqNDB Cluster TCP/IP Connections\(rq,
-Section\ \&21.3.3.12, \(lqSCI Transport Connections in NDB Cluster\(rq, and
-Section\ \&21.3.3.11, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
+Section\ \&21.3.3.10, \(lqNDB Cluster TCP/IP Connections\(rq,
+Section\ \&21.3.3.13, \(lqSCI Transport Connections in NDB Cluster\(rq, and
+Section\ \&21.3.3.12, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-nodes\fR
@@ -595,17 +595,17 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.3)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.3)
 T}:T{
 FALSE
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.5.7)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.5.7)
 T}:T{
 FALSE
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -648,7 +648,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -711,7 +711,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -781,7 +781,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -828,7 +828,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 localhost:1186
 T}
@@ -872,7 +872,7 @@ T}:T{
 numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 0
 T}
@@ -915,7 +915,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -970,7 +970,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -1045,7 +1045,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.4.16,5.7.18-ndb-7.5.7)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.4.16,5.7.18-ndb-7.5.7)
 T}:T{
 T}
 .TE
@@ -1089,7 +1089,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -1150,7 +1150,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -1204,7 +1204,7 @@ T}:T{
 enumeration
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -1328,7 +1328,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
@@ -1344,7 +1344,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.21\-ndb\-7\&.5\&.10"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.23\-ndb\-7\&.5\&.11"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">

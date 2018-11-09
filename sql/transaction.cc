@@ -225,7 +225,7 @@ bool trans_begin(THD *thd, uint flags)
   @retval TRUE   Failure
 */
 
-bool trans_commit(THD *thd, bool ignore_global_read_lock)
+bool trans_commit(THD *thd)
 {
   int res;
   DBUG_ENTER("trans_commit");
@@ -236,7 +236,7 @@ bool trans_commit(THD *thd, bool ignore_global_read_lock)
   thd->server_status&=
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-  res= ha_commit_trans(thd, TRUE, ignore_global_read_lock);
+  res= ha_commit_trans(thd, TRUE);
   if (res == FALSE)
     if (thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_transaction_commit(thd))
@@ -281,7 +281,7 @@ bool trans_commit(THD *thd, bool ignore_global_read_lock)
   @retval TRUE   Failure
 */
 
-bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock)
+bool trans_commit_implicit(THD *thd)
 {
   bool res= FALSE;
   DBUG_ENTER("trans_commit_implicit");
@@ -304,7 +304,7 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock)
     thd->server_status&=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res= MY_TEST(ha_commit_trans(thd, TRUE, ignore_global_read_lock));
+    res= MY_TEST(ha_commit_trans(thd, TRUE));
   }
   else if (tc_log)
     tc_log->commit(thd, true);
@@ -433,7 +433,7 @@ bool trans_rollback_implicit(THD *thd)
   @retval TRUE   Failure
 */
 
-bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock)
+bool trans_commit_stmt(THD *thd)
 {
   DBUG_ENTER("trans_commit_stmt");
   int res= FALSE;
@@ -455,7 +455,7 @@ bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock)
 
   if (thd->get_transaction()->is_active(Transaction_ctx::STMT))
   {
-    res= ha_commit_trans(thd, FALSE, ignore_global_read_lock);
+    res= ha_commit_trans(thd, FALSE);
     if (! thd->in_active_multi_stmt_transaction())
       trans_reset_one_shot_chistics(thd);
   }

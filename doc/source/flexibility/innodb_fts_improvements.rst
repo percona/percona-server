@@ -9,7 +9,6 @@ InnoDB Full-Text Search improvements
 
 .. _ignoring_stopword_list:
 
-======================
 Ignoring Stopword list
 ======================
 
@@ -41,7 +40,7 @@ ignored meaning that in this case very short and very long words will
 also be indexed.
 
 System Variables
-================
+----------------
 
 .. variable:: innodb_ft_ignore_stopwords
 
@@ -54,3 +53,38 @@ System Variables
 
 When enabled, this variable will instruct |InnoDB| Full Text Search
 parser to ignore the stopword list when building/updating an FTS index.
+
+.. _punctuation_marks:
+
+Punctuation Marks in Full-Text Search
+=====================================
+
+By default, full text search is unable to find words with various punctuation
+characters in boolean search mode, although those characters are
+indexed with ngram parser. A new variable :variable:`ft_query_extra_word_chars`
+was introduced in |Percona Server| :rn:`5.7.21-20` to solve this issue.
+
+When it's enabled, all the non-whitespace symbols are considered to be
+word symbols by FTS query parser, except for the boolean search syntax
+symbols (which are specified by `ft_boolean_syntax <https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_ft_boolean_syntax>`_ variable). The latter ones are also considered to be word symbols inside
+double quotes. This only applies for the query tokenizer, and the
+indexing tokenizer is not changed in any way. Because of this, the
+double quote symbol itself is never considered a word symbol, as no
+existing indexing tokenizer does so, thus searching for it would never
+return documents.
+
+System Variables
+----------------
+
+.. variable:: ft_query_extra_word_chars
+
+  :cli: Yes
+  :conf: Yes
+  :scope: Session, Global
+  :dyn: Yes
+  :vartype: Boolean
+  :default: ``OFF``
+
+When enabled, this variable will make all non-whitespace symbols (including
+punctuation marks) to be treated as word symbols in full-text search queries.
+

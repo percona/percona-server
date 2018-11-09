@@ -37,7 +37,7 @@
 #include "binlog.h"             // generate_new_log_name
 #include "sp_instr.h"           // sp_lex_instr
 #include "sql_prepare.h"        // Prepared_statement
-#include "mysqld.h" // max_binlog_files etc
+#include "mysqld.h" // binlog_space_limit etc
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -216,6 +216,7 @@ protected:
 /** In case of an error, a message is printed to the error log. */
 static Query_log_table_intact log_table_intact;
 
+ulonglong binlog_space_limit;
 ulong max_binlog_files;
 ulong max_slowlog_size;
 ulong max_slowlog_files;

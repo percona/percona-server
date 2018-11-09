@@ -308,8 +308,11 @@ public:
   binlog_cache_data(bool trx_cache_arg,
                     my_off_t max_binlog_cache_size_arg,
                     ulong *ptr_binlog_cache_use_arg,
-                    ulong *ptr_binlog_cache_disk_use_arg)
-  : m_pending(0), saved_max_binlog_cache_size(max_binlog_cache_size_arg),
+                    ulong *ptr_binlog_cache_disk_use_arg,
+                    const IO_CACHE &cache_log_arg)
+  : cache_log(cache_log_arg),
+    m_pending(0),
+    saved_max_binlog_cache_size(max_binlog_cache_size_arg),
     ptr_binlog_cache_use(ptr_binlog_cache_use_arg),
     ptr_binlog_cache_disk_use(ptr_binlog_cache_disk_use_arg)
   {
@@ -360,6 +363,36 @@ public:
   bool has_incident(void) const
   {
     return flags.incident;
+  }
+
+  /**
+    Sets the binlog_cache_data::Flags::flush_error flag if there
+    is an error while flushing cache to the file.
+
+    @param thd  The client thread that is executing the transaction.
+  */
+  void set_flush_error(THD *thd)
+  {
+    flags.flush_error= true;
+    if(is_trx_cache())
+    {
+      /*
+         If the cache is a transactional cache and if the write
+         has failed due to ENOSPC, then my_write() would have
+         set EE_WRITE error, so clear the error and create an
+         equivalent server error.
+      */
+      if (thd->is_error())
+        thd->clear_error();
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_ERROR_ON_WRITE, MYF(MY_WME), my_filename(cache_log.file),
+          errno, my_strerror(errbuf, sizeof(errbuf), errno));
+    }
+  }
+
+  bool get_flush_error(void) const
+  {
+    return flags.flush_error;
   }
 
   bool has_xid() const {
@@ -455,6 +488,8 @@ public:
     flags.with_start= false;
     flags.with_end= false;
     flags.with_content= false;
+    flags.flush_error= false;
+
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -606,8 +641,14 @@ protected:
   {
     DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
     remove_pending_event();
+    /*
+      Whenever there is an error while flushing cache to file,
+      the local cache will not be in a normal state and the same
+      cache cannot be used without facing an assert.
+      So, clear the cache if there is a flush error.
+    */
     MY_ATTRIBUTE((unused)) int reinit_res=
-      reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+      reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, get_flush_error());
     DBUG_ASSERT(reinit_res == 0);
     cache_log.end_of_file= saved_max_binlog_cache_size;
   }
@@ -687,6 +728,12 @@ protected:
       This indicates that the cache contain content other than START/END.
     */
     bool with_content:1;
+
+    /*
+      This flag is set to 'true' when there is an error while flushing the
+      I/O cache to file.
+    */
+    bool flush_error:1;
   } flags;
 
 private:
@@ -742,11 +789,13 @@ public:
   binlog_stmt_cache_data(bool trx_cache_arg,
                         my_off_t max_binlog_cache_size_arg,
                         ulong *ptr_binlog_cache_use_arg,
-                        ulong *ptr_binlog_cache_disk_use_arg)
+                        ulong *ptr_binlog_cache_disk_use_arg,
+                        const IO_CACHE &cache_log)
     : binlog_cache_data(trx_cache_arg,
                         max_binlog_cache_size_arg,
                         ptr_binlog_cache_use_arg,
-                        ptr_binlog_cache_disk_use_arg)
+                        ptr_binlog_cache_disk_use_arg,
+                        cache_log)
   {
   }
 
@@ -781,11 +830,13 @@ public:
   binlog_trx_cache_data(bool trx_cache_arg,
                         my_off_t max_binlog_cache_size_arg,
                         ulong *ptr_binlog_cache_use_arg,
-                        ulong *ptr_binlog_cache_disk_use_arg)
+                        ulong *ptr_binlog_cache_disk_use_arg,
+                        const IO_CACHE &cache_log)
   : binlog_cache_data(trx_cache_arg,
                       max_binlog_cache_size_arg,
                       ptr_binlog_cache_use_arg,
-                      ptr_binlog_cache_disk_use_arg),
+                      ptr_binlog_cache_disk_use_arg,
+                      cache_log),
     m_cannot_rollback(FALSE), before_stmt_pos(MY_OFF_T_UNDEF)
   {   }
 
@@ -875,13 +926,17 @@ public:
                     ulong *ptr_binlog_stmt_cache_disk_use_arg,
                     my_off_t max_binlog_cache_size_arg,
                     ulong *ptr_binlog_cache_use_arg,
-                    ulong *ptr_binlog_cache_disk_use_arg)
+                    ulong *ptr_binlog_cache_disk_use_arg,
+                    const IO_CACHE &stmt_cache_log,
+                    const IO_CACHE &trx_cache_log)
   : stmt_cache(FALSE, max_binlog_stmt_cache_size_arg,
                ptr_binlog_stmt_cache_use_arg,
-               ptr_binlog_stmt_cache_disk_use_arg),
+               ptr_binlog_stmt_cache_disk_use_arg,
+               stmt_cache_log),
     trx_cache(TRUE, max_binlog_cache_size_arg,
               ptr_binlog_cache_use_arg,
-              ptr_binlog_cache_disk_use_arg),
+              ptr_binlog_cache_disk_use_arg,
+              trx_cache_log),
     has_logged_xid(NULL)
   {  }
 
@@ -1339,6 +1394,15 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
   {
     DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
                   {DBUG_SET("+d,simulate_file_write_error");});
+
+    DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                  {
+                  static int count= -1;
+                  count++;
+                  if(count %4 == 3 && ev->get_type_code() ==
+                      binary_log::WRITE_ROWS_EVENT)
+                    DBUG_SET("+d,simulate_temp_file_write_error");
+                  });
     if (ev->write(&cache_log) != 0)
     {
       DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
@@ -1354,6 +1418,19 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
                         */
                         DBUG_SET("+d,simulate_do_write_cache_failure");
                       });
+
+      DBUG_EXECUTE_IF("simulate_temp_file_write_error",
+                      {
+                        DBUG_SET("-d,simulate_temp_file_write_error");
+                      });
+      /*
+        If the flush has failed due to ENOSPC error, set the
+        flush_error flag.
+      */
+      if (thd->is_error() && my_errno() == ENOSPC)
+      {
+        set_flush_error(thd);
+      }
       DBUG_RETURN(1);
     }
     if (ev->get_type_code() == binary_log::XID_EVENT)
@@ -3530,8 +3607,8 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
 #ifdef HAVE_PSI_INTERFACE
    m_key_LOCK_log(key_LOG_LOCK_log),
 #endif
-   bytes_written(0), file_id(1), open_count(1),
-   sync_period_ptr(sync_period), sync_counter(0),
+   bytes_written(0), binlog_space_total(0), file_id(1),
+   open_count(1), sync_period_ptr(sync_period), sync_counter(0),
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
@@ -5214,10 +5291,6 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   if (encrypt_binlog)
   {
-    uchar nonce[Binlog_crypt_data::BINLOG_NONCE_LENGTH];
-    if (my_rand_buffer(nonce, sizeof(nonce)))
-      goto err;
-
     if (crypto.load_latest_binlog_key())
     {
       sql_print_error("Failed to fetch or create percona_binlog key from/in keyring and thus "
@@ -5226,8 +5299,14 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       goto err;
     }
     DBUG_EXECUTE_IF("check_consecutive_binlog_key_versions",
-                    { static uint next_key_version = 0;
+                    { static uint next_key_version = 1;
                       DBUG_ASSERT(crypto.get_key_version() == next_key_version++);});
+
+    uchar nonce[Binlog_crypt_data::BINLOG_NONCE_LENGTH];
+    memset(nonce, 0, Binlog_crypt_data::BINLOG_NONCE_LENGTH);
+    if (my_rand_buffer(nonce, sizeof(nonce)))
+      goto err;
+
     Start_encryption_log_event sele(1, crypto.get_key_version(), nonce);
     sele.common_footer->checksum_alg= s.common_footer->checksum_alg;
     if (write_to_file(&sele))
@@ -5633,23 +5712,33 @@ int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO* linfo)
   return 0;
 }
 
+static bool check_write_error_code(uint error_code)
+{
+  return error_code == ER_TRANS_CACHE_FULL ||
+         error_code == ER_STMT_CACHE_FULL  ||
+         error_code == ER_ERROR_ON_WRITE   ||
+         error_code == ER_BINLOG_LOGGING_IMPOSSIBLE;
+}
+
 bool MYSQL_BIN_LOG::check_write_error(THD *thd)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::check_write_error");
 
-  bool checked= FALSE;
-
   if (!thd->is_error())
-    DBUG_RETURN(checked);
+    DBUG_RETURN(false);
 
-  switch (thd->get_stmt_da()->mysql_errno())
+  bool checked= check_write_error_code(thd->get_stmt_da()->mysql_errno());
+
+  if (!checked)
   {
-    case ER_TRANS_CACHE_FULL:
-    case ER_STMT_CACHE_FULL:
-    case ER_ERROR_ON_WRITE:
-    case ER_BINLOG_LOGGING_IMPOSSIBLE:
-      checked= TRUE;
-    break;
+    /* Check all conditions for one that matches the expected error */
+    const Sql_condition *err;
+    Diagnostics_area::Sql_condition_iterator it=
+      thd->get_stmt_da()->sql_conditions();
+    while ((err= it++) != NULL && !checked)
+    {
+      checked= check_write_error_code(err->mysql_errno());
+    }
   }
   DBUG_PRINT("return", ("checked: %s", YESNO(checked)));
   DBUG_RETURN(checked);
@@ -6051,6 +6140,9 @@ err:
   if (error == 1)
     name= const_cast<char*>(save_name);
   global_sid_lock->unlock();
+#ifdef HAVE_REPLICATION
+  count_binlog_space(false);
+#endif
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
@@ -6501,6 +6593,7 @@ err:
 
   DBUG_EXECUTE_IF("crash_purge_non_critical_after_update_index", DBUG_SUICIDE(););
 
+  count_binlog_space(false);
   if (need_lock_index)
     mysql_mutex_unlock(&LOCK_index);
 
@@ -6787,6 +6880,169 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
   }
 
 err:
+  DBUG_RETURN(error);
+}
+
+/**
+  Count a total size of binary logs (except the active one) to the variable
+  binlog_space_total.
+
+  @param need_lock_index  If true, this function acquires LOCK_index;
+                          otherwise the caller should already have acquired it.
+
+  @retval
+    0			ok
+  @retval
+    LOG_INFO_FATAL      if any other than ENOENT error from
+                        mysql_file_stat() or mysql_file_delete()
+    LOG_INFO_EOF        End of log-index-file found
+    LOG_INFO_IO         Got IO error while reading log-index-file
+*/
+
+int MYSQL_BIN_LOG::count_binlog_space(bool need_lock_index) {
+  DBUG_ENTER("count_binlog_space");
+  if (is_relay_log)
+    DBUG_RETURN(0);
+
+  if (need_lock_index)
+    mysql_mutex_lock(&LOCK_index);
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
+
+  int error;
+  LOG_INFO log_info;
+  binlog_space_total = 0;
+  if ((error = find_log_pos(&log_info, NullS, false /*need_lock_index=false*/)))
+    goto done;
+
+  MY_STAT stat_area;
+  while (!(is_active(log_info.log_file_name))) {
+    if (!mysql_file_stat(m_key_file_log, log_info.log_file_name, &stat_area,
+                         MYF(0))) {
+      if (my_errno() == ENOENT) {
+        /*
+          It's not fatal if we can't stat a log file that does not exist.
+        */
+        set_my_errno(0);
+      } else {
+        error = LOG_INFO_FATAL;
+        goto done;
+      }
+    } else {
+      binlog_space_total += stat_area.st_size;
+    }
+    if (find_next_log(&log_info, false /*need_lock_index=false*/)) break;
+  }
+
+  error = 0;
+
+done:
+  if (need_lock_index) mysql_mutex_unlock(&LOCK_index);
+  DBUG_RETURN(error);
+}
+
+/**
+  Purge old logs so that we have a total size lower than binlog_space_limit.
+
+  @param need_lock_index  If true, this function acquires LOCK_index;
+                          otherwise the caller should already have acquired it.
+
+  @note
+    If any of the logs before the deleted one is in use,
+    only purge logs up to this one.
+
+  @retval
+    0				ok
+  @retval
+    LOG_INFO_FATAL      if any other than ENOENT error from
+                        mysql_file_stat() or mysql_file_delete()
+    LOG_INFO_EOF        End of log-index-file found
+    LOG_INFO_IO         Got IO error while reading log-index-file
+*/
+
+int MYSQL_BIN_LOG::purge_logs_by_size(bool need_lock_index) {
+  DBUG_ENTER("purge_logs_by_size");
+
+  if (is_relay_log || !binlog_space_limit)
+      DBUG_RETURN(0);
+
+  if (need_lock_index)
+    mysql_mutex_lock(&LOCK_index);
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
+
+  int error = 0;
+  LOG_INFO log_info;
+  my_off_t binlog_pos= my_b_tell(&log_file);
+  count_binlog_space(false);
+
+  if (!binlog_space_total ||
+      binlog_space_total + binlog_pos <= binlog_space_limit)
+    goto done;
+
+  if ((error = find_log_pos(&log_info, NullS, false /*need_lock_index=false*/)))
+    goto done;
+
+  MY_STAT stat_area;
+  char to_log[FN_REFLEN];
+  to_log[0] = 0;
+  while (!is_active(log_info.log_file_name)) {
+    if (!mysql_file_stat(m_key_file_log, log_info.log_file_name, &stat_area,
+                         MYF(0))) {
+      if (my_errno() == ENOENT) {
+        /*
+          It's not fatal if we can't stat a log file that does not exist.
+        */
+        set_my_errno(0);
+      } else {
+        /*
+          Other than ENOENT are fatal
+        */
+        THD *thd = current_thd;
+        if (thd) {
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_BINLOG_PURGE_FATAL_ERR,
+                              "a problem with getting info on being purged %s; "
+                              "consider examining correspondence "
+                              "of your binlog index file "
+                              "to the actual binlog files",
+                              log_info.log_file_name);
+        } else {
+          sql_print_information("Failed to stat log file '%s'",
+                                log_info.log_file_name);
+        }
+        error = LOG_INFO_FATAL;
+        goto done;
+      }
+    }
+    /* check if a total size of binary logs is bigger than binlog_space_limit
+       if yes check if it is in use, if not in use then add
+       it in the list of binary log files to be purged.
+    */
+    else if (binlog_space_total + binlog_pos > binlog_space_limit) {
+      if ((log_in_use(log_info.log_file_name)))
+        break;
+      DBUG_PRINT("info", ("purge_logs_by_size binlog_space_total=%llu "
+              "binlog_pos=%llu sum=%llu\n", binlog_space_total,
+              binlog_pos, binlog_space_total+binlog_pos));
+      if (binlog_space_total >= (ulonglong)stat_area.st_size)
+        binlog_space_total -= stat_area.st_size;
+      else
+        break;
+      strmake(to_log, log_info.log_file_name,
+              sizeof(log_info.log_file_name) - 1);
+    } else
+      break;
+    if (find_next_log(&log_info, false /*need_lock_index=false*/)) break;
+  }
+
+  error = (to_log[0] ? purge_logs(to_log, true, false /*need_lock_index=false*/,
+                                  true /*need_update_threads=true*/,
+                                  NULL, true)
+                     : 0);
+
+done:
+  if (need_lock_index) mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
 
@@ -7808,6 +8064,10 @@ void MYSQL_BIN_LOG::purge()
   {
     purge_logs_maximum_number(max_binlog_files);
   }
+  if (binlog_space_limit)
+  {
+    purge_logs_by_size(true);
+  }
 #endif
 }
 
@@ -7950,7 +8210,17 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
   uint64 expected_total_len= my_b_tell(cache);
 #endif
 
-  if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
+  DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                  {
+                    DBUG_SET("+d,simulate_file_write_error");
+                  });
+
+  int reinit_err= reinit_io_cache(cache, READ_CACHE, 0, 0, 0);
+  DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                  {
+                    DBUG_SET("-d,simulate_file_write_error");
+                  });
+  if (reinit_err)
     DBUG_RETURN(true);
 
   uchar *buf= cache->read_pos;
@@ -8291,6 +8561,14 @@ err:
     write_error= true;
     sql_print_error(ER(ER_ERROR_ON_WRITE), name,
                     errno, my_strerror(errbuf, sizeof(errbuf), errno));
+  }
+
+  /*
+    If the flush has failed due to ENOSPC, set the flush_error flag.
+  */
+  if (cache->error && thd->is_error() && my_errno() == ENOSPC)
+  {
+    cache_data->set_flush_error(thd);
   }
   thd->commit_error= THD::CE_FLUSH_ERROR;
 
@@ -9600,9 +9878,8 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
           binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   if (binlog_error_action == ABORT_SERVER)
   {
-    static const char format_err[]= "%s Hence aborting the server.";
-    char err_buff[MYSQL_ERRMSG_SIZE + sizeof(format_err)];
-    snprintf(err_buff, sizeof(err_buff), format_err, errmsg);
+    char err_buff[MYSQL_ERRMSG_SIZE + 27];
+    sprintf(err_buff, "%s Hence aborting the server.", errmsg);
     exec_binlog_error_action_abort(err_buff);
   }
   else
@@ -9628,6 +9905,14 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
     }
     close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT, false/*need_lock_log=false*/,
           true/*need_lock_index=true*/);
+    /*
+      If there is a write error (flush/sync stage) and if
+      binlog_error_action=IGNORE_ERROR, clear the error
+      and allow the commit to happen in storage engine.
+    */
+    if (check_write_error(thd))
+      thd->clear_error();
+
     if (need_lock_log)
       mysql_mutex_unlock(&LOCK_log);
     DEBUG_SYNC(thd, "after_binlog_closed_due_to_error");
@@ -9982,6 +10267,13 @@ commit_stage:
     else if (check_purge)
       purge();
   }
+
+#ifdef HAVE_REPLICATION
+  if (binlog_space_limit && binlog_space_total &&
+      binlog_space_total + my_b_tell(&log_file) > binlog_space_limit)
+    purge_logs_by_size(true);
+#endif
+
   /*
     flush or sync errors are handled above (using binlog_error_action).
     Hence treat only COMMIT_ERRORs as errors.
@@ -10231,16 +10523,28 @@ int THD::binlog_setup_trx_data()
   if (cache_mngr)
     DBUG_RETURN(0);                             // Already set up
 
+  IO_CACHE stmt_cache_log, trx_cache_log;
+  memset(&stmt_cache_log, 0, sizeof(stmt_cache_log));
+  memset(&trx_cache_log, 0, sizeof(trx_cache_log));
+
   cache_mngr= (binlog_cache_mngr*) my_malloc(key_memory_binlog_cache_mngr,
                                              sizeof(binlog_cache_mngr), MYF(MY_ZEROFILL));
-  if (!cache_mngr ||
-      open_cached_file(&cache_mngr->stmt_cache.cache_log, mysql_tmpdir,
-                       LOG_PREFIX, binlog_stmt_cache_size, MYF(MY_WME)) ||
-      open_cached_file(&cache_mngr->trx_cache.cache_log, mysql_tmpdir,
-                       LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
+  if (!cache_mngr)
+  {
+    DBUG_RETURN(1);
+  }
+  if (open_cached_file(&stmt_cache_log, mysql_tmpdir,
+                       LOG_PREFIX, binlog_stmt_cache_size, MYF(MY_WME)))
   {
     my_free(cache_mngr);
     DBUG_RETURN(1);                      // Didn't manage to set it up
+  }
+  if (open_cached_file(&trx_cache_log, mysql_tmpdir,
+                       LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
+  {
+    close_cached_file(&stmt_cache_log);
+    my_free(cache_mngr);
+    DBUG_RETURN(1);
   }
   DBUG_PRINT("debug", ("Set ha_data slot %d to 0x%llx", binlog_hton->slot, (ulonglong) cache_mngr));
   thd_set_ha_data(this, binlog_hton, cache_mngr);
@@ -10251,7 +10555,9 @@ int THD::binlog_setup_trx_data()
                                 &binlog_stmt_cache_disk_use,
                                 max_binlog_cache_size,
                                 &binlog_cache_use,
-                                &binlog_cache_disk_use);
+                                &binlog_cache_disk_use,
+                                stmt_cache_log,
+                                trx_cache_log);
   DBUG_RETURN(0);
 }
 

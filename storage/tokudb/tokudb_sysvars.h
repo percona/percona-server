@@ -72,6 +72,7 @@ extern my_bool      compress_buffers_before_eviction;
 extern char*        data_dir;
 extern ulong        debug;
 extern my_bool      directio;
+extern my_bool      enable_native_partition;
 extern my_bool      enable_partial_eviction;
 extern int          fs_reserve_percent;
 extern uint         fsync_log_period;
@@ -85,10 +86,10 @@ extern my_bool      dir_per_db;
 extern char*        version;
 extern my_bool         check_jemalloc;
 
-#if TOKUDB_DEBUG
+#if defined(TOKUDB_DEBUG)
 // used to control background job manager
 extern my_bool      debug_pause_background_job_manager;
-#endif // TOKUDB_DEBUG
+#endif // defined(TOKUDB_DEBUG)
 
 // session/thread
 my_bool     alter_print_error(THD* thd);

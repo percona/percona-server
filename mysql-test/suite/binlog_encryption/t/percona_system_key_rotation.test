@@ -1,8 +1,13 @@
---echo # Check that only percona_binlog key can be rotated with rotate_system_key. This part of the test needs updating
+--echo # Check that only percona_binlog and percona_redo key can be rotated 
+--echo # with rotate_system_key. This part of the test needs updating
 --echo # each time a new system key is added.
 
 --let $assert_text= It should not be possible to rotate key percona_binlog:
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_binlog:\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should not be possible to rotate key percona_redo:
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_redo:\\"\\) = 0]" = 1
 --source include/assert.inc
 
 --let $assert_text= It should not be possible to rotate key percona_key
@@ -15,6 +20,10 @@
 
 --let $assert_text= It should not be possible to rotate key percona_bin
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_bin\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should not be possible to rotate key percona_red
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_red\\"\\) = 0]" = 1
 --source include/assert.inc
 
 --let $assert_text= It should not be possible to rotate key percona_b
@@ -37,7 +46,7 @@
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"system_key\\"\\) = 0]" = 1
 --source include/assert.inc
 
---let $assert_text= It should not be possible to rotate key system_key
+--let $assert_text= It should not be possible to rotate key 123
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"123\\"\\) = 0]" = 1
 --source include/assert.inc
 

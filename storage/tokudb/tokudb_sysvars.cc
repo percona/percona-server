@@ -63,6 +63,7 @@ ulong       debug = 0;
 my_bool     debug_pause_background_job_manager = FALSE;
 #endif  // defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
 my_bool     directio = FALSE;
+my_bool     enable_native_partition = FALSE;
 my_bool     enable_partial_eviction = TRUE;
 // file system reserve as a percentage of total disk space
 int         fs_reserve_percent = 0;
@@ -259,6 +260,15 @@ static MYSQL_SYSVAR_BOOL(
     directio,
     directio,
     PLUGIN_VAR_READONLY, "enable direct i/o ",
+    NULL,
+    NULL,
+    FALSE);
+
+static MYSQL_SYSVAR_BOOL(
+    enable_native_partition,
+    enable_native_partition,
+    PLUGIN_VAR_READONLY,
+    "enable native partitioning",
     NULL,
     NULL,
     FALSE);
@@ -634,13 +644,13 @@ static MYSQL_THDVAR_ULONGLONG(
     ~0ULL,
     1);
 
-static MYSQL_THDVAR_STR(
-    last_lock_timeout,
-    PLUGIN_VAR_MEMALLOC,
-    "last lock timeout",
-    NULL,
-    NULL,
-    NULL);
+static MYSQL_THDVAR_STR(last_lock_timeout,
+                        PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NOCMDOPT |
+                            PLUGIN_VAR_READONLY,
+                        "last lock timeout",
+                        NULL,
+                        NULL,
+                        NULL);
 
 static MYSQL_THDVAR_BOOL(
     load_save_space,
@@ -958,6 +968,7 @@ st_mysql_sys_var* system_variables[] = {
     MYSQL_SYSVAR(data_dir),
     MYSQL_SYSVAR(debug),
     MYSQL_SYSVAR(directio),
+    MYSQL_SYSVAR(enable_native_partition),
     MYSQL_SYSVAR(enable_partial_eviction),
     MYSQL_SYSVAR(fs_reserve_percent),
     MYSQL_SYSVAR(fsync_log_period),

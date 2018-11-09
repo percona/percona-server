@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, 2016, Percona Inc.
 
@@ -50,6 +50,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
+#include "btr0scrub.h"
 #include "dict0boot.h"
 #include "dict0load.h"
 #include "dict0stats_bg.h"
@@ -71,11 +72,13 @@ Created 10/8/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "trx0i_s.h"
 #include "trx0purge.h"
+#include "trx0rseg.h"
 #include "usr0sess.h"
 #include "ut0crc32.h"
 #include "ut0mem.h"
 #include "handler.h"
 #include "ha_innodb.h"
+#include "fil0crypt.h"
 
 
 #ifndef UNIV_PFS_THREAD
@@ -99,6 +102,8 @@ ibool	srv_buf_dump_thread_active = FALSE;
 bool	srv_buf_resize_thread_active = false;
 
 ibool	srv_dict_stats_thread_active = FALSE;
+
+my_bool srv_scrub_log;
 
 const char*	srv_main_thread_op_info = "";
 
@@ -151,6 +156,9 @@ my_bool	srv_undo_log_truncate = FALSE;
 
 /** Maximum size of undo tablespace. */
 unsigned long long	srv_max_undo_log_size;
+
+/** Enable or disable Encrypt of REDO tablespace. */
+my_bool	srv_undo_log_encrypt = 0;
 
 /** UNDO logs that are not redo logged.
 These logs reside in the temp tablespace.*/
@@ -228,6 +236,9 @@ extern bool		trx_commit_disallowed;
 /*------------------------- LOG FILES ------------------------ */
 char*	srv_log_group_home_dir	= NULL;
 
+/** Enable or disable Encrypt of REDO tablespace. */
+ulong	srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
+
 ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 /** At startup, this is the current redo log file size.
 During startup, if this is different from srv_log_file_size_requested
@@ -279,7 +290,7 @@ const ulint	srv_buf_pool_min_size	= 5 * 1024 * 1024;
 const ulint	srv_buf_pool_def_size	= 128 * 1024 * 1024;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
-ulong	srv_buf_pool_chunk_unit;
+ulonglong	srv_buf_pool_chunk_unit;
 /** Requested number of buffer pool instances */
 ulong	srv_buf_pool_instances;
 /** Default number of buffer pool instances */
@@ -761,6 +772,10 @@ PSI_stage_info	srv_stage_alter_table_read_pk_internal_sort
 PSI_stage_info	srv_stage_buffer_pool_load
 	= {0, "buffer pool load", PSI_FLAG_STAGE_PROGRESS};
 #endif /* HAVE_PSI_STAGE_INTERFACE */
+
+static
+void
+srv_enable_undo_encryption_if_set();
 
 /*********************************************************************//**
 Prints counters for work done by srv_master_thread. */
@@ -1584,6 +1599,8 @@ srv_export_innodb_status(void)
 	ulint			LRU_len;
 	ulint			free_len;
 	ulint			flush_list_len;
+	fil_crypt_stat_t	crypt_stat;
+	btr_scrub_stat_t        scrub_stat;
 	ulint			mem_adaptive_hash, mem_dictionary;
 	ReadView*		oldest_view;
 	ulint			i;
@@ -1591,6 +1608,10 @@ srv_export_innodb_status(void)
 	buf_get_total_stat(&stat);
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
 	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
+	if (!srv_read_only_mode) {
+		fil_crypt_total_stat(&crypt_stat);
+		btr_scrub_total_stat(&scrub_stat);
+	}
 
 	os_rmb;
 	mem_adaptive_hash
@@ -1741,6 +1762,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_pages_created = stat.n_pages_created;
 
 	export_vars.innodb_pages_read = stat.n_pages_read;
+	export_vars.innodb_page0_read = srv_stats.page0_read;
 
 	export_vars.innodb_pages_written = stat.n_pages_written;
 
@@ -1778,6 +1800,9 @@ srv_export_innodb_status(void)
 		srv_truncated_status_writes;
 
 	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
+
+	export_vars.innodb_pages_decrypted = srv_stats.pages_decrypted;
+	export_vars.innodb_pages_encrypted = srv_stats.pages_encrypted;
 
 	export_vars.innodb_n_merge_blocks_encrypted =
 		srv_stats.n_merge_blocks_encrypted;
@@ -1832,6 +1857,38 @@ srv_export_innodb_status(void)
 
 	thd_get_fragmentation_stats(current_thd,
 		&export_vars.innodb_fragmentation_stats);
+
+	if (!srv_read_only_mode) {
+	export_vars.innodb_encryption_rotation_pages_read_from_cache =
+		crypt_stat.pages_read_from_cache;
+	export_vars.innodb_encryption_rotation_pages_read_from_disk =
+		crypt_stat.pages_read_from_disk;
+	export_vars.innodb_encryption_rotation_pages_modified =
+		crypt_stat.pages_modified;
+	export_vars.innodb_encryption_rotation_pages_flushed =
+		crypt_stat.pages_flushed;
+	export_vars.innodb_encryption_rotation_estimated_iops =
+		crypt_stat.estimated_iops;
+	export_vars.innodb_encryption_key_requests =
+		srv_stats.n_key_requests;
+	export_vars.innodb_key_rotation_list_length =
+		srv_stats.key_rotation_list_length;
+
+        export_vars.innodb_scrub_page_reorganizations =
+                scrub_stat.page_reorganizations;
+        export_vars.innodb_scrub_page_splits =
+                scrub_stat.page_splits;
+        export_vars.innodb_scrub_page_split_failures_underflow =
+                scrub_stat.page_split_failures_underflow;
+        export_vars.innodb_scrub_page_split_failures_out_of_filespace =
+                scrub_stat.page_split_failures_out_of_filespace;
+        export_vars.innodb_scrub_page_split_failures_missing_index =
+                scrub_stat.page_split_failures_missing_index;
+        export_vars.innodb_scrub_page_split_failures_unknown =
+                scrub_stat.page_split_failures_unknown;
+        export_vars.innodb_scrub_log = srv_stats.n_log_scrubs;
+	
+        }
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -2139,6 +2196,8 @@ srv_any_background_threads_are_active(void)
 		thread_active = "buf_resize_thread";
 	} else if (srv_dict_stats_thread_active) {
 		thread_active = "dict_stats_thread";
+	} else if (srv_n_fil_crypt_threads_started) {
+		thread_active = "fil_crypt_thread";
 	}
 
 	os_event_set(srv_error_event);
@@ -2147,6 +2206,7 @@ srv_any_background_threads_are_active(void)
 	os_event_set(lock_sys->timeout_event);
 	os_event_set(dict_stats_event);
 	os_event_set(srv_buf_resize_event);
+	os_event_set(fil_crypt_threads_event);
 
 	return(thread_active);
 }
@@ -2818,6 +2878,10 @@ loop:
 		} else {
 			srv_master_do_idle_tasks();
 		}
+
+		log_enable_encryption_if_set();
+
+		srv_enable_undo_encryption_if_set();
 	}
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS
@@ -3460,4 +3524,167 @@ srv_is_undo_tablespace(
 	return(space_id >= srv_undo_space_id_start
 	       && space_id < (srv_undo_space_id_start
 			      + srv_undo_tablespaces_open));
+}
+
+/** Enable the undo log encryption if it is set.
+It will try to enable the undo log encryption and write the metadata to
+undo log file header, if innodb_undo_log_encrypt is ON. */
+static
+void
+srv_enable_undo_encryption_if_set()
+{
+	fil_space_t*	space;
+	const char*	cant_set_undo_tablespace = "Can't set undo tablespace";
+	const char*	to_be_encrypted = " to be encrypted";
+	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		return;
+	}
+
+	/* Check if encryption for undo log is enabled or not. If it's
+	   enabled, we will store the encryption metadata to the space header
+	   and start to encrypt the undo log block from now on. */
+	if (srv_undo_log_encrypt) {
+		if (srv_undo_tablespaces == 0) {
+			srv_undo_log_encrypt = false;
+			ib::error() << cant_set_undo_tablespace << "s"
+				<< to_be_encrypted
+				<< ", since innodb_undo_tablespaces=0.";
+			return;
+		}
+		if (srv_read_only_mode) {
+			srv_undo_log_encrypt = false;
+			ib::error() << cant_set_undo_tablespace << "s"
+				<< to_be_encrypted
+				<< " in read-only mode.";
+			return;
+		}
+		ulint undo_spaces[TRX_SYS_N_RSEGS + 1];
+		const ulint undo_spaces_no = trx_rseg_get_n_undo_tablespaces(undo_spaces);
+		for (ulint undo_idx = 0; undo_idx < undo_spaces_no; ++undo_idx)
+		{
+			/* Skip system tablespace, since it's also shared
+			   tablespace. */
+			const ulint space_id = undo_spaces[undo_idx];
+			if (space_id == TRX_SYS_SPACE) {
+				continue;
+			}
+			space = fil_space_get(space_id);
+			ut_ad(fsp_is_undo_tablespace(space_id));
+			/* This flag will be written to the header
+			   later, by calling the fsp_header_write_encryption()
+function: */
+			ulint	new_flags =
+				space->flags | FSP_FLAGS_MASK_ENCRYPTION;
+			/* We need the server_uuid initialized, otherwise,
+			   the keyname will not contains server uuid. */
+			if (FSP_FLAGS_GET_ENCRYPTION(space->flags)
+					|| strlen(server_uuid) == 0) {
+				continue;
+			}
+			dberr_t err;
+			mtr_t	mtr;
+			byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+			byte	key[ENCRYPTION_KEY_LEN];
+			byte	iv[ENCRYPTION_KEY_LEN];
+			Encryption::random_value(key);
+			Encryption::random_value(iv);
+			mtr_start(&mtr);
+			mtr_x_lock_space(space->id, &mtr);
+			memset(encrypt_info, 0,
+					ENCRYPTION_INFO_SIZE_V2);
+			if (!Encryption::fill_encryption_info(
+						key, iv,
+						encrypt_info)) {
+				srv_undo_log_encrypt = false;
+				ib::error() << cant_set_undo_tablespace
+					<< " number " << space_id
+					<< to_be_encrypted << ".";
+				mtr_commit(&mtr);
+				return;
+			} else {
+				if (!fsp_header_write_encryption(
+							space->id,
+							new_flags,
+							encrypt_info,
+							true,
+							&mtr)) {
+					srv_undo_log_encrypt = false;
+					ib::error() << cant_set_undo_tablespace
+						<< " number "
+						<< space_id
+						<< to_be_encrypted
+						<< ". Failed to write header"
+						<< " page.";
+					mtr_commit(&mtr);
+					return;
+				}
+				space->flags |=
+					FSP_FLAGS_MASK_ENCRYPTION;
+				err = fil_set_encryption(
+						space->id, Encryption::AES,
+						key, iv);
+				if (err != DB_SUCCESS) {
+					srv_undo_log_encrypt = false;
+					ib::error() << cant_set_undo_tablespace
+						<< " number "
+						<< space_id
+						<< to_be_encrypted
+						<< ". Error=" << err << ".";
+					mtr_commit(&mtr);
+					return;
+				} else {
+					ib::info() << "Encryption is enabled"
+						" for undo tablespace number "
+						<< space_id << ".";
+#ifdef UNIV_ENCRYPT_DEBUG
+					ut_print_buf(stderr, key, 32);
+					ut_print_buf(stderr, iv, 32);
+#endif
+				}
+			}
+			mtr_commit(&mtr);
+		}
+		//undo::spaces->s_unlock();
+		return;
+	}
+	/* If the undo log space is using default key, rotate
+	   it. We need the server_uuid initialized, otherwise,
+	   the keyname will not contains server uuid. */
+	if (Encryption::master_key_id != 0
+			|| srv_read_only_mode
+			|| strlen(server_uuid) == 0) {
+		return;
+	}
+	ulint undo_spaces[TRX_SYS_N_RSEGS + 1];
+	const ulint undo_spaces_no = trx_rseg_get_n_undo_tablespaces(undo_spaces);
+	for (ulint undo_idx = 0; undo_idx < undo_spaces_no; ++undo_idx)
+	{
+		const ulint space_id = undo_spaces[undo_idx];
+		ut_ad(fsp_is_undo_tablespace(space_id));
+		space = fil_space_get(space_id);
+		ut_ad(space);
+		if (space->encryption_type == Encryption::NONE) {
+			continue;
+		}
+		byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+		mtr_t	mtr;
+		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+		mtr_start(&mtr);
+		mtr_x_lock_space(space->id, &mtr);
+		memset(encrypt_info, 0,
+				ENCRYPTION_INFO_SIZE_V2);
+		if (!fsp_header_rotate_encryption(
+					space,
+					encrypt_info,
+					&mtr)) {
+			ib::error() << "Can't rotate encryption on undo"
+				" tablespace number "
+				<< space_id << ".";
+		} else {
+			ib::info() << "Encryption is enabled"
+				" for undo tablespace number "
+				<< space_id << ".";
+		}
+		mtr_commit(&mtr);
+	}
 }

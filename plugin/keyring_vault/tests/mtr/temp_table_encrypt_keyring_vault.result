@@ -12,19 +12,20 @@ Pattern found.
 DROP TABLE t04;
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 CREATE TEMPORARY TABLE t02 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
-ERROR HY000: InnoDB: Unsupported encryption option for temporary tables.
-CREATE TEMPORARY TABLE t03 (a TEXT) ENGINE=InnoDB ENCRYPTION='N';
+CREATE TEMPORARY TABLE t03 (a TEXT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t03 VALUES ('Curabitur laoreet, velit non interdum venenatis');
 Pattern not found.
+SET GLOBAL innodb_encrypt_tables=ON;
 CREATE TEMPORARY TABLE t04 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+SET GLOBAL innodb_encrypt_tables=OFF;
 INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
 Pattern not found.
 CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='y';
-ERROR HY000: InnoDB: Unsupported encryption option for temporary tables.
+INSERT INTO t05 VALUES (1), (2), (3);
 CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='n';
-INSERT INTO t06 VALUES (1), (2), (3);
+ERROR HY000: InnoDB: Tablespace `innodb_temporary` can contain only an ENCRYPTED tables.
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
-CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t07 VALUES (1), (2), (3);
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 CREATE TABLE t10 (a INT AUTO_INCREMENT PRIMARY KEY, b INT);
@@ -47,22 +48,24 @@ DROP INDEX t10_b ON t10;
 CREATE INDEX t10_b ON t10 (b) ALGORITHM=COPY;
 DROP INDEX t10_b ON t10 ALGORITHM=COPY;
 # restart:<hidden args>
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t01 VALUES (1), (2), (3);
 # Kill and restart:<hidden args>
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t01 VALUES (1), (2), (3);
 # restart:<hidden args>
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 # restart:<hidden args>
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t01 VALUES (1), (2), (3);
 DROP TABLE t10;
-# restart: --innodb-temp-tablespace-encrypt
+# restart:<hidden args>
 CREATE TABLE t1(a INT key) ENGINE = MEMORY;
 INSERT INTO t1 VALUES (11061);
 INSERT INTO t1 VALUES (3);
 SET big_tables=1;
 SELECT * FROM t1 WHERE a IN(SELECT MAX(a) FROM t1);
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+a
+11061
+DROP TABLE t1;

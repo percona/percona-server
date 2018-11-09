@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -319,10 +319,10 @@ extern "C" void *handle_connection(void *arg)
     thd->get_stmt_da()->reset_diagnostics_area();
     thd->release_resources();
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
     // Clean up errors now, before possibly waiting for a new connection.
-    ERR_remove_state(0);
-#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
     thd_manager->remove_thd(thd);
     Connection_handler_manager::dec_connection_count(extra_port_connection);

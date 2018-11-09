@@ -1,0 +1,25 @@
+call mtr.add_suppression("InnoDB: The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[123]\\.ibd' cannot be decrypted\\.");
+call mtr.add_suppression("failed to read or decrypt \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\]");
+SET GLOBAL innodb_file_per_table = ON;
+# Create and populate tables to be corrupted
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT,c char(200)) ENGINE=InnoDB ENCRYPTION='KEYRING' ;
+CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT,c char(200)) ENGINE=InnoDB row_format=compressed ENCRYPTION='KEYRING';
+CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT, c char(200)) ENGINE=InnoDB COMPRESSION="zlib" ENCRYPTION='KEYRING';
+BEGIN;
+INSERT INTO t1 (b,c) VALUES ('corrupt me','secret');
+INSERT INTO t1 (b,c) VALUES ('corrupt me','moresecretmoresecret');
+INSERT INTO t2 select * from t1;
+INSERT INTO t3 select * from t1;
+COMMIT;
+# Backup tables before corrupting
+# Corrupt tables
+# restart
+SELECT * FROM t1;
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+SELECT * FROM t2;
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+SELECT * FROM t3;
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+# Restore the original tables
+# restart
+DROP TABLE t1,t2,t3;

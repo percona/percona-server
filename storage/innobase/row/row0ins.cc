@@ -1620,8 +1620,9 @@ row_ins_check_foreign_constraint(
 	}
 
 	if (check_table == NULL
-	    || check_table->ibd_file_missing
-	    || check_index == NULL) {
+	    || check_table->file_unreadable
+	    || check_index == NULL
+	    || fil_space_is_being_truncated(check_table->space)) {
 
 		if (!srv_read_only_mode && check_ref) {
 			FILE*	ef = dict_foreign_err_file;
@@ -1643,7 +1644,8 @@ row_ins_check_foreign_constraint(
 			ut_print_name(ef, trx,
 				      foreign->referenced_table_name);
 			fputs("\nor its .ibd file does"
-			      " not currently exist!\n", ef);
+			      " not currently exist!, or"
+			      " is undergoing truncate!\n", ef);
 			mutex_exit(&dict_foreign_err_mutex);
 
 			err = DB_NO_REFERENCED_ROW;
@@ -1883,6 +1885,7 @@ exit_func:
 		mem_heap_free(heap);
 	}
 
+	DEBUG_SYNC_C("finished_scanning_index");
 	DBUG_RETURN(err);
 }
 
@@ -2500,7 +2503,14 @@ row_ins_clust_index_entry_low(
 	/* Note that we use PAGE_CUR_LE as the search mode, because then
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
-	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);
+	err = btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);
+
+	if (err != DB_SUCCESS) {
+		index->table->set_file_unreadable();
+		mtr.commit();
+		goto func_exit;
+	}
+
 	cursor = btr_pcur_get_btr_cur(&pcur);
 	cursor->thr = thr;
 
@@ -2959,7 +2969,7 @@ row_ins_sec_index_entry_low(
 		rtr_init_rtr_info(&rtr_info, false, &cursor, index, false);
 		rtr_info_update_btr(&cursor, &rtr_info);
 
-		btr_cur_search_to_nth_level(
+		err = btr_cur_search_to_nth_level(
 			index, 0, entry, PAGE_CUR_RTREE_INSERT,
 			search_mode,
 			&cursor, 0, __FILE__, __LINE__, &mtr);
@@ -2974,7 +2984,7 @@ row_ins_sec_index_entry_low(
 			mtr.set_named_space(index->space);
 			search_mode &= ~BTR_MODIFY_LEAF;
 			search_mode |= BTR_MODIFY_TREE;
-			btr_cur_search_to_nth_level(
+			err = btr_cur_search_to_nth_level(
 				index, 0, entry, PAGE_CUR_RTREE_INSERT,
 				search_mode,
 				&cursor, 0, __FILE__, __LINE__, &mtr);
@@ -2993,11 +3003,21 @@ row_ins_sec_index_entry_low(
 			ut_ad(cursor.page_cur.block != NULL);
 			ut_ad(cursor.page_cur.block->made_dirty_with_no_latch);
 		} else {
-			btr_cur_search_to_nth_level(
+			err = btr_cur_search_to_nth_level(
 				index, 0, entry, PAGE_CUR_LE,
 				search_mode,
 				&cursor, 0, __FILE__, __LINE__, &mtr);
 		}
+	}
+
+	if (err != DB_SUCCESS) {
+		if (err == DB_DECRYPTION_FAILED) {
+			ib::warn() << "Table is encrypted but encryption service or"
+				      " used key_id is not available. "
+				      " Can't continue reading table.";
+			index->table->set_file_unreadable();
+		}
+		goto func_exit;
 	}
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {

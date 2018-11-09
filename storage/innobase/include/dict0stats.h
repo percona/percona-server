@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,9 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "dict0types.h"
 #include "trx0types.h"
+
+#define TABLE_STATS_NAME        "mysql/innodb_table_stats"
+#define INDEX_STATS_NAME        "mysql/innodb_index_stats"
 
 enum dict_stats_upd_option_t {
 	DICT_STATS_RECALC_PERSISTENT,/* (re) calculate the
@@ -204,6 +207,17 @@ dict_stats_rename_index(
 	const char*		old_index_name,	/*!< in: old index name */
 	const char*		new_index_name)	/*!< in: new index name */
 	MY_ATTRIBUTE((warn_unused_result));
+
+/** Report an error if updating table statistics failed because
+.ibd file is missing, table decryption failed or table is corrupted.
+@param[in,out]	table	Table
+@retval DB_DECRYPTION_FAILED if decryption of the table failed
+@retval DB_TABLESPACE_DELETED if .ibd file is missing
+@retval DB_CORRUPTION if table is marked as corrupted */
+dberr_t
+dict_stats_report_error(dict_table_t* table)
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
+
 
 #ifndef UNIV_NONINL
 #include "dict0stats.ic"

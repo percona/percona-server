@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -265,9 +265,8 @@ buf_dump(
 {
 #define SHOULD_QUIT()	(SHUTTING_DOWN() && obey_shutdown)
 
-	static const char format_name[]= "%s.incomplete";
 	char	full_filename[OS_FILE_MAX_PATH];
-	char	tmp_filename[OS_FILE_MAX_PATH + sizeof(format_name)];
+	char	tmp_filename[OS_FILE_MAX_PATH + 11];
 	char	now[32];
 	FILE*	f;
 	ulint	i;
@@ -276,7 +275,7 @@ buf_dump(
 	buf_dump_generate_path(full_filename, sizeof(full_filename));
 
 	ut_snprintf(tmp_filename, sizeof(tmp_filename),
-		    format_name, full_filename);
+		    "%s.incomplete", full_filename);
 
 	buf_dump_status(STATUS_INFO, "Dumping buffer pool(s) to %s",
 			full_filename);

@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2018
+.\"      Date: 06/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.78.\ \& This table describes command\-line options for the ndbd program
+.B Table\ \&21.314.\ \&Command\-line options for the ndbd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -59,9 +59,10 @@ Format
 T}:T{
 Description
 T}:T{
-Added or Removed
+Added, Deprecated, or Removed
 T}
 .T&
+l l l
 l l l
 l l l
 l l l
@@ -78,22 +79,39 @@ l l l
 l l l.
 T{
 .PP
---initial
+--bind-address=name
 T}:T{
-Perform initial start of ndbd, including cleaning the file system.
-          Consult the documentation before using this option
+Local bind address
 T}:T{
 .PP
 All MySQL 5.7 based releases
 T}
 T{
 .PP
---nostart,
-.PP
--n
+--connect-delay=#
 T}:T{
-Don't start ndbd immediately; ndbd waits for command to start from
-          ndb_mgmd
+Time to wait between attempts to contact a management server, in
+              seconds; 0 means do not wait between attempts
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--connect-retries=#
+T}:T{
+Set the number of times to retry a connection before giving up; 0 means
+              1 attempt only (and no retries)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--connect-retry-delay=#
+T}:T{
+Time to wait between attempts to contact a management server, in
+              seconds; 0 means do not wait between attempts
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -111,29 +129,20 @@ All MySQL 5.7 based releases
 T}
 T{
 .PP
---nodaemon
-T}:T{
-Do not start ndbd as daemon; provided for testing purposes
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
 --foreground
 T}:T{
 Run ndbd in foreground, provided for debugging purposes (implies
-          --nodaemon)
+              --nodaemon)
 T}:T{
 .PP
 All MySQL 5.7 based releases
 T}
 T{
 .PP
---nowait-nodes=list
+--initial
 T}:T{
-Do not wait for these data nodes to start (takes comma-separated list of
-          node IDs). Also requires --ndb-nodeid to be used.
+Perform initial start of ndbd, including cleaning the file system.
+              Consult the documentation before using this option
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -149,19 +158,52 @@ All MySQL 5.7 based releases
 T}
 T{
 .PP
---bind-address=name
+--install[=name]
 T}:T{
-Local bind address
+Used to install the data node process as a Windows service. Does not
+              apply on non-Windows platforms.
 T}:T{
 .PP
 All MySQL 5.7 based releases
 T}
 T{
 .PP
---install[=name]
+--logbuffer-size=#
 T}:T{
-Used to install the data node process as a Windows service. Does not
-          apply on non-Windows platforms.
+Control size of log buffer. For use when debugging with many log
+              messages being generated; default is sufficient for normal
+              operations.
+T}:T{
+.PP
+ADDED: NDB 7.6.6
+T}
+T{
+.PP
+--nostart,
+.PP
+-n
+T}:T{
+Don't start ndbd immediately; ndbd waits for command to start from
+              ndb_mgmd
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--nodaemon
+T}:T{
+Do not start ndbd as daemon; provided for testing purposes
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--nowait-nodes=list
+T}:T{
+Do not wait for these data nodes to start (takes comma-separated list of
+              node IDs). Also requires --ndb-nodeid to be used.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -171,37 +213,7 @@ T{
 --remove[=name]
 T}:T{
 Used to remove a data node process that was previously installed as a
-          Windows service. Does not apply on non-Windows platforms.
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---connect-retries=#
-T}:T{
-Set the number of times to retry a connection before giving up; 0 means
-          1 attempt only (and no retries)
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---connect-delay=#
-T}:T{
-Time to wait between attempts to contact a management server, in
-          seconds; 0 means do not wait between attempts
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---connect-retry-delay=#
-T}:T{
-Time to wait between attempts to contact a management server, in
-          seconds; 0 means do not wait between attempts
+              Windows service. Does not apply on non-Windows platforms.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -209,9 +221,11 @@ T}
 T{
 .PP
 --verbose,
+.PP
 -v
 T}:T{
-Write extra debug output to node log
+Causes the data log to write extra debugging information to the node
+              log.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -231,7 +245,7 @@ T}
 .ps -1
 .br
 .PP
-All of these options also apply to the multi\-threaded version of this program (\fBndbmtd\fR) and you may substitute
+All of these options also apply to the multithreaded version of this program (\fBndbmtd\fR) and you may substitute
 \(lq\fBndbmtd\fR\(rq
 for
 \(lq\fBndbd\fR\(rq
@@ -271,7 +285,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -279,6 +293,185 @@ T}
 Causes
 \fBndbd\fR
 to bind to a specific network interface (host name or IP address)\&. This option has no default value\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-delay=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connect-delay=#
+T}
+T{
+\fBDeprecated\fR
+T}:T{
+5.6.28-ndb-7.4.9
+T}
+T{
+\fBType\fR
+T}:T{
+numeric
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+5
+T}
+T{
+\fBMinimum Value\fR
+T}:T{
+0
+T}
+T{
+\fBMaximum Value\fR
+T}:T{
+3600
+T}
+.TE
+.sp 1
+Determines the time to wait between attempts to contact a management server when starting (the number of attempts is controlled by the
+\fB\-\-connect\-retries\fR
+option)\&. The default is 5 seconds\&.
+.sp
+This option is deprecated, and is subject to removal in a future release of NDB Cluster\&. Use
+\fB\-\-connect\-retry\-delay\fR
+instead\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connect-retries=#
+T}
+T{
+\fBType\fR
+T}:T{
+numeric
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+12
+T}
+T{
+\fBMinimum Value\fR
+T}:T{
+0
+T}
+T{
+\fBMaximum Value\fR
+T}:T{
+65535
+T}
+.TE
+.sp 1
+Set the number of times to retry a connection before giving up; 0 means 1 attempt only (and no retries)\&. The default is 12 attempts\&. The time to wait between attempts is controlled by the
+\fB\-\-connect\-retry\-delay\fR
+option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retry\-delay=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connect-retry-delay=#
+T}
+T{
+\fBType\fR
+T}:T{
+numeric
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+5
+T}
+T{
+\fBMinimum Value\fR
+T}:T{
+0
+T}
+T{
+\fBMaximum Value\fR
+T}:T{
+4294967295
+T}
+.TE
+.sp 1
+Determines the time to wait between attempts to contact a management server when starting (the time between attempts is controlled by the
+\fB\-\-connect\-retries\fR
+option)\&. The default is 5 seconds\&.
+.sp
+This option takes the place of the
+\fB\-\-connect\-delay\fR
+option, which is now deprecated and subject to removal in a future release of NDB Cluster\&.
 .RE
 .sp
 .RS 4
@@ -314,7 +507,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -333,59 +526,6 @@ This option has no effect when running
 or
 \fBndbmtd\fR
 on Windows platforms\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-nodaemon\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---nodaemon
-T}
-T{
-\fBType\fR
-T}:T{
-boolean
-T}
-T{
-\fBDefault\fR
-T}:T{
-FALSE
-T}
-.TE
-.sp 1
-Prevents
-\fBndbd\fR
-or
-\fBndbmtd\fR
-from executing as a daemon process\&. This option overrides the
-\fB\-\-daemon\fR
-option\&. This is useful for redirecting output to the screen when debugging the binary\&.
-.sp
-The default behavior for
-\fBndbd\fR
-and
-\fBndbmtd\fR
-on Windows is to run in the foreground, making this option unnecessary on Windows platforms, where it has no effect\&.
 .RE
 .sp
 .RS 4
@@ -420,7 +560,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -473,7 +613,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -638,7 +778,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -692,109 +832,6 @@ option for
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-nowait\-nodes=\fR\fB\fInode_id_1\fR\fR\fB[, \fR\fB\fInode_id_2\fR\fR\fB[, \&.\&.\&.]]\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---nowait-nodes=list
-T}
-T{
-\fBType\fR
-T}:T{
-string
-T}
-T{
-\fBDefault\fR
-T}:T{
-T}
-.TE
-.sp 1
-This option takes a list of data nodes which for which the cluster will not wait for before starting\&.
-.sp
-This can be used to start the cluster in a partitioned state\&. For example, to start the cluster with only half of the data nodes (nodes 2, 3, 4, and 5) running in a 4\-node cluster, you can start each
-\fBndbd\fR
-process with
-\fB\-\-nowait\-nodes=3,5\fR\&. In this case, the cluster starts as soon as nodes 2 and 4 connect, and does
-\fInot\fR
-wait
-StartPartitionedTimeout
-milliseconds for nodes 3 and 5 to connect as it would otherwise\&.
-.sp
-If you wanted to start up the same cluster as in the previous example without one
-\fBndbd\fR
-(say, for example, that the host machine for node 3 has suffered a hardware failure) then start nodes 2, 4, and 5 with
-\fB\-\-nowait\-nodes=3\fR\&. Then the cluster will start as soon as nodes 2, 4, and 5 connect and will not wait for node 3 to start\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-nostart\fR,
-\fB\-n\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---nostart
-T}
-T{
-\fBType\fR
-T}:T{
-boolean
-T}
-T{
-\fBDefault\fR
-T}:T{
-FALSE
-T}
-.TE
-.sp 1
-Instructs
-\fBndbd\fR
-not to start automatically\&. When this option is used,
-\fBndbd\fR
-connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
-START
-command in the management client (see
-Section\ \&21.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
@@ -825,7 +862,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 ndbd
 T}
@@ -868,6 +905,221 @@ option has no effect on non\-Windows platforms\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-logbuffer\-size=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--logbuffer-size=#
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+5.7.22-ndb-7.6.6
+T}
+T{
+\fBType\fR
+T}:T{
+integer
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+32768
+T}
+T{
+\fBMinimum Value\fR
+T}:T{
+2048
+T}
+T{
+\fBMaximum Value\fR
+T}:T{
+4294967295
+T}
+.TE
+.sp 1
+Sets the size of the data node log buffer\&. When debugging with high amounts of extra logging, it is possible for the log buffer to run out of space if there are too many log messages, in which case some log messages can be lost\&. This should not occur during normal operations\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-nodaemon\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--nodaemon
+T}
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Prevents
+\fBndbd\fR
+or
+\fBndbmtd\fR
+from executing as a daemon process\&. This option overrides the
+\fB\-\-daemon\fR
+option\&. This is useful for redirecting output to the screen when debugging the binary\&.
+.sp
+The default behavior for
+\fBndbd\fR
+and
+\fBndbmtd\fR
+on Windows is to run in the foreground, making this option unnecessary on Windows platforms, where it has no effect\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-nostart\fR,
+\fB\-n\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--nostart
+T}
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Instructs
+\fBndbd\fR
+not to start automatically\&. When this option is used,
+\fBndbd\fR
+connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
+START
+command in the management client (see
+Section\ \&21.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-nowait\-nodes=\fR\fB\fInode_id_1\fR\fR\fB[, \fR\fB\fInode_id_2\fR\fR\fB[, \&.\&.\&.]]\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--nowait-nodes=list
+T}
+T{
+\fBType\fR
+T}:T{
+string
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+T}
+.TE
+.sp 1
+This option takes a list of data nodes which for which the cluster will not wait for before starting\&.
+.sp
+This can be used to start the cluster in a partitioned state\&. For example, to start the cluster with only half of the data nodes (nodes 2, 3, 4, and 5) running in a 4\-node cluster, you can start each
+\fBndbd\fR
+process with
+\fB\-\-nowait\-nodes=3,5\fR\&. In this case, the cluster starts as soon as nodes 2 and 4 connect, and does
+\fInot\fR
+wait
+StartPartitionedTimeout
+milliseconds for nodes 3 and 5 to connect as it would otherwise\&.
+.sp
+If you wanted to start up the same cluster as in the previous example without one
+\fBndbd\fR
+(say, for example, that the host machine for node 3 has suffered a hardware failure) then start nodes 2, 4, and 5 with
+\fB\-\-nowait\-nodes=3\fR\&. Then the cluster will start as soon as nodes 2, 4, and 5 connect and will not wait for node 3 to start\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-remove[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
@@ -898,7 +1150,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 ndbd
 T}
@@ -932,185 +1184,6 @@ NODELOG DEBUG ON
 and
 NODELOG DEBUG OFF
 to enable and disable this extra logging while the data node is running\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---connect-retries=#
-T}
-T{
-\fBType\fR
-T}:T{
-numeric
-T}
-T{
-\fBDefault\fR
-T}:T{
-12
-T}
-T{
-\fBMinimum\fR
-T}:T{
-0
-T}
-T{
-\fBMaximum\fR
-T}:T{
-65535
-T}
-.TE
-.sp 1
-Set the number of times to retry a connection before giving up; 0 means 1 attempt only (and no retries)\&. The default is 12 attempts\&. The time to wait between attempts is controlled by the
-\fB\-\-connect\-retry\-delay\fR
-option\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-delay=\fR\fB\fI#\fR\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---connect-delay=#
-T}
-T{
-\fBDeprecated\fR
-T}:T{
-5.6.28-ndb-7.4.9
-T}
-T{
-\fBType\fR
-T}:T{
-numeric
-T}
-T{
-\fBDefault\fR
-T}:T{
-5
-T}
-T{
-\fBMinimum\fR
-T}:T{
-0
-T}
-T{
-\fBMaximum\fR
-T}:T{
-3600
-T}
-.TE
-.sp 1
-Determines the time to wait between attempts to contact a management server when starting (the number of attempts is controlled by the
-\fB\-\-connect\-retries\fR
-option)\&. The default is 5 seconds\&.
-.sp
-This option is deprecated, and is subject to removal in a future release of NDB Cluster\&. Use
-\fB\-\-connect\-retry\-delay\fR
-instead\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-connect\-retry\-delay=\fR\fB\fI#\fR\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---connect-retry-delay=#
-T}
-T{
-\fBType\fR
-T}:T{
-numeric
-T}
-T{
-\fBDefault\fR
-T}:T{
-5
-T}
-T{
-\fBMinimum\fR
-T}:T{
-0
-T}
-T{
-\fBMaximum\fR
-T}:T{
-4294967295
-T}
-.TE
-.sp 1
-Determines the time to wait between attempts to contact a management server when starting (the time between attempts is controlled by the
-\fB\-\-connect\-retries\fR
-option)\&. The default is 5 seconds\&.
-.sp
-This option takes the place of the
-\fB\-\-connect\-delay\fR
-option, which is now deprecated and subject to removal in a future release of NDB Cluster\&.
 .RE
 .PP
 \fBndbd\fR

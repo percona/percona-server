@@ -19,13 +19,19 @@ env:
     - CCACHE_CPP2=1
 
 matrix:
+  allow_failures:
+    - env: COMMAND=clang-test
   include:
     # Common
     - env: COMMAND=clang-test
       script:
-        - wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py
+        - curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
+        - echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-5.0 main" | sudo tee -a /etc/apt/sources.list > /dev/null;
+        - sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
+        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install clang-format-5.0 || travis_terminate 1
+        - wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py || travis_terminate 1
         - chmod a+x clang-format-diff.py
-        - git diff -U0 --no-color HEAD^1 *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | ./clang-format-diff.py -style=file -p1 >_GIT_DIFF
+        - git diff -U0 --no-color HEAD^1 *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | ./clang-format-diff.py -binary=clang-format-5.0 -style=file -p1 >_GIT_DIFF
         - '[ ! -s _GIT_DIFF ] && { echo The last git commit is clang-formatted; travis_terminate 0; } || { cat _GIT_DIFF; travis_terminate 1; }'
 
 
@@ -35,7 +41,6 @@ matrix:
       env:              BUILD=Debug
       compiler: clang
       os: osx
-      osx_image: xcode9.3
     # 2
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=6.0  BUILD=RelWithDebInfo
@@ -76,7 +81,6 @@ matrix:
       env:              BUILD=RelWithDebInfo
       compiler: clang
       os: osx
-      osx_image: xcode9.3
     # 2
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
       env: VERSION=6.0  BUILD=Debug
@@ -147,7 +151,9 @@ matrix:
 
 
 script:
-  - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:');
+  - INIT_TIME=$SECONDS;
+    JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:');
+    echo --- Initialization time $INIT_TIME seconds;
     echo --- JOB_NUMBER=$JOB_NUMBER TRAVIS_COMMIT=$TRAVIS_COMMIT TRAVIS_COMMIT_RANGE=$TRAVIS_COMMIT_RANGE TRAVIS_REPO_SLUG=$TRAVIS_REPO_SLUG TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST TRAVIS_PULL_REQUEST_BRANCH=$TRAVIS_PULL_REQUEST_BRANCH
 
   - echo --- Perform all Travis jobs or only jobs that are included in ENV_VAR_JOB_NUMBERS list if it is defined;
@@ -197,6 +203,7 @@ script:
 
   - echo --- Update list of packages and download dependencies;
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+       TIMEOUT_CMD=timeout;
        CC=$CC-$VERSION;
        CXX=$CXX-$VERSION;
        sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
@@ -204,11 +211,14 @@ script:
        sudo ln -s $(which ccache) /usr/lib/ccache/$CC;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
     else
+       TIMEOUT_CMD=gtimeout;
        brew update;
        brew install ccache protobuf@3.1; `# protobuf 3.6+ uses C++11 features`;
        brew link ccache;
        export PATH="/usr/local/opt/ccache/libexec:$PATH";
-    fi
+    fi;
+    UPDATE_TIME=$(($SECONDS - $INIT_TIME));
+    echo --- Packages updated in $UPDATE_TIME seconds. Initialization time $INIT_TIME seconds.
 
   - mkdir bin; cd bin;
   - $CC -v
@@ -287,9 +297,17 @@ script:
   - echo --- Perform Debug or RelWithDebInfo compilation;
     echo --- CMAKE_OPT=\"$CMAKE_OPT\";
     echo --- ENV_VAR_CMAKE_OPT=\"$ENV_VAR_CMAKE_OPT\";
-    cmake ..
-      $CMAKE_OPT
-      $ENV_VAR_CMAKE_OPT
-  - make -j2 || travis_terminate 1
-  - ccache --show-stats
+    cmake .. $CMAKE_OPT $ENV_VAR_CMAKE_OPT;
 
+  - CMAKE_TIME=$(($SECONDS - $INIT_TIME - $UPDATE_TIME));
+    if [[ "$TRAVIS_REPO_SLUG" == "percona/percona-server" ]]; then
+      TIMEOUT_TIME=$((116 * 60 - $SECONDS));
+    else
+      TIMEOUT_TIME=$((46 * 60 - $SECONDS));
+    fi;
+    echo --- Timeout $TIMEOUT_TIME seconds. CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds. Initialization time $INIT_TIME seconds.;
+    $TIMEOUT_CMD $TIMEOUT_TIME make -j2
+
+  - ccache --show-stats;
+    BUILD_TIME=$(($SECONDS - $INIT_TIME - $UPDATE_TIME - $CMAKE_TIME));
+    echo --- Total time $SECONDS seconds. Build time $BUILD_TIME/$TIMEOUT_TIME seconds. CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds. Initialization time $INIT_TIME seconds.

@@ -25,7 +25,10 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
   ${LZ4_INCLUDE_DIR}
-  SYSTEM ${BOOST_INCLUDE_DIR}
+)
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
 )
 
 SET(CONF_SOURCES
@@ -254,6 +257,7 @@ SET(SQL_SHARED_SOURCES
   unireg.cc
   xa.cc
   binlog_crypt_data.cc
+  userstat.cc
 )
 
 IF(WIN32)
@@ -303,6 +307,7 @@ SET(SQL_SOURCE
   srv_session.cc
   srv_session_info_service.cc
   srv_session_service.cc
+  auth/sha2_password_common.cc
   )
 
 IF(NOT WIN32)
@@ -318,20 +323,6 @@ IF(WIN32)
 ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-ADD_COMPILE_FLAGS(
-  debug_sync.cc
-  handler.cc
-  geometry_rtree.cc
-  item_geofunc.cc
-  item_geofunc_buffer.cc
-  item_geofunc_internal.cc
-  item_geofunc_relchecks.cc
-  item_geofunc_relchecks_bgwrap.cc
-  item_geofunc_setops.cc
-  item_json_func.cc
-  spatial.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
-)
 
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c
@@ -474,6 +465,17 @@ IF(WIN32)
 ELSE()
   SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
 ENDIF()
+
+# partition_base.cc contains c++11 code, which can be compiled on all
+# platforms supported for TokuDB and MyRocks
+IF (HAVE_STDCXX11)
+  LIST(APPEND MYSQLD_SOURCE partitioning/partition_base.cc)
+  ADD_COMPILE_FLAGS(partitioning/partition_base.cc
+    COMPILE_FLAGS -std=gnu++11 -Wno-deprecated-declarations)
+ELSE ()
+  MESSAGE(WARNING
+    "-std=gnu++11 support is required to build TokuDB/RocksDB native partitioning")
+ENDIF ()
 
 MYSQL_ADD_EXECUTABLE(mysqld
   ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)

@@ -144,6 +144,7 @@ static const SYMBOL symbols[] = {
   { SYM("COMPRESSED",               COMPRESSED_SYM)},
   { SYM("COMPRESSION_DICTIONARY",   COMPRESSION_DICTIONARY_SYM)},
   { SYM("ENCRYPTION",               ENCRYPTION_SYM)},
+  { SYM("ENCRYPTION_KEY_ID",        ENCRYPTION_KEY_ID_SYM)},
   { SYM("CONCURRENT",               CONCURRENT)},
   { SYM("CONDITION",                CONDITION_SYM)},
   { SYM("CONNECTION",               CONNECTION_SYM)},

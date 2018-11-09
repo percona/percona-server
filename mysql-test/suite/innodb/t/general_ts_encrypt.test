@@ -262,3 +262,4 @@ DROP TABLESPACE ts_encrypted;
 DROP TABLESPACE ts_encrypted_new;
 DROP TABLESPACE ts_unencrypted;
 DROP TABLESPACE ts_unencrypted_new;
+DROP TABLESPACE ts_valid2;

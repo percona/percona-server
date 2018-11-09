@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -237,10 +237,11 @@ bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num)
   return 1;
 } // get_ev_num_info
 
-void free_string(void* key, TREE_FREE action MY_ATTRIBUTE((unused)),
-                 const void *param MY_ATTRIBUTE((unused)))
+
+void free_string(void *s_void, TREE_FREE, const void*)
 {
-  reinterpret_cast<String*>(key)->mem_free();
+  String *s= static_cast<String*>(s_void);
+  s->mem_free();
 }
 
 void field_str::add()
@@ -317,7 +318,7 @@ void field_str::add()
       }
       else
       {
-	memset(static_cast<void*>(&s), 0, sizeof(s));  // Let tree handle free of this
+        ::new (&s) String; // Let tree handle free of this
 	if ((treemem += length) > pc->max_treemem)
 	{
 	  room_in_tree = 0;	 // Remove tree, too big tree

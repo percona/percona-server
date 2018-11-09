@@ -764,6 +764,8 @@ mysqld_collation_get_by_name(const char *name,
   return cs;
 }
 
+int lock_keyrings(THD *thd);
+int unlock_keyrings(THD *thd);
 
 #ifdef MYSQL_SERVER
 
@@ -1271,6 +1273,14 @@ public:
   }
 };
 
+class Key_length_error_handler : public Internal_error_handler {
+ public:
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *) {
+    return (sql_errno == ER_TOO_LONG_KEY);
+  }
+};
 
 /**
   This class is an internal error handler implementation for
@@ -1756,6 +1766,12 @@ public:
   void rpl_detach_engine_ha_data();
 
   /**
+    When the thread is a binlog or slave applier it reattaches the engine
+    ha_data associated with it and memorizes the fact of that.
+  */
+  void rpl_reattach_engine_ha_data();
+
+  /**
     @return true   when the current binlog (rli_fake) or slave (rli_slave)
                    applier thread has detached the engine ha_data,
                    see @c rpl_detach_engine_ha_data.
@@ -2218,7 +2234,7 @@ public:
 
   void access_distinct_page(ulong page_id)
   {
-    if (approx_distinct_pages.test_and_set(mem_root, page_id))
+    if (approx_distinct_pages.test_and_set(&main_mem_root, page_id))
       innodb_page_access++;
   }
 
@@ -5959,55 +5975,6 @@ inline void add_order_to_list(THD *thd, ORDER *order)
   thd->lex->select_lex->add_order_to_list(order);
 }
 
-/*************************************************************************/
-
-/** RAII class for temporarily turning off @@autocommit in the connection. */
-
-class Disable_autocommit_guard
-{
-public:
-
-  /**
-    @param thd  non-NULL - pointer to the context of connection in which
-                           @@autocommit mode needs to be disabled.
-                NULL     - if @@autocommit mode needs to be left as is.
-  */
-  Disable_autocommit_guard(THD *thd)
-    : m_thd(thd), m_save_option_bits(thd ? thd->variables.option_bits : 0)
-  {
-    if (m_thd)
-    {
-      /*
-        We can't disable auto-commit if there is ongoing transaction as this
-        might easily break statement/session transaction invariants.
-      */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
-
-      m_thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-      m_thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
-    }
-  }
-
-  ~Disable_autocommit_guard()
-  {
-    if (m_thd)
-    {
-      /*
-        Both session and statement transactions need to be finished by the
-        time when we enable auto-commit mode back.
-      */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
-      m_thd->variables.option_bits= m_save_option_bits;
-    }
-  }
-
-private:
-  THD *m_thd;
-  ulonglong m_save_option_bits;
-};
-
 inline void add_group_to_list(THD *thd, ORDER *order)
 {
   thd->lex->select_lex->add_group_to_list(order);
@@ -6047,6 +6014,20 @@ inline void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *ht
       replace_native_transaction_in_thd(thd, *trx_backup, NULL);
     *trx_backup= NULL;
   }
+}
+
+/**
+  Check if engine substitution is allowed in the current thread context.
+
+  @param thd         thread context
+  @return
+  @retval            true if engine substitution is allowed
+  @retval            false otherwise
+*/
+
+static inline bool is_engine_substitution_allowed(THD* thd)
+{
+  return !(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
 }
 
 /*************************************************************************/

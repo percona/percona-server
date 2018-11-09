@@ -34,6 +34,8 @@ The following global status variables are available:
      - Numeric
    * - :variable:`rocksdb_rows_expired`
      - Numeric
+   * - :variable:`rocksdb_rows_filtered`
+     - Numeric
    * - :variable:`rocksdb_system_rows_deleted`
      - Numeric
    * - :variable:`rocksdb_system_rows_inserted`
@@ -254,6 +256,11 @@ This variable shows the number of rows that were updated in MyRocks tables.
 .. variable:: rocksdb_rows_expired
 
 This variable shows the number of expired rows in MyRocks tables.
+
+.. variable:: rocksdb_rows_filtered
+
+This variable shows the number of rows that were filtered out for TTL in
+MyRocks tables.
 
 .. variable:: rocksdb_system_rows_deleted
 
@@ -580,7 +587,7 @@ This variable shows the total number of single delete keys written by MyRocks.
 
 .. variable:: rocksdb_number_stat_computes
 
-This variable isn't used anymore and will be removed in future releases.
+This variable was removed in |Percona Server| :rn:`5.7.23-23`.
 
 .. variable:: rocksdb_number_superversion_acquires
 
@@ -594,7 +601,7 @@ database.
 
 .. variable:: rocksdb_rate_limit_delay_millis
 
-This variable isn't used anymore and will be removed in future releases.
+This variable was removed in |Percona Server| :rn:`5.7.23-23`.
 
 .. variable:: rocksdb_row_lock_deadlocks
 

@@ -1,0 +1,87 @@
+#
+#
+#
+-- source include/have_innodb.inc
+#-- source include/have_example_key_management_plugin.inc
+#-- source include/innodb_undo_tablespaces.inc # TODO:Robert: to sa kombinacje undo_tablespaces w MariaDB
+
+# embedded does not support restart
+-- source include/not_embedded.inc
+
+SET @start_global_value = @@global.innodb_encryption_threads;
+
+SHOW VARIABLES LIKE 'innodb_encrypt%';
+
+SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+
+--let $tables_count= `select count(*) + 1 from information_schema.tables where engine = 'InnoDB' and table_schema <> 'information_schema'`
+
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = $tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1;
+--source include/wait_condition.inc
+
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0;
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0;
+
+--echo # Success!
+
+--echo # Now turn off encryption and wait for threads to decrypt everything
+SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+
+--echo # Wait max 10 min for key encryption threads to decrypt all spaces
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = $tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0;
+--source include/wait_condition.inc
+
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0;
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0;
+
+--echo # Success!
+
+--echo # Shutdown innodb_encryption_threads
+SET GLOBAL innodb_encryption_threads=0;
+
+--echo # Turn on encryption
+--echo # since threads are off tables should remain unencrypted
+SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+
+--echo # Wait 15s to check that nothing gets encrypted
+--let $wait_timeout= 15
+--let $wait_condition=SELECT COUNT(*) = $tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0;
+--source include/wait_condition.inc
+
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0;
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0;
+
+--echo # Success!
+
+--echo # Startup innodb_encryption_threads
+SET GLOBAL innodb_encryption_threads=@start_global_value;
+
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) >= $tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1;
+--source include/wait_condition.inc
+
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0;
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0;
+
+--echo # Success!
+--echo # Restart mysqld --innodb_encrypt_tables=0 --innodb_encryption_threads=0
+
+--source include/shutdown_mysqld.inc
+
+#--innodb-encryption-threads=0
+#--let $restart_parameters=--innodb-encryption-threads=0
+#--let $restart_parameters=--innodb-encrypt-tables=0
+--let $restart_parameters=restart:--innodb-encryption-threads=0 --innodb-encrypt-tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+--source include/start_mysqld.inc
+
+#--let $restart_parameters=--innodb_encrypt_tables=0 --innodb_encryption_threads=0
+#--source include/restart_mysqld.inc
+
+SHOW VARIABLES LIKE 'innodb_encrypt%';
+
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0;
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0;

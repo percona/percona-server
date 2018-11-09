@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -617,7 +617,7 @@ TruncateLogParser::scan(
 			}
 			memset(log_file_name, 0, sz);
 
-			strncpy(log_file_name, dir_path, dir_len);
+			memcpy(log_file_name, dir_path, dir_len);
 			ulint	log_file_name_len = strlen(log_file_name);
 			if (log_file_name[log_file_name_len - 1]
 				!= OS_PATH_SEPARATOR) {
@@ -1235,6 +1235,11 @@ row_truncate_complete(
 		table->memcached_sync_count = 0;
 	}
 
+	/* Add the table back to FTS optimize background thread. */
+	if (table->fts) {
+		fts_optimize_add_table(table);
+	}
+
 	row_mysql_unlock_data_dictionary(trx);
 
 	DEBUG_SYNC_C("ib_trunc_table_trunc_completing");
@@ -1589,6 +1594,9 @@ row_truncate_update_system_tables(
 
 		/* Reset the Doc ID in cache to 0 */
 		if (has_internal_doc_id && table->fts->cache != NULL) {
+			DBUG_EXECUTE_IF("ib_trunc_sleep_before_fts_cache_clear",
+					os_thread_sleep(10000000););
+
 			table->fts->fts_status |= TABLE_DICT_LOCKED;
 			fts_update_next_doc_id(trx, table, NULL, 0);
 			fts_cache_clear(table->fts->cache);
@@ -1711,10 +1719,14 @@ row_truncate_sanity_checks(
 
 		return(DB_TABLESPACE_DELETED);
 
-	} else if (table->ibd_file_missing) {
+	} else if (!table->is_readable()) {
+		if (fil_space_get(table->space) == NULL) {
+			return(DB_TABLESPACE_NOT_FOUND);
 
-		return(DB_TABLESPACE_NOT_FOUND);
-
+		} else {
+			return(DB_DECRYPTION_FAILED);
+		}
+      
 	} else if (dict_table_is_corrupted(table)) {
 
 		return(DB_TABLE_CORRUPT);
@@ -1847,6 +1859,13 @@ row_truncate_table_for_mysql(
 
 	/* Step-4: Stop all the background process associated with table. */
 	dict_stats_wait_bg_to_stop_using_table(table, trx);
+	if (table->fts) {
+		/* Remove from FTS optimize thread. Unlock is needed to allow
+		finishing background operations in progress. */
+		row_mysql_unlock_data_dictionary(trx);
+		fts_optimize_remove_table(table);
+		row_mysql_lock_data_dictionary(trx);
+	}
 
 	/* Step-5: There are few foreign key related constraint under which
 	we can't truncate table (due to referential integrity unless it is
@@ -2259,12 +2278,18 @@ truncate_t::fixup_tables_in_non_system_tablespace()
 				fil_create_directory_for_tablename(
 					(*it)->m_tablename);
 
+				CreateInfoEncryptionKeyId create_info_encryption_key_id(false,
+											(*it)->m_encryption_key_id);
+
 				err = fil_ibd_create(
-					(*it)->m_space_id,
-					(*it)->m_tablename,
-					(*it)->m_dir_path,
-					(*it)->m_tablespace_flags,
-					FIL_IBD_FILE_INITIAL_SIZE);
+						(*it)->m_space_id,
+						(*it)->m_tablename,
+						(*it)->m_dir_path,
+						(*it)->m_tablespace_flags,
+						FIL_IBD_FILE_INITIAL_SIZE,
+						(*it)->m_encryption,
+						create_info_encryption_key_id
+					);
 				if (err != DB_SUCCESS) {
 					/* If checkpoint is not yet done
 					and table is dropped and then we might
@@ -2359,7 +2384,8 @@ truncate_t::truncate_t(
 	m_format_flags(),
 	m_indexes(),
 	m_log_lsn(),
-	m_log_file_name()
+	m_log_file_name(),
+	m_encryption(FIL_ENCRYPTION_DEFAULT)
 {
 	if (dir_path != NULL) {
 		m_dir_path = mem_strdup(dir_path);
@@ -2383,7 +2409,8 @@ truncate_t::truncate_t(
 	m_format_flags(),
 	m_indexes(),
 	m_log_lsn(),
-	m_log_file_name()
+	m_log_file_name(),
+	m_encryption(FIL_ENCRYPTION_DEFAULT)
 {
 	m_log_file_name = mem_strdup(log_file_name);
 	if (m_log_file_name == NULL) {

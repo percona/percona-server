@@ -5085,12 +5085,12 @@ ER_UNSUPPORTED_PS
         eng "This command is not supported in the prepared statement protocol yet"
         ger "Dieser Befehl wird im Protokoll für vorbereitete Anweisungen noch nicht unterstützt"
 ER_GET_ERRMSG  
-        dan "Modtog fejl %d '%-.100s' fra %s"
-        eng "Got error %d '%-.100s' from %s"
-        ger "Fehler %d '%-.100s' von %s"
-        jpn "エラー %d '%-.100s' が %s から返されました。"
-        nor "Mottok feil %d '%-.100s' fa %s"
-        norwegian-ny "Mottok feil %d '%-.100s' fra %s"
+        dan "Modtog fejl %d '%-.200s' fra %s"
+        eng "Got error %d '%-.200s' from %s"
+        ger "Fehler %d '%-.200s' von %s"
+        jpn "エラー %d '%-.200s' が %s から返されました。"
+        nor "Mottok feil %d '%-.200s' fa %s"
+        norwegian-ny "Mottok feil %d '%-.200s' fra %s"
 ER_GET_TEMPORARY_ERRMSG  
         dan "Modtog temporary fejl %d '%-.100s' fra %s"
         eng "Got temporary error %d '%-.100s' from %s"
@@ -7767,6 +7767,9 @@ ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
 
 WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
   eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
+
+ER_XA_REPLICATION_FILTERS
+  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
 
 ER_COMPRESSED_COLUMN_USED_AS_KEY
   eng "Compressed column '%-.192s' is not allowed in the key list"

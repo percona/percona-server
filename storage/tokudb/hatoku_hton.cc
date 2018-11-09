@@ -22,13 +22,16 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 ======= */
 
-#ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
+#ident \
+    "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #include "hatoku_hton.h"
+#include "src/ydb.h"
 
 #include <dlfcn.h>
 
 #include "my_tree.h"
+#include "sql_partition.h"
 
 #define TOKU_METADB_NAME "tokudb_meta"
 
@@ -51,15 +54,16 @@ typedef struct savepoint_info {
     bool in_sub_stmt;
 } *SP_INFO, SP_INFO_T;
 
-static handler* tokudb_create_handler(
-    handlerton* hton,
-    TABLE_SHARE* table,
-    MEM_ROOT* mem_root);
+static handler* tokudb_create_handler(handlerton* hton,
+                                      TABLE_SHARE* table,
+                                      MEM_ROOT* mem_root);
 
-static void tokudb_print_error(
-    const DB_ENV* db_env,
-    const char* db_errpfx,
-    const char* buffer);
+/** Return partitioning flags. */
+static uint tokudb_partition_flags();
+
+static void tokudb_print_error(const DB_ENV* db_env,
+                               const char* db_errpfx,
+                               const char* buffer);
 static void tokudb_cleanup_log_files(void);
 static int tokudb_end(handlerton* hton, ha_panic_function type);
 static bool tokudb_flush_logs(handlerton* hton, bool binlog_group_commit);
@@ -350,6 +354,8 @@ static int tokudb_init_func(void *p) {
 #endif
 
     tokudb_hton->create = tokudb_create_handler;
+    if (tokudb::sysvars::enable_native_partition)
+        tokudb_hton->partition_flags = tokudb_partition_flags;
     tokudb_hton->close_connection = tokudb_close_connection;
     tokudb_hton->kill_connection = tokudb_kill_connection;
 
@@ -529,10 +535,10 @@ static int tokudb_init_func(void *p) {
 
     db_env->set_update(db_env, tokudb_update_fun);
 
-    db_env_set_direct_io(tokudb::sysvars::directio == TRUE);
+    db_env_set_direct_io(tokudb::sysvars::directio);
 
     db_env_set_compress_buffers_before_eviction(
-        tokudb::sysvars::compress_buffers_before_eviction == TRUE);
+        tokudb::sysvars::compress_buffers_before_eviction);
 
     db_env->change_fsync_log_period(db_env, tokudb::sysvars::fsync_log_period);
 
@@ -648,14 +654,30 @@ static int tokudb_done_func(TOKUDB_UNUSED(void* p)) {
     toku_global_status_variables = NULL;
     tokudb::memory::free(toku_global_status_rows);
     toku_global_status_rows = NULL;
+    tokudb_map_mutex.deinit();
+    toku_ydb_destroy();
     TOKUDB_DBUG_RETURN(0);
 }
 
-static handler* tokudb_create_handler(
-    handlerton* hton,
-    TABLE_SHARE* table,
-    MEM_ROOT* mem_root) {
-    return new(mem_root) ha_tokudb(hton, table);
+static handler* tokudb_create_handler(handlerton* hton,
+                                      TABLE_SHARE* table,
+                                      MEM_ROOT* mem_root) {
+    if (tokudb::sysvars::enable_native_partition &&
+        table && table->db_type() == tokudb_hton && table->partition_info_str &&
+        table->partition_info_str_len) {
+        ha_tokupart* file = new (mem_root) ha_tokupart(hton, table);
+        if (file && file->init_partitioning(mem_root)) {
+            delete file;
+            return nullptr;
+        }
+        return (file);
+    }
+
+    return new (mem_root) ha_tokudb(hton, table);
+}
+
+static uint tokudb_partition_flags() {
+    return (HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK);
 }
 
 int tokudb_end(TOKUDB_UNUSED(handlerton* hton),

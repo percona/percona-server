@@ -721,8 +721,6 @@ buf_page_t *buf_page_alloc_descriptor(void) {
 
   bpage = (buf_page_t *)ut_zalloc_nokey(sizeof *bpage);
   ut_ad(bpage);
-  UNIV_MEM_ALLOC(bpage, sizeof *bpage);
-  UNIV_MEM_VALID(&bpage->buf_fix_count, sizeof bpage->buf_fix_count);
 
   return (bpage);
 }

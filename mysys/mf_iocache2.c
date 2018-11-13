@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+||||||| merged common ancestors
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> mysql-5.5.62
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,14 +109,30 @@ my_off_t my_b_append_tell(IO_CACHE* info)
   */
   {
     volatile my_off_t save_pos;
+<<<<<<< HEAD
     save_pos= mysql_file_tell(info->file, MYF(0));
     mysql_file_seek(info->file, (my_off_t)0, MY_SEEK_END,MYF(0));
+||||||| merged common ancestors
+    save_pos = my_tell(info->file,MYF(0));
+    my_seek(info->file,(my_off_t)0,MY_SEEK_END,MYF(0));
+=======
+    save_pos = mysql_file_tell(info->file,MYF(0));
+    mysql_file_seek(info->file,(my_off_t)0,MY_SEEK_END,MYF(0));
+>>>>>>> mysql-5.5.62
     /*
       Save the value of my_tell in res so we can see it when studying coredump
     */
     DBUG_ASSERT(info->end_of_file - (info->append_read_pos-info->write_buffer)
+<<<<<<< HEAD
 		== (res= mysql_file_tell(info->file, MYF(0))));
     mysql_file_seek(info->file, save_pos, MY_SEEK_SET,MYF(0));
+||||||| merged common ancestors
+		== (res=my_tell(info->file,MYF(0))));
+    my_seek(info->file,save_pos,MY_SEEK_SET,MYF(0));
+=======
+		== (res=mysql_file_tell(info->file,MYF(0))));
+    mysql_file_seek(info->file,save_pos,MY_SEEK_SET,MYF(0));
+>>>>>>> mysql-5.5.62
   }
 #endif  
   res = info->end_of_file + (info->write_pos-info->append_read_pos);
@@ -204,7 +226,13 @@ size_t my_b_fill(IO_CACHE *info)
 
   if (info->seek_not_done)
   {					/* File touched, do seek */
+<<<<<<< HEAD
     if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET,MYF(0)) ==
+||||||| merged common ancestors
+    if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) ==
+=======
+    if (mysql_file_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) ==
+>>>>>>> mysql-5.5.62
 	MY_FILEPOS_ERROR)
     {
       info->error= 0;
@@ -224,7 +252,13 @@ size_t my_b_fill(IO_CACHE *info)
   }
   DBUG_EXECUTE_IF ("simulate_my_b_fill_error",
                    {DBUG_SET("+d,simulate_file_read_error");});
+<<<<<<< HEAD
   if ((length= mysql_file_read(info->file, info->buffer, max_length,
+||||||| merged common ancestors
+  if ((length= my_read(info->file,info->buffer,max_length,
+=======
+  if ((length= mysql_file_read(info->file,info->buffer,max_length,
+>>>>>>> mysql-5.5.62
                        info->myflags)) == (size_t) -1)
   {
     info->error= -1;

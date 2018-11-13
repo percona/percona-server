@@ -103,6 +103,8 @@ use Subunit;
 
 push @INC, ".";
 
+push @INC, ".";
+
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";

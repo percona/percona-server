@@ -3056,6 +3056,10 @@ static bool rocksdb_flush_wal(handlerton *const hton MY_ATTRIBUTE((__unused__)),
 static int rocksdb_prepare(handlerton *const hton, THD *const thd,
                            bool prepare_tx) {
   Rdb_transaction *&tx = get_tx_from_thd(thd);
+  if (!tx->is_tx_started()) {
+    // nothing to prepare
+    return HA_EXIT_SUCCESS;
+  }
   if (!tx->can_prepare()) {
     return HA_EXIT_FAILURE;
   }

@@ -366,6 +366,9 @@ alter table t3 add keyB int not null, add index iB(keyB);
 alter table t3 add keyC int not null, add index iC(keyC);
 update t3 set key9=key1,keyA=key1,keyB=key1,keyC=key1;
 
+# reset default engine after restart
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
+
 -- disable_query_log
 -- disable_result_log
 analyze table t3;

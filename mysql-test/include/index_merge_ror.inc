@@ -209,6 +209,9 @@ select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=1
 
 delete from t1 where key3=100 and key4=100;
 
+# reset default engine after restart
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
+
 -- disable_query_log
 -- disable_result_log
 analyze table t1;

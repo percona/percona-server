@@ -268,16 +268,8 @@ local unsigned long crc32_little(crc, buf, len)
     const unsigned char FAR *buf;
     z_size_t len;
 {
-<<<<<<< HEAD
-    u4 c;
-    const u4 FAR *buf4;
-||||||| merged common ancestors
-    register u4 c;
-    register const u4 FAR *buf4;
-=======
-    register z_crc_t c;
-    register const z_crc_t FAR *buf4;
->>>>>>> mysql-5.5.62
+    z_crc_t c;
+    const z_crc_t FAR *buf4;
 
     c = (z_crc_t)crc;
     c = ~c;
@@ -316,16 +308,8 @@ local unsigned long crc32_big(crc, buf, len)
     const unsigned char FAR *buf;
     z_size_t len;
 {
-<<<<<<< HEAD
-    u4 c;
-    const u4 FAR *buf4;
-||||||| merged common ancestors
-    register u4 c;
-    register const u4 FAR *buf4;
-=======
-    register z_crc_t c;
-    register const z_crc_t FAR *buf4;
->>>>>>> mysql-5.5.62
+    z_crc_t c;
+    const z_crc_t FAR *buf4;
 
     c = ZSWAP32((z_crc_t)crc);
     c = ~c;

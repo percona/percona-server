@@ -1238,22 +1238,10 @@ local uInt longest_match(s, cur_match)
     IPos cur_match;                             /* current match */
 {
     unsigned chain_length = s->max_chain_length;/* max hash chain length */
-<<<<<<< HEAD
     Bytef *scan = s->window + s->strstart; /* current string */
-    Bytef *match;                       /* matched string */
+    Bytef *match;                      /* matched string */
     int len;                           /* length of current match */
-    int best_len = s->prev_length;              /* best match length so far */
-||||||| merged common ancestors
-    register Bytef *scan = s->window + s->strstart; /* current string */
-    register Bytef *match;                       /* matched string */
-    register int len;                           /* length of current match */
-    int best_len = s->prev_length;              /* best match length so far */
-=======
-    register Bytef *scan = s->window + s->strstart; /* current string */
-    register Bytef *match;                      /* matched string */
-    register int len;                           /* length of current match */
     int best_len = (int)s->prev_length;         /* best match length so far */
->>>>>>> mysql-5.5.62
     int nice_match = s->nice_match;             /* stop if match long enough */
     IPos limit = s->strstart > (IPos)MAX_DIST(s) ?
         s->strstart - (IPos)MAX_DIST(s) : NIL;
@@ -1494,15 +1482,7 @@ local void check_match(s, start, match, length)
 local void fill_window(s)
     deflate_state *s;
 {
-<<<<<<< HEAD
-    unsigned n, m;
-    Posf *p;
-||||||| merged common ancestors
-    register unsigned n, m;
-    register Posf *p;
-=======
     unsigned n;
->>>>>>> mysql-5.5.62
     unsigned more;    /* Amount of free space at the end of the window. */
     uInt wsize = s->w_size;
 

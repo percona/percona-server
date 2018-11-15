@@ -1,0 +1,1 @@
+--innodb-force-recovery=6 $SEMISYNC_PLUGIN_OPT

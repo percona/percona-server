@@ -5862,34 +5862,6 @@ sub lldb_arguments {
 }
 
 #
-# Modify the exe and args so that program is run in lldb
-#
-sub lldb_arguments {
-  my $args= shift;
-  my $exe= shift;
-  my $type= shift;
-  my $input= shift;
-
-  my $lldb_init_file= "$opt_vardir/tmp/lldbinit.$type";
-  unlink($lldb_init_file);
-
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "r $str < $input" : "r $str";
-
-  # write init file for mysqld or client
-  mtr_tofile($lldb_init_file,
-	     "b main\n" .
-	     $runline);
-
-  print "\nTo start lldb for $type, type in another window:\n";
-  print "(cd $glob_mysql_test_dir && lldb -s $lldb_init_file $$exe)\n";
-
-  # Indicate the exe should not be started
-  $$exe= undef;
-  return;
-}
-
-#
 # Modify the exe and args so that program is run in ddd
 #
 sub ddd_arguments {

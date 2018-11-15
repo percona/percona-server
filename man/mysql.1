@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/15/2018
+.\"      Date: 08/28/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "06/15/2018" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "08/28/2018" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -217,8 +217,7 @@ option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-binary\-as\-hex\fR,
-\fB\-b\fR
+\fB\-\-binary\-as\-hex\fR
 .sp
 When this option is given,
 \fBmysql\fR
@@ -1934,6 +1933,8 @@ Read the named file and executes the statements contained therein\&. On Windows,
 /
 or
 \e\e\&.
+.sp
+Quote characters are taken as part of the file name itself\&. For best results, the name should not include space characters\&.
 .RE
 .sp
 .RS 4

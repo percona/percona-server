@@ -1633,14 +1633,14 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
     }
 
     if (count >= 10) {
-      ib::error(ER_IB_MSG_1236) << "Log writer overwriting data to"
-                                   " track - waited too long (1 second),"
-                                   " lag: "
-                                << lsn_diff
-                                << " bytes,"
-                                   " tracked LSN: "
-                                << tracked_lsn;
-      ib::error(ER_IB_MSG_1236) << "Stopping the log tracking thread";
+      ib::error(ER_XB_MSG_0) << "Log writer overwriting data to"
+                                " track - waited too long (1 second),"
+                                " lag: "
+                             << lsn_diff
+                             << " bytes,"
+                                " tracked LSN: "
+                             << tracked_lsn;
+      ib::error(ER_XB_MSG_0) << "Stopping the log tracking thread";
       srv_track_changed_pages = false;
       tracker_limited_lsn = min_next_lsn;
       break;
@@ -1650,12 +1650,12 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
 
     log_writer_mutex_exit(log);
 
-    ib::warn(ER_IB_MSG_1237) << "Log writer is waiting for tracker to"
-                                " to catch up lag: "
-                             << lsn_diff
-                             << " bytes,"
-                                " tracked LSN: "
-                             << tracked_lsn;
+    ib::warn(ER_XB_MSG_1) << "Log writer is waiting for tracker to"
+                             " to catch up lag: "
+                          << lsn_diff
+                          << " bytes,"
+                             " tracked LSN: "
+                          << tracked_lsn;
 
     count++;
     os_thread_sleep(100000); /* 100ms */

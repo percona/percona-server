@@ -18128,6 +18128,12 @@ ER_COMPRESSION_DICTIONARY_IS_REFERENCED
 ER_RPL_FAILED_TO_RECREATE_CACHE_FOR_INFO_FILE
   eng "Failed to recreate a cache on info file (file '%s')"
 
+ER_XB_MSG_0
+  eng "%s"
+
+ER_XB_MSG_1
+  eng "%s"
+
 #
 # End of Percona Server error messages
 #

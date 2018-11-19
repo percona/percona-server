@@ -391,6 +391,8 @@ extern LEX_CSTRING sql_statement_names[(uint)SQLCOM_END + 1];
 
 extern uint mysqld_extra_port;
 
+extern char *enforce_storage_engine;
+
 extern thread_local MEM_ROOT **THR_MALLOC;
 
 extern PSI_file_key key_file_binlog_cache;

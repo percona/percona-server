@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2013, Monty Program Ab
    Copyright (C) 2012 Percona Inc.
-||||||| merged common ancestors
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
-=======
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-5.6.42
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1864,7 +1858,6 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
 }
 
 
-<<<<<<< HEAD
 int MYSQL_LOG::purge_up_to(ulong to_ext, const char *log_name)
 {
   char buff[FN_REFLEN];
@@ -1886,21 +1879,8 @@ int MYSQL_LOG::purge_up_to(ulong to_ext, const char *log_name)
   DBUG_RETURN(error);
 }
 
-/*
-  Reopen the log file
-
-  SYNOPSIS
-    reopen_file()
-||||||| merged common ancestors
-/*
-  Reopen the log file
-
-  SYNOPSIS
-    reopen_file()
-=======
 /**
   Reopen the log file.
->>>>>>> mysql-5.6.42
 
   @note  Reopen the log file. The method is used during FLUSH LOGS
     and locks LOCK_log mutex

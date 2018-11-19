@@ -25,7 +25,6 @@
 
 /* C++ standard header files */
 #include <algorithm>
-#include <inttypes.h>
 #include <limits>
 #include <map>
 #include <queue>
@@ -3421,7 +3420,6 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
     if (!path_entry.path.empty() && !path_entry.limit_exceeded) {
       const auto &deadlocking_txn = *(path_entry.path.end() - 1);
       deadlock_info.victim_trx_id = deadlocking_txn.m_txn_id;
-      deadlock_info.deadlock_time = path_entry.deadlock_time;
     }
     return deadlock_info;
   }

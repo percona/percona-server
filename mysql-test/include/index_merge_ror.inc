@@ -188,6 +188,9 @@ delete from t1 where key3=100 and key4=100;
 SET @@GLOBAL.innodb_fast_shutdown = 0;
 --source include/restart_mysqld.inc
 
+# reset default engine after restart
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
+
 -- disable_query_log
 -- disable_result_log
 analyze table t1;

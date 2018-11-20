@@ -2431,7 +2431,7 @@ err:
 static bool lock_tables_for_backup(THD *thd) {
   DBUG_ENTER("lock_tables_for_backup");
 
-  if (check_global_access(thd, RELOAD_ACL)) DBUG_RETURN(true);
+  if (check_backup_admin_privilege(thd)) DBUG_RETURN(true);
 
   if (delay_key_write_options == DELAY_KEY_WRITE_ALL) {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "delay_key_write=ALL");

@@ -9,7 +9,7 @@ Percona announces the release of `Percona Server for MySQL
 November 21, 2018 (downloads are available `here
 <https://www.percona.com/downloads/Percona-Server-5.5/>`_ and from the `Percona
 Software Repositories
-<https://www.percona.com/doc/percona-server/5.6/installation.html#installing-from-binaries>`_). This
+<https://www.percona.com/doc/percona-server/5.5/installation.html#installing-from-binaries>`_). This
 release merges changes of MySQL 5.5.62, including all the bug fixes in
 it. Percona Server for MySQL |release| is now the current GA release in the 5.5
 series. All of Percona’s software is open-source and free.

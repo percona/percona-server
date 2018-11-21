@@ -334,7 +334,7 @@ ERROR HY000: Variable 'innodb_page_size' is a non persistent read only variable
 SET @@persist_only.version= "";
 ERROR HY000: Variable 'version' is a non persistent read only variable
 SET @@persist_only.version_comment= "";
-ERROR HY000: Variable 'version_comment' is a non persistent read only variable
+ERROR HY000: Variable 'version_comment' is a non persistent variable
 SET @@persist_only.version_compile_machine= "";
 ERROR HY000: Variable 'version_compile_machine' is a non persistent read only variable
 SET @@persist_only.version_compile_os= "";

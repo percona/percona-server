@@ -865,6 +865,12 @@ int set_var::resolve(THD *thd) {
                "non persistent read only");
       DBUG_RETURN(-1);
     }
+  } else {
+    if (type == OPT_PERSIST_ONLY && var->is_non_persistent()) {
+      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str,
+               "non persistent");
+      DBUG_RETURN(-1);
+    }
   }
   if (!var->check_scope(type)) {
     int err = (is_global_persist()) ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;

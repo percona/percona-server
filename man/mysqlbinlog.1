@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/15/2018
+.\"      Date: 09/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "06/15/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "09/07/2018" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -283,8 +283,6 @@ the section called \(lqMYSQLBINLOG ROW EVENT DISPLAY\(rq\&.
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
 .sp
 On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
-.sp
-This option is supported beginning with MySQL 5\&.6\&.1\&.
 .RE
 .sp
 .RS 4
@@ -316,22 +314,22 @@ T}:T{
 --binlog-row-event-max-size=#
 T}
 T{
-\fBType\fR (64-bit platforms)
+\fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
-\fBDefault Value\fR (64-bit platforms)
+\fBDefault Value\fR
 T}:T{
 4294967040
 T}
 T{
-\fBMinimum Value\fR (64-bit platforms)
+\fBMinimum Value\fR
 T}:T{
 256
 T}
 T{
-\fBMaximum Value\fR (64-bit platforms)
+\fBMaximum Value\fR
 T}:T{
 18446744073709547520
 T}
@@ -521,10 +519,6 @@ with the
 \fB\-\-database\fR
 option, you must ensure that tables that are modified are in the database selected by
 USE\&. (In particular, no cross\-database updates should be used\&.)
-.sp
-Prior to MySQL 5\&.6\&.10, the
-\fB\-\-database\fR
-option did not work correctly with a log written by a GTID\-enabled MySQL server\&. (Bug #15912728)
 .RE
 .sp
 .RS 4
@@ -583,8 +577,6 @@ Print debugging information and memory and CPU usage statistics when the program
 .sp
 A hint about the client\-side authentication plugin to use\&. See
 Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
-.sp
-This option was added in MySQL 5\&.6\&.2\&.
 .RE
 .sp
 .RS 4
@@ -664,17 +656,14 @@ Disable binary logging\&. This is useful for avoiding an endless loop if you use
 \fB\-\-to\-last\-log\fR
 option and are sending the output to the same MySQL server\&. This option also is useful when restoring after a crash to avoid duplication of the statements you have logged\&.
 .sp
-This option requires that you have the
-SUPER
-privilege\&. It causes
+This option causes
 \fBmysqlbinlog\fR
 to include a
 SET sql_log_bin = 0
-statement in its output to disable binary logging of the remaining output\&. The
-SET
-statement is ineffective unless you have the
-SUPER
-privilege\&.
+statement in its output to disable binary logging of the remaining output\&. Manipulating the session value of the
+sql_log_bin
+system variable is a restricted operation, so this option requires that you have privileges sufficient to set restricted session variables\&. See
+Section\ \&5.1.8.1, \(lqSystem Variable Privileges\(rq\&.
 .RE
 .sp
 .RS 4
@@ -688,7 +677,7 @@ privilege\&.
 \fB\-\-exclude\-gtids=\fR\fB\fIgtid_set\fR\fR
 .sp
 Do not display any of the groups listed in the
-\fIgtid_set\fR\&. Added in MySQL 5\&.6\&.5\&.
+\fIgtid_set\fR\&.
 .RE
 .sp
 .RS 4
@@ -763,7 +752,7 @@ Get the binary log from the MySQL server on the given host\&.
 \fB\-\-include\-gtids=\fR\fB\fIgtid_set\fR\fR
 .sp
 Display only the groups listed in the
-\fIgtid_set\fR\&. Added in MySQL 5\&.6\&.5\&.
+\fIgtid_set\fR\&.
 .RE
 .sp
 .RS 4
@@ -816,7 +805,7 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&. This option was added in MySQL 5\&.6\&.6\&.
+\fBmysql_config_editor\fR(1)\&.
 .RE
 .sp
 .RS 4
@@ -903,8 +892,6 @@ option is used to specify an authentication plugin but
 \fBmysqlbinlog\fR
 does not find it\&. See
 Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
-.sp
-This option was added in MySQL 5\&.6\&.2\&.
 .RE
 .sp
 .RS 4
@@ -980,8 +967,6 @@ stays connected to the server\&. By default, output files are written in the cur
 \fB\-\-result\-file\fR
 option\&. For more information, see
 the section called \(lqUSING MYSQLBINLOG TO BACK UP BINARY LOG FILES\(rq\&.
-.sp
-This option was added in MySQL 5\&.6\&.0\&.
 .RE
 .sp
 .RS 4
@@ -1008,8 +993,6 @@ is combined with
 .sp
 See also the description for
 \fB\-\-read\-from\-remote\-server\fR\&.
-.sp
-This option was added in MySQL 5\&.6\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1033,7 +1016,7 @@ Read the binary log from a MySQL server rather than reading a local log file\&. 
 .sp
 This option requires that the remote server be running\&. It works only for binary log files on the remote server, not relay log files\&.
 .sp
-As of MySQL 5\&.6\&.5, this option is like
+This option is like
 \fB\-\-read\-from\-remote\-master=BINLOG\-DUMP\-NON\-GTIDS\fR\&.
 .RE
 .sp
@@ -1218,8 +1201,6 @@ shell> \fBmysql \-u root \-p \-e "source /tmp/dump\&.sql"\fR
 .\}
 .sp
 The use of this option is otherwise not normally recommended in production\&.
-.sp
-This option was added in MySQL 5\&.6\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1354,8 +1335,6 @@ is commonly used with
 to make a live binary log backup, but also can be used without
 \fB\-\-raw\fR
 to maintain a continuous text display of log events as the server generates them\&.
-.sp
-This option was added in MySQL 5\&.6\&.0\&.
 .RE
 .sp
 .RS 4
@@ -1377,8 +1356,6 @@ explicitly specifies the server ID to report\&. It can be used to avoid a confli
 \fBmysqlbinlog\fR
 process\&. See
 the section called \(lqSPECIFYING THE MYSQLBINLOG SERVER ID\(rq\&.
-.sp
-This option was added in MySQL 5\&.6\&.0\&.
 .RE
 .sp
 .RS 4
@@ -1459,7 +1436,7 @@ the section called \(lqMYSQLBINLOG ROW EVENT DISPLAY\(rq\&.
 \fB\-\-verify\-binlog\-checksum\fR,
 \fB\-c\fR
 .sp
-Verify checksums in binary log files\&. This option was added in MySQL 5\&.6\&.1\&.
+Verify checksums in binary log files\&.
 .RE
 .sp
 .RS 4
@@ -1704,7 +1681,7 @@ ROLLBACK;
 .RE
 .\}
 .PP
-Hex dump output currently contains the elements in the following list\&. This format is subject to change\&. (For more information about binary log format, see
+Hex dump output currently contains the elements in the following list\&. This format is subject to change\&. For more information about binary log format, see
 \m[blue]\fBMySQL Internals: The Binary Log\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .sp
 .RS 4
@@ -1741,265 +1718,7 @@ in hexadecimal\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-Type: The event type code\&. In the example shown,
-\*(Aq0f\*(Aq
-indicates a
-FORMAT_DESCRIPTION_EVENT\&. The following table lists the possible type codes\&.
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Type
-T}:T{
-Name
-T}:T{
-Meaning
-T}
-.T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
-T{
-00
-T}:T{
-UNKNOWN_EVENT
-T}:T{
-This event should never be present in the log.
-T}
-T{
-01
-T}:T{
-START_EVENT_V3
-T}:T{
-This indicates the start of a log file written by MySQL 4 or earlier.
-T}
-T{
-02
-T}:T{
-QUERY_EVENT
-T}:T{
-The most common type of events. These contain statements executed on the
-                  master.
-T}
-T{
-03
-T}:T{
-STOP_EVENT
-T}:T{
-Indicates that master has stopped.
-T}
-T{
-04
-T}:T{
-ROTATE_EVENT
-T}:T{
-Written when the master switches to a new log file.
-T}
-T{
-05
-T}:T{
-INTVAR_EVENT
-T}:T{
-Used for AUTO_INCREMENT values or when the
-                  LAST_INSERT_ID()
-                  function is used in the statement.
-T}
-T{
-06
-T}:T{
-LOAD_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE in MySQL 3.23.
-T}
-T{
-07
-T}:T{
-SLAVE_EVENT
-T}:T{
-Reserved for future use.
-T}
-T{
-08
-T}:T{
-CREATE_FILE_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE statements. This indicates the start
-                  of execution of such a statement. A temporary file is
-                  created on the slave. Used in MySQL 4 only.
-T}
-T{
-09
-T}:T{
-APPEND_BLOCK_EVENT
-T}:T{
-Contains data for use in a
-                  LOAD DATA
-                  INFILE statement. The data is stored in the
-                  temporary file on the slave.
-T}
-T{
-0a
-T}:T{
-EXEC_LOAD_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE statements. The contents of the
-                  temporary file is stored in the table on the slave.
-                  Used in MySQL 4 only.
-T}
-T{
-0b
-T}:T{
-DELETE_FILE_EVENT
-T}:T{
-Rollback of a LOAD DATA
-                  INFILE statement. The temporary file should
-                  be deleted on the slave.
-T}
-T{
-0c
-T}:T{
-NEW_LOAD_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE in MySQL 4 and earlier.
-T}
-T{
-0d
-T}:T{
-RAND_EVENT
-T}:T{
-Used to send information about random values if the
-                  RAND() function is used
-                  in the statement.
-T}
-T{
-0e
-T}:T{
-USER_VAR_EVENT
-T}:T{
-Used to replicate user variables.
-T}
-T{
-0f
-T}:T{
-FORMAT_DESCRIPTION_EVENT
-T}:T{
-This indicates the start of a log file written by MySQL 5 or later.
-T}
-T{
-10
-T}:T{
-XID_EVENT
-T}:T{
-Event indicating commit of an XA transaction.
-T}
-T{
-11
-T}:T{
-BEGIN_LOAD_QUERY_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE statements in MySQL 5 and later.
-T}
-T{
-12
-T}:T{
-EXECUTE_LOAD_QUERY_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE statements in MySQL 5 and later.
-T}
-T{
-13
-T}:T{
-TABLE_MAP_EVENT
-T}:T{
-Information about a table definition. Used in MySQL 5.1.5 and later.
-T}
-T{
-14
-T}:T{
-PRE_GA_WRITE_ROWS_EVENT
-T}:T{
-Row data for a single table that should be created. Used in MySQL 5.1.5
-                  to 5.1.17.
-T}
-T{
-15
-T}:T{
-PRE_GA_UPDATE_ROWS_EVENT
-T}:T{
-Row data for a single table that needs to be updated. Used in MySQL
-                  5.1.5 to 5.1.17.
-T}
-T{
-16
-T}:T{
-PRE_GA_DELETE_ROWS_EVENT
-T}:T{
-Row data for a single table that should be deleted. Used in MySQL 5.1.5
-                  to 5.1.17.
-T}
-T{
-17
-T}:T{
-WRITE_ROWS_EVENT
-T}:T{
-Row data for a single table that should be created. Used in MySQL 5.1.18
-                  and later.
-T}
-T{
-18
-T}:T{
-UPDATE_ROWS_EVENT
-T}:T{
-Row data for a single table that needs to be updated. Used in MySQL
-                  5.1.18 and later.
-T}
-T{
-19
-T}:T{
-DELETE_ROWS_EVENT
-T}:T{
-Row data for a single table that should be deleted. Used in MySQL 5.1.18
-                  and later.
-T}
-T{
-1a
-T}:T{
-INCIDENT_EVENT
-T}:T{
-Something out of the ordinary happened. Added in MySQL 5.1.18.
-T}
-.TE
-.sp 1
+Type: The event type code\&.
 .RE
 .sp
 .RS 4
@@ -2043,61 +1762,7 @@ Master Pos: The position of the next event in the original master log file\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-Flags: 16 flags\&. The following flags are used\&. The others are reserved for future use\&.
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Flag
-T}:T{
-Name
-T}:T{
-Meaning
-T}
-.T&
-l l l
-l l l
-l l l
-l l l.
-T{
-01
-T}:T{
-LOG_EVENT_BINLOG_IN_USE_F
-T}:T{
-Log file correctly closed. (Used only in
-                  FORMAT_DESCRIPTION_EVENT.) If this
-                  flag is set (if the flags are, for example,
-                  '01 00') in a
-                  FORMAT_DESCRIPTION_EVENT, the log
-                  file has not been properly closed. Most probably this
-                  is because of a master crash (for example, due to
-                  power failure).
-T}
-T{
-02
-T}:T{
-T}:T{
-Reserved for future use.
-T}
-T{
-04
-T}:T{
-LOG_EVENT_THREAD_SPECIFIC_F
-T}:T{
-Set if the event is dependent on the connection it was executed in (for
-                  example, '04 00'), for example, if
-                  the event uses temporary tables.
-T}
-T{
-08
-T}:T{
-LOG_EVENT_SUPPRESS_USE_F
-T}:T{
-Set in some circumstances when the event is not dependent on the default
-                  database.
-T}
-.TE
-.sp 1
+Flags: Event flag values\&.
 .RE
 .SH "MYSQLBINLOG ROW EVENT DISPLAY"
 .PP
@@ -2484,7 +2149,6 @@ writes text output to its standard output, or to the file named as the value of 
 \fB\-\-result\-file=\fR\fB\fIfile_name\fR\fR
 option if that option is given\&.
 .PP
-As of MySQL 5\&.6,
 \fBmysqlbinlog\fR
 can read binary log files and write new files containing the same content\(emthat is, in binary format rather than text format\&. This capability enables you to easily back up a binary log in its original format\&.
 \fBmysqlbinlog\fR

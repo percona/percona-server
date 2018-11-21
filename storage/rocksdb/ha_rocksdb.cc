@@ -696,11 +696,12 @@ static MYSQL_THDVAR_BOOL(
     nullptr, nullptr, false);
 
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
+#define DEFAULT_READ_FREE_RPL_TABLES ""
 static MYSQL_THDVAR_STR(
     read_free_rpl_tables, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
     "Regex that describes set of tables that will use read-free replication "
     "on the slave (i.e. not lookup a row during replication)",
-    nullptr, nullptr, "");
+    nullptr, nullptr, DEFAULT_READ_FREE_RPL_TABLES);
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
 static MYSQL_SYSVAR_BOOL(
@@ -5941,7 +5942,7 @@ void ha_rocksdb::free_key_buffers() {
 
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 void ha_rocksdb::set_use_read_free_rpl(const char *const whitelist) {
-  DBUG_ASSERT(whitelist != nullptr);
+  const char *const wl = whitelist ? whitelist : DEFAULT_READ_FREE_RPL_TABLES;
 
 #if defined(HAVE_PSI_INTERFACE)
   Regex regex_handler(key_rwlock_read_free_rpl_tables);
@@ -5953,7 +5954,7 @@ void ha_rocksdb::set_use_read_free_rpl(const char *const whitelist) {
   if (lower_case_table_names)
     flags |= MY_REG_ICASE;
 
-  if (!regex_handler.compile(whitelist, flags, table_alias_charset)) {
+  if (!regex_handler.compile(wl, flags, table_alias_charset)) {
     warn_about_bad_patterns(regex_handler, "read_free_rpl_tables");
   }
 

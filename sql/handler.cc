@@ -2847,8 +2847,14 @@ err:
 
 void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
+<<<<<<< HEAD
   DBUG_ASSERT(!table->in_use->status_var_aggregated);
   (table->in_use->status_var.*offset)++;
+||||||| merged common ancestors
+  (table->in_use->status_var.*offset)++;
+=======
+  if (table && table->in_use) (table->in_use->status_var.*offset)++;
+>>>>>>> mysql-5.7.24
 }
 
 
@@ -5153,7 +5159,8 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ALTER_RENAME |
     Alter_inplace_info::RENAME_INDEX |
-    Alter_inplace_info::ALTER_INDEX_COMMENT;
+    Alter_inplace_info::ALTER_INDEX_COMMENT |
+    Alter_inplace_info::ALTER_COLUMN_INDEX_LENGTH;
 
   /* Is there at least one operation that requires copy algorithm? */
   if (ha_alter_info->handler_flags & ~inplace_offline_operations)

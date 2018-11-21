@@ -876,7 +876,7 @@ int ha_myisam::write_row(uchar *buf)
     If we have an auto_increment column and we are writing a changed row
     or a new row, then update the auto_increment value in the record.
   */
-  if (table->next_number_field && buf == table->record[0])
+  if (table && table->next_number_field && buf == table->record[0])
   {
     if ((error= update_auto_increment()))
       return error;
@@ -2304,7 +2304,8 @@ static int myisam_init(void *p)
   myisam_hton->create= myisam_create_handler;
   myisam_hton->panic= myisam_panic;
   myisam_hton->close_connection= myisam_close_connection;
-  myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
+  myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES |
+                      HTON_SUPPORTS_PACKED_KEYS;
   myisam_hton->is_supported_system_table= myisam_is_supported_system_table;
 
   main_thread_keycache_var= st_keycache_thread_var();

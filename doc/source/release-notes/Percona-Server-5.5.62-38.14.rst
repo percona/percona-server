@@ -41,4 +41,4 @@ documentation
 bugs in the `Jira bug tracker <https://jira.percona.com/projects/PS>`_.
 
 
-.. |release| replace:: 5.5.61-38.13
+.. |release| replace:: 5.5.62-38.14

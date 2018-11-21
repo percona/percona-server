@@ -345,8 +345,10 @@ Group:          	Applications/Databases
 BuildArch:		noarch
 %endif
 Requires:		selinux-policy
+Requires:		policycoreutils
+Requires(pre):		policycoreutils
 Requires(post):		policycoreutils
-Requires(postun):	policycoreutils
+Requires(postun):       policycoreutils
 
 %if 0%{?rhel} == 6
 BuildRequires: 		selinux-policy
@@ -585,9 +587,9 @@ install -d $RBR%{_libdir}/mysql/plugin
 install -d -m 0750 $RBR/var/lib/mysql-files
 
 # SElinux
-pushd ${MBD}/policy
+pushd ${MBD}/policy/selinux
 make -f /usr/share/selinux/devel/Makefile
-install -D -m 0644 $MBD/policy/percona-server.pp $RBR%{_datadir}/selinux/packages/percona-server/percona-server.pp
+install -D -m 0644 $MBD/policy/selinux/percona-server.pp $RBR%{_datadir}/selinux/packages/percona-server/percona-server.pp
 popd
 # SElinux END
 

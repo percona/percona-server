@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/25/2018
+.\"      Date: 09/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "02/25/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "09/07/2018" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -72,7 +72,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.89.\ \& This table describes command\-line options for the ndb_restore program
+.B Table\ \&18.317.\ \&Command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -81,7 +81,7 @@ Format
 T}:T{
 Description
 T}:T{
-Added or Removed
+Added, Deprecated, or Removed
 T}
 .T&
 l l l
@@ -172,7 +172,7 @@ T{
 --disable-indexes
 T}:T{
 Causes indexes from a backup to be ignored; may decrease time needed to
-          restore data.
+              restore data.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -184,7 +184,7 @@ T{
 -f
 T}:T{
 Do not ignore system table during restore. Experimental only; not for
-          production use
+              production use
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -203,8 +203,8 @@ T{
 --exclude-intermediate-sql-tables[=TRUE|FALSE]
 T}:T{
 If TRUE (the default), do not restore any intermediate tables (having
-          names prefixed with '#sql-') that were left over from copying
-          ALTER TABLE operations.
+              names prefixed with '#sql-') that were left over from
+              copying ALTER TABLE operations.
 T}:T{
 .PP
 ADDED: NDB 7.3.6
@@ -214,7 +214,7 @@ T{
 --exclude-missing-columns
 T}:T{
 Causes columns from the backup version of a table that are missing from
-          the version of the table in the database to be ignored.
+              the version of the table in the database to be ignored.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -224,7 +224,7 @@ T{
 --exclude-missing-tables
 T}:T{
 Causes tables from the backup that are missing from the database to be
-          ignored.
+              ignored.
 T}:T{
 .PP
 ADDED: NDB 7.3.7
@@ -234,8 +234,8 @@ T{
 --exclude-tables=table-list
 T}:T{
 List of one or more tables to exclude (includes those in the same
-          database that are not named); each table reference must
-          include the database name
+              database that are not named); each table reference must
+              include the database name
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -290,8 +290,8 @@ T{
 --include-tables=table-list
 T}:T{
 List of one or more tables to restore (excludes those in same database
-          that are not named); each table reference must include the
-          database name
+              that are not named); each table reference must include the
+              database name
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -312,7 +312,7 @@ T{
 -L
 T}:T{
 Allow lossy conversions of column values (type demotions or changes in
-          sign) when restoring data from backup
+              sign) when restoring data from backup
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -322,7 +322,7 @@ T{
 --no-binlog
 T}:T{
 If a mysqld is connected and using binary logging, do not log the
-          restored data
+              restored data
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -345,7 +345,7 @@ T{
 -u
 T}:T{
 Do not upgrade array type for varsize attributes which do not already
-          resize VAR data, and do not change column attributes
+              resize VAR data, and do not change column attributes
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -357,7 +357,7 @@ T{
 -z
 T}:T{
 Nodegroup map for NDBCLUSTER storage engine. Syntax: list of
-          (source_nodegroup, destination_nodegroup)
+              (source_nodegroup, destination_nodegroup)
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -391,7 +391,7 @@ T{
 -P
 T}:T{
 Allow preservation of trailing spaces (including padding) when promoting
-          fixed-width string types to variable-width types
+              fixed-width string types to variable-width types
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -401,7 +401,7 @@ T{
 --print
 T}:T{
 Print metadata, data and log to stdout (equivalent to --print_meta
-          --print_data --print_log)
+              --print_data --print_log)
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -457,9 +457,9 @@ T{
 .PP
 --rebuild-indexes
 T}:T{
-Causes multi-threaded rebuilding of ordered indexes found in the backup.
-          Number of threads used is determined by setting
-          BuildIndexThreads parameter.
+Causes multithreaded rebuilding of ordered indexes found in the backup.
+              Number of threads used is determined by setting
+              BuildIndexThreads parameter.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -482,8 +482,8 @@ T{
 -e
 T}:T{
 Restore epoch info into the status table. Convenient on a MySQL Cluster
-          replication slave for starting replication. The row in
-          mysql.ndb_apply_status with id 0 will be updated/inserted.
+              replication slave for starting replication. The row in
+              mysql.ndb_apply_status with id 0 will be updated/inserted.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -542,8 +542,8 @@ T{
 --skip-unknown-objects
 T}:T{
 Causes schema objects not recognized by ndb_restore to be ignored when
-          restoring a backup made from a newer MySQL Cluster version to
-          an older version.
+              restoring a backup made from a newer MySQL Cluster version
+              to an older version.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -731,10 +731,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-directory name
+Directory name
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 ./
 T}
@@ -781,9 +781,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.4\&.20 to a cluster running NDB Cluster 7\&.3\&.21, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.4\&.22 to a cluster running NDB Cluster 7\&.3\&.23, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.4\&.20 distribution\&.
+that comes with the NDB Cluster 7\&.4\&.22 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -827,10 +827,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 none
 T}
@@ -887,10 +887,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 localhost:1186
 T}
@@ -928,7 +928,7 @@ T}
 .sp 1
 Disable restoration of indexes during restoration of the data from a native
 NDB
-backup\&. Afterwards, you can restore indexes for all tables at once with multi\-threaded building of indexes using
+backup\&. Afterwards, you can restore indexes for all tables at once with multithreaded building of indexes using
 \fB\-\-rebuild\-indexes\fR, which should be faster than rebuilding indexes concurrently for very large tables\&.
 .RE
 .sp
@@ -998,10 +998,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -1047,10 +1047,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -1176,10 +1176,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -1199,11 +1199,17 @@ This table shows several invocations of
 usng
 \fB\-\-exclude\-*\fR
 options (other options possibly required have been omitted for clarity), and the effects these options have on restoring from an NDB Cluster backup:
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&18.318.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
 T{
-Option Used
+Option
 T}:T{
 Result
 T}
@@ -1213,41 +1219,41 @@ l l
 l l
 l l.
 T{
-\fB\-\-exclude\-databases=db1\fR
+\fB--exclude-databases=db1\fR
 T}:T{
 All tables in all databases except db1 are restored;
-                    no tables in db1 are restored
+                  no tables in db1 are restored
 T}
 T{
-\fB\-\-exclude\-databases=db1,db2\fR (or
-                    \fB\-\-exclude\-databases=db1\fR
-                    \fB\-\-exclude\-databases=db2\fR)
+\fB--exclude-databases=db1,db2\fR (or
+                  \fB--exclude-databases=db1\fR
+                  \fB--exclude-databases=db2\fR)
 T}:T{
 All tables in all databases except db1 and
-                    db2 are restored; no tables in
-                    db1 or db2 are
-                    restored
+                  db2 are restored; no tables in
+                  db1 or db2 are
+                  restored
 T}
 T{
-\fB\-\-exclude\-tables=db1\&.t1\fR
+\fB--exclude-tables=db1.t1\fR
 T}:T{
 All tables except t1 in database
-                    db1 are restored; all other
-                    tables in db1 are restored; all
-                    tables in all other databases are restored
+                  db1 are restored; all other tables
+                  in db1 are restored; all tables in
+                  all other databases are restored
 T}
 T{
-\fB\-\-exclude\-tables=db1\&.t2,db2\&.t1\fR (or
-                    \fB\-\-exclude\-tables=db1\&.t2\fR
-                    \fB\-\-exclude\-tables=db2\&.t1)\fR
+\fB--exclude-tables=db1.t2,db2.t1\fR (or
+                  \fB--exclude-tables=db1.t2\fR
+                  \fB--exclude-tables=db2.t1)\fR
 T}:T{
 All tables in database db1 except for
-                    t2 and all tables in database
-                    db2 except for table
-                    t1 are restored; no other tables
-                    in db1 or db2
-                    are restored; all tables in all other databases are
-                    restored
+                  t2 and all tables in database
+                  db2 except for table
+                  t1 are restored; no other tables in
+                  db1 or db2 are
+                  restored; all tables in all other databases are
+                  restored
 T}
 .TE
 .sp 1
@@ -1392,10 +1398,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -1433,10 +1439,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -1478,10 +1484,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 \t (tab)
 T}
@@ -1548,10 +1554,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -1589,10 +1595,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -1611,11 +1617,17 @@ The following table shows several invocations of
 using
 \fB\-\-include\-*\fR
 options (other options possibly required have been omitted for clarity), and the effects these have on restoring from an NDB Cluster backup:
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&18.319.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
 T{
-Option Used
+Option
 T}:T{
 Result
 T}
@@ -1625,37 +1637,37 @@ l l
 l l
 l l.
 T{
-\fB\-\-include\-databases=db1\fR
+\fB--include-databases=db1\fR
 T}:T{
 Only tables in database db1 are restored; all tables
-                    in all other databases are ignored
+                  in all other databases are ignored
 T}
 T{
-\fB\-\-include\-databases=db1,db2\fR (or
-                    \fB\-\-include\-databases=db1\fR
-                    \fB\-\-include\-databases=db2\fR)
+\fB--include-databases=db1,db2\fR (or
+                  \fB--include-databases=db1\fR
+                  \fB--include-databases=db2\fR)
 T}:T{
 Only tables in databases db1 and
-                    db2 are restored; all tables in
-                    all other databases are ignored
+                  db2 are restored; all tables in all
+                  other databases are ignored
 T}
 T{
-\fB\-\-include\-tables=db1\&.t1\fR
+\fB--include-tables=db1.t1\fR
 T}:T{
 Only table t1 in database db1 is
-                    restored; no other tables in db1
-                    or in any other database are restored
+                  restored; no other tables in db1 or
+                  in any other database are restored
 T}
 T{
-\fB\-\-include\-tables=db1\&.t2,db2\&.t1\fR (or
-                    \fB\-\-include\-tables=db1\&.t2\fR
-                    \fB\-\-include\-tables=db2\&.t1\fR)
+\fB--include-tables=db1.t2,db2.t1\fR (or
+                  \fB--include-tables=db1.t2\fR
+                  \fB--include-tables=db2.t1\fR)
 T}:T{
 Only the table t2 in database db1
-                    and the table t1 in database
-                    db2 are restored; no other tables
-                    in db1, db2,
-                    or any other database are restored
+                  and the table t1 in database
+                  db2 are restored; no other tables
+                  in db1, db2, or
+                  any other database are restored
 T}
 .TE
 .sp 1
@@ -1750,10 +1762,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 \n (linebreak)
 T}
@@ -1792,12 +1804,12 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
-FALSE
+FALSE (If option is not used)
 T}
 .TE
 .sp 1
@@ -1873,10 +1885,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -1984,10 +1996,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 none
 T}
@@ -2031,20 +2043,20 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 128
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 1024
 T}
@@ -2154,10 +2166,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -2224,10 +2236,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -2280,10 +2292,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -2324,10 +2336,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -2368,20 +2380,20 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 65535
 T}
@@ -2543,7 +2555,7 @@ T}:T{
 T}
 .TE
 .sp 1
-Enable multi\-threaded rebuilding of the ordered indexes while restoring a native
+Enable multithreaded rebuilding of the ordered indexes while restoring a native
 NDB
 backup\&. The number of threads used for building ordered indexes by
 \fBndb_restore\fR
@@ -2602,10 +2614,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -2683,10 +2695,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -2751,12 +2763,12 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
-FALSE
+FALSE (If option is not used)
 T}
 .TE
 .sp 1
@@ -2800,10 +2812,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 none
 T}
@@ -3065,7 +3077,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-directory name
+Directory name
 T}
 .TE
 .sp 1
@@ -3108,20 +3120,20 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 1
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 255
 T}

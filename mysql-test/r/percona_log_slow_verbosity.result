@@ -13,7 +13,7 @@ log_slow_verbosity='microtime,innodb,query_plan':
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^# Bytes_sent: \d+.*$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^# InnoDB_trx_id: \w+$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^# InnoDB_trx_id: [1-9A-F][0-9A-F]*$
 [log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   2
@@ -21,11 +21,21 @@ log_slow_verbosity='microtime,innodb,query_plan':
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^#   InnoDB_IO_r_ops: \d+  InnoDB_IO_r_bytes: \d+  InnoDB_IO_r_wait: \d*\.\d*$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0\.0*$
 [log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^#   InnoDB_IO_r_ops: [1-9]\d*  InnoDB_IO_r_bytes: [1-9]\d*  InnoDB_IO_r_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)$
+[log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^#   InnoDB_rec_lock_wait: \d*\.\d*  InnoDB_queue_wait: \d*\.\d*$
 [log_grep.inc] lines:   1
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^#   InnoDB_pages_distinct: \d+$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: InnoDB_rec_lock_wait: 0\.0*
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: InnoDB_rec_lock_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: InnoDB_queue_wait: 0\.0*
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: InnoDB_queue_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^#   InnoDB_pages_distinct: [1-9]\d*$
 [log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_0 pattern: ^# No InnoDB statistics available for this query$
 [log_grep.inc] lines:   1
@@ -42,7 +52,7 @@ log_slow_verbosity='microtime,innodb,query_plan':
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# Bytes_sent: \d+.*$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# InnoDB_trx_id: \w+$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# InnoDB_trx_id: [1-9A-F][0-9A-F]*$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   2
@@ -50,11 +60,21 @@ log_slow_verbosity='microtime,innodb,query_plan':
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^#   InnoDB_IO_r_ops: \d+  InnoDB_IO_r_bytes: \d+  InnoDB_IO_r_wait: \d*\.\d*$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0\.0*$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^#   InnoDB_IO_r_ops: [1-9]\d*  InnoDB_IO_r_bytes: [1-9]\d*  InnoDB_IO_r_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^#   InnoDB_rec_lock_wait: \d*\.\d*  InnoDB_queue_wait: \d*\.\d*$
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^#   InnoDB_pages_distinct: \d+$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: InnoDB_rec_lock_wait: 0\.0*
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: InnoDB_rec_lock_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: InnoDB_queue_wait: 0\.0*
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: InnoDB_queue_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^#   InnoDB_pages_distinct: [1-9]\d*$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# No InnoDB statistics available for this query$
 [log_grep.inc] lines:   2
@@ -69,7 +89,7 @@ log_slow_verbosity='microtime':
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# Bytes_sent: \d+.*$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# InnoDB_trx_id: \w+$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# InnoDB_trx_id: [1-9A-F][0-9A-F]*$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   0
@@ -77,11 +97,21 @@ log_slow_verbosity='microtime':
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^#   InnoDB_IO_r_ops: \d+  InnoDB_IO_r_bytes: \d+  InnoDB_IO_r_wait: \d*\.\d*$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0\.0*$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^#   InnoDB_IO_r_ops: [1-9]\d*  InnoDB_IO_r_bytes: [1-9]\d*  InnoDB_IO_r_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^#   InnoDB_rec_lock_wait: \d*\.\d*  InnoDB_queue_wait: \d*\.\d*$
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^#   InnoDB_pages_distinct: \d+$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: InnoDB_rec_lock_wait: 0\.0*
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: InnoDB_rec_lock_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: InnoDB_queue_wait: 0\.0*
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: InnoDB_queue_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^#   InnoDB_pages_distinct: [1-9]\d*$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# No InnoDB statistics available for this query$
 [log_grep.inc] lines:   0
@@ -96,7 +126,7 @@ log_slow_verbosity='query_plan':
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# Bytes_sent: \d+.*$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# InnoDB_trx_id: \w+$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# InnoDB_trx_id: [1-9A-F][0-9A-F]*$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
 [log_grep.inc] lines:   2
@@ -104,11 +134,21 @@ log_slow_verbosity='query_plan':
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+$
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^#   InnoDB_IO_r_ops: \d+  InnoDB_IO_r_bytes: \d+  InnoDB_IO_r_wait: \d*\.\d*$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0\.0*$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^#   InnoDB_IO_r_ops: [1-9]\d*  InnoDB_IO_r_bytes: [1-9]\d*  InnoDB_IO_r_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^#   InnoDB_rec_lock_wait: \d*\.\d*  InnoDB_queue_wait: \d*\.\d*$
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^#   InnoDB_pages_distinct: \d+$
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: InnoDB_rec_lock_wait: 0\.0*
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: InnoDB_rec_lock_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: InnoDB_queue_wait: 0\.0*
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: InnoDB_queue_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^#   InnoDB_pages_distinct: [1-9]\d*$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# No InnoDB statistics available for this query$
 [log_grep.inc] lines:   0

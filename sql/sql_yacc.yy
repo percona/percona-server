@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4681,56 +4681,47 @@ opt_part_values:
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type == RANGE_PARTITION)
-              {
-                my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-                         "RANGE", "LESS THAN");
-                MYSQL_YYABORT;
-              }
-              if (part_info->part_type == LIST_PARTITION)
-              {
-                my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-                         "LIST", "IN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= HASH_PARTITION;
+            else if (part_info->part_type == RANGE_PARTITION)
+            {
+              my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                       "RANGE", "LESS THAN");
+              MYSQL_YYABORT;
+            }
+            else if (part_info->part_type == LIST_PARTITION)
+            {
+              my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                       "LIST", "IN");
+              MYSQL_YYABORT;
+            }
           }
         | VALUES LESS_SYM THAN_SYM
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type != RANGE_PARTITION)
-              {
-                my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                         "RANGE", "LESS THAN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= RANGE_PARTITION;
+            else if (part_info->part_type != RANGE_PARTITION)
+            {
+              my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                       "RANGE", "LESS THAN");
+              MYSQL_YYABORT;
+            }
           }
           part_func_max {}
         | VALUES IN_SYM
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type != LIST_PARTITION)
-              {
-                my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                               "LIST", "IN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= LIST_PARTITION;
+            else if (part_info->part_type != LIST_PARTITION)
+            {
+              my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                       "LIST", "IN");
+              MYSQL_YYABORT;
+            }
           }
           part_values_in {}
         ;
@@ -11280,35 +11271,35 @@ show_param:
         | CLIENT_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           Lex->sql_command= SQLCOM_SELECT;
+           Lex->sql_command= SQLCOM_SHOW_CLIENT_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_CLIENT_STATS))
              MYSQL_YYABORT;
           }
         | USER_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_USER_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_USER_STATS))
              MYSQL_YYABORT;
           }
         | THREAD_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           Lex->sql_command= SQLCOM_SELECT;
+           Lex->sql_command= SQLCOM_SHOW_THREAD_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_THREAD_STATS))
              MYSQL_YYABORT;
           }
         | TABLE_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_TABLE_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_STATS))
              MYSQL_YYABORT;
           }
         | INDEX_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_INDEX_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
              MYSQL_YYABORT;
           }

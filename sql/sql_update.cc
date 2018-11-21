@@ -605,6 +605,7 @@ int mysql_update(THD *thd,
       if (reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
 	error=1; /* purecov: inspected */
       select->file=tempfile;			// Read row ptrs from this file
+      setup_io_cache(&select->file);
       if (error >= 0)
 	goto err;
     }

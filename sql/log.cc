@@ -2004,23 +2004,33 @@ void MYSQL_BIN_LOG::set_write_error(THD *thd, bool is_transactional)
   DBUG_VOID_RETURN;
 }
 
+static bool check_write_error_code(uint error_code)
+{
+  return error_code == ER_TRANS_CACHE_FULL ||
+         error_code == ER_STMT_CACHE_FULL  ||
+         error_code == ER_ERROR_ON_WRITE   ||
+         error_code == ER_BINLOG_LOGGING_IMPOSSIBLE;
+}
+
 bool MYSQL_BIN_LOG::check_write_error(THD *thd)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::check_write_error");
 
-  bool checked= FALSE;
-
   if (!thd->is_error())
-    DBUG_RETURN(checked);
+    DBUG_RETURN(false);
 
-  switch (thd->stmt_da->sql_errno())
+  bool checked= check_write_error_code(thd->stmt_da->sql_errno());
+
+  if (!checked)
   {
-    case ER_TRANS_CACHE_FULL:
-    case ER_STMT_CACHE_FULL:
-    case ER_ERROR_ON_WRITE:
-    case ER_BINLOG_LOGGING_IMPOSSIBLE:
-      checked= TRUE;
-    break;
+    /* Check all conditions for one that matches the expected error */
+    const MYSQL_ERROR *err;
+    List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
+
+    while ((err= it++) != NULL && !checked)
+    {
+      checked= check_write_error_code(err->get_sql_errno());
+    }
   }
 
   DBUG_RETURN(checked);

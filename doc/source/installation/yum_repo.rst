@@ -51,13 +51,13 @@ Installing |Percona Server| from Percona ``yum`` repository
 
    .. code-block:: bash
 
-     yum install http://www.percona.com/downloads/percona-release/redhat/0.1-4/percona-release-0.1-4.noarch.rpm
+     yum install http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-6.noarch.rpm
 
    You should see some output such as the following: 
 
    .. code-block:: bash
 
-     Retrieving http://www.percona.com/downloads/percona-release/redhat/0.1-4/percona-release-0.1-4.noarch.rpm
+     Retrieving http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-6.noarch.rpm
      Preparing...                ########################################### [100%]
         1:percona-release        ########################################### [100%]
 
@@ -67,8 +67,8 @@ Installing |Percona Server| from Percona ``yum`` repository
 
     .. code-block:: bash
 
-      wget http://www.percona.com/downloads/percona-release/redhat/0.1-4/percona-release-0.1-4.noarch.rpm
-      rpm -ivH percona-release-0.1-4.noarch.rpm
+      wget http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-6.noarch.rpm
+      rpm -ivH percona-release-0.1-6.noarch.rpm
 
 
 2. Testing the repository

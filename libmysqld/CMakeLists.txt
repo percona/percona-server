@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@ ${CMAKE_SOURCE_DIR}/libmysqld
 ${CMAKE_SOURCE_DIR}/sql
 ${CMAKE_BINARY_DIR}/sql 
 ${CMAKE_SOURCE_DIR}/regex
-${ZLIB_INCLUDE_DIR}
 ${SSL_INCLUDE_DIRS}
 ${SSL_INTERNAL_INCLUDE_DIRS}
 ${CMAKE_SOURCE_DIR}/sql/backup
@@ -79,7 +78,8 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_trigger.cc ../sql/sql_udf.cc ../sql/sql_union.cc
            ../sql/sql_update.cc ../sql/sql_view.cc ../sql/sql_profile.cc
            ../sql/strfunc.cc ../sql/table.cc ../sql/thr_malloc.cc
-           ../sql/sql_time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
+           ../sql/sql_time.cc ../sql/tztime.cc ../sql/userstat.cc
+           ../sql/uniques.cc ../sql/unireg.cc
            ../sql/partition_info.cc ../sql/sql_connect.cc 
            ../sql/scheduler.cc ../sql/sql_audit.cc
            ../sql/sql_alter.cc ../sql/sql_partition_admin.cc

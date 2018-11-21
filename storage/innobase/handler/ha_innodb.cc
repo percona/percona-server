@@ -6201,6 +6201,8 @@ no_commit:
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
+	DEBUG_SYNC(user_thd, "ib_after_row_insert");
+
 
 #ifdef EXTENDED_FOR_USERSTAT
 	if (UNIV_LIKELY(error == DB_SUCCESS && !trx->fake_changes)) {

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -177,7 +177,9 @@ OPTION(WITHOUT_SERVER OFF)
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
 ENDIF()
-OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+IF(NOT WITHOUT_SERVER)
+  OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+ENDIF()
 MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
 
 OPTION(WITHOUT_RESPONSE_TIME_DISTRIBUTION "If we want to have response_time_distribution" OFF)
@@ -417,6 +419,12 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
+IF(BUILD_BUNDLED_ZLIB)
+  INCLUDE_DIRECTORIES(SYSTEM
+    ${CMAKE_CURRENT_SOURCE_DIR}/zlib
+    ${CMAKE_CURRENT_BINARY_DIR}/zlib
+    )
+ENDIF()
 # Optionally add bundled yassl/taocrypt or system openssl.
 MYSQL_CHECK_SSL()
 # Add readline or libedit.
@@ -459,26 +467,34 @@ IF(WITH_UNIT_TESTS)
 ENDIF()
 
 ADD_SUBDIRECTORY(extra)
+ADD_SUBDIRECTORY(client)
+ADD_SUBDIRECTORY(sql/share)
+ADD_SUBDIRECTORY(libservices)
+
+IF(UNIX)
+  ADD_SUBDIRECTORY(man)
+ENDIF()
+
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(tests)
-  ADD_SUBDIRECTORY(client)
   ADD_SUBDIRECTORY(sql)
-  ADD_SUBDIRECTORY(sql/share)
-  ADD_SUBDIRECTORY(libservices)
   OPTION (WITH_EMBEDDED_SERVER "Compile MySQL with embedded server" OFF)
   IF(WITH_EMBEDDED_SERVER) 
    ADD_SUBDIRECTORY(libmysqld)
    ADD_SUBDIRECTORY(libmysqld/examples)
   ENDIF(WITH_EMBEDDED_SERVER)
+ENDIF()
 
+# scripts/mysql_config depends on client and server targets loaded above.
+# It is referenced by some of the directories below, so we insert it here.
+
+ADD_SUBDIRECTORY(scripts)
+
+IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
   ADD_SUBDIRECTORY(support-files)
-  ADD_SUBDIRECTORY(scripts)
   ADD_SUBDIRECTORY(sql-bench)
-  IF(UNIX)
-    ADD_SUBDIRECTORY(man)
-  ENDIF()
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()

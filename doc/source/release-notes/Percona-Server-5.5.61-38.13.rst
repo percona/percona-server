@@ -7,7 +7,7 @@
 Percona announces the release of `Percona Server for MySQL
 <https://www.percona.com/software/mysql-database/percona-server>`_ |release| on
 August 17, 2018 (downloads are available `here
-<https://www.percona.com/downloads/Percona-Server-5.5/>`_ and from the `Percona
+<https://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.61-38.13>`_ and from the `Percona
 Software Repositories
 <https://www.percona.com/doc/percona-server/5.6/installation.html#installing-from-binaries>`_). This
 release merges changes of `MySQL 5.5.61
@@ -36,3 +36,4 @@ bugs in the `Jira bug tracker <https://jira.percona.com/projects/PS>`_.
 
 
 .. |release| replace:: 5.5.61-38.13
+

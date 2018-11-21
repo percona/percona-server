@@ -475,5 +475,20 @@ DROP TABLE t1;
 #-----------------------------------------------------------------------
 SET GLOBAL lock_wait_timeout=default;
 DROP USER user@localhost;
+#
+# End of 5.7 tests
+#
+# 8.0: LOCK TABLES FOR BACKUP should require BACKUP_ADMIN instead of RELOAD
+CREATE USER u1@localhost;
+LOCK TABLES FOR BACKUP;
+ERROR 42000: Access denied; you need (at least one of) the BACKUP_ADMIN privilege(s) for this operation
+GRANT RELOAD ON *.* TO u1@localhost;
+LOCK TABLES FOR BACKUP;
+ERROR 42000: Access denied; you need (at least one of) the BACKUP_ADMIN privilege(s) for this operation
+REVOKE RELOAD ON *.* FROM u1@localhost;
+GRANT BACKUP_ADMIN ON *.* TO u1@localhost;
+LOCK TABLES FOR BACKUP;
+UNLOCK TABLES;
+DROP USER u1@localhost;
 DROP VIEW v_innodb, v_myisam, v_memory, v_csv, v_blackhole, v_archive;
 DROP TABLE t_innodb, t_myisam, t_memory, t_csv, t_blackhole, t_archive;

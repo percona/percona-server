@@ -2519,22 +2519,6 @@ static Sys_var_ulonglong Sys_max_heap_table_size(
     VALID_RANGE(16384, (ulonglong) ~(intptr)0), DEFAULT(16 * 1024 * 1024),
     BLOCK_SIZE(1024));
 
-static ulong mdl_locks_cache_size_unused;
-static Sys_var_ulong Sys_metadata_locks_cache_size(
-    "metadata_locks_cache_size", "Has no effect, deprecated",
-    READ_ONLY GLOBAL_VAR(mdl_locks_cache_size_unused),
-    CMD_LINE(REQUIRED_ARG, OPT_MDL_CACHE_SIZE), VALID_RANGE(1, 1024 * 1024),
-    DEFAULT(1024), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-    ON_UPDATE(0), DEPRECATED(""));
-
-static ulong mdl_locks_hash_partitions_unused;
-static Sys_var_ulong Sys_metadata_locks_hash_instances(
-    "metadata_locks_hash_instances", "Has no effect, deprecated",
-    READ_ONLY GLOBAL_VAR(mdl_locks_hash_partitions_unused),
-    CMD_LINE(REQUIRED_ARG, OPT_MDL_HASH_INSTANCES), VALID_RANGE(1, 1024),
-    DEFAULT(8), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-    ON_UPDATE(0), DEPRECATED(""));
-
 // relies on DBUG_ASSERT(sizeof(my_thread_id) == 4);
 static Sys_var_uint Sys_pseudo_thread_id(
     "pseudo_thread_id", "This variable is for internal server use",
@@ -4651,7 +4635,7 @@ static Sys_var_charptr Sys_version_suffix("version_suffix", "version_suffix",
 static char *server_version_comment_ptr;
 static Sys_var_charptr Sys_version_comment(
     "version_comment", "version_comment",
-    NON_PERSIST GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE,
+    GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE,
     IN_SYSTEM_CHARSET, DEFAULT(MYSQL_COMPILATION_COMMENT));
 
 static char *server_version_compile_machine_ptr;
@@ -5324,7 +5308,7 @@ static Sys_var_have Sys_have_profiling(
 
 static Sys_var_have Sys_have_backup_locks(
     "have_backup_locks", "have_backup_locks",
-    READ_ONLY GLOBAL_VAR(have_backup_locks), NO_CMD_LINE);
+    READ_ONLY NON_PERSIST GLOBAL_VAR(have_backup_locks), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_backup_safe_binlog_info(
     "have_backup_safe_binlog_info", "have_backup_safe_binlog_info",
@@ -5333,7 +5317,7 @@ static Sys_var_have Sys_have_backup_safe_binlog_info(
 
 static Sys_var_have Sys_have_snapshot_cloning(
     "have_snapshot_cloning", "have_snapshot_cloning",
-    READ_ONLY GLOBAL_VAR(have_snapshot_cloning), NO_CMD_LINE);
+    READ_ONLY NON_PERSIST GLOBAL_VAR(have_snapshot_cloning), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_query_cache(
     "have_query_cache",

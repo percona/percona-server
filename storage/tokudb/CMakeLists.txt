@@ -41,19 +41,6 @@ IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
   RETURN ()
 ENDIF ()
 
-# check compiler version, 4.8.0 is minimal accepted
-IF ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
-    (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7.2"))
-  MESSAGE (${TOKUDB_STATUS_MODE} "GCC >= 4.7.2 required. ${CMAKE_CXX_COMPILER_VERSION} found. Not building TokuDB")
-  RETURN ()
-ENDIF ()
-
-# PerconaFT only supports cmake-2.8.9+
-IF (CMAKE_VERSION VERSION_LESS "2.8.9")
-  MESSAGE (${TOKUDB_STATUS_MODE} "cmake >= 2.8.9 required. ${CMAKE_VERSION} found. Not building TokuDB")
-  RETURN ()
-ENDIF ()
-
 CHECK_CXX_SOURCE_COMPILES (
 "
 struct a {int b; int c; };
@@ -95,14 +82,7 @@ prepend_cflags_if_supported(-Wno-missing-field-initializers)
 append_cflags_if_supported(-Wno-vla)
 
 IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PerconaFT/")
-    IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ft-index/")
-        MESSAGE(FATAL_ERROR "Found both PerconaFT and ft-index sources.  Don't know which to use.")
-    ENDIF ()
     SET(TOKU_FT_DIR_NAME "PerconaFT")
-    
-ELSEIF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ft-index/")
-    MESSAGE(WARNING "Found ft-index sources, ft-index is deprecated and replaced with PerconaFT.")
-    SET(TOKU_FT_DIR_NAME "ft-index")
 ELSE ()
     MESSAGE(FATAL_ERROR "Could not find PerconaFT sources.")
 ENDIF ()

@@ -957,10 +957,6 @@ bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
 int query_error_code(THD *thd, bool not_killed);
 
-bool handle_gtid_consistency_violation(THD *thd, int error_code,
-                                       int log_error_code)
-    MY_ATTRIBUTE((warn_unused_result));
-
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
 extern bool opt_binlog_order_commits;

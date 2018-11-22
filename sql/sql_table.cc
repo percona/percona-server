@@ -1947,23 +1947,6 @@ static bool rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
 
 static bool rm_table_eval_gtid_and_table_groups_state(
     THD *thd, Drop_tables_ctx *drop_ctx) {
-  if ((drop_ctx->has_tmp_trans_tables_to_binlog() ||
-       drop_ctx->has_tmp_non_trans_tables_to_binlog()) &&
-      drop_ctx->drop_temporary &&
-      (thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt)) {
-    /*
-      In statement binary log format, DROP TEMPORARY TABLE is unsafe
-      to execute inside a transaction because the table will be dropped and the
-      transaction will be written to the slave's binary log with the GTID even
-      if the transaction is rolled back. This includes the execution inside
-      functions and triggers.
-    */
-    const bool ret = handle_gtid_consistency_violation(
-        thd, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
-        ER_RPL_GTID_UNSAFE_STMT_ON_TEMPORARY_TABLE);
-    if (!ret) return true;
-  }
-
   if (thd->variables.gtid_next.type == ASSIGNED_GTID) {
     /*
       This statement has been assigned GTID.

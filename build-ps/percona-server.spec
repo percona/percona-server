@@ -193,7 +193,7 @@ Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
 Requires(pre):  Percona-Server-shared%{product_suffix}
-Requires:	Percona-Server-client%{product_suffix} 
+Requires:       Percona-Server-client%{product_suffix}
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
@@ -310,6 +310,18 @@ Requires:       Percona-Server-client%{product_suffix} = %{version}-%{release}
 Requires:       jemalloc >= 3.3.0
 Provides:       tokudb-plugin = %{version}-%{release}
 
+Requires:		selinux-policy
+Requires:		policycoreutils
+Requires(pre):		policycoreutils
+Requires(post):		policycoreutils
+Requires(postun):       policycoreutils
+
+%if 0%{?rhel} == 6
+BuildRequires: 		selinux-policy
+%else
+BuildRequires: 		selinux-policy-devel
+%endif
+
 %description -n Percona-Server-tokudb%{product_suffix}
 This package contains the TokuDB plugin for Percona Server %{version}-%{release}
 %endif
@@ -403,7 +415,7 @@ mkdir release
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-	   -DWITH_BOOST=.. \
+           -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DENABLE_DTRACE=0 \
@@ -447,6 +459,15 @@ install -d -m 0751 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/var/run/mysqld
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
 install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
+
+# SElinux
+%if 0%{?tokudb}
+pushd $MBD/%{src_dir}/policy/selinux
+make -f /usr/share/selinux/devel/Makefile
+install -D -m 0644 $MBD/%{src_dir}/policy/selinux/percona-server.pp %{buildroot}%{_datadir}/selinux/packages/percona-server/percona-server.pp
+popd
+# SElinux END
+%endif
 
 # Install all binaries
 cd $MBD/release
@@ -643,6 +664,7 @@ done
 
 %if 0%{?tokudb}
 %post -n Percona-Server-tokudb%{product_suffix}
+/usr/sbin/semodule -i %{_datadir}/selinux/packages/percona-server/percona-server.pp >/dev/null 2>&1 || :
 if [ $1 -eq 1 ] ; then
   echo -e "\n\n * This release of Percona Server is distributed with TokuDB storage engine."
   echo -e " * Run the following script to enable the TokuDB storage engine in Percona Server:\n"
@@ -650,6 +672,12 @@ if [ $1 -eq 1 ] ; then
   echo -e " * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_installation.html for more installation details\n"
   echo -e " * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_intro.html for an introduction to TokuDB\n\n"
 fi
+
+%postun -n Percona-Server-tokudb%{product_suffix}
+if [ $1 -eq 0 ] ; then
+    /usr/sbin/semodule -r percona-server >/dev/null 2>&1 || :
+fi
+
 %endif
 
 %if 0%{?rocksdb}
@@ -986,6 +1014,8 @@ fi
 
 %if 0%{?tokudb}
 %files -n Percona-Server-tokudb%{product_suffix}
+%dir %attr(755, root, root) %{_datadir}/selinux/packages/percona-server
+%attr(644, root, root) %{_datadir}/selinux/packages/percona-server/percona-server.pp
 %attr(-, root, root)
 %{_bindir}/tokuftdump
 %{_libdir}/mysql/plugin/ha_tokudb.so

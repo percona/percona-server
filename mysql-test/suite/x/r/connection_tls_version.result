@@ -164,7 +164,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: unsupported protocol (code 2026)
+Application terminated with expected error: protocol version mismatch (code 2026)
 ok
 CONNECTION_TYPE
 SSL/TLS
@@ -179,7 +179,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: unsupported protocol (code 2026)
+Application terminated with expected error: protocol version mismatch (code 2026)
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok
@@ -422,7 +422,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: unsupported protocol (code 2026)
+Application terminated with expected error: protocol version mismatch (code 2026)
 ok
 CONNECTION_TYPE
 SSL/TLS
@@ -437,7 +437,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: unsupported protocol (code 2026)
+Application terminated with expected error: protocol version mismatch (code 2026)
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok

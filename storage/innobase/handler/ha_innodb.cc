@@ -10614,8 +10614,12 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
 
       err = DB_UNSUPPORTED;
       dict_mem_table_free(table);
-    }
-    if (err == DB_SUCCESS) {
+    } else if (m_create_info->encrypt_type.length > 0 &&
+               !Encryption::is_none(m_create_info->encrypt_type.str)) {
+      my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
+      err = DB_UNSUPPORTED;
+      dict_mem_table_free(table);
+    } else {
       /* Get a new table ID */
       dict_table_assign_new_id(table, m_trx);
 
@@ -11872,6 +11876,14 @@ bool create_table_info_t::innobase_table_flags() {
       /* Incorrect encryption option */
       my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
       DBUG_RETURN(false);
+    }
+    if (m_use_shared_space ||
+        (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+      if (!Encryption::is_none(encryption)) {
+        /* Can't encrypt shared tablespace */
+        my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
+        DBUG_RETURN(false);
+      }
     }
   }
 
@@ -14111,17 +14123,6 @@ static int validate_create_tablespace_info(THD *thd,
     }
   }
 
-  if (alter_info->encrypt) {
-    dberr_t err;
-
-    err = Encryption::validate(alter_info->encrypt_type.str);
-
-    if (err == DB_UNSUPPORTED) {
-      my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
-      return (HA_WRONG_CREATE_OPTION);
-    }
-  }
-
   /* Validate the ADD DATAFILE name. */
   Fil_path filepath{alter_info->data_file_name};
 
@@ -14259,8 +14260,6 @@ static int innobase_create_tablespace(handlerton *hton, THD *thd,
   bool zipped = (zip_size != UNIV_PAGE_SIZE);
   page_size_t page_size(zip_size, UNIV_PAGE_SIZE, zipped);
   bool atomic_blobs = page_size.is_compressed();
-  bool is_encrypted = (alter_info->encrypt &&
-                       !Encryption::is_none(alter_info->encrypt_type.str));
 
   /* Create the filespace flags */
   ulint fsp_flags =
@@ -14268,8 +14267,7 @@ static int innobase_create_tablespace(handlerton *hton, THD *thd,
                      atomic_blobs, /* needed only for compressed tables */
                      false,        /* This is not a file-per-table tablespace */
                      true,         /* This is a general shared tablespace */
-                     false, /* Temporary General Tablespaces not allowed */
-                     is_encrypted); /* Create encrypted tablespace if needed */
+                     false); /* Temporary General Tablespaces not allowed */
   tablespace.set_flags(fsp_flags);
 
   err = dict_build_tablespace(trx, &tablespace);

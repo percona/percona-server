@@ -794,8 +794,6 @@ class st_alter_tablespace {
   uint nodegroup_id = UNDEF_NODEGROUP;
   bool wait_until_completed = true;
   const char *ts_comment = nullptr;
-  bool encrypt;
-  LEX_STRING encrypt_type;
 
   bool is_tablespace_command() {
     return ts_cmd_type == CREATE_TABLESPACE ||

@@ -4485,8 +4485,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
 
     if (!(ctx->new_table->flags2 & DICT_TF2_USE_FILE_PER_TABLE) &&
         ha_alter_info->create_info->encrypt_type.length > 0 &&
-        !Encryption::is_none(encrypt) &&
-        !DICT_TF2_FLAG_SET(ctx->old_table, DICT_TF2_ENCRYPTION)) {
+        !Encryption::is_none(encrypt)) {
       dict_mem_table_free(ctx->new_table);
       my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
       goto new_clustered_failed;

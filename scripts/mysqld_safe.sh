@@ -213,10 +213,6 @@ eval_log_error () {
   #echo "Running mysqld: [$cmd]"
   cmd="env MYSQLD_PARENT_PID=$$ $cmd"
   eval "$cmd"
-  ret=$?
-  if [ $ret -gt 0 ] && [ $ret -lt 128 ]; then
-    exit $ret
-  fi
 }
 
 shell_quote_string() {
@@ -1031,7 +1027,16 @@ while true
 do
   start_time=`date +%M%S`
   eval_log_error "$cmd"
-  if [ $? -eq 16 ] ; then
+  ret=$?
+
+  # allow MYSQLD_SUCCESS_EXIT (0) and MYSQLD_RESTART_EXIT (16)
+  # finish at MYSQLD_ABORT_EXIT (1) and MYSQLD_FAILURE_EXIT (2)
+  if [ $ret -eq 1 ] || [ $ret -eq 2 ]; then
+    log_notice "mysqld from pid file $pid_file ended with return value of $ret"
+    exit $ret
+  fi
+
+  if [ $ret -eq 16 ] ; then
     dont_restart_mysqld=false
     echo "Restarting mysqld..."
   else

@@ -59,20 +59,12 @@ public:
             HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
   }
   const key_map *keys_to_use_for_scanning() { return &btree_keys; }
-<<<<<<< HEAD
   uint max_supported_keys()          const { return HP_MAX_KEY; }
   uint max_supported_key_length() const { return HP_MAX_KEY_LENGTH; }
-  uint max_supported_key_part_length() const
-  { return HP_MAX_KEY_LENGTH; }
-||||||| merged common ancestors
-  uint max_supported_keys()          const { return MAX_KEY; }
-  uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
-=======
-  uint max_supported_keys()          const { return MAX_KEY; }
   uint max_supported_key_part_length(HA_CREATE_INFO
                     *create_info MY_ATTRIBUTE((unused))) const
-  { return MAX_KEY_LENGTH; }
->>>>>>> mysql-5.7.24
+  { return HP_MAX_KEY_LENGTH; }
+
   double scan_time()
   { return (double) (stats.records+stats.deleted) / 20.0+10; }
   double read_time(uint index, uint ranges, ha_rows rows)

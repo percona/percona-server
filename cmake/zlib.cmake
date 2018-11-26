@@ -16,12 +16,6 @@
 MACRO (MYSQL_USE_BUNDLED_ZLIB)
   SET(BUILD_BUNDLED_ZLIB 1)
   SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
-<<<<<<< HEAD
-  SET(ZLIB_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/zlib CACHE STRING "Will not be redefined by FindZLIB")
-||||||| merged common ancestors
-  SET(ZLIB_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/zlib)
-=======
->>>>>>> mysql-5.7.24
   SET(ZLIB_FOUND  TRUE)
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
   ADD_SUBDIRECTORY(zlib)

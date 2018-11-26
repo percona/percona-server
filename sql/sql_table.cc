@@ -4631,16 +4631,8 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
       if (key_part_length > file->max_key_part_length(create_info) &&
           key->type != KEYTYPE_FULLTEXT)
       {
-<<<<<<< HEAD
-        key_part_length= file->max_key_part_length();
-	if (key->type & KEYTYPE_MULTIPLE)
-||||||| merged common ancestors
-        key_part_length= file->max_key_part_length();
-	if (key->type == KEYTYPE_MULTIPLE)
-=======
         key_part_length= file->max_key_part_length(create_info);
-	if (key->type == KEYTYPE_MULTIPLE)
->>>>>>> mysql-5.7.24
+	if (key->type & KEYTYPE_MULTIPLE)
 	{
 	  /* not a critical problem */
 	  push_warning_printf(thd, Sql_condition::SL_WARNING,

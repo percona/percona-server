@@ -3750,12 +3750,7 @@ ha_innobase::reset_template(void)
 	m_prebuilt->keep_other_fields_on_keyread = 0;
 	m_prebuilt->read_just_key = 0;
 	m_prebuilt->in_fts_query = 0;
-<<<<<<< HEAD
-	m_prebuilt->m_end_range = false;
-||||||| merged common ancestors
-=======
         m_prebuilt->m_end_range = false;
->>>>>>> mysql-5.7.24
 
 	/* Reset index condition pushdown state. */
 	if (m_prebuilt->idx_cond) {

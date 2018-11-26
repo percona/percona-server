@@ -3490,7 +3490,6 @@ static int init_thread_environment()
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
                   &COND_compress_gtid_table);
-<<<<<<< HEAD
 
   mysql_mutex_init(key_LOCK_global_user_client_stats,
                    &LOCK_global_user_client_stats, MY_MUTEX_INIT_FAST);
@@ -3499,13 +3498,6 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_global_index_stats,
                    &LOCK_global_index_stats, MY_MUTEX_INIT_FAST);
 
-  mysql_mutex_init(key_LOCK_group_replication_handler,
-                   &LOCK_group_replication_handler, MY_MUTEX_INIT_FAST);
-||||||| merged common ancestors
-  mysql_mutex_init(key_LOCK_group_replication_handler,
-                   &LOCK_group_replication_handler, MY_MUTEX_INIT_FAST);
-=======
->>>>>>> mysql-5.7.24
 #ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
 #if defined(_WIN32)

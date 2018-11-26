@@ -23,6 +23,8 @@ engine=innodb tablespace ts_encrypted1
 partition by range (a) partitions 2 (
 partition p1 values less than (20),
 partition p2 values less than (40) tablespace ts_encrypted2);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE="InnoDB";
 ERROR HY000: InnoDB: Tablespace `ts_unencrypted1` cannot contain an ENCRYPTED table.
 set global innodb_encrypt_tables='OFF';

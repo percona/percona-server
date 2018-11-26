@@ -1428,13 +1428,7 @@ bool ha_federated::create_where_from_key(String *to,
           }
           break;
         }
-<<<<<<< HEAD
-        // fallthrough
-||||||| merged common ancestors
-        break;
-=======
         // Fall through
->>>>>>> mysql-5.7.24
       case HA_READ_KEY_OR_NEXT:
         DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
         if (emit_key_part_name(&tmp, key_part) ||
@@ -1454,13 +1448,7 @@ bool ha_federated::create_where_from_key(String *to,
             goto err;
           break;
         }
-<<<<<<< HEAD
-        // fallthrough
-||||||| merged common ancestors
-        break;
-=======
         // Fall through
->>>>>>> mysql-5.7.24
       case HA_READ_KEY_OR_PREV:
         DBUG_PRINT("info", ("federated HA_READ_KEY_OR_PREV %d", i));
         if (emit_key_part_name(&tmp, key_part) ||

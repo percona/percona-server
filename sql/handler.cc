@@ -2847,14 +2847,11 @@ err:
 
 void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
-<<<<<<< HEAD
-  DBUG_ASSERT(!table->in_use->status_var_aggregated);
-  (table->in_use->status_var.*offset)++;
-||||||| merged common ancestors
-  (table->in_use->status_var.*offset)++;
-=======
-  if (table && table->in_use) (table->in_use->status_var.*offset)++;
->>>>>>> mysql-5.7.24
+  if (table && table->in_use)
+  {
+    DBUG_ASSERT(!table->in_use->status_var_aggregated);
+    (table->in_use->status_var.*offset)++;
+  }
 }
 
 

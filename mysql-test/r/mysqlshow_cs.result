@@ -86,6 +86,8 @@ Database: information_schema
 | COLUMNS                               |
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
+| COMPRESSION_DICTIONARY                |
+| COMPRESSION_DICTIONARY_TABLES         |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
@@ -161,6 +163,8 @@ Database: INFORMATION_SCHEMA
 | COLUMNS                               |
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
+| COMPRESSION_DICTIONARY                |
+| COMPRESSION_DICTIONARY_TABLES         |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |

@@ -670,42 +670,6 @@ int Partition_base::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(error);
 }
 
-/** This function reads zip dict-related info from partition handlers.
-It may do nothing if individual handlers do not support COMPRESSED_COLUMNS.
-
-@param    thd          Thread handler.
-@param    part_name    Must be always nullptr.
-*/
-void Partition_base::update_field_defs_with_zip_dict_info(
-    THD *thd, const char *part_name_arg MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("Partition_base::update_field_defs_with_zip_dict_info");
-  DBUG_ASSERT(part_name_arg == nullptr);
-  char full_name[FN_REFLEN];
-
-  List_iterator_fast<partition_element> part_it(m_part_info->partitions);
-  partition_element *part_elem = part_it++;
-  if (m_is_sub_partitioned) {
-    List_iterator_fast<partition_element> parent_it(part_elem->subpartitions);
-    partition_element *parent_elem = parent_it++;
-    part_name(full_name, table_share->path.str, parent_elem->partition_name,
-              part_elem->partition_name);
-  } else {
-    part_name(full_name, table_share->path.str, nullptr,
-              part_elem->partition_name);
-  }
-
-  /*
-  As table structure is the same for all partitions,
-  we can use the first partition for this function.
-  */
-  DBUG_ASSERT(m_file);
-  DBUG_ASSERT(m_file[0]);
-
-  m_file[0]->update_field_defs_with_zip_dict_info(thd, full_name);
-
-  DBUG_VOID_RETURN;
-}
-
 /*
   Optimize table
 

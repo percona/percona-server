@@ -59,11 +59,8 @@ enum dict_system_id_t {
   SYS_TABLESPACES,
   SYS_DATAFILES,
   SYS_VIRTUAL,
-// Percona commented out until zip dictionary implementation in the new DD
-#if 0
   SYS_ZIP_DICT,
   SYS_ZIP_DICT_COLS,
-#endif
 
   /* This must be last item. Defines the number of system tables. */
   SYS_NUM_SYSTEM_TABLES
@@ -207,9 +204,6 @@ tablespaces to dictionary table mysql.tablespaces */
 using missing_sys_tblsp_t = std::set<fil_space_t *, space_compare>;
 extern missing_sys_tblsp_t missing_spaces;
 
-// Percona commented out until zip dictionary reimplementation in the new DD
-#if 0
-
 /** This function parses a SYS_ZIP_DICT record, extracts necessary
 information from the record and returns to caller.
 @param[in,out]	heap		heap memory
@@ -221,26 +215,11 @@ information from the record and returns to caller.
 @param[out]	data_len	dict data length
 @return error message, or NULL on success */
 MY_NODISCARD
-const char* dict_process_sys_zip_dict(mem_heap_t *heap,
-				      const dict_index_t &index,
-				      const rec_t *rec, ulint *id,
-				      const char **name, const char **data,
-				      ulint *data_len);
-
-/** This function parses a SYS_ZIP_DICT_COLS record, extracts necessary
-information from the record and returns to caller.
-@param[in,out]	heap		heap memory
-@param[in]	rec		current SYS_ZIP_DICT record
-@param[out]	table_id	table id
-@param[out]	column_pos	column position
-@param[out]	dict_id		dict id
-@return error message, or NULL on success */
-MY_NODISCARD
-const char* dict_process_sys_zip_dict_cols(mem_heap_t *heap, const rec_t *rec,
-					   ulint *table_id, ulint *column_pos,
-					   ulint *dict_id) noexcept;
-
-#endif
+const char *dict_process_sys_zip_dict(mem_heap_t *heap,
+                                      const dict_index_t &index,
+                                      const rec_t *rec, ulint *id,
+                                      const char **name, ulint *name_len,
+                                      const char **data, ulint *data_len);
 
 #include "dict0load.ic"
 

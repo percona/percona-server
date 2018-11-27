@@ -2800,7 +2800,7 @@ create:
             Lex->create_info= YYTHD->alloc_typed<HA_CREATE_INFO>();
             if (Lex->create_info == nullptr)
               MYSQL_YYABORT; // OOM
-            Lex->create_info->options= $3;
+            Lex->create_info->options= $3 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
             Lex->ident= $4;
             Lex->create_info->zip_dict_name = $6;
           }

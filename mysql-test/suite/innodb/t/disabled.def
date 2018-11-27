@@ -15,35 +15,3 @@ portability_tablespace_linux: Sivert The maintainability of the zip files requir
 portability_tablespace_windows: Sivert The maintainability of the zip files required by this test is not acceptable.
 log_corruption   @darwin : Bug#27760219 2018-03-27 Anitha Test fails consistently on freebsd and Mac after WL#11009
 log_corruption   @freebsd : Bug#27760219 2018-03-27 Anitha Test fails consistently on freebsd and Mac after WL#11009
-xtradb_compressed_columns_upgrade : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_alter_table : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_antelope_compact_set1 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_antelope_compact_set2 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_upgrade_partitioning : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_mysqldump : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_partitioning : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_read_only : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_sp : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_unsupported_se : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_with_dictionaries : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_antelope_redundant_set1 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_antelope_redundant_set2 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_compact_set1 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_compact_set2 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_compressed_set1 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_compressed_set2 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_dynamic_set1 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_dynamic_set2 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_redundant_set1 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_redundant_set2 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_debug : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_ibd_sizes : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_ibd_sizes_partitioning : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_virtual : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_antelope_compact_set3 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_antelope_redundant_set3 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_compact_set3 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_compressed_set3 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_dynamic_set3 : percona disabled until zip dict 8.0 reimplementation
-xtradb_compressed_columns_consistency_barracuda_redundant_set3 : percona disabled until zip dict 8.0 reimplementation

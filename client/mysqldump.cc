@@ -1004,6 +1004,10 @@ static int get_options(int *argc, char ***argv) {
 
   ignore_table =
       new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
+
+  processed_compression_dictionaries =
+      new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
+
   /* Don't copy internal log tables */
   ignore_table->insert("mysql.apply_status");
   ignore_table->insert("mysql.schema");
@@ -1509,6 +1513,12 @@ static void free_resources() {
     delete ignore_table;
     ignore_table = nullptr;
   }
+
+  if (processed_compression_dictionaries != nullptr) {
+    delete processed_compression_dictionaries;
+    processed_compression_dictionaries = nullptr;
+  }
+
   if (insert_pat_inited) dynstr_free(&insert_pat);
   if (opt_ignore_error) my_free(opt_ignore_error);
   my_end(my_end_arg);
@@ -2982,9 +2992,9 @@ static void print_optional_create_compression_dictionary(
   */
   if (!processed_compression_dictionaries->count(dictionary_name)) {
     static const constexpr char get_zip_dict_data_stmt[] =
-        "SELECT `ZIP_DICT` "
-        "FROM `INFORMATION_SCHEMA`.`XTRADB_ZIP_DICT` "
-        "WHERE `NAME` = '%s'";
+        "SELECT `DICT_DATA` "
+        "FROM `INFORMATION_SCHEMA`.`COMPRESSION_DICTIONARY` "
+        "WHERE `DICT_NAME` = '%s'";
 
     processed_compression_dictionaries->emplace(
         my_strdup(PSI_NOT_INSTRUMENTED, dictionary_name, MYF(0)));

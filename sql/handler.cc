@@ -116,6 +116,7 @@
 #include "sql/sql_plugin.h"  // plugin_foreach
 #include "sql/sql_select.h"  // actual_key_parts
 #include "sql/sql_table.h"   // build_table_filename
+#include "sql/sql_zip_dict.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/tc_log.h"
@@ -2578,6 +2579,18 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     file->print_error(error, 0);
 
     thd->pop_internal_handler();
+  }
+
+  if (error == 0) {
+    bool failure = compression_dict::cols_table_delete(thd, *table_def);
+    if (failure) {
+      DBUG_LOG("zip_dict",
+               "Removing entry from compression dictionary cols"
+               " failed for table: "
+                   << table_def->name()
+                   << " and table_id: " << table_def->id());
+      error = ER_UNKNOWN_ERROR;
+    }
   }
 
   destroy(file);

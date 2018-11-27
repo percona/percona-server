@@ -201,12 +201,6 @@ SET GLOBAL innodb_compressed_columns_zip_level = @saved_innodb_compressed_column
 #
 call mtr.add_suppression("InnoDB: Column .* in table .* has unexpected COMPRESSED attribute");
 
+--error ER_NOT_ALLOWED_COMMAND
 ALTER TABLE mysql.innodb_index_stats
   MODIFY stat_description VARCHAR(1024) COLLATE utf8_bin NOT NULL COLUMN_FORMAT COMPRESSED;
-CREATE TABLE t1(i INT);
---disable_result_log
-SELECT * FROM mysql.innodb_index_stats;
---enable_result_log
-DROP TABLE t1;
-ALTER TABLE mysql.innodb_index_stats
-  MODIFY stat_description VARCHAR(1024) COLLATE utf8_bin NOT NULL;

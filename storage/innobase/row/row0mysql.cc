@@ -4486,19 +4486,6 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   /* Make sure the data_dir_path is set if needed. */
   dd_get_and_save_data_dir_path(table, table_def, true);
 
-  /* Remove all compression dictionary references for the table */
-  if (table->id != ULINT_UNDEFINED) {
-  // Percona commented out until zip dict reimplementation in the new DD
-#if 0
-    err = dict_create_remove_zip_dict_references_for_table(table->id, trx);
-    if (err != DB_SUCCESS) {
-      ib::error() << "Error: (" << ut_strerr(err) << ") not able to remove "
-        "compression dictionary references for table " << name;
-      goto funct_exit;
-    }
-#endif
-  }
-
   if (dict_table_has_fts_index(table) ||
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
     ut_ad(!is_temp);

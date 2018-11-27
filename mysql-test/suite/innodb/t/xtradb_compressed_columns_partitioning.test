@@ -79,7 +79,7 @@ while($combination_index < 18)
   # executing $create_table_statement optionally expecting $expected_error error
   if($expected_error == 'handler_does_not_support')
   {
-    --error ER_ILLEGAL_HA_CREATE_OPTION
+    --error ER_CHECK_NOT_IMPLEMENTED
     eval $create_table_statement;
   }
   if($expected_error == 'mix_handlers')
@@ -124,9 +124,12 @@ INSERT INTO expected_alter_table_errors VALUES
 
 # iterating over all possible combinations of original table storage engine /
 # storage storage specified in 'ALTER TABLE' statement
-# 2 * 3 = 6
+# 1 * 3 = 3
 --let $combination_index = 0
-while($combination_index < 6)
+--let $original_engine = InnoDB
+--let $original_engine_spec = ENGINE=$original_engine
+
+while($combination_index < 3)
 {
   # extracting original table storage engine / storage storage specified in 'ALTER TABLE'
   # from $combination_index
@@ -134,7 +137,6 @@ while($combination_index < 6)
   eval SET @partial_index = $combination_index;
   --let $alter_engine = `SELECT CASE @partial_index % 3 WHEN 0 THEN '' WHEN 1 THEN 'MyISAM' ELSE 'InnoDB' END`
   eval SET @partial_index = @partial_index DIV 3;
-  --let $original_engine = `SELECT IF(@partial_index % 2 = 0, 'MyISAM', 'InnoDB')`
 
   # extracting $expected_error from the 'expected_alter_table_errors' for the given
   # ($original_engine, $alter_engine)
@@ -154,11 +156,6 @@ while($combination_index < 6)
     --echo original: '$original_engine', alter: '$alter_engine', operation: '$operation_index', error: '$expected_error'
 
     # creating original table with $original_engine storage engine
-    --let $original_engine_spec =
-    if($original_engine)
-    {
-      --let $original_engine_spec = ENGINE=$original_engine
-    }
     eval CREATE TABLE t1(
       id BIGINT UNSIGNED NOT NULL,
       a VARCHAR(250)

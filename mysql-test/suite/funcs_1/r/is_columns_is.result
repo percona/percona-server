@@ -74,6 +74,13 @@ def	information_schema	COLUMN_STATISTICS	SCHEMA_NAME	1	NULL	NO	varchar	64	192	NU
 def	information_schema	COLUMN_STATISTICS	TABLE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	COLUMN_STATISTICS	COLUMN_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	COLUMN_STATISTICS	HISTOGRAM	4	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY	DICT_VERSION	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY	DICT_NAME	2	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_general_ci	varchar(64)			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY	DICT_DATA	3	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_SCHEMA	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY_TABLES	COLUMN_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	COMPRESSION_DICTIONARY_TABLES	DICT_NAME	4	NULL	NO	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_general_ci	varchar(64)			select			NULL
 def	information_schema	ENGINES	ENGINE	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	ENGINES	SUPPORT	2		NO	varchar	2	8	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select			NULL
 def	information_schema	ENGINES	COMMENT	3		NO	varchar	26	80	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select			NULL
@@ -504,6 +511,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 4.0000	varchar	utf8	utf8_general_ci
 3.0000	varchar	utf8	utf8_tolower_ci
 4.0000	varchar	utf8mb4	utf8mb4_0900_ai_ci
+4.0000	varchar	utf8mb4	utf8mb4_general_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -609,6 +617,13 @@ NULL	information_schema	COLUMNS	SRS_ID	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	information_schema	COLUMN_STATISTICS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	COLUMN_STATISTICS	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 NULL	information_schema	COLUMN_STATISTICS	HISTOGRAM	json	NULL	NULL	NULL	NULL	json
+NULL	information_schema	COMPRESSION_DICTIONARY	DICT_VERSION	int	NULL	NULL	NULL	NULL	int(10) unsigned
+4.0000	information_schema	COMPRESSION_DICTIONARY	DICT_NAME	varchar	64	256	utf8mb4	utf8mb4_general_ci	varchar(64)
+1.0000	information_schema	COMPRESSION_DICTIONARY	DICT_DATA	blob	65535	65535	NULL	NULL	blob
+3.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+4.0000	information_schema	COMPRESSION_DICTIONARY_TABLES	DICT_NAME	varchar	64	256	utf8mb4	utf8mb4_general_ci	varchar(64)
 3.0476	information_schema	ENGINES	ENGINE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 4.0000	information_schema	ENGINES	SUPPORT	varchar	2	8	utf8	utf8_general_ci	varchar(8)
 3.0769	information_schema	ENGINES	COMMENT	varchar	26	80	utf8	utf8_general_ci	varchar(80)

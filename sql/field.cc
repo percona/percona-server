@@ -9910,7 +9910,8 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       pack_length_override(0),
       zip_dict_name(old_field->zip_dict_name),
       gcol_info(old_field->gcol_info),
-      stored_in_db(old_field->stored_in_db) {
+      stored_in_db(old_field->stored_in_db),
+      zip_dict_id(0) {
   switch (sql_type) {
     case MYSQL_TYPE_JSON:
       /*

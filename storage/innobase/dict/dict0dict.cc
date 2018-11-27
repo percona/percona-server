@@ -248,6 +248,10 @@ FILE *dict_foreign_err_file = NULL;
 /* mutex protecting the foreign and unique error buffers */
 ib_mutex_t dict_foreign_err_mutex;
 
+/** SYS_ZIP_DICT and SYS_ZIP_DICT_COLS will be missing when upgrading
+mysql-5.7 to PS-8.0 */
+bool dict_upgrade_zip_dict_missing = false;
+
 /** Checks if the database name in two table names is the same.
  @return true if same db name */
 ibool dict_tables_have_same_db(
@@ -7133,7 +7137,16 @@ void dict_table_change_id_sys_tables() {
   for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
     dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
-    ut_a(system_table != nullptr);
+    ut_a(system_table != nullptr || i == SYS_ZIP_DICT ||
+         i == SYS_ZIP_DICT_COLS);
+
+    /* SYS_ZIP_DICT and SYS_ZIP_DICT_COLS can be missing when mysql-5.7 to
+    PS-8.0 upgrade */
+    if (system_table == nullptr &&
+        (i == SYS_ZIP_DICT || i == SYS_ZIP_DICT_COLS)) {
+      ut_ad(dict_upgrade_zip_dict_missing);
+      continue;
+    }
     ut_ad(dict_sys_table_id[i] == system_table->id);
 
     /* During upgrade, table_id of user tables is also
@@ -7210,6 +7223,13 @@ bool dict_sys_table_id_build() {
     dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
     if (system_table == nullptr) {
+      /* When upgrading from mysql-5.7 to PS-8.0, these system tables may not
+      be present. Do not abort upgrade */
+      if (i == SYS_ZIP_DICT || i == SYS_ZIP_DICT_COLS) {
+        dict_upgrade_zip_dict_missing = true;
+        continue;
+      }
+
       /* Cannot find a system table, this happens only if user trying
       to boot server earlier than 5.7 */
       mutex_exit(&dict_sys->mutex);
@@ -7355,91 +7375,31 @@ std::string dict_table_get_datadir(const dict_table_t *table) {
 }
 #endif /* !UNIV_HOTBACKUP */
 
-// Percona commented out until zip dictionary implementation in the new DD
-#if 0
-/** Insert a record into SYS_ZIP_DICT.
-@param[in]	name		zip_dict name
-@param[in]	name_len	zip_dict name length
-@param[in]	data		zip_dict data
-@param[in]	data_len	zip_dict data length
-@retval	DB_SUCCESS	if OK
-@retval	dberr_t		if the insert failed */
-dberr_t
-dict_create_zip_dict(const char *name, ulint name_len, const char *data,
-		     ulint data_len)
-{
-  ut_ad(name);
-  ut_ad(data);
-
-	rw_lock_x_lock(dict_operation_lock);
-	dict_mutex_enter_for_mysql();
-
-  trx_t * const trx = trx_allocate_for_background();
-	trx->op_info = "insert zip_dict";
-	trx->dict_operation_lock_mode = RW_X_LATCH;
-	trx_start_if_not_started(trx, true);
-
-  dberr_t err = dict_create_add_zip_dict(name, name_len, data, data_len, trx);
-
-	if (err == DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-	}
-	else {
-		trx->op_info = "rollback of internal trx on zip_dict table";
-		trx_rollback_to_savepoint(trx, nullptr);
-		ut_a(trx->error_state == DB_SUCCESS);
-	}
-	trx->op_info = "";
-	trx->dict_operation_lock_mode = 0;
-	trx_free_for_background(trx);
-
-	dict_mutex_exit_for_mysql();
-	rw_lock_x_unlock(dict_operation_lock);
-
-	return err;
-}
-
 /** Get single compression dictionary id for the given
 (table id, column pos) pair.
 @param[in]	table_id	table id
 @param[in]	column_pos	column position
 @param[out]	dict_id		zip_dict id
-@param[in]	dict_locked	true if data dictionary locked
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
 dberr_t dict_get_dictionary_id_by_key(ulint table_id, ulint column_pos,
-				      ulint *dict_id, bool dict_locked) {
-	bool		dict_operation_locked = dict_locked;
-	DBUG_EXECUTE_IF("ib_purge_virtual_index_callback",
-		dict_operation_locked = true; );
+                                      ulint *dict_id) {
+  ut_ad(srv_is_upgrade_mode);
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
-	if (!dict_operation_locked) {
-		rw_lock_s_lock(dict_operation_lock);
-	}
-	if (!dict_locked) {
-		dict_mutex_enter_for_mysql();
-	}
+  trx_t *const trx = trx_allocate_for_background();
+  trx->op_info = "get zip dict id by composite key";
+  trx->dict_operation_lock_mode = RW_S_LATCH;
+  trx_start_if_not_started(trx, false);
 
-	trx_t * const trx = trx_allocate_for_background();
-	trx->op_info = "get zip dict id by composite key";
-	trx->dict_operation_lock_mode = RW_S_LATCH;
-	trx_start_if_not_started(trx, false);
+  const dberr_t err = dict_create_get_zip_dict_id_by_reference(
+      table_id, column_pos, dict_id, trx);
 
-	const dberr_t err = dict_create_get_zip_dict_id_by_reference(table_id, column_pos,
-		dict_id, trx);
+  trx_commit_for_mysql(trx);
+  trx->dict_operation_lock_mode = 0;
+  trx_free_for_background(trx);
 
-	trx_commit_for_mysql(trx);
-	trx->dict_operation_lock_mode = 0;
-	trx_free_for_background(trx);
-
-	if (!dict_locked) {
-		dict_mutex_exit_for_mysql();
-	}
-	if (!dict_operation_locked) {
-		rw_lock_s_unlock(dict_operation_lock);
-	}
-
-	return err;
+  return err;
 }
 
 /** Get compression dictionary info (name and data) for the given id.
@@ -7453,84 +7413,23 @@ Must be freed with mem_free().
 @param[in]	dict_locked	true if data dictionary locked
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
-dberr_t
-dict_get_dictionary_info_by_id(ulint	dict_id,
-	char**	name,
-	ulint*	name_len,
-	char**	data,
-	ulint*	data_len,
-	bool	dict_locked)
-{
-	bool		dict_operation_locked = dict_locked;
-	DBUG_EXECUTE_IF("ib_purge_virtual_index_callback",
-		dict_operation_locked = true; );
+dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
+                                       ulint *name_len, char **data,
+                                       ulint *data_len) {
+  ut_ad(srv_is_upgrade_mode);
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
-	if (!dict_operation_locked) {
-		rw_lock_s_lock(dict_operation_lock);
-	}
-	if (!dict_locked) {
-		dict_mutex_enter_for_mysql();
-	}
+  trx_t *const trx = trx_allocate_for_background();
+  trx->op_info = "get zip dict name and data by id";
+  trx->dict_operation_lock_mode = RW_S_LATCH;
+  trx_start_if_not_started(trx, false);
 
-	trx_t * const trx = trx_allocate_for_background();
-	trx->op_info = "get zip dict name and data by id";
-	trx->dict_operation_lock_mode = RW_S_LATCH;
-	trx_start_if_not_started(trx, false);
+  const dberr_t err = dict_create_get_zip_dict_info_by_id(
+      dict_id, name, name_len, data, data_len, trx);
 
-	const dberr_t err = dict_create_get_zip_dict_info_by_id(dict_id, name, name_len,
-		data, data_len, trx);
+  trx_commit_for_mysql(trx);
+  trx->dict_operation_lock_mode = 0;
+  trx_free_for_background(trx);
 
-	trx_commit_for_mysql(trx);
-	trx->dict_operation_lock_mode = 0;
-	trx_free_for_background(trx);
-
-	if (!dict_locked) {
-		dict_mutex_exit_for_mysql();
-	}
-	if (!dict_operation_locked) {
-		rw_lock_s_unlock(dict_operation_lock);
-	}
-
-	return err;
+  return err;
 }
-
-/** Delete a record in SYS_ZIP_DICT with the given name.
-@param[in]	name		zip_dict name
-@param[in]	name_len	zip_dict name length
-@retval	DB_SUCCESS		if OK
-@retval	DB_RECORD_NOT_FOUND	if not found
-@retval	DB_ROW_IS_REFERENCED	if in use */
-dberr_t
-dict_drop_zip_dict(const char*	name,
-	ulint		name_len)
-{
-	ut_ad(name);
-
-	rw_lock_x_lock(dict_operation_lock);
-	dict_mutex_enter_for_mysql();
-
-	const trx_t *trx = trx_allocate_for_background();
-	trx->op_info = "delete zip_dict";
-	trx->dict_operation_lock_mode = RW_X_LATCH;
-	trx_start_if_not_started(trx, true);
-
-	const dberr_t err = dict_create_remove_zip_dict(name, name_len, trx);
-
-	if (err == DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-	}
-	else {
-		trx->op_info = "rollback of internal trx on zip_dict table";
-		trx_rollback_to_savepoint(trx, NULL);
-		ut_a(trx->error_state == DB_SUCCESS);
-	}
-	trx->op_info = "";
-	trx->dict_operation_lock_mode = 0;
-	trx_free_for_background(trx);
-
-	dict_mutex_exit_for_mysql();
-	rw_lock_x_unlock(dict_operation_lock);
-
-	return err;
-}
-#endif

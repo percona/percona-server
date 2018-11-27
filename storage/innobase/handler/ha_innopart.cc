@@ -2740,9 +2740,9 @@ int ha_innopart::discard_or_import_tablespace(bool discard,
 @param    thd          Thread handler
 @param    part_name    Must be always NULL.
 */
-void ha_innopart::update_field_defs_with_zip_dict_info(THD *thd,
-                                                       const char *part_name) {
-  DBUG_ENTER("ha_innopart::update_field_defs_with_zip_dict_info");
+void ha_innopart::upgrade_update_field_with_zip_dict_info(
+    THD *thd, const char *part_name) {
+  DBUG_ENTER("ha_innopart::upgrade_update_field_with_zip_dict_info");
   char partition_name[FN_REFLEN];
   bool res = get_first_partition_name(
       thd, this, table_share->normalized_path.str,
@@ -2753,7 +2753,7 @@ void ha_innopart::update_field_defs_with_zip_dict_info(THD *thd,
     DBUG_VOID_RETURN;
   }
 
-  ha_innobase::update_field_defs_with_zip_dict_info(thd, partition_name);
+  ha_innobase::upgrade_update_field_with_zip_dict_info(thd, partition_name);
   DBUG_VOID_RETURN;
 }
 

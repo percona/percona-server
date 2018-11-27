@@ -526,6 +526,7 @@ static uint32_t rocksdb_stats_recalc_rate = 0;
 static bool rocksdb_no_create_column_family = false;
 static uint32_t rocksdb_debug_manual_compaction_delay = 0;
 static uint32_t rocksdb_max_manual_compactions = 0;
+static my_bool rocksdb_rollback_on_timeout = FALSE;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -1441,6 +1442,12 @@ static MYSQL_SYSVAR_UINT(
     "Maximum number of pending + ongoing number of manual compactions.",
     nullptr, nullptr, /* default */ 10, /* min */ 0, /* max */ UINT_MAX, 0);
 
+static MYSQL_SYSVAR_BOOL(
+    rollback_on_timeout, rocksdb_rollback_on_timeout, PLUGIN_VAR_OPCMDARG,
+    "Whether to roll back the complete transaction or a single statement on "
+    "lock wait timeout (a single statement by default)",
+    NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_UINT(
     debug_manual_compaction_delay, rocksdb_debug_manual_compaction_delay,
     PLUGIN_VAR_RQCMDARG,
@@ -1779,6 +1786,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(debug_manual_compaction_delay),
     MYSQL_SYSVAR(max_manual_compactions),
     MYSQL_SYSVAR(manual_compaction_threads),
+    MYSQL_SYSVAR(rollback_on_timeout),
     nullptr};
 
 static rocksdb::WriteOptions
@@ -2033,7 +2041,7 @@ class Rdb_transaction {
         convert_error_code_to_mysql() does: force a statement
         rollback before returning HA_ERR_LOCK_WAIT_TIMEOUT:
         */
-      thd->mark_transaction_to_rollback(false /*just statement*/);
+      thd->mark_transaction_to_rollback(static_cast<bool>(rocksdb_rollback_on_timeout));
 
       rocksdb_row_lock_wait_timeouts++;
 

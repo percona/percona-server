@@ -173,10 +173,10 @@ static void audit_handler_file_set_option(audit_handler_t *handler,
   audit_handler_file_data_t *data = (audit_handler_file_data_t *)handler->data;
 
   switch (opt) {
-    case audit_handler_option_t::ROTATIONS:
+    case audit_handler_option_t::ROTATE_ON_SIZE:
       logger_set_size_limit(data->logger, *(ulonglong *)(val));
       break;
-    case audit_handler_option_t::ROTATE_ON_SIZE:
+    case audit_handler_option_t::ROTATIONS:
       logger_set_rotations(data->logger, *(ulonglong *)(val));
       break;
   }

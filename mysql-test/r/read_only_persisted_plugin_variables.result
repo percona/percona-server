@@ -108,10 +108,17 @@ set @@persist_only.report_host=NULL;
 set @@persist_only.report_port=21000;
 set @@persist_only.report_password=NULL;
 set @@persist_only.report_user=NULL;
+call mtr.add_suppression('Default storage engine \\(InnoDB\\) is not the same as enforced storage engine \\(MyISAM\\)');
+set @@persist_only.encrypt_binlog=FALSE;
+set @@persist_only.encrypt_tmp_files=TRUE;
+set @@persist_only.enforce_storage_engine='MyISAM';
+set @@persist_only.binlog_space_limit=134217728;
+set @@persist_only.proxy_protocol_networks='*';
+set @@persist_only.extra_port=1111;
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-96
+102
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 100 rows.
@@ -121,7 +128,12 @@ innodb_log_buffer_size	16777216
 slave_type_conversions	
 back_log	80
 binlog_gtid_simple_recovery	1
+binlog_space_limit	134217728
 disabled_storage_engines	
+encrypt_binlog	0
+encrypt_tmp_files	1
+enforce_storage_engine	MyISAM
+extra_port	1111
 ft_max_word_len	84
 ft_min_word_len	4
 ft_query_expansion_limit	20
@@ -201,6 +213,7 @@ performance_schema_session_connect_attrs_size	512
 performance_schema_setup_actors_size	-1
 performance_schema_setup_objects_size	-1
 performance_schema_users_size	-1
+proxy_protocol_networks	*
 relay_log_recovery	0
 relay_log_space_limit	0
 report_host	
@@ -217,7 +230,12 @@ SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURC
 VARIABLE_NAME
 back_log
 binlog_gtid_simple_recovery
+binlog_space_limit
 disabled_storage_engines
+encrypt_binlog
+encrypt_tmp_files
+enforce_storage_engine
+extra_port
 ft_max_word_len
 ft_min_word_len
 ft_query_expansion_limit
@@ -298,6 +316,7 @@ performance_schema_session_connect_attrs_size
 performance_schema_setup_actors_size
 performance_schema_setup_objects_size
 performance_schema_users_size
+proxy_protocol_networks
 relay_log_recovery
 relay_log_space_limit
 report_host

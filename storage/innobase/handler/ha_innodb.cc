@@ -734,7 +734,8 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_KEY(page_flush_coordinator_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(fts_optimize_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(fts_parallel_merge_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(fts_parallel_tokenization_thread, 0, 0, PSI_DOCUMENT_ME)};
+    PSI_KEY(fts_parallel_tokenization_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_scrub_thread, 0, 0, PSI_DOCUMENT_ME)};
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_PFS_IO
@@ -1189,6 +1190,9 @@ static SHOW_VAR innodb_status_variables[] = {
     {"scan_deleted_recs_size",
      (char *)&export_vars.innodb_fragmentation_stats.scan_deleted_recs_size,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"scrub_log",
+     (char*) &export_vars.innodb_scrub_log,
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"encryption_n_merge_blocks_encrypted",
      (char *)&export_vars.innodb_n_merge_blocks_encrypted, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
@@ -21062,6 +21066,19 @@ static MYSQL_SYSVAR_BOOL(immediate_scrub_data_uncompressed,
     srv_immediate_scrub_data_uncompressed, 0,
     "Enable scrubbing of data", NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(scrub_log, srv_scrub_log,
+     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+     "Enable background redo log (ib_logfile0, ib_logfile1...) scrubbing",
+     0, 0, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(scrub_log_speed, innodb_scrub_log_speed,
+     PLUGIN_VAR_OPCMDARG,
+     "Background redo log scrubbing speed in bytes/sec",
+     NULL, NULL,
+     256,              /* 256 bytes/sec, corresponds to 2000 ms scrub_log_interval */
+     1,                /* min */
+     50000, 0);        /* 50Kbyte/sec, corresponds to 10 ms scrub_log_interval */
+
 static MYSQL_SYSVAR_ULONGLONG(
     max_undo_log_size, srv_max_undo_tablespace_size, PLUGIN_VAR_OPCMDARG,
     "Maximum size of an UNDO tablespace in MB (If an UNDO tablespace grows"
@@ -21661,6 +21678,8 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(encrypt_tables),
     /* Scrubing feature */
     MYSQL_SYSVAR(immediate_scrub_data_uncompressed),
+    MYSQL_SYSVAR(scrub_log),
+    MYSQL_SYSVAR(scrub_log_speed),
     NULL};
 
 mysql_declare_plugin(innobase){

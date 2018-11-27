@@ -154,6 +154,9 @@ struct srv_stats_t {
 
   /* Number of row log blocks decrypted */
   ulint_ctr_64_t n_rowlog_blocks_decrypted;
+
+  /** Number of log scrub operations */
+  ulint_ctr_64_t n_log_scrubs;
 };
 
 struct Srv_threads {
@@ -636,6 +639,9 @@ extern ulong srv_thread_sleep_delay;
 extern ulong srv_spin_wait_delay;
 extern ibool srv_priority_boost;
 
+/* TRUE if enable log scrubbing */
+extern bool srv_scrub_log;
+
 extern ulint srv_truncated_status_writes;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -763,6 +769,7 @@ extern mysql_pfs_key_t srv_purge_thread_key;
 extern mysql_pfs_key_t srv_worker_thread_key;
 extern mysql_pfs_key_t trx_recovery_rollback_thread_key;
 extern mysql_pfs_key_t srv_log_tracking_thread_key;
+extern mysql_pfs_key_t log_scrub_thread_key;
 #endif /* UNIV_PFS_THREAD */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1166,6 +1173,8 @@ struct export_var_t {
 
   fragmentation_stats_t innodb_fragmentation_stats; /*!< Fragmentation
                                            statistics */
+
+  int64_t innodb_scrub_log;
 };
 
 #ifndef UNIV_HOTBACKUP

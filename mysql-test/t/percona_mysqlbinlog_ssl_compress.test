@@ -13,13 +13,6 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 # Deletes all the binary logs
 reset master;
 
-# we need this for getting fixed timestamps inside of this test
-set timestamp=1000000000;
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
-
 create table t1 (word varchar(20));
 
 --let $binlog_start_pos=query_get_value(SHOW MASTER STATUS, Position, 1)
@@ -31,8 +24,8 @@ flush logs;
 --disable_query_log
 select "--- --start-position --" as "";
 --enable_query_log
---replace_regex /.*SET .*$//[i]
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=$binlog_start_pos --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --compress master-bin.000001
+--let $mysqlbinlog_parameters=--short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=$binlog_start_pos --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --compress binlog.000001
+--source include/mysqlbinlog.inc
 
 drop table t1;
 

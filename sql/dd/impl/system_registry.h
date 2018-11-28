@@ -458,7 +458,11 @@ class System_views {
  public:
   // Classification of system views.
   enum class Types {
+    // I_S views created on dictionary tables
     INFORMATION_SCHEMA,
+    // I_S views that are based on non dictionary tables like user, host,
+    // compression_dictionary etc
+    INFORMATION_SCHEMA_NON_DD
   };
 
   // Map from system view type to string description, e.g. for debugging.
@@ -466,6 +470,8 @@ class System_views {
     switch (type) {
       case Types::INFORMATION_SCHEMA:
         return "INFORMATION_SCHEMA";
+      case Types::INFORMATION_SCHEMA_NON_DD:
+        return "INFORMATION_SCHEMA_NON_DD";
       default:
         return "";
     }

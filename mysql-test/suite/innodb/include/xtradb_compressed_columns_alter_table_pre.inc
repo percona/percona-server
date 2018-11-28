@@ -56,22 +56,23 @@ eval SELECT pos INTO @original_column_pos FROM information_schema.innodb_columns
 
 if ($original_dict_name_defined)
 {
-  eval SELECT id INTO @original_dict_id FROM information_schema.xtradb_zip_dict
-    WHERE name = '$original_dict_name';
-  let $original_dictionary_reference_exists = `SELECT COUNT(*) = 1
-    FROM information_schema.xtradb_zip_dict_cols
-    WHERE table_id = @original_table_id AND column_pos = @original_column_pos`;
-  --eval SELECT $original_dictionary_reference_exists AS original_dictionary_reference_exists
+    eval SELECT COUNT(*) = 1 INTO @original_dictionary_reference_exists
+    FROM information_schema.compression_dictionary_tables
+    WHERE TABLE_SCHEMA='test' AND TABLE_NAME= '$original_table_name'
+    AND COLUMN_NAME= '$original_column_name';
+
+    SELECT @original_dictionary_reference_exists AS original_dictionary_reference_exists;
+    let $original_dictionary_reference_exists = `SELECT @original_dictionary_reference_exists`;
   if ($original_dictionary_reference_exists)
   {
-    SELECT dict_id = @original_dict_id AS original_dictionary_reference_matches
-      FROM information_schema.xtradb_zip_dict_cols
-      WHERE table_id = @original_table_id AND column_pos = @original_column_pos;
+	  eval SELECT DICT_NAME = '$original_dict_name' AS original_dictionary_reference_matches FROM information_schema.compression_dictionary_tables WHERE TABLE_SCHEMA='test' AND TABLE_NAME= '$original_table_name' AND COLUMN_NAME= '$original_column_name';
   }
 }
+
 if (!$original_dict_name_defined)
 {
-  SELECT COUNT(*) = 0 AS original_dictionary_reference_does_not_exist
-    FROM information_schema.xtradb_zip_dict_cols
-    WHERE table_id = @original_table_id AND column_pos = @original_column_pos;
+    eval SELECT COUNT(*) = 0 AS original_dictionary_reference_does_not_exist
+    FROM information_schema.compression_dictionary_tables
+    WHERE TABLE_SCHEMA='test' AND TABLE_NAME= '$original_table_name'
+    AND COLUMN_NAME= '$original_column_name';
 }

@@ -28,7 +28,7 @@ eval SET GLOBAL max_allowed_packet = GREATEST((($field_length + 1023) DIV 1024 +
 
 eval CREATE TABLE t1(
   a $local_full_field_type
-) ROW_FORMAT = $row_format ENGINE=InnoDB;
+) ROW_FORMAT = $row_format ENGINE=InnoDB CHARSET=latin1;
 
 if(!$full_field_type)
 {

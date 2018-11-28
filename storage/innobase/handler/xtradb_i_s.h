@@ -20,10 +20,5 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define XTRADB_I_S_H
 
 extern struct st_mysql_plugin i_s_xtradb_read_view;
-// Percona commented out until zip dictionary reimplementation in the new DD
-#if 0
-extern struct st_mysql_plugin	i_s_xtradb_zip_dict;
-extern struct st_mysql_plugin	i_s_xtradb_zip_dict_cols;
-#endif
 
 #endif /* XTRADB_I_S_H */

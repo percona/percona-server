@@ -4121,10 +4121,6 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   bool build_fts_common = false;
 
   ha_innobase_inplace_ctx *ctx;
-  // Percona commented out until zip dictionary reimplementation in the new DD
-#if 0
-  zip_dict_id_container_t	zip_dict_ids;
-#endif
 
   DBUG_ENTER("prepare_inplace_alter_table_dict");
 
@@ -4287,17 +4283,6 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
     dtuple_t *add_cols;
     space_id_t space_id = 0;
     ulint z = 0;
-    // Percona commented out until zip dict reimplementation in the new DD
-#if 0
-    const char*	err_zip_dict_name = 0;
-
-		if (!innobase_check_zip_dicts(altered_table, zip_dict_ids,
-			ctx->trx, &err_zip_dict_name)) {
-			my_error(ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST,
-				MYF(0), err_zip_dict_name);
-			goto new_clustered_failed;
-		}
-#endif
 
     if (innobase_check_foreigns(ha_alter_info, altered_table, old_table,
                                 user_table, ctx->drop_fk,
@@ -4785,16 +4770,6 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   }
 
   DBUG_ASSERT(error == DB_SUCCESS);
-
-  // Percona commented out until zip dictionary reimplementation in new DD
-#if 0
-  /* Adding compression dictionary <-> compressed table column links
-  to the SYS_ZIP_DICT_COLS table. */
-  if (!zip_dict_ids.empty())
-    innobase_create_zip_dict_references(altered_table,
-					ctx->trx->table_id, zip_dict_ids,
-					ctx->trx);
-#endif
 
   if (build_fts_common || fts_index) {
     fts_freeze_aux_tables(ctx->new_table);

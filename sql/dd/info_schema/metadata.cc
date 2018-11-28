@@ -73,6 +73,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_profile.h"
 #include "sql/sql_show.h"
+#include "sql/sql_zip_dict.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -554,10 +555,11 @@ bool create_system_views(THD *thd) {
   thd->update_charset();
 
   // Iterate over system view definitions.
-  dd::System_views::Const_iterator it = dd::System_views::instance()->begin();
+  dd::System_views::Const_iterator it = dd::System_views::instance()->begin(
+      dd::System_views::Types::INFORMATION_SCHEMA);
 
   bool error = false;
-  for (; it != dd::System_views::instance()->end(); ++it) {
+  for (; it != dd::System_views::instance()->end();) {
     const dd::system_views::System_view_definition *view_def =
         (*it)->entity()->view_definition();
 
@@ -567,10 +569,72 @@ bool create_system_views(THD *thd) {
       error = true;
       break;
     }
+    it = dd::System_views::instance()->next(
+        it, dd::System_views::Types::INFORMATION_SCHEMA);
+  }
+
+  // Restore the original character set.
+  thd->variables.character_set_client = client_cs;
+  thd->variables.collation_connection = cs;
+  thd->update_charset();
+
+  return error;
+}
+
+/** Create INFORMATION_SCHEMA views on non-DD tables like
+mysql.compression_dictionary and mysql.compression_dictionary_cols tables
+@param[in,out]    thd                   Session context
+@param[in]        store_i_s_version     when true, stores the I_S version
+                                        false doesn't store, used when I_S
+                                        tables are created on startup
+                                        mysql-8.0 to PS-8.0
+@return false on success, true on failure */
+bool create_non_dd_views(THD *thd, bool store_i_s_version) {
+  // Force use of utf8mb4 charset.
+  const CHARSET_INFO *client_cs = thd->variables.character_set_client;
+  const CHARSET_INFO *cs = thd->variables.collation_connection;
+  const CHARSET_INFO *m_client_cs, *m_connection_cl;
+
+  resolve_charset("utf8mb4", system_charset_info, &m_client_cs);
+  resolve_collation("utf8mb4_general_ci", system_charset_info,
+                    &m_connection_cl);
+
+  thd->variables.character_set_client = m_client_cs;
+  thd->variables.collation_connection = m_connection_cl;
+  thd->update_charset();
+
+  // Iterate over system view definitions.
+  dd::System_views::Const_iterator it = dd::System_views::instance()->begin(
+      dd::System_views::Types::INFORMATION_SCHEMA_NON_DD);
+
+  bool error = false;
+  for (; it != dd::System_views::instance()->end();) {
+#ifndef DBUG_OFF
+    // Skip creating I_S views on compression dictionary tables as
+    // the tables are not created during bootstrap. This is done
+    // to simulate upgrade from mysql datadir to percona server
+    if (compression_dict::skip_bootstrap) {
+      it = dd::System_views::instance()->next(
+          it, dd::System_views::Types::INFORMATION_SCHEMA_NON_DD);
+      continue;
+    }
+#endif
+
+    const dd::system_views::System_view_definition *view_def =
+        (*it)->entity()->view_definition();
+
+    // Build the CREATE VIEW DDL statement and execute it.
+    if (view_def == nullptr ||
+        execute_query(thd, view_def->build_ddl_create_view())) {
+      error = true;
+      break;
+    }
+    it = dd::System_views::instance()->next(
+        it, dd::System_views::Types::INFORMATION_SCHEMA_NON_DD);
   }
 
   // Store the target I_S version.
-  if (!error) {
+  if (store_i_s_version && !error) {
     dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
     error = d->set_I_S_version(thd, d->get_target_I_S_version());
   }
@@ -674,7 +738,9 @@ bool initialize(THD *thd) {
   Dictionary_impl *d = dd::Dictionary_impl::instance();
   DBUG_ASSERT(d);
 
-  if (create_system_views(thd) || store_server_I_S_metadata(thd)) return true;
+  if (create_system_views(thd) || create_non_dd_views(thd, true) ||
+      store_server_I_S_metadata(thd))
+    return true;
 
   LogErr(INFORMATION_LEVEL, ER_CREATED_SYSTEM_WITH_VERSION,
          (int)d->get_target_dd_version());

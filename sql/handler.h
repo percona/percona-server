@@ -857,39 +857,6 @@ enum enum_schema_tables {
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 enum ha_notification_type : int { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
-/** Create compression dictionary result type. */
-enum class ha_create_zip_dict_result {
-  OK,             /*!< zip_dict successfully created */
-  ALREADY_EXISTS, /*!< zip dict with such name already
-                                       exists */
-  NAME_TOO_LONG,  /*!< zip dict name is too long */
-  DATA_TOO_LONG,  /*!< zip dict data is too long */
-  READ_ONLY,      /*!< cannot create in read-only mode */
-  OUT_OF_MEMORY,  /*!< out of memory */
-  OUT_OF_FILE_SPACE,
-  /*!< out of disk space */
-  TOO_MANY_CONCURRENT_TRXS,
-  /*!< too many concurrent transactions */
-  UNKNOWN_ERROR /*!< unknown error during zip_dict
-                                     creation */
-};
-
-/** Drop compression dictionary result type. */
-enum class ha_drop_zip_dict_result {
-  OK,             /*!< zip_dict successfully dropped */
-  DOES_NOT_EXIST, /*!< zip dict with such name does not
-                                     exist */
-  IS_REFERENCED,  /*!< zip dict is in use */
-  READ_ONLY,      /*!< cannot drop in read-only mode */
-  OUT_OF_MEMORY,  /*!< out of memory */
-  OUT_OF_FILE_SPACE,
-  /*!< out of disk space */
-  TOO_MANY_CONCURRENT_TRXS,
-  /*!< too many concurrent transactions */
-  UNKNOWN_ERROR /*!< unknown error during zip_dict
-                                   removal */
-};
-
 /** Clone operation types. */
 enum Ha_clone_type {
   /** Caller must block all write operation to the SE. */
@@ -1372,40 +1339,6 @@ typedef bool (*is_supported_system_table_t)(const char *db,
                                             bool is_sql_layer_system_table);
 
 /**
-   Creates a new compression dictionary with the specified data for this SE.
-
-   @param hton                       handlerton object.
-   @param thd                        thread descriptor.
-   @param name                       compression dictionary name
-   @param name_len                   compression dictionary name length
-   @param data                       compression dictionary data
-   @param data_len                   compression dictionary data length
-
-   @return a valid #ha_create_zip_dict_result value.
-
-   This interface is optional, so not every SE needs to implement it.
-*/
-using create_zip_dict_t = ha_create_zip_dict_result (*)(
-    handlerton *hton, THD *thd, const char *name, ulong *name_len,
-    const char *data, ulong *data_len);
-
-/**
-   Deletes a compression dictionary for this SE.
-
-   @param hton                       handlerton object.
-   @param thd                        thread descriptor.
-   @param name                       compression dictionary name
-   @param name_len                   compression dictionary name length
-
-   @return a valid #ha_drop_zip_dict_result value.
-
-   This interface is optional, so not every SE needs to implement it.
-*/
-using drop_zip_dict_t = ha_drop_zip_dict_result (*)(handlerton *hton, THD *thd,
-                                                    const char *name,
-                                                    ulong *name_len);
-
-/**
   Create SDI in a tablespace. This API should be used when upgrading
   a tablespace with no SDI or after invoking sdi_drop().
   @param[in]  tablespace     tablespace object
@@ -1738,6 +1671,12 @@ typedef bool (*rotate_encryption_master_key_t)(void);
 */
 using fix_tablespaces_empty_uuid_t = bool (*)(void);
 
+using compression_dict_data_vec_t =
+    std::vector<std::pair<std::string, std::string>>;
+
+using upgrade_get_compression_dict_data_t =
+    bool (*)(THD *thd, compression_dict_data_vec_t &names_vector);
+
 /**
   @brief
   Retrieve ha_statistics from SE.
@@ -1976,8 +1915,6 @@ struct handlerton {
   table_exists_in_engine_t table_exists_in_engine;
   make_pushed_join_t make_pushed_join;
   is_supported_system_table_t is_supported_system_table;
-  create_zip_dict_t create_zip_dict;
-  drop_zip_dict_t drop_zip_dict;
 
   /*
     APIs for retrieving Serialized Dictionary Information by tablespace id
@@ -2019,6 +1956,7 @@ struct handlerton {
   notify_alter_table_t notify_alter_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
   fix_tablespaces_empty_uuid_t fix_tablespaces_empty_uuid;
+  upgrade_get_compression_dict_data_t upgrade_get_compression_dict_data;
 
   get_table_statistics_t get_table_statistics;
   get_index_column_cardinality_t get_index_column_cardinality;
@@ -5893,9 +5831,11 @@ class handler {
     return false;
   }
   int get_lock_type() const { return m_lock_type; }
+
   /**
     This method is supposed to fill field definition objects with
-    compression dictionary info (name and data).
+    compression dictionary info (name and data). This is used
+    only during upgrade from 5.7 to 8.0
     If the handler does not support compression dictionaries
     this method should be left empty (not overloaded).
 
@@ -5903,7 +5843,7 @@ class handler {
     @param    part_name    Full table name (including partition part).
                            Optional.
   */
-  virtual void update_field_defs_with_zip_dict_info(THD *, const char *) {}
+  virtual void upgrade_update_field_with_zip_dict_info(THD *, const char *) {}
 
  public:
   /* Read-free replication interface */

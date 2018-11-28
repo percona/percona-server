@@ -6,6 +6,8 @@ ALTER TABLE t1 ADD INDEX (b);
 ERROR HY000: Lost connection to MySQL server during query
 SELECT NAME, FLAG FROM INFORMATION_SCHEMA.INNODB_TABLES;
 NAME	FLAG
+mysql/compression_dictionary	161
+mysql/compression_dictionary_cols	161
 mysql/db	161
 mysql/user	161
 mysql/default_roles	161

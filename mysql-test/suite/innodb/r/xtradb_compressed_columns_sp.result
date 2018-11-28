@@ -13,15 +13,12 @@ a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict
 END //
 CALL create_zip_dict(@numbers);
 CALL create_table_referencing_zip_dict();
-SELECT zip_dict = @numbers AS zip_dict_data_match FROM information_schema.xtradb_zip_dict WHERE name = 'dict';
+SELECT dict_data = @numbers AS zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'dict';
 zip_dict_data_match
 1
-SELECT id INTO @dict_id FROM information_schema.xtradb_zip_dict WHERE name = 'dict';
-SELECT table_id INTO @table_id FROM information_schema.innodb_tables
-WHERE name=CONCAT(DATABASE(), '/', 't1');
-SELECT dict_id = @dict_id AS dict_ids_match FROM information_schema.xtradb_zip_dict_cols
-WHERE table_id = @table_id AND column_pos = 1;
-dict_ids_match
+SELECT dict_name = 'dict' AS dict_names_match FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME = 't1' AND COLUMN_NAME = 'a';
+dict_names_match
 1
 CREATE PROCEDURE create_zip_dict_and_table(IN data TEXT)
 BEGIN
@@ -33,16 +30,12 @@ a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY another_dict
 ) ENGINE=InnoDB;
 END //
 CALL create_zip_dict_and_table(@numbers);
-SELECT zip_dict = @numbers AS another_zip_dict_data_match FROM information_schema.xtradb_zip_dict WHERE name = 'another_dict';
+SELECT dict_data = @numbers AS another_zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'another_dict';
 another_zip_dict_data_match
 1
-SELECT id INTO @another_dict_id FROM information_schema.xtradb_zip_dict WHERE name = 'another_dict';
-SELECT table_id INTO @another_table_id FROM information_schema.innodb_tables
-WHERE name=CONCAT(DATABASE(), '/', 't2');
-SELECT dict_id = @another_dict_id AS another_dict_ids_match FROM information_schema.xtradb_zip_dict_cols
-WHERE table_id = @another_table_id AND column_pos = 1;
-another_dict_ids_match
-1
+SELECT dict_name= 'another_dict' AS another_dict_names_match FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME = 'antoher_dict' AND COLUMN_NAME = 'a';
+another_dict_names_match
 SET @json_value =
 '[\n'
   '  {\n'
@@ -109,10 +102,10 @@ DROP COMPRESSION_DICTIONARY dict;
 DROP COMPRESSION_DICTIONARY another_dict;
 END //
 CALL remove_zip_dicts_and_tables();
-SELECT COUNT(*) = 0 AS dictionary_references_removed FROM information_schema.xtradb_zip_dict_cols WHERE table_id IN (@table_id, @another_table_id);
+SELECT COUNT(*) = 0 AS dictionary_references_removed FROM information_schema.compression_dictionary_tables WHERE table_name IN ('t1', 't2');
 dictionary_references_removed
 1
-SELECT COUNT(*) = 0 AS dictionaries_removed FROM information_schema.xtradb_zip_dict WHERE id IN (@dict_id, @another_dict_id);
+SELECT COUNT(*) = 0 AS dictionaries_removed FROM information_schema.compression_dictionary WHERE dict_name IN ('dict', 'another_dict');
 dictionaries_removed
 1
 DROP PROCEDURE create_zip_dict;
@@ -135,15 +128,12 @@ SET @create_table_referencing_zip_dict_sql =
 PREPARE create_table_referencing_zip_dict_stmt FROM @create_table_referencing_zip_dict_sql;
 EXECUTE create_table_referencing_zip_dict_stmt;
 DEALLOCATE PREPARE create_table_referencing_zip_dict_stmt;
-SELECT zip_dict = @numbers AS zip_dict_data_match FROM information_schema.xtradb_zip_dict WHERE name = 'dict';
+SELECT dict_data = @numbers AS zip_dict_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'dict';
 zip_dict_data_match
 1
-SELECT id INTO @dict_id FROM information_schema.xtradb_zip_dict WHERE name = 'dict';
-SELECT table_id INTO @table_id FROM information_schema.innodb_tables
-WHERE name=CONCAT(DATABASE(), '/', 't1');
-SELECT dict_id = @dict_id AS dict_ids_match FROM information_schema.xtradb_zip_dict_cols
-WHERE table_id = @table_id AND column_pos = 1;
-dict_ids_match
+SELECT dict_name = 'dict' AS dict_names_match FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't1' AND COLUMN_NAME = 'a';
+dict_names_match
 1
 PREPARE insert_zip_record_stmt FROM 'INSERT INTO t1 VALUES(?, ?);';
 SET @blob_key = 1;
@@ -169,9 +159,9 @@ DEALLOCATE PREPARE remove_table_referencing_zip_dict_stmt;
 PREPARE remove_zip_dict_stmt FROM 'DROP COMPRESSION_DICTIONARY dict;';
 EXECUTE remove_zip_dict_stmt;
 DEALLOCATE PREPARE remove_zip_dict_stmt;
-SELECT COUNT(*) = 0 AS dictionary_references_removed FROM information_schema.xtradb_zip_dict_cols WHERE table_id IN (@table_id, @another_table_id);
+SELECT COUNT(*) = 0 AS dictionary_references_removed FROM information_schema.compression_dictionary_tables WHERE table_name IN ('t1', 't2');
 dictionary_references_removed
 1
-SELECT COUNT(*) = 0 AS dictionaries_removed FROM information_schema.xtradb_zip_dict WHERE id IN (@dict_id, @another_dict_id);
+SELECT COUNT(*) = 0 AS dictionaries_removed FROM information_schema.compression_dictionary WHERE dict_name IN ('dict', 'another_dict');
 dictionaries_removed
 1

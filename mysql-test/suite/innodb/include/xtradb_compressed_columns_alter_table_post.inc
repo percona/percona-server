@@ -21,52 +21,54 @@ if ($original_dict_name_defined)
 }
 if ($need_check_for_original_dictionary_reference_cleared)
 {
-  SELECT COUNT(*) = 0 AS original_dictionary_reference_cleared
-    FROM information_schema.xtradb_zip_dict_cols
-    WHERE table_id = @original_table_id AND column_pos = @original_column_pos;
+    eval SELECT COUNT(*) = 0 AS original_dictionary_reference_cleared
+    FROM information_schema.compression_dictionary_tables
+    WHERE TABLE_SCHEMA='test' AND TABLE_NAME= '$original_table_name'
+    AND COLUMN_NAME= '$original_column_name';
+
 }
 
 if (!$storage_engine_changed)
 {
-  eval SELECT table_id INTO @modified_table_id FROM information_schema.innodb_tables
-    WHERE name=CONCAT(DATABASE(), '/', '$modified_table_name');
-  eval SELECT pos INTO @modified_column_pos FROM information_schema.innodb_columns
-    WHERE table_id = @modified_table_id AND name = '$modified_column_name';
-
   if ($modified_dict_name_defined)
   {
-    eval SELECT id INTO @modified_dict_id FROM information_schema.xtradb_zip_dict
-      WHERE name = '$modified_dict_name';
-    let $modified_dictionary_reference_exists = `SELECT COUNT(*) = 1
-      FROM information_schema.xtradb_zip_dict_cols
-      WHERE table_id = @modified_table_id AND column_pos = @modified_column_pos`;
-    --eval SELECT $modified_dictionary_reference_exists AS modified_dictionary_reference_exists
+      eval SELECT COUNT(*) = 1 INTO @modified_dictionary_reference_exists
+      FROM information_schema.compression_dictionary_tables
+      WHERE TABLE_SCHEMA='test' AND TABLE_NAME='$modified_table_name'
+      AND COLUMN_NAME = '$modified_column_name';
+
+      SELECT @modified_dictionary_reference_exists AS modified_dictionary_reference_exists;
+      let $modified_dictionary_reference_exists = `SELECT @modified_dictionary_reference_exists`;
+
     if ($modified_dictionary_reference_exists)
     {
-      SELECT dict_id = @modified_dict_id AS modified_dictionary_reference_matches
-        FROM information_schema.xtradb_zip_dict_cols
-        WHERE table_id = @modified_table_id AND column_pos = @modified_column_pos;
+      eval SELECT DICT_NAME = '$modified_dict_name' AS modified_dictionary_reference_matches
+        FROM information_schema.compression_dictionary_tables
+      WHERE TABLE_SCHEMA='test' AND TABLE_NAME='$modified_table_name'
+      AND COLUMN_NAME = '$modified_column_name';
     }
   }
+
   if (!$modified_dict_name_defined)
   {
-    SELECT COUNT(*) = 0 AS modified_dictionary_reference_does_not_exist
-      FROM information_schema.xtradb_zip_dict_cols
-      WHERE table_id = @modified_table_id AND column_pos = @modified_column_pos;
+    eval SELECT COUNT(*) = 0 AS modified_dictionary_reference_does_not_exist
+      FROM information_schema.compression_dictionary_tables
+      WHERE TABLE_SCHEMA='test' AND TABLE_NAME='$modified_table_name'
+      AND COLUMN_NAME = '$modified_column_name';
   }
 }
 
 --eval DROP TABLE $modified_table_name
 
-SELECT COUNT(*) = 0 AS original_dictionary_references_cleaned
-  FROM information_schema.xtradb_zip_dict_cols
-  WHERE table_id = @original_table_id;
+eval SELECT COUNT(*) = 0 AS original_dictionary_references_cleaned
+  FROM information_schema.compression_dictionary_tables
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='$original_table_name';
 
 if (!$storage_engine_changed)
 {
-  SELECT COUNT(*) = 0 AS modified_dictionary_references_cleaned
-    FROM information_schema.xtradb_zip_dict_cols
-    WHERE table_id = @modified_table_id;
+  eval SELECT COUNT(*) = 0 AS modified_dictionary_references_cleaned
+    FROM information_schema.compression_dictionary_tables
+    WHERE TABLE_SCHEMA='test' AND TABLE_NAME='$modified_table_name';
 }
 
 --enable_query_log

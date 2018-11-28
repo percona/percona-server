@@ -87,6 +87,16 @@ bool initialize(THD *thd);
 */
 bool create_system_views(THD *thd);
 
+/** Create INFORMATION_SCHEMA views on non-DD tables like
+mysql.compression_dictionary and mysql.compression_dictionary_cols tables
+@param[in,out]    thd                   Session context
+@param[in]        store_i_s_version     when true, stores the I_S version
+                                        false doesn't store, used when I_S
+                                        tables are created on startup
+                                        mysql-8.0 to PS-8.0
+@return false on success, true on failure */
+bool create_non_dd_views(THD *thd, bool store_i_s_version);
+
 /**
   Store the server I_S table metadata into dictionary, once during MySQL
   server bootstrap.

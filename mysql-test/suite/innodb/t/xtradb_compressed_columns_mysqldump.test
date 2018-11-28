@@ -158,8 +158,8 @@ while($i)
   eval SELECT COUNT(*) = 1 AS number_of_long_rows_in_second_match FROM $second_table_name
     WHERE a = @long_value AND b = @long_value AND c = @long_value AND d = @long_value;
 
-  eval SELECT COUNT(*) = $expected_number_of_dictionaries FROM information_schema.xtradb_zip_dict
-    WHERE name IN ('$first_dictionary_name', '$second_dictionary_name', '$third_dictionary_name');
+  eval SELECT COUNT(*) = $expected_number_of_dictionaries FROM information_schema.compression_dictionary
+    WHERE dict_name IN ('$first_dictionary_name', '$second_dictionary_name', '$third_dictionary_name');
 
   --dec $i
 }
@@ -179,5 +179,4 @@ eval DROP COMPRESSION_DICTIONARY IF EXISTS $third_dictionary_name;
 --remove_file $dump_ccwd_file
 --remove_file $dump_ccwd_unquoted_file
 --remove_file $dump_ccwd_skipped_create_cd_file
---remove_files_wildcard $dump_dir
---rmdir $dump_dir
+--force-rmdir $dump_dir

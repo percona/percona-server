@@ -1742,39 +1742,20 @@ std::string dict_table_get_datadir(const dict_table_t *table)
 void dict_table_set_corrupt_by_space(space_id_t space_id,
                                      bool need_mutex) noexcept;
 
-// Percona commented out to be removed for the new DD
-#if 0
-
-/** Insert a records into SYS_ZIP_DICT.
-@param[in]	name		zip_dict name
-@param[in]	name_len	zip_dict name length
-@param[in]	data		zip_dict data
-@param[in]	data_len	zip_dict data length
-@retval	DB_SUCCESS	if OK
-@retval	dberr_t		if the insert failed */
-MY_NODISCARD
-dberr_t
-dict_create_zip_dict(
-	const char*	name,
-	ulint		name_len,
-	const char*	data,
-	ulint		data_len);
+/** SYS_ZIP_DICT and SYS_ZIP_DICT_COLS will be missing when upgrading
+mysql-5.7 to PS-8.0 */
+extern bool dict_upgrade_zip_dict_missing;
 
 /** Get single compression dictionary id for the given
 (table id, column pos) pair.
 @param[in]	table_id	table id
 @param[in]	column_pos	column position
 @param[out]	dict_id		zip_dict id
-@param[in]	dict_locked	true if data dictionary locked
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
 MY_NODISCARD
-dberr_t
-dict_get_dictionary_id_by_key(
-	ulint	table_id,
-	ulint	column_pos,
-	ulint*	dict_id,
-	bool	dict_locked);
+dberr_t dict_get_dictionary_id_by_key(ulint table_id, ulint column_pos,
+                                      ulint *dict_id);
 
 /** Get compression dictionary info (name and data) for the given id.
 Allocates memory in name->str and data->str on success.
@@ -1784,31 +1765,12 @@ Must be freed with mem_free().
 @param[out]	name_len	dictionary name length
 @param[out]	data		dictionary data
 @param[out]	data_len	dictionary data length
-@param[in]	dict_locked	true if data dictionary locked
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
 MY_NODISCARD
-dberr_t
-dict_get_dictionary_info_by_id(
-	ulint	dict_id,
-	char**	name,
-	ulint*	name_len,
-	char**	data,
-	ulint*	data_len,
-	bool	dict_locked);
-
-/** Delete a record in SYS_ZIP_DICT with the given name.
-@param[in]	name		zip_dict name
-@param]in]	name_len	zip_dict name length
-@retval	DB_SUCCESS		if OK
-@retval	DB_RECORD_NOT_FOUND	if not found
-@retval	DB_ROW_IS_REFERENCED	if in use */
-MY_NODISCARD
-dberr_t
-dict_drop_zip_dict(
-	const char*	name,
-	ulint		name_len);
-#endif
+dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
+                                       ulint *name_len, char **data,
+                                       ulint *data_len);
 
 #include "dict0dict.ic"
 

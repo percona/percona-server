@@ -1,0 +1,10 @@
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TEMPORARY TABLE t1(a INT AUTO_INCREMENT,PRIMARY KEY(a)) ENGINE=TokuDB;
+INSERT INTO t1 VALUES(0xF0908080);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+DELETE FROM t1;
+INSERT IGNORE INTO t1 VALUES(),(),();
+ERROR HY000: Failed to read auto-increment value from storage engine

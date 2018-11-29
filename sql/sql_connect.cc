@@ -375,7 +375,7 @@ void update_global_user_stats(THD *thd, bool create_user, ulonglong now) {
     if (thread_it != global_thread_stats->cend())
       update_global_thread_stats_with_thread(*thd, &thread_it->second, now);
     else if (create_user)
-      increment_count_by_id(thread_id, global_thread_stats, thd);
+      increment_count_by_id(thread_id, global_thread_stats, *thd);
   }
 
   thd->last_global_update_time = now;
@@ -947,7 +947,7 @@ static bool login_connection(THD *thd, bool extra_port_connection) {
     thd->reset_stats();
 
     // Updates global user connection stats.
-    increment_connection_count(thd, true);
+    increment_connection_count(*thd, true);
   }
 
   DBUG_RETURN(0);

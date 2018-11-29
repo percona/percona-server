@@ -18,7 +18,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/regex 
-  ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
 )
@@ -189,6 +188,7 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   unireg.cc
+  userstat.cc
   threadpool_common.cc
 )
 

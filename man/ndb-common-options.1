@@ -2,12 +2,12 @@
 .\"     Title: Options Common to NDB Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/25/2018
+.\"      Date: 09/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "02/25/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "09/07/2018" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -105,7 +105,7 @@ The options in the following table are common to all NDB Cluster executables (ex
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.96.\ \& This table describes command\-line options common to all MySQL NDB Cluster programs
+.B Table\ \&18.326.\ \&Command\-line options common to all MySQL NDB Cluster programs
 .TS
 allbox tab(:);
 lB lB lB.
@@ -114,7 +114,7 @@ Format
 T}:T{
 Description
 T}:T{
-Added or Removed
+Added, Deprecated, or Removed
 T}
 .T&
 l l l
@@ -175,7 +175,7 @@ T{
 --debug=options
 T}:T{
 Enable output from debug calls. Can be used only for versions compiled
-          with debugging enabled
+              with debugging enabled
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -238,8 +238,9 @@ T{
 -c
 T}:T{
 Set connection string for connecting to ndb_mgmd. Syntax:
-          [nodeid=<id>;][host=]<hostname>[:<port>].
-          Overrides entries specified in NDB_CONNECTSTRING or my.cnf.
+              [nodeid=<id>;][host=]<hostname>[:<port>].
+              Overrides entries specified in NDB_CONNECTSTRING or
+              my.cnf.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -340,10 +341,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-directory name
+Directory name
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -386,22 +387,22 @@ T}:T{
 5.6.28-ndb-7.4.9
 T}
 T{
-\fBType\fR (>= 5.6.28-ndb-7.4.9)
+\fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
-\fBDefault\fR (>= 5.6.28-ndb-7.4.9)
+\fBDefault Value\fR
 T}:T{
 12
 T}
 T{
-\fBMinimum\fR (>= 5.6.28-ndb-7.4.9)
+\fBMinimum Value\fR
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.6.28-ndb-7.4.9)
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -464,22 +465,22 @@ T}:T{
 5.6.28-ndb-7.4.9
 T}
 T{
-\fBType\fR (>= 5.6.28-ndb-7.4.9)
+\fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
-\fBDefault\fR (>= 5.6.28-ndb-7.4.9)
+\fBDefault Value\fR
 T}:T{
 5
 T}
 T{
-\fBMinimum\fR (>= 5.6.28-ndb-7.4.9)
+\fBMinimum Value\fR
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.6.28-ndb-7.4.9)
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -520,10 +521,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -573,10 +574,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 d:t:O,/tmp/ndb_restore.trace
 T}
@@ -616,10 +617,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -657,10 +658,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -698,10 +699,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -730,15 +731,13 @@ T}:T{
 Value
 T}
 .T&
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
+.PP
 --help
-T}
-T{
-T}:T{
+.PP
 --usage
 T}
 .TE
@@ -775,10 +774,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -809,24 +808,22 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
+.PP
 --ndb-connectstring=connectstring
-T}
-T{
-T}:T{
+.PP
 --connect-string=connectstring
 T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 localhost:1186
 T}
@@ -877,10 +874,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 localhost:1186
 T}
@@ -920,10 +917,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 0
 T}
@@ -963,10 +960,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -1004,10 +1001,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -1045,10 +1042,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}

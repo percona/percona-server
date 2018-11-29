@@ -457,6 +457,9 @@ update t3 set key9=key1,keyA=key1,keyB=key1,keyC=key1;
 SET @@GLOBAL.innodb_fast_shutdown = 0;
 --source include/restart_mysqld.inc
 
+# reset default engine after restart
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
+
 -- disable_query_log
 -- disable_result_log
 analyze table t3;

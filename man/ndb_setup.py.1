@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_setup.py\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/25/2018
+.\"      Date: 09/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_SETUP\&.PY\FR" "1" "02/25/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_SETUP\&.PY\FR" "1" "09/07/2018" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -91,7 +91,7 @@ The following table includes all options that are supported by the NDB Cluster i
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.92.\ \& This table describes command\-line options for the ndb_setup\&.py program
+.B Table\ \&18.322.\ \&Command\-line options for the ndb_setup\&.py program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -100,7 +100,7 @@ Format
 T}:T{
 Description
 T}:T{
-Added or Removed
+Added, Deprecated, or Removed
 T}
 .T&
 l l l
@@ -132,7 +132,7 @@ T{
 -a
 T}:T{
 File containing list of client certificates allowed to connect to the
-          server
+              server
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -144,7 +144,7 @@ T{
 -c
 T}:T{
 File containing X509 certificate that identifies the server. (Default:
-          cfg.pem)
+              cfg.pem)
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -156,7 +156,7 @@ T{
 -d
 T}:T{
 Python logging module debug level. One of DEBUG, INFO, WARNING
-          (default), ERROR, or CRITICAL.
+              (default), ERROR, or CRITICAL.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -271,10 +271,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 index.html
 T}
@@ -314,10 +314,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -356,16 +356,16 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 cfg.pem
 T}
 .TE
 .sp 1
-Specify a file containing an X509 certificate which identifies the server\&. It is possible for the certificate to be self\-signed\&. The default is
+Specify a file containing an X\&.509 certificate which identifies the server\&. It is possible for the certificate to be self\-signed\&. The default is
 cfg\&.pem\&.
 .RE
 .sp
@@ -391,10 +391,6 @@ T}
 l l
 l l
 l l
-l l
-l l
-l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -404,32 +400,25 @@ T}
 T{
 \fBType\fR
 T}:T{
-enumeration
+Enumeration
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 WARNING
 T}
 T{
 \fBValid Values\fR
 T}:T{
+.PP
 WARNING
-T}
-T{
-T}:T{
+.PP
 DEBUG
-T}
-T{
-T}:T{
+.PP
 INFO
-T}
-T{
-T}:T{
+.PP
 ERROR
-T}
-T{
-T}:T{
+.PP
 CRITICAL
 T}
 .TE
@@ -504,16 +493,16 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
 .TE
 .sp 1
-Specify a file containing the private key if this is not included in the X509 certificate file (\fB\-\-cert\-file\fR)\&. The default is an empty string, which means that no such file is used\&.
+Specify a file containing the private key if this is not included in the X\&. 509 certificate file (\fB\-\-cert\-file\fR)\&. The default is an empty string, which means that no such file is used\&.
 .RE
 .sp
 .RS 4
@@ -578,20 +567,20 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 8081
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 65535
 T}
@@ -622,36 +611,33 @@ T}
 l l
 l l
 l l
-l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
+.PP
 --server-log-file=file
-T}
-T{
-T}:T{
+.PP
 o
 T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 ndb_setup.log
 T}
 T{
 \fBValid Values\fR
 T}:T{
+.PP
 ndb_setup.log
-T}
-T{
-T}:T{
-- (Log to stderr)
+.PP
+-
+(Log to stderr)
 T}
 .TE
 .sp 1
@@ -692,10 +678,10 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 localhost
 T}

@@ -3459,7 +3459,7 @@ cleanup:
   if (error == DB_KEYEXIST) {
     error = HA_ERR_FOUND_DUPP_KEY;
   }
-  if (using_ignore) {
+  if (sub_trans) {
     // no point in recording error value of abort.
     // nothing we can do about it anyway and it is not what
     // we want to return.

@@ -546,7 +546,7 @@ diff -rup old/rapid/unittest/gunit/xplugin/CMakeLists.txt new/rapid/unittest/gun
        endif ()
      else ()
 -      target_link_libraries(${tool} perconaserverclient)
-+      target_link_libraries(${tool} mysqlserverclient)
++      target_link_libraries(${tool} mysqlclient)
      endif ()
    endif ()
  

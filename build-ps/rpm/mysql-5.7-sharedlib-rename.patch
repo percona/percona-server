@@ -541,12 +541,12 @@ diff -rup old/rapid/unittest/gunit/xplugin/CMakeLists.txt new/rapid/unittest/gun
    ${PROTOBUF_LIBRARY}
 --- old/storage/tokudb/PerconaFT/tools/CMakeLists.txt
 +++ new/storage/tokudb/PerconaFT/tools/CMakeLists.txt
-@@ -23,7 +23,7 @@
-       if (MYSQL_BASE_VERSION VERSION_EQUAL "8.0")
-         target_link_libraries(${tool} mysqlclient)
-       else ()
--        target_link_libraries(${tool} perconaserverclient)
-+        target_link_libraries(${tool} mysqlclient)
+@@ -20,7 +20,7 @@
+         target_link_libraries(${tool} sql binlog rpl master slave)
        endif ()
+     else ()
+-      target_link_libraries(${tool} perconaserverclient)
++      target_link_libraries(${tool} mysqlserverclient)
      endif ()
    endif ()
+ 

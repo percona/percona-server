@@ -3,6 +3,7 @@ SELECT @@innodb_doublewrite;
 1
 CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
 CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 # Test that the parallel doublewrite is there during the regular server operation
 SELECT @@GLOBAL.innodb_parallel_doublewrite_path;
 @@GLOBAL.innodb_parallel_doublewrite_path

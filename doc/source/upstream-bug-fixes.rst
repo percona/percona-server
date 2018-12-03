@@ -1,25 +1,25 @@
 .. _upstream_bug_fixes:
 
-============================================================
-List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
-============================================================
+==============================================================
+List of upstream |MySQL| bugs fixed in |Percona Server|    5.7
+==============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`91541` - Flush status statement adds twice to global values                        |
 |:JIRA bug: :psbug:`4570`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.23-23                                                                                     |
 |:Upstream Fix: 5.7.22                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`91423` - Can\'t run mysql on Ubuntu systems with long recovery time                |
 |:JIRA bug: :psbug:`4546`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.23-23                                                                                     |
 |:Upstream Fix: 5.7.22                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`91091` - A simple SELECT on a table with CHARSET=euckr COLLATE=euckr_bin ...       |
 |:JIRA bug: :psbug:`4513`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.23-23                                                                                     |
 |:Upstream Fix: 5.7.22                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
@@ -31,25 +31,25 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`90238` - Comparison of uninitailized memory in log_in_use                          |
 |:JIRA bug: :psbug:`3925`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Closed                                                                                      |
 |:Fix Released: 5.7.21-21                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`89916` - hp_test1/hp_test2 are not built unless WITH_EMBEDDED_SERVER is defined    |
 |:JIRA bug: :psbug:`3845`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Won't fix                                                                                   |
 |:Fix Released: 5.7.21-21                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`89822` - InnoDB retries open on EINTR error only if innodb_use_native_aio is ...   |
 |:JIRA bug: :psbug:`3843`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.21-21                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`89646` - Clang warnings in 5.7.21                                                  |
 |:JIRA bug: :psbug:`3814`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Won't fix                                                                                   |
 |:Fix Released: 5.7.21-21                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -61,7 +61,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`89422` - Dangerous enum-ulong casts in sql_formatter_options                       |
 |:JIRA bug: :psbug:`3780`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.21-20                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -73,7 +73,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`89420` - Enforcing C++03 mode in non debug builds                                  |
 |:JIRA bug: :psbug:`3780`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.21-20                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -85,13 +85,13 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`88057` - Intermediary slave does not log master changes with...                    |
 |:JIRA bug: :psbug:`1119`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.20-19                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`87065` - Release lock on table statistics after query plan created                 |
 |:JIRA bug: :psbug:`2503`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.20-18                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -109,13 +109,13 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`86164` - Fulltext search can not find word which contains punctuation marks        |
 |:JIRA bug: :psbug:`2501`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.21-20                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`86016` - Make MTR show core dump stacktraces from unit tests too                   |
 |:JIRA bug: :psbug:`2499`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.18-16                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -151,13 +151,13 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`85158` - heartbeats/fakerotate cause a forced sync_master_info                     |
 |:JIRA bug: :psbug:`1812`                                                                                     |
-|:Upstream State: Open (checked on 2018-09-04)                                                                |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.20-19                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`85141` - Write/fsync amplification w/ duplicate GTIDs                              |
 |:JIRA bug: :psbug:`1786`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.18-14                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -175,7 +175,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`84420` - stopwords and ngram indexes                                               |
 |:JIRA bug: :psbug:`1802`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.20-18                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -187,7 +187,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`84366` - InnoDB index dives do not detect concurrent tree changes, return bogus... |
 |:JIRA bug: :psbug:`1089`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.17-11                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -235,7 +235,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`82935` - Cipher ECDHE-RSA-AES128-GCM-SHA256 listed in man/Ssl_cipher_list, not...  |
 |:JIRA bug: :psbug:`1737`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.15-9                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -259,7 +259,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`82026` - Stack buffer overflow with --ssl-cipher=<more than 4K characters>         |
 |:JIRA bug: :psbug:`2155`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Closed                                                                                      |
 |:Fix Released: 5.7.14-7                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -271,13 +271,13 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`81814` - InnoDB adaptive hash index uses a bad partitioning algorithm for the ...  |
 |:JIRA bug: :psbug:`2498`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.18-14                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`81810` - Inconsistent sort order for blob/text between InnoDB and filesort         |
 |:JIRA bug: :psbug:`1799`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Closed                                                                                      |
 |:Fix Released: 5.7.18-14                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -301,7 +301,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`81467` - innodb_fts.sync_block test unstable due to slow query log nondeterminism  |
 |:JIRA bug: :psbug:`2232`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.17-12                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -325,7 +325,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`80496` - buf_dblwr_init_or_load_pages now returns an error code, but caller not... |
 |:JIRA bug: :psbug:`3384`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.11-4                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -337,13 +337,13 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`80053` - Assertion in binlog coordinator on slave with 2 2pc handler log_slave ... |
 |:JIRA bug: :psbug:`3361`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-2                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`79894` - Page cleaner worker threads are not instrumented for performance schema   |
 |:JIRA bug: :psbug:`3356`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-2                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -355,7 +355,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`79610` - Failed DROP DATABASE due FK constraint on master breaks slave             |
 |:JIRA bug: :psbug:`1683`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.14-7                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -373,7 +373,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`78894` - buf_pool_resize can lock less in checking whether AHI is on or off        |
 |:JIRA bug: :psbug:`3340`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -385,13 +385,13 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`77591` - ALTER TABLE does not allow to change NULL/NOT NULL if foreign key exists  |
 |:JIRA bug: :psbug:`1635`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`77399` - Deadlocks missed by INFORMATION_SCHEMA.INNODB_METRICS lock_deadlocks ...  |
 |:JIRA bug: :psbug:`1635`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -403,7 +403,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`76142` - InnoDB tablespace import fails when importing table w/ different data ... |
 |:JIRA bug: :psbug:`1697`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.13-6                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -415,7 +415,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`75504` - btr_search_guess_on_hash makes found block young twice?                   |
 |:JIRA bug: :psbug:`2454`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -427,31 +427,31 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`75311` - Error for SSL cipher is unhelpful                                         |
 |:JIRA bug: :psbug:`1779`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.17-12                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`75189` - engines suite tests depending on InnoDB implementation details            |
 |:JIRA bug: :psbug:`2103`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`74637` - make dirty page flushing more adaptive                                    |
 |:JIRA bug: :ref:`Multi-threaded asynchronous LRU flusher <lru_manager_threads>`                              |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-3                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`73418` - Add --manual-lldb option to mysql-test-run.pl                             |
 |:JIRA bug: :psbug:`2448`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`72615` - MTR --mysqld=--default-storage-engine=foo incompatible w/ dynamically...  |
 |:JIRA bug: :psbug:`2071`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -463,25 +463,25 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`72466` - More memory overhead per page in the InnoDB buffer pool                   |
 |:JIRA bug: :psbug:`1689`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.12-5                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`72123` - Spurious lock_wait_timeout_thread wakeup in lock_wait_suspend_thread()    |
 |:JIRA bug: :psbug:`2504`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.18-16                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`72108` - Hard to read history file                                                 |
 |:JIRA bug: :psbug:`2066`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`71761` - ANALYZE TABLE should remove its table from background stat processing...  |
 |:JIRA bug: :psbug:`1749`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.15-9                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -493,37 +493,37 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`71411` - buf_flush_LRU() does not return correct number in case of compressed ...  |
 |:JIRA bug: :psbug:`1461`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`71270` - Failures to end bulk insert for partitioned tables handled incorrectly    |
 |:JIRA bug: :psbug:`700`                                                                                      |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`71217` - Threadpool - add thd_wait_begin/thd_wait_end to the network IO functions  |
 |:JIRA bug: :psbug:`1343`                                                                                     |
-|:Upstream State: Open (checked on 2018-09-04)                                                                |
+|:Upstream State: Open (checked on 2018-11-21)                                                                |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`71183` - os_file_fsync() should handle fsync() returning EINTR                     |
 |:JIRA bug: :psbug:`1461`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`71091` - CSV engine does not properly process "", in quotes                        |
 |:JIRA bug: :psbug:`153`                                                                                      |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`70500` - Page cleaner should perform LRU flushing regardless of server activity    |
 |:JIRA bug: :psbug:`1428`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -535,13 +535,13 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`69991` - MySQL client is broken without readline                                   |
 |:JIRA bug: :psbug:`1467`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`69639` - mysql failed to build with dtrace Sun D 1.11                              |
 |:JIRA bug: :psbug:`1392`                                                                                     |
-|:Upstream State: Unsupported (checked on 2018-09-04)                                                         |
+|:Upstream State: Unsupported (checked on 2018-11-21)                                                         |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -553,19 +553,19 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`69232` - buf_dblwr->mutex can be splited into two                                  |
 |:JIRA bug: :ref:`parallel_doublewrite_buffer`                                                                |
-|:Upstream State: No Feedback (checked on 2018-09-04)                                                         |
+|:Upstream State: No Feedback (checked on 2018-11-21)                                                         |
 |:Fix Released: 5.7.11-4                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`69170` - buf_flush_LRU is lazy                                                     |
 |:JIRA bug: :psbug:`2430`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`69146` - Needless log flush order mutex acquisition in buf_pool_get_oldest_mod...  |
 |:JIRA bug: :psbug:`2418`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -577,7 +577,7 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`68481` - InnoDB LRU flushing for MySQL 5.6 needs work                              |
 |:JIRA bug: :psbug:`2432`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -589,67 +589,67 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`67808` - in innodb engine, double write and multi-buffer pool instance reduce ...  |
 |:JIRA bug: :ref:`parallel_doublewrite_buffer`                                                                |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.11-4                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`63130` - CMake-based check for the presence of a system readline library is not... |
 |:JIRA bug: :psbug:`1467`                                                                                     |
-|:Upstream State: Can't Repeat (checked on 2018-09-04)                                                        |
+|:Upstream State: Can't Repeat (checked on 2018-11-21)                                                        |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`57583` - fast index create not used during "alter table foo engine=innodb"         |
 |:JIRA bug: :psbug:`2113`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`53645` - SHOW GRANTS not displaying all the applicable grants                      |
 |:JIRA bug: :psbug:`191`                                                                                      |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`53588` - Blackhole : Specified key was too long; max key length is 1000 bytes      |
 |:JIRA bug: :psbug:`1126`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.20-19                                                                                     |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`49120` - mysqldump should have flag to delay creating indexes for innodb plugin... |
 |:JIRA bug: :psbug:`2619`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`42415` - UPDATE/DELETE with LIMIT clause unsafe for SBL even with ORDER BY PK ...  |
 |:JIRA bug: :psbug:`44`                                                                                       |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`39833` - CREATE INDEX does full table copy on TEMPORARY table                      |
 |:JIRA bug: N/A                                                                                               |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`35125` - Allow the ability to set the server_id for a connection for logging to... |
 |:Launchpad BP: `Blueprint <https://blueprints.launchpad.net/percona-server/+spec/per-session-server-id>`_    |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`25007` - memory tables with dynamic rows format                                    |
 |:JIRA bug: :psbug:`2407`                                                                                     |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`20001` - Support for temp-tables in INFORMATION_SCHEMA                             |
 |:JIRA bug: :ref:`temp_tables`                                                                                |
-|:Upstream State: Verified (checked on 2018-09-04)                                                            |
+|:Upstream State: Verified (checked on 2018-11-21)                                                            |
 |:Fix Released: 5.7.10-1                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

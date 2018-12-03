@@ -4808,7 +4808,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     static char se_private_data_innodb_system[len];
     static char se_private_data_dd[len];
     snprintf(se_private_data_innodb_system, len, fmt, TRX_SYS_SPACE,
-             predefined_flags, DD_SPACE_CURRENT_SRV_VERSION,
+             srv_sys_space.flags(), DD_SPACE_CURRENT_SRV_VERSION,
              DD_SPACE_CURRENT_SPACE_VERSION);
     snprintf(se_private_data_dd, len, fmt, dict_sys_t::s_space_id,
              predefined_flags, DD_SPACE_CURRENT_SRV_VERSION,

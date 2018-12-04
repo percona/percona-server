@@ -532,6 +532,8 @@ trx_t *trx_allocate_for_background(void) {
 
   trx->sess = trx_dummy_sess;
 
+  trx->stats.set(false);
+
   return (trx);
 }
 

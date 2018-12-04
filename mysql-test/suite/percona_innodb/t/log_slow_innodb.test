@@ -94,4 +94,6 @@ reap;
 --connection default
 
 DROP TABLE t1, t2;
+
+# cleanup
 --source include/log_cleanup.inc

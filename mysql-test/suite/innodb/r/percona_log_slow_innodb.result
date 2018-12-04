@@ -168,3 +168,22 @@ COMMIT;
 [log_grep.inc] file: percona.slow_extended.innodb_4 pattern: ^# No InnoDB statistics available for this query$
 [log_grep.inc] lines:   4
 DROP TABLE t1, t2;
+#
+# Test for PS-5027 : handle_fatal_signal (sig=11) in THD::mark_innodb_used
+#
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/percona_bug5027.err --slow_query_log=0
+include/assert.inc ["Expected slow_query_log=0"]
+CREATE TABLE t5027(c0 INT UNSIGNED AUTO_INCREMENT PRIMARY KEY) ENGINE=INNODB;
+BEGIN;
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE table_name='t5027' FOR UPDATE;
+database_name	table_name
+test	t5027
+SET SESSION log_slow_verbosity='microtime,innodb,query_plan';
+SELECT * FROM t5027;
+c0
+SET @@global.slow_query_log=on;
+INSERT INTO t5027 VALUES (),();
+Pattern "InnoDB: Cannot save table statistics for table \`test\`\.\`t5027\`: Lock wait timeout" found
+ROLLBACK;
+DROP TABLE t5027;
+# restart

@@ -94,4 +94,74 @@ reap;
 --connection default
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Test for PS-5027 : handle_fatal_signal (sig=11) in THD::mark_innodb_used
+--echo #
+# There are three different threads at work here and their interaction can cause
+# a segfault when the slow log is disabled, then later enabled (with extended
+# innodb stats):
+# 1 - There is the client thread (this) which has locked the
+#     innodb_table_stats (i_t_s) table.
+# 2 - There is a background thread which periodically harvests and saves
+#     statistics for innodb tables into the i_t_s.
+# 3 - There is a background thread which watches for innodb lock wait timeouts
+#     and cancels other threads from their lock wait when they encounter a
+#     timeout.
+#
+# Thread 1 locks i_t_s for update.
+# Thread 2 tries to lock i_t_s with a timeout of 0.
+# Thread 3 discovers thread 2 lock wait has timed out and cancels its lock.
+#   Part of the lock cancel in thread 3 is to update some transaction
+#   statistics(MYSQL_TRX_STAT_LOCK_WAIT_USECS) for the transaction used in
+#   thread 2.  Thread 2 though does not have a valid THD associated with it in
+#   its mysql_thd, which is where these statistics are stored, and instead, ends
+#   up passing a nullptr down through thd_report_innodb_stat.
+#
+# Without this fix, there would be a segfault in THD::mark_innodb_used within
+#   the context of thread 3 as the '(THD*)this' would be a nullptr and thus all
+#   access to member data would be through this dereferenced nullptr.
+#
+# With this fix in place, there is no segfault and instead, thread 2 gets a
+#   lock wait timeout error when trying to lock i_t_s for update and prints an
+#   error to the log.
+#
+# The server *must* be started with --slow_query_log=0, otherwise, the
+#   transaction and trx_stat structure for thread 2 will be initialized
+#   differently and will not attempt to update the trx_stats and will not hit
+#   the segfault.
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/percona_bug5027.err
+--let $restart_parameters=restart:--log-error=$SEARCH_FILE --slow_query_log=0
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
+--let $assert_text="Expected slow_query_log=0"
+--let $assert_cond="[SELECT @@slow_query_log]" = 0
+--source include/assert.inc
+
+CREATE TABLE t5027(c0 INT UNSIGNED AUTO_INCREMENT PRIMARY KEY) ENGINE=INNODB;
+
+--let $wait_condition= SELECT COUNT(*) = 1 FROM mysql.innodb_table_stats where table_name='t5027'
+--source include/wait_condition.inc
+
+BEGIN;
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE table_name='t5027' FOR UPDATE;
+SET SESSION log_slow_verbosity='microtime,innodb,query_plan';
+SELECT * FROM t5027;
+SET @@global.slow_query_log=on;
+INSERT INTO t5027 VALUES (),();
+
+--let SEARCH_PATTERN= InnoDB: Cannot save table statistics for table \`test\`\.\`t5027\`: Lock wait timeout
+--source include/wait_for_search_pattern.inc
+
+ROLLBACK;
+
+DROP TABLE t5027;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+--remove_file $SEARCH_FILE
+
+# cleanup
 --source include/log_cleanup.inc

@@ -15,6 +15,13 @@ This release merges changes of `MySQL 5.7.24
 all the bug fixes in it. Percona Server for MySQL |release| is now the current
 GA release in the 5.7 series. All of Percona’s software is open-source and free.
 
+This release includes fixes to the following upstream CVEs (Common
+Vulnerabilities and Exposures): *CVE-2016-9843*, *CVE-2018-3155*, *CVE-2018-3143*,
+*CVE-2018-3156*, *CVE-2018-3251*, *CVE-2018-3133*, *CVE-2018-3144*, *CVE-2018-3185*,
+*CVE-2018-3247*, *CVE-2018-3187*, *CVE-2018-3174*, *CVE-2018-3171*. For more
+information, see `Oracle Critical Patch Update Advisory - October 2018
+<https://www.oracle.com/technetwork/security-advisory/cpuoct2018-4428296.html>`.
+
 Improvements
 ================================================================================
 

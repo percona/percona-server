@@ -54,7 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <assert.h>
 
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
 #ifndef UNIV_HOTBACKUP
 #include <zlib.h>
 #include "btr0btr.h"
@@ -811,7 +811,7 @@ dberr_t btr_cur_search_to_nth_level(
 
     DBUG_RETURN(err);
   }
-# endif /* BTR_CUR_HASH_ADAPT */
+#endif /* BTR_CUR_HASH_ADAPT */
 #endif /* BTR_CUR_ADAPT */
   btr_cur_n_non_sea++;
   DBUG_EXECUTE_IF("non_ahi_search",
@@ -869,7 +869,11 @@ dberr_t btr_cur_search_to_nth_level(
     default:
       if (!srv_read_only_mode) {
         if (s_latch_by_caller) {
-          ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_S));
+          /* The BTR_ALREADY_S_LATCHED indicates that the index->lock has been
+           * taken either in RW_S_LATCH or RW_SX_LATCH mode. */
+          ut_ad(rw_lock_own_flagged(dict_index_get_lock(index),
+                                    RW_LOCK_FLAG_S | RW_LOCK_FLAG_SX));
+
         } else if (!modify_external) {
           /* BTR_SEARCH_TREE is intended to be used with
           BTR_ALREADY_S_LATCHED */
@@ -968,8 +972,8 @@ search_loop:
 retry_page_get:
   ut_ad(n_blocks < BTR_MAX_LEVELS);
   tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-  block = buf_page_get_gen(page_id, page_size, rw_latch, guess,
-     buf_mode, file, line, mtr, false, &err);
+  block = buf_page_get_gen(page_id, page_size, rw_latch, guess, buf_mode, file,
+                           line, mtr, false, &err);
   tree_blocks[n_blocks] = block;
 
   if (err == DB_DECRYPTION_FAILED) {
@@ -1082,9 +1086,9 @@ retry_page_get:
       ut_ad(prev_n_blocks < leftmost_from_level);
 
       prev_tree_savepoints[prev_n_blocks] = mtr_set_savepoint(mtr);
-      get_block =
-          buf_page_get_gen(page_id_t(page_id.space(), left_page_no), page_size,
-                           rw_latch, NULL, buf_mode, file, line, mtr, false, &err);
+      get_block = buf_page_get_gen(page_id_t(page_id.space(), left_page_no),
+                                   page_size, rw_latch, NULL, buf_mode, file,
+                                   line, mtr, false, &err);
       prev_tree_blocks[prev_n_blocks] = get_block;
       prev_n_blocks++;
 
@@ -1108,8 +1112,7 @@ retry_page_get:
       if (estimate) {
         page_cursor->block = 0;
         page_cursor->rec = 0;
-        cursor->path_arr->nth_rec =
-          ULINT_UNDEFINED;
+        cursor->path_arr->nth_rec = ULINT_UNDEFINED;
       }
       index->table->set_file_unreadable();
       goto func_exit;
@@ -2032,8 +2035,8 @@ dberr_t btr_cur_open_at_index_side_func(
     }
 
     tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
-                             BUF_GET, file, line, mtr, false, &err);
+    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, BUF_GET, file,
+                             line, mtr, false, &err);
     tree_blocks[n_blocks] = block;
 
     if (err == DB_DECRYPTION_FAILED) {
@@ -2455,8 +2458,8 @@ bool btr_cur_open_at_rnd_pos_func(
     }
 
     tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
-                             BUF_GET, file, line, mtr, false, &err);
+    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, BUF_GET, file,
+                             line, mtr, false, &err);
     tree_blocks[n_blocks] = block;
 
     ut_ad((block != NULL) == (err == DB_SUCCESS));
@@ -5109,7 +5112,8 @@ static int64_t btr_estimate_n_rows_in_range_on_level(
     the B-tree. We pass BUF_GET_POSSIBLY_FREED in order to
     silence a debug assertion about this. */
     block = buf_page_get_gen(page_id, page_size, RW_S_LATCH, NULL,
-                             BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr, false, &err);
+                             BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr,
+                             false, &err);
 
     ut_ad((block != NULL) == (err == DB_SUCCESS));
 
@@ -5259,25 +5263,24 @@ static int64_t btr_estimate_n_rows_in_range_low(
       5 and we should count the border, but if x > 7 is specified,
       then the cursor will be positioned at 'sup' on the rightmost
       leaf page in the tree and we should not count the border. */
-      should_count_the_left_border
-          = !page_rec_is_supremum(btr_cur_get_rec(&cursor));
+      should_count_the_left_border =
+          !page_rec_is_supremum(btr_cur_get_rec(&cursor));
     }
   } else {
-    dberr_t err = btr_cur_open_at_index_side(true, index, BTR_SEARCH_LEAF | BTR_ESTIMATE,
-                                             &cursor, 0, &mtr);
+    dberr_t err = btr_cur_open_at_index_side(
+        true, index, BTR_SEARCH_LEAF | BTR_ESTIMATE, &cursor, 0, &mtr);
 
     if (err != DB_SUCCESS) {
       ib::warn() << " Error code: " << err
                  << " btr_estimate_n_rows_in_range_low "
-                 << " called from file: "
-                 << __FILE__ << " line: " << __LINE__
+                 << " called from file: " << __FILE__ << " line: " << __LINE__
                  << " table: " << index->table->name
                  << " index: " << index->name;
     }
 
     if (index->is_readable()) {
       ut_ad(page_rec_is_infimum(btr_cur_get_rec(&cursor)));
-      
+
       /* The range specified is wihout a left border, just
       'x < 123' or 'x <= 123' and btr_cur_open_at_index_side()
       positioned the cursor on the infimum record on the leftmost
@@ -5336,14 +5339,13 @@ static int64_t btr_estimate_n_rows_in_range_low(
     the requested one (can also be positioned on the 'sup') and
     we should not count the right border. */
   } else {
-    dberr_t err = btr_cur_open_at_index_side(false, index, BTR_SEARCH_LEAF | BTR_ESTIMATE,
-                                             &cursor, 0, &mtr);
+    dberr_t err = btr_cur_open_at_index_side(
+        false, index, BTR_SEARCH_LEAF | BTR_ESTIMATE, &cursor, 0, &mtr);
 
     if (err != DB_SUCCESS) {
       ib::warn() << " Error code: " << err
                  << " btr_estimate_n_rows_in_range_low "
-                 << " called from file: "
-                 << __FILE__ << " line: " << __LINE__
+                 << " called from file: " << __FILE__ << " line: " << __LINE__
                  << " table: " << index->table->name
                  << " index: " << index->name;
     }

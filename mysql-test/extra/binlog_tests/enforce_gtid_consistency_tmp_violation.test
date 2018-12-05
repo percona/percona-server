@@ -1,13 +1,21 @@
---let $error_code= ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
---let $error_message= Statement violates GTID consistency: Under statement binary log mode CREATE TEMPORARY
---let $sync_point= before_execute_sql_command
---let $gtid_violation= 1
---let $gtid_violation_row_mix= 0
+# Setting $gtid_violation= 0 and $error_code= 0, because CREATE TEMPORARY or
+# DROP TEMPORARY is allowed inside a transaction when @@global.gtid_mode=ON
+# and @@session.binlog_format=ROW/MIXED in Wl#8872.
+--let $gtid_violation= 0
+--let $error_code= 0
 
 # When CREATE TEMPORARY or DROP TEMPORARY occurs in the middle of a
-# transaction, it is a GTID-violation because these statements do not
-# generate an implicit commit, but cannot be rolled back.  This is
-# regardless of the storage engine.
+# transaction, it is a GTID-violation for @@session.binlog_format=
+# STATEMENT because these statements do not generate an implicit
+# commit, but cannot be rolled back. This is regardless of the
+# storage engine.
+if (`SELECT @@SESSION.binlog_format = 'STATEMENT'`)
+{
+  --let $error_code= ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+  --let $error_message= Statement violates GTID consistency: CREATE TEMPORARY
+  --let $gtid_violation= 1
+}
+--let $sync_point= before_execute_sql_command
 
 # When the created table is myisam, it is considered a
 # non-transactional statement, and therefore logged before the
@@ -53,7 +61,6 @@ DROP TEMPORARY TABLE IF EXISTS t1;
 --let $statement_ends_transaction= 0
 CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = InnoDB;
 --let $pre_statement= BEGIN
---let $sync_point= after_mysql_rm_table
 --let $statement= DROP TEMPORARY TABLE t1
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
 
@@ -80,6 +87,5 @@ CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = MyISAM;
 SET AUTOCOMMIT = 0;
 --let $statement= DROP TEMPORARY TABLE t1
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
---let $sync_point= before_execute_sql_command
 SET AUTOCOMMIT = 1;
 DROP TEMPORARY TABLE IF EXISTS t1;

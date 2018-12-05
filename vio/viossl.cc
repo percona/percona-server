@@ -128,7 +128,9 @@ static void report_errors(SSL *ssl) {
                          file, line, (flags & ERR_TXT_STRING) ? data : ""));
   }
 
-  if (ssl) DBUG_PRINT("error", ("SSL_get_error: %d", SSL_get_error(ssl, l)));
+  if (ssl)
+    DBUG_PRINT("error",
+               ("error: %s", ERR_error_string(SSL_get_error(ssl, l), buf)));
 
   DBUG_PRINT("info", ("socket_errno: %d", socket_errno));
   DBUG_VOID_RETURN;
@@ -184,10 +186,20 @@ static void ssl_set_sys_error(int ssl_error) {
 }
 
 /**
-  This function does two things:
+  Check if an operation should be retried and handle errors
+
+  This function does the following:
     - it indicates whether a SSL I/O operation must be retried later;
+    - if DBUG is enabled it prints all the errors in the thread's queue to DBUG
     - it clears the OpenSSL error queue, thus the next OpenSSL-operation can be
       performed even after failed OpenSSL-call.
+
+  Note that this is not done for SSL_ERROR_WANT_READ/SSL_ERROR_WANT_WRITE
+  since these are not treated as errors and a call to the function is retried.
+
+  When SSL_ERROR_SSL is returned the ERR code of the top error in the queue is
+  peeked and returned to the caller so they can call ERR_error_string_n() and
+  retrieve the right error message.
 
   @param vio  VIO object representing a SSL connection.
   @param ret  Value returned by a SSL I/O function.
@@ -201,24 +213,33 @@ static void ssl_set_sys_error(int ssl_error) {
 
 static bool ssl_should_retry(Vio *vio, int ret, enum enum_vio_io_event *event,
                              unsigned long *ssl_errno_holder) {
-  int ssl_error;
+  int ssl_error, err_error;
   SSL *ssl = static_cast<SSL *>(vio->ssl_arg);
   bool should_retry = true;
 
   /* Retrieve the result for the SSL I/O operation. */
   ssl_error = SSL_get_error(ssl, ret);
 
-  *ssl_errno_holder = ERR_peek_error();
-
   /* Retrieve the result for the SSL I/O operation. */
   switch (ssl_error) {
     case SSL_ERROR_WANT_READ:
+      err_error = ssl_error;  // for backward compatibility.
       *event = VIO_IO_EVENT_READ;
       break;
     case SSL_ERROR_WANT_WRITE:
+      err_error = ssl_error;  // for backward compatibility.
       *event = VIO_IO_EVENT_WRITE;
       break;
     default:
+      /* first save the top ERR error */
+#ifdef HAVE_WOLFSSL
+      /* TODO: when wolfSSL issue 4240 is fixed (see bug 27855668) remove the
+       * "if" branch */
+      err_error = ssl_error;
+#else
+      err_error = ERR_get_error();
+#endif
+      /* now report all remaining errors on and/or clear the error stack */
 #ifndef DBUG_OFF /* Debug build */
       /* Note: the OpenSSL error queue gets cleared in report_errors(). */
       report_errors(ssl);
@@ -229,6 +250,8 @@ static bool ssl_should_retry(Vio *vio, int ret, enum enum_vio_io_event *event,
       ssl_set_sys_error(ssl_error);
       break;
   }
+
+  *ssl_errno_holder = err_error;
 
   return should_retry;
 }

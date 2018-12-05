@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,9 +70,9 @@ static int FT_SUPERDOC_cmp(const void *cmp_arg MY_ATTRIBUTE((unused)),
   return 1;
 }
 
-static int walk_and_match(void *word_, element_count count, void *aio_) {
-  auto *const word = static_cast<FT_WORD *>(word_);
-  auto *const aio = static_cast<ALL_IN_ONE *>(aio_);
+static int walk_and_match(void *v_word, uint32 count, void *v_aio) {
+  FT_WORD *word = static_cast<FT_WORD *>(v_word);
+  ALL_IN_ONE *aio = static_cast<ALL_IN_ONE *>(v_aio);
   int subkeys = 0, r;
   uint keylen, doc_cnt;
   FT_SUPERDOC sdoc, *sptr;
@@ -186,11 +186,9 @@ static int walk_and_match(void *word_, element_count count, void *aio_) {
   DBUG_RETURN(0);
 }
 
-static int walk_and_copy(void *from_,
-                         element_count count MY_ATTRIBUTE((unused)),
-                         void *to_) {
-  auto *const from = static_cast<FT_SUPERDOC *>(from_);
-  auto *const to = static_cast<FT_DOC **>(to_);
+static int walk_and_copy(void *v_from, uint32, void *v_to) {
+  FT_SUPERDOC *from = static_cast<FT_SUPERDOC *>(v_from);
+  FT_DOC **to = static_cast<FT_DOC **>(v_to);
   DBUG_ENTER("walk_and_copy");
   from->doc.weight += from->tmp_weight * from->word_ptr->weight;
   (*to)->dpos = from->doc.dpos;
@@ -199,11 +197,9 @@ static int walk_and_copy(void *from_,
   DBUG_RETURN(0);
 }
 
-static int walk_and_push(void *from_,
-                         element_count count MY_ATTRIBUTE((unused)),
-                         void *best_) {
-  auto *const from = static_cast<FT_SUPERDOC *>(from_);
-  auto *const best = static_cast<QUEUE *>(best_);
+static int walk_and_push(void *v_from, uint32, void *v_best) {
+  FT_SUPERDOC *from = static_cast<FT_SUPERDOC *>(v_from);
+  QUEUE *best = static_cast<QUEUE *>(v_best);
   DBUG_ENTER("walk_and_copy");
   from->doc.weight += from->tmp_weight * from->word_ptr->weight;
   set_if_smaller(best->elements, ft_query_expansion_limit - 1);
@@ -211,8 +207,7 @@ static int walk_and_push(void *from_,
   DBUG_RETURN(0);
 }
 
-static int FT_DOC_cmp(void *unused MY_ATTRIBUTE((unused)), uchar *a_arg,
-                      uchar *b_arg) {
+static int FT_DOC_cmp(void *, uchar *a_arg, uchar *b_arg) {
   FT_DOC *a = (FT_DOC *)a_arg;
   FT_DOC *b = (FT_DOC *)b_arg;
   double c = b->weight - a->weight;

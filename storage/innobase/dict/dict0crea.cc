@@ -37,15 +37,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
-#include "dict0upgrade.h"
 #include "fsp0space.h"
 #include "fsp0sysspace.h"
 #include "fts0priv.h"
 #include "ha_prototypes.h"
 #include "mach0data.h"
-#include "my_compiler.h"
+
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
+#include "dict0upgrade.h"
 #include "page0page.h"
 #include "pars0pars.h"
 #include "que0que.h"
@@ -57,14 +57,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "usr0sess.h"
 #include "ut0vec.h"
 
+#include "fil0crypt.h"  //dla FIL_ENCRYPTION_KEY_DEFAULT
 #include "fil0fil.h"
-#include "fil0crypt.h" //dla FIL_ENCRYPTION_KEY_DEFAULT
 
 /** Build a table definition without updating SYSTEM TABLES
 @param[in,out]	table	dict table object
 @param[in,out]	trx	transaction instance
 @return DB_SUCCESS or error code */
-dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx, fil_encryption_t mode, const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
+dberr_t dict_build_table_def(
+    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
   char db_buf[NAME_LEN + 1];
   char tbl_buf[NAME_LEN + 1];
 
@@ -88,7 +90,8 @@ dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx, fil_encryption_t m
     dict_table_assign_new_id(table, trx);
   }
 
-  dberr_t err = dict_build_tablespace_for_table(table, trx, mode, create_info_encryption_key_id);
+  dberr_t err = dict_build_tablespace_for_table(table, trx, mode,
+                                                create_info_encryption_key_id);
 
   return (err);
 }
@@ -97,7 +100,9 @@ dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx, fil_encryption_t m
 @param[in,out]	trx		DD transaction
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
-dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace, fil_encryption_t mode, const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
+dberr_t dict_build_tablespace(
+    trx_t *trx, Tablespace *tablespace, fil_encryption_t mode,
+    const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;
@@ -139,8 +144,8 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace, fil_encryption
   first table we create here. */
 
   err = fil_ibd_create(space, tablespace->name(), datafile->filepath(),
-                       tablespace->flags(), FIL_IBD_FILE_INITIAL_SIZE,
-                       mode, create_info_encryption_key_id);
+                       tablespace->flags(), FIL_IBD_FILE_INITIAL_SIZE, mode,
+                       create_info_encryption_key_id);
 
   DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
                     crash_injection_after_create_counter++);
@@ -176,7 +181,9 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace, fil_encryption
 @param[in,out]	table	Table to build in its own tablespace.
 @param[in,out]	trx	Transaction
 @return DB_SUCCESS or error code */
-dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx, fil_encryption_t mode, const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
+dberr_t dict_build_tablespace_for_table(
+    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;
@@ -189,12 +196,11 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx, fil_enc
   needs_file_per_table =
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE);
 
-
   if (mode == FIL_ENCRYPTION_ON ||
       (mode == FIL_ENCRYPTION_DEFAULT &&
-       (srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING
-        || srv_encrypt_tables == SRV_ENCRYPT_TABLES_KEYRING_FORCE))) {
-        DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION);
+       (srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING ||
+        srv_encrypt_tables == SRV_ENCRYPT_TABLES_KEYRING_FORCE))) {
+    DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
   }
 
   if (needs_file_per_table) {
@@ -218,11 +224,12 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx, fil_enc
     table->space = space;
 
     /* Determine the tablespace flags. */
-    const bool is_encrypted =
-        (srv_tmp_tablespace_encrypt && table->is_temporary()) ||
-        dict_table_is_encrypted(table);
+    ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
 
-    ulint fsp_flags = dict_tf_to_fsp_flags(table->flags, is_encrypted);
+    /* For file-per-table tablespace, set encryption flag */
+    if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE)) {
+      fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
+    }
 
     if (DICT_TF_HAS_DATA_DIR(table->flags)) {
       std::string path;
@@ -262,7 +269,8 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx, fil_enc
     dd_filename_to_spacename(table->name.m_name, &tablespace_name);
 
     err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
-                         FIL_IBD_FILE_INITIAL_SIZE, mode, create_info_encryption_key_id);
+                         FIL_IBD_FILE_INITIAL_SIZE, mode,
+                         create_info_encryption_key_id);
 
     ut_free(filepath);
 
@@ -304,7 +312,27 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx, fil_enc
       row formats whereas the system tablespace only
       supports Redundant and Compact */
       ut_ad(dict_tf_get_rec_format(table->flags) != REC_FORMAT_COMPRESSED);
-      table->space = static_cast<uint32_t>(srv_tmp_space.space_id());
+
+      innodb_session_t *innodb_session = thd_to_innodb_session(trx->mysql_thd);
+      ibt::Tablespace *tblsp = nullptr;
+
+      bool is_slave_thd = thd_is_replication_slave_thread(trx->mysql_thd);
+      if (is_slave_thd) {
+        tblsp = ibt::get_rpl_slave_tblsp();
+      } else if (table->is_intrinsic()) {
+        tblsp = innodb_session->get_instrinsic_temp_tblsp();
+      } else {
+        tblsp = innodb_session->get_usr_temp_tblsp();
+      }
+
+      /* Session temporary tablespace couldn't be allocated. This means,
+      we have run out of disk space */
+      if (tblsp == nullptr) {
+        return (DB_NO_SESSION_TEMP);
+      }
+
+      table->space = tblsp->space_id();
+
     } else {
       /* Create in the system tablespace. */
       ut_ad(table->space == TRX_SYS_SPACE);

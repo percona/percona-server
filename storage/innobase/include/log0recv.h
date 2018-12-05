@@ -604,16 +604,13 @@ struct recv_sys_t {
   /** Encryption Key information per tablespace ID */
   Encryption_Keys *keys;
 
-  void set_corrupt_log() {
-    found_corrupt_log = true;
-  }
+  void set_corrupt_log() { found_corrupt_log = true; }
 
   /** Tablespace IDs that were ignored during redo log apply. */
   Missing_Ids missing_ids;
 
   /** Tablespace IDs that were explicitly deleted. */
   Missing_Ids deleted;
-
 };
 
 /** The recovery system */
@@ -656,6 +653,10 @@ the log and store the scanned log records in the buffer pool: we will
 use these free frames to read in pages when we start applying the
 log records to the database. */
 extern ulint recv_n_pool_free_frames;
+
+/** A list of tablespaces for which (un)encryption process was not
+completed before crash. */
+extern std::list<space_id_t> recv_encr_ts_list;
 
 #include "log0recv.ic"
 

@@ -45,9 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0types.h"
 #include "ha_prototypes.h"
 #include "lob0lob.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "row0sel.h"
 #include "sql/current_thd.h"
 #include "ut0new.h"
@@ -1842,7 +1840,7 @@ static ibool fts_query_fetch_document(void *row,      /*!< in:  sel_node_t* */
 
     if (dfield_is_ext(dfield)) {
       data = lob::btr_copy_externally_stored_field(
-          nullptr, &cur_len, nullptr, data, phrase->page_size,
+          nullptr, nullptr, &cur_len, nullptr, data, phrase->page_size,
           dfield_get_len(dfield), false, phrase->heap);
     } else {
       cur_len = dfield_get_len(dfield);

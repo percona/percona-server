@@ -194,6 +194,9 @@ class Channel_info_tcpip_socket : public Channel_info {
 ///////////////////////////////////////////////////////////////////////////
 // TCP_socket implementation
 ///////////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
+using Socket_error_message_buf = TCHAR[1024];
+#endif
 
 /**
   MY_BIND_ALL_ADDRESSES defines a special value for the bind-address option,
@@ -204,6 +207,10 @@ class Channel_info_tcpip_socket : public Channel_info {
   server socket to '::' address, and rollback to '0.0.0.0' if the attempt fails.
 */
 const char *MY_BIND_ALL_ADDRESSES = "*";
+
+const char *ipv4_all_addresses = "0.0.0.0";
+
+const char *ipv6_all_addresses = "::";
 
 /**
   TCP_socket class represents the TCP sockets abstraction. It provides
@@ -297,7 +304,6 @@ class TCP_socket {
       */
 
       bool ipv6_available = false;
-      const char *ipv6_all_addresses = "::";
       if (!getaddrinfo(ipv6_all_addresses, port_buf, &hints, &ai)) {
         /*
           IPv6 might be available (the system might be able to resolve an IPv6
@@ -320,9 +326,16 @@ class TCP_socket {
 
         // Retrieve address info (ai) for IPv4 address.
 
-        const char *ipv4_all_addresses = "0.0.0.0";
         if (getaddrinfo(ipv4_all_addresses, port_buf, &hints, &ai)) {
+#ifdef _WIN32
+          Socket_error_message_buf msg_buff;
+          FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                        (LPTSTR)msg_buff, sizeof(msg_buff), NULL);
+          LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, msg_buff);
+#else
           LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, strerror(errno));
+#endif
           LogErr(ERROR_LEVEL, ER_CONN_TCP_CANT_RESOLVE_HOSTNAME);
           return MYSQL_INVALID_SOCKET;
         }
@@ -331,7 +344,15 @@ class TCP_socket {
       }
     } else {
       if (getaddrinfo(m_bind_addr_str.c_str(), port_buf, &hints, &ai)) {
+#ifdef _WIN32
+        Socket_error_message_buf msg_buff;
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                      (LPTSTR)msg_buff, sizeof(msg_buff), NULL);
+        LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, msg_buff);
+#else
         LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, strerror(errno));
+#endif
         LogErr(ERROR_LEVEL, ER_CONN_TCP_CANT_RESOLVE_HOSTNAME);
         return MYSQL_INVALID_SOCKET;
       }
@@ -371,7 +392,15 @@ class TCP_socket {
 
     // Report user-error if we failed to create a socket.
     if (mysql_socket_getfd(listener_socket) == INVALID_SOCKET) {
+#ifdef _WIN32
+      Socket_error_message_buf msg_buff;
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)msg_buff,
+                    sizeof(msg_buff), NULL);
+      LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, msg_buff);
+#else
       LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, strerror(errno));
+#endif
       return MYSQL_INVALID_SOCKET;
     }
 
@@ -429,14 +458,31 @@ class TCP_socket {
     freeaddrinfo(ai);
     if (ret < 0) {
       DBUG_PRINT("error", ("Got error: %d from bind", socket_errno));
+#ifdef _WIN32
+      Socket_error_message_buf msg_buff;
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)msg_buff,
+                    sizeof(msg_buff), NULL);
+      LogErr(ERROR_LEVEL, ER_CONN_TCP_BIND_FAIL, msg_buff);
+#else
       LogErr(ERROR_LEVEL, ER_CONN_TCP_BIND_FAIL, strerror(socket_errno));
+#endif
       LogErr(ERROR_LEVEL, ER_CONN_TCP_IS_THERE_ANOTHER_USING_PORT, m_tcp_port);
       mysql_socket_close(listener_socket);
       return MYSQL_INVALID_SOCKET;
     }
 
     if (mysql_socket_listen(listener_socket, static_cast<int>(m_backlog)) < 0) {
+#ifdef _WIN32
+      Socket_error_message_buf msg_buff;
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)msg_buff,
+                    sizeof(msg_buff), NULL);
+      LogErr(ERROR_LEVEL, ER_CONN_TCP_START_FAIL, msg_buff);
+#else
       LogErr(ERROR_LEVEL, ER_CONN_TCP_START_FAIL, strerror(errno));
+#endif
+
       LogErr(ERROR_LEVEL, ER_CONN_TCP_LISTEN_FAIL, socket_errno);
       mysql_socket_close(listener_socket);
       return MYSQL_INVALID_SOCKET;
@@ -673,15 +719,14 @@ bool Unix_socket::create_lockfile() {
 // Mysqld_socket_listener implementation
 ///////////////////////////////////////////////////////////////////////////
 
-Mysqld_socket_listener::Mysqld_socket_listener(std::string bind_addr_str,
-                                               uint tcp_port,
-                                               uint extra_tcp_port,
-                                               uint backlog, uint port_timeout,
-                                               std::string unix_sockname)
-    : m_bind_addr_str(bind_addr_str),
+Mysqld_socket_listener::Mysqld_socket_listener(
+    const std::list<std::string> &bind_addresses, uint tcp_port,
+    uint extra_tcp_port, uint backlog, uint port_timeout,
+    std::string unix_sockname)
+    : m_bind_addresses(bind_addresses),
       m_tcp_port(tcp_port),
       m_extra_tcp_port(extra_tcp_port),
-      m_extra_tcp_port_fd(INVALID_SOCKET),
+      m_extra_tcp_port_fds(),
       m_backlog(backlog),
       m_port_timeout(port_timeout),
       m_unix_sockname(unix_sockname),
@@ -697,24 +742,28 @@ Mysqld_socket_listener::Mysqld_socket_listener(std::string bind_addr_str,
 bool Mysqld_socket_listener::setup_listener() {
   // Setup tcp socket listener
   if (m_tcp_port) {
-    TCP_socket tcp_socket(m_bind_addr_str, m_tcp_port, m_backlog,
-                          m_port_timeout);
+    for (const auto &bind_address : m_bind_addresses) {
+      TCP_socket tcp_socket(bind_address, m_tcp_port, m_backlog,
+                            m_port_timeout);
 
-    MYSQL_SOCKET mysql_socket = tcp_socket.get_listener_socket();
-    if (mysql_socket.fd == INVALID_SOCKET) return true;
+      MYSQL_SOCKET mysql_socket = tcp_socket.get_listener_socket();
+      if (mysql_socket.fd == INVALID_SOCKET) return true;
 
-    m_socket_map.insert(std::pair<MYSQL_SOCKET, bool>(mysql_socket, false));
+      m_socket_map.insert(std::pair<MYSQL_SOCKET, bool>(mysql_socket, false));
+    }
   }
   if (m_extra_tcp_port) {
-    TCP_socket tcp_socket(m_bind_addr_str, m_extra_tcp_port, m_backlog,
-                          m_port_timeout);
+    for (const auto &bind_address : m_bind_addresses) {
+      TCP_socket tcp_socket(bind_address, m_extra_tcp_port, m_backlog,
+                            m_port_timeout);
 
-    MYSQL_SOCKET mysql_socket = tcp_socket.get_listener_socket();
-    if (mysql_socket.fd == INVALID_SOCKET) return true;
+      MYSQL_SOCKET mysql_socket = tcp_socket.get_listener_socket();
+      if (mysql_socket.fd == INVALID_SOCKET) return true;
 
-    m_socket_map.insert(std::pair<MYSQL_SOCKET, bool>(mysql_socket, false));
+      m_socket_map.insert(std::pair<MYSQL_SOCKET, bool>(mysql_socket, false));
 
-    m_extra_tcp_port_fd = mysql_socket.fd;
+      m_extra_tcp_port_fds.insert(mysql_socket.fd);
+    }
   }
 #if defined(HAVE_SYS_UN_H)
   // Setup unix socket listener
@@ -731,17 +780,19 @@ bool Mysqld_socket_listener::setup_listener() {
 
     // Setup for connection events for poll or select
 #ifdef HAVE_POLL
-  int count = 0;
+  const socket_map_t::size_type total_number_of_addresses_to_bind =
+      m_socket_map.size();
+  m_poll_info.m_fds.reserve(total_number_of_addresses_to_bind);
+  m_poll_info.m_pfs_fds.reserve(total_number_of_addresses_to_bind);
 #endif
   for (socket_map_iterator_t sock_map_iter = m_socket_map.begin();
        sock_map_iter != m_socket_map.end(); ++sock_map_iter) {
     MYSQL_SOCKET listen_socket = sock_map_iter->first;
     mysql_socket_set_thread_owner(listen_socket);
 #ifdef HAVE_POLL
-    m_poll_info.m_fds[count].fd = mysql_socket_getfd(listen_socket);
-    m_poll_info.m_fds[count].events = POLLIN;
-    m_poll_info.m_pfs_fds[count] = listen_socket;
-    count++;
+    m_poll_info.m_fds.emplace_back(
+        pollfd{mysql_socket_getfd(listen_socket), POLLIN, 0});
+    m_poll_info.m_pfs_fds.push_back(listen_socket);
 #else   // HAVE_POLL
     FD_SET(mysql_socket_getfd(listen_socket), &m_select_info.m_client_fds);
     if ((uint)mysql_socket_getfd(listen_socket) >
@@ -749,9 +800,6 @@ bool Mysqld_socket_listener::setup_listener() {
       m_select_info.m_max_used_connection = mysql_socket_getfd(listen_socket);
 #endif  // HAVE_POLL
   }
-#ifdef HAVE_POLL
-  DBUG_ASSERT(count <= MAX_SOCKETS);
-#endif  // HAVE_POLL
   return false;
 }
 
@@ -818,8 +866,17 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
       increment the server global status variable.
     */
     connection_errors_accept++;
-    if ((m_error_count++ & 255) == 0)  // This can happen often
+    if ((m_error_count++ & 255) == 0) {  // This can happen often
+#ifdef _WIN32
+      Socket_error_message_buf msg_buff;
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)msg_buff,
+                    sizeof(msg_buff), NULL);
+      LogErr(ERROR_LEVEL, ER_CONN_SOCKET_ACCEPT_FAILED, msg_buff);
+#else
       LogErr(ERROR_LEVEL, ER_CONN_SOCKET_ACCEPT_FAILED, strerror(errno));
+#endif
+    }
     if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
       sleep(1);  // Give other threads some time
     return NULL;
@@ -867,7 +924,7 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
     channel_info = new (std::nothrow) Channel_info_local_socket(connect_sock);
   else
     channel_info = new (std::nothrow) Channel_info_tcpip_socket(
-        connect_sock, (mysql_socket_getfd(listen_sock) == m_extra_tcp_port_fd));
+        connect_sock, is_extra_tcp_port_fd(mysql_socket_getfd(listen_sock)));
   if (channel_info == NULL) {
     (void)mysql_socket_shutdown(connect_sock, SHUT_RDWR);
     (void)mysql_socket_close(connect_sock);

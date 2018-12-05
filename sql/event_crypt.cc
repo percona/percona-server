@@ -1,6 +1,7 @@
 #include "event_crypt.h"
 
 #include "my_byteorder.h"
+#include "sql/binlog_ostream.h"
 
 static bool encrypt_event(uint32 offs, int flags,
                           const Binlog_crypt_data &crypto, uchar *buf,
@@ -9,7 +10,7 @@ static bool encrypt_event(uint32 offs, int flags,
   DBUG_ASSERT(crypto.get_key() != nullptr);
 
   size_t elen;
-  uchar iv[Binlog_crypt_data::BINLOG_IV_LENGTH];
+  uchar iv[binary_log::Start_encryption_event::IV_LENGTH];
 
   crypto.set_iv(iv, offs);
   memcpy(buf + EVENT_LEN_OFFSET, buf, 4);
@@ -34,16 +35,16 @@ bool encrypt_event(uint32 offs, const Binlog_crypt_data &crypto, uchar *buf,
                        buf_len);
 }
 
-bool decrypt_event(uint32 offs, const Binlog_crypt_data &crypto, uchar *buf,
-                   uchar *ebuf, size_t buf_len) {
-  return encrypt_event(offs, ENCRYPTION_FLAG_DECRYPT, crypto, buf, ebuf,
-                       buf_len);
+bool decrypt_event(const Binlog_crypt_data &crypto, uchar *buf, uchar *ebuf,
+                   size_t buf_len) {
+  return encrypt_event(crypto.get_offs(), ENCRYPTION_FLAG_DECRYPT, crypto, buf,
+                       ebuf, buf_len);
 }
 
-bool Event_encrypter::init(IO_CACHE *output_cache, uchar *&header,
-                           size_t &buf_len) {
-  uchar iv[Binlog_crypt_data::BINLOG_IV_LENGTH];
-  crypto->set_iv(iv, my_b_safe_tell(output_cache));
+bool Event_encrypter::init(Basic_ostream *ostream, uchar *header,
+                           size_t buf_len) {
+  uchar iv[binary_log::Start_encryption_event::IV_LENGTH];
+  crypto->set_iv(iv, ostream->position());
   if (ctx != nullptr) {
     my_aes_crypt_free_ctx(ctx);
     ctx = nullptr;
@@ -58,27 +59,24 @@ bool Event_encrypter::init(IO_CACHE *output_cache, uchar *&header,
   event_len = uint4korr(header + EVENT_LEN_OFFSET);
   DBUG_ASSERT(event_len >= buf_len);
   memcpy(header + EVENT_LEN_OFFSET, header, 4);
-  header += 4;
-  buf_len -= 4;
 
   return false;
 }
 
-bool Event_encrypter::maybe_write_event_len(IO_CACHE *output_cache, uchar *pos,
+bool Event_encrypter::maybe_write_event_len(Basic_ostream *ostream, uchar *pos,
                                             size_t len) {
   if (len && event_len) {
     DBUG_ASSERT(len >= EVENT_LEN_OFFSET);
-    if (my_b_safe_write(output_cache, pos + EVENT_LEN_OFFSET - 4, 4))
-      return true;
+    if (ostream->write(pos + EVENT_LEN_OFFSET - 4, 4)) return true;
     int4store(pos + EVENT_LEN_OFFSET - 4, event_len);
     event_len = 0;
   }
   return false;
 }
 
-bool Event_encrypter::encrypt_and_write(IO_CACHE *output_cache,
+bool Event_encrypter::encrypt_and_write(Basic_ostream *ostream,
                                         const uchar *pos, size_t len) {
-  DBUG_ASSERT(output_cache != NULL);
+  DBUG_ASSERT(ostream != nullptr);
 
   uchar *dst = NULL;
   size_t dstsize = 0;
@@ -91,14 +89,14 @@ bool Event_encrypter::encrypt_and_write(IO_CACHE *output_cache,
     uint dstlen;
     if (my_aes_crypt_update(ctx, pos, len, dst, (size_t *)&dstlen)) goto err;
 
-    if (maybe_write_event_len(output_cache, dst, dstlen)) return true;
+    if (maybe_write_event_len(ostream, dst, dstlen)) return true;
     pos = dst;
     len = dstlen;
   } else {
     dst = 0;
   }
 
-  if (my_b_safe_write(output_cache, pos, len)) goto err;
+  if (ostream->write(pos, len)) goto err;
 
   my_safe_afree(dst, dstsize, 512);
   return false;
@@ -107,14 +105,14 @@ err:
   return true;
 }
 
-bool Event_encrypter::finish(IO_CACHE *output_cache) {
-  DBUG_ASSERT(output_cache != NULL && ctx != NULL);
+bool Event_encrypter::finish(Basic_ostream *ostream) {
+  DBUG_ASSERT(ostream != nullptr && ctx != nullptr);
 
   size_t dstlen;
   uchar dst[MY_AES_BLOCK_SIZE * 2];
   if (my_aes_crypt_finish(ctx, dst, &dstlen) ||
-      maybe_write_event_len(output_cache, dst, dstlen) ||
-      my_b_safe_write(output_cache, dst, dstlen))
+      maybe_write_event_len(ostream, dst, dstlen) ||
+      ostream->write(dst, dstlen))
     return true;
   return false;
 }

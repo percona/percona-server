@@ -24,6 +24,7 @@
 #define MOCK_CREATE_FIELD_H
 
 #include "my_dbug.h"
+#include "sql/dd/types/column.h"
 #include "sql/field.h"
 #include "sql/sql_lex.h"
 
@@ -60,8 +61,9 @@ class Mock_create_field : public Create_field {
          0,               // uint fld_geom_type
          &null_lex_cstr,  // zip_dict_name
          nullptr,         // gcol info
-         {}               // Nullable<gis::srid_t> srid
-    );
+         nullptr,         // gen default val
+         {},              // Nullable<gis::srid_t> srid
+         dd::Column::enum_hidden_type::HT_VISIBLE);  // Visible
   }
 };
 

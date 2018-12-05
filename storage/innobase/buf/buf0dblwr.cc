@@ -721,7 +721,8 @@ static void buf_dblwr_recover_page(page_no_t page_no_dblwr, fil_space_t *space,
 
       dberr_t err = DB_SUCCESS;
 
-      if (space->crypt_data == NULL) // if it was crypt_data encrypted it was already decrypted
+      if (space->crypt_data ==
+          NULL)  // if it was crypt_data encrypted it was already decrypted
         err = os_dblwr_decrypt_page(space, page);
 
       if (err != DB_SUCCESS || dblwr_buf_page.is_corrupted()) {
@@ -964,10 +965,6 @@ static void buf_dblwr_check_block(
 {
   ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-  if (block->skip_flush_check) {
-    return;
-  }
-
   switch (fil_page_get_type(block->frame)) {
     case FIL_PAGE_INDEX:
     case FIL_PAGE_RTREE:
@@ -1176,9 +1173,9 @@ void buf_dblwr_flush_buffered_writes(ulint dblwr_partition) noexcept {
     buf_dblwr_check_page_lsn(dblwr_page);
 
     // it can be already encrypted by encryption threads
-    FilSpace space (TRX_SYS_SPACE);
-    if (encrypt_parallel_dblwr && space()->crypt_data == nullptr
-        && !buf_dblwr_disable_encryption(*block)) {
+    FilSpace space(TRX_SYS_SPACE);
+    if (encrypt_parallel_dblwr && space()->crypt_data == nullptr &&
+        !buf_dblwr_disable_encryption(*block)) {
       buf_dblwr_encrypt_page(block, dblwr_page);
     }
   }

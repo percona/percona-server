@@ -51,6 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "dict0dd.h"
+#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
@@ -83,7 +84,7 @@ bool meb_replay_file_ops = true;
 #include "../meb/mutex.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#include "fil0crypt.h"
+std::list<space_id_t> recv_encr_ts_list;
 
 /** Log records are stored in the hash table in chunks at most of this size;
 this must be less than UNIV_PAGE_SIZE as it is stored in the buffer pool */
@@ -749,7 +750,9 @@ void recv_sys_free() {
   /* wake page cleaner up to progress */
   if (!srv_read_only_mode) {
     ut_ad(!recv_recovery_on);
-    os_event_reset(buf_flush_event);
+    if (buf_flush_event != nullptr) {
+      os_event_reset(buf_flush_event);
+    }
     os_event_set(recv_sys->flush_start);
   }
 
@@ -911,7 +914,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   constexpr ulint CKP2 = LOG_CHECKPOINT_2;
 
   for (auto i = CKP1; i <= CKP2; i += CKP2 - CKP1) {
-    log_files_header_read(log, i);
+    log_files_header_read(log, static_cast<uint32_t>(i));
 
     if (!recv_check_log_header_checksum(buf)) {
       DBUG_PRINT("ib_log", ("invalid checkpoint, at %lu, checksum %x", i,
@@ -1084,8 +1087,7 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 
     mutex_exit(&recv_sys->mutex);
 
-    if (abort)
-      return;
+    if (abort) return;
 
     os_thread_sleep(500000);
   }
@@ -1563,27 +1565,27 @@ static byte *recv_parse_or_apply_log_rec_body(mlog_id_t type, byte *ptr,
         to decrypt the data pages. */
 
         if (page_no == 0) {
-          byte* ptr_copy = ptr;
-          ptr_copy += 2; //skip offset
+          byte *ptr_copy = ptr;
+          ptr_copy += 2;  // skip offset
           ulint len = mach_read_from_2(ptr_copy);
           ptr_copy += 2;
-          if (end_ptr < ptr_copy + len)
-            return NULL;
-          
+          if (end_ptr < ptr_copy + len) return NULL;
+
           if (memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V1,
                      ENCRYPTION_MAGIC_SIZE) == 0 ||
               memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V2,
                      ENCRYPTION_MAGIC_SIZE) == 0 ||
-              memcmp(ptr, ENCRYPTION_KEY_MAGIC_V3,
-                     ENCRYPTION_MAGIC_SIZE) == 0) {
-
+              memcmp(ptr, ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE) ==
+                  0) {
             if (fsp_is_system_or_temp_tablespace(space_id)) {
               break;
             }
-            return(fil_tablespace_redo_encryption(ptr, end_ptr, space_id, apply));
+            return (
+                fil_tablespace_redo_encryption(ptr, end_ptr, space_id, apply));
           } else if (memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_PS_V1,
-                     ENCRYPTION_MAGIC_SIZE) == 0 && apply) {
-            return(fil_parse_write_crypt_data(ptr, end_ptr, block, len));
+                            ENCRYPTION_MAGIC_SIZE) == 0 &&
+                     apply) {
+            return (fil_parse_write_crypt_data(ptr, end_ptr, block, len));
           }
         }
         break;
@@ -1671,7 +1673,6 @@ static byte *recv_parse_or_apply_log_rec_body(mlog_id_t type, byte *ptr,
 
         fil_space_set_flags(space, mach_read_from_4(FSP_HEADER_OFFSET +
                                                     FSP_SPACE_FLAGS + page));
-
         fil_space_release(space);
 
         break;
@@ -1680,6 +1681,38 @@ static byte *recv_parse_or_apply_log_rec_body(mlog_id_t type, byte *ptr,
       // fall through
 
     case MLOG_1BYTE:
+      /* If 'ALTER TABLESPACE ... ENCRYPTION' was in progress and page 0 has
+      REDO entry for this, set encryption_op_in_progress flag now so that any
+      other page of this tablespace in redo log is written accordingly. */
+      if (page_no == 0 && page != nullptr && end_ptr >= ptr + 2) {
+        ulint offs = mach_read_from_2(ptr);
+
+        fil_space_t *space = fil_space_acquire(space_id);
+        ut_ad(space != nullptr);
+        ulint offset = fsp_header_get_encryption_progress_offset(
+            page_size_t(space->flags));
+
+        if (offs == offset) {
+          ptr = mlog_parse_nbytes(MLOG_1BYTE, ptr, end_ptr, page, page_zip);
+          byte op = mach_read_from_1(page + offset);
+          switch (op) {
+            case ENCRYPTION_IN_PROGRESS:
+              space->encryption_op_in_progress = ENCRYPTION;
+              break;
+            case UNENCRYPTION_IN_PROGRESS:
+              space->encryption_op_in_progress = UNENCRYPTION;
+              break;
+            default:
+              /* Don't reset operation in progress yet. It'll be done in
+              fsp_resume_encryption_unencryption(). */
+              break;
+          }
+        }
+        fil_space_release(space);
+      }
+
+      // fall through
+
     case MLOG_2BYTES:
     case MLOG_8BYTES:
 #ifdef UNIV_DEBUG
@@ -1721,11 +1754,9 @@ static byte *recv_parse_or_apply_log_rec_body(mlog_id_t type, byte *ptr,
             redo log been written with something
             older than InnoDB Plugin 1.0.4. */
             ut_ad(
-                0 
+                0
                 /* fil_crypt_rotate_page() writes this */
-                ||
-                offs == FIL_PAGE_SPACE_ID
-                ||
+                || offs == FIL_PAGE_SPACE_ID ||
                 offs == IBUF_TREE_SEG_HEADER + IBUF_HEADER + FSEG_HDR_SPACE ||
                 offs == IBUF_TREE_SEG_HEADER + IBUF_HEADER + FSEG_HDR_PAGE_NO ||
                 offs == PAGE_BTR_IBUF_FREE_LIST + PAGE_HEADER /* flst_init */
@@ -3379,7 +3410,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
     return (err);
   }
 
-  log_files_header_read(log, max_cp_field);
+  log_files_header_read(log, static_cast<uint32_t>(max_cp_field));
 
   lsn_t checkpoint_lsn;
   checkpoint_no_t checkpoint_no;

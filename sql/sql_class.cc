@@ -37,6 +37,7 @@
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/components/services/psi_error_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_error.h"
@@ -60,6 +61,7 @@
 #include "sql/lock.h"                        // mysql_lock_abort_for_thread
 #include "sql/locking_service.h"  // release_all_locking_service_locks
 #include "sql/log_event.h"
+#include "sql/mdl_context_backup.h"  // MDL context backup for XA
 #include "sql/mysqld.h"              // global_system_variables ...
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/psi_memory_key.h"
@@ -124,6 +126,7 @@ void THD::Transaction_state::backup(THD *thd) {
   this->m_server_status = thd->server_status;
   this->m_in_lock_tables = thd->in_lock_tables;
   this->m_time_zone_used = thd->time_zone_used;
+  this->m_transaction_rollback_request = thd->transaction_rollback_request;
 }
 
 void THD::Transaction_state::restore(THD *thd) {
@@ -141,6 +144,7 @@ void THD::Transaction_state::restore(THD *thd) {
   thd->lex->sql_command = this->m_sql_command;
   thd->in_lock_tables = this->m_in_lock_tables;
   thd->time_zone_used = this->m_time_zone_used;
+  thd->transaction_rollback_request = this->m_transaction_rollback_request;
 }
 
 THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
@@ -161,11 +165,6 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx,
 }
 
 void THD::Attachable_trx::init() {
-  // The THD::transaction_rollback_request is expected to be unset in the
-  // attachable transaction. It's weird to start attachable transaction when the
-  // SE asked to rollback the regular transaction.
-  DBUG_ASSERT(!m_thd->transaction_rollback_request);
-
   // Save the transaction state.
 
   m_trx_state.backup(m_thd);
@@ -240,6 +239,13 @@ void THD::Attachable_trx::init() {
 
   // Reset @@session.time_zone usage indicator for consistency.
   m_thd->time_zone_used = false;
+
+  /*
+    InnoDB can ask to start attachable transaction while rolling back
+    the regular transaction. Reset rollback request flag to avoid it
+    influencing attachable transaction we are initiating.
+  */
+  m_thd->transaction_rollback_request = false;
 }
 
 THD::Attachable_trx::~Attachable_trx() {
@@ -902,6 +908,14 @@ void THD::cleanup(void) {
 
   killed = KILL_CONNECTION;
   if (trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED)) {
+    /*
+      Return error is not an option as XA is in prepared state and
+      connection is gone. Log the error and continue.
+    */
+    if (MDL_context_backup_manager::instance().create_backup(
+            &mdl_context, xs->get_xid()->key(), xs->get_xid()->key_length())) {
+      LogErr(ERROR_LEVEL, ER_XA_CANT_CREATE_MDL_BACKUP);
+    }
     transaction_cache_detach(trn_ctx);
   } else {
     xs->set_state(XID_STATE::XA_NOTR);
@@ -3031,28 +3045,25 @@ bool THD::sql_parser() {
 static bool lock_keyring(THD *thd, plugin_ref plugin, void *arg);
 
 class KeyringsLocker {
-public:
+ public:
   static KeyringsLocker &get_instance() {
     static KeyringsLocker instance;
     return instance;
   }
 
-  ~KeyringsLocker() {
-    mysql_mutex_destroy(&mutex);
-  }
+  ~KeyringsLocker() { mysql_mutex_destroy(&mutex); }
 
   int lock_keyrings(THD *thd) {
     mysql_mutex_lock(&mutex);
 
-    uint number_of_keyrings_locked= locked_keyring_plugins.size();
-    if (number_of_keyrings_locked > 0)
-    {
+    uint number_of_keyrings_locked = locked_keyring_plugins.size();
+    if (number_of_keyrings_locked > 0) {
       mysql_mutex_unlock(&mutex);
-      return number_of_keyrings_locked; // keyrings were already locked
+      return number_of_keyrings_locked;  // keyrings were already locked
     }
     plugin_foreach(thd, lock_keyring, MYSQL_KEYRING_PLUGIN, this);
 
-    number_of_keyrings_locked= locked_keyring_plugins.size();
+    number_of_keyrings_locked = locked_keyring_plugins.size();
 
     mysql_mutex_unlock(&mutex);
     return number_of_keyrings_locked;
@@ -3061,9 +3072,9 @@ public:
   int unlock_keyrings(THD *thd) {
     mysql_mutex_lock(&mutex);
 
-    for(LockedKeyringsPlugins::reverse_iterator riter = locked_keyring_plugins.rbegin();
-        riter != locked_keyring_plugins.rend(); ++riter)
-    {
+    for (LockedKeyringsPlugins::reverse_iterator riter =
+             locked_keyring_plugins.rbegin();
+         riter != locked_keyring_plugins.rend(); ++riter) {
       plugin_unlock(thd, *riter);
       locked_keyring_plugins.pop_back();
     }
@@ -3072,28 +3083,25 @@ public:
     return 0;
   }
 
-  // esentialy I am using this vector as a stack, but I did not want to import stack.h just for
-  // this usage
+  // esentialy I am using this vector as a stack, but I did not want to import
+  // stack.h just for this usage
   typedef std::vector<plugin_ref> LockedKeyringsPlugins;
   LockedKeyringsPlugins locked_keyring_plugins;
 
-private:
-  KeyringsLocker() {
-    mysql_mutex_init(0, &mutex, MY_MUTEX_INIT_FAST);
-  }
+ private:
+  KeyringsLocker() { mysql_mutex_init(0, &mutex, MY_MUTEX_INIT_FAST); }
   mysql_mutex_t mutex;
 };
 
 static bool lock_keyring(THD *thd, plugin_ref plugin, void *arg) {
-  KeyringsLocker *keyrings_locker= reinterpret_cast<KeyringsLocker*>(arg);
-  plugin= plugin_lock(thd, &plugin);
-  if (plugin)
-    keyrings_locker->locked_keyring_plugins.push_back(plugin);
+  KeyringsLocker *keyrings_locker = reinterpret_cast<KeyringsLocker *>(arg);
+  plugin = plugin_lock(thd, &plugin);
+  if (plugin) keyrings_locker->locked_keyring_plugins.push_back(plugin);
   return false;
 }
 
 int lock_keyrings(THD *thd) {
-  return KeyringsLocker::get_instance().lock_keyrings(thd); 
+  return KeyringsLocker::get_instance().lock_keyrings(thd);
 }
 
 int unlock_keyrings(THD *thd) {

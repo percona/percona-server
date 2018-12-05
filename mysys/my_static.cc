@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,8 +101,8 @@ void (*error_handler_hook)(uint error, const char *str,
                            myf MyFlags) = my_message_stderr;
 void (*fatal_error_handler_hook)(uint error, const char *str,
                                  myf MyFlags) = my_message_stderr;
-void (*local_message_hook)(enum loglevel ll, const char *format, va_list args)
-    MY_ATTRIBUTE((format(printf, 2, 0))) = my_message_local_stderr;
+void (*local_message_hook)(enum loglevel ll, uint ecode,
+                           va_list args) = my_message_local_stderr;
 
 static void enter_cond_dummy(void *a MY_ATTRIBUTE((unused)),
                              mysql_cond_t *b MY_ATTRIBUTE((unused)),
@@ -129,7 +129,7 @@ static void enter_stage_dummy(void *a MY_ATTRIBUTE((unused)),
 static void set_waiting_for_disk_space_dummy(void *a MY_ATTRIBUTE((unused)),
                                              bool b MY_ATTRIBUTE((unused))) {}
 
-static int is_killed_dummy(const THD *a MY_ATTRIBUTE((unused))) { return 0; }
+static int is_killed_dummy(const void *a MY_ATTRIBUTE((unused))) { return 0; }
 
 /*
   Initialize these hooks to dummy implementations. The real server
@@ -149,7 +149,7 @@ void (*enter_stage_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
 void (*set_waiting_for_disk_space_hook)(void *, bool) =
     set_waiting_for_disk_space_dummy;
 
-int (*is_killed_hook)(const THD *) = is_killed_dummy;
+int (*is_killed_hook)(const void *) = is_killed_dummy;
 
 #if defined(ENABLED_DEBUG_SYNC)
 /**

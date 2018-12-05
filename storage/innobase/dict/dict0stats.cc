@@ -25,7 +25,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 #include "my_dbug.h"
-#include "my_inttypes.h"
 
 /** @file dict/dict0stats.cc
  Code used for calculating and manipulating table statistics.
@@ -2060,31 +2059,23 @@ static dberr_t dict_stats_save_index_stat(dict_index_t *index, lint last_update,
 @retval DB_DECRYPTION_FAILED if decryption of the table failed
 @retval DB_TABLESPACE_DELETED if .ibd file is missing
 @retval DB_CORRUPTION if table is marked as corrupted */
-dberr_t
-dict_stats_report_error(dict_table_t* table) {
+dberr_t dict_stats_report_error(dict_table_t *table) {
   dberr_t err;
 
   uint32_t space_id = table->space;
 
-  DBUG_EXECUTE_IF(
-    "ib_rename_index_fail2",
-    space_id = 911;
-  );
+  DBUG_EXECUTE_IF("ib_rename_index_fail2", space_id = 911;);
   FilSpace space(space_id);
 
   if (!space()) {
-    ib::warn() << "Cannot save statistics for table "
-               << table->name
-               << " because the .ibd file is missing. "
-               << TROUBLESHOOTING_MSG;
+    ib::warn() << "Cannot save statistics for table " << table->name
+               << " because the .ibd file is missing. " << TROUBLESHOOTING_MSG;
     err = DB_TABLESPACE_DELETED;
   } else {
-    ib::warn() << "Cannot save statistics for table "
-               << table->name
+    ib::warn() << "Cannot save statistics for table " << table->name
                << " because file " << space()->files.begin()->name
-               << (table->is_corrupt
-                 ? " is corrupted."
-                 : " cannot be decrypted.");
+               << (table->is_corrupt ? " is corrupted."
+                                     : " cannot be decrypted.");
     err = table->is_corrupt ? DB_CORRUPTION : DB_DECRYPTION_FAILED;
   }
 

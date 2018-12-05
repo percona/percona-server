@@ -207,8 +207,10 @@ dberr_t trx_prepare_for_mysql(trx_t *trx);
 /** This function is used to find number of prepared transactions and
  their transaction objects for a recovery.
  @return number of prepared transactions */
-int trx_recover_for_mysql(XID *xid_list, /*!< in/out: prepared transactions */
-                          ulint len);    /*!< in: number of slots in xid_list */
+int trx_recover_for_mysql(
+    XA_recover_txn *txn_list, /*!< in/out: prepared transactions */
+    ulint len,                /*!< in: number of slots in xid_list */
+    MEM_ROOT *mem_root);      /*!< in: memory for table names */
 /** This function is used to find one X/Open XA distributed transaction
  which is in the prepared state
  @return trx or NULL; on match, the trx->xid will be invalidated;
@@ -1275,6 +1277,10 @@ struct trx_t {
 #endif            /* UNIV_DEBUG */
   trx_stats stats;
   ulint magic_n;
+
+  bool is_read_uncommitted() const {
+    return (isolation_level == READ_UNCOMMITTED);
+  }
 
   bool skip_gap_locks() const {
     switch (isolation_level) {

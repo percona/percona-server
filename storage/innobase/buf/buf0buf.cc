@@ -70,6 +70,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0checksum.h"
 #include "buf0dump.h"
 #include "dict0dict.h"
+#include "fil0crypt.h"
 #include "log0recv.h"
 #include "os0thread-create.h"
 #include "page0zip.h"
@@ -79,7 +80,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0sync.h"
 #include "trx0trx.h"
 #include "ut0new.h"
-#include "fil0crypt.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef HAVE_LIBNUMA
@@ -748,7 +748,6 @@ static void buf_block_init(
 
   block->index = NULL;
   block->made_dirty_with_no_latch = false;
-  block->skip_flush_check = false;
 
   ut_d(block->page.in_page_hash = FALSE);
   ut_d(block->page.in_zip_hash = FALSE);
@@ -795,7 +794,7 @@ static void buf_block_init(
 static buf_chunk_t *buf_chunk_init(
     buf_pool_t *buf_pool, /*!< in: buffer pool instance */
     buf_chunk_t *chunk,   /*!< out: chunk of buffers */
-    ulint mem_size,       /*!< in: requested size in bytes */
+    ulonglong mem_size,   /*!< in: requested size in bytes */
     bool populate,        /*!< in: virtual page preallocation */
     std::mutex *mutex)    /*!< in,out: Mutex protecting chunk map. */
 {
@@ -2116,7 +2115,7 @@ withdraw_retry:
       ulint n_chunks = buf_pool->n_chunks;
 
       while (chunk < echunk) {
-        ulong unit = srv_buf_pool_chunk_unit;
+        ulonglong unit = srv_buf_pool_chunk_unit;
 
         if (!buf_chunk_init(buf_pool, chunk, unit,
                             static_cast<bool>(srv_numa_interleave), nullptr)) {
@@ -2992,7 +2991,6 @@ void buf_block_init_low(buf_block_t *block) /*!< in: block to init */
   assert_block_ahi_empty_on_init(block);
   block->index = NULL;
   block->made_dirty_with_no_latch = false;
-  block->skip_flush_check = false;
 
   block->n_hash_helps = 0;
   block->n_fields = 1;
@@ -3214,9 +3212,8 @@ static void buf_wait_for_read(buf_block_t *block, trx_t *trx) {
 buf_block_t *buf_page_get_gen(const page_id_t &page_id,
                               const page_size_t &page_size, ulint rw_latch,
                               buf_block_t *guess, ulint mode, const char *file,
-                              ulint line, mtr_t *mtr,
-                              bool dirty_with_no_latch,
-                              dberr_t* err) {
+                              ulint line, mtr_t *mtr, bool dirty_with_no_latch,
+                              dberr_t *err) {
   buf_block_t *block;
   unsigned access_time;
   rw_lock_t *hash_lock;
@@ -3347,7 +3344,7 @@ loop:
     }
 
     dberr_t local_err = buf_read_page(page_id, page_size, trx);
-    
+
     if (local_err == DB_SUCCESS) {
       buf_read_ahead_random(page_id, page_size, ibuf_inside(mtr), trx);
 
@@ -3724,8 +3721,8 @@ got_block:
   }
 #endif /* UNIV_DEBUG */
 
-  ut_ad(mode == BUF_GET_POSSIBLY_FREED || mode == BUF_PEEK_IF_IN_POOL
-       || !fix_block->page.file_page_was_freed);
+  ut_ad(mode == BUF_GET_POSSIBLY_FREED || mode == BUF_PEEK_IF_IN_POOL ||
+        !fix_block->page.file_page_was_freed);
 
   /* Check if this is the first access to the page */
   access_time = buf_page_is_accessed(&fix_block->page);
@@ -4708,58 +4705,57 @@ void buf_read_page_handle_error(buf_page_t *bpage) {
   os_atomic_decrement_ulint(&buf_pool->n_pend_reads, 1);
 }
 
-dberr_t buf_page_check_corrupt(buf_page_t* bpage, fil_space_t* space) {
+dberr_t buf_page_check_corrupt(buf_page_t *bpage, fil_space_t *space) {
   ut_ad(space->n_pending_ios > 0);
-  byte* dst_frame = (bpage->zip.data) ? bpage->zip.data :
-    ((buf_block_t*) bpage)->frame;
-  
+  byte *dst_frame =
+      (bpage->zip.data) ? bpage->zip.data : ((buf_block_t *)bpage)->frame;
+
   dberr_t err = DB_SUCCESS;
-  fil_space_crypt_t* crypt_data = space->crypt_data;
+  fil_space_crypt_t *crypt_data = space->crypt_data;
   ulint page_type = mach_read_from_2(dst_frame + FIL_PAGE_TYPE);
-  ulint original_page_type = mach_read_from_2(dst_frame + FIL_PAGE_ORIGINAL_TYPE_V1);
+  ulint original_page_type =
+      mach_read_from_2(dst_frame + FIL_PAGE_ORIGINAL_TYPE_V1);
   bool was_page_read_encrypted = original_page_type == FIL_PAGE_ENCRYPTED;
-  bpage->encrypted = bpage->encrypted || was_page_read_encrypted || page_type == FIL_PAGE_ENCRYPTED || page_type == FIL_PAGE_ENCRYPTED_RTREE ||
+  bpage->encrypted = bpage->encrypted || was_page_read_encrypted ||
+                     page_type == FIL_PAGE_ENCRYPTED ||
+                     page_type == FIL_PAGE_ENCRYPTED_RTREE ||
                      page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED;
-  
-  ut_ad(bpage->id.page_no() != 0 ||
-        (original_page_type != FIL_PAGE_ENCRYPTED && page_type != FIL_PAGE_ENCRYPTED));
-  
-  BlockReporter reporter(true, dst_frame, bpage->size, fsp_is_checksum_disabled(bpage->id.space()));
-  
+
+  ut_ad(bpage->id.page_no() != 0 || (original_page_type != FIL_PAGE_ENCRYPTED &&
+                                     page_type != FIL_PAGE_ENCRYPTED));
+
+  BlockReporter reporter(true, dst_frame, bpage->size,
+                         fsp_is_checksum_disabled(bpage->id.space()));
+
   bool corrupted = bpage->is_corrupt || reporter.is_corrupted();
-  
+
   if (!corrupted) {
     bpage->encrypted = false;
   } else {
     err = DB_PAGE_CORRUPTED;
   }
-  
+
   if (corrupted && !bpage->encrypted) {
     /* An error will be reported by
     buf_page_io_complete(). */
   } else if (bpage->encrypted && corrupted) {
     bpage->encrypted = true;
-    err = DB_DECRYPTION_FAILED; 
-    ib::error()
-      << "The page " << bpage->id << " in file '"
-      << space->files.begin()->name
-      << "' cannot be decrypted.";
-    
+    err = DB_DECRYPTION_FAILED;
+    ib::error() << "The page " << bpage->id << " in file '"
+                << space->files.begin()->name << "' cannot be decrypted.";
+
     if (crypt_data) {
-      ib::info()
-        << "However key management plugin or used key_version "
-        << mach_read_from_4(dst_frame
-           + FIL_PAGE_FILE_FLUSH_LSN)
-        << " is not found or"
-        " used encryption algorithm or method does not match.";
+      ib::info() << "However key management plugin or used key_version "
+                 << mach_read_from_4(dst_frame + FIL_PAGE_FILE_FLUSH_LSN)
+                 << " is not found or"
+                    " used encryption algorithm or method does not match.";
     }
-    
+
     if (bpage->id.space() != TRX_SYS_SPACE) {
-      ib::info()
-        << "Marking tablespace as missing."
-        " You may drop this table or"
-        " install correct key management plugin"
-        " and key file.";
+      ib::info() << "Marking tablespace as missing."
+                    " You may drop this table or"
+                    " install correct key management plugin"
+                    " and key file.";
     }
   }
   return err;
@@ -4773,8 +4769,8 @@ the buffer pool.
 @retval	DB_TABLESPACE_DELETED	if the tablespace does not exist
 @retval	DB_PAGE_CORRUPTED	if the checksum fails on a page read
 @retval	DB_DECRYPTION_FAILED	if page post encryption checksum matches but
-				after decryption normal page checksum does
-				not match */
+                                after decryption normal page checksum does
+                                not match */
 dberr_t buf_page_io_complete(buf_page_t *bpage, bool evict) {
   enum buf_io_fix io_type;
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
@@ -4799,7 +4795,7 @@ dberr_t buf_page_io_complete(buf_page_t *bpage, bool evict) {
     byte *frame;
     bool compressed_page;
 
-    fil_space_t* space = fil_space_acquire_for_io(bpage->id.space());
+    fil_space_t *space = fil_space_acquire_for_io(bpage->id.space());
     if (!space) {
       return DB_TABLESPACE_DELETED;
     }
@@ -4827,8 +4823,7 @@ dberr_t buf_page_io_complete(buf_page_t *bpage, bool evict) {
     should be the same as in block. */
     read_page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
     read_space_id = mach_read_from_4(frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-    key_version = mach_read_from_4(
-      frame + FIL_PAGE_ENCRYPTION_KEY_VERSION);
+    key_version = mach_read_from_4(frame + FIL_PAGE_ENCRYPTION_KEY_VERSION);
 
     if (bpage->id.space() == TRX_SYS_SPACE &&
         buf_dblwr_page_inside(bpage->id.page_no())) {
@@ -4876,8 +4871,9 @@ dberr_t buf_page_io_complete(buf_page_t *bpage, bool evict) {
         // Here bpage should not be encrypted. If it is still encrypted it means
         // that decryption failed and whole space is not readable
         if (bpage->encrypted) {
-          ib::error() << "Page is still encrypted - which means decryption failed. "
-                         "Marking whole space as encrypted";
+          ib::error()
+              << "Page is still encrypted - which means decryption failed. "
+                 "Marking whole space as encrypted";
           fil_space_set_encrypted(bpage->id.space());
 
           trx_t *trx;
@@ -4943,7 +4939,7 @@ dberr_t buf_page_io_complete(buf_page_t *bpage, bool evict) {
 
           buf_read_page_handle_error(bpage);
           fil_space_release_for_io(space);
-          return(err);
+          return (err);
         }
       }
     }
@@ -4969,15 +4965,13 @@ dberr_t buf_page_io_complete(buf_page_t *bpage, bool evict) {
         block = nullptr;
         update_ibuf_bitmap = false;
       } else if (UNIV_UNLIKELY(bpage->encrypted)) {
-        ib::warn()
-        << "Table in tablespace "
-        << bpage->id.space()
-        << " encrypted. However key "
-           "management plugin or used "
-        << "key_version " << key_version
-        << "is not found or"
-           " used encryption algorithm or method does not match."
-           " Can't continue opening the table.";
+        ib::warn() << "Table in tablespace " << bpage->id.space()
+                   << " encrypted. However key "
+                      "management plugin or used "
+                   << "key_version " << key_version
+                   << "is not found or"
+                      " used encryption algorithm or method does not match."
+                      " Can't continue opening the table.";
 
         block = reinterpret_cast<buf_block_t *>(bpage);
         update_ibuf_bitmap = true;
@@ -6089,7 +6083,7 @@ std::ostream &operator<<(std::ostream &out, const buf_pool_t &buf_pool) {
 /** Get the page type as a string.
 @return the page type as a string. */
 const char *buf_block_t::get_page_type_str() const {
-  ulint type = get_page_type();
+  page_type_t type = get_page_type();
 
 #define PAGE_TYPE(x) \
   case x:            \

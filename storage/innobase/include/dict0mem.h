@@ -274,8 +274,8 @@ FTS, etc.... Intrinsic table has all the properties of the normal table except
 it is not created by user and so not visible to end-user. */
 #define DICT_TF2_INTRINSIC 128
 
-/** Encryption table bit. */
-#define DICT_TF2_ENCRYPTION 256
+/** Encryption table bit for innodb_file-per-table only. */
+#define DICT_TF2_ENCRYPTION_FILE_PER_TABLE 256
 
 /** FTS AUX hidden table bit. */
 #define DICT_TF2_AUX 512
@@ -1105,7 +1105,7 @@ struct dict_index_t {
   nth field
   @param[in]	nth	nth field to check */
   uint32_t get_n_nullable_before(uint32_t nth) const {
-    ulint nullable = n_nullable;
+    uint32_t nullable = n_nullable;
 
     ut_ad(nth <= n_fields);
 
@@ -1182,7 +1182,7 @@ struct dict_index_t {
   @param[in]	nth	nth field to get
   @param[in,out]	length	length of the default value
   @return	the default value data of nth field */
-  const byte *get_nth_default(uint16_t nth, ulint *length) const {
+  const byte *get_nth_default(ulint nth, ulint *length) const {
     ut_ad(nth < n_fields);
     ut_ad(get_instant_fields() <= nth);
     const dict_col_t *col = get_col(nth);
@@ -1205,6 +1205,10 @@ struct dict_index_t {
     srid_is_valid = srid_is_valid_value;
     srid = srid_value;
   }
+
+  /** Check if the underlying table is compressed.
+  @return true if compressed, false otherwise. */
+  bool is_compressed() const;
 };
 
 /** The status of online index creation */
@@ -1492,6 +1496,10 @@ typedef std::vector<row_prebuilt_t *> temp_prebuilt_vec;
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
+  /** Check if the table is compressed.
+  @return true if compressed, false otherwise. */
+  bool is_compressed() const { return (DICT_TF_GET_ZIP_SSIZE(flags) != 0); }
+
   /** Get reference count.
   @return current value of n_ref_count */
   inline uint64_t get_ref_count() const;
@@ -1518,18 +1526,12 @@ struct dict_table_t {
   @retval false if this is a single-table tablespace
                 and the .ibd file is missing, or a
                 page cannot be read or decrypted */
-  
-  bool is_readable() const {
-    return(UNIV_LIKELY(!file_unreadable));
-  }
-  
-  void set_file_unreadable() {
-    file_unreadable = true;
-  }
-  
-  void set_file_readable() {
-    file_unreadable = false;
-  }
+
+  bool is_readable() const { return (UNIV_LIKELY(!file_unreadable)); }
+
+  void set_file_unreadable() { file_unreadable = true; }
+
+  void set_file_readable() { file_unreadable = false; }
 
 #ifndef UNIV_HOTBACKUP
   /** Mutex of the table for concurrency access. */
@@ -1604,7 +1606,7 @@ struct dict_table_t {
 
   /** TRUE if  this is in a single-table tablespace and the .ibd
   file is missing or page decryption failed and page is corrupted */
-  unsigned file_unreadable:1;
+  unsigned file_unreadable : 1;
 
   /** TRUE if the table object has been added to the dictionary cache. */
   unsigned cached : 1;
@@ -2052,7 +2054,7 @@ detect this and will eventually quit sooner. */
   happens.
   @return	the number of user columns as described above */
   uint16_t get_instant_cols() const {
-    return (n_instant_cols - get_n_sys_cols());
+    return static_cast<uint16_t>(n_instant_cols - get_n_sys_cols());
   }
 
   /** Check whether the table is corrupted.
@@ -2103,17 +2105,17 @@ detect this and will eventually quit sooner. */
   in the dictionary cache.
   @return number of user-defined (e.g., not ROW_ID) non-virtual columns
   of a table */
-  ulint get_n_user_cols() const {
+  uint16_t get_n_user_cols() const {
     ut_ad(magic_n == DICT_TABLE_MAGIC_N);
 
-    return (n_cols - get_n_sys_cols());
+    return (static_cast<uint16_t>(n_cols) - get_n_sys_cols());
   }
 
   /** Gets the number of system columns in a table.
   For intrinsic table on ROW_ID column is added for all other
   tables TRX_ID and ROLL_PTR are all also appeneded.
   @return number of system (e.g., ROW_ID) columns of a table */
-  ulint get_n_sys_cols() const {
+  uint16_t get_n_sys_cols() const {
     ut_ad(magic_n == DICT_TABLE_MAGIC_N);
 
     return (is_intrinsic() ? DATA_ITT_N_SYS_COLS : DATA_N_SYS_COLS);
@@ -2183,10 +2185,14 @@ detect this and will eventually quit sooner. */
   inline bool support_instant_add() const;
 };
 
+inline bool dict_index_t::is_compressed() const {
+  return (table->is_compressed());
+}
+
 inline bool dict_index_t::is_readable() const {
   volatile bool is_readable = !table->file_unreadable;
   return is_readable;
-  //return(UNIV_LIKELY(!table->file_unreadable));
+  // return(UNIV_LIKELY(!table->file_unreadable));
 }
 
 /** Persistent dynamic metadata type, there should be 1 to 1

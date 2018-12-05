@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -292,6 +292,8 @@ bool thd_is_dd_update_stmt(const THD *thd) {
   */
   return (thd->variables.option_bits & OPTION_DD_UPDATE_CONTEXT);
 }
+
+my_thread_id thd_thread_id(const THD *thd) { return (thd->thread_id()); }
 
 /** Gets page fragmentation statistics. Assigns zeros to stats if thd is
 NULL.

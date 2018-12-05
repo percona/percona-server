@@ -35,11 +35,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0sea.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "log0log.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "sync0sync.h"
+
+#include "my_dbug.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 bool srv_ibuf_disable_background_merge;
@@ -71,7 +69,7 @@ bool srv_ibuf_disable_background_merge;
 #include "rem0cmp.h"
 #include "rem0rec.h"
 #include "row0upd.h"
-#include "srv0start.h" /* srv_shutdown_state */
+#include "srv0start.h"
 #include "trx0sys.h"
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD
@@ -477,7 +475,7 @@ dberr_t ibuf_init_at_db_start(void) {
   mtr_t mtr;
   ulint n_used;
   page_t *header_page;
-  dberr_t error= DB_SUCCESS;
+  dberr_t error = DB_SUCCESS;
 
   ibuf = static_cast<ibuf_t *>(ut_zalloc_nokey(sizeof(ibuf_t)));
 
@@ -758,14 +756,14 @@ static page_t *ibuf_bitmap_get_map_page_func(const page_id_t &page_id,
   buf_block_t *block;
   dberr_t error = DB_SUCCESS;
 
-  block =
-      buf_page_get_gen(ibuf_bitmap_page_no_calc(page_id, page_size), page_size,
-                       RW_X_LATCH, NULL, BUF_GET, file, line, mtr, false, &error);
+  block = buf_page_get_gen(ibuf_bitmap_page_no_calc(page_id, page_size),
+                           page_size, RW_X_LATCH, NULL, BUF_GET, file, line,
+                           mtr, false, &error);
 
   if (err != nullptr) {
     *err = error;
   }
-  
+
   if (error != DB_SUCCESS) {
     return nullptr;
   }
@@ -4526,12 +4524,12 @@ dberr_t ibuf_check_bitmap_on_import(
     ibuf_enter(&mtr);
 
     dberr_t err = DB_SUCCESS;
-    
-    bitmap_page = ibuf_bitmap_get_map_page_func(page_id_t(space_id, page_no), page_size,
-                                                __FILE__, __LINE__, &mtr, &err);
-    
-    if (err != DB_SUCCESS)
-      return err;
+
+    bitmap_page =
+        ibuf_bitmap_get_map_page_func(page_id_t(space_id, page_no), page_size,
+                                      __FILE__, __LINE__, &mtr, &err);
+
+    if (err != DB_SUCCESS) return err;
 
     if (buf_page_is_zeroes(bitmap_page, page_size)) {
     /* This means we got all-zero page instead of

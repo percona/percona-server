@@ -57,6 +57,8 @@ enum dberr_t {
                       rollback segment */
   DB_SKIP_LOCKED,     /*!< skip lock */
   DB_LOCK_NOWAIT,     /*!< don't wait lock */
+  DB_NO_SESSION_TEMP, /*!< no session temporary tablespace
+                      could be allocated */
 
   DB_CLUSTER_NOT_FOUND = 30,
   DB_TABLE_NOT_FOUND,
@@ -190,9 +192,9 @@ enum dberr_t {
                               of missing key management plugin,
                               or missing or incorrect key or
                               incorret AES method or algorithm. */
-  
-  DB_PAGE_CORRUPTED = 999,    /* Page read from tablespace is
-                              corrupted. */
+
+  DB_PAGE_CORRUPTED = 999, /* Page read from tablespace is
+                           corrupted. */
 
   /* The following are partial failure codes */
   DB_FAIL = 1000,

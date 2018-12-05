@@ -59,8 +59,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0dict.h"
-#include "fil0fil.h"
 #include "fil0crypt.h"
+#include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
@@ -110,6 +110,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0row.h"
 #include "row0sel.h"
 #include "row0upd.h"
+#include "srv0tmp.h"
 #include "trx0purge.h"
 #include "trx0roll.h"
 #include "trx0rseg.h"
@@ -197,6 +198,7 @@ mysql_pfs_key_t srv_purge_thread_key;
 mysql_pfs_key_t srv_log_tracking_thread_key;
 mysql_pfs_key_t srv_worker_thread_key;
 mysql_pfs_key_t trx_recovery_rollback_thread_key;
+mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 mysql_pfs_key_t log_scrub_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
@@ -213,6 +215,7 @@ static PSI_stage_info *srv_stages[] = {
     &srv_stage_alter_table_log_table,
     &srv_stage_alter_table_merge_sort,
     &srv_stage_alter_table_read_pk_internal_sort,
+    &srv_stage_alter_tablespace_encryption,
     &srv_stage_buffer_pool_load,
     &srv_stage_clone_file_copy,
     &srv_stage_clone_redo_copy,
@@ -811,7 +814,8 @@ static dberr_t srv_undo_tablespace_open(space_id_t space_id) {
     /* Load the tablespace into InnoDB's internal data structures.
     Set the compressed page size to 0 (non-compressed) */
     flags = fsp_flags_init(univ_page_size, false, false, false, false);
-    space = fil_space_create(undo_name, space_id, flags, FIL_TYPE_TABLESPACE, nullptr);
+    space = fil_space_create(undo_name, space_id, flags, FIL_TYPE_TABLESPACE,
+                             nullptr);
 
     ut_a(space != nullptr);
     ut_ad(fil_validate());
@@ -2122,10 +2126,10 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
     sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
     /* Disable the doublewrite buffer for log files. */
-    fil_space_t *log_space = fil_space_create(
-        "innodb_redo_log", dict_sys_t::s_log_space_first_id,
-        fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG,
-        NULL /* no encryption yet */);
+    fil_space_t *log_space =
+        fil_space_create("innodb_redo_log", dict_sys_t::s_log_space_first_id,
+                         fsp_flags_set_page_size(0, univ_page_size),
+                         FIL_TYPE_LOG, NULL /* no encryption yet */);
 
     ut_ad(fil_validate());
     ut_a(log_space != nullptr);
@@ -2384,12 +2388,11 @@ files_checked:
         fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
         if (space == nullptr) {
           Keyring_encryption_info keyring_encryption_info;
-          dberr_t error =
-              fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
-                           predefined_flags, dict_sys_t::s_dd_space_name,
-                           dict_sys_t::s_dd_space_name,
-                           dict_sys_t::s_dd_space_file_name, true, false,
-                           keyring_encryption_info);
+          dberr_t error = fil_ibd_open(
+              true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
+              predefined_flags, dict_sys_t::s_dd_space_name,
+              dict_sys_t::s_dd_space_name, dict_sys_t::s_dd_space_file_name,
+              true, false, keyring_encryption_info);
           if (error != DB_SUCCESS) {
             ib::error(ER_IB_MSG_1142);
             return (srv_init_abort(DB_ERROR));
@@ -2548,6 +2551,11 @@ files_checked:
 
   /* Open temp-tablespace and keep it open until shutdown. */
   err = srv_open_tmp_tablespace(create_new_db, &srv_tmp_space);
+  if (err != DB_SUCCESS) {
+    return (srv_init_abort(err));
+  }
+
+  err = ibt::open_or_create(create_new_db);
   if (err != DB_SUCCESS) {
     return (srv_init_abort(err));
   }
@@ -2937,6 +2945,15 @@ void srv_pre_dd_shutdown() {
       }
     }
 
+    if (srv_threads.m_ts_alter_encrypt_thread_active) {
+      wait = true;
+      if ((count % 600) == 0) {
+        ib::info(ER_IB_MSG_1276) << "Waiting for"
+                                    " tablespace_alter_encrypt_thread to"
+                                    " to exit";
+      }
+    }
+
     if (!wait) {
       break;
     }
@@ -3207,6 +3224,8 @@ static lsn_t srv_shutdown_log() {
     ut_a(err == DB_SUCCESS);
   }
 
+  ibt::close_files();
+
   fil_close_all_files();
 
   /* Stop Archiver background thread. */
@@ -3246,6 +3265,8 @@ void srv_shutdown() {
 
   /* 2. Make all threads created by InnoDB to exit */
   srv_shutdown_all_bg_threads();
+
+  ibt::delete_pool_manager();
 
   if (srv_monitor_file) {
     fclose(srv_monitor_file);
@@ -3321,84 +3342,6 @@ void srv_shutdown() {
   srv_shutdown_state = SRV_SHUTDOWN_NONE;
   srv_start_state = SRV_START_STATE_NONE;
 }
-
-#if 0  // TODO: Enable this in WL#6608
-/********************************************************************
-Signal all per-table background threads to shutdown, and wait for them to do
-so. */
-static
-void
-srv_shutdown_table_bg_threads(void)
-{
-	dict_table_t*	table;
-	dict_table_t*	first;
-	dict_table_t*	last = NULL;
-
-	mutex_enter(&dict_sys->mutex);
-
-	/* Signal all threads that they should stop. */
-	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
-	first = table;
-	while (table) {
-		dict_table_t*	next;
-		fts_t*		fts = table->fts;
-
-		if (fts != NULL) {
-			fts_start_shutdown(table, fts);
-		}
-
-		next = UT_LIST_GET_NEXT(table_LRU, table);
-
-		if (!next) {
-			last = table;
-		}
-
-		table = next;
-	}
-
-	/* We must release dict_sys->mutex here; if we hold on to it in the
-	loop below, we will deadlock if any of the background threads try to
-	acquire it (for example, the FTS thread by calling que_eval_sql).
-
-	Releasing it here and going through dict_sys->table_LRU without
-	holding it is safe because:
-
-	 a) MySQL only starts the shutdown procedure after all client
-	 threads have been disconnected and no new ones are accepted, so no
-	 new tables are added or old ones dropped.
-
-	 b) Despite its name, the list is not LRU, and the order stays
-	 fixed.
-
-	To safeguard against the above assumptions ever changing, we store
-	the first and last items in the list above, and then check that
-	they've stayed the same below. */
-
-	mutex_exit(&dict_sys->mutex);
-
-	/* Wait for the threads of each table to stop. This is not inside
-	the above loop, because by signaling all the threads first we can
-	overlap their shutting down delays. */
-	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
-	ut_a(first == table);
-	while (table) {
-		dict_table_t*	next;
-		fts_t*		fts = table->fts;
-
-		if (fts != NULL) {
-			fts_shutdown(table, fts);
-		}
-
-		next = UT_LIST_GET_NEXT(table_LRU, table);
-
-		if (table == last) {
-			ut_a(!next);
-		}
-
-		table = next;
-	}
-}
-#endif
 
 /** Get the encryption-data filename from the table name for a
 single-table tablespace.

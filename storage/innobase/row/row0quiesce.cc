@@ -33,16 +33,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <errno.h>
 #include <my_aes.h>
 
+#include "fil0crypt.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
 #include "row0mysql.h"
 #include "row0quiesce.h"
 #include "srv0start.h"
 #include "trx0purge.h"
-#include "fil0crypt.h"
+
+#include "my_dbug.h"
 
 /** Write the meta data (index user fields) config file.
  @return DB_SUCCESS or error code. */
@@ -353,12 +353,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_header(
 {
   byte value[sizeof(ib_uint32_t)];
 
-  fil_space_t*	space = fil_space_get(table->space);
-  //The table is read locked so it will not be dropped
+  fil_space_t *space = fil_space_get(table->space);
+  // The table is read locked so it will not be dropped
   ut_ad(space != NULL);
 
   /* Write the meta-data version number. */
-  if (space->crypt_data != NULL && space->crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
+  if (space->crypt_data != NULL &&
+      space->crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
     mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1_WITH_RK);
   } else {
     mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V3);
@@ -612,13 +613,13 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   dberr_t err;
   char name[OS_FILE_MAX_PATH];
 
-
-  fil_space_t*	space = fil_space_get(table->space);
-  //The table is read locked so it will not be dropped
+  fil_space_t *space = fil_space_get(table->space);
+  // The table is read locked so it will not be dropped
   ut_ad(space != nullptr);
   /* If table is not encrypted or encrypted with keyring encryption, return. */
-  if (!dict_table_is_encrypted(table) || space->crypt_data != NULL) {
-    return(DB_SUCCESS);
+  if (!dd_is_table_in_encrypted_tablespace(table) ||
+      space->crypt_data != NULL) {
+    return (DB_SUCCESS);
   }
 
   /* Get the encryption key and iv from space */
@@ -741,20 +742,20 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
     extern ib_mutex_t master_key_id_mutex;
 
     bool was_master_key_id_mutex_locked = false;
-    fil_space_t*	space = fil_space_get(table->space);
+    fil_space_t *space = fil_space_get(table->space);
     ut_ad(space != nullptr);
-    if (dict_table_is_encrypted(table) && space->crypt_data != NULL) {
+    if (dd_is_table_in_encrypted_tablespace(table) &&
+        space->crypt_data != NULL) {
       /* Require the mutex to block key rotation. */
       was_master_key_id_mutex_locked = true;
       mutex_enter(&master_key_id_mutex);
     }
 
-		buf_LRU_flush_or_remove_pages(
-			table->space, BUF_REMOVE_FLUSH_WRITE, trx);
+    buf_LRU_flush_or_remove_pages(table->space, BUF_REMOVE_FLUSH_WRITE, trx);
 
-  if (was_master_key_id_mutex_locked) {
-    mutex_exit(&master_key_id_mutex);
-  }
+    if (was_master_key_id_mutex_locked) {
+      mutex_exit(&master_key_id_mutex);
+    }
 
     if (trx_is_interrupted(trx)) {
       ib::warn(ER_IB_MSG_1018) << "Quiesce aborted!";
@@ -813,7 +814,7 @@ void row_quiesce_table_complete(
   ib::info(ER_IB_MSG_1024) << "Deleting the meta-data file '" << cfg_name
                            << "'";
 
-  if (dict_table_is_encrypted(table)) {
+  if (dd_is_table_in_encrypted_tablespace(table)) {
     char cfp_name[OS_FILE_MAX_PATH];
 
     srv_get_encryption_data_filename(table, cfp_name, sizeof(cfp_name));

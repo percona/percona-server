@@ -30,6 +30,7 @@ call mtr.add_suppression("Cannot open table tde_db/t_encrypt.* from the internal
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("\\[ERROR\\].* Tablespace [0-9]+, name 'tde_db.*t_encrypt.*', unable to open file '.*tde_db.*t_encrypt.*.ibd' - Data structure corruption");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
 -- enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -576,9 +577,9 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 --echo # old encrypt table not accessible 
---error ER_CANNOT_FIND_KEY_IN_KEYRING,1146
+--error ER_CANNOT_FIND_KEY_IN_KEYRING, ER_NO_SUCH_TABLE
 SELECT COUNT(*) FROM tde_db.t_encrypt;
---error ER_CANNOT_FIND_KEY_IN_KEYRING,1146
+--error ER_CANNOT_FIND_KEY_IN_KEYRING, ER_NO_SUCH_TABLE
 SELECT COUNT(*) FROM tde_db.t_encrypt_2;
 --echo # NON encrypt old table are accessible
 SELECT COUNT(*) FROM tde_db.t_non_encrypt;

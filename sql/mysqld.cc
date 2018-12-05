@@ -196,6 +196,101 @@
     - @subpage page_protocol_connection_lifecycle
 */
 
+
+/** @page mysqlx_protocol X %Protocol
+
+@par Topics in this section:
+
+- @subpage mysqlx_protocol_lifecycle
+- @subpage mysqlx_protocol_authentication
+- @subpage mysqlx_protocol_messages
+- @subpage mysqlx_protocol_expectations
+- @subpage mysqlx_protocol_notices
+- @subpage mysqlx_protocol_xplugin
+- @subpage mysqlx_protocol_use_cases
+- @subpage mysqlx_protocol_implementation
+- @subpage mysqlx_protocol_comparison
+
+
+The X %Protocol is implemented by the X Plugin and the following
+MySQL clients support the protocol:
+
+-  MYSQLXSHELL
+
+-  MySQL for Visual Studio 2.0.2 or higher
+
+-  MySQL Connector/J 6.0.2 or higher
+
+-  MySQL Connector/Net 7.0.2 or higher
+
+-  MySQL Connector/Node.js
+
+The following figure shows usage of the X %Protocol between MYSQLXSHELL and
+MySQL Server 5.7.12 or higher with the X %Plugin enabled.
+The object _X %Protocol_ on this figure represents rather some concept
+than an implementation object. The aim is to show its role in the process
+of information exchange between the client and the server.
+
+@startuml "X Protocol Overview"
+actor "User"
+box "MySQLx Shell"
+participant "X DevAPI" as devapi
+participant "X Protocol" as xclproto
+end box
+
+box "MySQL Server"
+participant "X Plugin" as xpl
+participant "X Protocol" as xplproto
+participant "Server" as serv
+end box
+
+User -> devapi: Request
+activate devapi
+devapi -> xclproto: Encode request
+activate xclproto
+
+xclproto --> devapi
+deactivate xclproto
+
+devapi -> xpl: Receive request << Network (TCP) >>
+activate xpl
+
+xpl -> xplproto: Decode request
+activate xplproto
+
+xplproto --> xpl
+deactivate xplproto
+
+xpl -> serv: Execute request
+activate serv
+
+serv --> xpl
+deactivate serv
+
+xpl --> devapi: << Network (TCP) >>
+deactivate xpl
+
+devapi --> User
+deactivate devapi
+...
+@enduml
+
+The documentation is based on the source files such as:
+
+-  [``mysqlx.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx.proto)
+-  [``mysqlx_connection.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_connection.proto)
+-  [``mysqlx_session.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_session.proto>)
+-  [``mysqlx_crud.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_crud.proto>)
+-  [``mysqlx_sql.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_sql.proto>)
+-  [``mysqlx_resultset.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_resultset.proto>)
+-  [``mysqlx_expr.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_expr.proto>)
+-  [``mysqlx_datatypes.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_datatypes.proto>)
+-  [``mysqlx_expect.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_expect.proto>)
+-  [``mysqlx_notice.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_notice.proto>)
+
+*/
+
+
 /**
   @page PAGE_SQL_EXECUTION SQL Query Execution
 
@@ -411,6 +506,7 @@
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_memory.h"  // mysql_memory_init
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_socket.h"
@@ -476,6 +572,7 @@
 #include "sql/log_event.h"  // Rows_log_event
 #include "sql/log_resource.h"
 #include "sql/mdl.h"
+#include "sql/mdl_context_backup.h"  // mdl_context_backup_manager
 #include "sql/my_decimal.h"
 #include "sql/mysqld_daemon.h"
 #include "sql/mysqld_thd_manager.h"              // Global_THD_manager
@@ -833,10 +930,8 @@ bool opt_using_transactions;
 ulong opt_tc_log_size;
 std::atomic<int32> connection_events_loop_aborted_flag;
 static enum_server_operational_state server_operational_state = SERVER_BOOTING;
-char *opt_log_error_filter_rules;
+char *opt_log_error_suppression_list;
 char *opt_log_error_services;
-bool opt_log_syslog_enable;
-char *opt_log_syslog_tag = NULL;
 char *opt_keyring_migration_user = NULL;
 char *opt_keyring_migration_host = NULL;
 char *opt_keyring_migration_password = NULL;
@@ -845,21 +940,16 @@ char *opt_keyring_migration_source = NULL;
 char *opt_keyring_migration_destination = NULL;
 ulong opt_keyring_migration_port = 0;
 bool migrate_connect_options = 0;
-#ifndef _WIN32
-bool opt_log_syslog_include_pid;
-char *opt_log_syslog_facility;
+uint host_cache_size;
+ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 
-#else
+#if defined(_WIN32)
 /*
   Thread handle of shutdown event handler thread.
   It is used as argument during thread join.
 */
 my_thread_handle shutdown_restart_thr_handle;
-#endif
-uint host_cache_size;
-ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 
-#if defined(_WIN32)
 ulong slow_start_timeout;
 bool opt_no_monitor = false;
 #endif
@@ -909,6 +999,7 @@ uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
 ulonglong opt_slow_query_log_use_global_control = 0;
 ulong opt_slow_query_log_rate_type = 0;
+volatile bool password_require_current = false;
 
 mysql_mutex_t LOCK_default_password_lifetime;
 mysql_mutex_t LOCK_mandatory_roles;
@@ -989,7 +1080,7 @@ ulonglong max_binlog_cache_size = 0;
 ulong slave_max_allowed_packet = 0;
 ulong binlog_stmt_cache_size = 0;
 int32 opt_binlog_max_flush_queue_time = 0;
-ulong opt_binlog_group_commit_sync_delay = 0;
+long opt_binlog_group_commit_sync_delay = 0;
 ulong opt_binlog_group_commit_sync_no_delay_count = 0;
 ulonglong max_binlog_stmt_cache_size = 0;
 ulong refresh_version; /* Increments on each reload */
@@ -1325,11 +1416,6 @@ void substitute_progpath(char **argv) {
 
   while (true) {
     const char *colonend = std::find(spbegin, spend, ':');
-    if (colonend == spend) {
-      DBUG_ASSERT(false);
-      break;
-    }
-
     std::string cand{spbegin, colonend};
     spbegin = colonend + 1;
 
@@ -1345,6 +1431,10 @@ void substitute_progpath(char **argv) {
       }
       my_orig_progname = argv[0];
       argv[0] = my_progpath;
+      break;
+    }
+    if (colonend == spend) {
+      DBUG_ASSERT(false);
       break;
     }
   }  // while (true)
@@ -1397,19 +1487,15 @@ std::pair<struct System_status_var *, bool> get_thd_status_var(THD *thd) {
   return std::make_pair(&thd->status_var, thd->status_var_aggregated);
 }
 
-static void option_error_reporter(enum loglevel level, const char *format, ...)
-    MY_ATTRIBUTE((format(printf, 2, 3)));
-
-static void option_error_reporter(enum loglevel level, const char *format,
-                                  ...) {
+static void option_error_reporter(enum loglevel level, uint ecode, ...) {
   va_list args;
-  va_start(args, format);
+  va_start(args, ecode);
 
   /*
     Don't print warnings for --loose options during initialize.
   */
   if (level == ERROR_LEVEL || !opt_initialize || (log_error_verbosity > 1)) {
-    error_log_printf(level, format, args);
+    error_log_print(level, ecode, args);
   }
   va_end(args);
 }
@@ -1417,21 +1503,18 @@ static void option_error_reporter(enum loglevel level, const char *format,
 /**
   Character set and collation error reporter that prints to sql error log.
   @param level          log message level
-  @param format         log message format string
+  @param ecode          Error code of the error message.
 
   This routine is used to print character set and collation
   warnings and errors inside an already running mysqld server,
   e.g. when a character set or collation is requested for the very first time
   and its initialization does not go well for some reasons.
 */
-static void charset_error_reporter(enum loglevel level, const char *format, ...)
-    MY_ATTRIBUTE((format(printf, 2, 3)));
 
-static void charset_error_reporter(enum loglevel level, const char *format,
-                                   ...) {
+static void charset_error_reporter(enum loglevel level, uint ecode, ...) {
   va_list args;
-  va_start(args, format);
-  error_log_printf(level, format, args);
+  va_start(args, ecode);
+  error_log_print(level, ecode, args);
   va_end(args);
 }
 
@@ -1560,6 +1643,7 @@ static void server_component_init() {
   mysql_comp_system_variable_source_init();
   mysql_backup_lock_service_init();
   mysql_security_context_init();
+  mysql_server_ongoing_transactions_query_init();
 }
 
 /**
@@ -1817,7 +1901,7 @@ bool signal_restart_server() {
 
 #ifdef _WIN32
   if (!SetEvent(hEventRestart)) {
-    sql_print_error("Got error: %ld from SetEvent", GetLastError());
+    LogErr(ERROR_LEVEL, ER_SET_EVENT_FAILED, GetLastError());
     my_error(ER_RESTART_SERVER_FAILED, MYF(0), "Internal operation failure");
     return true;
   }
@@ -1863,6 +1947,9 @@ static void unireg_abort(int exit_code) {
   if (errno) {
     sysd::notify("ERRNO=", errno, "\n");
   }
+
+  if (opt_initialize && exit_code)
+    LogErr(ERROR_LEVEL, ER_DATA_DIRECTORY_UNUSABLE, mysql_real_data_home);
 
   // At this point it does not make sense to buffer more messages.
   // Just flush what we have and write directly to stderr.
@@ -2036,8 +2123,10 @@ static void clean_up(bool print_message) {
 
   if (dd::upgrade_57::in_progress()) delete_dictionary_tablespace();
 
+  Recovered_xa_transactions::destroy();
   delegates_destroy();
   transaction_cache_free();
+  MDL_context_backup_manager::destroy();
   table_def_free();
   mdl_destroy();
   key_caches.delete_elements();
@@ -2094,7 +2183,8 @@ static void clean_up(bool print_message) {
     dependencies are discovered, possibly being divided into separate points
     where all dependencies are still ok.
   */
-  log_builtins_error_stack("log_filter_internal; log_sink_internal", false);
+  log_builtins_error_stack("log_filter_internal; log_sink_internal", false,
+                           nullptr);
 #ifdef HAVE_PSI_THREAD_INTERFACE
   if (!opt_help && !opt_initialize) {
     unregister_pfs_notification_service();
@@ -2480,6 +2570,71 @@ static void set_root(const char *path) {
 }
 #endif  // !_WIN32
 
+/**
+  Check acceptable value of parameter bind_address
+
+  @param      bind_address          Value of the parameter bind-address
+  @param[out] valid_bind_addresses  List of addresses to listen
+
+  @return false on success, true on failure
+*/
+static bool check_bind_address_has_valid_value(
+    const char *bind_address, std::list<std::string> *valid_bind_addresses) {
+  if (strlen(bind_address) == 0)
+    // Empty value for bind_address is an error
+    return true;
+
+  const char *comma_separator = strchr(bind_address, ',');
+  const char *begin_of_value = bind_address;
+  const bool multiple_bind_addresses = (comma_separator != nullptr);
+  /*
+    The following lambda is to check that an address value is a wildcard IP
+    value, that is it has either the value 0.0.0.0 for IPv4 or the value ::1 in
+    case IPv6, or has the specially treated symbol * as its value.
+  */
+  auto address_is_wildcard = [](const char *address_value,
+                                size_t address_length) {
+    return
+        // Wildcard is not allowed in case a comma separated list of
+        // addresses is specified
+        native_strncasecmp(address_value, MY_BIND_ALL_ADDRESSES,
+                           address_length) == 0 ||
+        // The specially treated address :: is not allowed in case
+        // a comma separated list of addresses is specified
+        native_strncasecmp(address_value, ipv6_all_addresses, address_length) ==
+            0 ||
+        // The specially treated address 0.0.0.0 is not allowed in case
+        // a comma separated list of addresses is specified
+        native_strncasecmp(address_value, ipv4_all_addresses, address_length) ==
+            0;
+  };
+
+  if (comma_separator == begin_of_value)
+    // Return an error if a value of bind_address begins with comma
+    return true;
+
+  while (comma_separator != nullptr) {
+    if (address_is_wildcard(begin_of_value, comma_separator - begin_of_value))
+      return true;
+
+    valid_bind_addresses->emplace_back(
+        std::string(begin_of_value, comma_separator));
+    begin_of_value = comma_separator + 1;
+    comma_separator = strchr(begin_of_value, ',');
+    if (comma_separator == begin_of_value)
+      // Return an error if a value of bind_address has two adjacent commas
+      return true;
+  }
+
+  if (multiple_bind_addresses &&
+      (address_is_wildcard(begin_of_value, strlen(begin_of_value)) ||
+       strlen(begin_of_value) == 0))
+    return true;
+
+  valid_bind_addresses->emplace_back(begin_of_value);
+  return false;
+}
+
 static bool network_init(void) {
   if (opt_initialize) return false;
 
@@ -2492,11 +2647,16 @@ static bool network_init(void) {
   std::string const unix_sock_name("");
 #endif
 
+  std::list<std::string> bind_addresses;
   if (!opt_disable_networking || unix_sock_name != "") {
-    std::string const bind_addr_str(my_bind_addr_str ? my_bind_addr_str : "");
+    if (my_bind_addr_str != nullptr &&
+        check_bind_address_has_valid_value(my_bind_addr_str, &bind_addresses)) {
+      LogErr(ERROR_LEVEL, ER_INVALID_VALUE_OF_BIND_ADDRESSES, my_bind_addr_str);
+      return true;
+    }
 
     Mysqld_socket_listener *mysqld_socket_listener = new (std::nothrow)
-        Mysqld_socket_listener(bind_addr_str, mysqld_port, mysqld_extra_port,
+        Mysqld_socket_listener(bind_addresses, mysqld_port, mysqld_extra_port,
                                back_log, mysqld_port_timeout, unix_sock_name);
     if (mysqld_socket_listener == NULL) return true;
 
@@ -4161,7 +4321,8 @@ int init_common_variables() {
   if (back_log == 0 && (back_log = max_connections) > 65535) back_log = 65535;
 
   unireg_init(opt_specialflag); /* Set up extern variables */
-  while (!(my_default_lc_messages = my_locale_by_name(NULL, lc_messages))) {
+  while (!(my_default_lc_messages =
+               my_locale_by_name(NULL, lc_messages, strlen(lc_messages)))) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_LOCALE_NAME, lc_messages);
     if (!my_strcasecmp(&my_charset_latin1, lc_messages,
                        mysqld_default_locale_name))
@@ -4194,8 +4355,12 @@ int init_common_variables() {
         default_collation_name = 0;  // Ignore collation
       } else
         return 1;  // Eof of the list
-    } else
+    } else {
+      warn_on_deprecated_charset(nullptr, default_charset_info,
+                                 default_character_set_name,
+                                 "--character-set-server");
       break;
+    }
   }
 
   if (default_collation_name) {
@@ -4211,6 +4376,8 @@ int init_common_variables() {
              default_collation_name, default_charset_info->csname);
       return 1;
     }
+    warn_on_deprecated_collation(nullptr, default_collation,
+                                 "--collation-server");
     default_charset_info = default_collation;
   }
   /* Set collactions that depends on the default collation */
@@ -4234,6 +4401,10 @@ int init_common_variables() {
   if (!(character_set_filesystem = get_charset_by_csname(
             character_set_filesystem_name, MY_CS_PRIMARY, MYF(MY_WME))))
     return 1;
+  else
+    warn_on_deprecated_charset(nullptr, character_set_filesystem,
+                               character_set_filesystem_name,
+                               "--character-set-filesystem");
   global_system_variables.character_set_filesystem = character_set_filesystem;
 
   if (lex_init()) {
@@ -4241,8 +4412,8 @@ int init_common_variables() {
     return 1;
   }
 
-  while (!(my_default_lc_time_names =
-               my_locale_by_name(NULL, lc_time_names_name))) {
+  while (!(my_default_lc_time_names = my_locale_by_name(
+               NULL, lc_time_names_name, strlen(lc_time_names_name)))) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_LOCALE_NAME, lc_time_names_name);
     if (!my_strcasecmp(&my_charset_latin1, lc_time_names_name,
                        mysqld_default_locale_name))
@@ -4489,7 +4660,7 @@ static int warn_one(const char *file_name) {
 
   bio = BIO_new(BIO_s_file());
   if (!bio) {
-    sql_print_error("Error allocating SSL BIO");
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_SSL_BIO);
     my_fclose(fp, MYF(0));
     return 1;
   }
@@ -4560,17 +4731,44 @@ static int warn_self_signed_ca() {
   return ret_val;
 }
 
+#if !defined(HAVE_WOLFSSL) && defined(HAVE_OPENSSL) && !defined(__sun)
+/* TODO: remove the !defined(__sun) when bug 23285559 is out of the picture */
+
+static PSI_memory_key key_memory_openssl = PSI_NOT_INSTRUMENTED;
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#define FILE_LINE_ARGS
+#else
+#define FILE_LINE_ARGS , const char *, int
+#endif
+
+static void *my_openssl_malloc(size_t size FILE_LINE_ARGS) {
+  return my_malloc(key_memory_openssl, size, MYF(MY_WME));
+}
+static void *my_openssl_realloc(void *ptr, size_t size FILE_LINE_ARGS) {
+  return my_realloc(key_memory_openssl, ptr, size, MYF(MY_WME));
+}
+static void my_openssl_free(void *ptr FILE_LINE_ARGS) { return my_free(ptr); }
+#endif /* !defined(HAVE_WOLFSSL) && defined(HAVE_OPENSSL) */
+
 static void init_ssl() {
 #ifdef HAVE_OPENSSL
-#ifndef HAVE_WOLFSSL
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  CRYPTO_malloc_init();
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  OPENSSL_malloc_init();
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
+#if !defined(HAVE_WOLFSSL) && !defined(__sun)
+#if defined(HAVE_PSI_MEMORY_INTERFACE)
+  static PSI_memory_info all_openssl_memory[] = {
+      {&key_memory_openssl, "openssl_malloc", 0, 0,
+       "All memory used by openSSL"}};
+  mysql_memory_register("mysqld_openssl", all_openssl_memory,
+                        array_elements(all_openssl_memory));
+#endif /* defined(HAVE_PSI_MEMORY_INTERFACE) */
+  int ret = CRYPTO_set_mem_functions(my_openssl_malloc, my_openssl_realloc,
+                                     my_openssl_free);
+  if (ret == 0)
+    LogErr(WARNING_LEVEL, ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED,
+           "CRYPTO_set_mem_functions");
+#endif /* HAVE_WOLFSSL */
   ssl_start();
-#endif
+#endif /* HAVE_OPENSSL */
 }
 
 static int init_ssl_communication() {
@@ -4862,46 +5060,19 @@ static bool initialize_storage_engine(char *se_name, const char *se_kind,
   return false;
 }
 
-static int init_server_components() {
-  DBUG_ENTER("init_server_components");
-  /*
-    We need to call each of these following functions to ensure that
-    all things are initialized so that unireg_abort() doesn't fail
-  */
-  mdl_init();
-  partitioning_init();
-  if (table_def_init() | hostname_cache_init(host_cache_size))
-    unireg_abort(MYSQLD_ABORT_EXIT);
+static void setup_error_log() {
+/* Setup logs */
 
-  /*
-    Timers not needed if only starting with --help.
-  */
-  if (!opt_help) {
-    if (my_timer_initialize())
-      LogErr(ERROR_LEVEL, ER_CANT_INIT_TIMER, errno);
-    else
-      have_statement_timeout = SHOW_OPTION_YES;
-  }
+/*
+  Enable old-fashioned error log, except when the user has requested
+  help information. Since the implementation of plugin server
+  variables the help output is now written much later.
 
-  randominit(&sql_rand, (ulong)server_start_time, (ulong)server_start_time / 2);
-  setup_fpu();
-  init_slave_list();
-
-  init_global_table_stats();
-  init_global_index_stats();
-
-  /* Setup logs */
-
-  /*
-    Enable old-fashioned error log, except when the user has requested
-    help information. Since the implementation of plugin server
-    variables the help output is now written much later.
-
-    log_error_dest can be:
-    disabled_my_option     --log-error was not used or --log-error=
-    ""                     --log-error without arguments (no '=')
-    filename               --log-error=filename
-  */
+  log_error_dest can be:
+  disabled_my_option     --log-error was not used or --log-error=
+  ""                     --log-error without arguments (no '=')
+  filename               --log-error=filename
+*/
 #ifdef _WIN32
   /*
     Enable the error log file only if console option is not specified
@@ -4950,11 +5121,9 @@ static int init_server_components() {
     }
 #endif /* ndef _WIN32 */
 
-    if (open_error_log(errorlog_filename_buff)) {
-      LogErr(ERROR_LEVEL, ER_CANT_OPEN_ERROR_LOG, log_error_dest,
-             strerror(errno));
+    if (open_error_log(errorlog_filename_buff, false))
       unireg_abort(MYSQLD_ABORT_EXIT);
-    }
+
 #ifdef _WIN32
       // FreeConsole();        // Remove window
 #endif /* _WIN32 */
@@ -4964,6 +5133,37 @@ static int init_server_components() {
     // Flush messages buffered so far.
     flush_error_log_messages();
   }
+}
+
+static int init_server_components() {
+  DBUG_ENTER("init_server_components");
+  /*
+    We need to call each of these following functions to ensure that
+    all things are initialized so that unireg_abort() doesn't fail
+  */
+  mdl_init();
+  partitioning_init();
+  if (table_def_init() | hostname_cache_init(host_cache_size))
+    unireg_abort(MYSQLD_ABORT_EXIT);
+
+  /*
+    Timers not needed if only starting with --help.
+  */
+  if (!opt_help) {
+    if (my_timer_initialize())
+      LogErr(ERROR_LEVEL, ER_CANT_INIT_TIMER, errno);
+    else
+      have_statement_timeout = SHOW_OPTION_YES;
+  }
+
+  randominit(&sql_rand, (ulong)server_start_time, (ulong)server_start_time / 2);
+  setup_fpu();
+  init_slave_list();
+
+  init_global_table_stats();
+  init_global_index_stats();
+
+  setup_error_log();
 
   enter_cond_hook = thd_enter_cond;
   exit_cond_hook = thd_exit_cond;
@@ -4972,6 +5172,11 @@ static int init_server_components() {
   is_killed_hook = thd_killed;
 
   if (transaction_cache_init()) {
+    LogErr(ERROR_LEVEL, ER_OOM);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  if (MDL_context_backup_manager::init()) {
     LogErr(ERROR_LEVEL, ER_OOM);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
@@ -5243,6 +5448,9 @@ static int init_server_components() {
   */
   tc_log = &tc_log_dummy;
 
+  /* This limits ability to configure SSL library through config options */
+  init_ssl();
+
   /*Load early plugins */
   if (plugin_register_early_plugins(
           &remaining_argc, remaining_argv,
@@ -5251,8 +5459,6 @@ static int init_server_components() {
     unireg_abort(1);
   }
 
-  /* This limits ability to configure SSL library through config options */
-  init_ssl();
   /* Load builtin plugins, initialize MyISAM, CSV and InnoDB */
   if (plugin_register_builtin_and_init_core_se(&remaining_argc,
                                                remaining_argv)) {
@@ -5505,13 +5711,6 @@ static int init_server_components() {
     }
   }
 
-  if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log)) {
-    if (opt_bin_log)
-      tc_log = &mysql_bin_log;
-    else
-      tc_log = &tc_log_mmap;
-  }
-
   if (encrypt_binlog) {
     if (!opt_master_verify_checksum ||
         binlog_checksum_options == binary_log::BINLOG_CHECKSUM_ALG_OFF ||
@@ -5528,6 +5727,18 @@ static int init_server_components() {
           "If relay logs are in use, they will be encrypted.");
   }
 
+  if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log)) {
+    if (opt_bin_log)
+      tc_log = &mysql_bin_log;
+    else
+      tc_log = &tc_log_mmap;
+  }
+
+  if (Recovered_xa_transactions::init()) {
+    LogErr(ERROR_LEVEL, ER_OOM);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
   if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file)) {
     LogErr(ERROR_LEVEL, ER_CANT_INIT_TC_LOG);
     unireg_abort(MYSQLD_ABORT_EXIT);
@@ -5542,6 +5753,18 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
   ha_post_recover();
+
+  /*
+    Add prepared XA transactions into the cache of XA transactions and acquire
+    mdl lock for every table involved in any of these prepared XA transactions.
+    This step moved away from the function ha_recover() in order to avoid
+    possible suspending on acquiring EXLUSIVE mdl lock on tables inside the
+    function dd::reset_tables_and_tablespaces() when table cache being reset.
+  */
+  if (Recovered_xa_transactions::instance()
+          .recover_prepared_xa_transactions()) {
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
 
   /// @todo: this looks suspicious, revisit this /sven
   enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_NONE);
@@ -5791,7 +6014,7 @@ int mysqld_main(int argc, char **argv)
   system_charset_info = &my_charset_utf8_general_ci;
 
   /* Write mysys error messages to the error log. */
-  local_message_hook = error_log_printf;
+  local_message_hook = error_log_print;
 
   int ho_error;
 
@@ -6047,7 +6270,10 @@ int mysqld_main(int argc, char **argv)
     exit(MYSQLD_ABORT_EXIT);
   }
 
-  if (init_common_variables()) unireg_abort(MYSQLD_ABORT_EXIT);  // Will do exit
+  if (init_common_variables()) {
+    setup_error_log();
+    unireg_abort(MYSQLD_ABORT_EXIT);  // Will do exit
+  }
 
   size_t guardize = 0;
 #ifndef _WIN32
@@ -6375,14 +6601,8 @@ int mysqld_main(int argc, char **argv)
     if (crypto_data->is_enabled())
       prev_gtids_ev.event_encrypter.enable_encryption(crypto_data);
 
-    if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
+    if (mysql_bin_log.write_event_to_binlog_and_sync(&prev_gtids_ev))
       unireg_abort(MYSQLD_ABORT_EXIT);
-    mysql_bin_log.add_bytes_written(prev_gtids_ev.common_header->data_written);
-
-    if (flush_io_cache(mysql_bin_log.get_log_file()) ||
-        mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    mysql_bin_log.update_binlog_end_pos();
 
     (void)RUN_HOOK(server_state, after_engine_recovery, (NULL));
   }
@@ -6479,19 +6699,16 @@ int mysqld_main(int argc, char **argv)
   /*
     Activate loadable error logging components, if any.
   */
-  if (log_builtins_error_stack(opt_log_error_services, true) >= 0) {
+  if (log_builtins_error_stack(opt_log_error_services, true, nullptr) == 0) {
     // Syntax is OK and services exist; let's try to initialize them:
-    int rr = log_builtins_error_stack(opt_log_error_services, false);
+    size_t pos;
 
-    // Well, that didn't work. Print diagnostics and bail.
-    if (rr < 0) {
-      char *problem = opt_log_error_services;
+    if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
+      char *problem = opt_log_error_services; /* purecov: begin inspected */
       const char *var_name = "log_error_services";
 
-      rr = -(rr + 1);
-
-      if (((size_t)rr) < strlen(opt_log_error_services))
-        problem = &((char *)opt_log_error_services)[rr];
+      if (pos < strlen(opt_log_error_services))
+        problem = &((char *)opt_log_error_services)[pos];
 
       /*
         Try to fall back to default error logging stack.
@@ -6501,7 +6718,9 @@ int mysqld_main(int argc, char **argv)
 
       if (var != nullptr) {
         opt_log_error_services = (char *)var->get_default();
-        if (log_builtins_error_stack(opt_log_error_services, false) >= 0) {
+        if (log_builtins_error_stack(opt_log_error_services, false, nullptr) >=
+            0) {
+          // We found the sys_var, but somehow couldn't set the default!?
           LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE, var_name,
                  problem);
           unireg_abort(MYSQLD_ABORT_EXIT);
@@ -6526,7 +6745,7 @@ int mysqld_main(int argc, char **argv)
         log_write_errstream(buff, len);
 
         unireg_abort(MYSQLD_ABORT_EXIT);
-      }
+      } /* purecov: end */
     }
   } else {
     LogErr(INFORMATION_LEVEL, ER_CANNOT_SET_LOG_ERROR_SERVICES,
@@ -6991,6 +7210,24 @@ int mysqld_main(int argc, char **argv) {
   // Set windows_service value in mysqld
   if (!mysqld_monitor) {
     windows_service = is_monitor_win_service();
+
+    if (windows_service) {
+      if (argc == 2 && Service.IsService(argv[1])) {
+        if (my_strcasecmp(system_charset_info, argv[1], "mysql"))
+          load_default_groups[load_default_groups_sz - 2] = argv[1];
+        argc--;
+
+      } else if (argc == 3 && Service.IsService(argv[2])) {
+        /*
+        mysqld was started as
+        mysqld --defaults-file=my_path\my.ini service-name
+        */
+        if (my_strcasecmp(system_charset_info, argv[2], "mysql"))
+          load_default_groups[load_default_groups_sz - 2] = argv[2];
+        argc--;
+      }
+    }
+
     my_global_argc = argc;
     my_global_argv = argv;
   } else {
@@ -8484,6 +8721,9 @@ SHOW_VAR status_vars[] = {
     {"Queries", (char *)&show_queries, SHOW_FUNC, SHOW_SCOPE_ALL},
     {"Questions", (char *)offsetof(System_status_var, questions),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+    {"Secondary_engine_execution_count",
+     (char *)offsetof(System_status_var, secondary_engine_execution_count),
+     SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Select_full_join",
      (char *)offsetof(System_status_var, select_full_join_count),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
@@ -9415,13 +9655,6 @@ bool mysqld_get_one_option(int optid,
     case OPT_TABLE_DEFINITION_CACHE:
       table_definition_cache_specified = true;
       break;
-    case OPT_MDL_CACHE_SIZE:
-      push_deprecated_warn_no_replacement(NULL, "--metadata_locks_cache_size");
-      break;
-    case OPT_MDL_HASH_INSTANCES:
-      push_deprecated_warn_no_replacement(NULL,
-                                          "--metadata_locks_hash_instances");
-      break;
     case OPT_SKIP_INNODB:
       LogErr(WARNING_LEVEL, ER_INNODB_MANDATORY);
       break;
@@ -9530,6 +9763,47 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   if ((ho_error = handle_options(argc_ptr, argv_ptr, &all_options[0],
                                  mysqld_get_one_option)))
     return ho_error;
+
+  // update suppression list in filter engine
+  {
+    int rr;
+    // try to set the list
+    if (((rr = log_builtins_filter_parse_suppression_list(
+              opt_log_error_suppression_list, false)) != 0) ||
+        ((rr = log_builtins_filter_parse_suppression_list(
+              opt_log_error_suppression_list, true)) != 0)) {
+      rr = -(rr + 1);
+      LogErr(ERROR_LEVEL, ER_CANT_SET_ERROR_SUPPRESSION_LIST_FROM_COMMAND_LINE,
+             "log_error_suppression_list", &opt_log_error_suppression_list[rr]);
+
+      /*
+        We were given an illegal value at start-up, so the default will be
+        used instead. We have reported the problem (and the dodgy value);
+        let's now point our variable back at the default (i.e. the value
+        actually used) so SELECT @@GLOBAL.log_error_suppression_list will
+        render correct results.
+      */
+      sys_var *var =
+          intern_find_sys_var(STRING_WITH_LEN("log_error_suppression_list"));
+      if (var != nullptr) {
+        opt_log_error_suppression_list = (char *)var->get_default();
+        /*
+          During unit-testing, the log subsystem is not initialized,
+          so while the default should always check out as a valid
+          argument, actually setting it will still fail in this
+          particular case as we cannot acquire the rule-set or its
+          lock.
+        */
+        if (log_builtins_filter_parse_suppression_list(
+                opt_log_error_suppression_list, false) == 0) {
+          log_builtins_filter_parse_suppression_list(
+              opt_log_error_suppression_list, true);
+        } else {
+          DBUG_ASSERT(false); /* purecov: inspected */
+        }
+      }
+    }
+  }
 
   if (!opt_help)
     vector<my_option>().swap(all_options);  // Deletes the vector contents.
@@ -10064,8 +10338,7 @@ static bool create_pid_file() {
     }
   }
   if (!is_path_accessible) {
-    sql_print_warning(
-        "Few location(s) are inaccessible while checking PID filepath.");
+    LogErr(WARNING_LEVEL, ER_PID_FILEPATH_LOCATIONS_INACCESSIBLE);
   }
   if ((file = mysql_file_create(key_file_pid, pidfile_name, 0664,
                                 O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0) {
@@ -10610,6 +10883,7 @@ PSI_stage_info stage_upgrading_lock= { 0, "upgrading lock", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_user_sleep= { 0, "User sleep", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_gtid_to_be_committed= { 0, "Waiting for GTID to be committed", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_handler_commit= { 0, "waiting for handler commit", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_handler_insert= { 0, "waiting for handler insert", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_handler_lock= { 0, "waiting for handler lock", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_handler_open= { 0, "waiting for handler open", 0, PSI_DOCUMENT_ME};
@@ -10722,6 +10996,7 @@ PSI_stage_info *all_server_stages[] = {
     &stage_user_sleep,
     &stage_verifying_table,
     &stage_waiting_for_gtid_to_be_committed,
+    &stage_waiting_for_handler_commit,
     &stage_waiting_for_handler_insert,
     &stage_waiting_for_handler_lock,
     &stage_waiting_for_handler_open,

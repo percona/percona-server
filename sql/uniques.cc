@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2010, 2015, MariaDB
 
@@ -337,9 +337,9 @@ end:
   DBUG_RETURN(error);
 } /* merge_buffers */
 
-int unique_write_to_file(void *key_, element_count, void *unique_) {
-  auto *const key = static_cast<uchar *>(key_);
-  auto *const unique = static_cast<Unique *>(unique_);
+int unique_write_to_file(void *v_key, element_count, void *v_unique) {
+  uchar *key = static_cast<uchar *>(v_key);
+  Unique *unique = static_cast<Unique *>(v_unique);
   /*
     Use unique->size (size of element stored in the tree) and not
     unique->tree.size_of_element. The latter is different from unique->size
@@ -349,9 +349,9 @@ int unique_write_to_file(void *key_, element_count, void *unique_) {
   return my_b_write(&unique->file, key, unique->size) ? 1 : 0;
 }
 
-int unique_write_to_ptrs(void *key_, element_count, void *unique_) {
-  auto *const key = static_cast<uchar *>(key_);
-  auto *const unique = static_cast<Unique *>(unique_);
+int unique_write_to_ptrs(void *v_key, element_count, void *v_unique) {
+  uchar *key = static_cast<uchar *>(v_key);
+  Unique *unique = static_cast<Unique *>(v_unique);
   memcpy(unique->record_pointers, key, unique->size);
   unique->record_pointers += unique->size;
   return 0;
@@ -638,7 +638,7 @@ bool Unique::flush() {
   file_ptr.set_rowcount(tree.elements_in_tree);
   file_ptr.set_file_position(my_b_tell(&file));
 
-  if (tree_walk(&tree, unique_write_to_file, (void *)this, left_root_right) ||
+  if (tree_walk(&tree, unique_write_to_file, this, left_root_right) ||
       file_ptrs.push_back(file_ptr))
     return 1;
   delete_tree(&tree);

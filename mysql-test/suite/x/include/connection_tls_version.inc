@@ -25,19 +25,12 @@ EOF
 --exec $MYSQLXTEST -ux_root --file=$xtest_file 2>&1
 
 --let $XTESTPARAMS= -u user5_mysqlx --password='auth_string' --file=$xtest_file --ssl-cipher='DHE-RSA-AES256-SHA'
-# each of the below regexps replaces the following errors:
-#
-# CentOS 6/7, Xenial:
-# Application terminated with expected error: error:14077102:SSL routines:SSL23_GET_SERVER_HELLO:unsupported protocol (code 2026)
-# Application terminated with expected error: error:00000000:lib(0):func(0):reason(0) (code 2026)
-#
-# Bionic, Stretch:
-# Application terminated with expected error: error:14171102:SSL routines:tls_process_server_hello:unsupported protocol (code 2026)
-# Application terminated with expected error: error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version (code 2026)
-
---let $ERROR1= /Application terminated with expected error: error:14077102:SSL routines:SSL23_GET_SERVER_HELLO:/Application terminated with expected error: / /Application terminated with expected error: error:14171102:SSL routines:tls_process_server_hello:/Application terminated with expected error: /
-
---let $ERROR5= /Application terminated with expected error: error:00000000:lib\(0\):func\(0\):reason\(0\)/Application terminated with expected error: socket layer receive error/ /Application terminated with expected error: error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version/Application terminated with expected error: socket layer receive error/
+# each of the below regexps has 3 replaces
+# 1: for openssl 1.0
+# 2: for openssl 1.1
+# 3: for wolfSSL 
+--let $ERROR1= /Application terminated with expected error: error:14077102:SSL routines:SSL23_GET_SERVER_HELLO:unsupported protocol/Application terminated with expected error: protocol version mismatch/ /Application terminated with expected error: error:14171102:SSL routines:tls_process_server_hello:unsupported protocol/Application terminated with expected error: protocol version mismatch/ /Application terminated with expected error: record layer version error/Application terminated with expected error: protocol version mismatch/
+--let $ERROR5= /Application terminated with expected error: error:00000000:lib\(0\):func\(0\):reason\(0\)/Application terminated with expected error: socket layer receive error/ /Application terminated with expected error: error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version/Application terminated with expected error: socket layer receive error/ /Application terminated with expected error: error state on socket/Application terminated with expected error: socket layer receive error/
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1

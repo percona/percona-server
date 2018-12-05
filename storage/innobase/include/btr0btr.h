@@ -25,8 +25,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-#include "my_compiler.h"
-
 /** @file include/btr0btr.h
  The B-tree
 
@@ -188,8 +186,7 @@ UNIV_INLINE
 buf_block_t *btr_block_get_func(const page_id_t &page_id,
                                 const page_size_t &page_size, ulint mode,
                                 const char *file, ulint line,
-                                const dict_index_t *index,
-                                mtr_t *mtr);
+                                const dict_index_t *index, mtr_t *mtr);
 
 /** Gets a buffer page and declares its latching order level.
 @param page_id tablespace/page identifier

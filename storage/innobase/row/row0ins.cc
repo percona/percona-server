@@ -50,9 +50,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0log.h"
 #include "m_string.h"
 #include "mach0data.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "que0que.h"
 #include "rem0cmp.h"
 #include "row0ins.h"
@@ -63,6 +60,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0rec.h"
 #include "trx0undo.h"
 #include "usr0sess.h"
+
+#include "my_dbug.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -924,8 +923,10 @@ func_exit:
 /** Perform referential actions or checks when a parent row is deleted or
  updated and the constraint had an ON DELETE or ON UPDATE condition which was
  not RESTRICT.
- @return DB_SUCCESS, DB_LOCK_WAIT, or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+ @return DB_SUCCESS, DB_LOCK_WAIT, or error code
+ Disable inlining because of a bug in gcc8 which may lead to stack exhaustion.
+*/
+static NO_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_ins_foreign_check_on_constraint(
         que_thr_t *thr,          /*!< in: query thread whose run_node
                                  is an update node */
@@ -1710,6 +1711,11 @@ do_possible_lock_wait:
     trx_kill_blocking(trx);
 
     lock_wait_suspend_thread(thr);
+
+    if (trx->error_state != DB_SUCCESS) {
+      err = trx->error_state;
+      goto exit_func;
+    }
 
     thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
@@ -2831,7 +2837,13 @@ dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
   This prevents a concurrent change of index->online_status.
   The memory object cannot be freed as long as we have an open
   reference to the table, or index->table->n_ref_count > 0. */
-  const bool check = !index->is_committed();
+  bool check = !index->is_committed();
+
+  DBUG_EXECUTE_IF("idx_mimic_not_committed", {
+    check = true;
+    mode = BTR_MODIFY_TREE;
+  });
+
   if (check) {
     DEBUG_SYNC_C("row_ins_sec_index_enter");
     if (mode == BTR_MODIFY_LEAF) {
@@ -2860,8 +2872,8 @@ dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
     rtr_info_update_btr(&cursor, &rtr_info);
 
     err = btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_RTREE_INSERT,
-                                      search_mode, &cursor, 0, __FILE__, __LINE__,
-                                      &mtr);
+                                      search_mode, &cursor, 0, __FILE__,
+                                      __LINE__, &mtr);
 
     if (mode == BTR_MODIFY_LEAF && rtr_info.mbr_adj) {
       mtr_commit(&mtr);
@@ -2876,8 +2888,8 @@ dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
       search_mode |= BTR_MODIFY_TREE;
 
       err = btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_RTREE_INSERT,
-                                        search_mode, &cursor, 0, __FILE__, __LINE__,
-                                        &mtr);
+                                        search_mode, &cursor, 0, __FILE__,
+                                        __LINE__, &mtr);
       mode = BTR_MODIFY_TREE;
     }
 
@@ -2890,8 +2902,9 @@ dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
       ut_ad(cursor.page_cur.block != NULL);
       ut_ad(cursor.page_cur.block->made_dirty_with_no_latch);
     } else {
-      err = btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE, search_mode,
-                                        &cursor, 0, __FILE__, __LINE__, &mtr);
+      err =
+          btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE, search_mode,
+                                      &cursor, 0, __FILE__, __LINE__, &mtr);
     }
   }
 
@@ -2900,7 +2913,7 @@ dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
       ib::warn() << "Table is encrypted but encryption service or"
                     " used key_id is not available. "
                     " Can't continue reading table.";
-                    index->table->set_file_unreadable();
+      index->table->set_file_unreadable();
     }
     goto func_exit;
   }

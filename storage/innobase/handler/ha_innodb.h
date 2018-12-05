@@ -30,11 +30,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
 
 #include <sys/types.h>
-
 #include "handler.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "trx0trx.h"
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
@@ -310,8 +307,6 @@ class ha_innobase : public handler {
 
   int get_cascade_foreign_key_table_list(
       THD *thd, List<st_handler_tablename> *fk_table_list);
-
-  bool can_switch_engines();
 
   uint referenced_by_foreign_key();
 
@@ -739,6 +734,18 @@ bool tablespace_is_general_space(const HA_CREATE_INFO *create_info) {
       (0 != strcmp(create_info->tablespace, dict_sys_t::s_sys_space_name)));
 }
 
+/** Check if tablespace is shared tablespace.
+@param[in]	tablespace_name	Name of the tablespace
+@return true if tablespace is a shared tablespace. */
+UNIV_INLINE
+bool is_shared_tablespace(const char *tablespace_name) {
+  if (tablespace_name != NULL && tablespace_name[0] != '\0' &&
+      (strcmp(tablespace_name, dict_sys_t::s_file_per_table_name) != 0)) {
+    return true;
+  }
+  return false;
+}
+
 /** Parse hint for table and its indexes, and update the information
 in dictionary.
 @param[in]	thd		Connection thread
@@ -881,13 +888,14 @@ class create_table_info_t {
   @return on success DB_SUCCESS else DB_UNSPPORTED on failure */
   dberr_t enable_master_key_encryption(dict_table_t *table);
 
-  /** If keyring encryption is requested, check for tablespace's key availability
-  and set the encryption flag in table flags
+  /** If keyring encryption is requested, check for tablespace's key
+  availability and set the encryption flag in table flags
   @param[in,out] table table object
   @param[in,out] rotated_keys_encryption_option contains appropriate
                  FIL_ENCRYPTION_(ON/DEFAULT/OFF)
   @return on success DB_SUCCESS else DB_UNSPPORTED on failure */
-  dberr_t enable_keyring_encryption(dict_table_t *   table,fil_encryption_t &rotated_keys_encryption_option);
+  dberr_t enable_keyring_encryption(
+      dict_table_t *table, fil_encryption_t &rotated_keys_encryption_option);
 
  private:
   /** Parses the table name into normal name and either temp path or

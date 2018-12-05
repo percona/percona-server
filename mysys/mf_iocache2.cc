@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2010, 2017, MariaDB
 
@@ -115,7 +115,7 @@ my_off_t my_b_append_tell(IO_CACHE *info) {
 #ifndef DBUG_OFF
   /*
     Make sure EOF is where we think it is. Note that we cannot just use
-    my_tell() because we have a reader thread that could have left the
+    mysql_file_tell() because we have a reader thread that could have left the
     file offset in a non-EOF location
   */
   {
@@ -123,7 +123,8 @@ my_off_t my_b_append_tell(IO_CACHE *info) {
     save_pos = mysql_file_tell(info->file, MYF(0));
     mysql_file_seek(info->file, (my_off_t)0, MY_SEEK_END, MYF(0));
     /*
-      Save the value of my_tell in res so we can see it when studying coredump
+      Save the value of mysql_file_tell in res so we can see it when studying
+      coredump
     */
     DBUG_ASSERT(info->end_of_file -
                     (info->append_read_pos - info->write_buffer) ==

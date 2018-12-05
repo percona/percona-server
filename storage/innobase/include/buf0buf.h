@@ -428,7 +428,8 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
                               const page_size_t &page_size, ulint rw_latch,
                               buf_block_t *guess, ulint mode, const char *file,
                               ulint line, mtr_t *mtr,
-                              bool dirty_with_no_latch = false, dberr_t* err = NULL);
+                              bool dirty_with_no_latch = false,
+                              dberr_t *err = NULL);
 
 /** Initializes a page to the buffer buf_pool. The page is usually not read
 from a file even if it cannot be found in the buffer buf_pool. This is one
@@ -606,19 +607,24 @@ void buf_read_page_handle_error(buf_page_t *bpage);
 #define buf_block_modify_clock_inc(block) ((void)0)
 #endif /* !UNIV_HOTBACKUP */
 
-bool buf_page_is_checksum_valid_crc32(const byte* read_buf, ulint checksum_field1,
+bool buf_page_is_checksum_valid_crc32(const byte *read_buf,
+                                      ulint checksum_field1,
                                       ulint checksum_field2,
 #ifdef UNIV_INNOCHECKSUM
                                       uintmax_t page_no, bool is_log_enabled,
-                                      FILE* log_file, const srv_checksum_algorithm_t curr_algo,
+                                      FILE *log_file,
+                                      const srv_checksum_algorithm_t curr_algo,
 #endif /* UNIV_INNOCHECKSUM */
                                       bool use_legacy_big_endian);
 
-bool buf_page_is_checksum_valid_innodb(const byte* read_buf, ulint checksum_field1,
+bool buf_page_is_checksum_valid_innodb(const byte *read_buf,
+                                       ulint checksum_field1,
                                        ulint checksum_field2
 #ifdef UNIV_INNOCHECKSUM
-                                       ,uintmax_t page_no, bool is_log_enabled,
-                                       FILE* log_file, const srv_checksum_algorithm_t curr_algo
+                                       ,
+                                       uintmax_t page_no, bool is_log_enabled,
+                                       FILE *log_file,
+                                       const srv_checksum_algorithm_t curr_algo
 #endif /* UNIV_INNOCHECKSUM */
 );
 
@@ -1297,7 +1303,7 @@ class buf_page_t {
                         in the buffer pool. Protected by
                         block mutex */
   bool is_corrupt;
-  bool encrypted;       /*!< page is still encrypted */
+  bool encrypted; /*!< page is still encrypted */
 #ifdef UNIV_DEBUG
   ibool file_page_was_freed;
   /*!< this is set to TRUE when
@@ -1457,9 +1463,6 @@ struct buf_block_t {
   and block is always accessed by a
   single thread. */
 #ifndef UNIV_HOTBACKUP
-  bool skip_flush_check;
-  /*!< Skip check in buf_dblwr_check_block
-  during bulk load, protected by lock.*/
 #ifdef UNIV_DEBUG
   /** @name Debug fields */
   /* @{ */
@@ -1468,14 +1471,14 @@ struct buf_block_t {
                          an s-latch here; so we can use the
                          debug utilities in sync0rw */
                          /* @} */
-#endif
-#endif              /* !UNIV_HOTBACKUP */
-  BPageMutex mutex; /*!< mutex protecting this block:
-                    state (also protected by the buffer
-                    pool mutex), io_fix, buf_fix_count,
-                    and accessed; we introduce this new
-                    mutex in InnoDB-5.1 to relieve
-                    contention on the buffer pool mutex */
+#endif                   /* UNIV_DEBUG */
+#endif                   /* !UNIV_HOTBACKUP */
+  BPageMutex mutex;      /*!< mutex protecting this block:
+                         state (also protected by the buffer
+                         pool mutex), io_fix, buf_fix_count,
+                         and accessed; we introduce this new
+                         mutex in InnoDB-5.1 to relieve
+                         contention on the buffer pool mutex */
 
   /** Get the page number of the current buffer block.
   @return page number of the current buffer block. */
@@ -1489,7 +1492,7 @@ struct buf_block_t {
 
   /** Get the page type of the current buffer block.
   @return page type of the current buffer block. */
-  ulint get_page_type() const {
+  page_type_t get_page_type() const {
     return (mach_read_from_2(frame + FIL_PAGE_TYPE));
   }
 

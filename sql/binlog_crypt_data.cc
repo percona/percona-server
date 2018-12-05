@@ -31,9 +31,11 @@ Binlog_crypt_data::Binlog_crypt_data() noexcept
 
 Binlog_crypt_data::~Binlog_crypt_data() { free_key(key, key_length); }
 
-Binlog_crypt_data::Binlog_crypt_data(const Binlog_crypt_data &b) {
-  enabled = b.enabled;
-  key_version = b.key_version;
+Binlog_crypt_data::Binlog_crypt_data(const Binlog_crypt_data &b)
+    : key_version(b.key_version),
+      key_length(b.key_length),
+      enabled(b.enabled),
+      offs(b.offs) {
   if (b.key_length && b.key != nullptr) {
     key = reinterpret_cast<uchar *>(
         my_malloc(PSI_NOT_INSTRUMENTED, b.key_length, MYF(MY_WME)));
@@ -41,9 +43,8 @@ Binlog_crypt_data::Binlog_crypt_data(const Binlog_crypt_data &b) {
   } else
     key = nullptr;
 
-  key_length = b.key_length;
-  memcpy(iv, b.iv, BINLOG_IV_LENGTH);
-  memcpy(nonce, b.nonce, BINLOG_NONCE_LENGTH);
+  memcpy(iv, b.iv, binary_log::Start_encryption_event::IV_LENGTH);
+  memcpy(nonce, b.nonce, binary_log::Start_encryption_event::NONCE_LENGTH);
 }
 
 void Binlog_crypt_data::free_key(uchar *&key, size_t &key_length) noexcept {
@@ -62,8 +63,8 @@ Binlog_crypt_data &Binlog_crypt_data::operator=(Binlog_crypt_data b) noexcept {
   key_length = b.key_length;
   std::swap(this->key, b.key);
   key_length = b.key_length;
-  memcpy(iv, b.iv, BINLOG_IV_LENGTH);
-  memcpy(nonce, b.nonce, BINLOG_NONCE_LENGTH);
+  memcpy(iv, b.iv, binary_log::Start_encryption_event::IV_LENGTH);
+  memcpy(nonce, b.nonce, binary_log::Start_encryption_event::NONCE_LENGTH);
   return *this;
 }
 
@@ -101,7 +102,7 @@ bool Binlog_crypt_data::init_with_loaded_key(
   scheme = sch;
 #ifdef MYSQL_SERVER
   DBUG_ASSERT(key != nullptr && nonce != nullptr);
-  memcpy(this->nonce, nonce, BINLOG_NONCE_LENGTH);
+  memcpy(this->nonce, nonce, binary_log::Start_encryption_event::NONCE_LENGTH);
 #endif
   enabled = true;
   return false;
@@ -133,10 +134,10 @@ bool Binlog_crypt_data::init(uint sch MY_ATTRIBUTE((unused)),
 void Binlog_crypt_data::set_iv(uchar *iv, uint32 offs) const {
   DBUG_ASSERT(key != nullptr && key_length == 16);
 
-  uchar iv_plain[BINLOG_IV_LENGTH];
-  memcpy(iv_plain, nonce, BINLOG_NONCE_LENGTH);
-  int4store(iv_plain + BINLOG_NONCE_LENGTH, offs);
+  uchar iv_plain[binary_log::Start_encryption_event::IV_LENGTH];
+  memcpy(iv_plain, nonce, binary_log::Start_encryption_event::NONCE_LENGTH);
+  int4store(iv_plain + binary_log::Start_encryption_event::NONCE_LENGTH, offs);
 
-  my_aes_encrypt(iv_plain, BINLOG_IV_LENGTH, iv, key, key_length,
-                 my_aes_128_ecb, nullptr, false);
+  my_aes_encrypt(iv_plain, binary_log::Start_encryption_event::IV_LENGTH, iv,
+                 key, key_length, my_aes_128_ecb, nullptr, false);
 }

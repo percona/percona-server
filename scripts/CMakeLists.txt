@@ -32,7 +32,7 @@ SET(COMPILER_ID_AND_VERSION
 
 IF(NOT WITHOUT_SERVER)
   # Check that mysql_system_tables.sql is up-to-date
-  IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+  IF(WITH_NDBCLUSTER)
     SET(MYSQL_SYSTEM_TABLES_PATCHES
         ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
     SET(MYSQL_SYSTEM_TABLES_DEPENDS
@@ -210,19 +210,6 @@ IF(UNIX)
  EXECUTE_PROCESS(
   COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution
 )
-ENDIF()
-
-IF(NOT WITHOUT_SERVER)
-  INSTALL(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
-    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_users.sql
-    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
-    ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
-    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
-    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
-    ${FIX_PRIVILEGES_SQL}
-    DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
-  )
 ENDIF()
 
 # TCMalloc hacks

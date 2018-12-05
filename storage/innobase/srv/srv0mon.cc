@@ -38,7 +38,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "mach0data.h"
-#include "my_inttypes.h"
 #include "os0file.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
@@ -284,9 +283,10 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES_READ},
 
-    {"buffer_pages0_read", "buffer", "Number of page 0 read (innodb_pages0_read)",
-      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
-      MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES0_READ},
+    {"buffer_pages0_read", "buffer",
+     "Number of page 0 read (innodb_pages0_read)",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+     MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES0_READ},
 
     {"buffer_data_reads", "buffer",
      "Amount of data read in bytes (innodb_data_reads)",
@@ -887,9 +887,28 @@ static monitor_info_t innodb_counter_info[] = {
     {"log_checkpoints", "log", "Number of checkpoints", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_LOG_CHECKPOINTS},
 
+    {"log_free_space", "log", "Free space in redo (emergency when negative).",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FREE_SPACE},
+
+    {"log_concurrency_margin", "log",
+     "Current concurrency margin used (may increase).", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_LOG_CONCURRENCY_MARGIN},
+
     MONITOR_WAIT_STATS("log_writer_", "log",
                        "Waits on task in log_writer thread",
                        MONITOR_LOG_WRITER_),
+
+    {"log_writer_on_file_space_waits", "log",
+     "Waits on free space in log writer", MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_LOG_WRITER_ON_FREE_SPACE_WAITS},
+
+    {"log_writer_on_archiver_waits", "log",
+     "Waits on redo archiver in log writer", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_LOG_WRITER_ON_ARCHIVER_WAITS},
+
+    {"log_writer_on_tracker_waits", "log",
+     "Waits on redo tracker in log writer", MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_LOG_WRITER_ON_TRACKER_WAITS},
 
     MONITOR_WAIT_STATS("log_flusher_", "log",
                        "Waits on task in log_flusher thread",
@@ -961,13 +980,10 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_PAD_DECREMENTS},
 
     /* ========== Counters for Encryption ========== */
-    {"pages_encrypted", "encryption",
-     "Number of pages encrypted", 
-     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES_ENCRYPTED},
+    {"pages_encrypted", "encryption", "Number of pages encrypted", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES_ENCRYPTED},
 
-    {"pages_decrypted", "encryption",
-     "Number of pages decrypted",
-     MONITOR_NONE,
+    {"pages_decrypted", "encryption", "Number of pages decrypted", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES_DECRYPTED},
 
     /* ========== Counters for Index ========== */
@@ -1655,12 +1671,12 @@ void srv_mon_process_existing_counter(
       value = srv_stats.log_writes;
       break;
 
-  case MONITOR_OVLD_PAGES_ENCRYPTED:
-    value = srv_stats.pages_encrypted;
-    break;
-  case MONITOR_OVLD_PAGES_DECRYPTED:
-    value = srv_stats.pages_decrypted;
-    break;
+    case MONITOR_OVLD_PAGES_ENCRYPTED:
+      value = srv_stats.pages_encrypted;
+      break;
+    case MONITOR_OVLD_PAGES_DECRYPTED:
+      value = srv_stats.pages_decrypted;
+      break;
 
     /* innodb_dblwr_writes */
     case MONITOR_OVLD_SRV_DBLWR_WRITES:

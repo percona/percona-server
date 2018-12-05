@@ -91,25 +91,7 @@ if ($extra_warning_count == '')
 # increase, 0 otherwise.
 --let $expected_status= 0
 --let $expected_counter= 0
---let $binlog_format= `SELECT @@GLOBAL.BINLOG_FORMAT`
-
-if ($binlog_format != 'STATEMENT')
-{
-  if ($gtid_violation_row_mix != '')
-  {
-    --let $_gtid_violation= $gtid_violation_row_mix
-  }
-  if ($gtid_violation_row_mix == '')
-  {
-    --let $_gtid_violation= $gtid_violation
-  }
-}
-if ($binlog_format == 'STATEMENT')
-{
-  --let $_gtid_violation= $gtid_violation
-}
-
-if ($_gtid_violation)
+if ($gtid_violation)
 {
   --let $expected_status= $violation_result
   if ($violation_result != 1)
@@ -117,17 +99,17 @@ if ($_gtid_violation)
     --let $expected_counter= 1
   }
 }
---let $_gtid_violation=
 
 if ($rpl_debug)
 {
-  --echo binlog_format='$binlog_format' gtid_violation='$gtid_violation' gtid_violation_row_mix='$gtid_violation_row_mix' violation_result='$violation_result' error_code='$error_code' expectation='$expected_status' statement_ends_transaction='$statement_ends_transaction' statement_ends_transaction_row='$statement_ends_transaction_row' statement_ends_transaction_mix='$statement_ends_transaction_mix'
+  --echo gtid_violation='$gtid_violation' violation_result='$violation_result' error_code='$error_code' expectation='$expected_status' statement_ends_transaction='$statement_ends_transaction' statement_ends_transaction_row_mixed='$statement_ends_transaction_row_mixed'
   --echo pre_statement='$pre_statement'
   --echo gtid_next='$gtid_next'
   --echo statement='$statement'
 }
 
 --connection $statement_connection
+--let $binlog_format= `SELECT @@GLOBAL.BINLOG_FORMAT`
 --source include/set_gtid_next_gtid_mode_agnostic.inc
 
 if ($pre_statement != '')

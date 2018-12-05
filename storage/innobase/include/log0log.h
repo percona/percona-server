@@ -799,6 +799,8 @@ requests a checkpoint write and waits until it is finished.
 @return true iff current lsn was greater than last checkpoint lsn */
 bool log_make_latest_checkpoint();
 
+void log_ensure_scrubbing_thread(void);
+
 /** Reads a log file header page to log.checkpoint_buf.
 @param[in,out]	log	redo log
 @param[in]	header	0 or LOG_CHECKPOINT_1 or LOG_CHECKPOINT2 */
@@ -1137,6 +1139,15 @@ void meb_log_print_file_hdr(byte *block);
 #endif /* UNIV_DEBUG */
 
 #endif /* !UNIV_HOTBACKUP */
+
+/* log scrubbing speed, in bytes/sec */
+extern ulonglong innodb_scrub_log_speed;
+/** Event to wake up log_scrub_thread */
+extern os_event_t log_scrub_event;
+/** Whether log_scrub_thread is active */
+extern bool log_scrub_thread_active;
+
+void log_scrub_thread();
 
 #include "log0log.ic"
 

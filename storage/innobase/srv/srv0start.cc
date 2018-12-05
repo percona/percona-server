@@ -196,6 +196,7 @@ mysql_pfs_key_t srv_purge_thread_key;
 mysql_pfs_key_t srv_log_tracking_thread_key;
 mysql_pfs_key_t srv_worker_thread_key;
 mysql_pfs_key_t trx_recovery_rollback_thread_key;
+mysql_pfs_key_t log_scrub_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -465,6 +466,8 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
   we do the fsyncs now unconditionally and repeat the required
   flush just before the rename. */
   fil_flush_file_redo();
+
+  log_ensure_scrubbing_thread();
 
   return (DB_SUCCESS);
 }
@@ -1481,6 +1484,10 @@ void srv_shutdown_all_bg_threads() {
       if (srv_start_state_is_set(SRV_START_STATE_PURGE)) {
         /* d. Wakeup purge threads. */
         srv_purge_wakeup();
+      }
+
+      if (log_scrub_thread_active) {
+        os_event_set(log_scrub_event);
       }
     }
 
@@ -3051,6 +3058,11 @@ static lsn_t srv_shutdown_log() {
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
 
+  if (log_scrub_thread_active) {
+    ut_ad(!srv_read_only_mode);
+    os_event_set(log_scrub_event);
+  }
+
   for (uint32_t count = 0;; ++count) {
     const ulint pending_io = buf_pool_check_no_pending_io();
 
@@ -3249,6 +3261,9 @@ void srv_shutdown() {
   arch_free();
   ddl_log_close();
   log_sys_close();
+  if (!srv_read_only_mode && srv_scrub_log) {
+    os_event_destroy(log_scrub_event);
+  }
   recv_sys_close();
   trx_sys_close();
   lock_sys_close();
@@ -3400,4 +3415,14 @@ void srv_fatal_error() {
   srv_shutdown_all_bg_threads();
 
   exit(3);
+}
+
+/* @} */
+
+void log_ensure_scrubbing_thread(void) {
+  log_scrub_thread_active = srv_scrub_log;
+  if (log_scrub_thread_active) {
+    log_scrub_event = os_event_create("log_scrub_event");
+    os_thread_create(log_scrub_thread_key, log_scrub_thread);
+  }
 }

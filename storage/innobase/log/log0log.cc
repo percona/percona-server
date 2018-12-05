@@ -61,6 +61,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Pointer to the log checksum calculation function. */
 log_checksum_func_t log_checksum_algorithm_ptr;
 
+/* Next log block number to do dummy record filling if no log records written
+ * for a while */
+static ulint next_lbn_to_pad = 0;
+
 #ifndef UNIV_HOTBACKUP
 
 #include <debug_sync.h>
@@ -70,6 +74,7 @@ log_checksum_func_t log_checksum_algorithm_ptr;
 
 #include "dict0boot.h"
 #include "os0thread-create.h"
+#include "srv0start.h"
 #include "trx0sys.h"
 
 /**
@@ -467,6 +472,11 @@ Calculations are based on current value of srv_log_buffer_size. Note,
 that the proper size of the log buffer should be a power of two.
 @param[out]	log		redo log */
 static void log_calc_buf_size(log_t &log);
+
+/** Event to wake up log_scrub_thread */
+os_event_t log_scrub_event;
+/** Whether log_scrub_thread is active */
+bool log_scrub_thread_active;
 
 /**************************************************/ /**
 
@@ -1153,6 +1163,55 @@ void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
   ut_a(*current_lsn >= *checkpoint_lsn);
 }
 
-  /* @} */
+static void log_pad_current_log_block(void)
+/*===========================*/
+{
+  byte b = MLOG_DUMMY_RECORD;
+  ulint pad_length;
+  ulint i;
+  lsn_t lsn;
+  pad_length = OS_FILE_LOG_BLOCK_SIZE -
+               (log_sys->current_file_real_offset % OS_FILE_LOG_BLOCK_SIZE) -
+               LOG_BLOCK_TRL_SIZE;
+  if (pad_length ==
+      (OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE - LOG_BLOCK_TRL_SIZE)) {
+    pad_length = 0;
+  }
+  if (pad_length) {
+    srv_stats.n_log_scrubs.inc();
+  }
+  auto handle = log_buffer_reserve(*log_sys, pad_length);
+  for (i = 0; i < pad_length; i++) {
+    log_buffer_write(*log_sys, handle, &b, 1, log_sys->current_file_lsn);
+  }
+  lsn = log_sys->current_file_lsn;
+  ut_a(lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE);
+}
+
+static void log_scrub()
+/*=========*/
+{
+  log_writer_mutex_enter(*log_sys);
+  ulint cur_lbn = log_block_convert_lsn_to_no(log_sys->current_file_lsn);
+  if (next_lbn_to_pad == cur_lbn) {
+    log_pad_current_log_block();
+  }
+  next_lbn_to_pad = log_block_convert_lsn_to_no(log_sys->current_file_lsn);
+  log_writer_mutex_exit(*log_sys);
+}
+/* log scrubbing speed, in bytes/sec */
+ulonglong innodb_scrub_log_speed;
+
+void log_scrub_thread() {
+  ut_ad(!srv_read_only_mode);
+  while (srv_shutdown_state < SRV_SHUTDOWN_FLUSH_PHASE) {
+    /* log scrubbing interval in µs. */
+    ulonglong interval = 1000 * 1000 * 512 / innodb_scrub_log_speed;
+    os_event_wait_time(log_scrub_event, static_cast<ulint>(interval));
+    log_scrub();
+    os_event_reset(log_scrub_event);
+  }
+  log_scrub_thread_active = false;
+}
 
 #endif /* !UNIV_HOTBACKUP */

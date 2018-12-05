@@ -2640,7 +2640,8 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   if (dd_tab->table().options().exists("encrypt_type")) {
     dd_tab->table().options().get("encrypt_type", encrypt);
     if (!Encryption::is_none(encrypt.c_str())) {
-      ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0);
+      ut_ad(innobase_strcasecmp(encrypt.c_str(), "y") == 0 ||
+            innobase_strcasecmp(encrypt.c_str(), "keyring") == 0);
       is_encrypted = true;
     }
   }
@@ -2779,7 +2780,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   }
 
   if (is_discard) {
-    m_table->ibd_file_missing = true;
+    m_table->set_file_unreadable();
     m_table->flags2 |= DICT_TF2_DISCARDED;
   }
 
@@ -3659,7 +3660,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   if (table->flags2 & DICT_TF2_DISCARDED) {
     ib::warn(ER_IB_MSG_171)
         << "Tablespace for table " << table->name << " is set as discarded.";
-    table->ibd_file_missing = TRUE;
+    table->set_file_unreadable();
     return;
   }
 
@@ -3740,8 +3741,13 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   bool is_encrypted = dict_table_is_encrypted(table);
   ulint fsp_flags = dict_tf_to_fsp_flags(table->flags, is_encrypted);
 
+  Keyring_encryption_info keyring_encryption_info;
+
   dberr_t err = fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, fsp_flags,
-                             space_name, tbl_name, filepath, true, false);
+                             space_name, tbl_name, filepath, true, false, keyring_encryption_info);
+
+
+  table->keyring_encryption_info = keyring_encryption_info;
 
   if (err == DB_SUCCESS) {
     /* This will set the DATA DIRECTORY for SHOW CREATE TABLE. */
@@ -3749,7 +3755,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
 
   } else {
     /* We failed to find a sensible tablespace file */
-    table->ibd_file_missing = TRUE;
+    table->set_file_unreadable();
   }
 
   ut_free(shared_space_name);
@@ -5775,13 +5781,14 @@ bool dd_tablespace_update_cache(THD *thd) {
 
       const char *filename = f->filename().c_str();
 
+      Keyring_encryption_info keyring_encryption_info;
       /* If the user tablespace is not in cache, load the
       tablespace now, with the name from dictionary */
 
       /* It's safe to pass space_name in tablename charset
       because filename is already in filename charset. */
       dberr_t err = fil_ibd_open(false, purpose, id, flags, space_name, nullptr,
-                                 filename, false, false);
+                                 filename, false, false, keyring_encryption_info);
       switch (err) {
         case DB_SUCCESS:
         case DB_CANNOT_OPEN_FILE:

@@ -5562,11 +5562,17 @@ static void lock_rec_block_validate(space_id_t space_id, page_no_t page_no) {
   /* Make sure that the tablespace is not deleted while we are
   trying to access the page. */
   if (fil_space_t *space = fil_space_acquire(space_id)) {
+    dberr_t err = DB_SUCCESS;
     mtr_start(&mtr);
 
     block = buf_page_get_gen(page_id_t(space_id, page_no),
                              page_size_t(space->flags), RW_X_LATCH, NULL,
-                             BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+                             BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr, false, &err);
+
+    if (err != DB_SUCCESS) {
+      ib::error() << "Lock rec block validate failed for tablespace " << space->name
+                  << " space_id " << space_id << " page_no " << page_no << " err " << err;
+    }
 
     buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 

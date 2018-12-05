@@ -19,9 +19,10 @@
 
 #include "my_inttypes.h"
 
-static const constexpr auto PERCONA_BINLOG_KEY_NAME = "percona_binlog";
-extern const size_t valid_percona_system_keys_size;
-extern const char *valid_percona_system_keys[];
+#define PERCONA_BINLOG_KEY_NAME "percona_binlog"
+#define PERCONA_INNODB_KEY_NAME "percona_innodb"
+
+bool is_valid_percona_system_key(const char *key_name, size_t *key_length);
 
 /**
   A convenience function that extracts key's data and key's version from system

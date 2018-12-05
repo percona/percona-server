@@ -55,6 +55,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0roll.h"
 #include "ut0new.h"
 
+#include "fil0crypt.h"
+
 static const ulint FTS_MAX_ID_LEN = 32;
 
 /** Column name from the FTS config table */
@@ -1823,7 +1825,8 @@ static dict_table_t *fts_create_one_common_table(trx_t *trx,
                            DATA_NOT_NULL, FTS_CONFIG_TABLE_VALUE_COL_LEN);
   }
 
-  error = row_create_table_for_mysql(new_table, NULL, trx);
+  error = row_create_table_for_mysql(new_table, NULL, trx,
+                                     FIL_ENCRYPTION_DEFAULT, CreateInfoEncryptionKeyId());
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -2017,7 +2020,8 @@ static dict_table_t *fts_create_one_index_table(trx_t *trx,
                          (DATA_MTYPE_MAX << 16) | DATA_UNSIGNED | DATA_NOT_NULL,
                          FTS_INDEX_ILIST_LEN);
 
-  error = row_create_table_for_mysql(new_table, NULL, trx);
+  error = row_create_table_for_mysql(new_table, NULL, trx,
+                                     FIL_ENCRYPTION_DEFAULT, CreateInfoEncryptionKeyId());
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(

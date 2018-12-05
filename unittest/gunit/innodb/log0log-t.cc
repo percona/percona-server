@@ -161,7 +161,7 @@ static bool log_test_general_init() {
 
   log_space = fil_space_create(
       "innodb_redo_log", dict_sys_t::s_log_space_first_id,
-      fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG);
+      fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG, nullptr);
 
   if (log_space == nullptr) {
     std::cerr << "Cannot initialize log_space" << std::endl;

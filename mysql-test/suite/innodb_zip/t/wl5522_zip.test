@@ -5,6 +5,8 @@
 # allow test to run only when innodb-page-size=16
 
 --disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot save statistics for table `test`\\.`t1` because the \\.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* cannot calculate statistics for table `test`\.`t1` because the \.ibd file is missing");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Unable to import tablespace `test`\.`t1` because it already exists.  Please DISCARD the tablespace before IMPORT.");
 --enable_query_log

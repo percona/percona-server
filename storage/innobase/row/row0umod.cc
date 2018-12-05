@@ -1054,7 +1054,7 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
     return;
   }
 
-  if (node->table->ibd_file_missing) {
+  if (node->table->file_unreadable) {
     dd_table_close(node->table, current_thd, mdl, false);
 
     /* We skip undo operations to missing .ibd files */

@@ -720,7 +720,7 @@ void trx_resurrect_locks() {
       if (table) {
         ut_ad(!table->is_temporary());
 
-        if (table->ibd_file_missing || table->is_temporary()) {
+        if (table->file_unreadable || table->is_temporary()) {
           mutex_enter(&dict_sys->mutex);
           dd_table_close(table, NULL, NULL, true);
           dict_table_remove_from_cache(table);

@@ -472,11 +472,12 @@ static void ibuf_size_update(const page_t *root) /*!< in: ibuf tree root */
 
 /** Creates the insert buffer data structure at a database startup and
  initializes the data structures for the insert buffer. */
-void ibuf_init_at_db_start(void) {
+dberr_t ibuf_init_at_db_start(void) {
   page_t *root;
   mtr_t mtr;
   ulint n_used;
   page_t *header_page;
+  dberr_t error= DB_SUCCESS;
 
   ibuf = static_cast<ibuf_t *>(ut_zalloc_nokey(sizeof(ibuf_t)));
 
@@ -503,6 +504,10 @@ void ibuf_init_at_db_start(void) {
   mutex_enter(&ibuf_mutex);
 
   header_page = ibuf_header_page_get(&mtr);
+
+  if (!header_page) {
+    return (DB_DECRYPTION_FAILED);
+  }
 
   fseg_n_reserved_pages(header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER,
                         &n_used, &mtr);
@@ -541,6 +546,8 @@ void ibuf_init_at_db_start(void) {
   ibuf->index->search_info = btr_search_info_create(ibuf->index->heap);
   ibuf->index->page = FSP_IBUF_TREE_ROOT_PAGE_NO;
   ut_d(ibuf->index->cached = TRUE);
+
+  return (error);
 }
 
 /** Updates the max_size value for ibuf. */
@@ -747,12 +754,21 @@ is x-latched */
 static page_t *ibuf_bitmap_get_map_page_func(const page_id_t &page_id,
                                              const page_size_t &page_size,
                                              const char *file, ulint line,
-                                             mtr_t *mtr) {
+                                             mtr_t *mtr, dberr_t *err = NULL) {
   buf_block_t *block;
+  dberr_t error = DB_SUCCESS;
 
   block =
       buf_page_get_gen(ibuf_bitmap_page_no_calc(page_id, page_size), page_size,
-                       RW_X_LATCH, NULL, BUF_GET, file, line, mtr);
+                       RW_X_LATCH, NULL, BUF_GET, file, line, mtr, false, &error);
+
+  if (err != nullptr) {
+    *err = error;
+  }
+  
+  if (error != DB_SUCCESS) {
+    return nullptr;
+  }
 
   buf_block_dbg_add_level(block, SYNC_IBUF_BITMAP);
 
@@ -4509,8 +4525,13 @@ dberr_t ibuf_check_bitmap_on_import(
 
     ibuf_enter(&mtr);
 
-    bitmap_page =
-        ibuf_bitmap_get_map_page(page_id_t(space_id, page_no), page_size, &mtr);
+    dberr_t err = DB_SUCCESS;
+    
+    bitmap_page = ibuf_bitmap_get_map_page_func(page_id_t(space_id, page_no), page_size,
+                                                __FILE__, __LINE__, &mtr, &err);
+    
+    if (err != DB_SUCCESS)
+      return err;
 
     if (buf_page_is_zeroes(bitmap_page, page_size)) {
     /* This means we got all-zero page instead of

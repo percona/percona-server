@@ -540,7 +540,7 @@ void PageBulk::release() {
 }
 
 /** Start mtr and latch the block */
-void PageBulk::latch() {
+dberr_t PageBulk::latch() {
   ibool ret;
 
   mtr_start(m_mtr);
@@ -556,14 +556,22 @@ void PageBulk::latch() {
     page_id_t page_id(dict_index_get_space(m_index), m_page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
 
-    m_block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, m_block,
-                               BUF_GET_IF_IN_POOL, __FILE__, __LINE__, m_mtr);
+    m_block = buf_page_get_gen(page_id, page_size, RW_X_LATCH,
+                               m_block, BUF_GET_IF_IN_POOL,
+                               __FILE__, __LINE__, m_mtr, false, &m_err);
+
+    if (m_err != DB_SUCCESS) {
+      return (m_err);
+    }
+
     ut_ad(m_block != NULL);
-  }
+}
 
   buf_block_buf_fix_dec(m_block);
 
   ut_ad(m_cur_rec > m_page && m_cur_rec < m_heap_top);
+
+  return (m_err);
 }
 
 /** Split a page
@@ -909,6 +917,6 @@ dberr_t BtrBulk::finish(dberr_t err) {
   ut_ad(!sync_check_iterate(check));
 #endif /* UNIV_DEBUG */
 
-  ut_ad(err != DB_SUCCESS || btr_validate_index(m_index, NULL, false));
+  ut_ad(err != DB_SUCCESS || btr_validate_index(m_index, NULL, false) == DB_SUCCESS);
   return (err);
 }

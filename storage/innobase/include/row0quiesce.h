@@ -45,6 +45,7 @@ struct trx_t;
 #define IB_EXPORT_CFG_VERSION_V2 0x2UL
 /** The v3 .cfg writes instant column default values in metadata section. */
 #define IB_EXPORT_CFG_VERSION_V3 0x3UL
+#define IB_EXPORT_CFG_VERSION_V1_WITH_RK 0xFFFFFFFF
 
 /** Quiesce the tablespace that the table resides in. */
 void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */

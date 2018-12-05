@@ -24,6 +24,7 @@ call mtr.add_suppression("Plugin keyring_vault reported");
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config="$KEYRING_CONF_FILE_1";
 
+--let $encryption_type=Y
 --source include/table_encrypt_2.inc
 
 # Delete mount points

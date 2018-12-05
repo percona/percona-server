@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,10 +138,10 @@ struct FTB : public FT_INFO {
   enum { UNINITIALIZED, READY, INDEX_SEARCH, INDEX_DONE } state;
 };
 
-static int FTB_WORD_cmp(void *v_, uchar *a_, uchar *b_) {
-  auto *const v = static_cast<my_off_t *>(v_);
-  auto *const a = reinterpret_cast<FTB_WORD *>(a_);
-  auto *const b = reinterpret_cast<FTB_WORD *>(b_);
+static int FTB_WORD_cmp(void *v_v, uchar *u_a, uchar *u_b) {
+  my_off_t *v = static_cast<my_off_t *>(v_v);
+  FTB_WORD *a = pointer_cast<FTB_WORD *>(u_a);
+  FTB_WORD *b = pointer_cast<FTB_WORD *>(u_b);
   int i;
 
   /* if a==curdoc, take it as  a < b */

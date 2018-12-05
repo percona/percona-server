@@ -736,7 +736,8 @@ file, handle this too. */
   }
 
   return (last_tracked_lsn == tracking_start_lsn) ||
-         (log_get_lsn(*log_sys) - last_tracked_lsn <= log_sys->lsn_capacity);
+         (log_get_lsn(*log_sys) - last_tracked_lsn <=
+          log_sys->lsn_real_capacity);
 }
 
 /** Diagnose a gap in tracked LSN range on server startup due to crash or

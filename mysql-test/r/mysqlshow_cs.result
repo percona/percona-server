@@ -115,6 +115,7 @@ Database: information_schema
 | INNODB_FT_INDEX_TABLE                 |
 | INNODB_INDEXES                        |
 | INNODB_METRICS                        |
+| INNODB_SESSION_TEMP_TABLESPACES       |
 | INNODB_TABLES                         |
 | INNODB_TABLESPACES                    |
 | INNODB_TABLESPACES_BRIEF              |
@@ -149,6 +150,8 @@ Database: information_schema
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
+| VIEW_ROUTINE_USAGE                    |
+| VIEW_TABLE_USAGE                      |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -190,6 +193,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_FT_INDEX_TABLE                 |
 | INNODB_INDEXES                        |
 | INNODB_METRICS                        |
+| INNODB_SESSION_TEMP_TABLESPACES       |
 | INNODB_TABLES                         |
 | INNODB_TABLESPACES                    |
 | INNODB_TABLESPACES_BRIEF              |
@@ -224,6 +228,8 @@ Database: INFORMATION_SCHEMA
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
+| VIEW_ROUTINE_USAGE                    |
+| VIEW_TABLE_USAGE                      |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

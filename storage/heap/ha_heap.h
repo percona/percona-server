@@ -54,8 +54,8 @@ class ha_heap : public handler {
   enum row_type get_real_row_type(const HA_CREATE_INFO *) const;
   ulonglong table_flags() const {
     return (HA_FAST_KEY_READ | HA_NULL_IN_KEY | HA_BINLOG_ROW_CAPABLE |
-            HA_BINLOG_STMT_CAPABLE | HA_NO_TRANSACTIONS | HA_HAS_RECORDS |
-            HA_STATS_RECORDS_IS_EXACT);
+            HA_BINLOG_STMT_CAPABLE | HA_NO_TRANSACTIONS |
+            HA_COUNT_ROWS_INSTANT | HA_STATS_RECORDS_IS_EXACT);
   }
   ulong index_flags(uint inx, uint, bool) const {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE)

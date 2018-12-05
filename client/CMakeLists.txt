@@ -47,8 +47,11 @@ IF(NOT WITHOUT_SERVER)
   ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema GenBootstrapPriv)
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
-SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
+SET(MYSQLTEST_SRC
+  mysqltest/mysqltest_expected_error.cc
+)
+
+MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
 TARGET_LINK_LIBRARIES(mysqltest perconaserverclient regex)
 ADD_DEPENDENCIES(mysqltest GenError GenClientError)
 
@@ -84,6 +87,9 @@ SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/rpl_tblmap.cc
   ${CMAKE_SOURCE_DIR}/sql/event_crypt.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_crypt_data.cc
+  ${CMAKE_SOURCE_DIR}/sql/basic_istream.cc
+  ${CMAKE_SOURCE_DIR}/sql/binlog_istream.cc
+  ${CMAKE_SOURCE_DIR}/sql/binlog_reader.cc
 )
 ADD_LIBRARY(mysqlbinlog_lib STATIC ${MYSQLBINLOG_LIB_SOURCES})
 ADD_DEPENDENCIES(mysqlbinlog_lib GenError)

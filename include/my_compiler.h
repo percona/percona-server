@@ -178,6 +178,12 @@ struct my_aligned_storage {
 #define MY_NODISCARD MY_ATTRIBUTE((warn_unused_result))
 #endif /* MY_NODISCARD */
 
+#if defined(_MSC_VER)
+#define NO_INLINE __declspec(noinline)
+#else
+#define NO_INLINE __attribute__((noinline))
+#endif
+
 #ifndef __has_attribute
 #define __has_attribute(x) 0
 #endif

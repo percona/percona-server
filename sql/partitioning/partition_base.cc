@@ -3835,35 +3835,6 @@ int Partition_base::records(ha_rows *num_rows) {
   DBUG_RETURN(0);
 }
 
-/*
-  Is it ok to switch to a new engine for this table
-
-  SYNOPSIS
-    can_switch_engine()
-
-  RETURN VALUE
-    true                  Ok
-    false                 Not ok
-
-  DESCRIPTION
-    Used to ensure that tables with foreign key constraints are not moved
-    to engines without foreign key support.
-*/
-
-bool Partition_base::can_switch_engines() {
-  handler **file;
-  DBUG_ENTER("Partition_base::can_switch_engines");
-
-  file = m_file;
-  do {
-    if (!(*file)->can_switch_engines()) {
-      DBUG_ASSERT(0);  // A Partition_base table should never have FKs!!!
-      DBUG_RETURN(false);
-    }
-  } while (*(++file));
-  DBUG_RETURN(true);
-}
-
 /****************************************************************************
                 MODULE print messages
 ****************************************************************************/

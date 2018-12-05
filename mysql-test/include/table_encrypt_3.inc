@@ -4,10 +4,13 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 
+--disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("The error means that another program is using InnoDB's files");
 call mtr.add_suppression("Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
+--enable_query_log
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
 
@@ -189,18 +192,20 @@ CREATE TABLE tde_db.t_encrypt(c4 JSON ,
                        c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
+SHOW WARNINGS;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
-
 CREATE TABLESPACE s_alt1 ADD DATAFILE 's_alt1.ibd';
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" TABLESPACE=`s_alt1` ENGINE=InnoDB;
+SHOW WARNINGS;
 DROP TABLESPACE s_alt1;
 
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" ENGINE=InnoDB;
+SHOW WARNINGS;
 
 # Now error/warning shown
 --error ER_ILLEGAL_HA

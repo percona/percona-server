@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,9 +49,9 @@ static int FT_WORD_cmp(const void *a, const void *b, const void *c) {
                          w2->len, 0);
 }
 
-static int walk_and_copy(void *word_, element_count count, void *docstat_) {
-  auto *const word = static_cast<FT_WORD *>(word_);
-  auto *const docstat = static_cast<FT_DOCSTAT *>(docstat_);
+static int walk_and_copy(void *v_word, uint32 count, void *v_docstat) {
+  FT_WORD *word = static_cast<FT_WORD *>(v_word);
+  FT_DOCSTAT *docstat = static_cast<FT_DOCSTAT *>(v_docstat);
   word->weight = LWS_IN_USE;
   docstat->sum += word->weight;
   memcpy((docstat->list)++, word, sizeof(FT_WORD));

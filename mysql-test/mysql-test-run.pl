@@ -166,7 +166,7 @@ my $DEFAULT_SUITES =
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl,tokudb.perfschema,"
   ."rocksdb,rocksdb.rpl,rocksdb.sys_vars,"
-  ."keyring_vault,audit_null";
+  ."audit_null";
 
 my $build_thread       = 0;
 my $daemonize_mysqld   = 0;

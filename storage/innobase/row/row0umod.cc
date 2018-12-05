@@ -323,7 +323,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     }
   }
 
-  ut_ad(rec_get_trx_id(btr_pcur_get_rec(pcur), index) == node->new_trx_id);
+  /**
+   * when scrubbing, and records gets cleared,
+   *   the transaction id is not present afterwards.
+   *   this is safe as: since the record is on free-list
+   *   it can be reallocated at any time after this mtr-commits
+   *   which is just below
+   */
+  ut_ad(srv_immediate_scrub_data_uncompressed ||
+        rec_get_trx_id(btr_pcur_get_rec(pcur), index) == node->new_trx_id);
 
   btr_pcur_commit_specify_mtr(pcur, &mtr);
 
@@ -1044,7 +1052,7 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
     return;
   }
 
-  if (node->table->ibd_file_missing) {
+  if (node->table->file_unreadable) {
     dd_table_close(node->table, current_thd, mdl, false);
 
     /* We skip undo operations to missing .ibd files */

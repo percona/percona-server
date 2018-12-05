@@ -28,7 +28,7 @@ PARTITION BY RANGE (id) (
 PARTITION p1 VALUES LESS THAN (100) ,
 PARTITION p2 VALUES LESS THAN MAXVALUE 
 );
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+ERROR 42000: The storage engine for the table doesn't support native partitioning
 default: 'MyISAM', table: '', partition: 'MyISAM', error: 'handler_does_not_support'
 SET default_storage_engine = MyISAM;
 CREATE TABLE t1 (
@@ -39,7 +39,7 @@ PARTITION BY RANGE (id) (
 PARTITION p1 VALUES LESS THAN (100) ENGINE=MyISAM,
 PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE=MyISAM
 );
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+ERROR 42000: The storage engine for the table doesn't support native partitioning
 default: 'MyISAM', table: '', partition: 'InnoDB', error: ''
 SET default_storage_engine = MyISAM;
 CREATE TABLE t1 (
@@ -55,8 +55,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -70,7 +70,7 @@ PARTITION BY RANGE (id) (
 PARTITION p1 VALUES LESS THAN (100) ,
 PARTITION p2 VALUES LESS THAN MAXVALUE 
 );
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+ERROR 42000: The storage engine for the table doesn't support native partitioning
 default: 'MyISAM', table: 'MyISAM', partition: 'MyISAM', error: 'handler_does_not_support'
 SET default_storage_engine = MyISAM;
 CREATE TABLE t1 (
@@ -81,7 +81,7 @@ PARTITION BY RANGE (id) (
 PARTITION p1 VALUES LESS THAN (100) ENGINE=MyISAM,
 PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE=MyISAM
 );
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+ERROR 42000: The storage engine for the table doesn't support native partitioning
 default: 'MyISAM', table: 'MyISAM', partition: 'InnoDB', error: 'mix_handlers'
 SET default_storage_engine = MyISAM;
 CREATE TABLE t1 (
@@ -108,8 +108,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -139,8 +139,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -159,8 +159,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -174,7 +174,7 @@ PARTITION BY RANGE (id) (
 PARTITION p1 VALUES LESS THAN (100) ENGINE=MyISAM,
 PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE=MyISAM
 );
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+ERROR 42000: The storage engine for the table doesn't support native partitioning
 default: 'InnoDB', table: '', partition: 'InnoDB', error: ''
 SET default_storage_engine = InnoDB;
 CREATE TABLE t1 (
@@ -190,8 +190,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -205,7 +205,7 @@ PARTITION BY RANGE (id) (
 PARTITION p1 VALUES LESS THAN (100) ,
 PARTITION p2 VALUES LESS THAN MAXVALUE 
 );
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+ERROR 42000: The storage engine for the table doesn't support native partitioning
 default: 'InnoDB', table: 'MyISAM', partition: 'MyISAM', error: 'handler_does_not_support'
 SET default_storage_engine = InnoDB;
 CREATE TABLE t1 (
@@ -216,7 +216,7 @@ PARTITION BY RANGE (id) (
 PARTITION p1 VALUES LESS THAN (100) ENGINE=MyISAM,
 PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE=MyISAM
 );
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
+ERROR 42000: The storage engine for the table doesn't support native partitioning
 default: 'InnoDB', table: 'MyISAM', partition: 'InnoDB', error: 'mix_handlers'
 SET default_storage_engine = InnoDB;
 CREATE TABLE t1 (
@@ -243,8 +243,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -274,8 +274,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -291,172 +291,6 @@ INSERT INTO expected_alter_table_errors VALUES
 ('MyISAM', 'MyISAM', 'handler_does_not_support'),
 ('InnoDB', 'MyISAM', 'handler_does_not_support')
 ;
-original: 'MyISAM', alter: '', operation: '0', error: 'handler_does_not_support'
-CREATE TABLE t1(
-id BIGINT UNSIGNED NOT NULL,
-a VARCHAR(250)
-) ENGINE=MyISAM
-PARTITION BY RANGE (id) (
-PARTITION p1 VALUES LESS THAN (100),
-PARTITION p2 VALUES LESS THAN MAXVALUE
-);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` bigint(20) unsigned NOT NULL,
-  `a` varchar(250) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-(PARTITION p1 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
-DROP TABLE t1;
-original: 'MyISAM', alter: '', operation: '1', error: 'handler_does_not_support'
-CREATE TABLE t1(
-id BIGINT UNSIGNED NOT NULL,
-a VARCHAR(250)
-) ENGINE=MyISAM
-PARTITION BY RANGE (id) (
-PARTITION p1 VALUES LESS THAN (100),
-PARTITION p2 VALUES LESS THAN MAXVALUE
-);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` bigint(20) unsigned NOT NULL,
-  `a` varchar(250) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-(PARTITION p1 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
-DROP TABLE t1;
-original: 'MyISAM', alter: 'MyISAM', operation: '0', error: 'handler_does_not_support'
-CREATE TABLE t1(
-id BIGINT UNSIGNED NOT NULL,
-a VARCHAR(250)
-) ENGINE=MyISAM
-PARTITION BY RANGE (id) (
-PARTITION p1 VALUES LESS THAN (100),
-PARTITION p2 VALUES LESS THAN MAXVALUE
-);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` bigint(20) unsigned NOT NULL,
-  `a` varchar(250) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-(PARTITION p1 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED, ENGINE=MyISAM;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
-DROP TABLE t1;
-original: 'MyISAM', alter: 'MyISAM', operation: '1', error: 'handler_does_not_support'
-CREATE TABLE t1(
-id BIGINT UNSIGNED NOT NULL,
-a VARCHAR(250)
-) ENGINE=MyISAM
-PARTITION BY RANGE (id) (
-PARTITION p1 VALUES LESS THAN (100),
-PARTITION p2 VALUES LESS THAN MAXVALUE
-);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` bigint(20) unsigned NOT NULL,
-  `a` varchar(250) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-(PARTITION p1 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers, ENGINE=MyISAM;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'COMPRESSED COLUMNS'
-DROP TABLE t1;
-original: 'MyISAM', alter: 'InnoDB', operation: '0', error: ''
-CREATE TABLE t1(
-id BIGINT UNSIGNED NOT NULL,
-a VARCHAR(250)
-) ENGINE=MyISAM
-PARTITION BY RANGE (id) (
-PARTITION p1 VALUES LESS THAN (100),
-PARTITION p2 VALUES LESS THAN MAXVALUE
-);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` bigint(20) unsigned NOT NULL,
-  `a` varchar(250) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-(PARTITION p1 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED, ENGINE=InnoDB;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` bigint(20) unsigned NOT NULL,
-  `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-(PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
- PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-DROP TABLE t1;
-original: 'MyISAM', alter: 'InnoDB', operation: '1', error: ''
-CREATE TABLE t1(
-id BIGINT UNSIGNED NOT NULL,
-a VARCHAR(250)
-) ENGINE=MyISAM
-PARTITION BY RANGE (id) (
-PARTITION p1 VALUES LESS THAN (100),
-PARTITION p2 VALUES LESS THAN MAXVALUE
-);
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` bigint(20) unsigned NOT NULL,
-  `a` varchar(250) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-(PARTITION p1 VALUES LESS THAN (100) ENGINE = MyISAM,
- PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
-Warnings:
-Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
-ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers, ENGINE=InnoDB;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `id` bigint(20) unsigned NOT NULL,
-  `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-(PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
- PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-DROP TABLE t1;
 original: 'InnoDB', alter: '', operation: '0', error: ''
 CREATE TABLE t1(
 id BIGINT UNSIGNED NOT NULL,
@@ -471,8 +305,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED;
@@ -481,8 +315,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -500,8 +334,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers;
@@ -510,8 +344,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -529,8 +363,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED, ENGINE=MyISAM;
@@ -550,8 +384,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers, ENGINE=MyISAM;
@@ -571,8 +405,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED, ENGINE=InnoDB;
@@ -581,8 +415,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -600,8 +434,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE t1 MODIFY a VARCHAR(250) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers, ENGINE=InnoDB;
@@ -610,8 +444,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -630,8 +464,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
 (PARTITION p1 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
@@ -646,8 +480,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 2 */
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -671,9 +505,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-SUBPARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
+SUBPARTITION BY HASH (`id`)
 (PARTITION p0 VALUES LESS THAN (1024)
  (SUBPARTITION s0 ENGINE = InnoDB,
   SUBPARTITION s1 ENGINE = InnoDB),
@@ -696,9 +530,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint(20) unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-SUBPARTITION BY HASH (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
+SUBPARTITION BY HASH (`id`)
 SUBPARTITIONS 2
 (PARTITION p0 VALUES LESS THAN (1024) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */

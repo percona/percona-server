@@ -159,14 +159,6 @@ class Partition_base : public handler,
                    dd::Table *) override;
   int create(const char *, TABLE *, HA_CREATE_INFO *, dd::Table *) override;
   void update_create_info(HA_CREATE_INFO *create_info) override;
-  /** This function reads zip dict-related info from partition handlers.
-  It may do nothing if individual handlers do not support COMPRESSED_COLUMNS.
-
-  @param    thd          Thread handler
-  @param    part_name    Must be always nullptr.
-  */
-  void update_field_defs_with_zip_dict_info(THD *thd,
-                                            const char *part_name) override;
 
  private:
   template <typename Fn>

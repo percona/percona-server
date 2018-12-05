@@ -3658,17 +3658,18 @@ int mysql_execute_command(THD *thd, bool first_level) {
         dict_data_ptr = &dict_data;
       }
 
-      if ((res = mysql_create_zip_dict(
+      if ((res = compression_dict::create_zip_dict(
                thd, lex->ident.str, lex->ident.length, dict_data_ptr->ptr(),
                dict_data_ptr->length(),
-               (lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) !=
-                   0)) == 0)
+               (lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) != 0,
+               false)) == 0)
         my_ok(thd);
       break;
     }
     case SQLCOM_DROP_COMPRESSION_DICTIONARY: {
-      if ((res = mysql_drop_zip_dict(thd, lex->ident.str, lex->ident.length,
-                                     lex->drop_if_exists)) == 0)
+      if ((res = compression_dict::drop_zip_dict(
+               thd, lex->ident.str, lex->ident.length, lex->drop_if_exists)) ==
+          0)
         my_ok(thd);
       break;
     }

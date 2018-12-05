@@ -1,3 +1,4 @@
+call mtr.add_suppression("Found 1 prepared XA transactions");
 # Do tests on un-encrypted system tablespace
 SELECT @@innodb_sys_tablespace_encrypt;
 @@innodb_sys_tablespace_encrypt
@@ -40,7 +41,7 @@ ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain an ENCRYPTED tabl
 CREATE TABLE t10(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain an ENCRYPTED table.
 CREATE TABLE t11(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
-ERROR HY000: InnoDB: Only ENCRYPTED tables can be created with innodb_encrypt_tables=FORCE.
+ERROR HY000: InnoDB: Only Master Key encrypted tables (ENCRYPTION='Y') can be created with innodb_encrypt_tables=FORCE.
 # Stop the instance which was created by MTR
 # create bootstrap file
 # start unencrypted system with --innodb-sys-tablespace-encrypt=ON
@@ -90,7 +91,7 @@ SELECT @@innodb_encrypt_tables;
 FORCE
 CREATE TABLE t5_3(a TEXT) TABLESPACE = innodb_system;
 CREATE TABLE t5_4(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
-ERROR HY000: InnoDB: Only ENCRYPTED tables can be created with innodb_encrypt_tables=FORCE.
+ERROR HY000: InnoDB: Only Master Key encrypted tables (ENCRYPTION='Y') can be created with innodb_encrypt_tables=FORCE.
 CREATE TABLE t5_5(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 DROP TABLE t5_5;
 SET GLOBAL innodb_encrypt_tables=default;
@@ -156,5 +157,15 @@ ALTER TABLE t9 TABLESPACE=`innodb_system`;
 # make sure that system tablespace is encrypted
 Pattern not found.
 Pattern not found.
+#
+# PS-4917 : Assertion failure: dict0dd.cc:5784:space->flags == flags
+#
+# restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON
+XA START 'x1';
+INSERT INTO t1 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+INSERT INTO t5 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+XA END 'x1';
+XA PREPARE 'x1';
+# Kill and restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON
 # Start default MTR instance
 # restart

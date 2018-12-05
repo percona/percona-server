@@ -886,7 +886,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
 
     no_tablespace = false;
 
-  } else if (ib_table->ibd_file_missing) {
+  } else if (ib_table->file_unreadable) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING, norm_name);
 
     /* This means we have no idea what happened to the tablespace
@@ -1051,7 +1051,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   stats.block_size = UNIV_PAGE_SIZE;
 
   /* Only if the table has an AUTOINC column. */
-  if (m_prebuilt->table != NULL && !m_prebuilt->table->ibd_file_missing &&
+  if (m_prebuilt->table != NULL && !m_prebuilt->table->file_unreadable &&
       table->found_next_number_field != NULL) {
     int error;
 
@@ -2761,9 +2761,9 @@ int ha_innopart::discard_or_import_tablespace(bool discard,
 @param    thd          Thread handler
 @param    part_name    Must be always NULL.
 */
-void ha_innopart::update_field_defs_with_zip_dict_info(THD *thd,
-                                                       const char *part_name) {
-  DBUG_ENTER("ha_innopart::update_field_defs_with_zip_dict_info");
+void ha_innopart::upgrade_update_field_with_zip_dict_info(
+    THD *thd, const char *part_name) {
+  DBUG_ENTER("ha_innopart::upgrade_update_field_with_zip_dict_info");
   char partition_name[FN_REFLEN];
   bool res = get_first_partition_name(
       thd, this, table_share->normalized_path.str,
@@ -2774,7 +2774,7 @@ void ha_innopart::update_field_defs_with_zip_dict_info(THD *thd,
     DBUG_VOID_RETURN;
   }
 
-  ha_innobase::update_field_defs_with_zip_dict_info(thd, partition_name);
+  ha_innobase::upgrade_update_field_with_zip_dict_info(thd, partition_name);
   DBUG_VOID_RETURN;
 }
 
@@ -2894,7 +2894,7 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
     if (dict_table_is_discarded(part_table)) {
       ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, norm_name);
       DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-    } else if (part_table->ibd_file_missing) {
+    } else if (!part_table->is_readable()) {
       DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
     }
 
@@ -2984,7 +2984,7 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
     if (dict_table_is_discarded(part_table)) {
       ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, table_name);
       DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-    } else if (part_table->ibd_file_missing) {
+    } else if (!part_table->is_readable()) {
       DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
     }
 

@@ -109,7 +109,7 @@ key constraints are loaded into memory.
                                 constraints are loaded.
 @return table, NULL if does not exist; if the table is stored in an
 .ibd file, but the file does not exist, then we set the
-ibd_file_missing flag TRUE in the table object we return */
+file_unreadable flag TRUE in the table object we return */
 static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
                                          dict_err_ignore_t ignore_err,
                                          dict_names_t &fk_tables);
@@ -969,9 +969,6 @@ const char *dict_process_sys_tablespaces(
   return (NULL);
 }
 
-// Percona commented out until zip dictionary reimplementation in the new DD
-#if 0
-
 /** This function parses a SYS_ZIP_DICT record, extracts necessary
 information from the record and returns to caller.
 @param[in,out]	heap		heap memory
@@ -982,11 +979,12 @@ information from the record and returns to caller.
 @param[out]	data		dict data
 @param[out]	data_len	dict data length
 @return error message, or NULL on success */
-const char* dict_process_sys_zip_dict(mem_heap_t *heap,
-				      const dict_index_t &index,
-				      const rec_t *rec, ulint *id,
-				      const char **name, const char **data,
-				      ulint *data_len) {
+const char *dict_process_sys_zip_dict(mem_heap_t *heap,
+                                      const dict_index_t &index,
+                                      const rec_t *rec, ulint *id,
+                                      const char **name, ulint *name_len,
+                                      const char **data, ulint *data_len) {
+  ut_ad(srv_is_upgrade_mode);
 
   /* Initialize the output values */
   *id = ULINT_UNDEFINED;
@@ -995,18 +993,18 @@ const char* dict_process_sys_zip_dict(mem_heap_t *heap,
   *data_len = 0;
 
   if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0)))
-    return("delete-marked record in SYS_ZIP_DICT");
+    return ("delete-marked record in SYS_ZIP_DICT");
 
-  if (UNIV_UNLIKELY(rec_get_n_fields_old(rec) !=
-		    DICT_NUM_FIELDS__SYS_ZIP_DICT))
-    return("wrong number of columns in SYS_ZIP_DICT record");
+  if (UNIV_UNLIKELY(rec_get_n_fields_old(rec, &index) !=
+                    DICT_NUM_FIELDS__SYS_ZIP_DICT))
+    return ("wrong number of columns in SYS_ZIP_DICT record");
 
   const page_size_t page_size{dict_table_page_size(index.table)};
-  ulint	len;
-  const byte *field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT__ID,
-					    &len);
-  if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE))
-    goto err_len;
+  ulint len;
+  const byte *field =
+      rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT__ID, &len);
+
+  if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE)) goto err_len;
   *id = mach_read_from_4(field);
 
   rec_get_nth_field_offs_old(rec, DICT_FLD__SYS_ZIP_DICT__DB_TRX_ID, &len);
@@ -1018,93 +1016,35 @@ const char* dict_process_sys_zip_dict(mem_heap_t *heap,
     goto err_len;
 
   field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT__NAME, &len);
-  if (UNIV_UNLIKELY(len == 0 || len == UNIV_SQL_NULL))
-    goto err_len;
-  *name = mem_heap_strdupl(heap, (char*) field, len);
+  if (UNIV_UNLIKELY(len == 0 || len == UNIV_SQL_NULL)) goto err_len;
+  *name = mem_heap_strdupl(heap, (char *)field, len);
+  *name_len = len;
 
   field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT__DATA, &len);
-  if (UNIV_UNLIKELY(len == UNIV_SQL_NULL))
-    goto err_len;
+  if (UNIV_UNLIKELY(len == UNIV_SQL_NULL)) goto err_len;
 
   if (rec_get_1byte_offs_flag(rec) == 0 &&
       rec_2_is_field_extern(rec, DICT_FLD__SYS_ZIP_DICT__DATA)) {
     ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
     if (UNIV_UNLIKELY(!memcmp(field + len - BTR_EXTERN_FIELD_REF_SIZE,
-			      field_ref_zero,
-			      BTR_EXTERN_FIELD_REF_SIZE)))
+                              field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE)))
       goto err_len;
-    *data = reinterpret_cast<char*>(
-      lob::btr_copy_externally_stored_field(&index, data_len, field, page_size,
-					    len, true, heap));
+
+    *data = reinterpret_cast<char *>(lob::btr_copy_externally_stored_field(
+        nullptr, &index, data_len, nullptr, field, page_size, len, false,
+        heap));
+
   } else {
     *data_len = len;
-    *data = static_cast<char*>(mem_heap_dup(heap, field, len));
+    *data = static_cast<char *>(mem_heap_dup(heap, field, len));
   }
 
-  return(nullptr);
+  return (nullptr);
 
 err_len:
-  return("incorrect column length in SYS_ZIP_DICT");
+  return ("incorrect column length in SYS_ZIP_DICT");
 }
-
-/** This function parses a SYS_ZIP_DICT_COLS record, extracts necessary
-information from the record and returns to caller.
-@param[in,out]	heap		heap memory
-@param[in]	rec		current SYS_ZIP_DICT record
-@param[out]	table_id	table id
-@param[out]	column_pos	column position
-@param[out]	dict_id		dict id
-@return error message, or NULL on success */
-const char* dict_process_sys_zip_dict_cols(mem_heap_t *heap, const rec_t *rec,
-					   ulint *table_id, ulint *column_pos,
-					   ulint *dict_id) noexcept {
-  /* Initialize the output values */
-  *table_id = ULINT_UNDEFINED;
-  *column_pos = ULINT_UNDEFINED;
-  *dict_id = ULINT_UNDEFINED;
-
-  if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0)))
-    return("delete-marked record in SYS_ZIP_DICT_COLS");
-
-  if (UNIV_UNLIKELY(rec_get_n_fields_old(rec) !=
-		    DICT_NUM_FIELDS__SYS_ZIP_DICT_COLS))
-    return("wrong number of columns in SYS_ZIP_DICT_COLS record");
-
-  ulint len;
-  const byte *field =
-    rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT_COLS__TABLE_ID, &len);
-  if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE)) {
-err_len:
-    return("incorrect column length in SYS_ZIP_DICT_COLS");
-  }
-  *table_id = mach_read_from_4(field);
-
-  field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT_COLS__COLUMN_POS,
-				&len);
-  if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE))
-    goto err_len;
-  *column_pos = mach_read_from_4(field);
-
-  rec_get_nth_field_offs_old(rec, DICT_FLD__SYS_ZIP_DICT_COLS__DB_TRX_ID, &len);
-  if (UNIV_UNLIKELY(len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL))
-    goto err_len;
-
-  rec_get_nth_field_offs_old(rec, DICT_FLD__SYS_ZIP_DICT_COLS__DB_ROLL_PTR,
-			     &len);
-  if (UNIV_UNLIKELY(len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL))
-    goto err_len;
-
-  field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT_COLS__DICT_ID,
-				&len);
-  if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE))
-    goto err_len;
-  *dict_id = mach_read_from_4(field);
-
-  return(nullptr);
-}
-
-#endif
 
 /** Get the first filepath from SYS_DATAFILES for a given space_id.
 @param[in]	space_id	Tablespace ID
@@ -1425,10 +1365,11 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
     opened. */
     char *filepath = dict_get_first_path(space_id);
 
+    Keyring_encryption_info keyring_encryption_info;
     /* Check that the .ibd file exists. */
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, space_name, filepath, true, true);
+    dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
+                               fsp_flags, space_name, space_name, filepath,
+                               true, true, keyring_encryption_info);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_191) << "Ignoring tablespace " << id_name_t(space_name)
@@ -1645,9 +1586,11 @@ space_id_t dict_check_sys_tables(bool validate) {
       fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
     }
 
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, tbl_name, filepath, true, true);
+    Keyring_encryption_info keyring_encryption_info;
+
+    dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
+                               fsp_flags, space_name, tbl_name, filepath, true,
+                               true, keyring_encryption_info);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_194) << "Ignoring tablespace " << id_name_t(space_name)
@@ -2117,7 +2060,7 @@ static const char *dict_load_table_low(table_name_t &name, const rec_t *rec,
                                  n_v_col, flags, flags2);
 
   (*table)->id = table_id;
-  (*table)->ibd_file_missing = FALSE;
+  (*table)->set_file_readable();
 
   return (NULL);
 }
@@ -2245,7 +2188,7 @@ a foreign key references columns in this table.
 @param[in]	ignore_err	Error to be ignored when loading
                                 table and its index definition
 @return table, NULL if does not exist; if the table is stored in an
-.ibd file, but the file does not exist, then we set the ibd_file_missing
+.ibd file, but the file does not exist, then we set the file_unreadable
 flag in the table object we return. */
 dict_table_t *dict_load_table(const char *name, bool cached,
                               dict_err_ignore_t ignore_err) {
@@ -2297,7 +2240,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   if (table->flags2 & DICT_TF2_DISCARDED) {
     ib::warn(ER_IB_MSG_204)
         << "Tablespace for table " << table->name << " is set as discarded.";
-    table->ibd_file_missing = TRUE;
+    table->set_file_unreadable();
     return;
   }
 
@@ -2385,13 +2328,17 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
 
   /* This dict_load_tablespace() is only used on old 5.7 database during
   upgrade */
+  Keyring_encryption_info keyring_encryption_info;
   dberr_t err = fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, fsp_flags,
-                             space_name, tbl_name, filepath, true, true);
+                             space_name, tbl_name, filepath, true, true,
+                             keyring_encryption_info);
 
   if (err != DB_SUCCESS) {
     /* We failed to find a sensible tablespace file */
-    table->ibd_file_missing = TRUE;
+    table->set_file_unreadable();
   }
+
+  table->keyring_encryption_info = keyring_encryption_info;
 
   ut_free(shared_space_name);
   ut_free(filepath);
@@ -2414,7 +2361,7 @@ key constraints are loaded into memory.
                                 constraints are loaded.
 @return table, NULL if does not exist; if the table is stored in an
 .ibd file, but the file does not exist, then we set the
-ibd_file_missing flag TRUE in the table object we return */
+file_unreadable flag TRUE in the table object we return */
 static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
                                          dict_err_ignore_t ignore_err,
                                          dict_names_t &fk_tables) {
@@ -2533,7 +2480,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
   transactions, the tablespace should exist, because DDL operations
   were not allowed while the table is being locked by a transaction. */
   dict_err_ignore_t index_load_err =
-      !(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK) && table->ibd_file_missing
+      !(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK) && table->file_unreadable
           ? DICT_ERR_IGNORE_ALL
           : ignore_err;
   err = dict_load_indexes(table, heap, index_load_err);
@@ -2607,7 +2554,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
   of the error condition, since the user may want to dump data from the
   clustered index. However we load the foreign key information only if
   all indexes were loaded. */
-  if (!cached || table->ibd_file_missing) {
+  if (!cached || table->file_unreadable) {
     /* Don't attempt to load the indexes from disk. */
   } else if (err == DB_SUCCESS) {
     err = dict_load_foreigns(table->name.m_name, NULL, true, true, ignore_err,
@@ -2643,7 +2590,7 @@ func_exit:
   mem_heap_free(heap);
 
   ut_ad(!table || ignore_err != DICT_ERR_IGNORE_NONE ||
-        table->ibd_file_missing || !table->is_corrupted());
+        table->file_unreadable || !table->is_corrupted());
 
   if (table && table->fts) {
     /* We do not add fts tables to optimize thread

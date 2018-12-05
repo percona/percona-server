@@ -167,12 +167,12 @@ class innodb_session_t {
 
  private:
   /** This counter is used by
-      ha_innobase::update_field_defs_with_zip_dict_info() to determine
-      whether it needs to acquire dict_sys mutex or not. Non-zero value
-      means that this mutex has already been locked by one of the purge
-      threads just before calling handler::my_prepare_gcolumn_template() /
-      handler::my_eval_gcolumn_expr_with_open() and therefore it must not
-      be touched to avoid recursive locking. */
+  ha_innobase::upgrade_update_field_with_zip_dict_info() to determine
+  whether it needs to acquire dict_sys mutex or not. Non-zero value
+  means that this mutex has already been locked by one of the purge
+  threads just before calling handler::my_prepare_gcolumn_template() /
+  handler::my_eval_gcolumn_expr_with_open() and therefore it must not
+  be touched to avoid recursive locking. */
   uint m_dict_mutex_locked;
 
   /** Current session's user temp tablespace */

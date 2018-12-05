@@ -424,8 +424,8 @@ class ha_innopart : public ha_innobase,
   @param    thd          Thread handler
   @param    part_name    Must be always NULL.
   */
-  virtual void update_field_defs_with_zip_dict_info(THD *thd,
-                                                    const char *part_name);
+  virtual void upgrade_update_field_with_zip_dict_info(THD *thd,
+                                                       const char *part_name);
 
   /** Compare key and rowid.
   Helper function for sorting records in the priority queue.

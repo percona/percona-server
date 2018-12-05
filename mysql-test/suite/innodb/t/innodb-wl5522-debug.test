@@ -1243,6 +1243,7 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics 
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Page 0 at offset 0 looks corrupted in file");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Trying to access missing tablespace");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only:");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Could not find a valid tablespace file for `test_wl5522/t1`");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `test_wl5522`.`t1` in the cache");

@@ -1,0 +1,2 @@
+--innodb-immediate-scrub-data-uncompressed=ON
+--innodb-scrub-log=ON

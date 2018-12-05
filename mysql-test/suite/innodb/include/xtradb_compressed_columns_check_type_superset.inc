@@ -1,5 +1,3 @@
-# set $file_format to either 'Barracuda' or 'Antelope'
-# ('Barracuda' is required to use DYNAMIC and COMPRESSED row formats)
 # set $compressed_attribute to either 'COLUMN_FORMAT COMPRESSED' or an empty string
 # set $row_format to one of the following values:
 # - DEFAULT (equivalent to COMPACT)
@@ -30,12 +28,7 @@ if($row_format == 'COMPRESSED')
 }
 
 # saving global variables
-SET @saved_innodb_file_format = @@global.innodb_file_format;
 SET @saved_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
-
---disable_warnings
-eval SET GLOBAL innodb_file_format = $file_format;
---enable_warnings
 
 # setting zip level to 0 means skipping compressing for all values
 # (compressed column header will still be added)
@@ -106,9 +99,6 @@ if($datatype_set == 3)
 }
 
 # restoring moddified global variables
---disable_warnings
-SET GLOBAL innodb_file_format = @saved_innodb_file_format;
---enable_warnings
 SET GLOBAL innodb_compressed_columns_zip_level = @saved_innodb_compressed_columns_zip_level;
 
 # restarting the server with original options

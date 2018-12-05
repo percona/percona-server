@@ -697,6 +697,8 @@ struct TABLE_SHARE {
   /** Secondary storage engine. */
   LEX_STRING secondary_engine{nullptr, 0};
 
+  uint32_t encryption_key_id{0};
+  bool was_encryption_key_id_set{false};
   const CHARSET_INFO *table_charset{
       nullptr}; /* Default charset of string fields */
 

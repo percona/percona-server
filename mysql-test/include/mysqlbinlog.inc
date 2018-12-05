@@ -86,7 +86,7 @@ if ($mysqlbinlog_skip_replace)
 }
 if (!$mysqlbinlog_skip_replace)
 {
-  --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   replace_regex
     /TIMESTAMP=[0-9]*/TIMESTAMP=#/
     /#[0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* server id [0-9]*/# # server id #/

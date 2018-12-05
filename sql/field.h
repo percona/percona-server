@@ -110,6 +110,8 @@ struct TABLE_SHARE;
 struct TYPELIB;
 struct timeval;
 
+extern const LEX_CSTRING null_lex_cstr;
+
 using Mysql::Nullable;
 
 /*
@@ -4485,6 +4487,13 @@ class Create_field {
   Value_generator *m_default_val_expr{nullptr};
   Nullable<gis::srid_t> m_srid;
 
+  /*
+    Store dict_id after verifying zip_dict_name exists. The stored id
+    is filled in dd::Column::options and later used to fill TABLE_SHARE*
+    zip_dict_name and zip_dict_data
+  */
+  uint64 zip_dict_id;
+
   Create_field()
       : after(NULL),
         is_explicit_collation(false),
@@ -4499,8 +4508,11 @@ class Create_field {
         */
         treat_bit_as_char(false),
         pack_length_override(0),
+        zip_dict_name(null_lex_cstr),
         stored_in_db(false),
-        m_default_val_expr(nullptr) {}
+        m_default_val_expr(nullptr),
+        zip_dict_id(0) {}
+
   Create_field(Field *field, Field *orig_field);
 
   /* Used to make a clone of this object for ALTER/CREATE TABLE */

@@ -192,7 +192,7 @@ SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
 SET TIMESTAMP=#/*!*/;
-LOAD DATA LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-#-#' INTO TABLE `t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, @`b```) SET `b``2`= @`b```, `c``3`= concat('|', "b""a'z", "!")
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, @`b```) SET `b``2`= @`b```, `c``3`= concat('|', "b""a'z", "!")
 /*!*/;
 COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
@@ -211,7 +211,7 @@ BEGIN
 /*!*/;
 use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
-LOAD DATA LOCAL INFILE 'MYSQL_TMP_DIR/SQL_LOAD_MB-#-#' INTO TABLE `db1``; select 'oops!'`.`t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, `b``2`) SET `c``3`= concat('|', "b""a'z", "!")
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `db1``; select 'oops!'`.`t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, `b``2`) SET `c``3`= concat('|', "b""a'z", "!")
 /*!*/;
 COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;

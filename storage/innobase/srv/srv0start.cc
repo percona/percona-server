@@ -59,6 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0dict.h"
+#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "fsp0sysspace.h"
@@ -198,7 +199,10 @@ mysql_pfs_key_t srv_log_tracking_thread_key;
 mysql_pfs_key_t srv_worker_thread_key;
 mysql_pfs_key_t trx_recovery_rollback_thread_key;
 mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
+mysql_pfs_key_t log_scrub_thread_key;
 #endif /* UNIV_PFS_THREAD */
+
+int unlock_keyrings(THD *thd);
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Array of all InnoDB stage events for monitoring activities via
@@ -388,7 +392,7 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
 
   fil_space_t *log_space = fil_space_create(
       "innodb_redo_log", dict_sys_t::s_log_space_first_id,
-      fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG);
+      fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG, nullptr);
 
   ut_ad(fil_validate());
   ut_a(log_space != nullptr);
@@ -468,6 +472,8 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
   we do the fsyncs now unconditionally and repeat the required
   flush just before the rename. */
   fil_flush_file_redo();
+
+  log_ensure_scrubbing_thread();
 
   return (DB_SUCCESS);
 }
@@ -808,7 +814,8 @@ static dberr_t srv_undo_tablespace_open(space_id_t space_id) {
     /* Load the tablespace into InnoDB's internal data structures.
     Set the compressed page size to 0 (non-compressed) */
     flags = fsp_flags_init(univ_page_size, false, false, false, false);
-    space = fil_space_create(undo_name, space_id, flags, FIL_TYPE_TABLESPACE);
+    space = fil_space_create(undo_name, space_id, flags, FIL_TYPE_TABLESPACE,
+                             nullptr);
 
     ut_a(space != nullptr);
     ut_ad(fil_validate());
@@ -1485,6 +1492,14 @@ void srv_shutdown_all_bg_threads() {
         /* d. Wakeup purge threads. */
         srv_purge_wakeup();
       }
+
+      if (log_scrub_thread_active) {
+        os_event_set(log_scrub_event);
+      }
+
+      if (srv_n_fil_crypt_threads_started) {
+        os_event_set(fil_crypt_threads_event);
+      }
     }
 
     if (srv_start_state_is_set(SRV_START_STATE_IO)) {
@@ -2111,9 +2126,10 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
     sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
     /* Disable the doublewrite buffer for log files. */
-    fil_space_t *log_space = fil_space_create(
-        "innodb_redo_log", dict_sys_t::s_log_space_first_id,
-        fsp_flags_set_page_size(0, univ_page_size), FIL_TYPE_LOG);
+    fil_space_t *log_space =
+        fil_space_create("innodb_redo_log", dict_sys_t::s_log_space_first_id,
+                         fsp_flags_set_page_size(0, univ_page_size),
+                         FIL_TYPE_LOG, NULL /* no encryption yet */);
 
     ut_ad(fil_validate());
     ut_a(log_space != nullptr);
@@ -2371,11 +2387,12 @@ files_checked:
 
         fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
         if (space == nullptr) {
-          dberr_t error =
-              fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
-                           predefined_flags, dict_sys_t::s_dd_space_name,
-                           dict_sys_t::s_dd_space_name,
-                           dict_sys_t::s_dd_space_file_name, true, false);
+          Keyring_encryption_info keyring_encryption_info;
+          dberr_t error = fil_ibd_open(
+              true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
+              predefined_flags, dict_sys_t::s_dd_space_name,
+              dict_sys_t::s_dd_space_name, dict_sys_t::s_dd_space_file_name,
+              true, false, keyring_encryption_info);
           if (error != DB_SUCCESS) {
             ib::error(ER_IB_MSG_1142);
             return (srv_init_abort(DB_ERROR));
@@ -2622,13 +2639,6 @@ files_checked:
     }
   }
 
-// Percona commented out to be removed for the new DD
-#if 0
-  /* Create the SYS_ZIP_DICT system table */
-  err = dict_create_or_check_sys_zip_dict();
-  if (err != DB_SUCCESS) return(err);
-#endif
-
   srv_is_being_started = false;
 
   ut_a(trx_purge_state() == PURGE_STATE_INIT);
@@ -2826,6 +2836,10 @@ void srv_start_threads(bool bootstrap) {
   /* Create the thread that will optimize the FTS sub-system. */
   fts_optimize_init();
 
+  fil_system_acquire();
+  fil_crypt_threads_init();
+  fil_system_release();
+
   srv_start_state_set(SRV_START_STATE_STAT);
 }
 
@@ -2950,7 +2964,11 @@ void srv_pre_dd_shutdown() {
 
   if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
     dict_stats_thread_deinit();
+    /* Shutdown key rotation threads */
+    fil_crypt_threads_cleanup();
   }
+
+  unlock_keyrings(NULL);
 
   srv_is_being_shutdown = true;
 }
@@ -3074,6 +3092,11 @@ static lsn_t srv_shutdown_log() {
   }
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
+
+  if (log_scrub_thread_active) {
+    ut_ad(!srv_read_only_mode);
+    os_event_set(log_scrub_event);
+  }
 
   for (uint32_t count = 0;; ++count) {
     const ulint pending_io = buf_pool_check_no_pending_io();
@@ -3277,6 +3300,9 @@ void srv_shutdown() {
   arch_free();
   ddl_log_close();
   log_sys_close();
+  if (!srv_read_only_mode && srv_scrub_log) {
+    os_event_destroy(log_scrub_event);
+  }
   recv_sys_close();
   trx_sys_close();
   lock_sys_close();
@@ -3350,4 +3376,14 @@ void srv_fatal_error() {
   srv_shutdown_all_bg_threads();
 
   exit(3);
+}
+
+/* @} */
+
+void log_ensure_scrubbing_thread(void) {
+  log_scrub_thread_active = srv_scrub_log;
+  if (log_scrub_thread_active) {
+    log_scrub_event = os_event_create("log_scrub_event");
+    os_thread_create(log_scrub_thread_key, log_scrub_thread);
+  }
 }

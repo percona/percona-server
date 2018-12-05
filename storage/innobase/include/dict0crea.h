@@ -41,23 +41,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0types.h"
 #include "univ.i"
 
+#include "create_info_encryption_key.h"
+
 /** Build a table definition without updating SYSTEM TABLES
 @param[in,out]	table	dict table object
 @param[in,out]	trx	transaction instance
 @return DB_SUCCESS or error code */
-dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx);
+dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx, fil_encryption_t mode, const CreateInfoEncryptionKeyId &create_info_encryption_key_id);
 
 /** Builds a tablespace to store various objects.
 @param[in,out]	trx		DD transaction
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
-dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace);
+dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace, fil_encryption_t mode, const CreateInfoEncryptionKeyId &create_info_encryption_key_id);
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]	table	Table to build in its own tablespace.
 @param[in,out]	trx	Transaction
 @return DB_SUCCESS or error code */
-dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx);
+dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx, fil_encryption_t mode, const CreateInfoEncryptionKeyId &create_info_encryption_key_id);
 
 /** Assign a new table ID and put it into the table cache and the transaction.
 @param[in,out]	table	Table that needs an ID
@@ -107,48 +109,6 @@ static const constexpr auto ZIP_DICT_MAX_NAME_LENGTH = 64;
 /* Max window size (2^15) minus 262 */
 static const constexpr auto ZIP_DICT_MAX_DATA_LENGTH = 32506;
 
-// Percona commented out to be removed for the new DD
-#if 0
-/** Creates the zip_dict system table inside InnoDB
-at server bootstrap or server start if it is not found or is
-not of the right form.
-@return	DB_SUCCESS or error code */
-MY_NODISCARD
-dberr_t
-dict_create_or_check_sys_zip_dict(void);
-
-/** Add a single compression dictionary definition to the SYS_ZIP_DICT
-InnoDB system table.
-@param[in]	name	dict name
-@param[in]	name_len	dict name length
-@param[in]	data	dict data
-@param[in]	data_len	dict data length
-@param[in,out]	trx	transaction
-@return	error code or DB_SUCCESS */
-MY_NODISCARD
-dberr_t
-dict_create_add_zip_dict(
-	const char*	name,
-	ulint		name_len,
-	const char*	data,
-	ulint		data_len,
-	trx_t*		trx);
-
-/** Add a single compression dictionary reference to the SYS_ZIP_DICT_COLS
-InnoDB system table.
-@param[in]	table_id	table id
-@param[in]	column_pos	column position
-@param[in]	dict_id		dict id
-@param[in,out]	trx		transaction
-@return	error code or DB_SUCCESS */
-MY_NODISCARD
-dberr_t
-dict_create_add_zip_dict_reference(
-	ulint		table_id,
-	ulint		column_pos,
-	ulint		dict_id,
-	trx_t*		trx);
-
 /** Get a single compression dictionary id for the given
 (table id, column pos) pair.
 @param[in]	table_id	table id
@@ -157,26 +117,9 @@ dict_create_add_zip_dict_reference(
 @param[in,out]	trx		transaction
 @return	error code or DB_SUCCESS */
 MY_NODISCARD
-dberr_t
-dict_create_get_zip_dict_id_by_reference(
-	ulint	table_id,
-	ulint	column_pos,
-	ulint*	dict_id,
-	trx_t*	trx);
-
-/** Get compression dictionary id for the given name.
-@param[in]	dict_name	dict name
-@param[in]	dict_name_len	dict name length
-@param[out]	dict_id		dict id
-@param[in,out]	trx		transaction
-@return	error code or DB_SUCCESS */
-MY_NODISCARD
-dberr_t
-dict_create_get_zip_dict_id_by_name(
-	const char*	dict_name,
-	ulint		dict_name_len,
-	ulint*		dict_id,
-	trx_t*		trx);
+dberr_t dict_create_get_zip_dict_id_by_reference(ulint table_id,
+                                                 ulint column_pos,
+                                                 ulint *dict_id, trx_t *trx);
 
 /** Get compression dictionary info (name and data) for the given id.
 Allocates memory for name and data on success.
@@ -189,40 +132,9 @@ Must be freed with my_free().
 @param[in,out]	trx		transaction
 @return	error code or DB_SUCCESS */
 MY_NODISCARD
-dberr_t
-dict_create_get_zip_dict_info_by_id(
-	ulint	dict_id,
-	char**	name,
-	ulint*	name_len,
-	char**	data,
-	ulint*	data_len,
-	trx_t*	trx);
-
-/** Remove a single compression dictionary from the data dictionary
-tables in the database.
-@param[in]	name		dict name
-@param[in]	name_len	dict name length
-@param[in,out]	trx		transaction
-@return	error code or DB_SUCCESS */
-MY_NODISCARD
-dberr_t
-dict_create_remove_zip_dict(
-	const char*	name,
-	ulint		name_len,
-	trx_t*		trx);
-
-/** Remove all compression dictionary references for the given table ID from
-the data dictionary tables in the database.
-@param[in]	table_id	table id
-@param[in,out]	trx		transaction
-@return	error code or DB_SUCCESS */
-MY_NODISCARD
-dberr_t
-dict_create_remove_zip_dict_references_for_table(
-	ulint	table_id,
-	trx_t*	trx);
-
-#endif
+dberr_t dict_create_get_zip_dict_info_by_id(ulint dict_id, char **name,
+                                            ulint *name_len, char **data,
+                                            ulint *data_len, trx_t *trx);
 
 /* Table create node structure */
 struct tab_node_t {

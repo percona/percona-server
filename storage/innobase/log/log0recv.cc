@@ -51,6 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "dict0dd.h"
+#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
@@ -1078,12 +1079,15 @@ pages.
 void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   for (;;) {
     mutex_enter(&recv_sys->mutex);
+    bool abort = recv_sys->found_corrupt_log;
 
     if (!recv_sys->apply_batch_on) {
       break;
     }
 
     mutex_exit(&recv_sys->mutex);
+
+    if (abort) return;
 
     os_thread_sleep(500000);
   }
@@ -1156,7 +1160,12 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   /* Wait until all the pages have been processed */
 
   while (recv_sys->n_addrs != 0) {
+    bool abort = recv_sys->found_corrupt_log;
     mutex_exit(&recv_sys->mutex);
+
+    if (abort) {
+      return;
+    }
 
     os_thread_sleep(500000);
 
@@ -1555,10 +1564,31 @@ static byte *recv_parse_or_apply_log_rec_body(mlog_id_t type, byte *ptr,
         recovered. Otherwise, redo will not find the key
         to decrypt the data pages. */
 
-        if (page_no == 0 && !fsp_is_system_or_temp_tablespace(space_id)) {
-          return (
-              fil_tablespace_redo_encryption(ptr, end_ptr, space_id, apply));
+        if (page_no == 0) {
+          byte *ptr_copy = ptr;
+          ptr_copy += 2;  // skip offset
+          ulint len = mach_read_from_2(ptr_copy);
+          ptr_copy += 2;
+          if (end_ptr < ptr_copy + len) return NULL;
+
+          if (memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V1,
+                     ENCRYPTION_MAGIC_SIZE) == 0 ||
+              memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V2,
+                     ENCRYPTION_MAGIC_SIZE) == 0 ||
+              memcmp(ptr, ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE) ==
+                  0) {
+            if (fsp_is_system_or_temp_tablespace(space_id)) {
+              break;
+            }
+            return (
+                fil_tablespace_redo_encryption(ptr, end_ptr, space_id, apply));
+          } else if (memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_PS_V1,
+                            ENCRYPTION_MAGIC_SIZE) == 0 &&
+                     apply) {
+            return (fil_parse_write_crypt_data(ptr, end_ptr, block, len));
+          }
         }
+        break;
 #ifdef UNIV_HOTBACKUP
       }
 #endif /* UNIV_HOTBACKUP */
@@ -1724,7 +1754,9 @@ static byte *recv_parse_or_apply_log_rec_body(mlog_id_t type, byte *ptr,
             redo log been written with something
             older than InnoDB Plugin 1.0.4. */
             ut_ad(
-                0 ||
+                0
+                /* fil_crypt_rotate_page() writes this */
+                || offs == FIL_PAGE_SPACE_ID ||
                 offs == IBUF_TREE_SEG_HEADER + IBUF_HEADER + FSEG_HDR_SPACE ||
                 offs == IBUF_TREE_SEG_HEADER + IBUF_HEADER + FSEG_HDR_PAGE_NO ||
                 offs == PAGE_BTR_IBUF_FREE_LIST + PAGE_HEADER /* flst_init */
@@ -3701,7 +3733,7 @@ void recv_dblwr_t::decrypt_sys_dblwr_pages() {
   IORequest decrypt_request;
 
   decrypt_request.encryption_key(space->encryption_key, space->encryption_klen,
-                                 space->encryption_iv);
+                                 false, space->encryption_iv, 0, 0, NULL, NULL);
   decrypt_request.encryption_algorithm(Encryption::AES);
 
   Encryption encryption(decrypt_request.encryption_algorithm());

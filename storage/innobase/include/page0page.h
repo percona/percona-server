@@ -56,6 +56,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
                         ==============
 */
 
+extern bool srv_immediate_scrub_data_uncompressed;
+
 typedef byte page_dir_slot_t;
 typedef page_dir_slot_t page_dir_t;
 

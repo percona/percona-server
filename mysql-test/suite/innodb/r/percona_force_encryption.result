@@ -15,7 +15,7 @@ create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE
 ERROR HY000: InnoDB: Tablespace `ts_unencrypted1` cannot contain an ENCRYPTED table.
 set global innodb_encrypt_tables='FORCE';
 create table t5_force_explicit_off (a int) engine=innodb encryption="N";
-ERROR HY000: InnoDB: Only ENCRYPTED tables can be created with innodb_encrypt_tables=FORCE.
+ERROR HY000: InnoDB: Only Master Key encrypted tables (ENCRYPTION='Y') can be created with innodb_encrypt_tables=FORCE.
 create table t6_force_default (a int) engine=innodb;
 create table t6_force_default_dup like t6_force_default;
 create table t7_partitioned (a int, primary key(a))
@@ -91,13 +91,13 @@ t7_partitioned	CREATE TABLE `t7_partitioned` (
 (PARTITION p1 VALUES LESS THAN (20) TABLESPACE = `ts_encrypted1` ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (40) TABLESPACE = `ts_encrypted2` ENGINE = InnoDB) */
 alter table t1_default_explicit_on encryption="N";
-ERROR HY000: InnoDB: Only ENCRYPTED tables can be created with innodb_encrypt_tables=FORCE.
+ERROR HY000: InnoDB: Only Master Key encrypted tables (ENCRYPTION='Y') can be created with innodb_encrypt_tables=FORCE.
 alter table t2_default_explicit_off encryption="Y";
 alter table t2_default_explicit_off encryption="N";
-ERROR HY000: InnoDB: Only ENCRYPTED tables can be created with innodb_encrypt_tables=FORCE.
+ERROR HY000: InnoDB: Only Master Key encrypted tables (ENCRYPTION='Y') can be created with innodb_encrypt_tables=FORCE.
 alter table t3_on_default;
 alter table t4_on_explicit_off encryption="N";
-ERROR HY000: InnoDB: Only ENCRYPTED tables can be created with innodb_encrypt_tables=FORCE.
+ERROR HY000: InnoDB: Only Master Key encrypted tables (ENCRYPTION='Y') can be created with innodb_encrypt_tables=FORCE.
 set global innodb_encrypt_tables='ON';
 alter table t1_default_explicit_on encryption="N", ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.

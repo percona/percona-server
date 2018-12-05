@@ -98,7 +98,7 @@ INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 # before the restart. master-verify-checksum should help us detect that the encrypted events
 # are incorrect as checksum will not be correct.
 
-call mtr.add_suppression("Failed to fetch percona_binlog key \\(version 0\\) from keyring and thus failed to initialize binlog encryption.");
+call mtr.add_suppression("Failed to fetch percona_binlog key \\(version 1\\) from keyring and thus failed to initialize binlog encryption.");
 call mtr.add_suppression("Error initializing decryption while reading GTIDs from binary log");
 # Legit Format description events is never encrypted - as it comes before Start encryption event and is the
 # first event in binlog. However garbage data can get interpreted as Format description event - in case of this event

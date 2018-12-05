@@ -52,7 +52,7 @@ CREATE COMPRESSION_DICTIONARY d12(@dict_data12);
 
 # "CREATE COMPRESSION_DICTIONARY <dict>(@<var> := <expr>)" must
 # generate a syntax error
---error ER_PARSE_ERROR
+--error ER_SYNTAX_ERROR
 CREATE COMPRESSION_DICTIONARY d12(@dict_data12 := 'blah');
 
 # max dictionary name length is 64 characters - check if an
@@ -73,19 +73,16 @@ SET @longer_dictionary_data = CONCAT(@long_dictionary_data, 'a');
 --error ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
 CREATE COMPRESSION_DICTIONARY d14(@longer_dictionary_data);
 
-# we use MD5() function here to get rid of NUL characters in the output
-SELECT id, name, MD5(zip_dict), LENGTH(zip_dict)
-  FROM information_schema.xtradb_zip_dict
-  ORDER BY id;
+SELECT DICT_VERSION, DICT_NAME, MD5(DICT_DATA), LENGTH(DICT_DATA) FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY ORDER BY LENGTH(DICT_NAME) ASC, DICT_NAME ASC;
 
 # check if dictionary data stored in SYS_ZIP_DICT can be extracted
 # without corruption
-SELECT zip_dict = 'abcd' AS short_zip_dict_data_must_match
-  FROM information_schema.xtradb_zip_dict
-  WHERE name = @long_dictionary_name;
-SELECT zip_dict = @long_dictionary_data AS long_zip_dict_data_must_match
-  FROM information_schema.xtradb_zip_dict
-  WHERE name = 'd13';
+SELECT dict_data = 'abcd' AS short_zip_dict_data_must_match
+  FROM information_schema.compression_dictionary
+  WHERE MD5(dict_name) = MD5(@long_dictionary_name);
+SELECT dict_data = @long_dictionary_data AS long_zip_dict_data_must_match
+  FROM information_schema.compression_dictionary
+  WHERE dict_name = 'd13';
 
 # creating a compression dictionary with a name already taken is an error
 --error ER_COMPRESSION_DICTIONARY_EXISTS
@@ -93,10 +90,6 @@ CREATE COMPRESSION_DICTIONARY d1('data');
 
 --let $dict_name=d1
 --let $table_name=t1
-
-# getting compression dictionary id for $dict_name
-eval SELECT id INTO @dict_id FROM information_schema.xtradb_zip_dict
-  WHERE name = '$dict_name';
 
 # creating a new table which references a non-existing compression dictionary
 # must generate an error
@@ -122,11 +115,11 @@ eval SELECT table_id INTO @table_id FROM information_schema.innodb_tables
   WHERE name=CONCAT(DATABASE(), '/', '$table_name');
 
 # the number of column<->dict_id links for $table_name must be exactly one
-SELECT COUNT(*) = 1 AS only_one_dictionary_reference FROM information_schema.xtradb_zip_dict_cols
-  WHERE table_id = @table_id;
+eval SELECT COUNT(*) = 1 AS only_one_dictionary_reference FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME = '$table_name';
 
-SELECT dict_id = @dict_id AS dict_ids_must_match FROM information_schema.xtradb_zip_dict_cols
-  WHERE table_id = @table_id AND column_pos = 2;
+eval SELECT dict_name = '$dict_name' AS dict_names_must_match FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME = '$table_name';
 
 # check if it is OK to refer to an empty dictionary
 SET @long_string_value = REPEAT('a', 128);
@@ -146,8 +139,8 @@ DROP COMPRESSION_DICTIONARY d100;
 DROP COMPRESSION_DICTIONARY d13;
 
 SELECT COUNT(*) = 0 AS dict_must_be_deleted
-  FROM information_schema.xtradb_zip_dict
-  WHERE name = 'd13';
+  FROM information_schema.compression_dictionary
+  WHERE dict_name = 'd13';
 
 # droppping all created compression dictionaries except d1
 DROP COMPRESSION_DICTIONARY d2;
@@ -164,17 +157,17 @@ DROP COMPRESSION_DICTIONARY d12;
 --eval DROP COMPRESSION_DICTIONARY $long_dictionary_name
 
 # check if the changes are reflected properly in "xtradb_zip_dict"
-SELECT id, name, zip_dict, LENGTH(zip_dict)
-  FROM information_schema.xtradb_zip_dict;
+SELECT dict_name, dict_data, LENGTH(dict_data)
+FROM information_schema.compression_dictionary;
 
 # dropping table with references to compression dictionaries must also clean
 # SYS_ZIP_DICT_COLS InnoDB system table
 --eval DROP TABLE $table_name
 
-SELECT COUNT(*) = 1 AS compression_dictionary_exists FROM information_schema.xtradb_zip_dict
-  WHERE id = @dict_id;
-SELECT COUNT(*) = 0 AS references_cleared FROM information_schema.xtradb_zip_dict_cols
-  WHERE table_id = @table_id;
+eval SELECT COUNT(*) = 1 AS compression_dictionary_exists FROM information_schema.compression_dictionary
+  WHERE dict_name = '$dict_name';
+eval SELECT COUNT(*) = 0 AS references_cleared FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='$table_name';
 
 # check if tables deleted implicitly via "DROP DATABASE" also perform
 # SYS_ZIP_DICT_COLS cleanup
@@ -192,18 +185,18 @@ eval SELECT table_id INTO @table_id FROM information_schema.innodb_tables
   WHERE name=CONCAT('$aux_database_name', '/', '$table_name');
 
 # the number of column<->dict_id links for $aux_database_name.$table_name must be exactly one
-SELECT COUNT(*) = 1 AS only_one_dictionary_reference FROM information_schema.xtradb_zip_dict_cols
-  WHERE table_id = @table_id;
+eval SELECT COUNT(*) = 1 AS only_one_dictionary_reference FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA='$aux_database_name' AND TABLE_NAME='$table_name';
 
-SELECT dict_id = @dict_id AS dict_ids_must_match FROM information_schema.xtradb_zip_dict_cols
-  WHERE table_id = @table_id AND column_pos = 2;
+eval SELECT dict_name = '$dict_name' AS dict_names_must_match FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA='$aux_database_name' AND TABLE_NAME='$table_name' AND COLUMN_NAME = 'b';
 
 --eval DROP DATABASE $aux_database_name
 
-SELECT COUNT(*) = 1 AS compression_dictionary_exists FROM information_schema.xtradb_zip_dict
-  WHERE id = @dict_id;
-SELECT COUNT(*) = 0 AS references_cleared FROM information_schema.xtradb_zip_dict_cols
-  WHERE table_id = @table_id;
+eval SELECT COUNT(*) = 1 AS compression_dictionary_exists FROM information_schema.compression_dictionary
+  WHERE dict_name = '$dict_name';
+eval SELECT COUNT(*) = 0 AS references_cleared FROM information_schema.compression_dictionary_tables
+  WHERE TABLE_NAME = '$table_name' AND TABLE_SCHEMA = '$aux_database_name';
 
 # saving current @default_storage_engine
 SET @saved_default_storage_engine = @@default_storage_engine;
@@ -354,8 +347,8 @@ eval DROP TEMPORARY TABLE $temporary_table_name;
 
 # remove remaining compression dictionary
 --eval DROP COMPRESSION_DICTIONARY $dict_name
-SELECT COUNT(*) = 0 AS compression_dictionary_removed FROM information_schema.xtradb_zip_dict
-  WHERE id = @dict_id;
+eval SELECT COUNT(*) = 0 AS compression_dictionary_removed FROM information_schema.compression_dictionary
+  WHERE dict_name = '$dict_name';
 
 # check if dropping a table without compressed dictionary references does not crash
 --eval CREATE TABLE $table_name(id INT, a BLOB) ENGINE=InnoDB
@@ -371,15 +364,13 @@ CREATE TABLE t1(c1 TEXT COLUMN_FORMAT COMPRESSED);
 DROP TABLE t1;
 
 CREATE COMPRESSION_DICTIONARY existing_dict('aaaa');
-SELECT id INTO @existing_dict_id FROM information_schema.xtradb_zip_dict
-  WHERE name = 'existing_dict';
 --error ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
 CREATE TABLE t1(
  c1 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY existing_dict,
  c2 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown
 );
-SELECT COUNT(*) = 0 AS no_dict_references_created FROM information_schema.xtradb_zip_dict_cols
-  WHERE dict_id = @existing_dict_id;
+SELECT COUNT(*) = 0 AS no_dict_references_created FROM information_schema.compression_dictionary_tables
+  WHERE dict_name = 'existing_dict';
 DROP COMPRESSION_DICTIONARY existing_dict;
 
 
@@ -395,26 +386,28 @@ ALTER TABLE t1 ADD COLUMN b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTI
 DROP TABLE t1;
 
 CREATE COMPRESSION_DICTIONARY existing_dict('aaaa');
-SELECT id INTO @existing_dict_id FROM information_schema.xtradb_zip_dict
-  WHERE name = 'existing_dict';
 CREATE TABLE t1(
  c1 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY existing_dict
 );
-SELECT COUNT(*) = 1 AS one_dict_reference_created FROM information_schema.xtradb_zip_dict_cols
-  WHERE dict_id = @existing_dict_id;
+
+SELECT COUNT(*) = 1 AS one_dict_reference_created FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
 
 --error ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
 ALTER TABLE t1 ADD COLUMN c2 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown;
-SELECT COUNT(*) = 1 AS one_dict_reference_after_adding_one_column FROM information_schema.xtradb_zip_dict_cols
-  WHERE dict_id = @existing_dict_id;
+
+
+SELECT COUNT(*) = 1 AS one_dict_reference_after_adding_one_column FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
 
 --error ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
 ALTER TABLE t1
   ADD COLUMN c2 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY existing_dict,
   ADD COLUMN c3 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown
 ;
-SELECT COUNT(*) = 1 AS one_dict_reference_after_adding_two_columns FROM information_schema.xtradb_zip_dict_cols
-  WHERE dict_id = @existing_dict_id;
+
+SELECT COUNT(*) = 1 AS one_dict_reference_after_adding_two_columns FROM information_schema.compression_dictionary_tables
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
 
 DROP TABLE t1;
 DROP COMPRESSION_DICTIONARY existing_dict;

@@ -31,7 +31,7 @@ t1	CREATE TABLE t1 (
   c blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3 */,
   d blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3 */,
   PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE t2 (
@@ -41,7 +41,7 @@ t2	CREATE TABLE t2 (
   c blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3 */,
   d blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d3 */,
   PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SQL_QUOTE_SHOW_CREATE = ON;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -52,7 +52,7 @@ t1	CREATE TABLE `t1` (
   `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d3` */,
   `d` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d3` */,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -62,7 +62,7 @@ t2	CREATE TABLE `t2` (
   `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d3` */,
   `d` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d3` */,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET @short_value = REPEAT(@dictionary_word, 2);
 SET @long_value = REPEAT(@dictionary_word, @@innodb_compressed_columns_threshold / LENGTH(@dictionary_word) + 2);
 INSERT INTO t1(a, b, c, d) VALUES (@short_value, @short_value, @short_value, @short_value);
@@ -82,11 +82,11 @@ COUNT(*) = 0
 1
 # Importing SQL dump with compressed columns enabled and dictionaries disabled
 Warnings:
-Note	3230	Compression dictionary 'd1' does not exist
+Note	49004	Compression dictionary 'd1' does not exist
 Warnings:
-Note	3230	Compression dictionary 'd2' does not exist
+Note	49004	Compression dictionary 'd2' does not exist
 Warnings:
-Note	3230	Compression dictionary 'd3' does not exist
+Note	49004	Compression dictionary 'd3' does not exist
 number_of_short_rows_in_first_match
 1
 number_of_long_rows_in_first_match
@@ -99,11 +99,11 @@ COUNT(*) = 0
 1
 # Importing SQL dump with compressed columns and dictionaries enabled
 Warnings:
-Note	3230	Compression dictionary 'd1' does not exist
+Note	49004	Compression dictionary 'd1' does not exist
 Warnings:
-Note	3230	Compression dictionary 'd2' does not exist
+Note	49004	Compression dictionary 'd2' does not exist
 Warnings:
-Note	3230	Compression dictionary 'd3' does not exist
+Note	49004	Compression dictionary 'd3' does not exist
 number_of_short_rows_in_first_match
 1
 number_of_long_rows_in_first_match

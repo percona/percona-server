@@ -531,19 +531,7 @@ void TABLE_SHARE::destroy() {
 
   DBUG_ENTER("TABLE_SHARE::destroy");
   DBUG_PRINT("info", ("db: %s table: %s", db.str, table_name.str));
-  if (field != 0) {
-    Field *current_field;
-    for (uint i = 0; i < fields; ++i) {
-      current_field = field[i];
-      if (current_field &&
-          current_field->has_associated_compression_dictionary()) {
-        my_free(const_cast<char *>(current_field->zip_dict_data.str));
-        current_field->zip_dict_data = null_lex_cstr;
-        my_free(const_cast<char *>(current_field->zip_dict_name.str));
-        current_field->zip_dict_name = null_lex_cstr;
-      }
-    }
-  }
+
   if (ha_share) {
     delete ha_share;
     ha_share = NULL;
@@ -1855,6 +1843,18 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       }
       next_chunk += 2 + share->encrypt_type.length;
     }
+
+    if (next_chunk + strlen("ENCRYPTION_KEY_ID") +
+                4  // + 4 for encryption_key_id value, ENCRYPTION_KEY_ID is used
+                   // here as a marker
+            <= buff_end &&
+        strncmp(reinterpret_cast<char *>(next_chunk), "ENCRYPTION_KEY_ID",
+                strlen("ENCRYPTION_KEY_ID")) == 0) {
+      share->encryption_key_id =
+          uint4korr(next_chunk + strlen("ENCRYPTION_KEY_ID"));
+      share->was_encryption_key_id_set = true;
+      next_chunk += 4 + strlen("ENCRYPTION_KEY_ID");
+    }
   }
   share->key_block_size = uint2korr(head + 62);
 
@@ -2045,7 +2045,29 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 
   /* update zip dict info (name + data) from the handler */
   if (share->has_compressed_columns())
-    handler_file->update_field_defs_with_zip_dict_info(thd, NULL);
+    handler_file->upgrade_update_field_with_zip_dict_info(thd, NULL);
+
+  /* Use share mem root for zip dict name and data */
+  for (uint i = 0; i < share->fields; ++i) {
+    Field *field = share->field[i];
+    if (field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
+      if (field->zip_dict_data.str != nullptr) {
+        LEX_CSTRING saved_data = field->zip_dict_data;
+        field->zip_dict_data.str =
+            strmake_root(&share->mem_root, saved_data.str, saved_data.length);
+        field->zip_dict_data.length = saved_data.length;
+        my_free(const_cast<char *>(saved_data.str));
+      }
+
+      if (field->zip_dict_name.str != nullptr) {
+        LEX_CSTRING saved_data = field->zip_dict_name;
+        field->zip_dict_name.str =
+            strmake_root(&share->mem_root, saved_data.str, saved_data.length);
+        field->zip_dict_name.length = saved_data.length;
+        my_free(const_cast<char *>(saved_data.str));
+      }
+    }
+  }
 
   /* Fix key->name and key_part->field */
   if (key_parts) {

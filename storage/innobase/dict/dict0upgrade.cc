@@ -287,9 +287,13 @@ static bool dd_upgrade_match_single_col(const Field *field,
 
   ulint is_virtual = (innobase_is_v_fld(field)) ? DATA_VIRTUAL : 0;
 
+  const ulint compressed =
+      field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED ? DATA_COMPRESSED
+                                                              : 0;
+
   ulint server_prtype =
       (static_cast<ulint>(field->type()) | nulls_allowed | unsigned_type |
-       binary_type | long_true_varchar | is_virtual);
+       binary_type | long_true_varchar | is_virtual | compressed);
 
   /* First two bytes store charset, last two bytes store precision
   value. Get the last two bytes. i.e precision value */
@@ -1291,6 +1295,11 @@ static void dd_upgrade_drop_sys_tables() {
   ut_ad(page_size.equals_to(univ_page_size));
 
   for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
+    if ((i == SYS_ZIP_DICT || i == SYS_ZIP_DICT_COLS) &&
+        dict_upgrade_zip_dict_missing) {
+      continue;
+    }
+
     dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
     ut_ad(system_table != nullptr);
     ut_ad(system_table->space == SYSTEM_TABLE_SPACE);
@@ -1375,4 +1384,63 @@ int dd_upgrade_finish(THD *thd, bool failed_upgrade) {
   srv_is_upgrade_mode = false;
 
   DBUG_RETURN(0);
+}
+
+bool dd_upgrade_get_compression_dict_data(
+    THD *thd, compression_dict_data_vec_t &data_vector) {
+  ut_ad(srv_is_upgrade_mode);
+
+  /* If SYS_ZIP_DICT tables are missing, then upgrade is
+  from mysql-5.7 to PS-8.0 */
+  if (dict_upgrade_zip_dict_missing) {
+    /* Claim success and don't abort upgrade */
+    return (false);
+  }
+
+  mutex_enter(&dict_sys->mutex);
+
+  mem_heap_t *heap = mem_heap_create(1000);
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  btr_pcur_t pcur;
+  const rec_t *rec = dict_startscan_system(&pcur, &mtr, SYS_ZIP_DICT);
+
+  while (rec) {
+    const char *err_msg;
+    ulint id;
+    const char *name;
+    const char *data;
+    ulint data_len;
+    ulint name_len;
+
+    /* Extract necessary information from a SYS_ZIP_DICT row */
+    err_msg = dict_process_sys_zip_dict(heap, *pcur.btr_cur.index, rec, &id,
+                                        &name, &name_len, &data, &data_len);
+
+    mtr_commit(&mtr);
+    mutex_exit(&dict_sys->mutex);
+
+    if (!err_msg) {
+      data_vector.push_back(std::make_pair(std::string(name, name_len),
+                                           std::string(data, data_len)));
+
+    } else {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_CANT_FIND_SYSTEM_REC, "%s", err_msg);
+    }
+
+    mem_heap_empty(heap);
+
+    /* Get the next record */
+    mutex_enter(&dict_sys->mutex);
+    mtr_start(&mtr);
+    rec = dict_getnext_system(&pcur, &mtr);
+  }
+
+  mtr_commit(&mtr);
+  mutex_exit(&dict_sys->mutex);
+  mem_heap_free(heap);
+
+  return (false);
 }

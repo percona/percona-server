@@ -2138,7 +2138,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 #ifdef UNIV_DEBUG
       mtr_commit(&mtr);
       mtr_start(&mtr);
-      ut_ad(btr_validate_index(index, 0, false));
+      ut_ad(btr_validate_index(index, 0, false) == DB_SUCCESS);
       ut_ad(0);
 #endif /* UNIV_DEBUG */
       break;

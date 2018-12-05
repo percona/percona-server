@@ -266,6 +266,9 @@ typedef struct rpl_event_coordinates {
 
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
+int lock_keyrings(THD *thd);
+int unlock_keyrings(THD *thd);
+
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF
 #define INIT_ARENA_DBUG_INFO \
@@ -2724,7 +2727,7 @@ class THD : public MDL_context_owner,
   // We don't want to load/unload plugins for unit tests.
   bool m_enable_plugins;
 
-  THD(bool enable_plugins = true);
+  explicit THD(bool enable_plugins = true);
 
   /*
     The THD dtor is effectively split in two:

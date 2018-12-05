@@ -144,6 +144,7 @@
 #include "sql/sql_time.h"        // make_truncated_value_warning
 #include "sql/sql_tmp_table.h"   // create_tmp_field
 #include "sql/sql_trigger.h"     // change_trigger_table_name
+#include "sql/sql_zip_dict.h"
 #include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"  // find_type2
 #include "sql/system_variables.h"
@@ -155,6 +156,7 @@
 #include "sql/trigger.h"
 #include "sql/xa.h"
 #include "sql_string.h"
+#include "sql_zip_dict.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "typelib.h"
@@ -1015,6 +1017,10 @@ static bool rea_create_base_table(
         (void)trans_intermediate_ddl_commit(thd, result);
     }
     DBUG_RETURN(true);
+  } else {
+    if (compression_dict::cols_table_insert(thd, *table_def)) {
+      DBUG_RETURN(true);
+    }
   }
 
   /*
@@ -7110,8 +7116,8 @@ bool mysql_prepare_create_table(
          sql_field->gcol_info->get_field_stored())) {
       DBUG_EXECUTE_IF(
           "enforce_all_compressed_columns",
-          if (create_info->db_type->create_zip_dict != nullptr)
-              sql_field->set_column_format(COLUMN_FORMAT_TYPE_COMPRESSED););
+          sql_field->set_column_format(COLUMN_FORMAT_TYPE_COMPRESSED););
+
     } else {
       if (sql_field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
         my_error(ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE, MYF(0),
@@ -7119,6 +7125,31 @@ bool mysql_prepare_create_table(
         DBUG_RETURN(true);
       }
     }
+
+    /* Verify if the compression dictionary entry exists. Open compression
+       dictionary table with MDL_SHARED_READ mode. If the entry exists,
+       do not release the MDL lock. This is because we don't want a concurrent
+       DROP COMPRESSION_DICTIONARY to remove the dictionary entry
+    */
+
+    if (sql_field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED &&
+        sql_field->zip_dict_name.str != nullptr &&
+        sql_field->zip_dict_name.length != 0) {
+      if (compression_dict::acquire_dict_mdl(thd, MDL_SHARED_READ)) {
+        DBUG_RETURN(true);
+      }
+
+      uint64 zip_dict_id =
+          compression_dict::get_id_for_name(thd, sql_field->zip_dict_name);
+
+      if (zip_dict_id == 0) {
+        my_error(ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST, MYF(0),
+                 sql_field->zip_dict_name.str);
+        DBUG_RETURN(true);
+      }
+      sql_field->zip_dict_id = zip_dict_id;
+    }
+
     if (sql_field->auto_flags & Field::NEXT_NUMBER) auto_increment++;
     switch (sql_field->sql_type) {
       case MYSQL_TYPE_GEOMETRY:
@@ -11809,6 +11840,13 @@ static bool mysql_inplace_alter_table(
     */
     altered_table_def->copy_triggers(table_def);
 
+    /* About the remove the old table definition, if there any columns
+    with compression dictionary, remove the entries from
+    mysql.compression_dictionary_cols table */
+    if (compression_dict::cols_table_delete(thd, *table_def)) {
+      goto cleanup2;
+    }
+
     if (thd->dd_client()->drop(table_def)) goto cleanup2;
     table_def = nullptr;
 
@@ -13221,6 +13259,16 @@ bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
     /* Table has an autoincrement, copy value to new table */
     table->file->info(HA_STATUS_AUTO);
     create_info->auto_increment_value = table->file->stats.auto_increment_value;
+  }
+
+  // Encryption was changed to not KEYRING and ALTER does not contain
+  // encryption_key_id mark encryption_key_id as not set then
+  if (used_fields & HA_CREATE_USED_ENCRYPT &&
+      0 != strncmp(create_info->encrypt_type.str, "KEYRING",
+                   create_info->encrypt_type.length) &&
+      !(used_fields & HA_CREATE_USED_ENCRYPTION_KEY_ID)) {
+    create_info->used_fields &= ~(HA_CREATE_USED_ENCRYPTION_KEY_ID);
+    create_info->was_encryption_key_id_set = false;
   }
 
   if (prepare_fields_and_keys(thd, src_table, table, create_info, alter_info,
@@ -14760,7 +14808,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
     }
   }
-  if (alter_info->has_compressed_columns() &&
+  if (new_part_info != nullptr && alter_info->has_compressed_columns() &&
       !ha_check_storage_engine_flag(new_part_info->default_engine_type,
                                     HTON_SUPPORTS_COMPRESSED_COLUMNS)) {
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
@@ -14793,6 +14841,33 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   List_iterator<Create_field> list_it(alter_info->create_list);
   while ((create_field = list_it++)) {
     if (create_field->change != nullptr) columns.emplace(create_field->change);
+  }
+
+  if ((alter_info->flags & Alter_info::ALTER_ADD_COLUMN) != 0 &&
+      alter_info->has_compressed_columns()) {
+    switch (alter_info->requested_algorithm) {
+      case Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT:
+
+        DBUG_LOG("zip_dict",
+                 "ALTER query "
+                     << thd->query().str
+                     << " is using INPLACE for add column"
+                        " because one of the ADD COLUMN is compressed column");
+
+        alter_info->requested_algorithm =
+            Alter_info::ALTER_TABLE_ALGORITHM_INPLACE;
+        break;
+      case Alter_info::ALTER_TABLE_ALGORITHM_INSTANT:
+        // Not possible, error out.
+        my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0), "ALGORITHM=INSTANT",
+                 "ALGORITHM=INPLACE/COPY");
+        DBUG_RETURN(true);
+      case Alter_info::ALTER_TABLE_ALGORITHM_COPY:
+      case Alter_info::ALTER_TABLE_ALGORITHM_INPLACE:
+        break;
+      default:
+        DBUG_ASSERT(0);
+    }
   }
 
   if (mysql_prepare_alter_table(thd, old_table_def, table, create_info,
@@ -15285,6 +15360,22 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         DBUG_RETURN(true);
       }
 
+      const dd::Table *new_table_def = nullptr;
+      if (thd->dd_client()->acquire(alter_ctx.new_db, alter_ctx.new_name,
+                                    &new_table_def)) {
+        DBUG_LOG("zip_dict",
+                 "Acquiring dictionary table object failed "
+                 " for query "
+                     << thd->query().str << " table_db: " << alter_ctx.new_db
+                     << " table_name: " << alter_ctx.new_name);
+        DBUG_RETURN(true);
+      }
+      /* New table is successfully created, check if any columns have
+      compression dictionary and add entry for them in
+      mysql.compression_dictionary_cols table */
+      if (compression_dict::cols_table_insert(thd, *new_table_def))
+        DBUG_RETURN(true);
+
       goto end_inplace;
     } else {
       close_temporary_table(thd, altered_table, true, false);
@@ -15750,6 +15841,22 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_with_mdl;
 
     if (thd->dd_client()->store(non_dd_table_def.get())) goto err_with_mdl;
+
+    const dd::Table *stored_table = nullptr;
+
+    if (thd->dd_client()->acquire(alter_ctx.new_db, alter_ctx.tmp_name,
+                                  &stored_table)) {
+      DBUG_LOG("zip_dict",
+               "Acquiring dictionary table object failed "
+               " for query "
+                   << thd->query().str << " table_db: " << alter_ctx.new_db
+                   << " table_name: " << alter_ctx.tmp_name);
+
+      goto err_with_mdl;
+    }
+
+    if (compression_dict::cols_table_insert(thd, *stored_table))
+      goto err_with_mdl;
 
     // Safety, in-memory dd::Table is no longer totally correct.
     non_dd_table_def.reset();

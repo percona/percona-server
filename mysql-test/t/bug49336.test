@@ -35,7 +35,7 @@ FLUSH LOGS;
 # run mysqlbinlog and make sure it ends normally
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
---exec cat $MYSQLD_DATADIR/master-bin.000001 | $MYSQL_BINLOG - >/dev/null
+--exec cat $MYSQLD_DATADIR/binlog.000001 | $MYSQL_BINLOG - >/dev/null
 
 DROP TABLE t1;
 RESET MASTER;

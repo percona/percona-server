@@ -73,6 +73,7 @@
 #include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_table.h"  // build_tablename
+#include "sql/sql_zip_dict.h"
 #include "sql/stateless_allocator.h"
 #include "sql/strfunc.h"  // lex_cstring_handle
 #include "sql/table.h"
@@ -1236,6 +1237,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
 
   if (bootstrap::initialize_dictionary(thd, in_progress(), d) ||
       dd::info_schema::create_system_views(thd) ||
+      dd::info_schema::create_non_dd_views(thd, true) ||
       dd::info_schema::store_server_I_S_metadata(thd)) {
     thd->pop_internal_handler();
     terminate(thd);
@@ -1261,6 +1263,13 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
 
   // Migrate tablespaces from SE to dictionary.
   if (ha_migrate_tablespaces(thd)) {
+    terminate(thd);
+    return true;
+  }
+
+  // Transfer compression dictionary data from InnoDB SYS_ZIP_DICT
+  // to mysql.compression_dictionary table
+  if (compression_dict::upgrade_transfer_compression_dict_data(thd)) {
     terminate(thd);
     return true;
   }

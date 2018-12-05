@@ -700,7 +700,7 @@ TEST_F(Keys_container_test, StoreFetchSystemKey) {
   delete sample_key;  // unused in this test
 }
 
-// Simulates adding 0 version of percona binlog key
+// Simulates adding 1 version of percona binlog key
 TEST_F(Keys_container_test, StoreWithoutVersionFetchSystemKey) {
   IKeyring_io *keyring_io = new Buffered_file_io(logger);
   EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
@@ -712,24 +712,24 @@ TEST_F(Keys_container_test, StoreWithoutVersionFetchSystemKey) {
   EXPECT_EQ(keys_container->store_key(key1), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
 
-  Key pb_key_verion0("percona_binlog:0", nullptr, nullptr, nullptr, 0);
-  IKey *fetched_pb_key_version0 = keys_container->fetch_key(&pb_key_verion0);
+  Key pb_key_verion1("percona_binlog:1", nullptr, nullptr, nullptr, 0);
+  IKey *fetched_pb_key_version1 = keys_container->fetch_key(&pb_key_verion1);
 
-  ASSERT_TRUE(fetched_pb_key_version0 != nullptr);
-  std::string expected_pb_key_version0_signature = "percona_binlog:0";
-  EXPECT_STREQ(fetched_pb_key_version0->get_key_signature()->c_str(),
-               expected_pb_key_version0_signature.c_str());
-  EXPECT_EQ(fetched_pb_key_version0->get_key_signature()->length(),
-            expected_pb_key_version0_signature.length());
-  uchar *fetched_pb_key_version0_data_fetched =
-      fetched_pb_key_version0->get_key_data();
+  ASSERT_TRUE(fetched_pb_key_version1 != nullptr);
+  std::string expected_pb_key_version1_signature = "percona_binlog:1";
+  EXPECT_STREQ(fetched_pb_key_version1->get_key_signature()->c_str(),
+               expected_pb_key_version1_signature.c_str());
+  EXPECT_EQ(fetched_pb_key_version1->get_key_signature()->length(),
+            expected_pb_key_version1_signature.length());
+  uchar *fetched_pb_key_version1_data_fetched =
+      fetched_pb_key_version1->get_key_data();
   size_t fetched_pb_key_data_fetched_size =
-      fetched_pb_key_version0->get_key_data_size();
+      fetched_pb_key_version1->get_key_data_size();
   EXPECT_STREQ(key_data1.c_str(), reinterpret_cast<const char *>(
-                                      fetched_pb_key_version0_data_fetched));
+                                      fetched_pb_key_version1_data_fetched));
   ASSERT_TRUE(key_data1.length() + 1 == fetched_pb_key_data_fetched_size);
 
-  my_free(fetched_pb_key_version0->release_key_data());
+  my_free(fetched_pb_key_version1->release_key_data());
   delete sample_key;  // unused in this test
 }
 

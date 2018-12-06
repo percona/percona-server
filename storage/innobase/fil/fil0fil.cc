@@ -591,12 +591,12 @@ class Tablespace_dirs {
 
 class Fil_shard {
   using File_list = UT_LIST_BASE_NODE_T(fil_node_t);
-  using Space_list = UT_LIST_BASE_NODE_T(fil_space_t);
   using Spaces = std::unordered_map<space_id_t, fil_space_t *>;
 
   using Names = std::unordered_map<const char *, fil_space_t *, Char_Ptr_Hash,
                                    Char_Ptr_Compare>;
-
+ public:
+  using Space_list = UT_LIST_BASE_NODE_T(fil_space_t);
  public:
   /** Constructor
   @param[in]	shard_id	Shard ID  */
@@ -1537,14 +1537,6 @@ class Fil_system {
   @param[in]	deleted		true if MLOG_FILE_DELETE */
   void meb_name_process(char *name, space_id_t space_id, bool deleted);
 
-  // fil_space_t *get_next_space(fil_space_t *space, Fil_shard *shard) {
-  // space = UT_LIST_GET_NEXT(m_space_list, space);
-  // if (space == NULL) {
-  // shard->mutex_release();
-  // auto next_shard = fil_system->get_next_shard(shard);
-  // if (next_shard != NULL)
-  //}
-
 }
 #endif /* UNIV_HOTBACKUP */
 
@@ -1567,15 +1559,6 @@ private :
                           fil_space_t *&space)
         MY_ATTRIBUTE((warn_unused_result));
 
-// TODO: refactor this
-// Fil_shard * get_next_shard(Fil_shard *shard) {
-// if (shard == nullptr)
-// return *(std::begin(m_shards));
-// auto it = std::find(std::begin(m_shards), std::end(m_shards), shard);
-// return (it != std::end(m_shards) && std::next(it) != std::end(m_shards)
-//? std::next(it)
-//: nullptr;
-//}
 
 private:
 /** Fil_shards managed */
@@ -3828,6 +3811,60 @@ void fil_space_release_for_io(fil_space_t *space) {
   shard->mutex_release();
 }
 
+fil_space_t* fil_space_get_next_in_shard(fil_space_t *space, Fil_shard *shard) {
+
+  space = (space == nullptr) ? UT_LIST_GET_FIRST(shard->m_space_list)
+                             : UT_LIST_GET_NEXT(space_list, space);
+  /* Skip spaces that are being created by
+  fil_ibd_create(), or dropped, or !tablespace. */
+  while (space != nullptr && (space->files.empty() ||
+                              space->is_stopping() ||
+                              space->purpose != FIL_TYPE_TABLESPACE)) {
+    space = UT_LIST_GET_NEXT(space_list, space);
+  }
+  return space;
+}
+
+/**
+Remove space from key rotation list if there are no more
+pending operations.
+@param[in]	space		Tablespace */
+static
+void
+fil_space_remove_from_keyrotation(Fil_shard *shard, fil_space_t* space) {
+
+  ut_ad(shard->mutex_owned());
+  ut_ad(space);
+
+  if (space->n_pending_ops == 0 && space->is_in_rotation_list) {
+    space->is_in_rotation_list = false;
+    ut_a(UT_LIST_GET_LEN(shard->m_rotation_list) > 0);
+    UT_LIST_REMOVE(shard->m_rotation_list, space);
+  }
+}
+
+fil_space_t* fil_space_get_next_in_shards_rotation_list(fil_space_t *space, Fil_shard *shard) {
+
+  if (space == nullptr) {
+    space = UT_LIST_GET_FIRST(shard->m_rotation_list);
+  } else {
+    fil_space_t *prev_space = space;
+    space = UT_LIST_GET_NEXT(rotation_list, prev_space);
+    fil_space_remove_from_keyrotation(shard, prev_space);
+  }
+  /* Skip spaces that are being created by
+  fil_ibd_create(), or dropped, or !tablespace. */
+  while (space != nullptr && (space->files.empty() ||
+                              space->is_stopping() ||
+                              space->purpose != FIL_TYPE_TABLESPACE)) {
+    fil_space_t *prev_space = space;
+    space = UT_LIST_GET_NEXT(rotation_list, prev_space);
+    fil_space_remove_from_keyrotation(shard, prev_space);
+  }
+  return space;
+}
+
+
 /** Return the next fil_space_t.
 Once started, the caller must keep calling this until it returns NULL.
 fil_space_acquire() and fil_space_t::release() are invoked here which
@@ -3837,52 +3874,40 @@ If NULL, use the first fil_space_t on fil_system.space_list.
 @return pointer to the next fil_space_t.
 @retval NULL if this was the last*/
 fil_space_t *fil_space_next(
-    fil_space_t *prev_space)  // TODO: To powinno być częścią Fil_system
+    fil_space_t *prev_space)  // TODO: It should be a part of Fil_system
 {
   fil_space_t *space = prev_space;
 
   mutex_enter(&fil_crypt_list_mutex);
 
   Fil_shard *shard = nullptr;
-  uint next_shard_index = 1;
+  uint shard_index = 0;
 
   if (prev_space == nullptr) {
-    shard = fil_system->shard_by_index(0);
+    shard = fil_system->shard_by_index(shard_index);
 
     shard->mutex_acquire();
-    space = UT_LIST_GET_FIRST(shard->m_space_list);
-    next_shard_index = 1;
+    space = fil_space_get_next_in_shard(prev_space, shard);
   }
 
   if (prev_space != nullptr) {
     ut_ad(space->n_pending_ops >
           0);  // we are sure that space exists as space
                // with n_pending_ops > 0 cannot be removed
-    uint shard_index = 0;
     shard = fil_system->shard_by_id(space->id, &shard_index);
     shard->mutex_acquire();
 
     /* Move on to the next fil_space_t */
     space->n_pending_ops--;
-    space = UT_LIST_GET_NEXT(space_list, space);
-    if (space == nullptr)
-      next_shard_index = (shard_index + 1) % fil_system->get_number_of_shards();
+    space = fil_space_get_next_in_shard(space, shard);
   }
 
-  while (space == nullptr && next_shard_index != 0) {
+  while (space == nullptr && (++shard_index < fil_system->get_number_of_shards())) {
     shard->mutex_release();
-    shard = fil_system->shard_by_index(next_shard_index);
+    shard = fil_system->shard_by_index(shard_index);
     ut_ad(shard != nullptr);
     shard->mutex_acquire();
-    space = UT_LIST_GET_FIRST(shard->m_space_list);
-    next_shard_index =
-        (next_shard_index + 1) % fil_system->get_number_of_shards();
-    /* Skip spaces that are being created by
-    fil_ibd_create(), or dropped, or !tablespace. */
-    while (space != nullptr && (space->files.empty() || space->is_stopping() ||
-                                space->purpose != FIL_TYPE_TABLESPACE)) {
-      space = UT_LIST_GET_NEXT(space_list, space);
-    }
+    space = fil_space_get_next_in_shard(space, shard);
   }
 
   if (space != nullptr) {
@@ -3896,21 +3921,7 @@ fil_space_t *fil_space_next(
   return (space);
 }
 
-/**
-Remove space from key rotation list if there are no more
-pending operations.
-@param[in]	space		Tablespace */
-static void fil_space_remove_from_keyrotation(Fil_shard *shard,
-                                              fil_space_t *space) {
-  ut_ad(shard->mutex_owned());
-  ut_ad(space);
 
-  if (space->n_pending_ops == 0 && space->is_in_rotation_list) {
-    space->is_in_rotation_list = false;
-    ut_a(UT_LIST_GET_LEN(shard->m_rotation_list) > 0);
-    UT_LIST_REMOVE(shard->m_rotation_list, space);
-  }
-}
 
 /** Return the next fil_space_t from key rotation list.
 Once started, the caller must keep calling this until it returns NULL.
@@ -3923,20 +3934,17 @@ If NULL, use the first fil_space_t on fil_system->space_list.
 fil_space_t *fil_space_keyrotate_next(
     fil_space_t *prev_space) {  // TODO: To powinno być częścią Fil_system
 
-  fil_space_t *space = prev_space;
-  fil_space_t *old = NULL;
-
+  fil_space_t* space = prev_space;
   mutex_enter(&fil_crypt_list_mutex);
 
-  uint next_shard_index = 0;
-
   Fil_shard *shard = nullptr;
+  uint shard_index = 0;
 
-  if (prev_space == NULL) {
-    shard = fil_system->shard_by_index(0);
+  if (prev_space == nullptr) {
+    shard = fil_system->shard_by_index(shard_index);
+
     shard->mutex_acquire();
-    space = UT_LIST_GET_FIRST(shard->m_rotation_list);
-    next_shard_index = 1;
+    space = fil_space_get_next_in_shards_rotation_list(prev_space, shard);
   }
 
   if (prev_space != NULL) {
@@ -3948,34 +3956,18 @@ fil_space_t *fil_space_keyrotate_next(
     shard->mutex_acquire();
     /* Move on to the next fil_space_t */
     space->n_pending_ops--;
-    old = space;
-    space = UT_LIST_GET_NEXT(rotation_list, space);
-    fil_space_remove_from_keyrotation(
-        shard, old);  // TODO: to powinna być funkcja sharda
-    if (space == NULL)
-      next_shard_index = (shard_index + 1) % fil_system->get_number_of_shards();
+    space = fil_space_get_next_in_shards_rotation_list(prev_space, shard);
   }
 
-  while (space == NULL && next_shard_index != 0) {
+  while (space == nullptr && (++shard_index < fil_system->get_number_of_shards())) {
     shard->mutex_release();
-    shard = fil_system->shard_by_index(next_shard_index);
-    ut_ad(shard != NULL);
+    shard = fil_system->shard_by_index(shard_index);
+    ut_ad(shard != nullptr);
     shard->mutex_acquire();
-    space = UT_LIST_GET_FIRST(shard->m_rotation_list);
-    next_shard_index =
-        (next_shard_index + 1) % fil_system->get_number_of_shards();
-    /* Skip spaces that are being created by
-    fil_ibd_create(), or dropped, or !tablespace. */
-    while (space != NULL && (space->files.empty() || space->is_stopping() ||
-                             space->purpose != FIL_TYPE_TABLESPACE)) {
-      old = space;
-      space = UT_LIST_GET_NEXT(rotation_list, space);
-      fil_space_remove_from_keyrotation(
-          shard, old);  // TODO: to powinna być funkcja sharda
-    }
+    space = fil_space_get_next_in_shards_rotation_list(prev_space, shard);
   }
 
-  if (space != NULL) {
+  if (space != nullptr) {
     space->n_pending_ops++;
   }
 

@@ -42,7 +42,7 @@ bool decrypt_event(const Binlog_crypt_data &crypto, uchar *buf, uchar *ebuf,
 }
 
 bool Event_encrypter::init(Basic_ostream *ostream, uchar *header,
-                           size_t buf_len) {
+                           size_t buf_len MY_ATTRIBUTE((unused))) {
   uchar iv[binary_log::Start_encryption_event::IV_LENGTH];
   crypto->set_iv(iv, ostream->position());
   if (ctx != nullptr) {

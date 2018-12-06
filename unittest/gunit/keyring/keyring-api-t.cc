@@ -385,7 +385,7 @@ TEST_F(Keyring_api_test, StorePBRotatePBFetchFirstVersionFetchLatestPB) {
   void *key_ver2 = NULL;
 
   EXPECT_EQ(
-      mysql_key_fetch("percona_binlog", &key_type, NULL, &key_ver1, &key_len),
+      mysql_key_fetch("percona_binlog", &key_type, NULL, &key_ver2, &key_len),
       0);
   EXPECT_STREQ("AES", key_type);
   EXPECT_EQ(key_len, percona_binlog_key_ver2_data.length() + 3);

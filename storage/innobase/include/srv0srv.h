@@ -1201,6 +1201,12 @@ struct export_var_t {
                                            statistics */
 
   int64_t innodb_scrub_log;
+  ulint innodb_scrub_page_reorganizations;
+  ulint innodb_scrub_page_splits;
+  ulint innodb_scrub_page_split_failures_underflow;
+  ulint innodb_scrub_page_split_failures_out_of_filespace;
+  ulint innodb_scrub_page_split_failures_missing_index;
+  ulint innodb_scrub_page_split_failures_unknown;
   int64_t innodb_pages_encrypted; /*!< Number of pages
                                   encrypted */
   int64_t innodb_pages_decrypted; /*!< Number of pages

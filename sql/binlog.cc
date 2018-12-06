@@ -6730,8 +6730,7 @@ bool MYSQL_BIN_LOG::write_buffer(uchar *buf, uint len, Master_info *mi) {
     DBUG_RETURN(true);
   }
 
-  bytes_written += len;
-  DBUG_RETURN(after_write_to_relay_log(mi));
+  DBUG_RETURN(error);
 }
 
 bool MYSQL_BIN_LOG::flush() {

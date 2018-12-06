@@ -131,6 +131,14 @@ void dict_table_close_and_drop(
 /** Inits the data dictionary module. */
 void dict_init(void);
 
+dict_table_t*
+dict_table_open_on_index_id(
+/*==================*/
+        space_index_t      table_id,       /*!< in: table id */
+        bool            dict_locked)    /*!< in: TRUE=data dictionary locked */
+        __attribute__((warn_unused_result));
+
+
 /** Inits the structure for persisting dynamic metadata */
 void dict_persist_init(void);
 

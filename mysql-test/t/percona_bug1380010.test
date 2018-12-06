@@ -8,7 +8,7 @@
 # insert into ttt(c1) values (1000*rand()), (1000*rand()), (1000*rand()), (1000*rand());
 # insert into ttt(c1) select 1000*rand() from ttt t1, ttt t2, ttt t3;
 # 
-CREATE TABLE ttt(c1 CHAR(250), c2 TIME NOT NULL) ENGINE=InnoDB;
+CREATE TABLE ttt(c1 CHAR(250), c2 TIME NOT NULL) ENGINE=InnoDB CHARACTER SET=latin1;
 
 BINLOG '
 VydmVA8BAAAAZwAAAGsAAAAAAAQANS41LjM2LTM0LjAtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAA

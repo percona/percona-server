@@ -322,6 +322,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
 #ifndef MYSQL_SERVER
       was_start_encryption_event = true;
 #endif
+      break;
     default:
       /*
         Create an object of Ignorable_log_event for unrecognized sub-class.

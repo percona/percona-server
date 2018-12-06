@@ -228,7 +228,7 @@ script:
     else
        TIMEOUT_CMD=gtimeout;
        brew update;
-       brew install ccache protobuf lz4 re2;
+       brew install ccache protobuf lz4 re2 rapidjson;
        export PATH="/usr/local/opt/ccache/libexec:$PATH";
     fi;
     UPDATE_TIME=$(($SECONDS - $INIT_TIME));

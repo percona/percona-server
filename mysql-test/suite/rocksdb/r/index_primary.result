@@ -2,8 +2,8 @@ CREATE TABLE t1 (a INT PRIMARY KEY,
 b CHAR(8)
 ) ENGINE=ROCKSDB;
 SHOW KEYS IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	a	A	#	NULL	NULL		SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
 INSERT INTO t1 (a,b) VALUES (1,'c');
 ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
@@ -17,9 +17,9 @@ b CHAR(8),
 PRIMARY KEY (a,b)
 ) ENGINE=ROCKSDB;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	a	A	#	NULL	NULL		SE_SPECIFIC			YES
-t1	0	PRIMARY	2	b	A	#	NULL	NULL		SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	0	PRIMARY	2	b	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (a,b) VALUES (1,'a'),(1,'b'),(2,'a'),(2,'b');
 INSERT INTO t1 (a,b) VALUES (1,'b');
 ERROR 23000: Duplicate entry '1-b' for key 't1.PRIMARY'
@@ -29,21 +29,21 @@ b CHAR(8),
 KEY (b)
 ) ENGINE=ROCKSDB;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	a	A	#	NULL	NULL		SE_SPECIFIC			YES
-t1	1	b	1	b	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	b	1	b	A	#	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT,
 b CHAR(8) PRIMARY KEY
 ) ENGINE=ROCKSDB;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	b	A	#	NULL	NULL		SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	b	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
 ALTER TABLE t1 ADD CONSTRAINT PRIMARY KEY pk (a);
 ERROR 42000: Multiple primary key defined
 SHOW KEYS IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	b	A	#	NULL	NULL		SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	b	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
 DROP TABLE t1;
 set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
 set @@global.rocksdb_large_prefix=0;

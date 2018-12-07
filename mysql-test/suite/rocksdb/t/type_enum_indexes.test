@@ -7,7 +7,7 @@
 SET @ORIG_PAUSE_BACKGROUND_WORK = @@ROCKSDB_PAUSE_BACKGROUND_WORK;
 SET GLOBAL ROCKSDB_PAUSE_BACKGROUND_WORK = 1;
 
---disable_parsing
+--disable_testcase BUG#0
 --error ER_GET_ERRMSG
 CREATE TABLE t1 (
   a ENUM('N.America','S.America','Africa','Europe','Australia','Asia','Antarctica'),
@@ -34,7 +34,7 @@ SELECT a FROM t1 FORCE INDEX (a_b) WHERE b > 'test2' ORDER BY a;
 
 DROP TABLE t1;
 
---enable_parsing
+--enable_testcase
 
 CREATE TABLE t1 (
   a ENUM('N.America','S.America','Africa','Europe','Australia','Asia','Antarctica'),

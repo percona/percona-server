@@ -7,8 +7,8 @@ d DOUBLE,
 dp DOUBLE PRECISION (64,10)
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	f	A	1000	NULL	NULL		SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp) VALUES
 (1.2345,1422.22,1.2345,1234567.89),
 (0,0,0,0),
@@ -49,10 +49,10 @@ pk DOUBLE PRIMARY KEY,
 UNIQUE KEY r_dp (r,dp)
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES
-t1	0	r_dp	1	r	A	500	NULL	NULL	YES	SE_SPECIFIC			YES
-t1	0	r_dp	2	dp	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	0	r_dp	1	r	A	500	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t1	0	r_dp	2	dp	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,1422.22,1.2345,1234567.89,1),
 (0,0,0,0,2),
@@ -79,9 +79,9 @@ pk FLOAT PRIMARY KEY,
 UNIQUE KEY(d)
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES
-t1	0	d	1	d	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	0	d	1	d	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,1422.22,1.2345,1234567.89,1),
 (0,0,0,0,2),
@@ -110,9 +110,9 @@ pk FLOAT PRIMARY KEY,
 KEY(d)
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES
-t1	1	d	1	d	A	500	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	d	1	d	A	500	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,1422.22,1.2345,1234567.89,1),
 (0,0,0,0,2),
@@ -141,9 +141,9 @@ pk FLOAT PRIMARY KEY,
 UNIQUE KEY(f)
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES
-t1	0	f	1	f	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	0	f	1	f	A	1000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,1422.22,1.2345,1234567.89,1),
 (0,0,0,0,2),
@@ -175,9 +175,9 @@ pk FLOAT PRIMARY KEY,
 KEY(f)
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES
-t1	1	f	1	f	A	500	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	f	1	f	A	500	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (f,r,d,dp,pk) VALUES
 (1.2345,1422.22,1.2345,1234567.89,1),
 (0,0,0,0,2),

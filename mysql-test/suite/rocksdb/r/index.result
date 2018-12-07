@@ -5,9 +5,9 @@ pk INT PRIMARY KEY,
 KEY  (a)
 ) ENGINE=ROCKSDB;
 SHOW KEYS IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
-t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT,
 b CHAR(8),
@@ -15,10 +15,10 @@ pk INT PRIMARY KEY,
 KEY a_b  (a,b) COMMENT 'a_b index'
 ) ENGINE=ROCKSDB;
 SHOW KEYS IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
-t1	1	a_b	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC		a_b index	YES
-t1	1	a_b	2	b	A	#	NULL	NULL	YES	SE_SPECIFIC		a_b index	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	a_b	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC		a_b index	YES	NULL
+t1	1	a_b	2	b	A	#	NULL	NULL	YES	SE_SPECIFIC		a_b index	YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT,
 b CHAR(8),
@@ -27,18 +27,18 @@ KEY  (a),
 KEY  (b)
 ) ENGINE=ROCKSDB;
 SHOW KEYS IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
-t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
-t1	1	b	1	b	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t1	1	b	1	b	A	#	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (100,'z');
 ALTER TABLE t1 ADD KEY (a)  COMMENT 'simple index on a';
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
-t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC		simple index on a	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC		simple index on a	YES	NULL
 ALTER TABLE t1 DROP KEY a;
 DROP TABLE t1;
 set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;

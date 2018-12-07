@@ -28,7 +28,7 @@ SHOW CREATE TABLE t2;
 --error ER_ILLEGAL_HA_CREATE_OPTION 
 CREATE TEMPORARY TABLE t2 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 
---disable_parsing
+--disable_testcase BUG#0
 
 DROP TABLE t2;
 
@@ -37,7 +37,7 @@ CREATE TEMPORARY TABLE t2 LIKE t1;
 SHOW CREATE TABLE t2;
 DROP TEMPORARY TABLE t2;
 
---enable_parsing
+--enable_testcase
 
 DROP TABLE t2;
 

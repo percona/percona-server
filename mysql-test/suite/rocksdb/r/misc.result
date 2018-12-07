@@ -1,9 +1,6 @@
 SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE ORDER BY TABLE_NAME;
 TABLE_NAME	COLUMN_NAME	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warnings:
 accounts	HOST	NULL	NULL
 accounts	USER	NULL	NULL
 columns_priv	Column_name	NULL	NULL
@@ -12,6 +9,11 @@ columns_priv	Host	NULL	NULL
 columns_priv	Table_name	NULL	NULL
 columns_priv	User	NULL	NULL
 component	component_id	NULL	NULL
+compression_dictionary	id	NULL	NULL
+compression_dictionary	name	NULL	NULL
+compression_dictionary_cols	column_id	NULL	NULL
+compression_dictionary_cols	dict_id	compression_dictionary	id
+compression_dictionary_cols	table_id	NULL	NULL
 cond_instances	OBJECT_INSTANCE_BEGIN	NULL	NULL
 data_locks	ENGINE	NULL	NULL
 data_locks	ENGINE_LOCK_ID	NULL	NULL

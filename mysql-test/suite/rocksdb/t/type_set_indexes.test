@@ -96,7 +96,7 @@ SELECT a FROM t1 WHERE FIND_IN_SET('Europe',a) > 0;
 
 DROP TABLE t1;
 
---disable_parsing
+--disable_testcase BUG#0
 #--error ER_GET_ERRMSG
 CREATE TABLE t1 (
   a SET('N.America','S.America','Africa','Antarctica','Australia','Europe','Asia'),
@@ -125,6 +125,6 @@ SELECT DISTINCT a, b FROM t1 ORDER BY b DESC, a;
 
 DROP TABLE t1;
 
---enable_parsing
+--enable_testcase
 
 SET GLOBAL ROCKSDB_PAUSE_BACKGROUND_WORK = @ORIG_PAUSE_BACKGROUND_WORK;

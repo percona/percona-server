@@ -55,7 +55,7 @@ INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c');
 --error ER_ILLEGAL_HA
 HANDLER t1 OPEN AS h1;
 
---disable_parsing
+--disable_testcase BUG#0
 
 HANDLER h1 READ FIRST;
 TRUNCATE TABLE t1;
@@ -64,6 +64,6 @@ HANDLER h1 READ NEXT;
 HANDLER t1 OPEN AS h2;
 HANDLER h2 READ FIRST;
 
---enable_parsing
+--enable_testcase
 
 DROP TABLE t1;

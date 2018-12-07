@@ -132,29 +132,29 @@ select count(*) from tt;
 count(*)
 500
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	500	NULL	NULL		SE_SPECIFIC			YES
-tt	1	b	1	b	A	500	NULL	NULL	YES	SE_SPECIFIC			YES
-tt	1	c	1	c	A	500	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	500	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	500	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	c	1	c	A	500	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 analyze table tt;
 Table	Op	Msg_type	Msg_text
 test.tt	analyze	status	OK
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	500	NULL	NULL		SE_SPECIFIC			YES
-tt	1	b	1	b	A	125	NULL	NULL	YES	SE_SPECIFIC			YES
-tt	1	c	1	c	A	1	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	500	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	125	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+tt	1	c	1	c	A	1	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 alter table tt drop key b;
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	500	NULL	NULL		SE_SPECIFIC			YES
-tt	1	c	1	c	A	1	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	500	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	c	1	c	A	1	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 alter table tt drop key c;
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	500	NULL	NULL		SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	500	NULL	NULL		SE_SPECIFIC			YES	NULL
 flush tables;
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	500	NULL	NULL		SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	500	NULL	NULL		SE_SPECIFIC			YES	NULL
 drop table tt;

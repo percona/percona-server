@@ -1002,21 +1002,21 @@ insert into tt values (4*997,4*997+1),(4*997+1,4*997+2),(4*997+2,4*997+3),(4*997
 insert into tt values (4*998,4*998+1),(4*998+1,4*998+2),(4*998+2,4*998+3),(4*998+3,4*998+4);
 insert into tt values (4*999,4*999+1),(4*999+1,4*999+2),(4*999+2,4*999+3),(4*999+3,4*999+4);
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES
-tt	1	b	1	b	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 analyze table tt;
 Table	Op	Msg_type	Msg_text
 test.tt	analyze	status	OK
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES
-tt	1	b	1	b	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 flush tables;
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES
-tt	1	b	1	b	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	4000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 drop table tt;
 create table tt (a int, b int, primary key(a), key(b));
 insert into tt values (4*0,0),(4*0+1,0),(4*0+2,0),(4*0+3,0);
@@ -2020,19 +2020,19 @@ insert into tt values (4*997,0),(4*997+1,0),(4*997+2,0),(4*997+3,0);
 insert into tt values (4*998,0),(4*998+1,0),(4*998+2,0),(4*998+3,0);
 insert into tt values (4*999,0),(4*999+1,0),(4*999+2,0),(4*999+3,0);
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES
-tt	1	b	1	b	A	1	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	1	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 analyze table tt;
 Table	Op	Msg_type	Msg_text
 test.tt	analyze	status	OK
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES
-tt	1	b	1	b	A	1	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	1	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 flush tables;
 show indexes from tt;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES
-tt	1	b	1	b	A	1	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tt	0	PRIMARY	1	a	A	4000	NULL	NULL		SE_SPECIFIC			YES	NULL
+tt	1	b	1	b	A	1	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 drop table tt;

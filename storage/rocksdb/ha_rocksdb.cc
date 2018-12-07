@@ -3180,9 +3180,10 @@ static void rdb_xid_from_string(const std::string &src, XID *const dst) {
   Reading last committed binary log info from RocksDB system row.
   The info is needed for crash safe slave/master to work.
 */
-static int rocksdb_recover(handlerton *const hton, XID *const xid_list,
-                           uint len) {
-  if (len == 0 || xid_list == nullptr) {
+static int rocksdb_recover(handlerton *hton, XA_recover_txn *txn_list, uint len,
+                           MEM_ROOT *mem_root) {
+
+  if (len == 0 || txn_list == nullptr) {
     return HA_EXIT_SUCCESS;
   }
 
@@ -3195,7 +3196,11 @@ static int rocksdb_recover(handlerton *const hton, XID *const xid_list,
       break;
     }
     auto name = trans->GetName();
-    rdb_xid_from_string(name, &xid_list[count]);
+    rdb_xid_from_string(name, &(txn_list[count].id));
+
+    txn_list[count].mod_tables = new (mem_root) List<st_handler_tablename>();
+    if (!txn_list[count].mod_tables) break;
+
     count++;
   }
   return count;

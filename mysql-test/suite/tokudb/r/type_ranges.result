@@ -55,7 +55,7 @@ ushort	smallint(5) unsigned zerofill	NULL	NO	MUL	00000		#
 umedium	mediumint(8) unsigned	NULL	NO	MUL	0		#	
 ulong	int(11) unsigned	NULL	NO	MUL	0		#	
 ulonglong	bigint(13) unsigned	NULL	NO	MUL	0		#	
-time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP	#	
+time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	#	
 date_field	date	NULL	YES		NULL		#	
 time_field	time	NULL	YES		NULL		#	
 date_time	datetime	NULL	YES		NULL		#	
@@ -66,21 +66,21 @@ longblob_col	longblob	NULL	YES		NULL		#
 options	enum('one','two','tree')	utf8mb4_0900_ai_ci	NO	MUL	NULL		#	
 flags	set('one','two','tree')	utf8mb4_0900_ai_ci	NO				#	
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	auto	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	utiny	1	utiny	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	tiny	1	tiny	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	short	1	short	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	any_name	1	medium	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	longlong	1	longlong	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	real_float	1	real_float	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	ushort	1	ushort	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	umedium	1	umedium	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	ulong	1	ulong	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	ulonglong	1	ulonglong	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	ulonglong	2	ulong	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	options	1	options	A	NA	NULL	NULL		SE_SPECIFIC			YES
-t1	1	options	2	flags	A	NA	NULL	NULL		SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	auto	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	utiny	1	utiny	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	tiny	1	tiny	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	short	1	short	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	any_name	1	medium	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	longlong	1	longlong	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	real_float	1	real_float	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	ushort	1	ushort	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	umedium	1	umedium	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	ulong	1	ulong	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	ulonglong	1	ulonglong	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	ulonglong	2	ulong	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	options	1	options	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	options	2	flags	A	NA	NULL	NULL		SE_SPECIFIC			YES	NULL
 CREATE UNIQUE INDEX test on t1 ( auto ) ;
 CREATE INDEX test2 on t1 ( ulonglong,ulong) ;
 Warnings:
@@ -176,7 +176,7 @@ ushort	smallint(5) unsigned zerofill	NULL	NO		00000		#
 umedium	mediumint(8) unsigned	NULL	NO	MUL	0		#	
 ulong	int(11) unsigned	NULL	NO	MUL	0		#	
 ulonglong	bigint(13) unsigned	NULL	NO	MUL	0		#	
-time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP	#	
+time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	#	
 date_field	char(10)	utf8mb4_0900_ai_ci	YES		NULL		#	
 time_field	time	NULL	YES		NULL		#	
 date_time	datetime	NULL	YES		NULL		#	
@@ -202,7 +202,7 @@ ushort	smallint(5) unsigned zerofill	NULL	NO		00000		#
 umedium	mediumint(8) unsigned	NULL	NO		0		#	
 ulong	int(11) unsigned	NULL	NO		0		#	
 ulonglong	bigint(13) unsigned	NULL	NO		0		#	
-time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP	#	
+time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	#	
 date_field	char(10)	utf8mb4_0900_ai_ci	YES		NULL		#	
 time_field	time	NULL	YES		NULL		#	
 date_time	datetime	NULL	YES		NULL		#	

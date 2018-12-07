@@ -24,7 +24,7 @@ DROP TABLE t1;
 --echo # UNIQUE KEYS are not supported currently
 --echo #-----------------------------------------
 
---disable_parsing
+--disable_testcase BUG#0
 
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY, UNIQUE INDEX(a)) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
@@ -65,7 +65,7 @@ SELECT a,b FROM t1;
 INSERT INTO t1 (a,b) VALUES (101,'x'),(101,'x');
 DROP TABLE t1;
 
---enable_parsing
+--enable_testcase
 
 
 CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=ROCKSDB;

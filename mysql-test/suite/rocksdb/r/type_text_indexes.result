@@ -8,8 +8,8 @@ l LONGTEXT,
 PRIMARY KEY t (t(32))
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	t	A	1000	32	NULL		SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	t	A	1000	32	NULL		SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (t,tt,m,l) VALUES
 ('','','',''),
 ('a','b','c','d'),
@@ -59,9 +59,9 @@ PRIMARY KEY mt (pk(2)),
 INDEX (m(128))
 ) ENGINE=rocksdb;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	1000	NULL	NULL		SE_SPECIFIC			YES
-t1	1	m	1	m	A	500	128	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	1000	2	NULL		SE_SPECIFIC			YES	NULL
+t1	1	m	1	m	A	500	128	NULL	YES	SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (t,tt,m,l,pk) VALUES
 ('','','','','0'),
 ('a','b','c','d','1'),

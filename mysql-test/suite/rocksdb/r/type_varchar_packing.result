@@ -838,8 +838,11 @@ DROP TABLE t_utf32;
 CREATE TABLE t_utf8 (pk_varchar VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_bin, pk_char CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin, d_varchar VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
 ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'

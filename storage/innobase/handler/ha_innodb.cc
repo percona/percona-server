@@ -273,7 +273,6 @@ extern bool srv_scrub_force_testing;
 
 extern mysql_pfs_key_t scrub_stat_mutex_key;
 
-
 static Innodb_data_lock_inspector innodb_data_lock_inspector;
 
 extern uint srv_fil_crypt_rotate_key_age;
@@ -1284,23 +1283,23 @@ static SHOW_VAR innodb_status_variables[] = {
     {"scrub_log", (char *)&export_vars.innodb_scrub_log, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
     {"scrub_background_page_reorganizations",
-     (char*) &export_vars.innodb_scrub_page_reorganizations,
-     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+     (char *)&export_vars.innodb_scrub_page_reorganizations, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
     {"scrub_background_page_splits",
-     (char*) &export_vars.innodb_scrub_page_splits,
-     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+     (char *)&export_vars.innodb_scrub_page_splits, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
     {"scrub_background_page_split_failures_underflow",
-     (char*) &export_vars.innodb_scrub_page_split_failures_underflow,
-     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+     (char *)&export_vars.innodb_scrub_page_split_failures_underflow, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
     {"scrub_background_page_split_failures_out_of_filespace",
-     (char*) &export_vars.innodb_scrub_page_split_failures_out_of_filespace,
+     (char *)&export_vars.innodb_scrub_page_split_failures_out_of_filespace,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"scrub_background_page_split_failures_missing_index",
-     (char*) &export_vars.innodb_scrub_page_split_failures_missing_index,
+     (char *)&export_vars.innodb_scrub_page_split_failures_missing_index,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"scrub_background_page_split_failures_unknown",
-     (char*) &export_vars.innodb_scrub_page_split_failures_unknown,
-     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+     (char *)&export_vars.innodb_scrub_page_split_failures_unknown, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
     {"encryption_n_merge_blocks_encrypted",
      (char *)&export_vars.innodb_n_merge_blocks_encrypted, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
@@ -22133,47 +22132,36 @@ static MYSQL_SYSVAR_UINT(encryption_rotation_iops, srv_n_fil_crypt_iops,
                          srv_n_fil_crypt_iops, 0, UINT_MAX32, 0);
 
 static MYSQL_SYSVAR_BOOL(background_scrub_data_uncompressed,
-                         srv_background_scrub_data_uncompressed,
-                         0,
+                         srv_background_scrub_data_uncompressed, 0,
                          "Enable scrubbing of uncompressed data by "
                          "background threads (same as encryption_threads)",
                          NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(background_scrub_data_compressed,
-                         srv_background_scrub_data_compressed,
-                         0,
+                         srv_background_scrub_data_compressed, 0,
                          "Enable scrubbing of compressed data by "
                          "background threads (same as encryption_threads)",
-                          NULL, NULL, FALSE);
+                         NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_UINT(background_scrub_data_check_interval,
-                         srv_background_scrub_data_check_interval,
-                         0,
+                         srv_background_scrub_data_check_interval, 0,
                          "check if spaces needs scrubbing every "
                          "innodb_background_scrub_data_check_interval "
                          "seconds",
-                         NULL, NULL,
-                         srv_background_scrub_data_check_interval,
-                         1,
-                         UINT_MAX32, 0);
+                         NULL, NULL, srv_background_scrub_data_check_interval,
+                         1, UINT_MAX32, 0);
 
 static MYSQL_SYSVAR_UINT(background_scrub_data_interval,
-                         srv_background_scrub_data_interval,
-                         0,
+                         srv_background_scrub_data_interval, 0,
                          "scrub spaces that were last scrubbed longer than "
                          " innodb_background_scrub_data_interval seconds ago",
-                         NULL, NULL,
-                         srv_background_scrub_data_interval,
-                         1,
+                         NULL, NULL, srv_background_scrub_data_interval, 1,
                          UINT_MAX32, 0);
 #ifdef UNIV_DEBUG
-static MYSQL_SYSVAR_BOOL(debug_force_scrubbing,
-                         srv_scrub_force_testing,
-                         0,
+static MYSQL_SYSVAR_BOOL(debug_force_scrubbing, srv_scrub_force_testing, 0,
                          "Perform extra scrubbing to increase test exposure",
                          NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
-
 
 static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(api_trx_level),
@@ -22440,13 +22428,13 @@ mysql_declare_plugin(innobase){
     i_s_innodb_buffer_page_lru, i_s_innodb_buffer_stats,
     i_s_innodb_temp_table_info, i_s_innodb_metrics,
     i_s_innodb_ft_default_stopword, i_s_innodb_ft_deleted,
-    i_s_innodb_ft_being_deleted, i_s_innodb_ft_config, i_s_innodb_ft_index_cache
-    ,
-    i_s_innodb_ft_index_table, i_s_innodb_tables, i_s_innodb_tablestats,
-    i_s_innodb_indexes, i_s_innodb_tablespaces, i_s_innodb_columns,
-    i_s_innodb_virtual, i_s_innodb_cached_indexes, i_s_innodb_changed_pages,
+    i_s_innodb_ft_being_deleted, i_s_innodb_ft_config,
+    i_s_innodb_ft_index_cache, i_s_innodb_ft_index_table, i_s_innodb_tables,
+    i_s_innodb_tablestats, i_s_innodb_indexes, i_s_innodb_tablespaces,
+    i_s_innodb_columns, i_s_innodb_virtual, i_s_innodb_cached_indexes,
     i_s_innodb_session_temp_tablespaces, i_s_innodb_tablespaces_encryption,
-    i_s_innodb_tablespaces_scrubbing, i_s_innodb_changed_pages
+    i_s_innodb_tablespaces_scrubbing,
+    i_s_innodb_changed_pages
 
     mysql_declare_plugin_end;
 

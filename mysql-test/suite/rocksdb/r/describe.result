@@ -1,8 +1,12 @@
 CREATE TABLE t1 (a INT, b CHAR(8), PRIMARY KEY (a)) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (100,'foo'),(2, 'b');
 CREATE TABLE t2 (a INT, b CHAR(8), PRIMARY KEY (b)) ENGINE=ROCKSDB CHARACTER SET utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t2 (a,b) VALUES (1, 'bar');
 CREATE TABLE t3 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB CHARACTER SET utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
 a	int	NO	PRI	NULL	

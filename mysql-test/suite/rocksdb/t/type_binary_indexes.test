@@ -33,7 +33,7 @@ SELECT HEX(b20) FROM t1 ORDER BY b20 DESC;
 
 DROP TABLE t1;
 
---disable_parsing
+--disable_testcase BUG#0
 --error ER_GET_ERRMSG
 CREATE TABLE t1 (b BINARY,
   b20 BINARY(20),
@@ -65,7 +65,7 @@ SELECT HEX(v128), COUNT(*) FROM t1 GROUP BY HEX(v128);
 
 DROP TABLE t1;
 
---enable_parsing
+--enable_testcase
 
 CREATE TABLE t1 (b BINARY,
   b20 BINARY(20),

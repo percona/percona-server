@@ -9076,6 +9076,8 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
   ut_ad(algorithm != Encryption::NONE);
   space->encryption_type = algorithm;
 
+  if (space->crypt_data == nullptr) space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+
   if (acquire_mutex) {
     shard->mutex_release();
   }

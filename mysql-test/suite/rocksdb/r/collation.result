@@ -1,69 +1,102 @@
 call mtr.add_suppression("Invalid pattern");
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t1 ADD INDEX (value);
 Warnings:
 Warning	122	Indexed column test.t1.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT, INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
 Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	122	Indexed column test.t1.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT, INDEX(value3(50))) ENGINE=ROCKSDB CHARSET UTF8MB3;
 Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	122	Indexed column test.t1.value3 uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE t1;
 SET GLOBAL rocksdb_strict_collation_check=0;
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT, INDEX(value3(50))) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 SET GLOBAL rocksdb_strict_collation_check=1;
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT, INDEX(value2)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 CREATE TABLE t1 (id VARCHAR(20), value VARCHAR(50), value2 VARCHAR(50), value3 TEXT, PRIMARY KEY (id), INDEX(value, value2)) ENGINE=ROCKSDB CHARSET LATIN1 COLLATE LATIN1_BIN;
 ALTER TABLE t1 collate=latin1_general_ci;
 DROP TABLE t1;
 CREATE TABLE t1 (id VARCHAR(20), value VARCHAR(50), value2 VARCHAR(50), value3 TEXT, PRIMARY KEY (id), INDEX(value, value2)) ENGINE=ROCKSDB CHARSET UTF8MB3 COLLATE UTF8MB3_BIN;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 DROP TABLE t1;
 CREATE TABLE t1 (id VARCHAR(20) COLLATE LATIN1_BIN, value VARCHAR(50) COLLATE UTF8MB3_BIN, value2 VARCHAR(50) COLLATE LATIN1_BIN, value3 TEXT, PRIMARY KEY (id), INDEX(value, value2)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 SET GLOBAL rocksdb_strict_collation_exceptions=t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 CREATE TABLE t2 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
 Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	122	Indexed column test.t2.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE t2;
 SET GLOBAL rocksdb_strict_collation_exceptions="t.*";
 CREATE TABLE t123 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t123;
 CREATE TABLE s123 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
 Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	122	Indexed column test.s123.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE s123;
 SET GLOBAL rocksdb_strict_collation_exceptions=".t.*";
 CREATE TABLE xt123 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE xt123;
 CREATE TABLE t123 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
 Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	122	Indexed column test.t123.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE t123;
 SET GLOBAL rocksdb_strict_collation_exceptions="s.*|t.*";
 CREATE TABLE s1 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE s1;
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 CREATE TABLE u1 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
 Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	122	Indexed column test.u1.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE u1;
 SET GLOBAL rocksdb_strict_collation_exceptions='t1';
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t1 AUTO_INCREMENT=1;
 DROP TABLE t1;
 CREATE TABLE t2 (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
 Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	122	Indexed column test.t2.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE t2;
 CREATE TABLE t2 (id INT PRIMARY KEY, value VARCHAR(50)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t2 ADD INDEX(value);
 Warnings:
 Warning	122	Indexed column test.t2.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
@@ -73,13 +106,19 @@ SET GLOBAL rocksdb_strict_collation_exceptions="[a-b";
 Pattern "Invalid pattern in strict_collation_exceptions: \[a-b" found
 CREATE TABLE a (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
 Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	122	Indexed column test.a.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE a;
 SET GLOBAL rocksdb_strict_collation_exceptions="[a-b]";
 CREATE TABLE a (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE b (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE c (id INT PRIMARY KEY, value VARCHAR(50), INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8MB3;
 Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	122	Indexed column test.c.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE a, b, c;
 SET GLOBAL rocksdb_strict_collation_exceptions="abc\\";
@@ -90,6 +129,8 @@ SET GLOBAL rocksdb_strict_collation_check=1;
 CREATE TABLE t1 (id INT primary key, value varchar(50), value2 varbinary(50), value3 text, index(value)) engine=rocksdb charset utf8mb3;
 ERROR HY000: Unsupported collation on string indexed column test.t1.value Use binary collation (binary, latin1_bin, utf8_bin).
 CREATE TABLE t1 (id INT primary key, value varchar(50), value2 varbinary(50), value3 text) engine=rocksdb charset utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t1 ADD INDEX (value);
 ERROR HY000: Unsupported collation on string indexed column test.t1.value Use binary collation (binary, latin1_bin, utf8_bin).
 DROP TABLE t1;

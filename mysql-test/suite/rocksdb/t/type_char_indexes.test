@@ -28,7 +28,7 @@ SELECT c20 FROM t1 FORCE INDEX FOR ORDER BY (PRIMARY) ORDER BY c20;
 
 DROP TABLE t1;
 
---disable_parsing
+--disable_testcase BUG#0
 --error ER_GET_ERRMSG
 CREATE TABLE t1 (
   c CHAR,
@@ -68,7 +68,7 @@ SET SESSION optimizer_switch = @@global.optimizer_switch;
 
 DROP TABLE t1;
 
---enable_parsing
+--enable_testcase
 
 CREATE TABLE t1 (
   c CHAR,

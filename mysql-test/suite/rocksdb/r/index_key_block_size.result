@@ -4,9 +4,9 @@ pk INT PRIMARY KEY,
 KEY (a) KEY_BLOCK_SIZE=8
 ) ENGINE=ROCKSDB;
 SHOW KEYS IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
-t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT,
 b CHAR(8),
@@ -14,9 +14,9 @@ pk INT PRIMARY KEY,
 KEY ind1(b ASC) KEY_BLOCK_SIZE=0
 ) ENGINE=ROCKSDB;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
-t1	1	ind1	1	b	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	ind1	1	b	A	#	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT,
 b CHAR(8),
@@ -28,8 +28,8 @@ b CHAR(8),
 PRIMARY KEY ind2(b(1)) KEY_BLOCK_SIZE=32768 COMMENT 'big key_block_size value'
 ) ENGINE=ROCKSDB;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	b	A	#	1	NULL		SE_SPECIFIC		big key_block_size value	YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	b	A	#	1	NULL		SE_SPECIFIC		big key_block_size value	YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT,
 b CHAR(8),
@@ -37,10 +37,10 @@ pk INT AUTO_INCREMENT PRIMARY KEY,
 KEY a_b(a,b) KEY_BLOCK_SIZE=8192
 ) ENGINE=ROCKSDB;
 SHOW INDEX IN t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES
-t1	1	a_b	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
-t1	1	a_b	2	b	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	a_b	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t1	1	a_b	2	b	A	#	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT,
 b CHAR(8),
@@ -49,7 +49,7 @@ PRIMARY KEY (b)
 INSERT INTO t1 (a,b) VALUES (100,'z');
 ALTER TABLE t1 ADD KEY(a) KEY_BLOCK_SIZE 8192;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	b	A	#	NULL	NULL		SE_SPECIFIC			YES
-t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	b	A	#	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	a	1	a	A	#	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 DROP TABLE t1;

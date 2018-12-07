@@ -1395,6 +1395,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT PRIMARY KEY, a int) ENGINE=RocksDB;
 set @a=-1;
 insert into t1 select (@a:=@a+1), 1234 from performance_schema.session_variables limit 100;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 set @tmp1= @@rocksdb_max_row_locks;
 set rocksdb_max_row_locks= 20;
 update t1 set a=a+10;
@@ -1492,8 +1494,14 @@ set autocommit=0;
 begin;
 set @a:=0;
 insert into t1 select @a:=@a+1, @a from t0 A, t0 B, t0 C, t0 D where D.a<4;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into t1 select @a:=@a+1, @a from t0 A, t0 B, t0 C, t0 D where D.a<4;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into t1 select @a:=@a+1, @a from t0 A, t0 B, t0 C, t0 D where D.a<4;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 rollback;
 select count(*) from t1;
 count(*)

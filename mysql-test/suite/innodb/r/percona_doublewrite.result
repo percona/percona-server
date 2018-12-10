@@ -36,7 +36,7 @@ Pattern "bytes is larger than the maximum size" found
 Pattern "bytes is not a multiple of a page size" found
 # Test that zero-sized doublewrite file is diagnosed and accepted
 # restart:<hidden args>
-Pattern "Parallel doublewrite buffer is zero-sized" not found
+Pattern "Parallel doublewrite buffer is zero-sized" found
 # restart
 #
 # Bug 1629879: Server won't start with innodb_force_recovery=6 because parallel doublewrite file exists

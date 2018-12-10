@@ -287,7 +287,7 @@ script:
   - CMAKE_TIME=$(($SECONDS - $INIT_TIME - $UPDATE_TIME));
     echo --- CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds. Initialization time $INIT_TIME seconds.;
     make -j2;
-    if [[ "$?" == "0" ]]; then echo $TRAVIS_COMMIT > $CCACHE_DIR/last_commit.txt; fi;
+    if [[ "$?" == "0" ]]; then echo $TRAVIS_COMMIT > $CCACHE_DIR/last_commit.txt; else false; fi;
 
   - ccache --show-stats;
     BUILD_TIME=$(($SECONDS - $INIT_TIME - $UPDATE_TIME - $CMAKE_TIME));

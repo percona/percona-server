@@ -1,9 +1,5 @@
 --skip # Test unstable on Jenkins
--- source include/have_innodb.inc
-#-- source include/have_example_key_management_plugin.inc
--- source include/not_embedded.inc
 
-#call mtr.add_suppression(".*");
 --disable_query_log
 let $innodb_encrypt_tables_orig = `SELECT @@innodb_encrypt_tables`;
 let $innodb_encryption_threads_orig = `SELECT @@innodb_encryption_threads`;

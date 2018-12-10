@@ -1,12 +1,7 @@
 #
 #
 #
--- source include/have_innodb.inc
-#-- source include/have_example_key_management_plugin.inc
 #-- source include/innodb_undo_tablespaces.inc # TODO:Robert: to sa kombinacje undo_tablespaces w MariaDB
-
-# embedded does not support restart
--- source include/not_embedded.inc
 
 SET @start_global_value = @@global.innodb_encryption_threads;
 

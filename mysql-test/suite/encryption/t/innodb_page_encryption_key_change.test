@@ -1,8 +1,4 @@
 --source include/have_64bit.inc
---source include/have_innodb.inc
-#-- source include/have_file_key_management_plugin.inc
-# embedded does not support restart
---source include/not_embedded.inc
 
 --let $MYSQLD_DATADIR=`select @@datadir`
 --let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd

@@ -1,6 +1,3 @@
---source include/have_innodb.inc
---source include/not_embedded.inc
-
 CREATE TABLE t1 (pk INT PRIMARY KEY, f VARCHAR(8)) ENGINE=InnoDB ENCRYPTION='Y';
 
 #ALTER TABLE t1 ENCRYPTION='KEYRING';

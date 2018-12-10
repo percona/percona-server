@@ -1,10 +1,5 @@
 --skip # Test is unstable on Jenkins
--- source include/have_innodb.inc
-#-- source include/have_example_key_management_plugin.inc
 -- source include/big_test.inc
-
-# embedded does not support restart
--- source include/not_embedded.inc
 
 --disable_query_log
 let $innodb_encryption_threads_orig = `SELECT @@global.innodb_encryption_threads`;

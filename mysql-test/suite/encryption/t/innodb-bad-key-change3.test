@@ -1,6 +1,3 @@
---source include/have_innodb.inc
-# embedded does not support restart
--- source include/not_embedded.inc
 -- source include/not_valgrind.inc
 
 call mtr.add_suppression("cannot be decrypted. Are you using correct keyring that contain the");

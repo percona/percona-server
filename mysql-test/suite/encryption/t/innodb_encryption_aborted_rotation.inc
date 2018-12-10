@@ -1,8 +1,6 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/not_valgrind.inc
---source include/not_embedded.inc
 
 # This test is to check if tables get rotated correctly in case of server crash
 # 1) Rotate 100 pages in t1

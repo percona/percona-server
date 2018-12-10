@@ -1,8 +1,6 @@
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/not_valgrind.inc
---source include/not_embedded.inc
 
 # This test is to check if tables get rotated correctly with new version of encryption
 # key in case of server crash

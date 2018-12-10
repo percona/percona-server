@@ -1,7 +1,4 @@
 --skip
--- source include/have_innodb.inc
-#-- source include/have_file_key_management_plugin.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 SET GLOBAL innodb_file_format = `Barracuda`;

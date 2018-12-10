@@ -1,7 +1,5 @@
 --skip
---source include/have_innodb.inc
 --source include/not_valgrind.inc
---source include/not_embedded.inc
 
 call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table `[^`]+`.`[^`]+` is set as discarded\\.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Page [[:digit:]]+ at offset [[:digit:]]+ looks corrupted in file");

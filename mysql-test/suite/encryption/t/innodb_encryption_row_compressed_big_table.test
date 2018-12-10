@@ -1,7 +1,4 @@
 --skip
--- source include/have_innodb.inc
-#-- source include/have_file_key_management_plugin.inc
--- source include/not_embedded.inc
 
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB row_format=compressed encryption='KEYRING';
 

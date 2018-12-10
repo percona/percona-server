@@ -1,7 +1,4 @@
 --source include/have_64bit.inc
---source include/have_innodb.inc
-# embedded does not support restart
--- source include/not_embedded.inc
 #
 # MDEV-8769: Server crash at file btr0btr.ic line 122 when defragmenting encrypted table using incorrect keys
 # MDEV-8768: Server crash at file btr0btr.ic line 122 when checking encrypted table using incorrect keys

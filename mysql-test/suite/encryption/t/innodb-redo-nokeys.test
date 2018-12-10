@@ -1,8 +1,4 @@
 --skip
--- source include/have_innodb.inc
-#-- source include/have_file_key_management_plugin.inc
-# embedded does not support restart
--- source include/not_embedded.inc
 --source include/have_64bit.inc
 
 call mtr.add_suppression("mysqld: File .*");

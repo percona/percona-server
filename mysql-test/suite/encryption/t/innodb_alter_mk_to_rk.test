@@ -1,8 +1,4 @@
 --skip
--- source include/have_innodb.inc
-# embedded does not support restart
--- source include/not_embedded.inc
-
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/mysecret_keyring";

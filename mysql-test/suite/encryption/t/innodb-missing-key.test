@@ -1,8 +1,4 @@
 --source include/have_64bit.inc
---source include/have_innodb.inc
-#-- source include/have_file_key_management_plugin.inc
-# embedded does not support restart
--- source include/not_embedded.inc
 
 #
 # MDEV-11004: Unable to start (Segfault or os error 2) when encryption key missing

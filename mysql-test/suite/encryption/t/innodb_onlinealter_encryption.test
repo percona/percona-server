@@ -1,8 +1,3 @@
--- source include/have_innodb.inc
-#-- source include/have_file_key_management_plugin.inc
-# test uses restart
--- source include/not_embedded.inc
-
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB encryption='KEYRING';
 CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB;
 CREATE TABLE t3 (id INT, a VARCHAR(255)) ENGINE=InnoDB encryption='KEYRING';

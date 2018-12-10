@@ -5,4 +5,4 @@ CALL mtr.add_suppression("Skip re-populating collations and character sets table
 CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode");
 CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode");
 INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
-ERROR HY000: Got error 1 - 'Operation not permitted' from storage engine
+ERROR HY000: Error installing plugin 'rpl_semi_sync_master': got 'Operation not permitted' writing to mysql.plugin

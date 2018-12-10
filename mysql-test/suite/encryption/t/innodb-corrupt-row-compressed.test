@@ -3,11 +3,6 @@
 # MDEV-11759: Encryption code in MariaDB 10.1/10.2 causes compatibility problems
 #
 
--- source include/have_innodb.inc
-#-- source include/have_file_key_management_plugin.inc
-# Don't test under embedded
--- source include/not_embedded.inc
-
 call mtr.add_suppression("InnoDB: The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[123]\\.ibd' cannot be decrypted\\.");
 call mtr.add_suppression("failed to read or decrypt \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\]");
 

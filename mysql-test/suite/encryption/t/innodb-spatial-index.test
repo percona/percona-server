@@ -1,7 +1,4 @@
 --skip
---source include/have_innodb.inc
-#--source include/have_file_key_management_plugin.inc
-
 #
 # MDEV-11974: MariaDB 10.2 encryption does not support spatial indexes
 #

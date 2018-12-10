@@ -1,7 +1,4 @@
 --skip # Test unstable on Jenkins centos6
--- source include/have_innodb.inc
--- source include/not_embedded.inc
-#-- source include/have_file_key_management_plugin.inc
 
 #let $innodb_compression_algorithm_orig=`SELECT @@innodb_compression_algorithm`;
 

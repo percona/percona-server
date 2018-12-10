@@ -822,20 +822,10 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     set_ha_share_ptr(static_cast<Handler_share *>(m_part_share));
   }
 
-  {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-    /* ha_innopart::clone calls handler::clone which calls handler::ha_open(table_def=nullptr)) */
-    if (table_def == nullptr && table_share->tmp_table == NO_TMP_TABLE) {
-      if (thd->dd_client()->acquire(table_share->db.str, table_share->table_name.str, &table_def)) return true;
-      DBUG_ASSERT(table_def);
-    }
-
-    if (m_part_share->open_table_parts(thd, table, table_def, m_part_info,
-                                       norm_name) ||
-        m_part_share->populate_partition_name_hash(m_part_info)) {
-      goto share_error;
-    }
+  if (m_part_share->open_table_parts(thd, table, table_def, m_part_info,
+                                     norm_name) ||
+      m_part_share->populate_partition_name_hash(m_part_info)) {
+    goto share_error;
   }
 
   if (m_part_share->auto_inc_mutex == NULL &&

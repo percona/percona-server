@@ -1834,8 +1834,38 @@ bool log_online_purge_changed_page_bitmaps(
         (lsn != LSN_MAX)) {
       break;
     }
-    if (!os_file_delete_if_exists(innodb_bmp_file_key,
-                                  bitmap_files.files[i].name, nullptr)) {
+
+    /* In some non-trivial cases the sequence of .xdb files may
+       have gaps. For instance:
+       ib_modified_log_1_0.xdb
+       ib_modified_log_2_<mmm>.xdb
+       ib_modified_log_4_<nnn>.xdb
+       Adding this check as a safety precaution. */
+    if (bitmap_files.files[i].name[0] == '\0') continue;
+
+    /* If redo log tracking is enabled, reuse 'bmp_file_home' from
+    'log_bmp_sys'. Otherwise, compose the full '.xdb' file path from
+    'srv_data_home', adding a path separator if necessary. */
+    char full_bmp_file_name[2 * FN_REFLEN + 2];
+
+    if (log_bmp_sys != nullptr)
+      snprintf(full_bmp_file_name, sizeof(full_bmp_file_name), "%s%s",
+               log_bmp_sys->bmp_file_home, bitmap_files.files[i].name);
+    else {
+      char separator[2] = {0, 0};
+      const auto srv_data_home_len = strlen(srv_data_home);
+
+      ut_a(srv_data_home_len < FN_REFLEN);
+      if (srv_data_home_len != 0 &&
+          srv_data_home[srv_data_home_len - 1] != SRV_PATH_SEPARATOR) {
+        separator[0] = SRV_PATH_SEPARATOR;
+      }
+      snprintf(full_bmp_file_name, sizeof(full_bmp_file_name), "%s%s%s",
+               srv_data_home, separator, bitmap_files.files[i].name);
+    }
+
+    if (!os_file_delete_if_exists(innodb_bmp_file_key, full_bmp_file_name,
+                                  nullptr)) {
       os_file_get_last_error(true);
       result = true;
       break;

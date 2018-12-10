@@ -346,7 +346,8 @@ TEST_F(Keyring_api_test, GeneratePBRotatePBFetchFirstVersionFetchLatestPB) {
   key_type = NULL;
 
   // make sure that rotated key is different than the original one
-  ASSERT_TRUE(memcmp(reinterpret_cast<char *>(key_ver1) + 2,
+  // + 2 to skip key version of retrieved latest percona_binlog key
+  ASSERT_TRUE(memcmp(reinterpret_cast<char *>(key_ver1),
                      reinterpret_cast<char *>(key_ver2) + 2, 16) != 0);
 
   my_free(key_ver1);

@@ -825,9 +825,12 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   {
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-    /* ha_innopart::clone calls handler::clone which calls handler::ha_open(table_def=nullptr)) */
+    /* ha_innopart::clone calls handler::clone which calls
+     * handler::ha_open(table_def=nullptr)) */
     if (table_def == nullptr && table_share->tmp_table == NO_TMP_TABLE) {
-      if (thd->dd_client()->acquire(table_share->db.str, table_share->table_name.str, &table_def)) return true;
+      if (thd->dd_client()->acquire(table_share->db.str,
+                                    table_share->table_name.str, &table_def))
+        return true;
       DBUG_ASSERT(table_def);
     }
 

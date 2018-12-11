@@ -3196,95 +3196,97 @@ void dict_load_tablespaces_for_upgrade() {
   mutex_exit(&dict_sys->mutex);
 }
 
+/** Loads a table id based on the index id. **/
+static bool dict_load_table_id_on_index_id(space_index_t index_id,
+                                           table_id_t *table_id) {
+  /* check hard coded indexes */
+  switch (index_id) {
+    case DICT_TABLES_ID:
+    case DICT_COLUMNS_ID:
+    case DICT_INDEXES_ID:
+    case DICT_FIELDS_ID:
+      *table_id = index_id;
+      return true;
+    case DICT_TABLE_IDS_ID:
+      /* The following is a secondary index on SYS_TABLES */
+      *table_id = DICT_TABLES_ID;
+      return true;
+  }
 
-/***********************************************************************//**
-Loads a table id based on the index id.
-@return true if found */
-static
-bool
-dict_load_table_id_on_index_id(
-/*===========================*/
-        space_index_t           index_id,  /*!< in: index id */
-        table_id_t*             table_id) /*!< out: table id */
-{
-        /* check hard coded indexes */
-        switch(index_id) {
-        case DICT_TABLES_ID:
-        case DICT_COLUMNS_ID:
-        case DICT_INDEXES_ID:
-        case DICT_FIELDS_ID:
-                *table_id = index_id;
-                return true;
-        case DICT_TABLE_IDS_ID:
-                /* The following is a secondary index on SYS_TABLES */
-                *table_id = DICT_TABLES_ID;
-                return true;
-        }
+  bool found = false;
+  mtr_t mtr;
 
-        bool            found = false;
-        mtr_t           mtr;
+  ut_ad(mutex_own(&(dict_sys->mutex)));
 
-        ut_ad(mutex_own(&(dict_sys->mutex)));
+  /* NOTE that the operation of this function is protected by
+  the dictionary mutex, and therefore no deadlocks can occur
+  with other dictionary operations. */
 
-        /* NOTE that the operation of this function is protected by
-        the dictionary mutex, and therefore no deadlocks can occur
-        with other dictionary operations. */
+  mtr_start(&mtr);
 
-        mtr_start(&mtr);
+  btr_pcur_t pcur;
+  MDL_ticket *mdl = nullptr;
+  dict_table_t *dd_tables;
+  const rec_t *rec = dd_startscan_system(current_thd, &mdl, &pcur, &mtr,
+                                         dd_indexes_name.c_str(), &dd_tables);
+  const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Index>();
+  mem_heap_t *heap = mem_heap_create(1000);
+  ulint *offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
+                                   ULINT_UNDEFINED, &heap);
 
-        btr_pcur_t pcur;
-        const rec_t* rec = dict_startscan_system(&pcur, &mtr, SYS_INDEXES);
+  static const int DD_FIELD_OFFSET = 2;
 
-        while (rec) {
-                ulint len;
-                const byte* field = rec_get_nth_field_old(
-                        rec, DICT_FLD__SYS_INDEXES__ID, &len);
-                ut_ad(len == 8);
+  while (rec) {
+    ulint len = 0;
+    const byte *field = rec_get_nth_field(
+        rec, offsets,
+        dd_object_table.field_number("FIELD_ID") + DD_FIELD_OFFSET, &len);
+    ut_ad(len == 7);
 
-                /* Check if the index id is the one searched for */
-                if (index_id == mach_read_from_8(field)) {
-                        found = true;
-                        /* Now we get the table id */
-                        const byte* field = rec_get_nth_field_old(
-                                rec,
-                                DICT_FLD__SYS_INDEXES__TABLE_ID,
-                                &len);
-                        *table_id = mach_read_from_8(field);
-                        break;
-                }
-                mtr_commit(&mtr);
-                mtr_start(&mtr);
-                rec = dict_getnext_system(&pcur, &mtr);
-        }
+    /* Check if the index id is the one searched for */
+    if (index_id == mach_read_from_8(field)) {
+      found = true;
+      /* Now we get the table id */
+      const byte *field = rec_get_nth_field(
+          rec, offsets,
+          dd_object_table.field_number("FIELD_TABLE_ID") + DD_FIELD_OFFSET,
+          &len);
+      *table_id = mach_read_from_8(field);
+      break;
+    }
+    mtr_commit(&mtr);
+    mtr_start(&mtr);
+    rec = dict_getnext_system(&pcur, &mtr);
+  }
 
-        btr_pcur_close(&pcur);
-        mtr_commit(&mtr);
+  mem_heap_free(heap);
 
-        return(found);
+  dd_table_close(dd_tables, current_thd, &mdl, true);
+
+  btr_pcur_close(&pcur);
+  mtr_commit(&mtr);
+
+  return (found);
 }
 
-dict_table_t*
-dict_table_open_on_index_id(
-/*========================*/
-        space_index_t index_id,    /*!< in: index id */
-        bool dict_locked)       /*!< in: dict locked */
-{
-        if (!dict_locked) {
-                mutex_enter(&dict_sys->mutex);
-        }
+dict_table_t *dict_table_open_on_index_id(space_index_t index_id,
+                                          bool dict_locked) {
+  if (!dict_locked) {
+    mutex_enter(&dict_sys->mutex);
+  }
 
-        ut_ad(mutex_own(&dict_sys->mutex));
-        table_id_t table_id;
-        dict_table_t * table = NULL;
-        if (dict_load_table_id_on_index_id(index_id, &table_id)) {
-                bool local_dict_locked = true;
-		MDL_ticket *mdl = nullptr;
-		table = dd_table_open_on_id(table_id, current_thd, &mdl, local_dict_locked, false);
-        }
+  ut_ad(mutex_own(&dict_sys->mutex));
+  table_id_t table_id;
+  dict_table_t *table = NULL;
+  if (dict_load_table_id_on_index_id(index_id, &table_id)) {
+    bool local_dict_locked = true;
+    MDL_ticket *mdl = nullptr;
+    table = dd_table_open_on_id(table_id, current_thd, &mdl, local_dict_locked,
+                                false);
+  }
 
-        if (!dict_locked) {
-                mutex_exit(&dict_sys->mutex);
-        }
-        return table;
+  if (!dict_locked) {
+    mutex_exit(&dict_sys->mutex);
+  }
+  return table;
 }
-

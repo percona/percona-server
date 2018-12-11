@@ -5,6 +5,15 @@
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.innodb_track_changed_pages=TRUE;
+
+# PS-4989: changing innodb_track_changed_pages to false modifies it to true
+# And later table creations cause assertions
+SET @@GLOBAL.innodb_track_changed_pages=FALSE;
+SELECT @@GLOBAL.innodb_track_changed_pages;
+CREATE TABLE t1(c1 INT,c2 CHAR,c3 INT,c4 CHAR KEY,c5 INT UNIQUE KEY,c6 FIXED(0,0));
+DROP TABLE t1;
+
+
 # purge causes crash described in lp:1368530
 PURGE CHANGED_PAGE_BITMAPS BEFORE 0;
 

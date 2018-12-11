@@ -118,7 +118,6 @@ deb-src http://jenkins.percona.com/apt-repo/ @@DIST@@ main
 EOL
     sed -i "s:@@DIST@@:$OS_NAME:g" /etc/apt/sources.list.d/percona-dev.list
   fi
-  
   add_key="apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys 9334A25F8507EFA5"
   until ${add_key}; do
     sleep 1

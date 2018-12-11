@@ -74,7 +74,9 @@ static void tokudb_kill_connection(handlerton *hton, THD *thd);
 static int tokudb_commit(handlerton *hton, THD *thd, bool all);
 static int tokudb_rollback(handlerton *hton, THD *thd, bool all);
 static int tokudb_xa_prepare(handlerton *hton, THD *thd, bool all);
-static int tokudb_xa_recover(handlerton *hton, XID *xid_list, uint len);
+static int tokudb_xa_recover(handlerton *hton, XA_recover_txn *txn_list,
+                             uint len, MEM_ROOT *mem_root);
+
 static xa_status_code tokudb_commit_by_xid(handlerton *hton, XID *xid);
 static xa_status_code tokudb_rollback_by_xid(handlerton *hton, XID *xid);
 static int tokudb_rollback_to_savepoint(handlerton *hton, THD *thd,
@@ -887,21 +889,35 @@ static int tokudb_xa_prepare(handlerton *hton, THD *thd, bool all) {
   TOKUDB_DBUG_RETURN(r);
 }
 
-static int tokudb_xa_recover(TOKUDB_UNUSED(handlerton *hton), XID *xid_list,
-                             uint len) {
+static int tokudb_xa_recover(TOKUDB_UNUSED(handlerton *hton),
+                             XA_recover_txn *txn_list, uint len,
+                             TOKUDB_UNUSED(MEM_ROOT *mem_root)) {
   TOKUDB_DBUG_ENTER("");
   TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
   int r = 0;
-  if (len == 0 || xid_list == NULL) {
+  if (len == 0 || txn_list == NULL) {
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit %d", 0);
     TOKUDB_DBUG_RETURN(0);
   }
+  std::vector<TOKU_XA_XID> xids;
+  xids.resize(len);
+
   long num_returned = 0;
-  r = db_env->txn_xa_recover(db_env, (TOKU_XA_XID *)xid_list, len,
+  r = db_env->txn_xa_recover(db_env, &xids[0], len,
                              &num_returned, DB_NEXT);
+
+  uint count = 0;
+  for (; count < num_returned; count++) {
+    const auto &trans = xids[count];
+    txn_list[count].id.set(trans.formatID, trans.data, trans.gtrid_length,
+                           trans.data + trans.gtrid_length, trans.bqual_length);
+
+    txn_list[count].mod_tables = new (mem_root) List<st_handler_tablename>();
+    if (!txn_list[count].mod_tables) break;
+  }
   assert_always(r == 0);
-  TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit %ld", num_returned);
-  TOKUDB_DBUG_RETURN((int)num_returned);
+  TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit %d", count);
+  TOKUDB_DBUG_RETURN((int)count);
 }
 
 static xa_status_code tokudb_commit_by_xid(TOKUDB_UNUSED(handlerton *hton),

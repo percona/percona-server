@@ -313,20 +313,20 @@ a	a	a	a
 1		NULL	1
 select t,count(*) from t1 group by t;
 t	count(*)
+NULL	2
 	1
 hello	2
 HELLO MY	1
 a	1
 1	1
-NULL	2
 select b,count(*) from t1 group by b;
 b	count(*)
+NULL	3
 	1
 hello	1
 HELLO	1
 HELLO MY	1
 a	1
-NULL	3
 select c,count(*) from t1 group by c;
 c	count(*)
 NULL	2

@@ -20131,7 +20131,10 @@ static int innodb_track_changed_pages_validate(THD *thd, SYS_VAR *var,
     return 0;
   }
 
-  if (intbuf == srv_track_changed_pages) return 0;
+  if (intbuf == srv_track_changed_pages) { // == 0
+    *reinterpret_cast<ulong*>(save) = srv_track_changed_pages;
+    return 0;
+  }
 
   return 1;
 }

@@ -1,25 +1,11 @@
 #
 # Test log_slow_slave_statements
 #
+--source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t;
---enable_warnings
-
---connection slave
-SET @old_binlog_format=@@binlog_format;
-
-SET GLOBAL binlog_format='STATEMENT';
-
---connection master
-SET @old_binlog_format=@@binlog_format;
-
-SET GLOBAL binlog_format='STATEMENT';
-SET SESSION binlog_format='STATEMENT';
-
 CREATE TABLE t(id INT);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 SET GLOBAL min_examined_row_limit=0;
 SET GLOBAL long_query_time=0;
@@ -34,7 +20,7 @@ SET GLOBAL log_slow_slave_statements=OFF;
 #
 connection master;
 INSERT INTO t VALUES (1);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # A statement that should be slow-logged
@@ -45,7 +31,7 @@ connection master;
 BEGIN;
 INSERT INTO t VALUES (2);
 COMMIT;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # A statement that should not be slow-logged
@@ -53,7 +39,7 @@ sync_slave_with_master;
 SET GLOBAL log_slow_slave_statements=OFF;
 connection master;
 INSERT INTO t VALUES (3);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --source include/log_stop.inc
 
@@ -63,17 +49,16 @@ sync_slave_with_master;
 --source include/log_grep.inc
 --let grep_pattern= INSERT INTO t VALUES \(3\)
 --source include/log_grep.inc
---let grep_pattern= ^# User@Host: \[SQL_SLAVE\] @  \[\]
+--let grep_pattern= ^# User@Host: skip-grants user\[SQL_SLAVE\] @  \[\]
 --source include/log_grep.inc
 
 connection master;
 DROP TABLE t;
-SET GLOBAL binlog_format = @old_binlog_format;
-sync_slave_with_master;
-SET GLOBAL binlog_format = @old_binlog_format;
 
+connection slave;
 SET GLOBAL log_slow_slave_statements=default;
 SET GLOBAL long_query_time=default;
 SET GLOBAL min_examined_row_limit=default;
+
 --source include/rpl_end.inc
 --source include/log_cleanup.inc

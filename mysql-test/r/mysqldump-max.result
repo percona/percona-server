@@ -376,7 +376,11 @@ RELEASE_LOCK("block_queries_2")
 IF(@c<1, @c:=@c+1, GET_LOCK("block_queries_1", 120))
 1
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 # Connection c2
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 # Connection default
 SELECT * FROM t2 ORDER BY a;
 a	b
@@ -386,11 +390,11 @@ DROP TABLE t1;
 DROP TABLE t2;
 SHOW BINLOG EVENTS LIMIT 12,4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-binlog.000001	1029	Query	1	1140	use `test`; INSERT INTO t2 VALUES (1,0), (2,0)
-binlog.000001	1140	Xid	1	1171	COMMIT /* XID */
-binlog.000001	1171	Anonymous_Gtid	1	1246	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
-binlog.000001	1246	Query	1	1330	BEGIN
--- CHANGE MASTER TO MASTER_LOG_FILE='binlog.000001', MASTER_LOG_POS=1171;
+binlog.000001	1039	Query	1	1152	use `test`; INSERT INTO t2 VALUES (1,0), (2,0)
+binlog.000001	1152	Xid	1	1183	COMMIT /* XID */
+binlog.000001	1183	Anonymous_Gtid	1	1258	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	1258	Query	1	1344	BEGIN
+-- CHANGE MASTER TO MASTER_LOG_FILE='binlog.000001', MASTER_LOG_POS=1183;
 SELECT * FROM t1 ORDER BY a;
 a
 1

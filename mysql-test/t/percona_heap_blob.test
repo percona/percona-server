@@ -11,9 +11,6 @@ SET default_storage_engine=MEMORY;
 #
 # Basic cleanup
 #
---disable_warnings
-drop table if exists t1,t2,t3,t4,t5,t6,t7;
---enable_warnings
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 #
@@ -404,10 +401,10 @@ show create table t1;
 insert into t1 values (default);
 select * from t1;
 drop table t1;
-set @@sql_mode='TRADITIONAL';
+set @@sql_mode='NO_ENGINE_SUBSTITUTION,TRADITIONAL';
 --error ER_BLOB_CANT_HAVE_DEFAULT
 create table t1 (a text default '');
-set @@sql_mode='';
+set @@sql_mode='NO_ENGINE_SUBSTITUTION';
 
 #
 # Bug #32282: TEXT silently truncates when value is exactly 65536 bytes
@@ -611,6 +608,8 @@ SET GLOBAL max_heap_table_size = 18 * 1024 * 1024;
 
 connect(con1, localhost, root,,);
 connection con1;
+
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 
 SET default_storage_engine=MEMORY;
 

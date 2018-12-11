@@ -193,7 +193,7 @@ SELECT * FROM t5027;
 c0
 SET @@global.slow_query_log=on;
 INSERT INTO t5027 VALUES (),();
-Pattern "InnoDB: Cannot save table statistics for table \`test\`\.\`t5027\`: Lock wait timeout" found
+Pattern "Cannot save table statistics for table \`test\`\.\`t5027\`: Lock wait timeout" found
 ROLLBACK;
 DROP TABLE t5027;
 # restart

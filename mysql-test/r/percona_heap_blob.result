@@ -1,5 +1,4 @@
 SET default_storage_engine=MEMORY;
-drop table if exists t1,t2,t3,t4,t5,t6,t7;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
@@ -293,21 +292,21 @@ a	a	a	a
 1		NULL	1
 select t,count(*) from t1 group by t;
 t	count(*)
+NULL	2
 	1
 hello	1
 HELLO	1
 HELLO MY	1
 a	1
 1	1
-NULL	2
 select b,count(*) from t1 group by b;
 b	count(*)
+NULL	3
 	1
 hello	1
 HELLO	1
 HELLO MY	1
 a	1
-NULL	3
 select c,count(*) from t1 group by c;
 c	count(*)
 NULL	2
@@ -794,10 +793,10 @@ select * from t1;
 a
 NULL
 drop table t1;
-set @@sql_mode='TRADITIONAL';
+set @@sql_mode='NO_ENGINE_SUBSTITUTION,TRADITIONAL';
 create table t1 (a text default '');
 ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'a' can't have a default value
-set @@sql_mode='';
+set @@sql_mode='NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t (c TEXT CHARSET ASCII);
 INSERT INTO t (c) VALUES (REPEAT('1',65537));
 Warnings:
@@ -996,6 +995,7 @@ DROP FUNCTION f1;
 DROP TABLE t1;
 SET @old_max_heap_table_size = @@global.max_heap_table_size;
 SET GLOBAL max_heap_table_size = 18 * 1024 * 1024;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 SET default_storage_engine=MEMORY;
 drop table if exists t1;
 CREATE TABLE t1 (data LONGBLOB);
@@ -1016,6 +1016,8 @@ select length(data) from t1;
 length(data)
 18874368
 alter table t1 modify data blob;
+Warnings:
+Warning	1265	Data truncated for column 'data' at row 1
 select length(data) from t1;
 length(data)
 0

@@ -12,8 +12,6 @@ INSERT INTO t2 VALUE(1);
 --let $restart_parameters=restart:--innodb_buffer_pool_load_at_startup=OFF
 --source include/restart_mysqld.inc
 
---source include/count_sessions.inc
-
 SET SESSION long_query_time=0;
 SET SESSION log_slow_verbosity='microtime,innodb';
 
@@ -167,7 +165,7 @@ SELECT * FROM t5027;
 SET @@global.slow_query_log=on;
 INSERT INTO t5027 VALUES (),();
 
---let SEARCH_PATTERN= InnoDB: Cannot save table statistics for table \`test\`\.\`t5027\`: Lock wait timeout
+--let SEARCH_PATTERN= Cannot save table statistics for table \`test\`\.\`t5027\`: Lock wait timeout
 --source include/wait_for_search_pattern.inc
 
 ROLLBACK;
@@ -178,7 +176,4 @@ DROP TABLE t5027;
 --source include/restart_mysqld.inc
 --remove_file $SEARCH_FILE
 
-# cleanup
 --source include/log_cleanup.inc
-
---source include/wait_until_count_sessions.inc

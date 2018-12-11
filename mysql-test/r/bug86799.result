@@ -10,6 +10,9 @@ AVG_ROW_LENGTH = 16384
 CHARACTER SET utf8mb3
 COLLATE utf8mb3_general_ci
 ROW_FORMAT = DYNAMIC;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1(pri1, dt, dop1) VALUES(1, NOW(), '2222');
 CREATE PROCEDURE insert_test()
 BEGIN

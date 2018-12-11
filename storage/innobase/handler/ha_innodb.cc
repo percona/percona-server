@@ -5083,7 +5083,9 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     dd_space.add_file(&dd_file);
     tablespaces->push_back(&dd_space);
 
-    static Plugin_tablespace innodb(dict_sys_t::s_sys_space_name, "",
+    const char *options = srv_sys_space.is_encrypted() ? "encryption=y" : "";
+
+    static Plugin_tablespace innodb(dict_sys_t::s_sys_space_name, options,
                                     se_private_data_innodb_system, "",
                                     innobase_hton_name);
     Tablespace::files_t::const_iterator end = srv_sys_space.m_files.end();
@@ -11442,12 +11444,6 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
     }
   }
 
-  /* Tables in shared tablespace should not have encryption options */
-  if (is_shared_tablespace(m_create_info->tablespace)) {
-    m_create_info->encrypt_type.str = nullptr;
-    m_create_info->encrypt_type.length = 0;
-  }
-
   /* If TABLESPACE=innodb_file_per_table this function is not called
   since tablespace_is_shared_space() will return false.  Any other
   tablespace is incompatible with the DATA DIRECTORY phrase.
@@ -11703,14 +11699,6 @@ bool create_table_info_t::create_option_encryption_is_valid() const {
     return (false);
   }
 
-  if (!table_is_encrypted && tablespace_is_encrypted) {
-    my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                    "InnoDB: Tablespace `%s` can contain only an"
-                    " ENCRYPTED tables.",
-                    MYF(0), tablespace_name);
-    return (false);
-  }
-
   return (true);
 }
 
@@ -11953,7 +11941,10 @@ void ha_innobase::adjust_encryption_options(HA_CREATE_INFO *create_info,
     create_info->was_encryption_key_id_set = false;
   }
 
-  if (table_def) {
+  /* Add encryption attribute only to file_per_table table */
+  if (table_def && (create_info->tablespace == nullptr ||
+                    strcmp(create_info->tablespace,
+                           dict_sys_t::s_file_per_table_name) == 0)) {
     dd::Properties &table_options = table_def->options();
     if (create_info->encrypt_type.str != nullptr) {
       dd::String_type encrypt_type;

@@ -33,6 +33,8 @@ innodb.truncate                       : Mayank Enable again once shared tablespa
 innodb.subpartition                   : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
 innodb.ddl_crash_alter_table_partition_tablespace : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
 innodb.innodb_bug14676111             : Bug#18200831 2018-08-14 Erlend The test has never worked correctly
+innodb.bug64663                       : PS-4892 2018-12-11 Satya Disabled until expand fast creation is reimplemented
+innodb.percona_expand_fast_index_creation_innodb : PS-4892 2018-12-11 Satya Disabled until expand fast creation is reimplemented
 
 # innodb_fts suite test
 innodb_fts.sync_block : percona disabled because the test is fundamentally unstable https://jira.percona.com/browse/PS-2232
@@ -42,6 +44,7 @@ json.json_ddl_ndb : BUG#26616564 FAILURE OF JSON_DDL_NDB TEST, Bug#26609059 2017
 
 # main suite tests
 main.ds_mrr-big @solaris   : BUG#14168107 2012-04-03 Hemant disabled new test added by Olav Sandstå,since this leads to timeout on Solaris on slow sparc servers.
+main.percona_expand_fast_index_creation : PS-4892 2018-12-11 Satya Disabled until expand fast creation is reimplemented
 
 # Disabled due to InnoDB issues
 main.internal_tmp_disk_storage_engine : BUG#26917416 2017-04-13 Allen Disabled it since it's failing on pb2.
@@ -82,6 +85,9 @@ rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 2018-05-30 Dmit
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 2017-09-22 Deepthi Disabled until bug is fixed.
 rpl.rpl_semi_sync_group_commit_deadlock : percona disabled until http://bugs.mysql.com/bug.php?id=80581 is fixed
 rpl.rpl_semi_sync_non_group_commit_deadlock : percona disabled until http://bugs.mysql.com/bug.php?id=80581 is fixed
+
+# sys_vars tests
+sys_vars.expand_fast_index_creation_basic : PS-4892 2018-12-11 Satya Disabled until expand fast creation is reimplemented
 
 # sysschema suite tests
 sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 2016-06-26 Erlend Test fails too often.

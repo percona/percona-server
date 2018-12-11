@@ -11,7 +11,9 @@
  SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)
 --- client/CMakeLists.txt	2018-08-18 03:29:59.708213642 -0400
 +++ client/CMakeLists.txt	2018-08-18 03:29:59.712547041 -0400
-@@ -36,37 +36,37 @@
+--- client/CMakeLists.txt       2018-12-11 10:52:11.866401807 +0200
++++ /home/korvin/CMakeLists.txt 2018-12-11 12:41:06.216688091 +0200
+@@ -36,14 +36,14 @@
  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
  
  MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc)
@@ -28,8 +30,10 @@
    ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema GenBootstrapPriv)
  ENDIF()
  
- MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
- SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
+@@ -52,24 +52,24 @@
+ )
+ 
+ MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
 -TARGET_LINK_LIBRARIES(mysqltest perconaserverclient regex)
 +TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
  ADD_DEPENDENCIES(mysqltest GenError GenClientError)
@@ -56,7 +60,7 @@
  
  MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
  SET(MYSQLBINLOG_LIB_SOURCES
-@@ -95,20 +95,20 @@
+@@ -101,20 +101,20 @@
  )
  
  TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
@@ -123,14 +127,16 @@
  #define mysql_library_init mysql_server_init
 --- libmysql/CMakeLists.txt	2018-08-18 03:30:19.520515918 -0400
 +++ libmysql/CMakeLists.txt	2018-08-18 03:30:19.525932667 -0400
-@@ -217,12 +217,12 @@
+@@ -238,13 +238,13 @@
  MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
  ADD_SUBDIRECTORY(authentication_ldap)
    
 -# Merge several convenience libraries into one big perconaserverclient
--MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS} COMPONENT Development)
+-MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE} COMPONENT Development)
+-TARGET_LINK_LIBRARIES(perconaserverclient ${LIBS_TO_LINK})
 +# Merge several convenience libraries into one big mysqlclient
-+MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS} COMPONENT Development)
++MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
++TARGET_LINK_LIBRARIES(mysqlclient ${LIBS_TO_LINK})
  
  # Visual Studio users need debug  static library for debug projects
  IF(MSVC)
@@ -139,16 +145,16 @@
  
    INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
    INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
-@@ -254,7 +254,7 @@
+@@ -276,7 +276,7 @@
  ENDIF()
  
  IF(NOT DISABLE_SHARED)
 -  # Merge several convenience libraries into one big perconaserverclient
 +  # Merge several convenience libraries into one big mysqlclient
    # and link them together into shared library.
-   MERGE_LIBRARIES_SHARED(libmysql ${LIBS}
+   MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
      EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
-@@ -267,9 +267,9 @@
+@@ -299,9 +299,9 @@
        SET(OS_SHARED_LIB_VERSION
          "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
      ENDIF()
@@ -160,7 +166,7 @@
        VERSION "${OS_SHARED_LIB_VERSION}" 
        SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
      CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-@@ -290,8 +290,8 @@
+@@ -322,8 +322,8 @@
          PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
      ENDIF() 
      # clean direct output needs to be set several targets have the same name
@@ -421,8 +427,8 @@
    gmock
  )
 @@ -142,7 +142,7 @@
-   ${MYSQLX_PROTOCOL_FULL_LIB}
    ${MYSQLX_CLIENT_FULL_LIB}
+   ${MYSQLX_PROTOCOL_FULL_LIB}
    ${PROTOBUF_LIBRARY}
 -  perconaserverclient
 +  mysqlclient
@@ -431,14 +437,14 @@
  )
 --- plugin/x/tests/driver/CMakeLists.txt	2018-08-22 03:58:32.371339263 -0400
 +++ plugin/x/tests/driver/CMakeLists.txt	2018-08-22 03:58:46.195045928 -0400
-@@ -66,7 +66,7 @@
+@@ -67,7 +67,7 @@
  TARGET_LINK_LIBRARIES(${XTEST_EXE_NAME}
    mysys
    strings
 -  perconaserverclient
 +  mysqlclient
-   ${MYSQLX_PROTOCOL_FULL_LIB}
    ${MYSQLX_CLIENT_FULL_LIB}
+   ${MYSQLX_PROTOCOL_FULL_LIB}
    ${PROTOBUF_LIBRARY}
 --- storage/tokudb/PerconaFT/tools/CMakeLists.txt       2018-08-29 12:23:52.000000000 -0400
 +++ storage/tokudb/PerconaFT/tools/CMakeLists.txt       2018-08-29 12:41:38.711986474 -0400
@@ -450,4 +456,16 @@
 +      target_link_libraries(${tool} mysqlclient)
      endif ()
    endif ()
+ 
+--- router/CMakeLists.txt       2018-12-11 10:52:17.122381407 +0200
++++ router/CMakeLists.txt       2018-12-11 10:52:17.122381407 +0200
+@@ -95,7 +95,7 @@
+ INCLUDE(cmake/Plugin.cmake)
+ 
+ # Set the proper paths for the mysqlclient library
+-SET(MySQL_CLIENT_LIB perconaserverclient)
++SET(MySQL_CLIENT_LIB mysqlclient)
+ SET(MySQL_VERSION_HEADER ${CMAKE_BINARY_DIR}/include/mysql_version.h)
+ SET(MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include)
+ LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 

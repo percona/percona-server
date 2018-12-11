@@ -18,7 +18,7 @@ SELECT * FROM t1 WHERE a=1 FOR UPDATE;
 COMMIT;
 COMMIT;
 Grepping the error log for both deadlocked transaction queries
-Pattern "Transactions deadlock detected, dumping detailed information." not found
+Pattern "Transactions deadlock detected, dumping detailed information." found
 Pattern "SELECT \* FROM t1 WHERE a=0 FOR UPDATE" found
 Pattern "SELECT \* FROM t1 WHERE a=1 FOR UPDATE" found
 DROP TABLE t1;

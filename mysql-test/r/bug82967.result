@@ -8,6 +8,12 @@ f VARCHAR(4) CHARACTER SET utf8mb3,
 KEY (a),
 KEY (b, c, d, e, f)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET big_tables = TRUE;
 INSERT INTO t1(a, b) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. q ...'),

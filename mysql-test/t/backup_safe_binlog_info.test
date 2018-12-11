@@ -27,7 +27,7 @@ LOCK TABLES FOR BACKUP;
 --disable_reconnect
 
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err
---let SEARCH_PATTERN= InnoDB: Last MySQL binlog file position 0 $binlog_pos, file name $binlog_file
+--let SEARCH_PATTERN= \[InnoDB\] Last MySQL binlog file position 0 $binlog_pos, file name $binlog_file
 --source include/search_pattern.inc
 
 --remove_file $SEARCH_FILE

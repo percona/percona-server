@@ -17,7 +17,7 @@ COMMIT;
 DELETE FROM t WHERE i = 1;
 COMMIT;
 Grepping the error log for lock wait timeout info
-Pattern "Lock wait timeout info:" not found
+Pattern "Lock wait timeout info:" found
 DROP TABLE t;
 SET GLOBAL innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
 SET GLOBAL innodb_print_lock_wait_timeout_info =

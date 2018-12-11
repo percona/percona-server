@@ -5,6 +5,9 @@
 # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
 #
 SET NAMES utf8mb3 COLLATE utf8mb3_unicode_ci;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 #
 # Start of ctype_utf8_ilseq.inc
 #
@@ -41,7 +44,11 @@ INSERT INTO t1 (ch) VALUES ('ab'),('a?b'),('a??b'),('a???b'),('a????b');
 INSERT INTO t1 (ch) VALUES ('az'),('a?z'),('a??z'),('a???z'),('a????z');
 INSERT INTO t1 (ch) VALUES ('z');
 INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D080);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D680);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
 ch
 Warnings:

@@ -1,3 +1,4 @@
+--skip # Doesn't really check that background scrubbing works
 
 let $MYSQLD_DATADIR=`select @@datadir`;
 let INNODB_PAGE_SIZE= `select @@innodb_page_size`;

@@ -11,8 +11,6 @@
  SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)
 --- client/CMakeLists.txt	2018-08-18 03:29:59.708213642 -0400
 +++ client/CMakeLists.txt	2018-08-18 03:29:59.712547041 -0400
---- client/CMakeLists.txt       2018-12-11 10:52:11.866401807 +0200
-+++ /home/korvin/CMakeLists.txt 2018-12-11 12:41:06.216688091 +0200
 @@ -36,14 +36,14 @@
  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
  

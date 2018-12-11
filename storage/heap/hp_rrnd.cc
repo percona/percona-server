@@ -55,6 +55,9 @@ int heap_rrnd(HP_INFO *info, uchar *record, HP_HEAP_POSITION *pos) {
   if (hp_extract_record(info, record, info->current_ptr))
     DBUG_RETURN(my_errno());
 
+  // reposition scan state also
+  info->current_record = pos->record_no;
+
   DBUG_PRINT("exit", ("found record at %p", info->current_ptr));
   info->current_hash_ptr = 0; /* Can't use rnext */
   DBUG_RETURN(0);

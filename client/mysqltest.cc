@@ -1180,15 +1180,15 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
   }
 
   if (expected_errors->count()) {
-    if (expected_errors->type() == ERR_ERRNO &&
-        err_errno == ER_NO_SUCH_THREAD) {
+    if (err_errno == ER_NO_SUCH_THREAD) {
       /* No such thread id, let's dump the available ones */
       fprintf(stderr,
               "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
               "dumping processlist\n",
               command->query);
       show_query(&cur_con->mysql, "SHOW PROCESSLIST");
-    } else if (expected_errors->count() == 1) {
+    }
+    if (expected_errors->count() == 1) {
       die("Query '%s' failed with wrong error %d: '%s', should have failed "
           "with error '%s'.",
           command->query, err_errno, err_error,

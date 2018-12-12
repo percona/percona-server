@@ -9,8 +9,8 @@
 
 bool encrypt_event(uint32 offs, const Binlog_crypt_data &crypto, uchar *buf,
                    uchar *ebuf, size_t buf_len);
-bool decrypt_event(const Binlog_crypt_data &crypto, uchar *buf, uchar *ebuf,
-                   size_t buf_len);
+bool decrypt_event(uint32 offs, const Binlog_crypt_data &crypto, uchar *buf,
+                   uchar *ebuf, size_t buf_len);
 
 class Event_encrypter final {
  public:
@@ -23,7 +23,7 @@ class Event_encrypter final {
     }
   }
 
-  bool init(Basic_ostream *ostream, uchar *header, size_t buf_len);
+  bool init(Basic_ostream *ostream, uchar* &header, size_t &buf_len);
   bool encrypt_and_write(Basic_ostream *ostream, const uchar *pos, size_t len);
   bool finish(Basic_ostream *ostream);
 

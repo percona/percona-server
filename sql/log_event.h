@@ -1488,7 +1488,6 @@ class Start_encryption_log_event final
 
  protected:
 #ifdef MYSQL_SERVER
-  virtual int do_apply_event(Relay_log_info const *rli) override;
   virtual int do_update_pos(Relay_log_info *rli) override;
   virtual enum_skip_reason do_shall_skip(
       Relay_log_info *rli MY_ATTRIBUTE((unused))) noexcept override {
@@ -1561,24 +1560,6 @@ class Format_description_log_event : public Format_description_event,
     */
     return Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN;
   }
-
-  Binlog_crypt_data crypto_data;
-  bool start_decryption(binary_log::Start_encryption_event *see) override;
-
-  void copy_crypto_data(
-      const binary_log::Format_description_event &o) noexcept override {
-    DBUG_PRINT("info", ("Copying crypto data"));
-    const Format_description_log_event *fdle =
-        dynamic_cast<const Format_description_log_event *>(&o);
-    if (fdle != nullptr) crypto_data = fdle->crypto_data;
-  }
-
-  void reset_crypto() noexcept { crypto_data.disable(); }
-
-  bool is_decrypting() const noexcept override {
-    return crypto_data.is_enabled();
-  }
-
  protected:
 #if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli) override;

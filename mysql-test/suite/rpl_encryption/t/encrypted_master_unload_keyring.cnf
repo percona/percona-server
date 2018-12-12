@@ -4,6 +4,7 @@
 !include ../rpl_1slave_base.cnf
 
 [mysqld.1]
+encrypt-binlog=0
 master-verify-checksum=1
 
 [mysqld.2]

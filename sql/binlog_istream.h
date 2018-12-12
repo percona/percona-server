@@ -59,6 +59,8 @@ class Binlog_read_error {
     HEADER_IO_FAILURE,
     // The binlog magic is incorrect
     BAD_BINLOG_MAGIC,
+    // Failed to initialize binlog decryption
+    DECRYPT_INIT_FAILURE,
     // Encrypted event decryption failure
     DECRYPT
   };

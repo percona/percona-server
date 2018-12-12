@@ -28,7 +28,7 @@ Pattern "table1_encryption" not found
 # Part 2: restart master, without binlog encryption and without keyring plugin
 #################################################################################
 call mtr.add_suppression("Error reading GTIDs from binary log");
-call mtr.add_suppression("Error initializing decryption while reading GTIDs from binary log");
+call mtr.add_suppression("Failed to initialize binlog encryption. Please make sure that the correct keyring is loaded.");
 include/rpl_restart_server.inc [server_number=1]
 # Check that plugin is not installed
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
@@ -46,7 +46,7 @@ INSERT INTO table2_no_encryption SELECT NULL,NOW(),b FROM table2_no_encryption;
 INSERT INTO table2_no_encryption SELECT NULL,NOW(),b FROM table2_no_encryption;
 Pattern "table2_no_encryption" found
 include/assert_grep.inc [Found the expected warning "Error reading GTIDs from binary log: -1" in master's error log.]
-include/assert_grep.inc [Found the expected warning "Error initializing decryption while reading GTIDs from binary log" in slave's error log.]
+include/assert_grep.inc [Found the expected warning "Failed to initialize binlog encryption ..." in slave's error log.]
 ################################################
 # Part 3: restart master again with encryption
 ################################################
@@ -62,13 +62,13 @@ include/sync_slave_sql_with_master.inc
 #################################################################################
 call mtr.add_suppression("Found invalid Format description event in binary log");
 call mtr.add_suppression("Error reading GTIDs from relaylog");
-call mtr.add_suppression("Error initializing decryption while reading GTIDs from relaylog");
+call mtr.add_suppression("Failed to initialize binlog encryption. Please make sure that the correct keyring is loaded.");
 include/rpl_restart_server.inc [server_number=2]
 # Check that plugin is not installed
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 include/assert_grep.inc [Found the expected warning "Error reading GTIDs from relaylog: -1" in slave's error log.]
-include/assert_grep.inc [Error initializing decryption while reading GTIDs from relaylog]
+include/assert_grep.inc [Failed to initialize binlog encryption. Please make sure that the correct keyring is loaded.]
 #################################################################################
 # Part 6: restart slave with keyring plugin
 #################################################################################

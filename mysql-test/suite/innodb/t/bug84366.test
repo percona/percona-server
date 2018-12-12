@@ -47,7 +47,7 @@ SET @@GLOBAL.innodb_purge_run_now = TRUE;
 # wait_innodb_all_purged.inc is not used directly as we wait for the trx age
 # to become two, not zero, due to open transactions
 --let $status_var= innodb_purge_trx_id_age
---let $status_var_value= 2
+--let $status_var_value= 1
 --source include/wait_for_status_var.inc
 
 SET DEBUG_SYNC = "now SIGNAL estimate_finish";

@@ -1,21 +1,21 @@
-# Ensure that purge will not crash on the table after we corrupt it.
-SET GLOBAL innodb_purge_rseg_truncate_frequency = 1;
-SET GLOBAL innodb_fast_shutdown=0;
 # Create and populate the table to be corrupted
-set global innodb_file_per_table=ON;
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) COMPRESSION="none",
+ROW_FORMAT=COMPACT ENGINE=InnoDB;
 INSERT INTO t1 (b) VALUES ('corrupt me');
 INSERT INTO t1 (b) VALUES ('corrupt me');
+# Backup the t1.ibd before corrupting
 # Corrupt the table
 Munged a string.
 Munged a string.
 # restart
-# Now t1 is corrupted but we should not crash
+SET DEBUG = '+d,innodb_page_corruption_retries';
+# Write file to make mysql-test-run.pl expect the "crash", but don't
+# start it until it's told to
+# The below SELECT query will crash the server because some pages
+# on the disk are corrupted
 SELECT * FROM t1;
-ERROR HY000: Operation cannot be performed. The table 'test.t1' is missing, corrupt or contains bad data.
-INSERT INTO t1(b) VALUES('abcdef');
-ERROR HY000: Operation cannot be performed. The table 'test.t1' is missing, corrupt or contains bad data.
-UPDATE t1 set b = 'deadbeef' where a = 1;
-ERROR HY000: Operation cannot be performed. The table 'test.t1' is missing, corrupt or contains bad data.
-# Cleanup, this must be possible
+ERROR HY000: Lost connection to MySQL server during query
+# Restore the original t1.ibd
+# restart
+# Cleanup
 DROP TABLE t1;

@@ -35,7 +35,7 @@ send COMMIT;
 
 SET DEBUG_SYNC="now WAIT_FOR commit_ready";
 
---replace_result 627 POSITION 606 POSITION
+--replace_result 633 POSITION 610 POSITION
 SHOW STATUS LIKE 'binlog_snapshot_%';
 
 SET DEBUG_SYNC="now SIGNAL finish_commit";

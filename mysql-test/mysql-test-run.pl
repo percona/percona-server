@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -78,6 +78,7 @@ BEGIN {
 use lib "lib";
 
 use Cwd;
+use Cwd 'abs_path';
 use Getopt::Long;
 use My::File::Path; # Patched version of File::Path
 use File::Basename;
@@ -137,7 +138,6 @@ my $opt_start_exit;
 my $start_only;
 
 our $num_tests_for_report;      # for test-progress option
-our $remaining;
 
 my $auth_plugin;                # the path to the authentication test plugin
 
@@ -169,7 +169,8 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,"
+my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_encryption,rpl_encryption,encryption,"
+  ."federated,gis,rpl,innodb,innodb_gis,"
   ."innodb_fts,innodb_zip,innodb_undo,innodb_stress,perfschema,funcs_1,"
   ."funcs_2,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,"
   ."test_service_sql_api,jp,stress,engines/iuds,engines/funcs,"
@@ -178,7 +179,7 @@ my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,"
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl,tokudb.perfschema,"
   ."rocksdb,rocksdb.rpl,rocksdb.sys_vars,"
-  ."keyring_vault";
+  ."keyring_vault,audit_null";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -264,6 +265,7 @@ our $opt_manual_ddd;
 our $opt_manual_debug;
 our $opt_debugger;
 our $opt_client_debugger;
+our $opt_gterm;
 
 my $config; # The currently running config
 my $current_config_name; # The currently running config file template
@@ -293,7 +295,7 @@ my $opt_skip_core;
 
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
-our $opt_test_progress;
+our $opt_test_progress= 1;
 my $opt_max_connections;
 our $opt_report_times= 0;
 
@@ -385,9 +387,9 @@ main();
 sub is_core_dump {
   my $core_path= shift;
   my $core_name= basename($core_path);
-  # Name beginning with core, not ending in .gz, not belonging to Boost,
-  # or ending with .dmp on Windows
-  return (($core_name =~ /^core/ and $core_name !~ /\.gz$/
+  # Name beginning with core, not ending in .gz, .c, nor .log, not belonging to
+  # Boost, or ending with .dmp on Windows
+  return (($core_name =~ /^core/ and $core_name !~ /\.gz$|\.c$|\.log$/
            and $core_path !~ /\/boost_/)
           or (IS_WINDOWS and $core_name =~ /\.dmp$/));
 }
@@ -447,9 +449,7 @@ sub main {
 
   #######################################################################
   my $num_tests= @$tests;
-
   $num_tests_for_report = $num_tests * $opt_repeat;
-  $remaining= $num_tests_for_report;
 
   if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
@@ -725,13 +725,16 @@ sub run_test_server ($$$) {
 	      mtr_report(" - skipping '$worker_savedir/'");
 	      rmtree($worker_savedir);
 	    }
-	    else {
-	      rename($worker_savedir, $savedir);
-              #look for the test.log file and put in savedir
-	      my $logf= "$result->{shortname}" . ".log";
-              my $logfilepath= dirname($worker_savedir); 
-              move($logfilepath . "/" . $logf, $savedir);
-	      mtr_report(" - the logfile can be found in '$savedir/$logf'");
+            else
+            {
+              rename($worker_savedir, $savedir) if $worker_savedir ne $savedir;
+
+              # Look for the test log file and put that in savedir location
+              my $logfile= "$result->{shortname}" . ".log";
+              my $logfilepath= dirname($worker_savedir) . "/" . $logfile;
+              move($logfilepath, $savedir);
+              mtr_report(" - the logfile can be found in '$savedir/$logfile'");
+
 	      # Move any core files from e.g. mysqltest
 	      foreach my $coref (glob("core*"), glob("*.dmp"))
 	      {
@@ -797,21 +800,17 @@ sub run_test_server ($$$) {
 	    # too many times already
 	    my $tname= $result->{name};
 	    my $failures= $result->{failures};
-	    if ($opt_retry > 1 and $failures >= $opt_retry_failure){
+	    if ($opt_retry > 1 and $failures >= $opt_retry_failure)
+            {
 	      mtr_report("\nTest $tname has failed $failures times,",
 			 "no more retries!\n");
 	    }
-	    else {
+	    else
+            {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
-              #saving the log file as filename.failed in case of retry
-              if ( $result->is_failed() ) {
-                my $worker_logdir= $result->{savedir};
-                my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
-                rename $log_file_name,$log_file_name.".failed";
-              }
 	      delete($result->{result});
-	      $result->{retries}= $retries+1;
+	      $result->{retries}= $retries + 1;
 	      $result->write_test($sock, 'TESTCASE');
 	      next;
 	    }
@@ -1188,7 +1187,7 @@ sub command_line_setup {
              'record'                   => \$opt_record,
              'check-testcases!'         => \$opt_check_testcases,
              'mark-progress'            => \$opt_mark_progress,
-             'test-progress'            => \$opt_test_progress,
+             'test-progress:1'          => \$opt_test_progress,
 
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
@@ -1205,6 +1204,8 @@ sub command_line_setup {
              'debug-common'             => \$opt_debug_common,
              'debug-server'             => \$opt_debug_server,
              'gdb'                      => \$opt_gdb,
+             # For using gnome-terminal when using --gdb option
+             'gterm'                    => \$opt_gterm,
              'lldb'                     => \$opt_lldb,
              'client-gdb'               => \$opt_client_gdb,
              'client-lldb'              => \$opt_client_lldb,
@@ -1467,6 +1468,10 @@ sub command_line_setup {
     {
       push(@opt_cases, $arg);
     }
+  }
+
+  if ($opt_test_progress != 0 and $opt_test_progress != 1) {
+    mtr_error("Invalid value '$opt_test_progress' for option 'test-progress'.");
   }
 
   # disable syslog / EventLog in normal (non-bootstrap) operation.
@@ -2404,6 +2409,7 @@ sub mysql_client_test_arguments(){
   my $exe;
   # mysql_client_test executable may _not_ exist
   $exe= mtr_exe_maybe_exists(vs_config_dirs('testclients', 'mysql_client_test'),
+                             "$path_client_bindir/mysql_client_test",
 			     "$basedir/testclients/mysql_client_test",
 			     "$basedir/bin/mysql_client_test");
   return "" unless $exe;
@@ -2538,17 +2544,20 @@ sub read_plugin_defs($)
       if ($plug_names) {
 	my $lib_name= basename($plugin);
 	my $load_var= "--plugin_load=";
+	my $early_load_var="--early-plugin_load=";
 	my $load_add_var= "--plugin_load_add=";
 	my $load_var_with_path = "--plugin_load=";
 	my $load_add_var_with_path = "--plugin_load_add=";
 	my $semi= '';
 	foreach my $plug_name (split (',', $plug_names)) {
 	  $load_var .= $semi . "$plug_name=$lib_name";
+	  $early_load_var .= $semi . "$plug_name=$lib_name";
 	  $load_add_var .= $semi . "$plug_name=$lib_name";
 	  $load_var_with_path .= $semi . "$plug_name=$plug_dir/$lib_name";
 	  $load_add_var_with_path .= $semi . "$plug_name=$plug_dir/$lib_name";
 	  $semi= ';';
 	}
+	$ENV{$plug_var.'_EARLY_LOAD'}=$early_load_var;
 	$ENV{$plug_var.'_LOAD'}= $load_var;
 	$ENV{$plug_var.'_LOAD_ADD'}= $load_add_var;
 	$ENV{$plug_var.'_LOAD_PATH'}= $load_var_with_path;
@@ -2658,20 +2667,21 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+  $ENV{'MYSQL_TEST_DIR_ABS'}= getcwd();
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
   if (IS_WINDOWS)
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."\\std_data";
-    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
-                              $opt_tmpdir . "\\.mylogin.cnf";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}= $opt_tmpdir . "\\.mylogin.cnf";
+    $ENV{'MYSQLTEST_VARDIR_ABS'}= $opt_vardir;
   }
   else
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."/std_data";
-    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
-                              $opt_tmpdir . "/.mylogin.cnf";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}= $opt_tmpdir . "/.mylogin.cnf";
+    $ENV{'MYSQLTEST_VARDIR_ABS'}= abs_path("$opt_vardir");
   }
     
 
@@ -2826,6 +2836,17 @@ sub environment_setup {
            "$path_client_bindir/sst_dump",
            "$basedir/storage/rocksdb/sst_dump");
   $ENV{'MYSQL_SST_DUMP'}= native_path($exe_sst_dump);
+
+  # ----------------------------------------------------
+  # tokuft_dump
+  # ----------------------------------------------------
+  my $exe_tokuftdump=
+    mtr_exe_maybe_exists(
+           vs_config_dirs('storage/tokudb/PerconaFT/tools', 'tokuftdump'),
+           "$path_client_bindir/tokuftdump",
+           "$basedir/storage/tokudb/PerconaFT/tools/tokuftdump");
+  $ENV{'MYSQL_TOKUFTDUMP'}= native_path($exe_tokuftdump);
+
 
   # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
@@ -4104,6 +4125,10 @@ sub mysql_install_db {
   mtr_tofile($bootstrap_sql_file,
              sql_to_bootstrap(mtr_grab_file("include/mtr_check.sql")));
 
+  # Create directories mysql and test
+  mkpath("$install_datadir/mysql");
+  mkpath("$install_datadir/test");
+
   if ( $opt_manual_boot_gdb )
   {
     # The configuration has been set up and user has been prompted for
@@ -4118,10 +4143,6 @@ sub mysql_install_db {
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
-
-  # Create directories mysql and test
-  mkpath("$install_datadir/mysql");
-  mkpath("$install_datadir/test");
 
   if ( My::SafeProcess->run
        (
@@ -4197,6 +4218,7 @@ sub do_before_run_mysqltest($)
 {
   my $tinfo= shift;
 
+  $ENV{'MYSQL_CURRENT_TEST_DIR'} = dirname($tinfo->{'path'});
   # Remove old files produced by mysqltest
   my $base_file= mtr_match_extension($tinfo->{result_file},
 				     "result"); # Trim extension
@@ -5455,7 +5477,7 @@ sub check_warnings ($) {
 	  return $result;
 	}
 	# Wait for next process to exit
-	next;
+	next if not $result;
       }
       else
       {
@@ -6867,9 +6889,18 @@ sub gdb_arguments {
   }
 
   $$args= [];
-  mtr_add_arg($$args, "-title");
-  mtr_add_arg($$args, "$type");
-  mtr_add_arg($$args, "-e");
+
+
+  if ($opt_gterm) {
+    mtr_add_arg($$args, "--title");
+    mtr_add_arg($$args, "$type");
+    mtr_add_arg($$args, "--wait");
+    mtr_add_arg($$args, "--");
+  } else {
+    mtr_add_arg($$args, "-title");
+    mtr_add_arg($$args, "$type");
+    mtr_add_arg($$args, "-e");
+  }
 
   if ( $exe_libtool )
   {
@@ -6882,7 +6913,11 @@ sub gdb_arguments {
   mtr_add_arg($$args, "$gdb_init_file");
   mtr_add_arg($$args, "$$exe");
 
-  $$exe= "xterm";
+  if ($opt_gterm) {
+    $$exe= "gnome-terminal";
+  } else {
+    $$exe= "xterm";
+  }
 }
 
  #
@@ -7407,7 +7442,8 @@ Options for test case authoring
   record TESTNAME       (Re)genereate the result file for TESTNAME
   check-testcases       Check testcases for sideeffects
   mark-progress         Log line number and elapsed time to <testname>.progress
-  test-progress         Print the percentage of tests completed
+  test-progress[={0|1}] Print the percentage of tests completed. This setting
+                        is enabled by default.
 
 Options that pass on options (these may be repeated)
 

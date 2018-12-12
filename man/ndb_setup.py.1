@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_setup.py\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_SETUP\&.PY\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_SETUP\&.PY\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ or other administrative account\&.
 This section describes usage of and program options for the command\-line tool only\&. For information about using the Auto\-Installer GUI that is spawned when
 \fBndb_setup\&.py\fR
 is invoked, see
-Section\ \&21.2.1, \(lqThe NDB Cluster Auto-Installer\(rq\&.
+Section\ \&21.2.1, \(lqThe NDB Cluster Auto-Installer (NDB 7.5)\(rq\&.
 Usage.PP
 All platforms:
 .sp
@@ -92,10 +92,165 @@ The following table includes all options that are supported by the NDB Cluster i
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.105.\ \& This table describes command\-line options for the ndb_setup\&.py program
+.B Table\ \&21.350.\ \&Command\-line options for the ndb_setup\&.py program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--browser-start-page=filename,
+.PP
+-s
+T}:T{
+Page that the web browser opens when starting.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--ca-certs-file=filename,
+.PP
+-a
+T}:T{
+File containing list of client certificates allowed to connect to the
+              server
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--cert-file=filename,
+.PP
+-c
+T}:T{
+File containing X509 certificate that identifies the server. (Default:
+              cfg.pem)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--debug-level=level,
+.PP
+-d
+T}:T{
+Python logging module debug level. One of DEBUG, INFO, WARNING
+              (default), ERROR, or CRITICAL.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--help,
+.PP
+-h
+T}:T{
+Print help message
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--key-file=file,
+.PP
+-k
+T}:T{
+Specify file containing private key (if not included in --cert-file)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--no-browser,
+.PP
+-n
+T}:T{
+Do not open the start page in a browser, merely start the tool
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--port=#,
+.PP
+-p
+T}:T{
+Specify the port used by the web server
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--server-log-file=file,
+.PP
+o
+T}:T{
+Log requests to this file. Use '-' to force logging to stderr instead.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--server-name=name,
+.PP
+-N
+T}:T{
+The name of the server to connect with
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--use-http,
+.PP
+-H
+T}:T{
+Use unencrypted (HTTP) client/server connection
+T}:T{
+.PP
+NDB 7.6 and later
+T}
+T{
+.PP
+--use-https,
+.PP
+-S
+T}:T{
+Use encrypted (HTTPS) client/server connection
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
 .TE
 .sp 1
 .sp
@@ -111,25 +266,30 @@ allbox tab(:);
 \fB\-s\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-browser\-start\-page=filename
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--browser-start-page=filename
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
-index\&.html
+index.html
 T}
 .TE
 .sp 1
@@ -149,23 +309,28 @@ index\&.html\&.
 \fB\-a\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-ca\-certs\-file=filename
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--ca-certs-file=filename
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -186,29 +351,34 @@ Specify a file containing a list of client certificates which are allowed to con
 \fB\-c\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-cert\-file=filename
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--cert-file=filename
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
-cfg\&.pem
+cfg.pem
 T}
 .TE
 .sp 1
-Specify a file containing an X509 certificate which identifies the server\&. It is possible for the certificate to be self\-signed\&. The default is
+Specify a file containing an X\&.509 certificate which identifies the server\&. It is possible for the certificate to be self\-signed\&. The default is
 cfg\&.pem\&.
 .RE
 .sp
@@ -224,46 +394,44 @@ cfg\&.pem\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ lt l s
-^ ^ l s
-^ ^ l s
-^ ^ l s
-^ ^ l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-debug\-level=level
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--debug-level=level
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-enumeration
+Enumeration
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 WARNING
 T}
-:T{
+T{
 \fBValid Values\fR
 T}:T{
+.PP
 WARNING
-T}
-::T{
+.PP
 DEBUG
-T}
-::T{
+.PP
 INFO
-T}
-::T{
+.PP
 ERROR
-T}
-::T{
+.PP
 CRITICAL
 T}
 .TE
@@ -290,11 +458,18 @@ is the default\&.
 \fB\-h\fR
 .TS
 allbox tab(:);
-l l s s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-help
+Value
+T}
+.T&
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--help
 T}
 .TE
 .sp 1
@@ -313,29 +488,34 @@ Print a help message\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-key\-file=file
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--key-file=file
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
 .TE
 .sp 1
-Specify a file containing the private key if this is not included in the X509 certificate file (\fB\-\-cert\-file\fR)\&. The default is an empty string, which means that no such file is used\&.
+Specify a file containing the private key if this is not included in the X\&. 509 certificate file (\fB\-\-cert\-file\fR)\&. The default is an empty string, which means that no such file is used\&.
 .RE
 .sp
 .RS 4
@@ -350,11 +530,18 @@ Specify a file containing the private key if this is not included in the X509 ce
 \fB\-n\fR
 .TS
 allbox tab(:);
-l l s s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-no\-browser
+Value
+T}
+.T&
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--no-browser
 T}
 .TE
 .sp 1
@@ -373,35 +560,40 @@ Start the installation and configuration tool, but do not open the Start page in
 \fB\-p\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-port=#
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--port=#
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 8081
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 65535
 T}
@@ -422,41 +614,43 @@ Set the port used by the web server\&. The default is 8081\&.
 \fB\-o\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ lt l s
-^ ^ l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-server\-log\-file=file
+Value
 T}
+.T&
+l l
+l l
+l l
+l l.
 T{
-\ \&
+\fBCommand-Line Format\fR
 T}:T{
+.PP
+--server-log-file=file
+.PP
 o
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
-ndb_setup\&.log
+ndb_setup.log
 T}
-:T{
+T{
 \fBValid Values\fR
 T}:T{
-ndb_setup\&.log
-T}
-::T{
-\- (Log to stderr)
+.PP
+ndb_setup.log
+.PP
+-
+(Log to stderr)
 T}
 .TE
 .sp 1
@@ -479,23 +673,28 @@ stderr, rather than to a file, use a
 \fB\-N\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-server\-name=name
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--server-name=name
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 localhost
 T}
@@ -513,15 +712,54 @@ localhost\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-use\-http\fR,
+\fB\-H\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--use-http
+T}
+.TE
+.sp 1
+Make the browser use HTTP to connect with the server\&. This means that the connection is unencrypted and not secured in any way\&.
+.sp
+This option was added in NDB 7\&.6\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-use\-https\fR,
 \fB\-S\fR
 .TS
 allbox tab(:);
-l l s s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-use\-https
+Value
+T}
+.T&
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--use-https
 T}
 .TE
 .sp 1
@@ -530,7 +768,7 @@ Make the browser use a secure (HTTPS) connection with the server\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

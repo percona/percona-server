@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -298,6 +298,11 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
   int error= 0;
   uchar* payload= data_packet->payload;
   uchar* payload_end= data_packet->payload + data_packet->len;
+
+  DBUG_EXECUTE_IF("group_replication_before_apply_data_packet", {
+    const char act[] = "now wait_for continue_apply";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 
   if (check_single_primary_queue_status())
     return 1; /* purecov: inspected */
@@ -678,6 +683,11 @@ void Applier_module::leave_group_on_failure()
                                          Group_member_info::MEMBER_ERROR);
 
   bool set_read_mode= false;
+  if (view_change_notifier != NULL &&
+      !view_change_notifier->is_view_modification_ongoing())
+  {
+    view_change_notifier->start_view_modification();
+  }
   Gcs_operations::enum_leave_state state= gcs_module->leave();
 
   int error= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
@@ -740,6 +750,30 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
       enable_server_read_mode(PSESSION_USE_THREAD);
   }
 
+  if (view_change_notifier != NULL)
+  {
+    log_message(MY_INFORMATION_LEVEL, "Going to wait for view modification");
+    if (view_change_notifier->wait_for_view_modification())
+    {
+      log_message(MY_ERROR_LEVEL, "On shutdown there was a timeout receiving a "
+                                  "view change. This can lead to a possible "
+                                  "inconsistent state. Check the log for more "
+                                  "details");
+    }
+  }
+
+  /*
+    Only abort() if we successfully asked to leave() the group (and we have
+    group_replication_exit_state_action set to ABORT_SERVER).
+    We don't want to abort() during the execution of START GROUP_REPLICATION or
+    STOP GROUP_REPLICATION.
+  */
+  if (set_read_mode &&
+      exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER)
+  {
+    abort_plugin_process("Fatal error during execution of Group Replication");
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -786,7 +820,7 @@ Applier_module::wait_for_applier_complete_suspension(bool *abort_flag,
   {
     error= APPLIER_GTID_CHECK_TIMEOUT_ERROR; //timeout error
     while (error == APPLIER_GTID_CHECK_TIMEOUT_ERROR && !(*abort_flag))
-      error= wait_for_applier_event_execution(1); //blocking
+      error= wait_for_applier_event_execution(1, true); //blocking
   }
 
   return (error == APPLIER_RELAY_LOG_NOT_INITED);
@@ -816,7 +850,8 @@ Applier_module::is_applier_thread_waiting()
 }
 
 int
-Applier_module::wait_for_applier_event_execution(double timeout)
+Applier_module::wait_for_applier_event_execution(double timeout,
+                                                 bool check_and_purge_partial_transactions)
 {
   DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
   int error= 0;
@@ -834,7 +869,8 @@ Applier_module::wait_for_applier_event_execution(double timeout)
       the applier thread will release the lock and update the applier thread
       execution position correctly and safely.
     */
-    if (((Applier_handler*)event_applier)->is_partial_transaction_on_relay_log())
+    if (check_and_purge_partial_transactions &&
+        ((Applier_handler*)event_applier)->is_partial_transaction_on_relay_log())
     {
         error= purge_applier_queue_and_restart_applier_module();
     }

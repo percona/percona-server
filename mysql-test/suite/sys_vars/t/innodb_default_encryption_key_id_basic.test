@@ -1,0 +1,5 @@
+--source include/have_innodb.inc
+
+--skip Not implemented
+
+SELECT @@global.innodb_default_encryption_key_id;

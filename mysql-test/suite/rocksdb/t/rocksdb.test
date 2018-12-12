@@ -1,4 +1,5 @@
 --source include/have_rocksdb.inc
+--source ../include/have_write_committed.inc
 --source include/count_sessions.inc
 
 #
@@ -578,7 +579,6 @@ insert into t30 values
   ('row3', 'row3-key', 'row3-data'),
   ('row4', 'row4-key', 'row4-data'),
   ('row5', 'row5-key', 'row5-data');
-analyze table t30;
 
 --replace_column 10 #
 explain 
@@ -790,7 +790,10 @@ drop table t45;
 --echo # Now it fails if there is data overlap with what
 --echo # already exists
 --echo #
-show variables like 'rocksdb%';
+# We exclude rocksdb_max_open_files here because it value is dependent on
+# the value of the servers open_file_limit and is expected to be different
+# across distros and installs
+show variables where variable_name like 'rocksdb%' and variable_name not like 'rocksdb_max_open_files';
 create table t47 (pk int primary key, col1 varchar(12)) engine=rocksdb;
 insert into t47 values (1, 'row1');
 insert into t47 values (2, 'row2');
@@ -1113,6 +1116,8 @@ INSERT INTO t1 VALUES (1,'foo'),(2,'bar');
 DROP TABLE t1;
 
 
+# See MYR-122 : split up rocksdb.rocksdb test into individual tests that
+#               actually test something specific
 --echo #
 --echo # MDEV-4061: RocksDB: Changes from an interrupted query are still applied
 --echo #
@@ -1125,21 +1130,16 @@ insert into t1 values (1,10),(2,20);
 --let $con_id = `select connection_id()`
 
 set autocommit = 1;
-# TODO : this is bad and will result in unstable tests
-# See MYR-122 : split up rocksdb.rocksdb test into individual tests that
-#               actually test something specific
 --send update t1 set a = sleep(300) where pk = 1;
 
 --connect (con1,localhost,root,,)
+
+
+let $wait_condition= select State='User sleep' from information_schema.processlist where id=$con_id;
+--source include/wait_condition.inc
+
 --echo kill query \$con_id;
 --disable_query_log
-# TODO : this is bad and will result in unstable tests
-# See MYR-122 : split up rocksdb.rocksdb test into individual tests that
-#               actually test something specific
-# If we immeditely kill the query - internally the condition broadcast can
-# occur before the lock is waiting on the condition, thus the broadcast call
-# is lost.  Sleep 1 second to avoid this condition.
---sleep 1
 eval kill query $con_id;
 --enable_query_log
 
@@ -1172,7 +1172,7 @@ set @a=-1;
 insert into t1 select (@a:=@a+1), 1234 from performance_schema.session_variables limit 100;
 set @tmp1= @@rocksdb_max_row_locks;
 set rocksdb_max_row_locks= 20;
---error ER_RDB_STATUS_GENERAL
+--error ER_GET_ERRMSG
 update t1 set a=a+10;
 DROP TABLE t1;
 
@@ -2057,5 +2057,16 @@ DROP TABLE t1, t2;
 
 
 SET GLOBAL ROCKSDB_PAUSE_BACKGROUND_WORK = @ORIG_PAUSE_BACKGROUND_WORK;
+
+--echo #
+--echo # Issue #728: Assertion `covers_key(b)' failed in int
+--echo # myrocks::Rdb_key_def::cmp_full_keys(const rocks db::Slice&,
+--echo # const rocksdb::Slice&)
+--echo #
+
+CREATE TABLE t2(c1 TINYINT SIGNED KEY,c2 TINYINT UNSIGNED,c3 INT) ENGINE=ROCKSDB;
+INSERT INTO t2(c1)VALUES(0);
+SELECT * FROM t2 WHERE c1<=127 ORDER BY c1 DESC;
+DROP TABLE t2;
 
 --source include/wait_until_count_sessions.inc

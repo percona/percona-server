@@ -35,7 +35,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "log.h"
 #include "sql_class.h"
 #include "sql_show.h"
-#include "discover.h"
+#include "item_cmpfunc.h"
 #include <binlog.h>
 #include "debug_sync.h"
 
@@ -54,11 +54,16 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include <ctype.h>
 #include <stdint.h>
+#if !defined(__STDC_FORMAT_MACROS)
 #define __STDC_FORMAT_MACROS
+#endif  // !defined(__STDC_FORMAT_MACROS)
 #include <inttypes.h>
 #if defined(_WIN32)
 #include "misc.h"
 #endif
+
+#include <string>
+#include <unordered_map>
 
 #include "db.h"
 #include "toku_os.h"
@@ -69,28 +74,35 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #pragma interface               /* gcc class implementation */
 #endif
 
+// TOKU_INCLUDE_WRITE_FRM_DATA and TOKU_INCLUDE_DISCOVER_FRM work together as
+// two opposing sides of the same functionality. The 'WRITE' includes
+// functionality to write a copy of every tables .frm data into the tables
+// status dictionary on CREATE or ALTER. When WRITE is in, the .frm data is
+// also verified whenever a table is opened.
+//
+// The 'DISCOVER' then implements the MySQL table discovery API which reads
+// this same data and returns it back to MySQL.
+// In most cases, they should all be in or out without mixing. There may be
+// extreme cases though where one side (WRITE) is supported but perhaps
+// 'DISCOVERY' may not be, thus the need for individual indicators.
 #define TOKU_USE_DB_TYPE_TOKUDB 1           // has DB_TYPE_TOKUDB patch
-#define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1 // has tokudb row format compression patch
-#define TOKU_PARTITION_WRITE_FRM_DATA 0
-#define TOKU_INCLUDE_WRITE_FRM_DATA 0
 #if defined(HTON_SUPPORTS_EXTENDED_KEYS)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
+#define TOKU_INCLUDE_WRITE_FRM_DATA 1
+#define TOKU_INCLUDE_DISCOVER_FRM 1
+#define TOKU_INCLUDE_RFR 1
+#define TOKU_INCLUDE_UPSERT 1
 
-#ifdef MARIADB_BASE_VERSION
-// In MariaDB 5.3, thread progress reporting was introduced.
-// Only include that functionality if we're using maria 5.3 +
-#define HA_TOKUDB_HAS_THD_PROGRESS 1
+#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#include "discover.h"
+#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM 
 
-// MariaDB supports thdvar memalloc correctly
-#define TOKU_THDVAR_MEMALLOC_BUG 0
-#else
 // MySQL does not support thdvar memalloc correctly
 // see http://bugs.mysql.com/bug.php?id=71759
 #define TOKU_THDVAR_MEMALLOC_BUG 1
-#endif
 
 #if !defined(HA_CLUSTERING)
 #define HA_CLUSTERING 0
@@ -106,18 +118,6 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #if !defined(HA_OPTION_CREATE_FROM_ENGINE)
 #define HA_OPTION_CREATE_FROM_ENGINE 0
-#endif
-
-// In older (< 5.5) versions of MySQL and MariaDB, it is necessary to 
-// use a read/write lock on the key_file array in a table share, 
-// because table locks do not protect the race of some thread closing 
-// a table and another calling ha_tokudb::info()
-//
-// In version 5.5 and, a higher layer "metadata lock" was introduced
-// to synchronize threads that open, close, call info(), etc on tables.
-// In these versions, we don't need the key_file lock
-#if MYSQL_VERSION_ID < 50500
-#define HA_TOKUDB_NEEDS_KEY_FILE_LOCK
 #endif
 
 //
@@ -186,13 +186,17 @@ inline uint tokudb_uint3korr(const uchar *a) {
 
 typedef unsigned int pfs_key_t;
 
-#if defined(HAVE_PSI_MUTEX_INTERFACE)
+#if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
 #define mutex_t_lock(M) M.lock(__FILE__, __LINE__)
-#define mutex_t_unlock(M) M.unlock(__FILE__, __LINE__)
-#else  // HAVE_PSI_MUTEX_INTERFACE
+#else  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
 #define mutex_t_lock(M) M.lock()
+#endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
+
+#if defined(SAFE_MUTEX)
+#define mutex_t_unlock(M) M.unlock(__FILE__, __LINE__)
+#else  // SAFE_MUTEX
 #define mutex_t_unlock(M) M.unlock()
-#endif  // HAVE_PSI_MUTEX_INTERFACE
+#endif  // SAFE_MUTEX
 
 #if defined(HAVE_PSI_RWLOCK_INTERFACE)
 #define rwlock_t_lock_read(M) M.lock_read(__FILE__, __LINE__)

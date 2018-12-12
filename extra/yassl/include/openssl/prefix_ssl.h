@@ -42,6 +42,7 @@
 #define ERR_print_errors_fp yaERR_print_errors_fp
 #define ERR_error_string yaERR_error_string
 #define ERR_remove_state yaERR_remove_state
+#define ERR_remove_thread_state yaERR_remove_thread_state
 #define ERR_get_error yaERR_get_error
 #define ERR_peek_error yaERR_peek_error
 #define ERR_GET_REASON yaERR_GET_REASON

@@ -1,0 +1,166 @@
+#
+# MDEV-11759: Encryption code in MariaDB 10.1/10.2 causes compatibility problems
+#
+
+-- source include/have_innodb.inc
+#-- source include/have_file_key_management_plugin.inc
+# Don't test under embedded
+-- source include/not_embedded.inc
+
+call mtr.add_suppression("InnoDB: The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[123]\\.ibd' cannot be decrypted\\.");
+call mtr.add_suppression("failed to read or decrypt \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\]");
+
+call mtr.add_suppression("\\[Error\\] InnoDB: Page is still encrypted");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Post - encryption checksum verification failed - decryption failed for space id");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find tablespace key, please check the keyring plugin is loaded\.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Table is encrypted but encryption service or used key_id is not available\.  Can't continue reading table\.");
+
+SET GLOBAL innodb_file_per_table = ON;
+#set global innodb_compression_algorithm = 1;
+
+--echo # Create and populate tables to be corrupted
+# Corruption of this table will cause post-encryption checksum validation to fail on decrypt.
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT,c char(200)) ENGINE=InnoDB ENCRYPTION='KEYRING' ;
+# Corruption of this table will NOT cause post-encryption checksum validation. However the innodb checksum validation will fail.
+# Post-encryption checksum is XORed with innodb checksum - so it is not possible to validate post-encryption checksum for zipped pages.
+CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT,c char(200)) ENGINE=InnoDB row_format=compressed ENCRYPTION='KEYRING';
+--disable_warnings # Disabling warnings as punch hole get generate ones when compression is enabled and
+                   # filesystem is not supporting them
+# Corruption of this table will cause post-encryption checksum validation to fail on decrypt.
+CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT, c char(200)) ENGINE=InnoDB COMPRESSION="zlib" ENCRYPTION='KEYRING';
+--enable_warnings
+
+BEGIN;
+INSERT INTO t1 (b,c) VALUES ('corrupt me','secret');
+--disable_query_log
+--let $i = 100
+while ($i)
+{
+  INSERT INTO t1 (b,c) VALUES (REPEAT('abcabcabc', 100),'secretsecret');
+  dec $i;
+}
+--enable_query_log
+
+INSERT INTO t1 (b,c) VALUES ('corrupt me','moresecretmoresecret');
+INSERT INTO t2 select * from t1;
+INSERT INTO t3 select * from t1;
+COMMIT;
+
+let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+let MYSQLD_DATADIR=`select @@datadir`;
+
+--source include/shutdown_mysqld.inc
+
+--echo # Backup tables before corrupting
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t1.ibd.backup
+--copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t2.ibd.backup
+--copy_file $MYSQLD_DATADIR/test/t3.ibd $MYSQLD_DATADIR/test/t3.ibd.backup
+
+--echo # 1 Corrupt the page data - i.e. page after the header
+
+perl;
+open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t1.ibd") or die "open";
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 38, SEEK_SET) or die "seek";
+print FILE pack("H*", "c00lcafedeadb017");
+close FILE or die "close";
+open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t2.ibd") or die "open";
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 38, SEEK_SET) or die "seek";
+print FILE pack("H*", "c00lcafedeadb017");
+close FILE or die "close";
+open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t3.ibd") or die "open";
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 46, SEEK_SET) or die "seek";
+print FILE pack("H*", "c00lcafedeadb017");
+close FILE or die "close";
+EOF
+
+--source include/start_mysqld.inc
+
+--error ER_GET_ERRMSG
+SELECT * FROM t1;
+--error ER_GET_ERRMSG
+SELECT * FROM t2;
+--error ER_GET_ERRMSG
+SELECT * FROM t3;
+
+--source include/shutdown_mysqld.inc
+
+--echo # let's check for the presense of the warning
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+# $server_log has to be processed by include/search_pattern_in_file.inc which
+# contains Perl code requiring that the environment variable SEARCH_FILE points
+# to this file.
+let SEARCH_FILE= $server_log;
+
+--let SEARCH_PATTERN= User entry 'B19011337_ohash'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore.
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= 1. Stop
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= 2. Run
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= 3. Restart
+--source include/search_pattern_in_file.inc
+
+
+--echo # Restore the original tables
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t2.ibd
+--remove_file $MYSQLD_DATADIR/test/t3.ibd
+--copy_file $MYSQLD_DATADIR/test/t1.ibd.backup $MYSQLD_DATADIR/test/t1.ibd
+--copy_file $MYSQLD_DATADIR/test/t2.ibd.backup $MYSQLD_DATADIR/test/t2.ibd
+--copy_file $MYSQLD_DATADIR/test/t3.ibd.backup $MYSQLD_DATADIR/test/t3.ibd
+
+--source include/start_mysqld.inc
+
+--echo # Check that after restoring tables can be read
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+
+--source include/shutdown_mysqld.inc
+
+--echo # 2 Corrupt the page header - encryption key's version
+
+perl;
+open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t1.ibd") or die "open";
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 26, SEEK_SET) or die "seek";
+print FILE pack("H*", "c00lcafedeadb017");
+close FILE or die "close";
+open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t2.ibd") or die "open";
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 26, SEEK_SET) or die "seek";
+print FILE pack("H*", "c00lcafedeadb017");
+close FILE or die "close";
+open(FILE, "+<", "$ENV{MYSQLD_DATADIR}/test/t3.ibd") or die "open";
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'} * 3 + 38, SEEK_SET) or die "seek";
+print FILE pack("H*", "c00lcafedeadb017");
+close FILE or die "close";
+EOF
+
+--source include/start_mysqld.inc
+
+--error ER_GET_ERRMSG
+SELECT * FROM t1;
+--error ER_GET_ERRMSG
+SELECT * FROM t2;
+--error ER_GET_ERRMSG
+SELECT * FROM t3;
+
+--source include/shutdown_mysqld.inc
+
+--echo # Restore the original tables
+--move_file $MYSQLD_DATADIR/test/t1.ibd.backup $MYSQLD_DATADIR/test/t1.ibd
+--move_file $MYSQLD_DATADIR/test/t2.ibd.backup $MYSQLD_DATADIR/test/t2.ibd
+--move_file $MYSQLD_DATADIR/test/t3.ibd.backup $MYSQLD_DATADIR/test/t3.ibd
+
+--source include/start_mysqld.inc
+
+DROP TABLE t1,t2,t3;

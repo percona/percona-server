@@ -1,0 +1,155 @@
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Stop DB server which was created by MTR default
+#########
+# Test for "ALTER TABLE ... UPGRADE PARTITIONING"
+###
+# Unzip the zip file.
+# Create a bootstrap file in temp location
+MYSQL_TMP_DIR/bootstrap.log
+# restart:<hidden args>
+# Check test table before upgrade
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = TokuDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = TokuDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = TokuDB,
+ PARTITION p3 VALUES LESS THAN (400) ENGINE = TokuDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM test.t1 ORDER BY a;
+a
+50
+55
+250
+255
+350
+355
+t1.frm
+t1.par
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+# Upgrade
+ALTER TABLE test.t1 UPGRADE PARTITIONING;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Check test table after upgrade
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = TokuDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = TokuDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = TokuDB,
+ PARTITION p3 VALUES LESS THAN (400) ENGINE = TokuDB) */
+SELECT * FROM test.t1 ORDER BY a;
+a
+50
+55
+250
+255
+350
+355
+t1.frm
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+# Stop the server
+# Remove data directory
+#########
+# Test for upgrade partitioning with mysql_upgrade
+###
+# Unzip the zip file.
+# restart:<hidden args>
+# Execute mysql_upgrade
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+sys.sys_config                                     OK
+test.t1
+error    : Partitioning upgrade required. Please dump/reload to fix it or do: ALTER TABLE `test`.`t1` UPGRADE PARTITIONING
+warning  : The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+
+Upgrading tables
+Running  : ALTER TABLE `test`.`t1` UPGRADE PARTITIONING
+status   : OK
+# Check test table after upgrade
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = TokuDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = TokuDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = TokuDB,
+ PARTITION p3 VALUES LESS THAN (400) ENGINE = TokuDB) */
+SELECT * FROM test.t1 ORDER BY a;
+a
+50
+55
+250
+255
+350
+355
+t1.frm
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+# Stop the server
+# Remove copied files
+# Restart the server with default options.
+# restart

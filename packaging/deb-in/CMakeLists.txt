@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@ IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
   )
   SET (DEB_CHANGELOG_TIMESTAMP ${DEB_CHANGELOG_TIMESTAMP} CACHE STRING "")
 ENDIF()
+
 # Commercial or community
 IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Commercial Server ${MYSQL_BASE_VERSION}")
@@ -65,6 +66,7 @@ debian/extra/authentication_ldap_sasl-plugin
 debian/extra/authentication_ldap_simple-plugin
 debian/extra/firewall-plugin
 debian/extra/keyring_okv-plugin
+debian/extra/keyring_encrypted_file-plugin
 debian/extra/openssl_udf-plugin
 debian/extra/thread_pool-plugin
 ")
@@ -74,7 +76,9 @@ usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/authentication_pam.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
+usr/lib/mysql/plugin/data_masking.so
 usr/lib/mysql/plugin/keyring_okv.so
+usr/lib/mysql/plugin/keyring_encrypted_file.so
 usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
@@ -86,7 +90,9 @@ usr/lib/mysql/plugin/debug/audit_log.so
 usr/lib/mysql/plugin/debug/authentication_pam.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
+usr/lib/mysql/plugin/debug/data_masking.so
 usr/lib/mysql/plugin/debug/keyring_okv.so
+usr/lib/mysql/plugin/debug/keyring_encrypted_file.so
 usr/lib/mysql/plugin/debug/openssl_udf.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
@@ -112,7 +118,6 @@ usr/lib/mysql/plugin/debug/keyring_aws.so
     SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_CURL=${WITH_CURL}")
   ENDIF()
   SET (DEB_REMOVEPATTERN "gpl.in")
-  SET (DEB_CONTROL_BDEPS_EXTRA ",libldap2-dev, libsasl2-dev")
 ELSE()
   SET (DEB_PRODUCT "${DEB_BASE_PRODUCT}community")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server ${MYSQL_BASE_VERSION}")
@@ -123,8 +128,47 @@ ELSE()
   SET (DEB_INSTALL_LICENSEFILE "COPYING")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
-  SET (DEB_CONTROL_BDEPS_EXTRA "")
 ENDIF()
+
+# Generate debug symbol packages (this is done automatically in Debian9+)
+SET (DEB_RULES_STRIP_DEFAULT
+"
+override_dh_strip:
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-server --dbg-package=mysql-${DEB_PRODUCTNAME}-server-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-client --dbg-package=mysql-${DEB_PRODUCTNAME}-client-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-test --dbg-package=mysql-${DEB_PRODUCTNAME}-test-dbgsym
+	dh_strip -pmysql-server
+	dh_strip -pmysql-client
+	dh_strip -pmysql-testsuite
+	dh_strip -plibmysqlclient20 --dbg-package=libmysqlclient20-dbgsym
+	dh_strip -plibmysqlclient-dev
+")
+SET (DEB_CONTROL_DBGSYM_DEFAULT
+"
+Package: libmysqlclient20-dbgsym
+Architecture: any
+Section: debug
+Depends: libmysqlclient20 (=\${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for client library
+
+Package: mysql-${DEB_PRODUCTNAME}-test-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-test (= \${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for test suite
+
+Package: mysql-${DEB_PRODUCTNAME}-server-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-server (= \${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for server
+
+Package: mysql-${DEB_PRODUCTNAME}-client-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-client (= \${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for client
+")
 
 # Platform specifics. The differences are generally only distro version
 # and whether or not systemd and/or apparmor are available
@@ -141,6 +185,8 @@ IF (DEB_CODENAME STREQUAL "wheezy")
   SET (DEB_INSTALL_SERVER_APPARMOR "")
   SET (DEB_SERVICE_SERVER_EXECPRE "")
   SET (DEB_INIT_APPARMOR "")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
 ELSEIF(DEB_CODENAME STREQUAL "jessie")
   SET (DEB_PLATFORMRELEASE "debian8")
   SET (DEB_CONTROL_BDEPS "dh-systemd")
@@ -156,6 +202,8 @@ ELSEIF(DEB_CODENAME STREQUAL "jessie")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
 ELSEIF(DEB_CODENAME STREQUAL "stretch")
   SET (DEB_PLATFORMRELEASE "debian9")
   SET (DEB_CONTROL_BDEPS "dh-systemd")
@@ -171,21 +219,28 @@ ELSEIF(DEB_CODENAME STREQUAL "stretch")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "")
-ELSEIF(DEB_CODENAME STREQUAL "precise")
-  SET (DEB_PLATFORMRELEASE "ubuntu12.04")
-  SET (DEB_CONTROL_BDEPS "dh-apparmor")
-  SET (DEB_INSTALL_SOURCE_XZ "")
-  SET (DEB_RULES_INSTALL_SYSTEMD "")
-  SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
-  SET (DEB_RULES_APPARMOR_LOAD
-    "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
-  SET (DEB_RULES_SYSTEMD_ENABLE "")
-  SET (DEB_RULES_SYSTEMD_START "")
-  SET (DEB_INSTALL_SERVER_SYSTEMD "")
-  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
-  SET (DEB_SERVICE_SERVER_EXECPRE "")
-  SET (DEB_INIT_APPARMOR "/lib/init/apparmor-profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
+ELSEIF(DEB_CODENAME STREQUAL "sid")
+  IF (DEFINED DEB_GCC_SNAPSHOT)
+    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DCMAKE_C_COMPILER=/usr/lib/gcc-snapshot/bin/gcc -DCMAKE_CXX_COMPILER=/usr/lib/gcc-snapshot/bin/g++ -DMYSQL_MAINTAINER_MODE=0 -DCMAKE_CXX_COMPILER_LAUNCHER=ccache")
+  ENDIF()
+  SET (DEB_PLATFORMRELEASE "debianunstable")
+  SET (DEB_CONTROL_BDEPS "dh-systemd")
+  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+  SET (DEB_RULES_INSTALL_SYSTEMD
+    "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
+  SET (DEB_RULES_INSTALL_APPARMOR "")
+  SET (DEB_RULES_APPARMOR_LOAD "")
+  SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
+  SET (DEB_RULES_SYSTEMD_START "dh_systemd_start --restart-after-upgrade")
+  SET (DEB_INSTALL_SERVER_SYSTEMD "usr/share/mysql/mysql-systemd-start")
+  SET (DEB_INSTALL_SERVER_APPARMOR "")
+  SET (DEB_SERVICE_SERVER_EXECPRE
+    "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
+  SET (DEB_INIT_APPARMOR "")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
 ELSEIF(DEB_CODENAME STREQUAL "trusty")
   SET (DEB_PLATFORMRELEASE "ubuntu14.04")
   SET (DEB_CONTROL_BDEPS "dh-apparmor")
@@ -201,23 +256,8 @@ ELSEIF(DEB_CODENAME STREQUAL "trusty")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_SERVICE_SERVER_EXECPRE "")
   SET (DEB_INIT_APPARMOR "/lib/init/apparmor-profile-load usr.sbin.mysqld")
-ELSEIF(DEB_CODENAME STREQUAL "wily")
-  SET (DEB_PLATFORMRELEASE "ubuntu15.10")
-  SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
-  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
-  SET (DEB_RULES_INSTALL_SYSTEMD
-    "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
-  SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
-  SET (DEB_RULES_APPARMOR_LOAD
-    "dh_apparmor -pmysql-community-server --profile-name=usr.sbin.mysqld")
-  SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
-  SET (DEB_RULES_SYSTEMD_START "dh_systemd_start --restart-after-upgrade")
-  SET (DEB_INSTALL_SERVER_SYSTEMD "usr/share/mysql/mysql-systemd-start")
-  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
-  SET (DEB_SERVICE_SERVER_EXECPRE
-    "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
-  SET (DEB_INIT_APPARMOR "/lib/init/apparmor-profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
 ELSEIF(DEB_CODENAME STREQUAL "xenial")
   SET (DEB_PLATFORMRELEASE "ubuntu16.04")
   SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
@@ -235,23 +275,8 @@ ELSEIF(DEB_CODENAME STREQUAL "xenial")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
-ELSEIF(DEB_CODENAME STREQUAL "yakkety")
-  SET (DEB_PLATFORMRELEASE "ubuntu16.10")
-  SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
-  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
-  SET (DEB_RULES_INSTALL_SYSTEMD
-    "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
-  SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
-  SET (DEB_RULES_APPARMOR_LOAD
-    "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
-  SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
-  SET (DEB_RULES_SYSTEMD_START "dh_systemd_start --restart-after-upgrade")
-  SET (DEB_INSTALL_SERVER_SYSTEMD "usr/share/mysql/mysql-systemd-start")
-  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
-  SET (DEB_SERVICE_SERVER_EXECPRE
-    "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
-  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
 ELSEIF(DEB_CODENAME STREQUAL "zesty")
   SET (DEB_PLATFORMRELEASE "ubuntu17.04")
   SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
@@ -269,6 +294,65 @@ ELSEIF(DEB_CODENAME STREQUAL "zesty")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
+ELSEIF(DEB_CODENAME STREQUAL "artful")
+  SET (DEB_PLATFORMRELEASE "ubuntu17.10")
+  SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
+  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+  SET (DEB_RULES_INSTALL_SYSTEMD
+    "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
+  SET (DEB_RULES_INSTALL_APPARMOR
+    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_RULES_APPARMOR_LOAD
+    "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
+  SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
+  SET (DEB_RULES_SYSTEMD_START "dh_systemd_start --restart-after-upgrade")
+  SET (DEB_INSTALL_SERVER_SYSTEMD "usr/share/mysql/mysql-systemd-start")
+  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_SERVICE_SERVER_EXECPRE
+    "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
+  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
+ELSEIF(DEB_CODENAME STREQUAL "bionic")
+  SET (DEB_PLATFORMRELEASE "ubuntu18.04")
+  SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
+  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+  SET (DEB_RULES_INSTALL_SYSTEMD
+    "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
+  SET (DEB_RULES_INSTALL_APPARMOR
+    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_RULES_APPARMOR_LOAD
+    "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
+  SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
+  SET (DEB_RULES_SYSTEMD_START "dh_systemd_start --restart-after-upgrade")
+  SET (DEB_INSTALL_SERVER_SYSTEMD "usr/share/mysql/mysql-systemd-start")
+  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_SERVICE_SERVER_EXECPRE
+    "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
+  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
+ELSEIF(DEB_CODENAME STREQUAL "cosmic")
+  SET (DEB_PLATFORMRELEASE "ubuntu18.10")
+  SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
+  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+  SET (DEB_RULES_INSTALL_SYSTEMD
+    "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
+  SET (DEB_RULES_INSTALL_APPARMOR
+    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_RULES_APPARMOR_LOAD
+    "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
+  SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
+  SET (DEB_RULES_SYSTEMD_START "dh_systemd_start --restart-after-upgrade")
+  SET (DEB_INSTALL_SERVER_SYSTEMD "usr/share/mysql/mysql-systemd-start")
+  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_SERVICE_SERVER_EXECPRE
+    "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
+  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
 ELSE()
   MESSAGE(STATUS
     "Skipping deb packaging on unsupported platform ${DEB_CODENAME}.")

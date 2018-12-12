@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2380,7 +2380,7 @@ my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value)
     return decimal_value;
   case E_DEC_DIV_ZERO:
     signal_divide_by_null();
-    // fallthrough
+    // Fall through.
   default:
     null_value= 1;
     return 0;
@@ -8381,16 +8381,11 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res)
   context= lex->current_context();
   lex->safe_to_cache_query= false;
 
-  if (m_name->m_db.str == NULL) // use the default database name
+  if (m_name->m_db.str == NULL)
   {
     /* Cannot match the function since no database is selected */
-    if (thd->db().str == NULL)
-    {
-      my_error(ER_NO_DB_ERROR, MYF(0));
-      return true;
-    }
-    m_name->m_db= thd->db();
-    m_name->m_db.str= thd->strmake(m_name->m_db.str, m_name->m_db.length);
+    my_error(ER_NO_DB_ERROR, MYF(0));
+    return true;
   }
 
   m_name->init_qname(thd);

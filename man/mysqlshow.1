@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlshow\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLSHOW\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLSHOW\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -160,7 +160,7 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -248,7 +248,7 @@ Print debugging information and memory and CPU usage statistics when the program
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -340,9 +340,38 @@ groups\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
+Section\ \&6.5.1.6, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-get\-server\-public\-key\fR
+.sp
+Request from the server the RSA public key that it uses for key pair\-based password exchange\&. This option applies to clients that connect to the server using an account that authenticates with the
+caching_sha2_password
+authentication plugin\&. For connections by such accounts, the server does not send the public key to the client unless requested\&. The option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not needed, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For information about the
+caching_sha2_password
+plugin, see
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-get\-server\-public\-key\fR
+option was added in MySQL 5\&.7\&.23\&.
 .RE
 .sp
 .RS 4
@@ -528,7 +557,7 @@ Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .\}
 \fB\-\-secure\-auth\fR
 .sp
-Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&. This option was added in MySQL 5\&.7\&.4\&.
+Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
 As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
 \fB\-\-secure\-auth=0\fR) produces an error\&. Before MySQL 5\&.7\&.5, this option is enabled by default but can be disabled\&.
@@ -558,10 +587,47 @@ Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+.sp
+The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
+sha256_password
+or
+caching_sha2_password
+authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For
+sha256_password, this option applies only if MySQL was built using OpenSSL\&.
+.sp
+For information about the
+sha256_password
+and
+caching_sha2_password
+plugins, see
+Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-server\-public\-key\-path\fR
+option was added in MySQL 5\&.7\&.23\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
-MYSQL\&. The shared\-memory name is case sensitive\&.
+MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
 The server must be started with the
 \fB\-\-shared\-memory\fR
@@ -691,7 +757,7 @@ Display version information and exit\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

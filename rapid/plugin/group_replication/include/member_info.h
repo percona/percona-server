@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,6 +48,16 @@
   in the member info structure.
 */
 #define CNF_SINGLE_PRIMARY_MODE_F                 0x2
+
+/*
+  Valid values of lower_case_table_names are 0 - 2.
+  So when member has DEFAULT_NOT_RECEIVED value, it means its
+  lower_case_table_names value is not known.
+*/
+#define DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES  65540
+#ifndef DBUG_OFF
+#define SKIP_ENCODING_LOWER_CASE_TABLE_NAMES         65541
+#endif
 
 /*
   @class Group_member_info
@@ -104,8 +114,11 @@ public:
     // Length of the payload item: 2 bytes
     PIT_MEMBER_WEIGHT= 14,
 
+    // Length of the payload item: 2 bytes
+    PIT_LOWER_CASE_TABLE_NAME= 15,
+
     // No valid type codes can appear after this one.
-    PIT_MAX= 15
+    PIT_MAX= 16
   };
 
   /*
@@ -151,6 +164,8 @@ public:
     @param[in] role_arg                               member role within the group
     @param[in] in_single_primary_mode                 is member in single mode
     @param[in] has_enforces_update_everywhere_checks  has member enforce update check
+    @param[in] member_weight_arg                      member weight
+    @param[in] lower_case_table_names_arg             lower case table names
    */
   Group_member_info(char* hostname_arg,
                     uint port_arg,
@@ -163,7 +178,8 @@ public:
                     Group_member_info::Group_member_role role_arg,
                     bool in_single_primary_mode,
                     bool has_enforces_update_everywhere_checks,
-                    uint member_weight_arg);
+                    uint member_weight_arg,
+                    uint lower_case_table_names_arg);
 
   /**
     Copy constructor
@@ -244,6 +260,11 @@ public:
     @return the member configuration flags
   */
   uint32 get_configuration_flags();
+
+  /**
+    @return the global-variable lower case table names value
+  */
+  uint get_lower_case_table_names() const;
 
   /**
     @return the member state of system variable
@@ -394,6 +415,7 @@ private:
   uint32 configuration_flags;
   bool conflict_detection_enable;
   uint member_weight;
+  uint lower_case_table_names;
 };
 
 

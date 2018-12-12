@@ -7,10 +7,11 @@ call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'Could not 
 call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Error 'Can't find master key from keyring, please check keyring plugin is loaded.");
-call mtr.add_suppression("\\[Warning\\] Slave: Can't find master key from keyring, please check keyring plugin is loaded.");
+call mtr.add_suppression("Error 'Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.'");
+call mtr.add_suppression("\\[Warning\\] Slave: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '' not found");
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault2.conf';
 [On Master]
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf';
@@ -78,6 +79,9 @@ include/save_master_pos.inc
 START SLAVE SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=3185]
 INSTALL PLUGIN keyring_vault SONAME 'keyring_vault.so';
+Warnings:
+Warning	29	File '' not found (Errcode: 2 - No such file or directory)
+Warning	42000	keyring_vault initialization failure. Please check the server log.
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault2.conf';
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
@@ -102,9 +106,12 @@ c1	c2
 2	ccccc
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 # Installing keyring_vault plugin on master.
 INSTALL PLUGIN keyring_vault SONAME 'keyring_vault.so';
+Warnings:
+Warning	29	File '' not found (Errcode: 2 - No such file or directory)
+Warning	42000	keyring_vault initialization failure. Please check the server log.
 # Cleanup
 DROP TABLE t1,t2,t3,t4;
 include/sync_slave_sql_with_master.inc

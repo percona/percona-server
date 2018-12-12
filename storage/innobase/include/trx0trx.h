@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,8 @@ Created 3/26/1996 Heikki Tuuri
 
 #include <set>
 #include <list>
+
+#include "mysql/plugin.h"
 
 #include "ha_prototypes.h"
 
@@ -665,7 +667,6 @@ Check transaction state */
 	ut_ad((t)->lock.wait_thr == NULL);				\
 	ut_ad(UT_LIST_GET_LEN((t)->lock.trx_locks) == 0);		\
 	ut_ad((t)->dict_operation == TRX_DICT_OP_NONE);			\
-	ut_ad(!(t)->distinct_page_access_hash);				\
 } while(0)
 
 /** Check if transaction is in-active so that it can be freed and put back to
@@ -902,6 +903,141 @@ struct TrxVersion {
 
 typedef std::list<TrxVersion, ut_allocator<TrxVersion> > hit_list_t;
 
+/** Utility class to collect and report slow query log InnoDB extension
+stats */
+class trx_stats {
+	public:
+	trx_stats() {
+	/* Always created in a zeroed memory block */
+#ifdef UNIV_DEBUG
+		ut_ad(lock_que_wait_ustarted == 0);
+		ut_ad(take_stats == false);
+#endif
+	}
+
+	/**
+	Register, if needed, start of an I/O read or wait.
+
+	@param	trx	transaction to account I/O to or NULL
+	@param	bytes	number of bytes to read or 0 if this is a wait for an
+	 already posted read in progress
+	@return value to be passed to end_io_read
+	*/
+	MY_NODISCARD
+	static ib_uint64_t
+	start_io_read(trx_t *trx, ulint bytes);
+
+	/**
+	Register start of an I/O read or wait.
+
+	@param	trx	transaction to account I/O to
+	@param	bytes	number of bytes to read or 0 if this is a wait for an
+	 already posted read in progress
+	@return value to be passed to end_io_read
+	*/
+	MY_NODISCARD
+	static ib_uint64_t
+	start_io_read(const trx_t &trx, ulint bytes);
+
+	/**
+	Register, if needed, end of an I/O read or wait.
+
+	@param	trx		transaction to account I/O to or NULL
+	@param	start_time	return value of start_io_read
+	*/
+	static void
+	end_io_read(trx_t *trx, ib_uint64_t start_time);
+
+	/**
+	Register end of an I/O read or wait.
+
+	@param	trx		transaction to account I/O to
+	@param	start_time	return value of start_io_read*/
+	static void
+	end_io_read(const trx_t &trx, ib_uint64_t start_time);
+
+	/**
+	Register, if needed, a single untimed I/O read.
+
+	@param	trx	transaction to account I/O to or NULL
+	@param	bytes	number of bytes read
+	*/
+	static void
+	bump_io_read(trx_t *trx, ulint bytes);
+
+	/**
+	Register a single untimed I/O read.
+
+	@param	trx	transaction to account I/O to
+	@param	bytes	number of bytes read
+	*/
+	static void
+	bump_io_read(const trx_t &trx, ulint bytes);
+
+	/**
+	Register, if needed, a start of lock wait */
+	void
+	start_lock_wait() {
+		if (UNIV_LIKELY(!take_stats))
+			return;
+		ut_ad(lock_que_wait_ustarted == 0);
+		ulint sec, ms;
+		ut_usectime(&sec, &ms);
+		lock_que_wait_ustarted =
+		    static_cast<ib_uint64_t>(sec * 1000000 + ms);
+	}
+
+	/**
+	Register, if needed, a finished lock wait.
+
+	@param	trx	transaction to account to, if needed */
+	void
+	stop_lock_wait(const trx_t &trx);
+
+	/**
+	Register, if needed, a wait to enter InnoDB.
+
+	@param	trx	transaction to register to, if needed
+	@	us	wait time in microseconds */
+	void
+	bump_innodb_enter_wait(const trx_t &trx, ulint us) const;
+
+	/**
+	Register, if needed, a data page access.
+
+	@param	trx		transaction to register to, or NULL
+	@param	page_id_fold	result of page_id_t::fold */
+	static void
+	inc_page_get(trx_t *trx, ulint page_id_fold);
+
+	/**
+	Register a data page access.
+
+	@param	trx		transaction to register to
+	@param	page_id_fold	result of page_id_t::fold */
+	static void
+	inc_page_get(const trx_t &trx, ulint page_id_fold);
+
+	MY_NODISCARD
+	bool
+	enabled() const
+	{
+		return take_stats;
+	}
+
+	void
+	set(bool take)
+	{
+		take_stats = take;
+	}
+
+	private:
+	// FIXME: only used for reclock-waiting threads, thus could be moved to
+	// e.g. que_thr_t if there's benefit
+	ib_uint64_t lock_que_wait_ustarted;
+	bool	take_stats;
+};
+
 struct trx_t {
 	TrxMutex	mutex;		/*!< Mutex protecting the fields
 					state and lock (except some fields
@@ -928,9 +1064,6 @@ struct trx_t {
 					it can */
 
 	trx_id_t	id;		/*!< transaction id */
-
-	trx_id_t        id_saved;       /*!< save transaction id for slow
-					log tracking */
 
 	trx_id_t	preallocated_id;/*!< preallocated transaction id for a
 					RO transaction whose read view was
@@ -1011,6 +1144,13 @@ struct trx_t {
 	This unnecessarily adds a huge cost for the general case. */
 
 	trx_state_t	state;
+
+	/* If set, this transaction should stop inheriting (GAP)locks.
+	Generally set to true during transaction prepare for RC or lower
+	isolation, if requested. Needed for replication replay where
+	we don't want to get blocked on GAP locks taken for protecting
+	concurrent unique insert or replace operation. */
+	bool		skip_lock_inheritance;
 
 	ReadView*	read_view;	/*!< consistent read view used in the
 					transaction, or NULL if not yet set */
@@ -1288,17 +1428,7 @@ struct trx_t {
 					doing Non-locking Read-only Read
 					Committed on DD tables */
 #endif /* UNIV_DEBUG */
-	/*------------------------------*/
-	ulint		io_reads;
-	ib_uint64_t	io_read;
-	ulint		io_reads_wait_timer;
-	ib_uint64_t	lock_que_wait_ustarted;
-	ulint		lock_que_wait_timer;
-	ulint		innodb_que_wait_timer;
-	ulint		distinct_page_access;
-#define	DPAH_SIZE	8192
-	byte*		distinct_page_access_hash;
-	bool		take_stats;
+	trx_stats	stats;
 	ulint		magic_n;
 };
 
@@ -1314,6 +1444,97 @@ trx_is_started(
 	return(trx->state != TRX_STATE_NOT_STARTED
 	       && trx->state != TRX_STATE_FORCED_ROLLBACK);
 }
+
+inline ib_uint64_t
+trx_stats::start_io_read(const trx_t& trx, ulint bytes)
+{
+	if (bytes) {
+		thd_report_innodb_stat(trx.mysql_thd, trx.id,
+				       MYSQL_TRX_STAT_IO_READ_BYTES, bytes);
+	}
+	ulint sec, ms;
+	ut_usectime(&sec, &ms);
+	return static_cast<ib_uint64_t>(sec * 1000000 + ms);
+}
+
+inline ib_uint64_t
+trx_stats::start_io_read(trx_t *trx, ulint bytes)
+{
+	if (UNIV_LIKELY_NULL(trx))
+		return start_io_read(*trx, bytes);
+	return 0;
+}
+
+inline void
+trx_stats::end_io_read(const trx_t& trx, ib_uint64_t start_time)
+{
+	ulint sec, ms;
+	ut_usectime(&sec, &ms);
+	const ib_uint64_t finish_time
+		= static_cast<ib_uint64_t>(sec * 1000000 + ms);
+	thd_report_innodb_stat(trx.mysql_thd, trx.id,
+			       MYSQL_TRX_STAT_IO_READ_WAIT_USECS,
+			       finish_time - start_time);
+}
+
+inline void
+trx_stats::end_io_read(trx_t *trx, ib_uint64_t start_time)
+{
+	if (UNIV_UNLIKELY(start_time != 0))
+		end_io_read(*trx, start_time);
+}
+
+inline void
+trx_stats::bump_io_read(const trx_t& trx, ulint n)
+{
+	thd_report_innodb_stat(trx.mysql_thd, trx.id,
+			       MYSQL_TRX_STAT_IO_READ_BYTES, n);
+}
+
+inline void
+trx_stats::bump_io_read(trx_t *trx, ulint n)
+{
+	if (UNIV_LIKELY_NULL(trx))
+		bump_io_read(*trx, n);
+}
+
+inline void
+trx_stats::bump_innodb_enter_wait(const trx_t& trx, ulint us) const
+{
+	if (UNIV_LIKELY(!take_stats))
+		return;
+	thd_report_innodb_stat(trx.mysql_thd, trx.id,
+			       MYSQL_TRX_STAT_INNODB_QUEUE_WAIT_USECS, us);
+}
+
+inline void
+trx_stats::stop_lock_wait(const trx_t& trx)
+{
+	if (UNIV_LIKELY(!take_stats))
+		return;
+	ulint sec, ms;
+	ut_usectime(&sec, &ms);
+	const ib_uint64_t now = static_cast<ib_uint64_t>(sec * 1000000 + ms);
+	thd_report_innodb_stat(trx.mysql_thd, trx.id,
+			       MYSQL_TRX_STAT_LOCK_WAIT_USECS,
+			       now - lock_que_wait_ustarted);
+	ut_d(lock_que_wait_ustarted = 0);
+}
+
+inline void
+trx_stats::inc_page_get(trx_t *trx, ulint page_id_fold)
+{
+	if (UNIV_LIKELY_NULL(trx))
+		inc_page_get(*trx, page_id_fold);
+}
+
+inline void
+trx_stats::inc_page_get(const trx_t& trx, ulint page_id_fold)
+{
+	thd_report_innodb_stat(trx.mysql_thd, trx.id,
+			       MYSQL_TRX_STAT_ACCESS_PAGE_ID, page_id_fold);
+}
+
 
 /* Transaction isolation levels (trx->isolation_level) */
 #define TRX_ISO_READ_UNCOMMITTED	0	/* dirty read: non-locking

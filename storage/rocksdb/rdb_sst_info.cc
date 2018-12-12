@@ -36,6 +36,7 @@
 #include "./ha_rocksdb.h"
 #include "./ha_rocksdb_proto.h"
 #include "./rdb_cf_options.h"
+#include "./rdb_psi.h"
 
 namespace myrocks {
 
@@ -75,7 +76,9 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::open() {
   const rocksdb::Options options(m_db_options, cf_descr.options);
 
   m_sst_file_writer =
-      new rocksdb::SstFileWriter(env_options, options, m_comparator, m_cf);
+      new rocksdb::SstFileWriter(env_options, options, m_comparator, m_cf, true,
+                                 rocksdb::Env::IOPriority::IO_TOTAL,
+                                 cf_descr.options.optimize_filters_for_hits);
 
   s = m_sst_file_writer->Open(m_name);
   if (m_tracing) {
@@ -317,7 +320,7 @@ Rdb_sst_info::Rdb_sst_info(rocksdb::DB *const db, const std::string &tablename,
                            const rocksdb::DBOptions &db_options,
                            const bool &tracing)
     : m_db(db), m_cf(cf), m_db_options(db_options), m_curr_size(0),
-      m_sst_count(0), m_background_error(HA_EXIT_SUCCESS),
+      m_sst_count(0), m_background_error(HA_EXIT_SUCCESS), m_committed(false),
 #if defined(RDB_SST_INFO_USE_THREAD)
       m_queue(), m_mutex(), m_cond(), m_thread(nullptr), m_finished(false),
 #endif
@@ -348,6 +351,7 @@ Rdb_sst_info::Rdb_sst_info(rocksdb::DB *const db, const std::string &tablename,
     // Set the maximum size to 3 times the cf's target size
     m_max_size = cf_descr.options.target_file_size_base * 3;
   }
+  mysql_mutex_init(rdb_sst_commit_key, &m_commit_mutex, MY_MUTEX_INIT_FAST);
 }
 
 Rdb_sst_info::~Rdb_sst_info() {
@@ -355,6 +359,7 @@ Rdb_sst_info::~Rdb_sst_info() {
 #if defined(RDB_SST_INFO_USE_THREAD)
   DBUG_ASSERT(m_thread == nullptr);
 #endif
+  mysql_mutex_destroy(&m_commit_mutex);
 }
 
 int Rdb_sst_info::open_new_sst_file() {
@@ -419,6 +424,8 @@ void Rdb_sst_info::close_curr_sst_file() {
 int Rdb_sst_info::put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
   int rc;
 
+  DBUG_ASSERT(!m_committed);
+
   if (m_curr_size + key.size() + value.size() >= m_max_size) {
     // The current sst file has reached its maximum, close it out
     close_curr_sst_file();
@@ -454,7 +461,19 @@ int Rdb_sst_info::put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
 
 int Rdb_sst_info::commit(bool print_client_error) {
   int ret = HA_EXIT_SUCCESS;
+
+  // Both the transaction clean up and the ha_rocksdb handler have
+  // references to this Rdb_sst_info and both can call commit, so
+  // synchronize on the object here.
+  RDB_MUTEX_LOCK_CHECK(m_commit_mutex);
+
+  if (m_committed) {
+    RDB_MUTEX_UNLOCK_CHECK(m_commit_mutex);
+    return ret;
+  }
+
   m_print_client_error = print_client_error;
+
   if (m_curr_size > 0) {
     // Close out any existing files
     close_curr_sst_file();
@@ -472,6 +491,9 @@ int Rdb_sst_info::commit(bool print_client_error) {
     m_thread = nullptr;
   }
 #endif
+
+  m_committed = true;
+  RDB_MUTEX_UNLOCK_CHECK(m_commit_mutex);
 
   // Did we get any errors?
   if (have_background_error()) {

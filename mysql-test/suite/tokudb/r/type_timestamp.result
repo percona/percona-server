@@ -399,7 +399,12 @@ max(t)
 2004-02-01 00:00:00
 drop table t1;
 set sql_mode='maxdb';
+Warnings:
+Warning	3090	Changing sql mode 'MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 create table t1 (a timestamp, b timestamp);
+Warnings:
+Warning	3226	With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead.
+Warning	3226	With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (

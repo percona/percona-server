@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -205,7 +205,7 @@ create_instance(
 	innodb_eng->info.info.features[0].feature = ENGINE_FEATURE_CAS;
 	innodb_eng->info.info.features[1].feature =
 		ENGINE_FEATURE_PERSISTENT_STORAGE;
-	innodb_eng->info.info.features[0].feature = ENGINE_FEATURE_LRU;
+	innodb_eng->info.info.features[2].feature = ENGINE_FEATURE_LRU;
 
 	/* Now call create_instace() for the default engine */
 	err_ret = create_my_default_instance(interface, get_server_api,
@@ -1135,6 +1135,9 @@ have_conn:
 			}
 		}
 	} else {
+        bool auto_commit = (engine->read_batch_size == 1 &&
+                !(engine->cfg_status & IB_CFG_DISABLE_ROWLOCK)) ? true : false;
+
 		assert(conn_option == CONN_MODE_READ);
 
 		if (!read_crsr) {
@@ -1142,15 +1145,12 @@ have_conn:
 				/* This is read operation, start a trx
 				with "read_write" parameter set to false */
 				conn_data->crsr_trx = ib_cb_trx_begin(
-					engine->trx_level, false,
-					engine->read_batch_size == 1);
+					engine->trx_level, false, auto_commit);
 				trx_updated = true;
 			} else {
 				ib_cb_trx_start(conn_data->crsr_trx,
 						engine->trx_level,
-						false,
-						engine->read_batch_size == 1,
-						NULL);
+						false, auto_commit, NULL);
 			}
 
 			err = innodb_api_begin(
@@ -1183,8 +1183,7 @@ have_conn:
 			/* This is read operation, start a trx
 			with "read_write" parameter set to false */
 			conn_data->crsr_trx = ib_cb_trx_begin(
-				engine->trx_level, false,
-				engine->read_batch_size == 1);
+				engine->trx_level, false, auto_commit);
 
 			trx_updated = true;
 
@@ -1230,8 +1229,7 @@ have_conn:
 			with "read_write" parameter set to false */
 			ib_cb_trx_start(conn_data->crsr_trx,
 					engine->trx_level,
-					false,
-					engine->read_batch_size == 1,
+					false, auto_commit,
 					NULL);
 
 			ib_cb_cursor_stmt_begin(conn_data->read_crsr);
@@ -1979,7 +1977,8 @@ search_done:
 			conn_data->mul_col_buf_len = int_len;
 		}
 
-		memcpy(conn_data->mul_col_buf, int_buf, int_len);
+		if (int_len > 0)
+			memcpy(conn_data->mul_col_buf, int_buf, int_len);
 		result->col_value[MCI_COL_VALUE].value_str =
 			 conn_data->mul_col_buf;
 

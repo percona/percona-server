@@ -22,50 +22,6 @@
 #include "sql_class.h"              // THD
 
 
-class Thd_local_mem_root
-{
-  THD *m_thd;
-  MEM_ROOT *m_old_mem_root;
-  MEM_ROOT m_local_mem_root;
-  bool m_restored;
-
-  Thd_local_mem_root(const Thd_local_mem_root&);
-  Thd_local_mem_root& operator=(const Thd_local_mem_root&);
-
-public:
-
-  Thd_local_mem_root(THD *thd) : m_thd(thd), m_restored(false)
-  {
-    if (m_thd == current_thd)
-    {
-      m_old_mem_root= thd->mem_root;
-      init_sql_alloc(PSI_NOT_INSTRUMENTED,
-                     &m_local_mem_root,
-                     global_system_variables.query_alloc_block_size,
-                     global_system_variables.query_prealloc_size);
-      m_thd->mem_root= &m_local_mem_root;
-    }
-  }
-
-  ~Thd_local_mem_root()
-  {
-    if (!m_restored)
-      restore();
-  }
-
-  void restore()
-  {
-    if (m_thd == current_thd)
-    {
-      DBUG_ASSERT(m_thd->mem_root == &m_local_mem_root);
-      m_thd->mem_root= m_old_mem_root;
-      free_root(&m_local_mem_root, MYF(0));
-      m_restored= true;
-    }
-  }
-
-};
-
 Rpl_info_table::Rpl_info_table(uint nparam,
                                const char* param_schema,
                                const char *param_table,
@@ -139,7 +95,6 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance)
   DBUG_ENTER("Rlp_info_table::do_init_info");
 
   THD *thd= access->create_thd();
-  Thd_local_mem_root local_mem_root(thd);
 
   saved_mode= thd->variables.sql_mode;
   tmp_disable_binlog(thd);
@@ -192,7 +147,6 @@ end:
   access->close_table(thd, table, &backup, error);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  local_mem_root.restore();
   access->drop_thd(thd);
   DBUG_RETURN(error);
 }
@@ -212,7 +166,6 @@ int Rpl_info_table::do_flush_info(const bool force)
     DBUG_RETURN(0);
 
   THD *thd= access->create_thd();
-  Thd_local_mem_root local_mem_root(thd);
 
   sync_counter= 0;
   saved_mode= thd->variables.sql_mode;
@@ -305,7 +258,6 @@ end:
   thd->is_operating_substatement_implicitly= false;
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  local_mem_root.restore();
   access->drop_thd(thd);
   DBUG_RETURN(error);
 }
@@ -326,7 +278,6 @@ int Rpl_info_table::do_clean_info()
   DBUG_ENTER("Rpl_info_table::do_remove_info");
 
   THD *thd= access->create_thd();
-  Thd_local_mem_root local_mem_root(thd);
 
   saved_mode= thd->variables.sql_mode;
   tmp_disable_binlog(thd);
@@ -362,7 +313,6 @@ end:
   access->close_table(thd, table, &backup, error);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  local_mem_root.restore();
   access->drop_thd(thd);
   DBUG_RETURN(error);
 }
@@ -400,7 +350,6 @@ int Rpl_info_table::do_reset_info(uint nparam,
     DBUG_RETURN(1);
 
   thd= info->access->create_thd();
-  Thd_local_mem_root local_mem_root(thd);
   saved_mode= thd->variables.sql_mode;
   tmp_disable_binlog(thd);
 
@@ -477,7 +426,6 @@ end:
   info->access->close_table(thd, table, &backup, error);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  local_mem_root.restore();
   info->access->drop_thd(thd);
   delete info;
   DBUG_RETURN(error);
@@ -493,7 +441,6 @@ enum_return_check Rpl_info_table::do_check_info()
   DBUG_ENTER("Rpl_info_table::do_check_info");
 
   THD *thd= access->create_thd();
-  Thd_local_mem_root local_mem_root(thd);
   saved_mode= thd->variables.sql_mode;
 
   /*
@@ -535,7 +482,6 @@ end:
   access->close_table(thd, table, &backup,
                       return_check == ERROR_CHECKING_REPOSITORY);
   thd->variables.sql_mode= saved_mode;
-  local_mem_root.restore();
   access->drop_thd(thd);
   DBUG_RETURN(return_check);
 }
@@ -550,7 +496,6 @@ enum_return_check Rpl_info_table::do_check_info(uint instance)
   DBUG_ENTER("Rpl_info_table::do_check_info");
 
   THD *thd= access->create_thd();
-  Thd_local_mem_root local_mem_root(thd);
   saved_mode= thd->variables.sql_mode;
 
   /*
@@ -598,7 +543,6 @@ end:
   access->close_table(thd, table, &backup,
                       return_check == ERROR_CHECKING_REPOSITORY);
   thd->variables.sql_mode= saved_mode;
-  local_mem_root.restore();
   access->drop_thd(thd);
   DBUG_RETURN(return_check);
 }
@@ -621,7 +565,6 @@ bool Rpl_info_table::do_count_info(uint nparam,
     DBUG_RETURN(true);
 
   thd= info->access->create_thd();
-  Thd_local_mem_root local_mem_root(thd);
   saved_mode= thd->variables.sql_mode;
 
   /*
@@ -657,7 +600,6 @@ end:
   */
   info->access->close_table(thd, table, &backup, error);
   thd->variables.sql_mode= saved_mode;
-  local_mem_root.restore();
   info->access->drop_thd(thd);
   delete info;
   DBUG_RETURN(error);
@@ -835,7 +777,6 @@ bool Rpl_info_table::do_update_is_transactional()
                   });
 
   THD *thd= access->create_thd();
-  Thd_local_mem_root local_mem_root(thd);
   saved_mode= thd->variables.sql_mode;
   tmp_disable_binlog(thd);
 
@@ -854,7 +795,6 @@ end:
   access->close_table(thd, table, &backup, 0);
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
-  local_mem_root.restore();
   access->drop_thd(thd);
   DBUG_RETURN(error);
 }

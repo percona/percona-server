@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -39,6 +39,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "rem0types.h"
 #include "row0types.h"
 #include "trx0types.h"
+#include "trx0sys.h"
 #include "ut0byte.h"
 #include "ut0mem.h"
 #include "ut0new.h"
@@ -118,6 +119,13 @@ dict_table_open_on_id(
 	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
 	dict_table_op_t	table_op)	/*!< in: operation to perform */
 	MY_ATTRIBUTE((warn_unused_result));
+
+dict_table_t*
+dict_table_open_on_index_id(
+/*==================*/
+        table_id_t      table_id,       /*!< in: table id */
+        bool            dict_locked)    /*!< in: TRUE=data dictionary locked */
+        __attribute__((warn_unused_result));
 /********************************************************************//**
 Decrements the count of open handles to a table. */
 void
@@ -1137,6 +1145,12 @@ dict_index_add_to_cache(
 	ibool		strict)
 	MY_ATTRIBUTE((warn_unused_result));
 
+/** Clears the virtual column's index list before index is being freed.
+@param[in]  index   Index being freed */
+void
+dict_index_remove_from_v_col_list(
+	dict_index_t* index);
+
 /** Adds an index to the dictionary cache, with possible indexing newly
 added column.
 @param[in]	table	table on which the index is
@@ -1726,6 +1740,26 @@ struct dict_sys_t{
 					evicted from the cache */
 	autoinc_map_t*	autoinc_map;	/*!< Map to store table id and autoinc
 					when table is evicted */
+
+	/** The first ID of the redo log pseudo-tablespace */
+	static const ulint		s_log_space_first_id = 0xFFFFFFF0UL;
+ 	/** Use maximum UINT value to indicate invalid space ID. */
+	static const ulint		s_invalid_space_id = 0xFFFFFFFF;
+ 	/** The data dictionary tablespace ID. The data dictionary
+	    tablespace does not exist in 5.7, but its ID added here
+	    for assertion checking. */
+	static const ulint		s_space_id = 0xFFFFFFFE;
+ 	/** The innodb_temporary tablespace ID. */
+	static const ulint		s_temp_space_id = 0xFFFFFFFD;
+ 	/** The lowest undo tablespace ID. */
+	static const ulint		s_min_undo_space_id
+		= s_log_space_first_id - TRX_SYS_N_RSEGS;
+ 	/** The highest undo  tablespace ID. */
+	static const ulint		s_max_undo_space_id
+		= s_log_space_first_id - 1;
+ 	/** The first reserved tablespace ID */
+	static const ulint		s_reserved_space_id =
+		s_min_undo_space_id;
 };
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1867,6 +1901,15 @@ ibool
 dict_set_corrupted_by_space(
 /*========================*/
 	ulint		space_id);	/*!< in: space ID */
+
+bool dict_set_corrupted_by_space(const fil_space_t* space);
+
+/** Flag a table with specified space_id encrypted in the data dictionary
+cache
+@param[in]	space_id	Tablespace id */
+void
+dict_set_encrypted_by_space(
+	ulint	space_id);
 
 /** Sets merge_threshold in the SYS_INDEXES
 @param[in,out]	index		index

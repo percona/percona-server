@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "my_dir.h"                // MY_STAT
 #include "log.h"                   // sql_print_error
 #include "log_event.h"             // Log_event
+#include "m_string.h"
 #include "rpl_group_replication.h" // set_group_replication_retrieved_certifi...
 #include "rpl_info_factory.h"      // Rpl_info_factory
 #include "rpl_mi.h"                // Master_info
@@ -270,16 +271,18 @@ void Relay_log_info::reset_notified_relay_log_change()
 
     New seconds_behind_master timestamp is installed.
 
-   @param shift          number of bits to shift by Worker due to the
-                         current checkpoint change.
-   @param new_ts         new seconds_behind_master timestamp value
-                         unless NULL. NULL could be due to FD event
-                         or fake rotate event.
-   @param need_data_lock False if caller has locked @c data_lock
+   @param shift            number of bits to shift by Worker due to the
+                           current checkpoint change.
+   @param new_ts           new seconds_behind_master timestamp value
+                           unless zero. Zero could be due to FD event
+                           or fake rotate event.
+   @param need_data_lock   False if caller has locked @c data_lock
+   @param update_timestamp if true, this function will update the
+                           rli->last_master_timestamp.
 */
-void Relay_log_info::reset_notified_checkpoint(ulong shift,
-                                               const time_t *const new_ts,
-                                               bool need_data_lock)
+void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
+                                               bool need_data_lock,
+                                               bool update_timestamp)
 {
   /*
     If this is not a parallel execution we return immediately.
@@ -325,13 +328,13 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift,
   DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
              "checkpoint_seqno --> %u.", shift, checkpoint_seqno));
 
-  if (new_ts)
+  if (update_timestamp)
   {
     if (need_data_lock)
       mysql_mutex_lock(&data_lock);
     else
       mysql_mutex_assert_owner(&data_lock);
-    last_master_timestamp= *new_ts;
+    last_master_timestamp= new_ts;
     if (need_data_lock)
       mysql_mutex_unlock(&data_lock);
   }
@@ -602,8 +605,12 @@ int Relay_log_info::init_relay_log_pos(const char* log,
       }
       else if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
       {
+        Format_description_log_event *old= rli_description_event;
         DBUG_PRINT("info",("found Format_description_log_event"));
-        set_rli_description_event((Format_description_log_event *)ev);
+        Format_description_log_event *new_fdev=
+          static_cast<Format_description_log_event*>(ev);
+        new_fdev->copy_crypto_data(*old);
+        set_rli_description_event(new_fdev);
         /*
           As ev was returned by read_log_event, it has passed is_valid(), so
           my_malloc() in ctor worked, no need to check again.
@@ -626,6 +633,16 @@ int Relay_log_info::init_relay_log_pos(const char* log,
           position (argument 'pos') or until you find an event other than
           Previous-GTIDs, Rotate or Format_desc.
         */
+      }
+      else if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT)
+      {
+        if (rli_description_event->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
+        {
+          *errmsg= "Unable to set up decryption of binlog.";
+          delete ev;
+          goto err;
+        }
+        delete ev;
       }
       else
       {
@@ -689,7 +706,8 @@ void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
   if(level == ERROR_LEVEL)
   {
     m_last_error.number = err_code;
-    strncpy(m_last_error.message, buff_coord, MAX_SLAVE_ERRMSG);
+    my_snprintf(m_last_error.message, sizeof(m_last_error.message), "%.*s",
+                MAX_SLAVE_ERRMSG - 1, buff_coord);
     m_last_error.update_timestamp();
   }
 
@@ -1286,7 +1304,15 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   if (!inited)
   {
     DBUG_PRINT("info", ("inited == 0"));
-    if (error_on_rli_init_info)
+    if (error_on_rli_init_info ||
+        /*
+          mi->reset means that the channel was reset but still exists. Channel
+          shall have the index and the first relay log file.
+
+          Those files shall be remove in a following RESET SLAVE ALL (even when
+          channel was not inited again).
+        */
+        (mi->reset && delete_only))
     {
       ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
                                                        "-relay-bin", buffer);
@@ -1375,13 +1401,6 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     cur_log_fd= -1;
   }
 
-  if (relay_log.reset_logs(thd, delete_only))
-  {
-    *errmsg = "Failed during log reset";
-    error=1;
-    goto err;
-  }
-
   /**
     Clear the retrieved gtid set for this channel.
     global_sid_lock->wrlock() is needed.
@@ -1389,6 +1408,13 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   global_sid_lock->wrlock();
   (const_cast<Gtid_set *>(get_gtid_set()))->clear();
   global_sid_lock->unlock();
+
+  if (relay_log.reset_logs(thd, delete_only))
+  {
+    *errmsg = "Failed during log reset";
+    error=1;
+    goto err;
+  }
 
   /* Save name of used relay log file */
   set_group_relay_log_name(relay_log.get_log_fname());
@@ -1853,14 +1879,18 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   if (rows_query_ev)
   {
     /*
-      thd->m_query_string now points to the data from
-      rli->rows_query_ev->m_rows_query
-      (see  Rows_query_log_event::do_apply_event()), don't let it point
-      to unallocated memory, reset query string first
+      In order to avoid invalid memory access, THD::reset_query() should be
+      called before deleting the rows_query event.
     */
     info_thd->reset_query();
     delete rows_query_ev;
     rows_query_ev= NULL;
+    DBUG_EXECUTE_IF("after_deleting_the_rows_query_ev",
+                    {
+                      const char action[]="now SIGNAL deleted_rows_query_ev WAIT_FOR go_ahead";
+                      DBUG_ASSERT(!debug_sync_set_action(info_thd,
+                                                       STRING_WITH_LEN(action)));
+                    };);
   }
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);
@@ -3088,6 +3118,17 @@ void Relay_log_info::detach_engine_ha_data(THD *thd)
                  MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
 }
 
+void Relay_log_info::reattach_engine_ha_data(THD *thd)
+{
+  is_engine_ha_data_detached = false;
+  /*
+    In case of slave thread applier or processing binlog by client,
+    reattach the engine ha_data ("native" engine transaction)
+    in favor of dynamically created.
+  */
+  plugin_foreach(thd, reattach_native_trx, MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
+}
+
 void* Relay_log_info::operator new(size_t request)
 {
   void* ptr;
@@ -3100,4 +3141,3 @@ void* Relay_log_info::operator new(size_t request)
 void Relay_log_info::operator delete(void * ptr) {
   free(ptr);
 }
-

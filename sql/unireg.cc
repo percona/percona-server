@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -272,6 +272,9 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
   create_info->extra_size+= 2 + create_info->encrypt_type.length;
 
+  if (create_info->was_encryption_key_id_set)
+    create_info->extra_size += strlen("ENCRYPTION_KEY_ID") + 4;
+
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys, key_info)) < 0)
   {
@@ -283,6 +286,25 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   keybuff=(uchar*) my_malloc(key_memory_frm,
                              key_buff_length, MYF(0));
   key_info_length= pack_keys(keybuff, keys, key_info, data_offset);
+
+  /* key_info_length is currently stored in 2 bytes */
+  if (key_info_length > 65535U)
+  {
+    char *real_table_name= (char*) table;
+    List_iterator<Create_field> it(create_fields);
+    Create_field *field;
+    while ((field=it++))
+    {
+      if (field->field && field->field->table &&
+         (real_table_name= field->field->table->s->table_name.str))
+        break;
+    }
+    my_printf_error(ER_UNKNOWN_ERROR,
+                    "Index information size for the table %s.%s exceeds the "
+                    "maximum limit (Max: 2 bytes). Please recreate indexes "
+                    "accordingly.", MYF(0), db, real_table_name);
+    goto err;
+  }
 
   /*
     Ensure that there are no forms in this newly created form file.
@@ -441,6 +463,17 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       goto err;
   }
 
+  if (create_info->was_encryption_key_id_set)
+  {
+      uchar encryption_key_id_buff[4];
+      int4store(encryption_key_id_buff, create_info->encryption_key_id);
+
+      if (mysql_file_write(file, (uchar*) "ENCRYPTION_KEY_ID",
+                           strlen("ENCRYPTION_KEY_ID"), MYF(MY_NABP)) ||
+          mysql_file_write(file, encryption_key_id_buff, 4, MYF(MY_NABP)))
+        goto err;
+  }
+
   mysql_file_seek(file, filepos, MY_SEEK_SET, MYF(0));
   if (mysql_file_write(file, forminfo, 288, MYF_RW) ||
       mysql_file_write(file, screen_buff, info_length, MYF_RW) ||
@@ -518,6 +551,8 @@ int rea_create_table(THD *thd, const char *path,
 
   char frm_name[FN_REFLEN + 1];
   strxnmov(frm_name, sizeof(frm_name) - 1, path, reg_ext, NullS);
+
+  file->adjust_create_info_for_frm(create_info);
 
   if (mysql_create_frm(thd, frm_name, db, table_name, create_info,
                        create_fields, keys, key_info, file))
@@ -1277,8 +1312,6 @@ static bool make_empty_rec(THD *thd, File file,
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
   table.s= &share;
 
   if (!(buff=(uchar*) my_malloc(key_memory_frm,

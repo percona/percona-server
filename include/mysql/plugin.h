@@ -57,7 +57,13 @@ typedef void * MYSQL_PLUGIN;
 
 #ifndef MYSQL_ABI_CHECK
 #include <mysql/services.h>
-#endif
+#ifndef __WIN__
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS    /* Enable C99 printf format macros */
+#endif /* !__STDC_FORMAT_MACROS */
+#include <inttypes.h>
+#endif /* !__WIN__ */
+#endif /* !MYSQL_ABI_CHECK */
 
 #define MYSQL_XIDDATASIZE 128
 /**
@@ -634,14 +640,32 @@ int thd_allow_batch(MYSQL_THD thd);
 
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
 
-void increment_thd_innodb_stats(MYSQL_THD thd,
-                    unsigned long long trx_id,
-                    long io_reads,
-                    long long io_read,
-                    long io_reads_wait_timer,
-                    long lock_que_wait_timer,
-                    long que_wait_timer,
-                    long page_access);
+/** Types of statistics that can be passed to thd_report_innodb_stat */
+enum mysql_trx_stat_type
+{
+  /** Volume of I/O read requests in bytes */
+  MYSQL_TRX_STAT_IO_READ_BYTES,
+  /** Time in microseconds spent waiting for I/O reads to complete */
+  MYSQL_TRX_STAT_IO_READ_WAIT_USECS,
+  /** Time in microseconds spent waiting for row locks */
+  MYSQL_TRX_STAT_LOCK_WAIT_USECS,
+  /** Time in microseconds spent waiting to enter InnoDB */
+  MYSQL_TRX_STAT_INNODB_QUEUE_WAIT_USECS,
+  /** A logical data page accessed */
+  MYSQL_TRX_STAT_ACCESS_PAGE_ID
+};
+
+/**
+  Report various InnoDB statistics for the slow query log extensions
+
+  @param[in]    thd     user thread connection handle
+  @param[in]    trx_id  InnoDB tranaction ID
+  @param[in]    type    type of statistics being reported
+  @param[in]    value   the value of statistics
+*/
+void thd_report_innodb_stat(MYSQL_THD thd, unsigned long long trx_id,
+                            enum mysql_trx_stat_type type,
+                            unsigned long long       value);
 
 unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
 
@@ -777,6 +801,14 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 int thd_command(const MYSQL_THD thd);
 long long thd_start_time(const MYSQL_THD thd);
 void thd_kill(unsigned long id);
+
+/**
+  Check whether ft_query_extra_word_chars server variable is enabled for the
+  current session
+
+  @return ft_query_extra_word_chars value
+*/
+int thd_get_ft_query_extra_word_chars(void);
 
 #ifdef __cplusplus
 }

@@ -118,6 +118,7 @@ commit;
 
 connection slave;
 set global debug="d,stop_slave_middle_group,incomplete_group_in_relay_log";
+--let $slave_sql_errno= convert_error(ER_MTS_INCONSISTENT_DATA)
 --source include/stop_slave.inc
 set global debug="";
 --source include/start_slave.inc

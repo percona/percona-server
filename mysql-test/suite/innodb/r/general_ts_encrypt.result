@@ -58,17 +58,27 @@ PARTITION BY RANGE (a) PARTITIONS 3 (
 PARTITION p1 VALUES LESS THAN (20),
 PARTITION p2 VALUES LESS THAN (40) TABLESPACE innodb_file_per_table,
 PARTITION p3 VALUES LESS THAN (60) TABLESPACE innodb_system);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 CREATE TABLE pt2 (a INT NOT NULL, PRIMARY KEY(a))
 ENGINE=InnoDB TABLESPACE ts_encrypted ENCRYPTION='y'
 	PARTITION BY RANGE (a) PARTITIONS 3 (
 PARTITION p1 VALUES LESS THAN (20),
 PARTITION p2 VALUES LESS THAN (40) TABLESPACE innodb_file_per_table,
 PARTITION p3 VALUES LESS THAN (60) TABLESPACE ts_encrypted_new);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE pt1 ADD PARTITION (PARTITION p4 VALUES LESS THAN (80) TABLESPACE ts_unencrypted_new);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE pt1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (100) TABLESPACE ts_encrypted);
 ERROR HY000: InnoDB: Tablespace `ts_encrypted` can contain only an ENCRYPTED tables.
 ALTER TABLE pt1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (120) TABLESPACE innodb_system);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE pt2 ADD PARTITION (PARTITION p4 VALUES LESS THAN (80) TABLESPACE ts_encrypted_new);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE pt2 ADD PARTITION (PARTITION p5 VALUES LESS THAN (100) TABLESPACE ts_unencrypted);
 ERROR HY000: InnoDB: Tablespace `ts_unencrypted` cannot contain an ENCRYPTED table.
 ALTER TABLE pt2 ADD PARTITION (PARTITION p6 VALUES LESS THAN (120) TABLESPACE innodb_system);
@@ -88,6 +98,8 @@ PARTITION p3 VALUES LESS THAN (60) TABLESPACE innodb_system (
 SUBPARTITION p31 TABLESPACE ts_unencrypted,
 SUBPARTITION p32 TABLESPACE innodb_file_per_table,
 SUBPARTITION p33 TABLESPACE ts_unencrypted_new));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE spt1 ADD PARTITION (PARTITION p4 VALUES LESS THAN (130) (
 SUBPARTITION p41 TABLESPACE ts_unencrypted,
 SUBPARTITION p42 TABLESPACE ts_encrypted,
@@ -97,10 +109,14 @@ ALTER TABLE spt1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (140) (
 SUBPARTITION p51 TABLESPACE ts_unencrypted,
 SUBPARTITION p52 TABLESPACE innodb_system,
 SUBPARTITION p53 TABLESPACE ts_unencrypted_new));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE spt1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (150) TABLESPACE ts_encrypted (
 SUBPARTITION p61 TABLESPACE ts_unencrypted,
 SUBPARTITION p62 TABLESPACE innodb_system,
 SUBPARTITION p63 TABLESPACE ts_unencrypted_new));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 CREATE TABLE spt2 (a INT NOT NULL, b INT)
 ENGINE=InnoDB TABLESPACE ts_encrypted ENCRYPTION='y'
 	PARTITION BY RANGE (a) PARTITIONS 3 SUBPARTITION BY KEY (b) (
@@ -116,6 +132,8 @@ PARTITION p3 VALUES LESS THAN (60) TABLESPACE ts_encrypted_new (
 SUBPARTITION p31 TABLESPACE ts_encrypted,
 SUBPARTITION p32 TABLESPACE innodb_file_per_table,
 SUBPARTITION p33 TABLESPACE ts_encrypted_new));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE spt2 ADD PARTITION (PARTITION p4 VALUES LESS THAN (130) (
 SUBPARTITION p41 TABLESPACE ts_encrypted,
 SUBPARTITION p42 TABLESPACE ts_unencrypted,
@@ -125,10 +143,14 @@ ALTER TABLE spt2 ADD PARTITION (PARTITION p5 VALUES LESS THAN (140) (
 SUBPARTITION p51 TABLESPACE ts_encrypted,
 SUBPARTITION p52 TABLESPACE ts_encrypted_new,
 SUBPARTITION p53 TABLESPACE ts_encrypted_new));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE spt2 ADD PARTITION (PARTITION p6 VALUES LESS THAN (150) TABLESPACE ts_unencrypted (
 SUBPARTITION p61 TABLESPACE ts_encrypted,
 SUBPARTITION p62 TABLESPACE ts_encrypted_new,
 SUBPARTITION p63 TABLESPACE ts_encrypted_new));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE spt2 ADD PARTITION (PARTITION p7 VALUES LESS THAN (160) (
 SUBPARTITION p71 ENGINE=MyISAM,
 SUBPARTITION p72 ENGINE=MyISAM,
@@ -159,3 +181,4 @@ DROP TABLESPACE ts_encrypted;
 DROP TABLESPACE ts_encrypted_new;
 DROP TABLESPACE ts_unencrypted;
 DROP TABLESPACE ts_unencrypted_new;
+DROP TABLESPACE ts_valid2;

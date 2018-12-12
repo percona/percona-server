@@ -1,0 +1,2 @@
+--internal-tmp-disk-storage-engine=MyISAM
+--default-tmp-storage-engine=MyISAM

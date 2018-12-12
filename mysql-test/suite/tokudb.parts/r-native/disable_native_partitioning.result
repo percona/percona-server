@@ -1,0 +1,17 @@
+# restart: --loose-tokudb_enable_native_partition=0
+CREATE TABLE t1 (a INT UNSIGNED NOT NULL, PRIMARY KEY(a)) ENGINE = TokuDB
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200)
+);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+t1.par
+DROP TABLE t1;
+# restart: 
+CREATE TABLE t1 (a INT UNSIGNED NOT NULL, PRIMARY KEY(a)) ENGINE = TokuDB
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200)
+);
+DROP TABLE t1;

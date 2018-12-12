@@ -114,7 +114,11 @@ ELSEIF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ft-index/")
     MESSAGE(WARNING "Found ft-index sources, ft-index is deprecated and replaced with PerconaFT.")
     SET(TOKU_FT_DIR_NAME "ft-index")
 ELSE ()
-        MESSAGE(FATAL_ERROR "Could not find PerconaFT sources.")
+    MESSAGE(FATAL_ERROR "Could not find PerconaFT sources.")
+ENDIF ()
+
+IF (WITH_VALGRIND)
+    SET(USE_VALGRIND "ON")
 ENDIF ()
 
 ADD_SUBDIRECTORY(${TOKU_FT_DIR_NAME})

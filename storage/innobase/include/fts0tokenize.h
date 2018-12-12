@@ -29,7 +29,12 @@ Created 2014/11/17 Shaohua Wang
 
 /* Macros and structs below are from ftdefs.h in MyISAM */
 /** Check a char is true word */
-#define true_word_char(c, ch) ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_')
+inline bool true_word_char(char c, bool extra_word_chars, char ch)
+{
+	bool result = ((extra_word_chars) ? !((c) & (_MY_SPC)) :
+		       ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_'));
+	return result;
+}
 
 /** Check if a char is misc word */
 #define misc_word_char(X)       0
@@ -72,6 +77,7 @@ inline
 uchar
 fts_get_word(
 	const CHARSET_INFO*	cs,
+	bool			extra_word_chars,
 	uchar**			start,
 	uchar*			end,
 	FT_WORD*		word,
@@ -92,10 +98,6 @@ fts_get_word(
 		for (; doc < end;
 		     doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
 			mbl = cs->cset->ctype(cs, &ctype, doc, end);
-
-			if (true_word_char(ctype, *doc)) {
-				break;
-			}
 
 			if (*doc == FTB_RQUOT && info->quot) {
 				*start = doc + 1;
@@ -144,6 +146,10 @@ fts_get_word(
 				}
 			}
 
+			if (true_word_char(ctype, extra_word_chars, *doc)) {
+				break;
+			}
+
 			info->prev = *doc;
 			info->yesno = (FTB_YES == ' ') ? 1 : (info->quot != 0);
 			info->weight_adjust = info->wasign = 0;
@@ -155,7 +161,10 @@ fts_get_word(
 		     length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
 			mbl = cs->cset->ctype(cs, &ctype, doc, end);
 
-			if (true_word_char(ctype, *doc)) {
+			if (extra_word_chars && *doc == FTB_RQUOT) {
+				break;
+			} else if (true_word_char(ctype, extra_word_chars,
+						  *doc)) {
 				mwc = 0;
 			} else if (!misc_word_char(*doc) || mwc) {
 				break;

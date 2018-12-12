@@ -1,0 +1,6 @@
+--skip
+# Testing basic table's type 
+let $t1_table_type= ;
+let $is_t1_compressed=0;
+let $is_mk_encrypted=0;
+--source innodb_encryption_aborted_rotation.inc

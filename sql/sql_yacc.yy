@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -463,6 +463,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
    Comments for TOKENS.
    For each token, please include in the same line a comment that contains
    the following tags:
+   SQL-2015-R : Reserved keyword as per SQL-2015 draft
    SQL-2003-R : Reserved keyword as per SQL-2003
    SQL-2003-N : Non Reserved keyword as per SQL-2003
    SQL-1999-R : Reserved keyword as per SQL-1999
@@ -562,6 +563,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  COMPRESSION_DICTIONARY_SYM
 %token  COMPRESSION_SYM
 %token  ENCRYPTION_SYM
+%token  ENCRYPTION_KEY_ID_SYM
 %token  CONCURRENT
 %token  CONDITION_SYM                 /* SQL-2003-R, SQL-2008-R */
 %token  CONNECTION_SYM
@@ -1146,6 +1148,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ZEROFILL
 
 /*
+   Tokens from MySQL 8.0
+*/
+%token  JSON_OBJECTAGG                /* SQL-2015-R */
+%token  JSON_ARRAYAGG                 /* SQL-2015-R */
+
+/*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
   simple "UNIQUE" and "KEY" attributes:
 */
@@ -1196,7 +1204,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         text_string opt_gconcat_separator
 
 %type <num>
-        type type_with_opt_collate int_type real_type order_dir lock_option
+        type type_with_opt_collate int_type real_type lock_option
         udf_type if_exists opt_local opt_table_options table_options
         table_option opt_if_not_exists opt_no_write_to_binlog
         opt_temporary all_or_any opt_distinct
@@ -1206,6 +1214,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
         trg_action_time trg_event field_def
+        ordering_direction opt_ordering_direction
 
 /*
   Bit field of MYSQL_START_TRANS_OPT_* flags.
@@ -1446,6 +1455,7 @@ END_OF_INPUT
 %type <subselect> subselect
 
 %type <order_expr> order_expr
+        grouping_expr
 
 %type <order_list> order_list group_list gorder_list opt_gorder_clause
 
@@ -2291,7 +2301,7 @@ create:
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->change=NullS;
-            memset(&lex->create_info, 0, sizeof(lex->create_info));
+	    new (&lex->create_info) HA_CREATE_INFO;
             lex->create_info.options=$2 | $4;
             lex->create_info.default_table_charset= NULL;
             lex->name.str= 0;
@@ -5091,11 +5101,11 @@ size_number:
                 case 'g':
                 case 'G':
                   text_shift_number+=10;
-                  // fallthrough
+                  // Fall through.
                 case 'm':
                 case 'M':
                   text_shift_number+=10;
-                  // fallthrough
+                  // Fall through.
                 case 'k':
                 case 'K':
                   text_shift_number+=10;
@@ -5576,56 +5586,47 @@ opt_part_values:
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type == RANGE_PARTITION)
-              {
-                my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-                         "RANGE", "LESS THAN");
-                MYSQL_YYABORT;
-              }
-              if (part_info->part_type == LIST_PARTITION)
-              {
-                my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-                         "LIST", "IN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= HASH_PARTITION;
+            else if (part_info->part_type == RANGE_PARTITION)
+            {
+              my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                       "RANGE", "LESS THAN");
+              MYSQL_YYABORT;
+            }
+            else if (part_info->part_type == LIST_PARTITION)
+            {
+              my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                       "LIST", "IN");
+              MYSQL_YYABORT;
+            }
           }
         | VALUES LESS_SYM THAN_SYM
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type != RANGE_PARTITION)
-              {
-                my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                         "RANGE", "LESS THAN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= RANGE_PARTITION;
+            else if (part_info->part_type != RANGE_PARTITION)
+            {
+              my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                       "RANGE", "LESS THAN");
+              MYSQL_YYABORT;
+            }
           }
           part_func_max {}
         | VALUES IN_SYM
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type != LIST_PARTITION)
-              {
-                my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                               "LIST", "IN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= LIST_PARTITION;
+            else if (part_info->part_type != LIST_PARTITION)
+            {
+              my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                       "LIST", "IN");
+              MYSQL_YYABORT;
+            }
           }
           part_values_in {}
         ;
@@ -6014,6 +6015,12 @@ create_table_option:
             Lex->create_info.used_fields|= HA_CREATE_USED_ENCRYPT;
             Lex->create_info.encrypt_type= $3;
 	  }
+        | ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
+          {
+            Lex->create_info.used_fields|= HA_CREATE_USED_ENCRYPTION_KEY_ID;
+            Lex->create_info.was_encryption_key_id_set= true;
+            Lex->create_info.encryption_key_id= $3;
+          }
         | AUTO_INC opt_equal ulonglong_num
           {
             Lex->create_info.auto_increment_value=$3;
@@ -6236,7 +6243,7 @@ storage_engines:
               $$= plugin_data<handlerton*>(plugin);
             else
             {
-              if (thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION)
+              if (!is_engine_substitution_allowed(thd))
               {
                 my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
                 MYSQL_YYABORT;
@@ -6680,7 +6687,12 @@ type:
           {
             Lex->dec= const_cast<char *>($2);
             if (YYTHD->variables.sql_mode & MODE_MAXDB)
+            {
+              push_warning(current_thd, Sql_condition::SL_WARNING,
+                  WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP,
+                  ER_THD(YYTHD, WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP));
               $$=MYSQL_TYPE_DATETIME2;
+            }
             else
             {
               /*
@@ -7590,8 +7602,14 @@ btree_or_rtree:
         ;
 
 key_list:
-          key_list ',' key_part order_dir { Lex->col_list.push_back($3); }
-        | key_part order_dir { Lex->col_list.push_back($1); }
+          key_list ',' key_part opt_ordering_direction
+          {
+            Lex->col_list.push_back($3);
+          }
+        | key_part opt_ordering_direction
+          {
+            Lex->col_list.push_back($1);
+          }
         ;
 
 key_part:
@@ -7650,7 +7668,7 @@ alter:
             lex->select_lex->init_order();
             lex->select_lex->db=
                     const_cast<char*>((lex->select_lex->table_list.first)->db);
-            memset(&lex->create_info, 0, sizeof(lex->create_info));
+	    new (&lex->create_info) HA_CREATE_INFO;
             lex->create_info.db_type= 0;
             lex->create_info.default_table_charset= NULL;
             lex->create_info.row_type= ROW_TYPE_NOT_USED;
@@ -10217,6 +10235,14 @@ sum_expr:
           {
             $$= NEW_PTN Item_sum_or(@$, $3);
           }
+        | JSON_ARRAYAGG '(' in_sum_expr ')'
+          {
+            $$= NEW_PTN Item_sum_json_array(@$, $3);
+          }
+        | JSON_OBJECTAGG '(' in_sum_expr ',' in_sum_expr ')'
+          {
+            $$= NEW_PTN Item_sum_json_object(@$, $3, $5);
+          }
         | BIT_XOR  '(' in_sum_expr ')'
           {
             $$= NEW_PTN Item_sum_xor(@$, $3);
@@ -10955,12 +10981,12 @@ opt_group_clause:
         ;
 
 group_list:
-          group_list ',' order_expr
+          group_list ',' grouping_expr
           {
             $1->push_back($3);
             $$= $1;
           }
-        | order_expr
+        | grouping_expr
           {
             $$= NEW_PTN PT_order_list();
             if ($1 == NULL)
@@ -11003,7 +11029,7 @@ alter_order_list:
         ;
 
 alter_order_item:
-          simple_ident_nospvar order_dir
+          simple_ident_nospvar opt_ordering_direction
           {
             ITEMIZE($1, &$1);
 
@@ -11049,9 +11075,13 @@ order_list:
           }
         ;
 
-order_dir:
+opt_ordering_direction:
           /* empty */ { $$ =  1; }
-        | ASC  { $$ =1; }
+        | ordering_direction
+        ;
+
+ordering_direction:
+          ASC  { $$ =1; }
         | DESC { $$ =0; }
         ;
 
@@ -11959,7 +11989,7 @@ show:
           SHOW
           {
             LEX *lex=Lex;
-            memset(&lex->create_info, 0, sizeof(lex->create_info));
+	    new (&lex->create_info) HA_CREATE_INFO;
           }
           show_param
         ;
@@ -12264,35 +12294,35 @@ show_param:
         | CLIENT_STATS_SYM opt_wild_or_where
           {
            LEX *lex= Lex;
-           Lex->sql_command= SQLCOM_SELECT;
+           Lex->sql_command= SQLCOM_SHOW_CLIENT_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_CLIENT_STATS))
              MYSQL_YYABORT;
           }
         | USER_STATS_SYM opt_wild_or_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_USER_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_USER_STATS))
              MYSQL_YYABORT;
           }
         | THREAD_STATS_SYM opt_wild_or_where
           {
            LEX *lex= Lex;
-           Lex->sql_command= SQLCOM_SELECT;
+           Lex->sql_command= SQLCOM_SHOW_THREAD_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_THREAD_STATS))
              MYSQL_YYABORT;
           }
         | TABLE_STATS_SYM opt_wild_or_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_TABLE_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_STATS))
              MYSQL_YYABORT;
           }
         | INDEX_STATS_SYM opt_wild_or_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_INDEX_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
              MYSQL_YYABORT;
           }
@@ -13166,8 +13196,21 @@ table_wild:
         ;
 
 order_expr:
-          expr order_dir
+          expr opt_ordering_direction
           {
+            $$= NEW_PTN PT_order_expr($1, $2);
+          }
+        ;
+
+grouping_expr:
+          expr
+          {
+            $$= NEW_PTN PT_order_expr($1, 1);
+          }
+        | expr ordering_direction
+          {
+            push_deprecated_warn(YYTHD, "GROUP BY with ASC/DESC",
+                                 "GROUP BY ... ORDER BY ... ASC/DESC");
             $$= NEW_PTN PT_order_expr($1, $2);
           }
         ;
@@ -13618,6 +13661,7 @@ keyword_sp:
         | COMPRESSION_DICTIONARY_SYM {}
         | COMPRESSION_SYM          {}
         | ENCRYPTION_SYM           {}
+        | ENCRYPTION_KEY_ID_SYM    {}
         | CONCURRENT               {}
         | CONNECTION_SYM           {}
         | CONSISTENT_SYM           {}

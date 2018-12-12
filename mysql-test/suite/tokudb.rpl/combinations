@@ -6,3 +6,21 @@ binlog-format=statement
 
 [mix]
 binlog-format=mixed
+
+[row-native-partitioning]
+loose-tokudb-enable-native-partition=on
+mtr-result-dir = r-native-partitioning
+mtr-tests-list = rpl_extra_col_slave_tokudb,rpl_partition_tokudb,rpl_tokudb_bug28430,rpl_tokudb_rfr_partition_table
+binlog-format=row
+
+[stmt-native-partitioning]
+loose-tokudb-enable-native-partition=on
+mtr-result-dir = r-native-partitioning
+mtr-tests-list = rpl_partition_tokudb
+binlog-format=statement
+
+[mix-native-partitioning]
+loose-tokudb-enable-native-partition=on
+mtr-result-dir = r-native-partitioning
+mtr-tests-list = rpl_partition_tokudb,rpl_tokudb_bug28430
+binlog-format=mixed

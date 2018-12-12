@@ -1,5 +1,4 @@
 FLUSH STATUS;
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(
 a INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 b INT) ENGINE=InnoDB;
@@ -307,7 +306,7 @@ a int not null
 ) ENGINE=InnoDB;
 insert into t1 values (1,10), (2,20), (3,30),  (4,40);
 insert into t2 values (2), (2), (3), (4), (5);
-SET optimizer_switch='firstmatch=off,loosescan=off,materialization=off,duplicateweedout=on';
+SET SESSION optimizer_switch='firstmatch=off,loosescan=off,materialization=off,duplicateweedout=on';
 SET SESSION long_query_time=0;
 SET SESSION min_examined_row_limit=0;
 SET SESSION log_slow_verbosity='microtime,query_plan';

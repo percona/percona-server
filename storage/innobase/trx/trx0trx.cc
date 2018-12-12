@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -124,13 +124,13 @@ trx_init(
 	trx_t::state here to NOT_STARTED. The FORCED_ROLLBACK
 	status is required for asynchronous handling. */
 
-	trx->id_saved = trx->id;
-
 	trx->id = 0;
 
 	trx->preallocated_id = 0;
 
 	trx->no = TRX_ID_MAX;
+
+	trx->skip_lock_inheritance = false;
 
 	trx->is_recovered = false;
 
@@ -191,14 +191,7 @@ trx_init(
 
 	trx->lock.table_cached = 0;
 
-	trx->io_reads = 0;
-	trx->io_read = 0;
-	trx->io_reads_wait_timer = 0;
-	trx->lock_que_wait_timer = 0;
-	trx->innodb_que_wait_timer = 0;
-	trx->distinct_page_access = 0;
-	trx->distinct_page_access_hash = NULL;
-	trx->take_stats = false;
+	trx->stats.set(false);
 
 	/* During asynchronous rollback, we should reset forced rollback flag
 	only after rollback is complete to avoid race with the thread owning
@@ -329,8 +322,6 @@ struct TrxFactory {
 		trx->lock.table_pool.~lock_pool_t();
 
 		trx->lock.table_locks.~lock_pool_t();
-
-		ut_ad(!trx->distinct_page_access_hash);
 
 		trx->hit_list.~hit_list_t();
 	}
@@ -563,12 +554,6 @@ trx_allocate_for_mysql(void)
 
 	trx_sys_mutex_exit();
 
-	if (UNIV_UNLIKELY(trx->take_stats)) {
-		trx->distinct_page_access_hash
-			= static_cast<byte *>(ut_zalloc(DPAH_SIZE,
-				mem_key_trx_distinct_page_access_hash));
-	}
-
 	return(trx);
 }
 
@@ -627,12 +612,6 @@ trx_free_resurrected(trx_t* trx)
 void
 trx_free_for_background(trx_t* trx)
 {
-	if (trx->distinct_page_access_hash)
-	{
-		ut_free(trx->distinct_page_access_hash);
-		trx->distinct_page_access_hash= NULL;
-	}
-
 	trx_validate_state_before_free(trx);
 
 	trx_free(trx);
@@ -684,12 +663,6 @@ trx_disconnect_from_mysql(
 	trx_t*	trx,
 	bool	prepared)
 {
-	if (trx->distinct_page_access_hash)
-	{
-		ut_free(trx->distinct_page_access_hash);
-		trx->distinct_page_access_hash= NULL;
-	}
-
 	trx_sys_mutex_enter();
 
 	ut_ad(trx->in_mysql_trx_list);
@@ -806,7 +779,7 @@ trx_resurrect_table_locks(
 	     i != tables.end(); i++) {
 		if (dict_table_t* table = dict_table_open_on_id(
 			    *i, FALSE, DICT_TABLE_OP_LOAD_TABLESPACE)) {
-			if (table->ibd_file_missing
+			if (table->file_unreadable
 			    || dict_table_is_temporary(table)) {
 				mutex_enter(&dict_sys->mutex);
 				dict_table_close(table, TRUE, FALSE);
@@ -2145,12 +2118,6 @@ trx_commit_in_memory(
 		trx->state = TRX_STATE_NOT_STARTED;
 	}
 
-	if (UNIV_LIKELY_NULL(trx->distinct_page_access_hash)) {
-
-		ut_free(trx->distinct_page_access_hash);
-		trx->distinct_page_access_hash= NULL;
-	}
-
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
 	hold for recovered transactions or system transactions. */
@@ -2417,21 +2384,11 @@ trx_commit_or_rollback_prepare(
 
 		if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 
-			ulint		sec;
-			ulint		ms;
-			ib_uint64_t	now;
-
 			ut_a(trx->lock.wait_thr != NULL);
 			trx->lock.wait_thr->state = QUE_THR_SUSPENDED;
 			trx->lock.wait_thr = NULL;
 
-			if (UNIV_UNLIKELY(trx->take_stats)) {
-				ut_usectime(&sec, &ms);
-				now = (ib_uint64_t)sec * 1000000 + ms;
-				trx->lock_que_wait_timer
-					+= (ulint)
-					(now - trx->lock_que_wait_ustarted);
-			}
+			trx->stats.stop_lock_wait(*trx);
 
 			trx->lock.que_state = TRX_QUE_RUNNING;
 		}
@@ -2967,6 +2924,22 @@ trx_prepare(
 	trx_sys_mutex_exit();
 	/*--------------------------------------*/
 
+	/* Force isolation level to RC and release GAP locks
+	for test purpose. */
+	DBUG_EXECUTE_IF("ib_force_release_gap_lock_prepare",
+			trx->isolation_level = TRX_ISO_READ_COMMITTED;);
+
+	/* Release read locks after PREPARE for READ COMMITTED
+	and lower isolation. */
+	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
+
+		/* Stop inheriting GAP locks. */
+		trx->skip_lock_inheritance = true;
+
+		/* Release only GAP locks for now. */
+		lock_trx_release_read_locks(trx, true);
+	}
+
 	switch (thd_requested_durability(trx->mysql_thd)) {
 	case HA_IGNORE_DURABILITY:
 		/* We set the HA_IGNORE_DURABILITY during prepare phase of
@@ -3316,6 +3289,7 @@ trx_set_rw_mode(
 	ut_ad(trx->rsegs.m_redo.rseg == 0);
 	ut_ad(!trx->in_rw_trx_list);
 	ut_ad(!trx_is_autocommit_non_locking(trx));
+	ut_ad(!trx->read_only);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
 		return;
@@ -3353,11 +3327,9 @@ trx_set_rw_mode(
 	}
 #endif /* UNIV_DEBUG */
 
-	if (!trx->read_only) {
-		UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
+	UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
 
-		ut_d(trx->in_rw_trx_list = true);
-	}
+	ut_d(trx->in_rw_trx_list = true);
 
 	mutex_exit(&trx_sys->mutex);
 }

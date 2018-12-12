@@ -6,9 +6,14 @@
 #include <sstream>
 #include <functional>
 #include "boost/algorithm/string/trim.hpp"
+#include "boost/move/unique_ptr.hpp"
+#include "boost/scope_exit.hpp"
+#include "file_io.h"
 
 namespace keyring
 {
+  const size_t Vault_credentials_parser::max_file_size = 10000;
+
   void Vault_credentials_parser::reset_vault_credentials(Vault_credentials *vault_credentials)
   {
     for (Vault_credentials::iterator iter = vault_credentials->begin();
@@ -72,15 +77,49 @@ namespace keyring
   {
     reset_vault_credentials(&vault_credentials_in_progress);
 
-    std::ifstream credentials_file(file_url.c_str());
-    if (!credentials_file)
+    File_io file_io(logger);
+    File file = file_io.open(PSI_NOT_INSTRUMENTED,
+                             file_url.c_str(),
+                             O_RDONLY, MYF(MY_WME));
+
+    if (file < 0)
     {
       logger->log(MY_ERROR_LEVEL, "Could not open file with credentials.");
       return true;
     }
+    BOOST_SCOPE_EXIT(&file_io, &file)
+    {
+      file_io.close(file, MYF(MY_WME));
+    } BOOST_SCOPE_EXIT_END
+
+    if (file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+    {
+      logger->log(MY_ERROR_LEVEL, "Could not read file with credentials.");
+      return true;
+    }
+    my_off_t file_size = file_io.tell(file, MYF(MY_WME));
+    if (file_size == 0)
+    {
+      logger->log(MY_ERROR_LEVEL, "Empty file with credentials.");
+      return true;
+    }
+    if (file_size > max_file_size ||
+        file_io.seek(file, 0, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+    {
+      logger->log(MY_ERROR_LEVEL, "Could not read file with credentials.");
+      return true;
+    }
+    boost::movelib::unique_ptr<uchar[]> buffer(new uchar[file_size]);
+    if (file_io.read(file, buffer.get(), file_size, MYF(MY_WME)) != file_size)
+    {
+      logger->log(MY_ERROR_LEVEL, "Could not read file with credentials.");
+      return true;
+    }
+    Secure_string file_content(reinterpret_cast<char*>(buffer.get()), file_size);
+    Secure_istringstream credentials_ss(file_content);
     uint line_number = 1;
     Secure_string line;
-    while (!getline(credentials_file, line).fail())
+    while (!getline(credentials_ss, line).fail())
       if (parse_line(line_number, line, &vault_credentials_in_progress))
       {
         line_number++;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1098,17 +1098,19 @@ static int myisamchk(MI_CHECK *param, char * filename)
       if ((!rep_quick && !error) ||
 	  !(param->testflag & (T_FAST | T_FORCE_CREATE)))
       {
+        MY_ATTRIBUTE((unused)) int init_res;
 	if (param->testflag & (T_EXTEND | T_MEDIUM))
 	  (void) init_key_cache(dflt_key_cache,opt_key_cache_block_size,
                                 (size_t)param->use_buffers, 0, 0);
-	(void) init_io_cache(&param->read_cache,datafile,
-			   (uint) param->read_buffer_length,
-			   READ_CACHE,
-			   (param->start_check_pos ?
-			    param->start_check_pos :
-			    share->pack.header_length),
-			   1,
-			   MYF(MY_WME));
+        init_res= init_io_cache(&param->read_cache, datafile,
+                                (uint) param->read_buffer_length,
+                                READ_CACHE,
+                                (param->start_check_pos ?
+                                 param->start_check_pos :
+                                 share->pack.header_length),
+                                1,
+                                MYF(MY_WME));
+        DBUG_ASSERT(init_res == 0);
 	lock_memory(param);
 	if ((info->s->options & (HA_OPTION_PACK_RECORD |
 				 HA_OPTION_COMPRESS_RECORD)) ||
@@ -1377,7 +1379,7 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 	 key < share->state.header.uniques; key++, uniqueinfo++)
     {
       my_bool new_row=0;
-      char null_bit[8],null_pos[11];
+      char null_bit[8],null_pos[16];
       printf("%-8d%-5d",key+1,uniqueinfo->key+1);
       for (keyseg=uniqueinfo->seg ; keyseg->type != HA_KEYTYPE_END ; keyseg++)
       {

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
 
 IF(WIN32)
   # CMake 2.8.12 is needed for Visual Studio 2013
-  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+  # CMake 3.1.0 is needed for $<TARGET_PDB_FILE:${target}>
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.1.0)
 ELSE()
   # There's a bug in unzipping prior to 2.8.2
-  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
+  # Debian 7 has the oldest cmake we need to support
+  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
 ENDIF()
 
 # We use CMAKE_SHARED_LIBRARY_<Lang>_FLAGS. See cmake --help-policy CMP0018
@@ -32,12 +34,10 @@ IF(CMAKE_VERSION VERSION_EQUAL "2.8.12" OR
  CMAKE_POLICY(SET CMP0022 OLD)
 ENDIF()
 
-# We use the LOCATION target property (CMP0026)
-# and get_target_property() for non-existent targets (CMP0045)
+# We use get_target_property() for non-existent targets (CMP0045)
 # and INSTALL_NAME_DIR (CMP0042)
 IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR
    CMAKE_VERSION VERSION_GREATER "3.0.0")
- CMAKE_POLICY(SET CMP0026 OLD)
  CMAKE_POLICY(SET CMP0045 OLD)
  CMAKE_POLICY(SET CMP0042 OLD)
 ENDIF()
@@ -156,6 +156,41 @@ ENDIF()
 #cmake on 64bit windows/mac/solaris doesn't set CMAKE_SYSTEM_PROCESSOR correctly
 SET(MYSQL_MACHINE_TYPE ${CMAKE_SYSTEM_PROCESSOR})
 
+include(CheckCSourceCompiles)
+include(CheckCXXSourceCompiles)
+# We need some extra FAIL_REGEX patterns
+# Note that CHECK_C_SOURCE_COMPILES is a misnomer, it will also link.
+MACRO (MY_CHECK_C_COMPILER_FLAG FLAG RESULT)
+  SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
+  CHECK_C_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "argument unused during compilation"
+    FAIL_REGEX "unsupported .*option"
+    FAIL_REGEX "unknown .*option"
+    FAIL_REGEX "unrecognized .*option"
+    FAIL_REGEX "ignoring unknown option"
+    FAIL_REGEX "[Ww]arning: [Oo]ption"
+    FAIL_REGEX "error: visibility"
+    FAIL_REGEX "warning: visibility"
+    )
+  SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
+ENDMACRO()
+
+MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
+  SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
+  CHECK_CXX_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "argument unused during compilation"
+    FAIL_REGEX "unsupported .*option"
+    FAIL_REGEX "unknown .*option"
+    FAIL_REGEX "unrecognized .*option"
+    FAIL_REGEX "ignoring unknown option"
+    FAIL_REGEX "[Ww]arning: [Oo]ption"
+    FAIL_REGEX "error: visibility"
+    FAIL_REGEX "warning: visibility"
+    )
+  SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
+ENDMACRO()
 
 # Include the platform-specific file. To allow exceptions, this code
 # looks for files in order of how specific they are. If there is, for
@@ -206,6 +241,7 @@ INCLUDE(zlib)
 INCLUDE(lz4)
 INCLUDE(libevent)
 INCLUDE(ssl)
+INCLUDE(sasl)
 INCLUDE(readline)
 INCLUDE(protobuf)
 INCLUDE(mysql_version)
@@ -237,6 +273,9 @@ OPTION(ENABLE_DTRACE "Include support for DTrace probes" OFF)
 OPTION(WITHOUT_SERVER OFF)
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
+  IF (WITH_VALGRIND)
+    ADD_DEFINITIONS(-DUSE_VALGRIND)
+  ENDIF()
 ENDIF()
 IF(WIN32)
   OPTION(WITH_MSCRT_DEBUG "MS Visual Studio Debug CRT instrumentation" OFF)
@@ -246,43 +285,6 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
 MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
-
-
-include(CheckCSourceCompiles)
-include(CheckCXXSourceCompiles)
-# We need some extra FAIL_REGEX patterns
-# Note that CHECK_C_SOURCE_COMPILES is a misnomer, it will also link.
-MACRO (MY_CHECK_C_COMPILER_FLAG FLAG RESULT)
-  SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
-  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
-  CHECK_C_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
-    FAIL_REGEX "argument unused during compilation"
-    FAIL_REGEX "unsupported .*option"
-    FAIL_REGEX "unknown .*option"
-    FAIL_REGEX "unrecognized .*option"
-    FAIL_REGEX "ignoring unknown option"
-    FAIL_REGEX "[Ww]arning: [Oo]ption"
-    FAIL_REGEX "error: visibility"
-    FAIL_REGEX "warning: visibility"
-    )
-  SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
-ENDMACRO()
-
-MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
-  SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
-  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
-  CHECK_CXX_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
-    FAIL_REGEX "argument unused during compilation"
-    FAIL_REGEX "unsupported .*option"
-    FAIL_REGEX "unknown .*option"
-    FAIL_REGEX "unrecognized .*option"
-    FAIL_REGEX "ignoring unknown option"
-    FAIL_REGEX "[Ww]arning: [Oo]ption"
-    FAIL_REGEX "error: visibility"
-    FAIL_REGEX "warning: visibility"
-    )
-  SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
-ENDMACRO()
 
 MACRO(MY_SANITIZER_CHECK SAN_OPT RESULT)
   MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
@@ -305,10 +307,25 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT RESULT)
 ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
+OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" OFF)
 IF(WITH_ASAN)
   MY_SANITIZER_CHECK("-fsanitize=address" WITH_ASAN_OK)
   IF(WITH_ASAN_OK)
     SET(HAVE_ASAN 1)
+    # This works with clang, but not gcc it seems.
+    MY_CHECK_CXX_COMPILER_FLAG(
+      "-fsanitize=address -fsanitize-address-use-after-scope"
+      HAVE_SANITIZE_SCOPE)
+    IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
+      SET(CMAKE_C_FLAGS_DEBUG
+        "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+      SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+        "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+      SET(CMAKE_CXX_FLAGS_DEBUG
+        "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+        "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+    ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
   ENDIF()
@@ -316,7 +333,7 @@ ENDIF()
 
 OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
 IF(WITH_MSAN)
-  MY_SANITIZER_CHECK("-fsanitize=memory -fsanitize-memory-track-origins"
+  MY_SANITIZER_CHECK("-fsanitize=memory -fsanitize-memory-track-origins -fsanitize-blacklist=${CMAKE_CURRENT_SOURCE_DIR}/cmake/msan-blacklist.txt"
                      WITH_MSAN_OK)
   IF(NOT WITH_MSAN_OK)
     MESSAGE(FATAL_ERROR "Do not know how to enable memory sanitizer")
@@ -443,12 +460,10 @@ IF(NOT CMAKE_BUILD_TYPE
 ENDIF()
 
 # Add safemutex for debug configurations
-IF(NOT WITH_INNODB_MEMCACHED)
-  FOREACH(LANG C CXX)
-      SET(CMAKE_${LANG}_FLAGS_DEBUG
-          "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
-  ENDFOREACH()
-ENDIF()
+FOREACH(LANG C CXX)
+  SET(CMAKE_${LANG}_FLAGS_DEBUG
+    "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
+ENDFOREACH()
 
 
 # Set commonly used variables
@@ -519,6 +534,12 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
+IF(BUILD_BUNDLED_ZLIB)
+  INCLUDE_DIRECTORIES(SYSTEM
+    ${CMAKE_CURRENT_SOURCE_DIR}/zlib
+    ${CMAKE_CURRENT_BINARY_DIR}/zlib
+    )
+ENDIF()
 # Add bundled yassl/taocrypt or system openssl.
 MYSQL_CHECK_SSL()
 # Add system/bundled editline.
@@ -527,6 +548,8 @@ MYSQL_CHECK_EDITLINE()
 MYSQL_CHECK_LIBEVENT()
 # Add lz4 library
 MYSQL_CHECK_LZ4()
+# Add SASL library
+MYSQL_CHECK_SASL()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
@@ -614,16 +637,6 @@ IF(WITH_UNIT_TESTS)
  ENABLE_TESTING()
 ENDIF()
 
-IF(NOT WITHOUT_SERVER)
-  SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
-  SET (MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS "" CACHE INTERNAL "")
-  # Add storage engines and plugins.
-  CONFIGURE_PLUGINS()
-ELSE()
-  # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
-  ADD_SUBDIRECTORY(storage/ndb)
-ENDIF()
-
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(dbug)
 ADD_SUBDIRECTORY(strings)
@@ -634,6 +647,16 @@ ADD_SUBDIRECTORY(mysys_ssl)
 ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
+
+IF(NOT WITHOUT_SERVER)
+  SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
+  SET (MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS "" CACHE INTERNAL "")
+  # Add storage engines and plugins.
+  CONFIGURE_PLUGINS()
+ELSE()
+  # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
+  ADD_SUBDIRECTORY(storage/ndb)
+ENDIF()
 
 IF(WITH_UNIT_TESTS)
   # Visual Studio 11 needs this extra flag in order to compile gmock.
@@ -704,6 +727,8 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
 CONFIGURE_FILE(
     ${CMAKE_SOURCE_DIR}/cmake/info_macros.cmake.in
     ${CMAKE_BINARY_DIR}/info_macros.cmake @ONLY)
+
+SET(KNOWN_CONVENIENCE_LIBRARIES "" CACHE INTERNAL "")
 
 # Handle the "INFO_*" files.
 INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)

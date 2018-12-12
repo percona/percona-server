@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -40,6 +40,8 @@ Full Text Search interface
 #include "btr0pcur.h"
 #include "sync0sync.h"
 #include "ut0new.h"
+
+#include "fil0crypt.h"
 
 static const ulint FTS_MAX_ID_LEN = 32;
 
@@ -215,7 +217,7 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]	sync		sync state
 @param[in]	unlock_cache	whether unlock cache lock when write node
 @param[in]	wait		whether wait when a sync is in progress
-@param[in]      has_dict        whether has dict operation lock
+@param[in]	has_dict_lock	whether has dict operation lock
 @return DB_SUCCESS if all OK */
 static
 dberr_t
@@ -223,7 +225,7 @@ fts_sync(
 	fts_sync_t*	sync,
 	bool		unlock_cache,
 	bool		wait,
-	bool		has_dict);
+	bool		has_dict_lock);
 
 /****************************************************************//**
 Release all resources help by the words rb tree e.g., the node ilist. */
@@ -834,37 +836,28 @@ fts_drop_index(
 
 			err = fts_drop_index_tables(trx, index);
 
-			for(;;) {
-				bool retry = false;
-				if (index->index_fts_syncing) {
-					retry = true;
-				}
-				if (!retry){
-					 fts_free(table);
-					break;
-				}
+			while (index->index_fts_syncing
+				&& !trx_is_interrupted(trx)) {
 				DICT_BG_YIELD(trx);
 			}
+
+			fts_free(table);
+
 			return(err);
 		}
 
-			for(;;) {
-				bool retry = false;
-				if (index->index_fts_syncing) {
-                                        retry = true;
-                                }
-                                if (!retry){
-					current_doc_id = table->fts->cache->next_doc_id;
-					first_doc_id = table->fts->cache->first_doc_id;
-					fts_cache_clear(table->fts->cache);
-					fts_cache_destroy(table->fts->cache);
-					table->fts->cache = fts_cache_create(table);
-					table->fts->cache->next_doc_id = current_doc_id;
-					table->fts->cache->first_doc_id = first_doc_id;
-					break;
-                                }
-				DICT_BG_YIELD(trx);
-			}
+		while (index->index_fts_syncing
+			&& !trx_is_interrupted(trx)) {
+			DICT_BG_YIELD(trx);
+		}
+
+		current_doc_id = table->fts->cache->next_doc_id;
+		first_doc_id = table->fts->cache->first_doc_id;
+		fts_cache_clear(table->fts->cache);
+		fts_cache_destroy(table->fts->cache);
+		table->fts->cache = fts_cache_create(table);
+		table->fts->cache->next_doc_id = current_doc_id;
+		table->fts->cache->first_doc_id = first_doc_id;
 
 	} else {
 		fts_cache_t*            cache = table->fts->cache;
@@ -875,17 +868,14 @@ fts_drop_index(
 		index_cache = fts_find_index_cache(cache, index);
 
 		if (index_cache != NULL) {
-			for(;;) {
-                                bool retry = false;
-                                if (index->index_fts_syncing) {
-                                        retry = true;
-                                }
-				if (!retry && index_cache->words) {
-					fts_words_free(index_cache->words);
-					rbt_free(index_cache->words);
-					break;
-				}
+			while (index->index_fts_syncing
+				&& !trx_is_interrupted(trx)) {
 				DICT_BG_YIELD(trx);
+			}
+
+			if (index_cache->words) {
+				fts_words_free(index_cache->words);
+				rbt_free(index_cache->words);
 			}
 
 			ib_vector_remove(cache->indexes, *(void**) index_cache);
@@ -1869,7 +1859,8 @@ fts_create_one_common_table(
 			FTS_CONFIG_TABLE_VALUE_COL_LEN);
 	}
 
-	error = row_create_table_for_mysql(new_table, NULL, trx, false);
+	error = row_create_table_for_mysql(new_table, NULL, trx, false,
+					   FIL_ENCRYPTION_DEFAULT, CreateInfoEncryptionKeyId());
 
 	if (error == DB_SUCCESS) {
 
@@ -2083,7 +2074,8 @@ fts_create_one_index_table(
 		(DATA_MTYPE_MAX << 16) | DATA_UNSIGNED | DATA_NOT_NULL,
 		FTS_INDEX_ILIST_LEN);
 
-	error = row_create_table_for_mysql(new_table, NULL, trx, false);
+	error = row_create_table_for_mysql(new_table, NULL, trx, false,
+					   FIL_ENCRYPTION_DEFAULT, CreateInfoEncryptionKeyId());
 
 	if (error == DB_SUCCESS) {
 		dict_index_t*	index = dict_mem_index_create(
@@ -4109,6 +4101,9 @@ fts_sync_write_words(
 
 		word = rbt_value(fts_tokenizer_word_t, rbt_node);
 
+		DBUG_EXECUTE_IF("fts_instrument_write_words_before_select_index",
+				os_thread_sleep(300000););
+
 		selected = fts_select_index(
 			index_cache->charset, word->text.f_str,
 			word->text.f_len);
@@ -4664,12 +4659,42 @@ fts_sync_rollback(
 	trx_free_for_background(trx);
 }
 
+/** Check that all indexes are synced.
+@param[in,out]	sync		sync state
+@return true if all indexes are synced, false otherwise. */
+static
+bool
+fts_check_all_indexes_synced(
+	fts_sync_t*	sync)
+{
+	ulint i;
+	fts_cache_t*	cache = sync->table->fts->cache;
+
+	/* Make sure all the caches are synced. */
+	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
+		fts_index_cache_t*	index_cache;
+
+		index_cache = static_cast<fts_index_cache_t*>(
+			ib_vector_get(cache->indexes, i));
+
+		if (index_cache->index->to_be_dropped
+		    || index_cache->index->table->to_be_dropped
+		    || fts_sync_index_check(index_cache)) {
+			continue;
+		}
+
+		return false;
+	}
+
+	return true;
+}
+
 /** Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]	sync		sync state
 @param[in]	unlock_cache	whether unlock cache lock when write node
 @param[in]	wait		whether wait when a sync is in progress
-@param[in]      has_dict        whether has dict operation lock
+@param[in]	has_dict_lock		whether has dict operation lock
 @return DB_SUCCESS if all OK */
 static
 dberr_t
@@ -4677,7 +4702,7 @@ fts_sync(
 	fts_sync_t*	sync,
 	bool		unlock_cache,
 	bool		wait,
-	bool		has_dict)
+	bool		has_dict_lock)
 {
 	ulint		i;
 	dberr_t		error = DB_SUCCESS;
@@ -4706,66 +4731,54 @@ fts_sync(
 	DEBUG_SYNC_C("fts_sync_begin");
 	fts_sync_begin(sync);
 
-	/* When sync in background, we hold dict operation lock
-	to prevent DDL like DROP INDEX, etc. */
-	if (has_dict) {
+	if (has_dict_lock) {
+		/* If lock is already taken mark that in transaction
+		 * so rollback will not try to take it again.
+		 */
 		sync->trx->dict_operation_lock_mode = RW_S_LATCH;
 	}
 
-begin_sync:
-	if (cache->total_size > fts_max_cache_size) {
-		/* Avoid the case: sync never finish when
-		insert/update keeps comming. */
-		ut_ad(sync->unlock_cache);
-		sync->unlock_cache = false;
-	}
-
-	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
-		fts_index_cache_t*	index_cache;
-
-		index_cache = static_cast<fts_index_cache_t*>(
-			ib_vector_get(cache->indexes, i));
-
-		if (index_cache->index->to_be_dropped
-		    || index_cache->index->table->to_be_dropped) {
-			continue;
+	do {
+		if (cache->total_size > fts_max_cache_size) {
+			/* Avoid the case: sync never finish when
+			insert/update keeps comming. */
+			ut_ad(sync->unlock_cache);
+			sync->unlock_cache = false;
 		}
 
-		index_cache->index->index_fts_syncing = true;
-		DBUG_EXECUTE_IF("fts_instrument_sync_sleep_drop_waits",
-                        os_thread_sleep(10000000);
-                        );
+		for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
+			fts_index_cache_t*	index_cache;
 
-		error = fts_sync_index(sync, index_cache);
+			index_cache = static_cast<fts_index_cache_t*>(
+				ib_vector_get(cache->indexes, i));
 
-		if (error != DB_SUCCESS && !sync->interrupted) {
+			if (index_cache->index->to_be_dropped
+			    || index_cache->index->table->to_be_dropped) {
+				continue;
+			}
 
-			goto end_sync;
-		}
-	}
+			DBUG_EXECUTE_IF("fts_instrument_sync_before_syncing",
+				os_thread_sleep(300000););
 
-	DBUG_EXECUTE_IF("fts_instrument_sync_interrupted",
-			sync->interrupted = true;
-			error = DB_INTERRUPTED;
-			goto end_sync;
-	);
+			index_cache->index->index_fts_syncing = true;
 
-	/* Make sure all the caches are synced. */
-	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
-		fts_index_cache_t*	index_cache;
+			error = fts_sync_index(sync, index_cache);
 
-		index_cache = static_cast<fts_index_cache_t*>(
-			ib_vector_get(cache->indexes, i));
-
-		if (index_cache->index->to_be_dropped
-		    || fts_sync_index_check(index_cache)) {
-			continue;
+			if (error != DB_SUCCESS) {
+				break;
+			}
 		}
 
-		goto begin_sync;
-	}
+		DBUG_EXECUTE_IF("fts_instrument_sync_interrupted",
+				sync->interrupted = true;
+				error = DB_INTERRUPTED;
+		);
 
-end_sync:
+		if (error != DB_SUCCESS) {
+			break;
+		}
+	} while (!fts_check_all_indexes_synced(sync));
+
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
 	} else {
@@ -4773,8 +4786,8 @@ end_sync:
 	}
 
 	rw_lock_x_lock(&cache->lock);
-	/* Clear fts syncing flags of any indexes incase sync is
-	interrupeted */
+	/* Clear fts syncing flags of any indexes in case sync is
+	interrupted */
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
 		fts_index_cache_t*      index_cache;
 		index_cache = static_cast<fts_index_cache_t*>(
@@ -4975,10 +4988,17 @@ fts_add_token(
 		t_str.f_str = static_cast<byte*>(
 			mem_heap_alloc(heap, t_str.f_len));
 
-		newlen = innobase_fts_casedn_str(
-			result_doc->charset,
-			reinterpret_cast<char*>(str.f_str), str.f_len,
-			reinterpret_cast<char*>(t_str.f_str), t_str.f_len);
+		/* For binary collations, a case sensitive search is
+		performed. Hence don't convert to lower case. */
+		if (my_binary_compare(result_doc->charset)) {
+			memcpy(t_str.f_str, str.f_str, str.f_len);
+			t_str.f_str[str.f_len]= 0;
+			newlen= str.f_len;
+		} else {
+			newlen = innobase_fts_casedn_str(
+				result_doc->charset, (char*) str.f_str, str.f_len,
+				(char*) t_str.f_str, t_str.f_len);
+		}
 
 		t_str.f_len = newlen;
 		t_str.f_str[newlen] = 0;
@@ -5037,7 +5057,7 @@ fts_process_token(
 
 	ret = innobase_mysql_fts_get_token(
 		doc->charset, doc->text.f_str + start_pos,
-		doc->text.f_str + doc->text.f_len, &str);
+		doc->text.f_str + doc->text.f_len, false, &str);
 
 	position = start_pos + ret - str.f_len + add_pos;
 
@@ -5104,7 +5124,7 @@ fts_tokenize_document_internal(
 		inc = innobase_mysql_fts_get_token(
 			const_cast<CHARSET_INFO*>(param->cs),
 			reinterpret_cast<byte*>(doc) + i,
-			reinterpret_cast<byte*>(doc) + len,
+			reinterpret_cast<byte*>(doc) + len, false,
 			&str);
 
 		if (str.f_len > 0) {

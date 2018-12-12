@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -93,7 +93,6 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mysql
     ${CMAKE_CURRENT_BINARY_DIR}/generated
     ${SSL_INCLUDE_DIRS}
-    ${ZLIB_INCLUDE_DIR}
   )
 
   INCLUDE_DIRECTORIES(SYSTEM
@@ -216,10 +215,6 @@ ELSE()
 
   TARGET_LINK_LIBRARIES(mysqlxtest mysys strings perconaserverclient)
   TARGET_LINK_LIBRARIES(mysqlxtest ${PROTOBUF_LIBRARY})
-
-  IF( WIN32 )
-    ADD_DEFINITIONS(-DMYSQLXTEST_EXPORTS)
-  ENDIF()
 
   IF(INSTALL_MYSQLTESTDIR)
     INSTALL(

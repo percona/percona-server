@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -446,7 +446,7 @@ static int increment_count_by_name(const char *name, const char *role_name,
     }
   }
   user_stats->total_connections++;
-  if (thd->get_protocol()->get_ssl())
+  if (thd->get_ssl())
     user_stats->total_ssl_connections++;
   return 0;
 }
@@ -493,7 +493,7 @@ static int increment_count_by_id(my_thread_id id,
     }
   }
   thread_stats->total_connections++;
-  if (thd->get_protocol()->get_ssl())
+  if (thd->get_ssl())
     thread_stats->total_ssl_connections++;
   return 0;
 }
@@ -1309,6 +1309,14 @@ static int check_connection(THD *thd, bool extra_port_connection)
     reset_host_connect_errors(thd->m_main_security_ctx.ip().str);
   }
 
+  /*
+    Now that acl_authenticate() is executed,
+    the SSL info is available.
+    Advertise it to THD, so SSL status variables
+    can be inspected.
+  */
+  thd->set_ssl(net->vio);
+
   return auth_rc;
 }
 
@@ -1447,7 +1455,16 @@ static void prepare_new_connection_state(THD* thd)
 
   if (opt_init_connect.length && !(sctx->check_access(SUPER_ACL)))
   {
+    if (sctx->password_expired())
+    {
+      sql_print_warning("init_connect variable is ignored for user: %s "
+                        "host: %s due to expired password.", sctx->priv_user().str,
+                        sctx->priv_host().str);
+      return;
+    }
+
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
+
     if (thd->is_error())
     {
       Host_errors errors;

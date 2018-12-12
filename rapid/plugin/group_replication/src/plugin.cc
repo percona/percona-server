@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,11 +150,20 @@ ulong recovery_reconnect_interval_var= 0;
 /* Write set extraction algorithm*/
 int write_set_extraction_algorithm= HASH_ALGORITHM_OFF;
 
+/* Lower case table name */
+uint gr_lower_case_table_names= 0;
+
 /* Generic components variables */
 ulong components_stop_timeout_var= LONG_TIMEOUT;
 
 /* The timeout before going to error when majority becomes unreachable */
 ulong timeout_on_unreachable_var= 0;
+
+/*
+ Exit state action that is executed when a server involuntarily leaves the
+ group.
+*/
+ulong exit_state_action_var;
 
 /**
   The default value for auto_increment_increment is choosen taking into
@@ -273,6 +282,23 @@ int log_message(enum plugin_log_level level, const char *format, ...)
   return my_plugin_log_message(&plugin_info_ptr, level, buff);
 }
 
+static void option_deprecation_warning(MYSQL_THD thd, const char* name)
+{
+  if (thd != NULL)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                        name);
+  }
+  else
+  {
+    log_message(MY_WARNING_LEVEL,
+                ER_DEFAULT(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                name);
+  }
+}
+
 /*
   Plugin interface.
 */
@@ -332,6 +358,12 @@ int plugin_group_replication_start()
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
+  DBUG_EXECUTE_IF("group_replication_wait_on_start",
+                 {
+                   const char act[]= "now signal signal.start_waiting wait_for signal.start_continue";
+                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                 });
+
   if (plugin_is_group_replication_running())
     DBUG_RETURN(GROUP_REPLICATION_ALREADY_RUNNING);
   if (check_if_server_properly_configured())
@@ -369,6 +401,12 @@ int plugin_group_replication_start()
   }
   if (init_group_sidno())
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
+
+  if (allow_local_disjoint_gtids_join_var)
+  {
+    option_deprecation_warning(current_thd,
+                               "group_replication_allow_local_disjoint_gtids_join");
+  }
 
   /*
     Instantiate certification latch.
@@ -576,6 +614,18 @@ err:
       set_read_mode_state(sql_command_interface, read_only_mode,
                           super_read_only_mode);
     }
+
+    /*
+      Abort right away if the exit state action was set to ABORT_SERVER (and we
+      are starting GROUP_REPLICATION on boot).
+    */
+    if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER &&
+        start_group_replication_at_boot_var)
+    {
+      abort_plugin_process("Fatal error during execution of Group Replication "
+                           "group joining process");
+    }
+
     if (certification_latch != NULL)
     {
       delete certification_latch; /* purecov: inspected */
@@ -632,8 +682,12 @@ int configure_group_member_manager(char *hostname, char *uuid,
                     local_version= plugin_version + (0x010000);
                   };);
   Member_version local_member_plugin_version(local_version);
-  delete local_member_info;
 
+  DBUG_EXECUTE_IF("group_replication_force_member_uuid",
+                  {
+                    uuid= const_cast<char*>("cccccccc-cccc-cccc-cccc-cccccccccccc");
+                  };);
+  delete local_member_info;
   local_member_info= new Group_member_info(hostname,
                                            port,
                                            uuid,
@@ -645,7 +699,8 @@ int configure_group_member_manager(char *hostname, char *uuid,
                                            Group_member_info::MEMBER_ROLE_SECONDARY,
                                            single_primary_mode_var,
                                            enforce_update_everywhere_checks_var,
-                                           member_weight_var);
+                                           member_weight_var,
+                                           gr_lower_case_table_names);
 
   //Create the membership info visible for the group
   delete group_member_mgr;
@@ -772,8 +827,6 @@ bypass_message:
   // Destroy handlers and notifiers
   delete events_handler;
   events_handler= NULL;
-  delete view_change_notifier;
-  view_change_notifier= NULL;
 
   return 0;
 }
@@ -783,6 +836,12 @@ int plugin_group_replication_stop()
   DBUG_ENTER("plugin_group_replication_stop");
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+
+  DBUG_EXECUTE_IF("group_replication_wait_on_stop",
+                 {
+                   const char act[]= "now signal signal.stop_waiting wait_for signal.stop_continue";
+                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                 });
 
   /*
     We delete the delayed initialization object here because:
@@ -955,7 +1014,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 
   plugin_info_ptr= plugin_info;
 
-  if (group_replication_init(group_replication_plugin_name))
+  if (group_replication_init())
   {
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
@@ -999,13 +1058,14 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
   //Initialize channel observation and auto increment handlers before start
   auto_increment_handler= new Plugin_group_replication_auto_increment();
   channel_observation_manager= new Channel_observation_manager(plugin_info);
+  view_change_notifier= new Plugin_gcs_view_modification_notifier();
   gcs_module= new Gcs_operations();
 
   //Initialize the compatibility module before starting
   init_compatibility_manager();
 
   plugin_is_auto_starting= start_group_replication_at_boot_var;
-  if (start_group_replication_at_boot_var && group_replication_start())
+  if (start_group_replication_at_boot_var && plugin_group_replication_start())
   {
     log_message(MY_ERROR_LEVEL,
                 "Unable to start Group Replication on boot");
@@ -1023,10 +1083,9 @@ int plugin_group_replication_deinit(void *p)
   plugin_is_being_uninstalled= true;
   int observer_unregister_error= 0;
 
-  //plugin_group_replication_stop will be called from this method stack
-  if (group_replication_cleanup())
+  if (plugin_group_replication_stop())
     log_message(MY_ERROR_LEVEL,
-                "Failure when cleaning Group Replication server state");
+                "Failure when stopping Group Replication on plugin uninstall");
 
   if (group_member_mgr != NULL)
   {
@@ -1044,12 +1103,6 @@ int plugin_group_replication_deinit(void *p)
   {
     delete compatibility_mgr;
     compatibility_mgr= NULL;
-  }
-
-  if (channel_observation_manager != NULL)
-  {
-    delete channel_observation_manager;
-    channel_observation_manager= NULL;
   }
 
   if (unregister_server_state_observer(&server_state_observer, p))
@@ -1078,8 +1131,17 @@ int plugin_group_replication_deinit(void *p)
                 "All Group Replication server observers"
                 " have been successfully unregistered");
 
+  if (channel_observation_manager != NULL)
+  {
+    delete channel_observation_manager;
+    channel_observation_manager= NULL;
+  }
+
   delete gcs_module;
   gcs_module= NULL;
+
+  delete view_change_notifier;
+  view_change_notifier= NULL;
 
   if(auto_increment_handler != NULL)
   {
@@ -1386,7 +1448,6 @@ int start_group_communication()
                                    get_server_id());
   }
 
-  view_change_notifier= new Plugin_gcs_view_modification_notifier();
   events_handler= new Plugin_gcs_events_handler(applier_module,
                                                 recovery_module,
                                                 view_change_notifier,
@@ -1536,7 +1597,7 @@ static int check_if_server_properly_configured()
   //Struct that holds startup and runtime requirements
   Trans_context_info startup_pre_reqs;
 
-  get_server_startup_prerequirements(startup_pre_reqs, true);
+  get_server_startup_prerequirements(startup_pre_reqs, !plugin_is_auto_starting);
 
   if(!startup_pre_reqs.binlog_enabled)
   {
@@ -1622,6 +1683,16 @@ static int check_if_server_properly_configured()
                 "'enforce_update_everywhere_checks' enabled.");
     DBUG_RETURN(1);
   }
+
+  gr_lower_case_table_names= startup_pre_reqs.lower_case_table_names;
+  DBUG_ASSERT (gr_lower_case_table_names <= 2);
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("group_replication_skip_encode_lower_case_table_names",
+                {
+                  gr_lower_case_table_names = SKIP_ENCODING_LOWER_CASE_TABLE_NAMES;
+                });
+#endif
+
 
   DBUG_RETURN(0);
 }
@@ -2238,6 +2309,20 @@ check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
   DBUG_RETURN(0);
 }
 
+static void
+update_allow_local_disjoint_gtids_join(MYSQL_THD thd, SYS_VAR *var,
+                                       void *var_ptr, const void *save)
+{
+  DBUG_ENTER("update_allow_local_disjoint_gtids_join");
+
+  (*(my_bool *) var_ptr)= (*(my_bool *) save);
+
+  option_deprecation_warning(thd,
+                             "group_replication_allow_local_disjoint_gtids_join");
+
+  DBUG_VOID_RETURN;
+}
+
 static void update_unreachable_timeout(MYSQL_THD thd, SYS_VAR *var,
                                        void *var_ptr, const void *save)
 {
@@ -2536,7 +2621,7 @@ static MYSQL_SYSVAR_BOOL(
   PLUGIN_VAR_OPCMDARG,                   /* optional var */
   "Allow this server to join the group even if it has transactions not present in the group",
   NULL,                                  /* check func. */
-  NULL,                                  /* update func*/
+  update_allow_local_disjoint_gtids_join,/* update func*/
   0                                      /* default */
 );
 
@@ -2737,6 +2822,22 @@ static MYSQL_SYSVAR_UINT(
   0                                    /* block */
 );
 
+const char *exit_state_actions[]= {"READ_ONLY", "ABORT_SERVER", (char *)0};
+TYPELIB exit_state_actions_typelib_t= {array_elements(exit_state_actions) - 1,
+                                       "exit_state_actions_typelib_t",
+                                       exit_state_actions, NULL};
+static MYSQL_SYSVAR_ENUM(exit_state_action,     /* name */
+                         exit_state_action_var, /* var */
+                         PLUGIN_VAR_OPCMDARG,   /* optional var */
+                         "The action that is taken when the server "
+                         "leaves the group. "
+                         "Possible values are READ_ONLY or "
+                         "ABORT_SERVER.",                /* values */
+                         NULL,                           /* check func. */
+                         NULL,                           /* update func. */
+                         EXIT_STATE_ACTION_READ_ONLY,    /* default */
+                         &exit_state_actions_typelib_t); /* type lib */
+
 static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(group_name),
   MYSQL_SYSVAR(start_on_boot),
@@ -2773,6 +2874,7 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(transaction_size_limit),
   MYSQL_SYSVAR(unreachable_majority_timeout),
   MYSQL_SYSVAR(member_weight),
+  MYSQL_SYSVAR(exit_state_action),
   NULL,
 };
 

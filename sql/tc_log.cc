@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2013, Monty Program Ab
    Copyright (C) 2012 Percona Inc.
 
@@ -87,7 +87,6 @@ ulong tc_log_page_waits= 0;
 
 static const char tc_log_magic[]={(char) 254, 0x23, 0x05, 0x74};
 
-ulong opt_tc_log_size= TC_LOG_MIN_SIZE;
 ulong tc_log_max_pages_used=0, tc_log_page_size=0, tc_log_cur_pages_used=0;
 
 int TC_LOG_MMAP::open(const char *opt_name)
@@ -100,10 +99,6 @@ int TC_LOG_MMAP::open(const char *opt_name)
   DBUG_ASSERT(opt_name && opt_name[0]);
 
   tc_log_page_size= my_getpagesize();
-  if (TC_LOG_PAGE_SIZE > tc_log_page_size)
-  {
-    DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
-  }
 
   fn_format(logname,opt_name,mysql_data_home,"",MY_UNPACK_FILENAME);
   if ((fd= mysql_file_open(key_file_tclog, logname, O_RDWR, MYF(0))) < 0)
@@ -480,10 +475,10 @@ void TC_LOG_MMAP::close()
   case 6:
     mysql_mutex_destroy(&LOCK_tc);
     mysql_cond_destroy(&COND_pool);
-    // fallthrough
+    // Fall through.
   case 5:
     data[0]='A'; // garble the first (signature) byte, in case mysql_file_delete fails
-    // fallthrough
+    // Fall through.
   case 4:
     for (i=0; i < npages; i++)
     {
@@ -491,13 +486,13 @@ void TC_LOG_MMAP::close()
         break;
       mysql_cond_destroy(&pages[i].cond);
     }
-    // fallthrough
+    // Fall through.
   case 3:
     my_free(pages);
-    // fallthrough
+    // Fall through.
   case 2:
     my_munmap((char*)data, (size_t)file_length);
-    // fallthrough
+    // Fall through.
   case 1:
     mysql_file_close(fd, MYF(0));
   }

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/client
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/mysys_ssl
-  ${ZLIB_INCLUDE_DIR}
   ${LZ4_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/libmysql
@@ -26,6 +25,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/strings
   ${MY_READLINE_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
+)
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
 )
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
@@ -51,9 +54,6 @@ IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_upgrade
     upgrade/program.cc
   )
-ADD_COMPILE_FLAGS(
-  upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
-)
 TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base mysqlcheck_core)
 ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema)
 ENDIF()
@@ -61,6 +61,7 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqltest perconaserverclient regex)
+ADD_DEPENDENCIES(mysqltest GenError)
 
 ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
 TARGET_LINK_LIBRARIES(mysqlcheck_core perconaserverclient)

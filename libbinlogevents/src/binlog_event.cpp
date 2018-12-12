@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ namespace binary_log_debug
   bool debug_checksum_test= false;
   bool debug_simulate_invalid_address= false;
   bool debug_pretend_version_50034_in_binlog= false;
+  bool debug_expect_unknown_event= false;
 }
 
 namespace binary_log
@@ -55,7 +56,7 @@ Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
   enum_binlog_checksum_alg ret;
   char version[ST_SERVER_VER_LEN];
   unsigned char version_split[3];
-  BAPI_ASSERT(buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
+  BAPI_ASSERT(static_cast<unsigned char>(buf[EVENT_TYPE_OFFSET]) == FORMAT_DESCRIPTION_EVENT);
   memcpy(version, buf +
          buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET]
          + ST_SERVER_VER_OFFSET, ST_SERVER_VER_LEN);
@@ -91,7 +92,7 @@ Log_event_header(const char* buf, uint16_t binlog_version)
   memcpy(&tmp_sec, buf, sizeof(tmp_sec));
   when.tv_sec= le32toh(tmp_sec);
   when.tv_usec= 0;
-  type_code= static_cast<Log_event_type>(buf[EVENT_TYPE_OFFSET]);
+  type_code= static_cast<Log_event_type>(static_cast<unsigned char>(buf[EVENT_TYPE_OFFSET]));
   memcpy(&unmasked_server_id,
          buf + SERVER_ID_OFFSET, sizeof(unmasked_server_id));
 
@@ -137,7 +138,7 @@ Log_event_header(const char* buf, uint16_t binlog_version)
       Format_desc (remember that mysqlbinlog starts by assuming that 5.0
       logs are in 4.0 format, until it finds a Format_desc).
     */
-    if (buf[EVENT_TYPE_OFFSET] < FORMAT_DESCRIPTION_EVENT && log_pos)
+    if (static_cast<unsigned char>(buf[EVENT_TYPE_OFFSET]) < FORMAT_DESCRIPTION_EVENT && log_pos)
     {
       /*
         If log_pos=0, don't change it. log_pos==0 is a marker to mean
@@ -170,13 +171,13 @@ Log_event_header(const char* buf, uint16_t binlog_version)
      extra_headers are not used in the current version.
     @endverbatim
    */
-
+    // Fall through.
   default:
     memcpy(&flags, buf + FLAGS_OFFSET, sizeof(flags));
     flags= le16toh(flags);
 
-     if ((buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT) ||
-         (buf[EVENT_TYPE_OFFSET] == ROTATE_EVENT))
+     if ((static_cast<unsigned char>(buf[EVENT_TYPE_OFFSET]) == FORMAT_DESCRIPTION_EVENT) ||
+         (static_cast<unsigned char>(buf[EVENT_TYPE_OFFSET]) == ROTATE_EVENT))
      {
        /*
          These events always have a header which stops here (i.e. their
@@ -195,6 +196,13 @@ Log_event_header(const char* buf, uint16_t binlog_version)
     }
   /* otherwise, go on with reading the header from buf (nothing now) */
   } //end switch (binlog_version)
+  // The below type_code assert is correct and needed in 99% of time. In normal testing we do not
+  // anticipate type_code to be of unknown value. This is why we only skip this assert when
+  // debug variable expect_Unknown_event is set.
+#ifndef DBUG_OFF
+  if (binary_log_debug::debug_expect_unknown_event)
+    return;
+#endif
   BAPI_ASSERT(type_code < ENUM_END_EVENT || flags & LOG_EVENT_IGNORABLE_F);
 }
 
@@ -225,10 +233,6 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 
     if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
     {
-    #ifndef DBUG_OFF
-      unsigned char fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
-                                      BINLOG_CHECKSUM_ALG_DESC_LEN];
-    #endif
       /*
         FD event is checksummed and therefore verified w/o
         the binlog-in-use flag.
@@ -241,9 +245,6 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
          The only algorithm currently is CRC32. Zero indicates
          the binlog file is checksum-free *except* the FD-event.
       */
-    #ifndef DBUG_OFF
-      BAPI_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
-    #endif
       BAPI_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
       /*
         Complile time guard to watch over  the max number of alg

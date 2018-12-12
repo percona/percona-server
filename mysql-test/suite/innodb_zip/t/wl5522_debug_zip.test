@@ -725,6 +725,9 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test_wl5522
 call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot save statistics for table");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace");
+
 --enable_query_log
 
 #cleanup

@@ -215,6 +215,16 @@ TokuDB Server Variables
      - Yes
      - Session, Global
      - Yes
+   * - :variable:`tokudb_enable_fast_update`
+     - Yes
+     - Yes
+     - Session, Global
+     - Yes
+   * - :variable:`tokudb_enable_fast_upsert`
+     - Yes
+     - Yes
+     - Session, Global
+     - Yes
    * - :variable:`tokudb_enable_partial_eviction`
      - Yes
      - Yes
@@ -910,6 +920,32 @@ output:
 
 Defines direction to be used to perform table scan to check for empty tables
 for bulk loader.
+
+.. variable:: tokudb_enable_fast_update
+
+  :cli: Yes
+  :conf: Yes
+  :scope: Global/Session
+  :dyn: Yes
+  :vartype: Boolean
+  :default: OFF
+
+Toggles the fast updates feature ON/OFF for the ``UPDATE`` statement. Fast
+update involves queries optimization to avoid random reads during their
+execution.
+
+.. variable:: tokudb_enable_fast_upsert
+
+  :cli: Yes
+  :conf: Yes
+  :scope: Global/Session
+  :dyn: Yes
+  :vartype: Boolean
+  :default: OFF
+
+Toggles the fast updates feature ON/OFF for the ``INSERT`` statement. Fast
+update involves queries optimization to avoid random reads during their
+execution.
 
 .. variable:: tokudb_enable_partial_eviction
 

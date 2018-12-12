@@ -22,8 +22,8 @@
 #include <vector>
 
 /* MySQL includes */
-#include <my_global.h>
-#include <mysql/plugin.h>
+#include "my_global.h"
+#include "mysql/plugin.h"
 
 /* MyRocks includes */
 #include "./ha_rocksdb.h"
@@ -80,5 +80,15 @@ void Rdb_event_listener::OnExternalFileIngested(
     rocksdb::DB *db, const rocksdb::ExternalFileIngestionInfo &info) {
   DBUG_ASSERT(db != nullptr);
   update_index_stats(info.table_properties);
+}
+
+void Rdb_event_listener::OnBackgroundError(
+    rocksdb::BackgroundErrorReason reason, rocksdb::Status *status) {
+  rdb_log_status_error(*status, "Error detected in background");
+  sql_print_error("RocksDB: BackgroundErrorReason: %d", (int)reason);
+  if (status->IsCorruption()) {
+    rdb_persist_corruption_marker();
+    abort();
+  }
 }
 } // namespace myrocks

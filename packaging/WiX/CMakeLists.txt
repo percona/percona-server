@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -63,8 +63,6 @@ IF(NOT WIX_DIR)
   RETURN()
 ENDIF()
 
-ADD_SUBDIRECTORY(ca)
-
 FIND_PROGRAM(HEAT_EXECUTABLE heat ${WIX_DIR})
 FIND_PROGRAM(CANDLE_EXECUTABLE candle ${WIX_DIR})
 FIND_PROGRAM(LIGHT_EXECUTABLE light ${WIX_DIR})
@@ -87,7 +85,6 @@ ELSE()
   FILE(APPEND "${CMAKE_CURRENT_BINARY_DIR}/COPYING.rtf" "\n}\n")
   SET(COPYING_RTF "${CMAKE_CURRENT_BINARY_DIR}/COPYING.rtf")
 ENDIF()
-GET_TARGET_PROPERTY(WIXCA_LOCATION wixca LOCATION)
 SET(CPACK_WIX_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake)
 SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs;${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs")
 
@@ -111,8 +108,19 @@ IF("${VERSION}" MATCHES "-ndb-")
   MESSAGE(STATUS "DISPLAY_PATCH_VERSION: ${DISPLAY_PATCH_VERSION}")
 ENDIF()
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
-  ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs)
+#CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
+#  ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs)
+
+ADD_CUSTOM_TARGET(
+  configure_mysql_server_extra
+  COMMAND ${CMAKE_COMMAND}
+  -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
+  -DOUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs
+  -DMAJOR_VERSION=${MAJOR_VERSION}
+  -DMINOR_VERSION=${MINOR_VERSION}
+  -DWixWin64=${WixWin64}
+  -P ${CMAKE_CURRENT_SOURCE_DIR}/configure_file.cmake
+  )
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
@@ -130,5 +138,4 @@ ADD_CUSTOM_TARGET(
   ${CONFIG_PARAM} 
   -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
-ADD_DEPENDENCIES(MSI wixca)
-
+ADD_DEPENDENCIES(MSI configure_mysql_server_extra)

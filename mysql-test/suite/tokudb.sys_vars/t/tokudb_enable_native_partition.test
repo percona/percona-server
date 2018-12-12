@@ -1,0 +1,67 @@
+--source include/have_tokudb.inc
+
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.tokudb_enable_native_partition);
+--echo 1 Expected
+
+SELECT @@GLOBAL.tokudb_enable_native_partition;
+--echo 0 Expected
+
+####################################################################
+#   Check if Value cannot be set                                   #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.tokudb_enable_native_partition=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.tokudb_enable_native_partition);
+--echo 1 Expected
+
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.tokudb_enable_native_partition= VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='tokudb_enable_native_partition';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.tokudb_enable_native_partition);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='tokudb_enable_native_partition';
+--enable_warnings
+--echo 1 Expected
+
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@tokudb_enable_native_partition= @@GLOBAL.tokudb_enable_native_partition;
+--echo 1 Expected
+
+################################################################################
+#   Check if tokudb_enable_native_partition can be accessed with and without @@ sign           #
+################################################################################
+
+SELECT COUNT(@@tokudb_enable_native_partition);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.tokudb_enable_native_partition);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.tokudb_enable_native_partition);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_BAD_FIELD_ERROR
+SELECT tokudb_enable_native_partition= @@SESSION.tokudb_enable_native_partition;
+--echo Expected error 'Unknown column'

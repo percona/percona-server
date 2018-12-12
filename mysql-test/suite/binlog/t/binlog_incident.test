@@ -27,7 +27,14 @@ GRANT SELECT(a) ON t1 TO u1@h, u2@h;
 DROP USER u1@h;
 DROP TABLE t1;
 
-exec $MYSQL_BINLOG --start-position=$start_pos $MYSQLD_DATADIR/$master_binlog >$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql;
+--let $mysqlbinlog_args= $MYSQLD_DATADIR/$master_binlog
+if ($use_remote_mysqlbinlog)
+{
+    --let $mysqlbinlog_args= --read-from-remote-server --protocol=tcp --host=127.0.0.1 --port=$MASTER_MYPORT -uroot $master_binlog
+    --let $use_remote_mysqlbinlog= 0
+}
+
+exec $MYSQL_BINLOG --start-position=$start_pos $mysqlbinlog_args >$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql;
 --disable_query_log
 eval SELECT cont LIKE '%RELOAD DATABASE; # Shall generate syntax error%' AS `Contain RELOAD DATABASE` FROM (SELECT load_file('$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql') AS cont) AS tbl;
 --enable_query_log

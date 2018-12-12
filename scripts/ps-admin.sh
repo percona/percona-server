@@ -26,6 +26,8 @@ ENABLE_AUDIT=0
 DISABLE_AUDIT=0
 ENABLE_PAM=0
 DISABLE_PAM=0
+ENABLE_PAM_COMPAT=0
+DISABLE_PAM_COMPAT=0
 ENABLE_MYSQLX=0
 DISABLE_MYSQLX=0
 FORCE_MYCNF=0
@@ -39,6 +41,7 @@ STATUS_ROCKSDB_PLUGIN=0
 STATUS_QRT_PLUGIN=0
 STATUS_AUDIT_PLUGIN=0
 STATUS_PAM_PLUGIN=0
+STATUS_PAM_COMPAT_PLUGIN=0
 STATUS_MYSQLX_PLUGIN=0
 STATUS_HOTBACKUP_MYCNF=0
 STATUS_HOTBACKUP_PLUGIN=0
@@ -64,8 +67,8 @@ fi
 # Check if we have a functional getopt(1)
 if ! getopt --test
   then
-  go_out="$(getopt --options=c:u:p::S:h:P:edbrfmkotzawinxgD \
-  --longoptions=config-file:,user:,password::,socket:,host:,port:,enable-tokudb,disable-tokudb,enable-tokubackup,disable-tokubackup,help,defaults-file:,force-envfile,force-mycnf,enable-rocksdb,disable-rocksdb,enable-qrt,disable-qrt,enable-audit,disable-audit,enable-pam,disable-pam,enable-mysqlx,disable-mysqlx,docker \
+  go_out="$(getopt --options=c:u:p::S:h:P:edbrfmkotzawinjKxgD \
+  --longoptions=config-file:,user:,password::,socket:,host:,port:,enable-tokudb,disable-tokudb,enable-tokubackup,disable-tokubackup,help,defaults-file:,force-envfile,force-mycnf,enable-rocksdb,disable-rocksdb,enable-qrt,disable-qrt,enable-audit,disable-audit,enable-pam,disable-pam,enable-pam-compat,disable-pam-compat,enable-mysqlx,disable-mysqlx,docker \
   --name="$(basename "$0")" -- "$@")"
   test $? -eq 0 || exit 1
   eval set -- $go_out
@@ -175,6 +178,14 @@ do
     shift
     DISABLE_PAM=1
     ;;
+    -j | --enable-pam-compat )
+    shift
+    ENABLE_PAM_COMPAT=1
+    ;;
+    -K | --disable-pam-compat )
+    shift
+    DISABLE_PAM_COMPAT=1
+    ;;
     -x | --enable-mysqlx )
     shift
     ENABLE_MYSQLX=1
@@ -221,6 +232,8 @@ do
     printf "  --disable-audit, -w\t\t\t disable Audit Log plugin\n"
     printf "  --enable-pam, -i\t\t\t enable PAM Authentication plugin\n"
     printf "  --disable-pam, -n\t\t\t disable PAM Authentication plugin\n"
+    printf "  --enable-pam-compat, -j\t\t enable PAM Compat Authentication plugin\n"
+    printf "  --disable-pam-compat, -K\t\t disable PAM Compat Authentication plugin\n"
     printf "  --enable-mysqlx, -x\t\t\t enable MySQL X plugin\n"
     printf "  --disable-mysqlx, -g\t\t\t disable MySQL X plugin\n"
     printf "  --force-envfile, -f\t\t\t force usage of ${SYSTEMD_ENV_FILE} instead of my.cnf (relevant only for TokuDB)\n"
@@ -252,7 +265,7 @@ PORT=${PORT:+"-P ${PORT}"}
 if [ ${ENABLE_TOKUDB} = 1 -a ${DISABLE_TOKUDB} = 1 ]; then
   printf "ERROR: Only --enable-tokudb OR --disable-tokudb can be specified - not both!\n"
   exit 1
-elif [ ${ENABLE_TOKUDB} = 0 -a ${DISABLE_TOKUDB} = 0 -a ${ENABLE_TOKUBACKUP} = 0 -a ${DISABLE_TOKUBACKUP} = 0 -a ${ENABLE_ROCKSDB} = 0 -a ${DISABLE_ROCKSDB} = 0 -a ${ENABLE_QRT} = 0 -a ${DISABLE_QRT} = 0 -a ${ENABLE_AUDIT} = 0 -a ${DISABLE_AUDIT} = 0 -a ${ENABLE_PAM} = 0 -a ${DISABLE_PAM} = 0 -a ${ENABLE_MYSQLX} = 0 -a ${DISABLE_MYSQLX} = 0 ]; then
+elif [ ${ENABLE_TOKUDB} = 0 -a ${DISABLE_TOKUDB} = 0 -a ${ENABLE_TOKUBACKUP} = 0 -a ${DISABLE_TOKUBACKUP} = 0 -a ${ENABLE_ROCKSDB} = 0 -a ${DISABLE_ROCKSDB} = 0 -a ${ENABLE_QRT} = 0 -a ${DISABLE_QRT} = 0 -a ${ENABLE_AUDIT} = 0 -a ${DISABLE_AUDIT} = 0 -a ${ENABLE_PAM} = 0 -a ${DISABLE_PAM} = 0 -a ${ENABLE_PAM_COMPAT} = 0 -a ${DISABLE_PAM_COMPAT} = 0 -a ${ENABLE_MYSQLX} = 0 -a ${DISABLE_MYSQLX} = 0 ]; then
   printf "ERROR: You should specify one of the --enable or --disable options.\n"
   printf "Use --help for printing options.\n"
   exit 1
@@ -271,26 +284,12 @@ elif [ ${ENABLE_AUDIT} = 1 -a ${DISABLE_AUDIT} = 1 ]; then
 elif [ ${ENABLE_PAM} = 1 -a ${DISABLE_PAM} = 1 ]; then
   printf "ERROR: Only --enable-pam OR --disable-pam can be specified - not both!\n\n"
   exit 1
+elif [ ${ENABLE_PAM_COMPAT} = 1 -a ${DISABLE_PAM_COMPAT} = 1 ]; then
+  printf "ERROR: Only --enable-pam-compat OR --disable-pam-compat can be specified - not both!\n\n"
+  exit 1
 elif [ ${ENABLE_MYSQLX} = 1 -a ${DISABLE_MYSQLX} = 1 ]; then
   printf "ERROR: Only --enable-mysqlx OR --disable-mysqlx can be specified - not both!\n\n"
   exit 1
-fi
-
-# Check SELinux status - needs to be disabled/permissive for LD_PRELOAD
-if [ -n "$(which sestatus)" -a ${ENABLE_TOKUDB} = 1 ]; then
-  printf "Checking SELinux status...\n"
-  STATUS_SELINUX=$(sestatus | grep "SELinux status:" | awk '{print $3}')
-  if [ ${STATUS_SELINUX} = "enabled" ]; then
-    MODE_SELINUX=$(sestatus | grep "Current mode:" | awk '{print $3}')
-    if [ ${MODE_SELINUX} = "enforcing"  ]; then
-      printf "ERROR: SELinux is in enforcing mode and needs to be disabled (or put into permissive mode) for TokuDB to work correctly.\n\n"
-      exit 1
-    else
-      printf "INFO: SELinux is in permissive mode.\n\n"
-    fi
-  else
-    printf "INFO: SELinux is disabled.\n\n"
-  fi
 fi
 
 # List plugins
@@ -599,11 +598,22 @@ fi
 # Check PAM plugin status
 if [ ${ENABLE_PAM} = 1 -o ${DISABLE_PAM} = 1 ]; then
   printf "Checking PAM plugin status...\n"
-  STATUS_PAM_PLUGIN=$(echo "${LIST_PLUGINS}" | grep -c "auth_pam")
+  STATUS_PAM_PLUGIN=$(echo "${LIST_PLUGINS}" | grep -c "auth_pam#")
   if [ ${STATUS_PAM_PLUGIN} = 0 ]; then
     printf "INFO: PAM Authentication plugin is not installed.\n\n"
   else
     printf "INFO: PAM Authentication plugin is installed.\n\n"
+  fi
+fi
+
+# Check PAM compat plugin status
+if [ ${ENABLE_PAM_COMPAT} = 1 -o ${DISABLE_PAM_COMPAT} = 1 ]; then
+  printf "Checking PAM compat plugin status...\n"
+  STATUS_PAM_COMPAT_PLUGIN=$(echo "${LIST_PLUGINS}" | grep -c "auth_pam_compat#")
+  if [ ${STATUS_PAM_COMPAT_PLUGIN} = 0 ]; then
+    printf "INFO: PAM Compat Authentication plugin is not installed.\n\n"
+  else
+    printf "INFO: PAM Compat Authentication plugin is installed.\n\n"
   fi
 fi
 
@@ -893,6 +903,18 @@ if [ ${ENABLE_PAM} = 1 -a ${STATUS_PAM_PLUGIN} = 0 ]; then
   fi
 fi
 
+# Install PAM compat plugin
+if [ ${ENABLE_PAM_COMPAT} = 1 -a ${STATUS_PAM_COMPAT_PLUGIN} = 0 ]; then
+  printf "Installing PAM Compat Authentication plugin...\n"
+  ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "INSTALL PLUGIN auth_pam_compat SONAME 'auth_pam_compat.so';" 2>/dev/null
+  if [ $? -eq 0 ]; then
+    printf "INFO: Successfully installed PAM Compat Authentication plugin.\n\n"
+  else
+    printf "ERROR: Failed to install PAM Compat Authentication plugin. Please check error log.\n\n"
+    exit 1
+  fi
+fi
+
 # Install MySQL X plugin
 if [ ${ENABLE_MYSQLX} = 1 -a ${STATUS_MYSQLX_PLUGIN} = 0 ]; then
   printf "Installing MySQL X plugin...\n"
@@ -1002,6 +1024,18 @@ if [ ${DISABLE_PAM} = 1 -a ${STATUS_PAM_PLUGIN} -gt 0 ]; then
     exit 1
   else
     printf "INFO: Successfully uninstalled PAM Authentication plugin.\n\n"
+  fi
+fi
+
+# Uninstall PAM compat plugin
+if [ ${DISABLE_PAM_COMPAT} = 1 -a ${STATUS_PAM_COMPAT_PLUGIN} -gt 0 ]; then
+  printf "Uninstalling PAM Compat Authentication plugin...\n"
+  ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "UNINSTALL PLUGIN auth_pam_compat;" 2>/dev/null
+  if [ $? -ne 0 ]; then
+    printf "ERROR: Failed to uninstall PAM Compat Authentication plugin. Please check error log.\n\n"
+    exit 1
+  else
+    printf "INFO: Successfully uninstalled PAM Compat Authentication plugin.\n\n"
   fi
 fi
 

@@ -290,6 +290,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES_READ},
 
+	{"buffer_pages0_read", "buffer",
+	 "Number of page 0 read (innodb_pages0_read)",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES0_READ},
+
 	{"buffer_data_reads", "buffer",
 	 "Amount of data read in bytes (innodb_data_reads)",
 	 static_cast<monitor_type_t>(
@@ -958,6 +964,17 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Number of times padding is decremented due to good compressibility",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_PAD_DECREMENTS},
+
+	/* ========== Counters for Encryption ========== */
+	{"pages_encrypted", "encryption",
+	 "Number of pages encrypted",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES_ENCRYPTED},
+
+	{"pages_decrypted", "encryption",
+	 "Number of pages decrypted",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_PAGES_DECRYPTED},
 
 	/* ========== Counters for Index ========== */
 	{"module_index", "index", "Index Manager",
@@ -1649,6 +1666,11 @@ srv_mon_process_existing_counter(
 		value = stat.n_pages_read;
 		break;
 
+	/* innodb_pages0_read */
+	case MONITOR_OVLD_PAGES0_READ:
+		value = srv_stats.page0_read;
+		break;
+
 	/* innodb_data_reads, the total number of data reads */
 	case MONITOR_OVLD_BYTE_READ:
 		value = srv_stats.data_read;
@@ -1713,6 +1735,13 @@ srv_mon_process_existing_counter(
 
 	case MONITOR_OVLD_LOG_PADDED:
 		value = srv_stats.log_padded;
+		break;
+
+	case MONITOR_OVLD_PAGES_ENCRYPTED:
+		value = srv_stats.pages_encrypted;
+		break;
+	case MONITOR_OVLD_PAGES_DECRYPTED:
+		value = srv_stats.pages_decrypted;
 		break;
 
 	/* innodb_dblwr_writes */

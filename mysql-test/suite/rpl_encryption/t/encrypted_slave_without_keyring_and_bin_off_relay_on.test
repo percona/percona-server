@@ -1,0 +1,54 @@
+# Bug: PS-3877 User experience improvement for Percona keyring use
+#
+# When it is not possible to encrypt relay log - due to lack of keyring plugin installed
+# an appropriate error message - mentioning relay log is generated. Also an error messages
+# were improvement and now provide more information
+
+--source include/not_embedded.inc
+--source include/master-slave.inc
+
+--let $rpl_server_number= 2
+--let $rpl_omit_print_server_parameters= 1
+--let $rpl_server_parameters=--log-error=$MYSQLTEST_VARDIR/tmp/encrypted_slave_without_keyring_and_bin_off_relay_on.err --skip-log-bin
+--source include/rpl_restart_server.inc
+
+--connection server_2
+UNINSTALL PLUGIN keyring_file;
+
+--let $assert_text= No keyring plugin should be installed
+--let $assert_cond= "[SELECT COUNT(PLUGIN_NAME) = 0 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name LIKE \\'keyring%\\']" = 1
+--source include/assert.inc
+
+--let $assert_text= Binlog should be OFF
+--let $assert_cond= "[SELECT @@GLOBAL.log_bin = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= Binlog encryption should be ON
+--let $assert_cond= "[SELECT @@GLOBAL.encrypt_binlog = 1]" = 1
+--source include/assert.inc
+
+SELECT @@log_slave_updates;
+
+SET GLOBAL binlog_error_action= ABORT_SERVER;
+--disable_reconnect
+--source include/expect_crash.inc
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+FLUSH LOGS;
+--echo # Check that error messages related to encryption are present in error log
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/encrypted_slave_without_keyring_and_bin_off_relay_on.err
+--let SEARCH_PATTERN= Binary logging not possible. Message: Either disk is full or file system is read only or encryption failed while opening the relay_log. Aborting the server.
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=Failed to fetch or create percona_binlog key from/in keyring and thus failed to initialize relay_log encryption. Have you enabled keyring plugin?
+--source include/search_pattern_in_file.inc
+
+--let $rpl_server_number= 2
+--let $rpl_omit_print_server_parameters= 1
+--let $rpl_server_parameters=
+--source include/rpl_start_server.inc
+--source include/start_slave.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/encrypted_slave_without_keyring_and_bin_off_relay_on.err
+
+--connection server_1
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

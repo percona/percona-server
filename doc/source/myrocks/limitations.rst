@@ -23,7 +23,7 @@ The MyRocks storage engine lacks the following features compared to InnoDB:
 
 * `Gap locks <https://dev.mysql.com/doc/refman/5.7/en/innodb-locking.html#innodb-gap-locks>`_
 
-* `Group Replication <https://dev.mysql.com/doc/refman/5.7/en/group-replication.html>`_ 
+* `Group Replication <https://dev.mysql.com/doc/refman/5.7/en/group-replication.html>`_
 
 You should also consider the following:
 
@@ -53,3 +53,29 @@ You should also consider the following:
   For more information, see `Replication Formats
   <https://dev.mysql.com/doc/refman/5.7/en/replication-formats.html>`_.
 
+* When converting from large MyISAM/InnoDB tables, either by using the
+  ``ALTER`` or ``INSERT INTO SELECT`` statements it's recommended that you
+  check the :ref:`Data loading <myrocks_data_loading>` documentation and
+  create MyRocks tables as below (in case the table is sufficiently big it will
+  cause the server to consume all the memory and then be terminated by the OOM
+  killer):
+
+  .. code-block:: mysql
+
+    SET session sql_log_bin=0;
+    SET session rocksdb_bulk_load=1;
+    ALTER TABLE large_myisam_table ENGINE=RocksDB;
+    SET session rocksdb_bulk_load=0;
+
+   .. warning::
+
+    If you are loading large data without enabling :variable:`rocksdb_bulk_load`
+    or :variable:`rocksdb_commit_in_the_middle`, please make sure transaction
+    size is small enough. All modifications of the ongoing transactions are
+    kept in memory.
+
+* The`XA protocol <https://dev.mysql.com/doc/refman/5.7/en/xa.html>`_ support,
+  which allows distributed transactions combining multiple separate
+  transactional resources, is an experimental feature in MyRocks: the 
+  implementation is less tested, it may lack some functionality and be not as
+  stable as in case of InnoDB.

@@ -1,20 +1,40 @@
 INCLUDE(curl)
 
-IF(NOT GMOCK_FOUND)
+IF (NOT DEFINED WITH_KEYRING_VAULT)
+  SET (WITH_KEYRING_VAULT 1)
+ENDIF()
+IF(NOT GMOCK_FOUND OR NOT WITH_KEYRING_VAULT)
+    MESSAGE (STATUS "Not building keyring_vault unit tests")
     RETURN()
 ENDIF()
 
-CHECK_IF_LIB_FOUND(CURL "keyring_vault unit tests")
+MACRO (CHECK_IF_CURL_DEPENDS_ON_RTMP project_name)
+  EXECUTE_PROCESS(COMMAND ldd ${CURL_LIBRARY}
+                  COMMAND grep rtmp
+                  OUTPUT_VARIABLE CURL_DEPENDS_ON_RTMP)
+  IF (NOT CURL_DEPENDS_ON_RTMP STREQUAL "")
+    message(WARNING "Not building ${project_name}. The supplied CURL library depends on rtmp library.
+Please provide CURL library that does not depend on rtmp library to build keyring_vault unittests.")
+    RETURN()
+  ENDIF()
+ENDMACRO()
+
+CHECK_IF_LIB_FOUND(CURL "keyring_vault unit tests" FATAL_ERROR)
 CHECK_IF_CURL_DEPENDS_ON_RTMP("keyring_vault unit tests")
 
+message(STATUS "Building keyring_vault unittests")
+
+INCLUDE_DIRECTORIES(SYSTEM
+  ${GMOCK_INCLUDE_DIRS}
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+  ${CURL_INCLUDE_DIRS}
+)
 INCLUDE_DIRECTORIES(
-        SYSTEM ${GMOCK_INCLUDE_DIRS}
-        SYSTEM ${BOOST_INCLUDE_DIR}
-        SYSTEM ${CURL_INCLUDE_DIRS}
-        ${BOOST_PATCHES_DIR}
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/sql
         ${CMAKE_SOURCE_DIR}/plugin/keyring/common
+        ${CMAKE_SOURCE_DIR}/plugin/keyring
         ${CMAKE_SOURCE_DIR}/plugin/keyring_vault
         ${CMAKE_SOURCE_DIR}/unittest/gunit
         ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring
@@ -32,6 +52,9 @@ FOREACH(test ${TESTS})
     SET(SRC_FILES ${test}-t.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
+            ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
+            ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_keys_container.cc
+            ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_key_adapter.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_keys_list.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_key.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_io.cc
@@ -41,6 +64,7 @@ FOREACH(test ${TESTS})
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_credentials.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_credentials_parser.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_keys_container.cc
+            ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
             ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_mount.cc
             )
     IF(WIN32)

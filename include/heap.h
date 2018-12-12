@@ -42,7 +42,7 @@ extern "C" {
 #define HP_MAX_KEY                  MAX_INDEXES         /* Max allowed keys */
 #endif
 
-#define HP_MAX_KEY_LENGTH           1000            /* Max length in bytes */
+#define HP_MAX_KEY_LENGTH           MAX_KEY_LENGTH      /* Max length in bytes */
 
 /* defines used by heap-funktions */
 

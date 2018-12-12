@@ -327,14 +327,14 @@ a	b	c
 8	8	-1
 explain select * from t where c = 80;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	52	10.00	Using where
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	51	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where (`test`.`t`.`c` = 80)
 select * from t where c = 80;
 a	b	c
 explain select * from t where c = -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	52	10.00	Using where
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	51	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where (`test`.`t`.`c` = <cache>(-(1)))
 select * from t where c = -1;
@@ -359,14 +359,14 @@ a	b	c
 15	15	-1
 explain select * from t where c = 150;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	53	10.00	Using where
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	51	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where (`test`.`t`.`c` = 150)
 select * from t where c = 150;
 a	b	c
 explain select * from t where c = -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	53	10.00	Using where
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	51	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where (`test`.`t`.`c` = <cache>(-(1)))
 select * from t where c = -1;

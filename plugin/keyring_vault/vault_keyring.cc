@@ -1,5 +1,6 @@
 #include <my_global.h>
 #include <mysql/plugin_keyring.h>
+#include <sql_class.h>
 #include "keyring.h"
 #include "vault_keys_container.h"
 #include "vault_parser.h"
@@ -11,34 +12,16 @@ using keyring::Vault_parser;
 using keyring::Vault_io;
 using keyring::Vault_keys_container;
 using keyring::Vault_curl;
+using keyring::Keys_iterator;
 using keyring::Logger;
 
-CURL *curl = NULL;
 mysql_rwlock_t LOCK_keyring;
 
-static bool init_curl()
-{
-  curl_global_init(CURL_GLOBAL_ALL);
-  curl = curl_easy_init();
-  if (curl == NULL)
-  {
-    logger->log(MY_ERROR_LEVEL, "Could not create CURL session");
-    return true;
-  }
-  return false;
-}
-
-static void cleanup_curl()
-{
-  if (curl != NULL)
-    curl_easy_cleanup(curl);
-  curl_global_cleanup();
-}
 
 static bool reset_curl()
 {
-  cleanup_curl();
-  return init_curl();
+  curl_global_cleanup();
+  return curl_global_init(CURL_GLOBAL_ALL) != 0;
 }
 
 static void handle_std_bad_alloc_exception(const std::string &message_prefix)
@@ -57,6 +40,9 @@ static void handle_unknown_exception(const std::string &message_prefix)
   if (logger != NULL)
     logger->log(MY_ERROR_LEVEL, error_message.c_str());
 }
+
+static char *keyring_vault_config_file= NULL;
+static uint keyring_vault_timeout= 0;
 
 int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
                             struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
@@ -81,7 +67,7 @@ int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
       logger->log(MY_ERROR_LEVEL, "Cannot set keyring_vault_config_file");
       return 1;
     }
-    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), curl));
+    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), keyring_vault_timeout));
     boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
     IKeyring_io *keyring_io(new Vault_io(logger.get(), vault_curl.get(), vault_parser.get()));
     vault_curl.release();
@@ -103,7 +89,6 @@ int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
   return(0);
 }
 
-static char *keyring_vault_config_file= NULL;
 static MYSQL_SYSVAR_STR(
   config,                                                      /* name       */
   keyring_vault_config_file,                                   /* value      */
@@ -114,8 +99,33 @@ static MYSQL_SYSVAR_STR(
   ""                                                           /* default    */
 );
 
+static void update_keyring_vault_timeout(MYSQL_THD thd,
+                                         st_mysql_sys_var *var,
+                                         void *ptr,
+                                         const void *val)
+{
+  DBUG_ASSERT(dynamic_cast<Vault_keys_container*>(keys.get()) != NULL);
+  *reinterpret_cast<uint*>(ptr)= *reinterpret_cast<const uint*>(val);
+  dynamic_cast<Vault_keys_container*>(keys.get())->set_curl_timeout(*static_cast<const uint*>(val));
+}
+
+static MYSQL_SYSVAR_UINT(
+  timeout,                                                     /* name       */
+  keyring_vault_timeout,                                       /* value      */
+  PLUGIN_VAR_OPCMDARG,                                         /* flags      */
+  "The keyring_vault - Vault server connection timeout",       /* comment    */
+  NULL,                                                        /* check()    */
+  update_keyring_vault_timeout,                                /* update()   */
+  15,                                                          /* default    */
+  0,                                                           /* min        */
+  86400,                                                       /* max - 24h  */
+  0                                                            /* blocksize  */
+);
+
+
 static struct st_mysql_sys_var *keyring_vault_system_variables[]= {
   MYSQL_SYSVAR(config),
+  MYSQL_SYSVAR(timeout),
   NULL
 };
 
@@ -129,12 +139,12 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info)
     if (init_keyring_locks())
       return 1;
 
-    if (init_curl())
+    if (curl_global_init(CURL_GLOBAL_ALL) != 0)
       return 1;
 
     logger.reset(new Logger(plugin_info));
     keys.reset(new Vault_keys_container(logger.get()));
-    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), curl));
+    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), keyring_vault_timeout));
     boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
     IKeyring_io *keyring_io= new Vault_io(logger.get(), vault_curl.get(),
                                           vault_parser.get());
@@ -148,6 +158,10 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info)
         " file. Please also make sure Vault is running and accessible."
         " The keyring_vault will stay unusable until correct configuration file gets"
         " provided.");
+
+      if (current_thd != NULL)
+        push_warning(current_thd, Sql_condition::SL_WARNING, 42000,
+        	     "keyring_vault initialization failure. Please check the server log.");
       return 0;
     }
     is_keys_container_initialized = TRUE;
@@ -156,13 +170,13 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info)
   catch (const std::bad_alloc &e)
   {
     handle_std_bad_alloc_exception("keyring_vault initialization failure");
-    cleanup_curl();
+    curl_global_cleanup();
     return 1;
   }
   catch (...)
   {
     handle_unknown_exception("keyring_vault initialization failure");
-    cleanup_curl();
+    curl_global_cleanup();
     return 1;
   }
 }
@@ -174,7 +188,7 @@ int keyring_vault_deinit(void *arg MY_ATTRIBUTE((unused)))
   keyring_file_data.reset();
   mysql_rwlock_destroy(&LOCK_keyring);
 
-  cleanup_curl();
+  curl_global_cleanup();
   return 0;
 }
 
@@ -227,6 +241,28 @@ my_bool mysql_key_generate(const char *key_id, const char *key_type,
   }
 }
 
+static void mysql_key_iterator_init(void **key_iterator)
+{
+  *key_iterator= new Keys_iterator(logger.get());
+  mysql_key_iterator_init<keyring::Vault_key>(
+    static_cast<Keys_iterator*>(*key_iterator), "keyring_vault");
+}
+
+static void mysql_key_iterator_deinit(void *key_iterator)
+{
+  mysql_key_iterator_deinit<keyring::Vault_key>(
+    static_cast<Keys_iterator*>(key_iterator), "keyring_vault");
+  delete static_cast<Keys_iterator*>(key_iterator);
+}
+
+static bool mysql_key_iterator_get_key(void *key_iterator,
+                                       char *key_id, char *user_id)
+{
+  return mysql_key_iterator_get_key<keyring::Vault_key>(
+    static_cast<Keys_iterator*>(key_iterator), key_id, user_id,
+    "keyring_vault");
+}
+
 /* Plugin type-specific descriptor */
 static struct st_mysql_keyring keyring_descriptor=
 {
@@ -234,7 +270,10 @@ static struct st_mysql_keyring keyring_descriptor=
   mysql_key_store,
   mysql_key_fetch,
   mysql_key_remove,
-  mysql_key_generate
+  mysql_key_generate,
+  mysql_key_iterator_init,
+  mysql_key_iterator_deinit,
+  mysql_key_iterator_get_key
 };
 
 mysql_declare_plugin(keyring_vault)

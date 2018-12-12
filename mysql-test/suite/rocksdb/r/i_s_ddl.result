@@ -1,3 +1,23 @@
+show create table information_schema.rocksdb_ddl;
+Table	Create Table
+ROCKSDB_DDL	CREATE TEMPORARY TABLE `ROCKSDB_DDL` (
+  `TABLE_SCHEMA` varchar(193) NOT NULL DEFAULT '',
+  `TABLE_NAME` varchar(193) NOT NULL DEFAULT '',
+  `PARTITION_NAME` varchar(193) DEFAULT NULL,
+  `INDEX_NAME` varchar(193) NOT NULL DEFAULT '',
+  `COLUMN_FAMILY` int(4) NOT NULL DEFAULT '0',
+  `INDEX_NUMBER` int(4) NOT NULL DEFAULT '0',
+  `INDEX_TYPE` smallint(2) NOT NULL DEFAULT '0',
+  `KV_FORMAT_VERSION` smallint(2) NOT NULL DEFAULT '0',
+  `TTL_DURATION` bigint(8) NOT NULL DEFAULT '0',
+  `INDEX_FLAGS` bigint(8) NOT NULL DEFAULT '0',
+  `CF` varchar(193) NOT NULL DEFAULT '',
+  `AUTO_INCREMENT` bigint(8) unsigned DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+uninstall plugin rocksdb;
+select * from information_schema.rocksdb_ddl;
+ERROR HY000: Plugin 'ROCKSDB' is not loaded
+# restart
 CREATE TABLE is_ddl_t1 (i INT, j INT, k INT, l INT,
 PRIMARY KEY (i), KEY (j), KEY (k, l) COMMENT 'kl_cf')
 ENGINE = ROCKSDB;

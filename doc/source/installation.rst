@@ -39,8 +39,9 @@ Installing |Percona Server| from a Binary Tarball
 
 |Percona Server| offers multiple tarballs depending on the *OpenSSL* library available in the distribution:
 
- * ssl100 - for all *Debian/Ubuntu* versions (``libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 (0x00007f2e389a5000)``);
+ * ssl100 - for *Debian* prior to 9 and *Ubuntu* prior to 14.04 versions (``libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 (0x00007f2e389a5000)``);
  * ssl101 - for *CentOS* 6 and *CentOS* 7 (``libssl.so.10 => /usr/lib64/libssl.so.10 (0x00007facbe8c4000)``);
+ * ssl102 - for *Debian* 9 and *Ubuntu* versions starting from 14.04 (``libssl.so.1.1 => /usr/lib/libssl.so.1.1 (0x00007f5e57397000)``;
 
 You can download the binary tarballs from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-5.7/LATEST/binary/tarball/>`_ on the download page.
 

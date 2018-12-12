@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,6 +58,7 @@ Created July 18, 2007 Vasil Dimov
 #include "log0online.h"
 #include "btr0btr.h"
 #include "page0zip.h"
+#include "fil0crypt.h"
 #include "fsp0sysspace.h"
 #include "ut0new.h"
 #include "dict0crea.h"
@@ -1467,7 +1468,7 @@ i_s_cmp_fill_low(
 		table->field[5]->store(zip_stat->decompressed_usec / 1000000, true);
 
 		if (reset) {
-			memset(zip_stat, 0, sizeof *zip_stat);
+			new (zip_stat) page_zip_stat_t;
 		}
 
 		if (schema_table_store_record(thd, table)) {
@@ -9387,3 +9388,608 @@ i_s_files_table_fill(
 
 	DBUG_RETURN(0);
 }
+
+/**  TABLESPACES_ENCRYPTION    ********************************************/
+/* Fields of the table INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION */
+static ST_FIELD_INFO	innodb_tablespaces_encryption_fields_info[] =
+{
+#define TABLESPACES_ENCRYPTION_SPACE	0
+	{STRUCT_FLD(field_name,		"SPACE"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_ENCRYPTION_NAME		1
+	{STRUCT_FLD(field_name,		"NAME"),
+	 STRUCT_FLD(field_length,	MAX_FULL_NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_ENCRYPTION_ENCRYPTION_SCHEME	2
+	{STRUCT_FLD(field_name,		"ENCRYPTION_SCHEME"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_ENCRYPTION_KEYSERVER_REQUESTS	3
+	{STRUCT_FLD(field_name,		"KEYSERVER_REQUESTS"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_ENCRYPTION_MIN_KEY_VERSION	4
+	{STRUCT_FLD(field_name,		"MIN_KEY_VERSION"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,        MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_ENCRYPTION_CURRENT_KEY_VERSION	5
+	{STRUCT_FLD(field_name,		"CURRENT_KEY_VERSION"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_ENCRYPTION_KEY_ROTATION_PAGE_NUMBER	6
+	{STRUCT_FLD(field_name,		"KEY_ROTATION_PAGE_NUMBER"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_ENCRYPTION_KEY_ROTATION_MAX_PAGE_NUMBER 7
+	{STRUCT_FLD(field_name,		"KEY_ROTATION_MAX_PAGE_NUMBER"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_ENCRYPTION_CURRENT_KEY_ID	8
+	{STRUCT_FLD(field_name,		"CURRENT_KEY_ID"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_ENCRYPTION_ROTATING_OR_FLUSHING 9
+	{STRUCT_FLD(field_name,		"ROTATING_OR_FLUSHING"),
+	 STRUCT_FLD(field_length,	1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/**********************************************************************//**
+Function to fill INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+with information collected by scanning SYS_TABLESPACES table.
+@param[in]	thd		thread handle
+@param[in]	space		Tablespace
+@param[in]	table_to_fill	I_S table to fill
+@return 0 on success */
+static
+int
+i_s_dict_fill_tablespaces_encryption(
+	THD*		thd,
+	fil_space_t*	space,
+	TABLE*		table_to_fill)
+{
+	Field**	fields;
+	struct fil_space_crypt_status_t status;
+
+	DBUG_ENTER("i_s_dict_fill_tablespaces_encryption");
+
+	fields = table_to_fill->field;
+
+	fil_space_crypt_get_status(space, &status);
+
+	/* If tablespace id does not match, we did not find
+	encryption information for this tablespace. */
+	if (!space->crypt_data || space->id != status.space) {
+		goto skip;
+	}
+
+	OK(fields[TABLESPACES_ENCRYPTION_SPACE]->store(space->id, true));
+
+	OK(field_store_string(fields[TABLESPACES_ENCRYPTION_NAME],
+			      space->name));
+
+	OK(fields[TABLESPACES_ENCRYPTION_ENCRYPTION_SCHEME]->store(
+		   status.scheme, true));
+	OK(fields[TABLESPACES_ENCRYPTION_KEYSERVER_REQUESTS]->store(
+		   status.keyserver_requests, true));
+	OK(fields[TABLESPACES_ENCRYPTION_MIN_KEY_VERSION]->store(
+                   status.min_key_version, true));
+	OK(fields[TABLESPACES_ENCRYPTION_CURRENT_KEY_VERSION]->store(
+		   status.current_key_version, true));
+	OK(fields[TABLESPACES_ENCRYPTION_CURRENT_KEY_ID]->store(
+		   status.key_id, true));
+	OK(fields[TABLESPACES_ENCRYPTION_ROTATING_OR_FLUSHING]->store(
+		   status.rotating || status.flushing, true));
+
+	if (status.rotating) {
+		fields[TABLESPACES_ENCRYPTION_KEY_ROTATION_PAGE_NUMBER]->set_notnull();
+		OK(fields[TABLESPACES_ENCRYPTION_KEY_ROTATION_PAGE_NUMBER]->store(
+			   status.rotate_next_page_number, true));
+		fields[TABLESPACES_ENCRYPTION_KEY_ROTATION_MAX_PAGE_NUMBER]->set_notnull();
+		OK(fields[TABLESPACES_ENCRYPTION_KEY_ROTATION_MAX_PAGE_NUMBER]->store(
+			   status.rotate_max_page_number, true));
+	} else {
+		fields[TABLESPACES_ENCRYPTION_KEY_ROTATION_PAGE_NUMBER]
+			->set_null();
+		fields[TABLESPACES_ENCRYPTION_KEY_ROTATION_MAX_PAGE_NUMBER]
+			->set_null();
+	}
+
+	OK(schema_table_store_record(thd, table_to_fill));
+
+skip:
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Function to populate INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION table.
+Loop through each record in TABLESPACES_ENCRYPTION, and extract the column
+information and fill the INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION table.
+@return 0 on success */
+static
+int
+i_s_tablespaces_encryption_fill_table(
+/*===========================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
+{
+	btr_pcur_t	pcur;
+	const rec_t*	rec;
+	mem_heap_t*	heap;
+	mtr_t		mtr;
+	bool		found_space_0 = false;
+
+	DBUG_ENTER("i_s_tablespaces_encryption_fill_table");
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
+	/* deny access to user without PROCESS_ACL privilege */
+	if (check_global_access(thd, SUPER_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	heap = mem_heap_create(1000);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
+
+	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLESPACES);
+
+	while (rec) {
+		const char*	err_msg;
+		ulint		space_id;
+		const char*	name;
+		ulint		flags;
+
+		/* Extract necessary information from a SYS_TABLESPACES row */
+		err_msg = dict_process_sys_tablespaces(
+			heap, rec, &space_id, &name, &flags);
+
+		mtr_commit(&mtr);
+		mutex_exit(&dict_sys->mutex);
+
+		if (space_id == 0) {
+			found_space_0 = true;
+		}
+
+		fil_space_t* space = fil_space_acquire_silent(space_id);
+
+		if (!err_msg && space) {
+			i_s_dict_fill_tablespaces_encryption(
+				thd, space, tables->table);
+		} else {
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
+					    err_msg);
+		}
+
+		if (space) {
+			fil_space_release(space);
+		}
+
+		mem_heap_empty(heap);
+
+		/* Get the next record */
+		mutex_enter(&dict_sys->mutex);
+		mtr_start(&mtr);
+		rec = dict_getnext_system(&pcur, &mtr);
+	}
+
+	mtr_commit(&mtr);
+	mutex_exit(&dict_sys->mutex);
+	mem_heap_free(heap);
+
+	if (found_space_0 == false) {
+		/* space 0 does for what ever unknown reason not show up
+		* in iteration above, add it manually */
+
+		fil_space_t* space = fil_space_acquire_silent(0);
+
+		i_s_dict_fill_tablespaces_encryption(
+			thd, space, tables->table);
+
+		fil_space_release(space);
+	}
+
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+@return 0 on success */
+static
+int
+innodb_tablespaces_encryption_init(
+/*========================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	ST_SCHEMA_TABLE*	schema;
+
+	DBUG_ENTER("innodb_tablespaces_encryption_init");
+
+	schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = innodb_tablespaces_encryption_fields_info;
+	schema->fill_table = i_s_tablespaces_encryption_fill_table;
+
+	DBUG_RETURN(0);
+}
+
+struct st_mysql_plugin	i_s_innodb_tablespaces_encryption =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_TABLESPACES_ENCRYPTION"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, "Google Inc"),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB TABLESPACES_ENCRYPTION"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_BSD),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, innodb_tablespaces_encryption_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL)
+};
+
+/**  TABLESPACES_SCRUBBING    ********************************************/
+/* Fields of the table INFORMATION_SCHEMA.INNODB_TABLESPACES_SCRUBBING */
+static ST_FIELD_INFO    innodb_tablespaces_scrubbing_fields_info[] =
+{
+#define TABLESPACES_SCRUBBING_SPACE     0
+        {STRUCT_FLD(field_name,         "SPACE"),
+         STRUCT_FLD(field_length,       MY_INT64_NUM_DECIMAL_DIGITS),
+         STRUCT_FLD(field_type,         MYSQL_TYPE_LONGLONG),
+         STRUCT_FLD(value,              0),
+         STRUCT_FLD(field_flags,        MY_I_S_UNSIGNED),
+         STRUCT_FLD(old_name,           ""),
+         STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_SCRUBBING_NAME              1
+        {STRUCT_FLD(field_name,         "NAME"),
+         STRUCT_FLD(field_length,       MAX_FULL_NAME_LEN + 1),
+         STRUCT_FLD(field_type,         MYSQL_TYPE_STRING),
+         STRUCT_FLD(value,              0),
+         STRUCT_FLD(field_flags,        MY_I_S_MAYBE_NULL),
+         STRUCT_FLD(old_name,           ""),
+         STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_SCRUBBING_COMPRESSED        2
+        {STRUCT_FLD(field_name,         "COMPRESSED"),
+         STRUCT_FLD(field_length,       MY_INT32_NUM_DECIMAL_DIGITS),
+         STRUCT_FLD(field_type,         MYSQL_TYPE_LONG),
+         STRUCT_FLD(value,              0),
+         STRUCT_FLD(field_flags,        MY_I_S_UNSIGNED),
+         STRUCT_FLD(old_name,           ""),
+         STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_SCRUBBING_LAST_SCRUB_COMPLETED      3
+        {STRUCT_FLD(field_name,         "LAST_SCRUB_COMPLETED"),
+         STRUCT_FLD(field_length,       0),
+         STRUCT_FLD(field_type,         MYSQL_TYPE_DATETIME),
+         STRUCT_FLD(value,              0),
+         STRUCT_FLD(field_flags,        MY_I_S_MAYBE_NULL),
+         STRUCT_FLD(old_name,           ""),
+         STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_SCRUBBING_CURRENT_SCRUB_STARTED     4
+        {STRUCT_FLD(field_name,         "CURRENT_SCRUB_STARTED"),
+         STRUCT_FLD(field_length,       0),
+         STRUCT_FLD(field_type,         MYSQL_TYPE_DATETIME),
+         STRUCT_FLD(value,              0),
+         STRUCT_FLD(field_flags,        MY_I_S_MAYBE_NULL),
+         STRUCT_FLD(old_name,           ""),
+         STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_SCRUBBING_CURRENT_SCRUB_ACTIVE_THREADS      5
+        {STRUCT_FLD(field_name,         "CURRENT_SCRUB_ACTIVE_THREADS"),
+         STRUCT_FLD(field_length,       MY_INT32_NUM_DECIMAL_DIGITS),
+         STRUCT_FLD(field_type,         MYSQL_TYPE_LONG),
+         STRUCT_FLD(value,              0),
+         STRUCT_FLD(field_flags,        MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
+         STRUCT_FLD(old_name,           ""),
+         STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_SCRUBBING_CURRENT_SCRUB_PAGE_NUMBER 6
+        {STRUCT_FLD(field_name,         "CURRENT_SCRUB_PAGE_NUMBER"),
+         STRUCT_FLD(field_length,       MY_INT64_NUM_DECIMAL_DIGITS),
+         STRUCT_FLD(field_type,         MYSQL_TYPE_LONGLONG),
+         STRUCT_FLD(value,              0),
+         STRUCT_FLD(field_flags,        MY_I_S_UNSIGNED),
+         STRUCT_FLD(old_name,           ""),
+         STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_SCRUBBING_CURRENT_SCRUB_MAX_PAGE_NUMBER     7
+        {STRUCT_FLD(field_name,         "CURRENT_SCRUB_MAX_PAGE_NUMBER"),
+         STRUCT_FLD(field_length,       MY_INT64_NUM_DECIMAL_DIGITS),
+         STRUCT_FLD(field_type,         MYSQL_TYPE_LONGLONG),
+         STRUCT_FLD(value,              0),
+         STRUCT_FLD(field_flags,        MY_I_S_UNSIGNED),
+         STRUCT_FLD(old_name,           ""),
+         STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
+
+#define TABLESPACES_ENCRYPTION_ROTATING_OR_FLUSHING 9
+        {STRUCT_FLD(field_name,         "ROTATING_OR_FLUSHING"),
+         STRUCT_FLD(field_length,       MY_INT32_NUM_DECIMAL_DIGITS),
+         STRUCT_FLD(field_type,         MYSQL_TYPE_LONG),
+         STRUCT_FLD(value,              0),
+         STRUCT_FLD(field_flags,        MY_I_S_UNSIGNED),
+         STRUCT_FLD(old_name,           ""),
+         STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
+
+        END_OF_ST_FIELD_INFO
+};
+
+/**********************************************************************//**
+Function to fill INFORMATION_SCHEMA.INNODB_TABLESPACES_SCRUBBING
+with information collected by scanning SYS_TABLESPACES table and
+fil_space.
+@param[in]      thd             Thread handle
+@param[in]      space           Tablespace
+@param[in]      table_to_fill   I_S table
+@return 0 on success */
+static
+int
+i_s_dict_fill_tablespaces_scrubbing(
+        THD*            thd,
+        fil_space_t*    space,
+        TABLE*          table_to_fill)
+{
+        Field** fields;
+        struct fil_space_scrub_status_t status;
+
+        DBUG_ENTER("i_s_dict_fill_tablespaces_scrubbing");
+
+        fields = table_to_fill->field;
+
+        fil_space_get_scrub_status(space, &status);
+
+        OK(fields[TABLESPACES_SCRUBBING_SPACE]->store(space->id, true));
+
+        OK(field_store_string(fields[TABLESPACES_SCRUBBING_NAME],
+                              space->name));
+
+        OK(fields[TABLESPACES_SCRUBBING_COMPRESSED]->store(
+                   status.compressed ? 1 : 0, true));
+
+        if (status.last_scrub_completed == 0) {
+                fields[TABLESPACES_SCRUBBING_LAST_SCRUB_COMPLETED]->set_null();
+        } else {
+                fields[TABLESPACES_SCRUBBING_LAST_SCRUB_COMPLETED]
+                        ->set_notnull();
+                OK(field_store_time_t(
+                           fields[TABLESPACES_SCRUBBING_LAST_SCRUB_COMPLETED],
+                           status.last_scrub_completed));
+        }
+
+        int field_numbers[] = {
+                TABLESPACES_SCRUBBING_CURRENT_SCRUB_STARTED,
+                TABLESPACES_SCRUBBING_CURRENT_SCRUB_ACTIVE_THREADS,
+                TABLESPACES_SCRUBBING_CURRENT_SCRUB_PAGE_NUMBER,
+                TABLESPACES_SCRUBBING_CURRENT_SCRUB_MAX_PAGE_NUMBER };
+
+        if (status.scrubbing) {
+                for (uint i = 0; i < array_elements(field_numbers); i++) {
+                        fields[field_numbers[i]]->set_notnull();
+                }
+
+                OK(field_store_time_t(
+                           fields[TABLESPACES_SCRUBBING_CURRENT_SCRUB_STARTED],
+                           status.current_scrub_started));
+                OK(fields[TABLESPACES_SCRUBBING_CURRENT_SCRUB_ACTIVE_THREADS]
+                   ->store(status.current_scrub_active_threads, true));
+                OK(fields[TABLESPACES_SCRUBBING_CURRENT_SCRUB_PAGE_NUMBER]
+                   ->store(status.current_scrub_page_number, true));
+                OK(fields[TABLESPACES_SCRUBBING_CURRENT_SCRUB_MAX_PAGE_NUMBER]
+                   ->store(status.current_scrub_max_page_number, true));
+        } else {
+                for (uint i = 0; i < array_elements(field_numbers); i++) {
+                        fields[field_numbers[i]]->set_null();
+                }
+        }
+
+        OK(schema_table_store_record(thd, table_to_fill));
+
+        DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Function to populate INFORMATION_SCHEMA.INNODB_TABLESPACES_SCRUBBING table.
+Loop through each record in TABLESPACES_SCRUBBING, and extract the column
+information and fill the INFORMATION_SCHEMA.INNODB_TABLESPACES_SCRUBBING table.
+@return 0 on success */
+static
+int
+i_s_tablespaces_scrubbing_fill_table(
+/*===========================*/
+        THD*            thd,    /*!< in: thread */
+        TABLE_LIST*     tables, /*!< in/out: tables to fill */
+        Item*           )       /*!< in: condition (not used) */
+{
+        DBUG_ENTER("i_s_tablespaces_scrubbing_fill_table");
+        RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
+        /* deny access to user without SUPER_ACL privilege */
+        if (check_global_access(thd, SUPER_ACL)) {
+                DBUG_RETURN(0);
+        }
+
+        mutex_enter(&fil_system->mutex);
+
+        for (fil_space_t* space = UT_LIST_GET_FIRST(fil_system->space_list);
+             space; space = UT_LIST_GET_NEXT(space_list, space)) {
+                if (space->purpose == FIL_TYPE_TABLESPACE
+                    && !space->is_stopping()) {
+			//fil_space_acquire_silent(space->id);
+                        mutex_exit(&fil_system->mutex);
+                        if (int err = i_s_dict_fill_tablespaces_scrubbing(
+                                    thd, space, tables->table)) {
+				//fil_space_release(space);
+                                DBUG_RETURN(err);
+                        }
+                        mutex_enter(&fil_system->mutex);
+                        //space->release();
+                }
+        }
+
+        mutex_exit(&fil_system->mutex);
+        DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_TABLESPACES_SCRUBBING
+@return 0 on success */
+static
+int
+innodb_tablespaces_scrubbing_init(
+/*========================*/
+        void*   p)      /*!< in/out: table schema object */
+{
+        ST_SCHEMA_TABLE*        schema;
+
+        DBUG_ENTER("innodb_tablespaces_scrubbing_init");
+
+        schema = (ST_SCHEMA_TABLE*) p;
+
+        schema->fields_info = innodb_tablespaces_scrubbing_fields_info;
+        schema->fill_table = i_s_tablespaces_scrubbing_fill_table;
+
+        DBUG_RETURN(0);
+}
+
+struct st_mysql_plugin      i_s_innodb_tablespaces_scrubbing =
+{
+        /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+        /* int */
+        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+        /* pointer to type-specific plugin descriptor */
+        /* void* */
+        STRUCT_FLD(info, &i_s_info),
+
+        /* plugin name */
+        /* const char* */
+        STRUCT_FLD(name, "INNODB_TABLESPACES_SCRUBBING"),
+
+        /* plugin author (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(author, "Google Inc"),
+
+        /* general descriptive text (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(descr, "InnoDB TABLESPACES_SCRUBBING"),
+
+        /* the plugin license (PLUGIN_LICENSE_XXX) */
+        /* int */
+        STRUCT_FLD(license, PLUGIN_LICENSE_BSD),
+
+        /* the function to invoke when plugin is loaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(init, innodb_tablespaces_scrubbing_init),
+
+        /* the function to invoke when plugin is unloaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(deinit, i_s_common_deinit),
+
+        /* plugin version (for SHOW PLUGINS) */
+        /* unsigned int */
+        STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+        /* struct st_mysql_show_var* */
+        STRUCT_FLD(status_vars, NULL),
+
+        /* struct st_mysql_sys_var** */
+        STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL)
+};
+

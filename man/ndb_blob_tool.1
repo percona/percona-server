@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_blob_tool\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_BLOB_TOOL\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_BLOB_TOOL\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -93,10 +93,72 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.90.\ \& This table describes command\-line options for the ndb_blob_tool program
+.B Table\ \&21.333.\ \&Command\-line options for the ndb_blob_tool program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--check-orphans
+T}:T{
+Check for orphan blob parts
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--database=db_name,
+.PP
+-d
+T}:T{
+Database to find the table in.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--delete-orphans
+T}:T{
+Delete orphan blob parts
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--dump-file=file
+T}:T{
+Write orphan keys to specified file
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--verbose,
+.PP
+-v
+T}:T{
+Verbose output
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
 .TE
 .sp 1
 .sp
@@ -111,23 +173,28 @@ allbox tab(:);
 \fB\-\-check\-orphans\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-check\-orphans
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--check-orphans
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -148,23 +215,28 @@ Check for orphaned BLOB parts in NDB Cluster tables\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-database=db_name
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--database=db_name
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -184,23 +256,28 @@ Specify the database to find the table in\&.
 \fB\-\-delete\-orphans\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-delete\-orphans
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--delete-orphans
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -220,23 +297,28 @@ Remove orphaned BLOB parts from NDB Cluster tables\&.
 \fB\-\-dump\-file=\fR\fB\fIfile\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-dump\-file=file
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--dump-file=file
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -257,23 +339,28 @@ Writes a list of orphaned BLOB column parts to
 \fB\-\-verbose\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-verbose
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--verbose
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -377,7 +464,7 @@ Section\ \&11.8, \(lqData Type Storage Requirements\(rq, for more information\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

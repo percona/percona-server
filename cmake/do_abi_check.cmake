@@ -55,6 +55,7 @@ SET(abi_check_out ${BINARY_DIR}/abi_check.out)
 FOREACH(file ${ABI_HEADERS})
   GET_FILENAME_COMPONENT(header_basename ${file} NAME)
   SET(tmpfile ${BINARY_DIR}/${header_basename}.pp.tmp)
+  SET(errorfile ${BINARY_DIR}/${header_basename}.pp.err)
 
   EXECUTE_PROCESS(
     COMMAND ${COMPILER} 
@@ -62,7 +63,7 @@ FOREACH(file ${ABI_HEADERS})
       -I${BINARY_DIR}/include -I${SOURCE_DIR}/include/mysql -I${SOURCE_DIR}/sql
       -I${SOURCE_DIR}/libbinlogevents/export
       ${file} 
-      ERROR_QUIET OUTPUT_FILE ${tmpfile})
+      ERROR_FILE ${errorfile} OUTPUT_FILE ${tmpfile})
   EXECUTE_PROCESS(
     COMMAND sed -e "/^# /d"
                 -e "/^[	]*$/d"
@@ -77,8 +78,10 @@ FOREACH(file ${ABI_HEADERS})
     COMMAND diff -w ${file}.pp ${abi_check_out} RESULT_VARIABLE result)
   IF(NOT ${result} EQUAL 0)
     MESSAGE(FATAL_ERROR 
-      "ABI check found difference between ${file}.pp and ${abi_check_out}")
+      "ABI check found difference between ${file}.pp and ${abi_check_out}, "
+      "compilation error file can be found here: ${errorfile}")
   ENDIF()
+  FILE(REMOVE ${errorfile})
   FILE(REMOVE ${abi_check_out})
 ENDFOREACH()
 

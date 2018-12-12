@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -139,7 +139,7 @@ flush\-logs [\fIlog_type\fR \&.\&.\&.]
 .sp
 Flush all logs\&.
 .sp
-As of MySQL 5\&.7\&.5, the
+The
 \fBmysqladmin flush\-logs\fR
 command permits optional log types to be given, to specify which logs to flush\&. Following the
 flush\-logs
@@ -259,7 +259,27 @@ for the account that you use with
 for connecting to the server\&. Thus, the next time you invoke
 \fBmysqladmin\fR
 (or any other client program) using the same account, you will need to specify the new password\&.
+.if n \{\
 .sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+Setting a password using
+\fBmysqladmin\fR
+should be considered
+\fIinsecure\fR\&. On some systems, your password becomes visible to system status programs such as
+\fBps\fR
+that may be invoked by other users to display command lines\&. MySQL clients typically overwrite the command\-line password argument with zeros during their initialization sequence\&. However, there is still a brief interval during which the value is visible\&. Also, on some systems this overwriting strategy is ineffective and the password remains visible to
+\fBps\fR\&. (SystemV Unix systems and perhaps others are subject to this problem\&.)
+.sp .5v
+.RE
 If the
 \fInew_password\fR
 value contains spaces or other characters that are special to your command interpreter, you need to enclose it within quotation marks\&. On Windows, be sure to use double quotation marks rather than single quotation marks; single quotation marks are not stripped from the password, but rather are interpreted as part of the password\&. For example:
@@ -623,7 +643,7 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -727,7 +747,7 @@ Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -805,7 +825,7 @@ groups\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
+Section\ \&6.5.1.6, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -822,6 +842,35 @@ Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 Do not ask for confirmation for the
 drop \fIdb_name\fR
 command\&. With multiple commands, continue even if an error occurs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-get\-server\-public\-key\fR
+.sp
+Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that that authenticate with the
+caching_sha2_password
+authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For information about the
+caching_sha2_password
+plugin, see
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-get\-server\-public\-key\fR
+option was added in MySQL 5\&.7\&.23\&.
 .RE
 .sp
 .RS 4
@@ -1025,7 +1074,7 @@ command\&.
 .\}
 \fB\-\-show\-warnings\fR
 .sp
-Show warnings resulting from execution of statements sent to the server\&. This option was added in MySQL 5\&.7\&.2\&.
+Show warnings resulting from execution of statements sent to the server\&.
 .RE
 .sp
 .RS 4
@@ -1038,7 +1087,7 @@ Show warnings resulting from execution of statements sent to the server\&. This 
 .\}
 \fB\-\-secure\-auth\fR
 .sp
-Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&. This option was added in MySQL 5\&.7\&.4\&.
+Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
 As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
 \fB\-\-secure\-auth=0\fR) produces an error\&. Before MySQL 5\&.7\&.5, this option is enabled by default but can be disabled\&.
@@ -1068,10 +1117,47 @@ Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+.sp
+The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
+sha256_password
+or
+caching_sha2_password
+authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For
+sha256_password, this option applies only if MySQL was built using OpenSSL\&.
+.sp
+For information about the
+sha256_password
+and
+caching_sha2_password
+plugins, see
+Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-server\-public\-key\-path\fR
+option was added in MySQL 5\&.7\&.23\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
-MYSQL\&. The shared\-memory name is case sensitive\&.
+MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
 The server must be started with the
 \fB\-\-shared\-memory\fR
@@ -1265,7 +1351,7 @@ The maximum number of seconds to wait for server shutdown\&. The default value i
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

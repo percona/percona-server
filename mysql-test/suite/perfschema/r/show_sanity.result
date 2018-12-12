@@ -407,11 +407,23 @@ where show_mode = "JUNK: GLOBAL-ONLY"
     and source = "I_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_VARIABLES	BINLOG_TRANSACTION_DEPENDENCY_HISTORY_SIZE
+5.6	I_S.SESSION_VARIABLES	BINLOG_TRANSACTION_DEPENDENCY_TRACKING
+5.6	I_S.SESSION_VARIABLES	ENCRYPT_BINLOG
 5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
+5.6	I_S.SESSION_VARIABLES	INNODB_BACKGROUND_SCRUB_DATA_CHECK_INTERVAL
+5.6	I_S.SESSION_VARIABLES	INNODB_BACKGROUND_SCRUB_DATA_COMPRESSED
+5.6	I_S.SESSION_VARIABLES	INNODB_BACKGROUND_SCRUB_DATA_INTERVAL
+5.6	I_S.SESSION_VARIABLES	INNODB_BACKGROUND_SCRUB_DATA_UNCOMPRESSED
 5.6	I_S.SESSION_VARIABLES	INNODB_COMPRESSED_COLUMNS_THRESHOLD
 5.6	I_S.SESSION_VARIABLES	INNODB_COMPRESSED_COLUMNS_ZIP_LEVEL
 5.6	I_S.SESSION_VARIABLES	INNODB_DEADLOCK_DETECT
+5.6	I_S.SESSION_VARIABLES	INNODB_DEBUG_FORCE_SCRUBBING
+5.6	I_S.SESSION_VARIABLES	INNODB_IMMEDIATE_SCRUB_DATA_UNCOMPRESSED
+5.6	I_S.SESSION_VARIABLES	INNODB_SCRUB_LOG
+5.6	I_S.SESSION_VARIABLES	INNODB_SCRUB_LOG_SPEED
 5.6	I_S.SESSION_VARIABLES	INNODB_STATS_INCLUDE_DELETE_MARKED
+5.6	I_S.SESSION_VARIABLES	KEYRING_OPERATIONS
 5.6	I_S.SESSION_VARIABLES	KILL_IDLE_TRANSACTION
 5.6	I_S.SESSION_VARIABLES	LOG_STATEMENTS_UNSAFE_FOR_BINLOG
 5.6	I_S.SESSION_VARIABLES	TLS_VERSION
@@ -435,11 +447,23 @@ where show_mode = "JUNK: GLOBAL-ONLY"
     and source = "I_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_VARIABLES	BINLOG_TRANSACTION_DEPENDENCY_HISTORY_SIZE
+5.6	I_S.SESSION_VARIABLES	BINLOG_TRANSACTION_DEPENDENCY_TRACKING
+5.6	I_S.SESSION_VARIABLES	ENCRYPT_BINLOG
 5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
+5.6	I_S.SESSION_VARIABLES	INNODB_BACKGROUND_SCRUB_DATA_CHECK_INTERVAL
+5.6	I_S.SESSION_VARIABLES	INNODB_BACKGROUND_SCRUB_DATA_COMPRESSED
+5.6	I_S.SESSION_VARIABLES	INNODB_BACKGROUND_SCRUB_DATA_INTERVAL
+5.6	I_S.SESSION_VARIABLES	INNODB_BACKGROUND_SCRUB_DATA_UNCOMPRESSED
 5.6	I_S.SESSION_VARIABLES	INNODB_COMPRESSED_COLUMNS_THRESHOLD
 5.6	I_S.SESSION_VARIABLES	INNODB_COMPRESSED_COLUMNS_ZIP_LEVEL
 5.6	I_S.SESSION_VARIABLES	INNODB_DEADLOCK_DETECT
+5.6	I_S.SESSION_VARIABLES	INNODB_DEBUG_FORCE_SCRUBBING
+5.6	I_S.SESSION_VARIABLES	INNODB_IMMEDIATE_SCRUB_DATA_UNCOMPRESSED
+5.6	I_S.SESSION_VARIABLES	INNODB_SCRUB_LOG
+5.6	I_S.SESSION_VARIABLES	INNODB_SCRUB_LOG_SPEED
 5.6	I_S.SESSION_VARIABLES	INNODB_STATS_INCLUDE_DELETE_MARKED
+5.6	I_S.SESSION_VARIABLES	KEYRING_OPERATIONS
 5.6	I_S.SESSION_VARIABLES	KILL_IDLE_TRANSACTION
 5.6	I_S.SESSION_VARIABLES	LOG_STATEMENTS_UNSAFE_FOR_BINLOG
 5.6	I_S.SESSION_VARIABLES	TLS_VERSION
@@ -670,6 +694,13 @@ where (show_mode = "JUNK: GLOBAL-ONLY")
 and source = "I_S.SESSION_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_reorganizations
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_splits
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_missing_index
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_out_of_filespace
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_underflow
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_unknown
+5.7	P_S.SESSION_STATUS	Innodb_scrub_log
 
 ================================================================================
 TEST 13
@@ -712,6 +743,13 @@ where show_mode = "5.7"
     and source = "P_S.STATUS_BY_ACCOUNT")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_reorganizations
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_splits
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_missing_index
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_out_of_filespace
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_underflow
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_unknown
+5.7	P_S.SESSION_STATUS	Innodb_scrub_log
 
 ================================================================================
 TEST 15
@@ -767,6 +805,13 @@ where show_mode = "5.7"
     and source = "P_S.STATUS_BY_USER")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_reorganizations
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_splits
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_missing_index
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_out_of_filespace
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_underflow
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_unknown
+5.7	P_S.SESSION_STATUS	Innodb_scrub_log
 
 ================================================================================
 TEST 18
@@ -821,6 +866,13 @@ where show_mode = "5.7"
     and source = "P_S.STATUS_BY_HOST")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_reorganizations
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_splits
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_missing_index
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_out_of_filespace
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_underflow
+5.7	P_S.SESSION_STATUS	Innodb_scrub_background_page_split_failures_unknown
+5.7	P_S.SESSION_STATUS	Innodb_scrub_log
 
 ================================================================================
 TEST 21

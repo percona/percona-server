@@ -1,7 +1,0 @@
---source include/big_test.inc
---source include/have_innodb.inc
-
---let $file_format= Antelope
---let $compressed_attribute= COLUMN_FORMAT COMPRESSED
---let $row_format= REDUNDANT
---source suite/innodb/include/xtradb_compressed_columns_check_type_superset.inc

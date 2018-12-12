@@ -1951,7 +1951,7 @@ pars_create_table(
 		column = static_cast<sym_node_t*>(que_node_get_next(column));
 	}
 
-	node = tab_create_graph_create(table, pars_sym_tab_global->heap);
+	node = tab_create_graph_create(table, pars_sym_tab_global->heap, FIL_ENCRYPTION_DEFAULT, CreateInfoEncryptionKeyId());
 
 	table_sym->resolved = TRUE;
 	table_sym->token_type = SYM_TABLE;

@@ -80,7 +80,8 @@ public:
 		m_total_data(0),
 #endif /* UNIV_DEBUG */
 		m_modify_clock(0),
-		m_flush_observer(observer)
+		m_flush_observer(observer),
+		m_err(DB_SUCCESS)
 	{
 		ut_ad(!dict_index_is_spatial(m_index));
 	}
@@ -154,7 +155,7 @@ public:
 	inline void release();
 
 	/** Start mtr and latch block */
-	inline void latch();
+        inline dberr_t latch();
 
 	/** Check if required space is available in the page for the rec
 	to be inserted.	We check fill factor & padding here.
@@ -190,6 +191,11 @@ public:
 	page_zip_des_t*	getPageZip()
 	{
 		return(m_page_zip);
+	}
+
+	dberr_t getError()
+	{
+		return(m_err);
 	}
 
 	/* Memory heap for internal allocation */
@@ -252,6 +258,9 @@ private:
 
 	/** Flush observer */
 	FlushObserver*	m_flush_observer;
+
+	/** Operation result DB_SUCCESS or error code */
+	dberr_t		m_err;
 };
 
 typedef std::vector<PageBulk*, ut_allocator<PageBulk*> >

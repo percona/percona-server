@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -743,6 +743,9 @@ buf_flush_dirty_pages(
 		err = buf_flush_or_remove_pages(
 			buf_pool, id, observer, flush, trx);
 
+	        ut_ad(err == DB_INTERRUPTED || err == DB_FAIL
+	              || buf_pool_get_dirty_pages_count(buf_pool, id, observer) == 0);
+
 		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		ut_ad(buf_flush_validate(buf_pool));
@@ -765,8 +768,6 @@ buf_flush_dirty_pages(
 
 	} while (err == DB_FAIL);
 
-	ut_ad(err == DB_INTERRUPTED
-	      || buf_pool_get_dirty_pages_count(buf_pool, id, observer) == 0);
 }
 
 /******************************************************************//**
@@ -2152,7 +2153,7 @@ not_freed:
 	}
 
 	if (b) {
-		memcpy(b, bpage, sizeof *b);
+		new (b) buf_page_t(*bpage);
 	}
 
 	if (!buf_LRU_block_remove_hashed(bpage, zip)) {

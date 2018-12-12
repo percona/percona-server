@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -83,6 +83,10 @@ struct fts_psort_t {
 						/*!< buffer to write to file */
 	row_merge_block_t*	block_alloc[FTS_NUM_AUX_INDEX];
 						/*!< buffer to allocated */
+	row_merge_block_t*	crypt_block[FTS_NUM_AUX_INDEX];
+						/*!< buffer to crypt data */
+	row_merge_block_t*	crypt_alloc[FTS_NUM_AUX_INDEX];
+						/*!< buffer to allocated */
 	ulint			child_status;	/*!< child thread status */
 	ulint			state;		/*!< parent thread state */
 	fts_doc_list_t		fts_doc_list;	/*!< doc list to process */
@@ -105,6 +109,8 @@ typedef UT_LIST_BASE_NODE_T(row_fts_token_t)     fts_token_list_t;
 
 /** Structure stores information from string tokenization operation */
 struct fts_tokenize_ctx {
+	fts_tokenize_ctx() { memset(this, 0, sizeof(*this)); }
+
 	ulint			processed_len;  /*!< processed string length */
 	ulint			init_pos;       /*!< doc start position */
 	ulint			buf_used;       /*!< the sort buffer (ID) when

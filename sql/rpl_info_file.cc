@@ -109,7 +109,14 @@ file '%s')", info_fname);
   else if (ret_check == REPOSITORY_EXISTS)
   {
     if (info_fd >= 0)
-      reinit_io_cache(&info_file, READ_CACHE, 0L,0,0);
+    {
+      if (reinit_io_cache(&info_file, READ_CACHE, 0L, 0, 0))
+      {
+        sql_print_error("Failed to recreate a cache on info file (\
+file '%s')", info_fname);
+        error= 1;
+      }
+    }  
     else
     {
       if ((info_fd = my_open(info_fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
@@ -125,12 +132,12 @@ file '%s', errno %d)", info_fname, my_errno());
 file '%s')", info_fname);
         error= 1;
       }
-      if (error)
-      {
-        if (info_fd >= 0)
-          my_close(info_fd, MYF(0));
-        info_fd= -1;
-      }
+    }
+    if (error)
+    {
+      if (info_fd >= 0)
+        my_close(info_fd, MYF(0));
+      info_fd= -1;
     }
   }
   else

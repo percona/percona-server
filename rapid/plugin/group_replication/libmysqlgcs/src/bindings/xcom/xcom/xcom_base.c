@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -258,6 +258,10 @@
 #include <windows.h>
 #endif
 
+#ifndef _WIN32
+#include <poll.h>
+#endif
+
 #include "xdr_utils.h"
 #include "xcom_common.h"
 
@@ -307,6 +311,7 @@
 
 /* {{{ Defines and constants */
 
+#define SYS_STRERROR_SIZE 512
 #define TERMINATE_DELAY 3.0
 #define EVENT_HORIZON_MIN 10
 unsigned int event_horizon = EVENT_HORIZON_MIN;
@@ -500,9 +505,6 @@ static bool_t is_dead_site(uint32_t id)
 	}
 	return FALSE;
 }
-
-define_xdr_funcs(node_no)
-
 
 extern node_set *init_node_set(node_set *set, u_int n);
 extern node_set *alloc_node_set(node_set *set, u_int n);
@@ -1062,6 +1064,7 @@ static xcom_state_change_cb xcom_run_cb = 0;
 static xcom_state_change_cb xcom_terminate_cb = 0;
 static xcom_state_change_cb xcom_comms_cb = 0;
 static xcom_state_change_cb xcom_exit_cb = 0;
+static xcom_state_change_cb xcom_expel_cb = 0;
 
 void set_xcom_run_cb(xcom_state_change_cb x)
 {
@@ -1081,6 +1084,11 @@ void set_xcom_terminate_cb(xcom_state_change_cb x)
 void set_xcom_exit_cb(xcom_state_change_cb x)
 {
 	xcom_exit_cb = x;
+}
+
+void set_xcom_expel_cb(xcom_state_change_cb x)
+{
+	xcom_expel_cb = x;
 }
 
 int	xcom_taskmain2(xcom_port listen_port)
@@ -1426,7 +1434,7 @@ uint32_t new_id()
 static synode_no getstart(app_data_ptr a)
 {
 	synode_no retval = null_synode;
-	G_MESSAGE("getstart group_id %x", a->group_id);
+	G_DEBUG("getstart group_id %x", a->group_id);
 	if (!a || a->group_id == null_id) {
 		retval.group_id = new_id();
 	} else {
@@ -1440,7 +1448,7 @@ static synode_no getstart(app_data_ptr a)
 	return retval;
 }
 
-void site_install_action(site_def *site)
+void site_install_action(site_def *site, cargo_type operation)
 {
 	DBGOUT(FN; NDBG(get_nodeno(get_site_def()), u));
 	if (synode_gt(site->start, max_synode))
@@ -1450,7 +1458,7 @@ void site_install_action(site_def *site)
 	DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_site_def(site)));
 	set_group(get_group_id(site));
 	if(get_maxnodes(get_site_def())){
-		update_servers(site);
+		update_servers(site, operation);
 	}
 	site->install_time = task_now();
 	DBGOUT(FN; SYCEXP(site->start); SYCEXP(site->boot_key));
@@ -1475,7 +1483,7 @@ static site_def * install_ng_with_start(app_data_ptr a, synode_no start)
 {
 	if (a) {
 		site_def *site = create_site_def_with_start(a, start);
-		site_install_action(site);
+		site_install_action(site, a->body.c_t);
 		return site;
 	}
 	return 0;
@@ -2211,7 +2219,7 @@ site_def *handle_add_node(app_data_ptr a)
 	    a->body.app_u_u.nodes.node_list_val, site);
 	site->start = getstart(a);
 	site->boot_key = a->app_key;
-	site_install_action(site);
+	site_install_action(site, a->body.c_t);
 	return site;
 }
 
@@ -2219,6 +2227,7 @@ static void	terminate_and_exit()
 {
 	XCOM_FSM(xa_terminate, int_arg(0));	/* Tell xcom to stop */
 	XCOM_FSM(xa_exit, int_arg(0));		/* Tell xcom to exit */
+	if (xcom_expel_cb) xcom_expel_cb(0);
 }
 
 int	terminator_task(task_arg arg)
@@ -2256,11 +2265,12 @@ site_def *handle_remove_node(app_data_ptr a)
 	    add_event(string_arg("nodeno"));
 	    add_event(uint_arg(get_nodeno(site)));
 	);
+
 	remove_site_def(a->body.app_u_u.nodes.node_list_len,
 	    a->body.app_u_u.nodes.node_list_val, site);
 	site->start = getstart(a);
 	site->boot_key = a->app_key;
-	site_install_action(site);
+	site_install_action(site, a->body.c_t);
 	return site;
 }
 
@@ -3345,9 +3355,26 @@ static void	handle_client_msg(pax_msg *p)
 static double	sent_alive = 0.0;
 static inline void	handle_alive(site_def const * site, linkage *reply_queue, pax_msg *pm)
 {
+	int not_to_oneself = (pm->from != get_nodeno(site) && pm->from != pm->to);
 	DBGOUT(FN; SYCEXP(pm->synode); NDBG(pm->from,u); NDBG(pm->to,u); );
-	if (pm->from != pm->to && !client_boot_done && /* Already done? */
-	!is_dead_site(pm->group_id)) { /* Avoid dealing with zombies */
+
+	/*
+	  This code will check if the ping is intended to us.
+	  If the encoded node does not exist in the current configuration,
+	  we avoid sending need_boot_op, since it must be from a different
+	  reincarnation of this node.
+	*/
+	if(site && pm->a && pm->a->body.c_t == xcom_boot_type)
+	{
+		DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_list(&pm->a->body.app_u_u.nodes)););
+		not_to_oneself &=
+			node_exists_with_uid(&pm->a->body.app_u_u.nodes.node_list_val[0], &get_site_def()->nodes);
+	}
+
+
+	if (!client_boot_done && /* Already done? */
+	    not_to_oneself && /* Not to oneself */
+	    !is_dead_site(pm->group_id)) { /* Avoid dealing with zombies */
 		double	t = task_now();
 		if (t - sent_alive > 1.0) {
 			CREATE_REPLY(pm);
@@ -3415,13 +3442,145 @@ void	add_to_cache(app_data_ptr a, synode_no synode)
 
 static int clicnt = 0;
 
+static u_int is_reincarnation_adding(app_data_ptr a)
+{
+	/* Get information on the current site definition */
+	const site_def* new_site_def= get_site_def();
+	const site_def* valid_site_def= find_site_def(executed_msg);
+
+	/* Get information on the nodes to be added */
+	u_int nodes_len  = a->body.app_u_u.nodes.node_list_len;
+	node_address* nodes_to_change= a->body.app_u_u.nodes.node_list_val;
+
+	u_int i = 0;
+	for(; i < nodes_len; i++)
+	{
+		if (node_exists(&nodes_to_change[i], &new_site_def->nodes) ||
+			node_exists(&nodes_to_change[i], &valid_site_def->nodes))
+		{
+			/*
+			We are simply ignoring the attempt to add a node to the
+			group when there is an old incarnation of it, meaning
+			that the node has crashed and restarted so fastly that
+			nobody has noticed that it has gone.
+
+			In XCOM, the group is not automatically reconfigured
+			and it is possible to start reusing a node that has
+			crashed and restarted without reconfiguring the group
+			by adding the node back to it.
+
+			However, this operation may be unsafe because XCOM
+			does not implement a crash-recovery model and nodes
+			suffer from amnesia after restarting the service. In
+			other words this may lead to inconsistency issues in
+			the paxos protocol.
+
+			Unfortunately, preventing that a node is added back
+			to the system where there is an old incarnation will
+			not fix this problem since other changes are required.
+			*/
+			G_MESSAGE("Old incarnation found while trying to add node %s %.*s.",
+				  nodes_to_change[i].address,
+				  nodes_to_change[i].uuid.data.data_len,
+				  nodes_to_change[i].uuid.data.data_val
+			);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static u_int is_reincarnation_removing(app_data_ptr a)
+{
+	/* Get information on the current site definition */
+	const site_def* new_site_def= get_site_def();
+
+	/* Get information on the nodes to be added */
+	u_int nodes_len  = a->body.app_u_u.nodes.node_list_len;
+	node_address* nodes_to_change= a->body.app_u_u.nodes.node_list_val;
+
+	u_int i = 0;
+	for(; i < nodes_len; i++)
+	{
+		if (!node_exists_with_uid(&nodes_to_change[i], &new_site_def->nodes))
+		{
+			/*
+			We cannot allow an upper-layer to remove a new incarnation
+			of a node, when it tries to remove an old one.
+			*/
+			G_MESSAGE("Old incarnation found while trying to "
+				  "remove node %s %.*s.",
+				  nodes_to_change[i].address,
+				  nodes_to_change[i].uuid.data.data_len,
+				  nodes_to_change[i].uuid.data.data_val
+			);
+
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * Logs the fact that an add/remove node request is aimed at another group.
+ *
+ * @param a a pointer to the app_data of the configuration command
+ * @param message_fmt a formatted message to log, containing a single %s that will be replaced by the node's address
+ */
+static void log_cfgchange_wrong_group(app_data_ptr a, const char *const message_fmt)
+{
+	u_int const nr_nodes = a->body.app_u_u.nodes.node_list_len;
+	u_int i;
+	for (i = 0; i < nr_nodes; i++)
+	{
+		char const *const address = a->body.app_u_u.nodes.node_list_val[i].address;
+		G_WARNING(message_fmt, address);
+	}
+}
+
+/**
+ * Validates if a configuration command can be executed.
+ * Checks whether the configuration command is aimed at the correct group.
+ * Checks whether the configuration command pertains to a node reincarnation.
+ *
+ * @param p a pointer to the pax_msg of the configuration command
+ * @retval REQUEST_OK if the reconfiguration command can be executed
+ * @retval REQUEST_RETRY if XCom is still booting
+ * @retval REQUEST_FAIL if the configuration command cannot be executed
+ */
 static client_reply_code can_execute_cfgchange(pax_msg *p)
 {
 	app_data_ptr a = p->a;
+
 	if (executed_msg.msgno <= 2)
 		return REQUEST_RETRY;
+
 	if (a && a->group_id != 0 && a->group_id != executed_msg.group_id)
+	{
+		switch (a->body.c_t) {
+		case add_node_type:
+			log_cfgchange_wrong_group(a, "The request to add %s to the group has been rejected because it is aimed at another group");
+			break;
+		case remove_node_type:
+			log_cfgchange_wrong_group(a, "The request to remove %s from the group has been rejected because it is aimed at another group");
+			break;
+		case force_config_type:
+			G_WARNING("The request to force the group membership has been rejected because it is aimed at another group");
+			break;
+		default:
+			assert(0 && "A cargo_type different from {add_node_type, remove_node_type, force_config_type} should not have hit this code path");
+		}
 		return REQUEST_FAIL;
+	}
+
+        if (a && a->body.c_t == add_node_type && is_reincarnation_adding(a))
+		return REQUEST_FAIL;
+
+        if (a && a->body.c_t == remove_node_type && is_reincarnation_removing(a))
+		return REQUEST_FAIL;
+
 	return REQUEST_OK;
 }
 
@@ -3552,6 +3711,8 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue)
 	case read_op:
 		pm = get_cache(p->synode);
 		assert(pm);
+		if(client_boot_done)
+			handle_alive(site, reply_queue, p);
 		handle_read(site, pm, reply_queue, p);
 		break;
 	case prepare_op:
@@ -3560,7 +3721,8 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue)
 		if(p->force_delivery)
 			pm->force_delivery = 1;
 		pm->last_modified = task_now();
-		handle_alive(site, reply_queue, p);
+		if(client_boot_done)
+			handle_alive(site, reply_queue, p);
 		handle_prepare(site, pm, reply_queue, p);
 		break;
 	case ack_prepare_op:
@@ -3665,7 +3827,7 @@ learnop:
 		handle_skip(site, pm, p);
 		break;
 	case i_am_alive_op:
-		/* handle_alive(site, reply_queue, p); */
+		handle_alive(site, reply_queue, p);
 		break;
 	case are_you_alive_op:
 		handle_alive(site, reply_queue, p);
@@ -3719,10 +3881,11 @@ learnop:
 		vector), but I am not convinced that it is worth the effort.
 		*/
 		if(!synode_lt(p->synode, executed_msg)){
-			 g_critical("Node %u unable to get message, process will now exit. Please ensure that the process is restarted",
-						get_nodeno(site));
-			 exit(1);
-		 }
+			g_critical("Node %u unable to get messages, since the "
+				   "group is too far ahead. Node will now exit.",
+				get_nodeno(site));
+			terminate_and_exit();
+		}
 	default:
 		break;
 	}
@@ -4018,7 +4181,9 @@ int	reply_handler_task(task_arg arg)
 			pax_msg * p = ep->reply;
 			server_handle_need_snapshot(ep->s, get_site_def(), p->from);
 		}else{
-			dispatch_op(find_site_def(ep->reply->synode), ep->reply, NULL);
+			//We only handle messages from this connection is the server is valid.
+			if(ep->s->invalid == 0)
+				dispatch_op(find_site_def(ep->reply->synode), ep->reply, NULL);
 		}
 		TASK_YIELD;
 	}
@@ -4216,8 +4381,9 @@ static void	server_push_log(server *srv, synode_no push, node_no node)
 	site_def const *s = get_site_def();
 	while (!synode_gt(push, get_max_synode())) {
 		if (is_cached(push)) {
-			pax_machine * p = get_cache(push);
+			pax_machine * p = get_cache_no_touch(push);
 			if (pm_finished(p)) {
+				/* Need to clone message here since pax_machine may be re-used while message is sent */
 				pax_msg * pm = clone_pax_msg(p->learner.msg);
 				ref_msg(pm);
 				pm->op = recover_learn_op;
@@ -4259,7 +4425,8 @@ static void	server_handle_need_snapshot(server *srv, site_def const *s, node_no 
 	synode_no app_lsn = get_app_snap(&gs->app_snap);
 	if (!synode_eq(null_synode, app_lsn) && synode_lt(app_lsn, gs->log_start)){
 		gs->log_start = app_lsn;
-	} else if (!synode_eq(null_synode, last_config_modification_id)){
+	}
+	else if (!synode_eq(null_synode, last_config_modification_id)) {
 		gs->log_start = last_config_modification_id;
 	}
 
@@ -4280,7 +4447,7 @@ const char *xcom_actions_name[] = {
 xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs)
 {
 	static int	state = 0;
-	G_MESSAGE("state %d action %s", state, xcom_actions_name[action]);
+	G_DEBUG("state %d action %s", state, xcom_actions_name[action]);
 	switch (state) {
 	default:
 		assert(state == 0);
@@ -4332,7 +4499,7 @@ start:
 				xcom_shutdown = 1;
 				if(xcom_exit_cb)
 					xcom_exit_cb(get_int_arg(fsmargs));
-				G_MESSAGE("Exiting xcom thread");
+				G_DEBUG("Exiting xcom thread");
 			}
 			CO_RETURN(x_start);
 		}
@@ -4405,6 +4572,7 @@ run:
 				app_data * a = get_void_arg(fsmargs);
 				site_def *s = create_site_def_with_start(a, executed_msg);
 				s->boot_key = executed_msg;
+				invalidate_servers(get_site_def(), s);
 				start_force_config(s);
 			}
 			CO_RETURN(x_run);
@@ -4623,139 +4791,107 @@ static inline result xcom_shut_close_socket(int *sock)
 	return res;
 }
 
+#define CONNECT_FAIL ret_fd = -1; goto end
+
 static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
 {
-  struct timeval timeout;
-  fd_set rfds, wfds, efds;
-  int res;
+  int timeout = 10000;
+  int ret_fd = fd;
+  int syserr;
+  int sysret;
+  struct pollfd fds;
+#ifdef WITH_LOG_DEBUG
+  char buf[SYS_STRERROR_SIZE];
+#endif
 
-  timeout.tv_sec=  10;
-  timeout.tv_usec= 0;
-
-  FD_ZERO(&rfds);
-  FD_ZERO(&wfds);
-  FD_ZERO(&efds);
-  FD_SET(fd, &rfds);
-  FD_SET(fd, &wfds);
-  FD_SET(fd, &efds);
+  fds.fd = fd;
+  fds.events = POLLOUT;
+  fds.revents = 0;
 
   /* Set non-blocking */
-  if(unblock_fd(fd) < 0)
+  if (unblock_fd(fd) < 0)
     return -1;
 
   /* Trying to connect with timeout */
-  res= connect(fd, sock_addr, sock_size);
+  SET_OS_ERR(0);
+  sysret = connect(fd, sock_addr, sock_size);
 
-#if defined (WIN32) || defined (WIN64)
-  if (res == SOCKET_ERROR)
-  {
-    res= WSAGetLastError();
-    /* If the error is WSAEWOULDBLOCK, wait. */
-    if (res == WSAEWOULDBLOCK)
-    {
-      MAY_DBG(FN; STRLIT("connect - error=WSAEWOULDBLOCK. Invoking select..."); );
-#else
-  if (res < 0)
-  {
-    if (errno == EINPROGRESS)
-    {
-      MAY_DBG(FN; STRLIT("connect - errno=EINPROGRESS. Invoking select..."); );
-#endif
-      res= select(fd + 1, &rfds, &wfds, &efds, &timeout);
-      MAY_DBG(FN; STRLIT("select - Finished. "); NEXP(res, d));
-      if (res == 0)
-      {
-        G_MESSAGE("Timed out while waiting for connection to be established! "
-                  "Cancelling connection attempt. (socket= %d, error=%d)",
-                  fd, res);
-        G_WARNING("select - Timeout! Cancelling connection...");
-        return -1;
-      }
-#if defined (WIN32) || defined (WIN64)
-      else if (res == SOCKET_ERROR)
-      {
-        G_WARNING("select - Error while connecting! "
-                  "(socket= %d, error=%d)",
-                  fd, WSAGetLastError());
-#else
-      else if (res < 0)
-      {
-        G_WARNING("select - Error while connecting! "
-                  "(socket= %d, error=%d, error msg='%s')",
-                  fd, errno, strerror(errno));
-#endif
-        return -1;
-      }
-      else
-      {
-        if (FD_ISSET(fd, &wfds) || FD_ISSET(fd, &rfds))
-        {
-          MAY_DBG(FN; STRLIT("select - Socket ready!"); );
-        }
+  if (is_socket_error(sysret)) {
+    syserr = GET_OS_ERR;
+    /* If the error is SOCK_EWOULDBLOCK or SOCK_EINPROGRESS or SOCK_EALREADY,
+     * wait. */
+    switch (syserr) {
+      case SOCK_EWOULDBLOCK:
+      case SOCK_EINPROGRESS:
+      case SOCK_EALREADY:
+        break;
+      default:
+        G_DEBUG("connect - Error connecting (socket=%d, error=%d).",
+                fd, syserr);
+        CONNECT_FAIL;
+    }
 
-        if (FD_ISSET(fd, &efds))
-        {
-          /*
-            This is a non-blocking socket, so one needs to
-            find the issue that triggered the exception.
-           */
-          int socket_errno= 0;
-          socklen_t socket_errno_len= sizeof(errno);
-          if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_errno,
-                         &socket_errno_len))
-          {
-            G_WARNING("Connection to socket %d failed. Unable to sort out the "
-                      "connection error!", fd);
-          }
-          else
-          {
-#if defined (WIN32) || defined (WIN64)
-            G_WARNING("Connection to socket %d failed with error %d.",
-                      fd, socket_errno);
-#else
-            G_WARNING("Connection to socket %d failed with error %d - %s.",
-                      fd, socket_errno, strerror(socket_errno));
-#endif
-          }
-          return -1;
+    SET_OS_ERR(0);
+    while ((sysret = poll(&fds, 1, timeout)) < 0) {
+      syserr = GET_OS_ERR;
+      if (syserr != SOCK_EINTR && syserr != SOCK_EINPROGRESS) break;
+      SET_OS_ERR(0);
+    }
+    MAY_DBG(FN; STRLIT("poll - Finished. "); NEXP(sysret, d));
+
+    if (sysret == 0) {
+      G_DEBUG("Timed out while waiting for connection to be established! "
+              "Canceling connection attempt. (socket= %d, error=%d)",
+              fd, sysret);
+      CONNECT_FAIL;
+    }
+
+    if (is_socket_error(sysret)) {
+      G_DEBUG("poll - Error while connecting! (socket= %d, error=%d)",
+              fd, syserr);
+      CONNECT_FAIL;
+    }
+
+    {
+      int socket_errno = 0;
+      socklen_t socket_errno_len = sizeof(socket_errno);
+
+      if ((fds.revents & POLLOUT) == 0) {
+        MAY_DBG(FN; STRLIT("POLLOUT not set - Socket failure!"););
+        ret_fd = -1;
+      }
+
+      if (fds.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+        MAY_DBG(FN;
+                STRLIT("POLLERR | POLLHUP | POLLNVAL set - Socket failure!"););
+        ret_fd = -1;
+      }
+
+      if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_errno,
+                     &socket_errno_len) != 0) {
+        G_DEBUG("getsockopt socket %d failed.", fd);
+        ret_fd = -1;
+      } else {
+        if (socket_errno != 0) {
+          G_DEBUG("Connection to socket %d failed with error %d - %s.", fd,
+                  socket_errno, strerr_msg(buf, sizeof(buf), socket_errno));
+          ret_fd = -1;
         }
       }
     }
-    else
-    {
-#if defined (WIN32) || defined (WIN64)
-      G_WARNING("connect - Error connecting "
-                "(socket=%d, error=%d).",
-                fd, WSAGetLastError());
-#else
-      G_WARNING("connect - Error connecting "
-                "(socket=%d, error=%d, error message='%s').",
-                fd, errno, strerror(errno));
-#endif
-      return -1;
-    }
-  }
-  else
-  {
-    MAY_DBG(FN; STRLIT("connect - Connected to socket without waiting!"); );
   }
 
+end:
   /* Set blocking */
-  if(block_fd(fd) < 0)
-  {
-#if defined (WIN32) || defined (WIN64)
-    G_WARNING("Unable to set socket back to blocking state. "
-              "(socket=%d, error=%d).",
-              fd, WSAGetLastError());
-#else
-    G_WARNING("Unable to set socket back to blocking state. "
-              "(socket=%d, error=%d, error message='%s').",
-              fd, errno, strerror(errno));
-#endif
+  SET_OS_ERR(0);
+  if(block_fd(fd) < 0) {
+    G_DEBUG(
+        "Unable to set socket back to blocking state. (socket=%d, error=%d).",
+        fd, GET_OS_ERR);
     return -1;
   }
 
-  return fd;
+  return ret_fd;
 }
 
 
@@ -4766,19 +4902,22 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 	result ret = {0,0};
 	struct sockaddr_in sock_addr;
 	socklen_t sock_size;
+#ifdef WITH_LOG_DEBUG
+        char buf[SYS_STRERROR_SIZE];
+#endif
 
 	DBGOUT(FN; STREXP(server); NEXP(port, d));
-	G_MESSAGE("connecting to %s %d", server, port);
+	G_DEBUG("connecting to %s %d", server, port);
 	/* Create socket */
 	if ((fd = checked_create_socket(AF_INET, SOCK_STREAM, 0)).val < 0) {
-		G_MESSAGE("Error creating sockets.");
+		G_DEBUG("Error creating sockets.");
 		return NULL;
 	}
 
 	/* Get address of server */
 	if (!init_sockaddr(server, &sock_addr, &sock_size, port)) {
 		xcom_close_socket(&fd.val);
-		G_MESSAGE("Error initializing socket addresses.");
+		G_DEBUG("Error initializing socket addresses.");
 		return NULL;
 	}
 
@@ -4787,13 +4926,8 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 	SET_OS_ERR(0);
 	if (timed_connect(fd.val, (struct sockaddr *)&sock_addr, sock_size) == -1) {
 		fd.funerr = to_errno(GET_OS_ERR);
-#if defined (WIN32) || defined (WIN64)
-		G_MESSAGE("Connecting socket to address %s in port %d failed with error %d.",
-				server, port, fd.funerr);
-#else
-		G_MESSAGE("Connecting socket to address %s in port %d failed with error %d - %s.",
-				server, port, fd.funerr, strerror(fd.funerr));
-#endif
+		G_DEBUG("Connecting socket to address %s in port %d failed with error %d - %s.",
+				server, port, fd.funerr, strerr_msg(buf, sizeof(buf), fd.funerr));
 		xcom_close_socket(&fd.val);
 		return NULL;
 	}
@@ -4811,15 +4945,15 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 				task_dump_err(ret.funerr);
 				xcom_shut_close_socket(&fd.val);
 #if defined (WIN32) || defined (WIN64)
-				G_MESSAGE("Setting node delay failed  while connecting to %s with error %d.",
+				G_DEBUG("Setting node delay failed while connecting to %s with error %d.",
 						server, ret.funerr);
 #else
-				G_MESSAGE("Setting node delay failed  while connecting to %s with error %d - %s.",
+				G_DEBUG("Setting node delay failed while connecting to %s with error %d - %s.",
 						server, ret.funerr, strerror(ret.funerr));
 #endif
 				return NULL;
 			}
-			G_MESSAGE("client connected to %s %d fd %d", server, port, fd.val);
+			G_DEBUG("client connected to %s %d fd %d", server, port, fd.val);
 		} else {
 			/* Something is wrong */
 			socklen_t errlen = sizeof(ret.funerr);
@@ -4834,10 +4968,10 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 			}
 			xcom_shut_close_socket(&fd.val);
 #if defined (WIN32) || defined (WIN64)
-			G_MESSAGE("Getting the peer name failed while connecting to server %s with error %d.",
+			G_DEBUG("Getting the peer name failed while connecting to server %s with error %d.",
 					server, ret.funerr);
 #else
-			G_MESSAGE("Getting the peer name failed while connecting to server %s with error %d -%s.",
+			G_DEBUG("Getting the peer name failed while connecting to server %s with error %d -%s.",
 					server, ret.funerr, strerror(ret.funerr));
 #endif
 			return NULL;
@@ -4847,7 +4981,7 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 		if (xcom_use_ssl()) {
 			connection_descriptor *cd = 0;
 			SSL * ssl = SSL_new(client_ctx);
-			G_MESSAGE("Trying to connect using SSL.")
+			G_DEBUG("Trying to connect using SSL.")
 			SSL_set_fd(ssl, fd.val);
 
 			ERR_clear_error();
@@ -4877,7 +5011,7 @@ static connection_descriptor*	connect_xcom(char *server, xcom_port port)
 
 			cd = new_connection(fd.val, ssl);
 			set_connected(cd, CON_FD);
-			G_MESSAGE("Success connecting using SSL.")
+			G_DEBUG("Success connecting using SSL.")
 			return cd;
 		} else {
 			connection_descriptor *cd = new_connection(fd.val, 0);
@@ -5096,14 +5230,14 @@ int	xcom_client_boot(connection_descriptor *fd, node_list *nl, uint32_t group_id
 	return retval;
 }
 
-
 int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force)
 {
 	int retval = 0;
+	int retry_count = 10; // Same as 'connection_attempts'
 	pax_msg p;
 	pax_msg *rp = 0;
 
-	for(;;){
+	do {
 		retval = (int)xcom_send_client_app_data(fd, a, force);
 		if(retval < 0)
 			return 0;
@@ -5116,10 +5250,10 @@ int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force)
 				case REQUEST_OK:
 					return 1;
 				case REQUEST_FAIL:
-                                        G_MESSAGE("cli_err %d",cli_err);
+                                        G_DEBUG("cli_err %d",cli_err);
 					return 0;
 				case REQUEST_RETRY:
-			                G_MESSAGE("cli_err %d",cli_err);
+			                G_DEBUG("cli_err %d",cli_err);
 					xcom_sleep(1);
 					break;
 				default:
@@ -5130,7 +5264,11 @@ int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force)
 			G_WARNING("read failed");
 			return 0;
 		}
-	}
+	} while (--retry_count);
+	// Timeout after REQUEST_RETRY has been received 'retry_count' times
+	G_MESSAGE(
+	 "Request failed: maximum number of retries (10) has been exhausted.");
+	return 0;
 }
 
 int xcom_send_cfg_wait(connection_descriptor * fd, node_list *nl,

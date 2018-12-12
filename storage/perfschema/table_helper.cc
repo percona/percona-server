@@ -662,6 +662,7 @@ int PFS_column_row::make_row(const MDL_key *mdl) {
       m_object_type = OBJECT_TYPE_BACKUP_TABLES;
       m_schema_name_length = 0;
       m_object_name_length = 0;
+      m_column_name_length = 0;
       break;
     case MDL_key::SCHEMA:
       m_object_type = OBJECT_TYPE_SCHEMA;

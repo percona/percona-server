@@ -48,8 +48,8 @@ static const constexpr uint32_t COMPRESSION_DICTIONARY_FIELD_DATA = 3;
 static const constexpr uint32_t COMPRESSION_DICTIONARY_NAME_INDEX = 1;
 static const constexpr uint32_t COMPRESSION_DICTIONARY_VERSION = 1;
 
-static const constexpr char *COMPRESSION_DICTIONARY_DB = "mysql";
-static const constexpr char *COMPRESSION_DICTIONARY_TABLE =
+static const constexpr char COMPRESSION_DICTIONARY_DB[] = "mysql";
+static const constexpr char COMPRESSION_DICTIONARY_TABLE[] =
     "compression_dictionary";
 
 /** Fields of mysql.compression_dictionary_cols table */
@@ -60,8 +60,8 @@ static const constexpr uint32_t COMPRESSION_DICTIONARY_COLS_FIELD_DICT_ID = 2;
 /** Index of compression_dictionary_cols table */
 static const constexpr uint32_t COMPRESSION_DICTIONARY_COLS_TABLE_INDEX = 0;
 
-static const constexpr char *COMPRESSION_DICTIONARY_COLS_DB = "mysql";
-static const constexpr char *COMPRESSION_DICTIONARY_COLS_TABLE =
+static const constexpr char COMPRESSION_DICTIONARY_COLS_DB[] = "mysql";
+static const constexpr char COMPRESSION_DICTIONARY_COLS_TABLE[] =
     "compression_dictionary_cols";
 
 /** Max window size (2^15) minus 262 */
@@ -174,11 +174,10 @@ delete)
 @param[in,out] thd  Session object
 @return TABLE* on success else nullptr */
 static TABLE *open_dictionary_table_write(THD *thd) {
-  TABLE_LIST tablelist;
-  tablelist.init_one_table(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
-                           C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
-                           COMPRESSION_DICTIONARY_TABLE, TL_WRITE,
-                           MDL_SHARED_NO_READ_WRITE);
+  TABLE_LIST tablelist(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
+                       C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
+                       COMPRESSION_DICTIONARY_TABLE, TL_WRITE,
+                       MDL_SHARED_NO_READ_WRITE);
   tablelist.next_local = tablelist.next_global = nullptr;
 
   const uint flags = (MYSQL_LOCK_IGNORE_TIMEOUT | MYSQL_OPEN_IGNORE_KILLED |
@@ -206,10 +205,9 @@ static TABLE *open_dictionary_table_read(THD *thd) {
   DBUG_ASSERT(!thd->is_attachable_ro_transaction_active());
   thd->begin_attachable_ro_transaction();
 
-  TABLE_LIST tablelist;
-  tablelist.init_one_table(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
-                           C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
-                           COMPRESSION_DICTIONARY_TABLE, TL_READ);
+  TABLE_LIST tablelist(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
+                       C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
+                       COMPRESSION_DICTIONARY_TABLE, TL_READ);
   tablelist.next_local = tablelist.next_global = nullptr;
 
   uint flags = (MYSQL_LOCK_IGNORE_TIMEOUT | MYSQL_OPEN_IGNORE_KILLED |
@@ -258,11 +256,10 @@ table mysql.compression_dictionary
 @return on success, a TABLE* object else nullptr on failure */
 
 static TABLE *open_dictionary_cols_table_write(THD *thd) {
-  TABLE_LIST tablelist;
-  tablelist.init_one_table(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_DB),
-                           C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_TABLE),
-                           COMPRESSION_DICTIONARY_COLS_TABLE,
-                           TL_WRITE_CONCURRENT_DEFAULT, MDL_SHARED_WRITE);
+  TABLE_LIST tablelist(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_DB),
+                       C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_TABLE),
+                       COMPRESSION_DICTIONARY_COLS_TABLE,
+                       TL_WRITE_CONCURRENT_DEFAULT, MDL_SHARED_WRITE);
   tablelist.next_local = tablelist.next_global = nullptr;
 
   const uint flags = (MYSQL_LOCK_IGNORE_TIMEOUT | MYSQL_OPEN_IGNORE_KILLED |

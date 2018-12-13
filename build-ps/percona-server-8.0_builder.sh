@@ -57,7 +57,7 @@ parse_arguments() {
             --repo=*) REPO="$val" ;;
             --install_deps=*) INSTALL="$val" ;;
             --perconaft_branch=*) PERCONAFT_BRANCH="$val" ;;
-            --tokubackup_branch=*) 	TOKUBACKUP_BRANCH="$val" ;;
+            --tokubackup_branch=*)      TOKUBACKUP_BRANCH="$val" ;;
             --perconaft_repo=*) PERCONAFT_REPO="$val" ;;
             --tokubackup_repo=*) TOKUBACKUP_REPO="$val" ;;
             --rpm_release=*) RPM_RELEASE="$val" ;;
@@ -118,11 +118,6 @@ deb-src http://jenkins.percona.com/apt-repo/ @@DIST@@ main
 EOL
     sed -i "s:@@DIST@@:$OS_NAME:g" /etc/apt/sources.list.d/percona-dev.list
   fi
-  add_key="apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys 9334A25F8507EFA5"
-  until ${add_key}; do
-    sleep 1
-    echo "waiting"
-  done
   return
 }
 
@@ -321,14 +316,13 @@ install_deps() {
     else
         apt-get -y install dirmngr || true
         add_percona_apt_repo
-      	apt-get update
+        apt-get update
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release wget
         export DEBIAN_FRONTEND="noninteractive"
         export DIST="$(lsb_release -sc)"
-
-	    until sudo apt-get update; do
-    	    sleep 1
+            until sudo apt-get update; do
+            sleep 1
             echo "waiting"
         done
         apt-get -y purge eatmydata || true
@@ -343,11 +337,14 @@ install_deps() {
         apt-get -y install dh-systemd || true
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
-        apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libeatmydata libc6-dbg valgrind libjson-perl python-mysqldb libsasl2-dev
-
+        apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl python-mysqldb libsasl2-dev
+        apt-get -y install libeatmydata
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
+        if [ x"${DEBIAN}" = xcosmic ]; then
+            apt-get -y install libssl1.0-dev libeatmydata1
+        fi
 
 
     fi
@@ -642,7 +639,7 @@ build_deb(){
     cd ${DIRNAME}
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic ]; then
+    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic ]; then
         gcc47=$(which gcc-4.7 2>/dev/null || true)
         if [ -x "${gcc47}" ]; then
             export CC=gcc-4.7
@@ -665,9 +662,9 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules 
-        sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
+    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" ]; then
+        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules 
+        sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
     fi
 
     dpkg-buildpackage -rfakeroot -uc -us -b
@@ -787,4 +784,3 @@ build_srpm
 build_source_deb
 build_rpm
 build_deb
-

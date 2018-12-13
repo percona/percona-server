@@ -110,8 +110,8 @@ MY_NODISCARD
 static int _my_b_cache_write_r(IO_CACHE *info, const uchar *Buffer,
                                size_t Count);
 
-static io_cache_encr_read_function _my_b_encr_read = NULL;
-static io_cache_encr_write_function _my_b_encr_write = NULL;
+static io_cache_encr_read_function _my_b_encr_read = nullptr;
+static io_cache_encr_write_function _my_b_encr_write = nullptr;
 static size_t io_cache_encr_block_size = 0, io_cache_encr_header_size = 0;
 
 /*
@@ -203,10 +203,10 @@ void init_io_cache_encryption_ext(io_cache_encr_read_function read_function,
                                   size_t encr_block_size,
                                   size_t encr_header_size) {
   DBUG_ENTER("init_io_cache_encryption_ext");
-  DBUG_ASSERT(
-      (read_function == NULL && write_function == NULL &&
-       encr_block_size == 0 && encr_header_size == 0) ||
-      (read_function != NULL && write_function != NULL && encr_block_size > 0));
+  DBUG_ASSERT((read_function == nullptr && write_function == nullptr &&
+               encr_block_size == 0 && encr_header_size == 0) ||
+              (read_function != nullptr && write_function != nullptr &&
+               encr_block_size > 0));
 
   _my_b_encr_read = read_function;
   _my_b_encr_write = write_function;

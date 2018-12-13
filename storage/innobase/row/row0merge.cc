@@ -3129,13 +3129,14 @@ row_merge_file_create_low(
 	const char*	path)
 {
 	int	fd;
-    char filename[] = "Innodb Merge Temp File\0";
-    char* filepath = NULL;
-    int path_len;
     if (path == NULL) {
         path = innobase_mysql_tmpdir();
     }
 #ifdef UNIV_PFS_IO
+	char filename[] = "Innodb Merge Temp File\0";
+	char* filepath = NULL;
+	int path_len;
+
 	/* This temp file open does not go through normal
 	file APIs, add instrumentation to register with
 	performance schema */

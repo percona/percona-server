@@ -475,12 +475,12 @@ static struct log_bitmap_struct *log_bmp_sys;
 MetadataRecover *log_online_metadata_recover = nullptr;
 
 /** File name stem for bitmap files. */
-static const constexpr char *bmp_file_name_stem = "ib_modified_log_";
+static const constexpr auto bmp_file_name_stem = "ib_modified_log_";
 
 /** File name template for bitmap files.  The 1st format tag is a directory
 name, the 2nd tag is the stem, the 3rd tag is a file sequence number, the 4th
 tag is the start LSN for the file. */
-static const constexpr char *bmp_file_name_template = "%s%s%lu_" LSN_PF ".xdb";
+static const constexpr auto bmp_file_name_template = "%s%s%lu_" LSN_PF ".xdb";
 
 /* Tests if num bit of bitmap is set */
 #define IS_BIT_SET(bitmap, num) \

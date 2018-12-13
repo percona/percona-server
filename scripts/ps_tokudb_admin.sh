@@ -176,23 +176,6 @@ elif [ $ENABLE_TOKUBACKUP = 1 -a $DISABLE_TOKUBACKUP = 1 ]; then
   exit 1
 fi
 
-# Check SELinux status - needs to be disabled/permissive for LD_PRELOAD
-if [ -n "$(which sestatus)" ]; then
-  printf "Checking SELinux status...\n"
-  STATUS_SELINUX=$(sestatus | grep "SELinux status:" | awk '{print $3}')
-  if [ $STATUS_SELINUX = "enabled" ]; then
-    MODE_SELINUX=$(sestatus | grep "Current mode:" | awk '{print $3}')
-    if [ $MODE_SELINUX = "enforcing"  ]; then
-      printf "ERROR: SELinux is in enforcing mode and needs to be disabled (or put into permissive mode) for TokuDB to work correctly.\n\n"
-      exit 1
-    else
-      printf "INFO: SELinux is in permissive mode.\n\n"
-    fi
-  else
-    printf "INFO: SELinux is disabled.\n\n"
-  fi
-fi
-
 # List plugins
 LIST_ENGINE=$($MYSQL_CLIENT_BIN -e "select CONCAT(PLUGIN_NAME,'#') from information_schema.plugins where PLUGIN_NAME like 'TokuDB%';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null)
 if [ $? -ne 0 ]; then

@@ -1,0 +1,4 @@
+CREATE USER 'regular_user'@'localhost' IDENTIFIED BY 'pass';
+SELECT rotate_system_key("percona_binlog");
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+DROP USER regular_user@localhost;

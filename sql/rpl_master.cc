@@ -318,6 +318,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length)
   const uchar* packet_position= (uchar *) packet;
   size_t packet_bytes_todo= packet_length;
 
+  DBUG_ASSERT(!thd->status_var_aggregated);
   thd->status_var.com_other++;
   thd->enable_slow_log= opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL))
@@ -368,6 +369,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length)
   Sid_map sid_map(NULL/*no sid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&sid_map);
 
+  DBUG_ASSERT(!thd->status_var_aggregated);
   thd->status_var.com_other++;
   thd->enable_slow_log= opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL))
@@ -723,7 +725,8 @@ bool show_binlogs(THD* thd)
   
   cur_dir_len= dirname_length(cur.log_file_name);
 
-  reinit_io_cache(index_file, READ_CACHE, (my_off_t) 0, 0, 0);
+  if (reinit_io_cache(index_file, READ_CACHE, (my_off_t)0, 0, 0))
+    goto err;
 
   /* The file ends with EOF or empty line */
   while ((length=my_b_gets(index_file, fname, sizeof(fname))) > 1)

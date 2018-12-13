@@ -8,6 +8,7 @@ http://www.percona.com/software/percona-server/
 
 Documentation: http://www.percona.com/doc/percona-server/5.7
 
+<<<<<<< HEAD:README.md
 Launchpad (bugs, milestones, branches): http://launchpad.net/percona-server
 
 

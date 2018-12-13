@@ -12,7 +12,7 @@ require {
         class capability { sys_nice sys_resource };
         class blk_file { read write open };
         class file { append write getattr read create unlink open setattr };
-        class dir { search read write remove_name open add_name };
+        class dir { search read write create addname remove_name open add_name };
         class process { siginh noatsecure rlimitinh };
 }
 
@@ -33,7 +33,7 @@ allow mysqld_t tmp_t:sock_file { create unlink };
 allow mysqld_t tmpfs_t:dir { write search read remove_name open add_name };
 allow mysqld_t tmpfs_t:file { write getattr read create unlink open };
 
-allow mysqld_t user_tmp_t:dir { write add_name };
+allow mysqld_t user_tmp_t:dir { write read create add_name };
 allow mysqld_t user_tmp_t:file create;
 
 allow mysqld_t tmp_t:file { append create read write open getattr unlink setattr };

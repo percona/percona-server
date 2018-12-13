@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlpump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLPUMP\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLPUMP\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -178,25 +178,6 @@ For dump file reloading, faster secondary index creation for
 InnoDB
 tables by adding indexes after rows are inserted
 .RE
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-.PP
-\fBmysqlpump\fR
-was added in MySQL 5\&.7\&.8\&. It uses recent MySQL features and thus assumes use with a server at least as recent as
-\fBmysqlpump\fR
-itself\&.
-.sp .5v
-.RE
 .PP
 \fBmysqlpump\fR
 requires at least the
@@ -244,7 +225,7 @@ shell> \fBmysqlpump [options] > dump\&.sql\fR
 .\}
 .PP
 However, UTF\-16 is not permitted as a connection character set (see
-Section\ \&10.1.4, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
+Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
 \fB\-\-result\-file\fR
 option, which creates the output in ASCII format:
 .sp
@@ -507,7 +488,7 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -703,7 +684,7 @@ Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
 \fBmysqlpump\fR
 uses
 utf8\&.
@@ -992,6 +973,35 @@ INSERT
 statement\&. The default is 250\&. A value of 1 produces one
 INSERT
 statement per table row\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-get\-server\-public\-key\fR
+.sp
+Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that that authenticate with the
+caching_sha2_password
+authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For information about the
+caching_sha2_password
+plugin, see
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-get\-server\-public\-key\fR
+option was added in MySQL 5\&.7\&.23\&.
 .RE
 .sp
 .RS 4
@@ -1474,6 +1484,43 @@ This option is deprecated and will be removed in a future MySQL release\&. It is
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+.sp
+The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
+sha256_password
+or
+caching_sha2_password
+authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For
+sha256_password, this option applies only if MySQL was built using OpenSSL\&.
+.sp
+For information about the
+sha256_password
+and
+caching_sha2_password
+plugins, see
+Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-server\-public\-key\-path\fR
+option was added in MySQL 5\&.7\&.23\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-set\-charset\fR
 .sp
 Write
@@ -1517,19 +1564,19 @@ l l.
 T{
 OFF
 T}:T{
-Add no SET statement to the output\&.
+Add no SET statement to the output.
 T}
 T{
 ON
 T}:T{
-Add a SET statement to the output\&. An error occurs if
-                    GTIDs are not enabled on the server\&.
+Add a SET statement to the output. An error occurs if
+                  GTIDs are not enabled on the server.
 T}
 T{
 AUTO
 T}:T{
 Add a SET statement to the output if GTIDs are
-                    enabled on the server\&.
+                  enabled on the server.
 T}
 .TE
 .sp 1
@@ -1851,8 +1898,6 @@ shell> \fBmysqlpump \-\-exclude\-databases=% \-\-users\fR
 \fB\-V\fR
 .sp
 Display version information and exit\&.
-.sp
-This option was added in MySQL 5\&.7\&.9\&.
 .RE
 .sp
 .RS 4
@@ -2301,6 +2346,12 @@ or
 option\&.
 .PP
 \fBmysqlpump\fR
+does not dump
+InnoDB
+CREATE TABLESPACE
+statements\&.
+.PP
+\fBmysqlpump\fR
 dumps user accounts in logical form using
 CREATE USER
 and
@@ -2333,7 +2384,7 @@ shell> \fBmysqlpump mysql user db \&.\&.\&.\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

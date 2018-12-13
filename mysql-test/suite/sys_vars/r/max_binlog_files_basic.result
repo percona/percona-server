@@ -1,87 +1,145 @@
 SET @start_value = @@global.max_binlog_files;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @start_value;
 @start_value
 0
 '#--------------------FN_DYNVARS_072_01------------------------#'
 SET @@global.max_binlog_files = 5000;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = DEFAULT;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 0
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_072_02-------------------------#'
 SET @@global.max_binlog_files = @start_value;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files = 0;
 @@global.max_binlog_files = 0
 1
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_072_03------------------------#'
 SET @@global.max_binlog_files = 4;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 4
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = 10;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 10
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = 10;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 10
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = 40;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 40
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = 65;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 65
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_072_04-------------------------#'
 SET @@global.max_binlog_files = -1;
 Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect max_binlog_files value: '-1'
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 0
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = 100000000000;
 Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect max_binlog_files value: '100000000000'
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 102400
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'max_binlog_files'
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 102400
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = -1024;
 Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect max_binlog_files value: '-1024'
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 0
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = 1024;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 1024
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = 4294967296;
 Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect max_binlog_files value: '4294967296'
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 102400
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = 4095;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 4095
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = ON;
 ERROR 42000: Incorrect argument type to variable 'max_binlog_files'
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 4095
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = 'test';
 ERROR 42000: Incorrect argument type to variable 'max_binlog_files'
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 4095
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 '#-------------------FN_DYNVARS_072_05----------------------------#'
 SET @@session.max_binlog_files = 4096;
 ERROR HY000: Variable 'max_binlog_files' is a GLOBAL variable and should be set with SET GLOBAL
@@ -94,6 +152,7 @@ WHERE VARIABLE_NAME='max_binlog_files';
 @@global.max_binlog_files = VARIABLE_VALUE
 1
 Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 SELECT @@max_binlog_files = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
@@ -101,27 +160,43 @@ WHERE VARIABLE_NAME='max_binlog_files';
 @@max_binlog_files = VARIABLE_VALUE
 1
 Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
 '#---------------------FN_DYNVARS_072_07----------------------#'
 SET @@global.max_binlog_files = TRUE;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 1
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET @@global.max_binlog_files = FALSE;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 0
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_072_08----------------------#'
 SET @@global.max_binlog_files = 5000;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@max_binlog_files = @@global.max_binlog_files;
 @@max_binlog_files = @@global.max_binlog_files
 1
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_072_09----------------------#'
 SET max_binlog_files = 6000;
 ERROR HY000: Variable 'max_binlog_files' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@max_binlog_files;
 @@max_binlog_files
 5000
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SET local.max_binlog_files = 7000;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.max_binlog_files = 7000' at line 1
 SELECT local.max_binlog_files;
@@ -133,6 +208,10 @@ ERROR 42S02: Unknown table 'global' in field list
 SELECT max_binlog_files = @@session.max_binlog_files;
 ERROR 42S22: Unknown column 'max_binlog_files' in 'field list'
 SET @@global.max_binlog_files = @start_value;
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.
 SELECT @@global.max_binlog_files;
 @@global.max_binlog_files
 0
+Warnings:
+Warning	1287	'@@max_binlog_files' is deprecated and will be removed in a future release.

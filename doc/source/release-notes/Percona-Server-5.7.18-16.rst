@@ -24,8 +24,8 @@ added for these distributions.
 New Feature
 ===========
 
-|Percona Server| is now available on Debian 9 (stretch). The support only covers
-the ``amd64`` architecture.
+|Percona Server| is now available on Debian 9 (stretch). The support only
+covers the ``amd64`` architecture.
 
 |Percona Server| can now be built with support of OpenSSL 1.1.
 
@@ -49,11 +49,11 @@ unnecessarily waiting for an available lock. Bug fixed :tdbbug:`3`.
 |Percona FT| could assert when opening a dictionary with no useful information
 to error log. Bug fixed :tdbbug:`23`.
 
-|Percona FT| could assert for various reasons deserializing nodes with no useful
-error output. Bug fixed :tdbbug:`24`.
+|Percona FT| could assert for various reasons deserializing nodes with no
+useful error output. Bug fixed :tdbbug:`24`.
 
 It was not possible to build |Percona Server| on Debian 9 (stretch) due to
-issues with OpenSSL 1.1. Bug fixed :bug:`1702903` (upstream :mysqlbug:`83814`). 
+issues with OpenSSL 1.1. Bug fixed :bug:`1702903` (upstream :mysqlbug:`83814`).
 
 Packaging was using the ``dpkg --verify`` command which is not available on
 wheezy/precise. Bug fixed :bug:`1694907`.
@@ -81,13 +81,13 @@ also :ref:`compatibility-matrix`.  Note that the
 Killing a stored procedure execution could result in an assert failure on a
 debug server build. Bug fixed :bug:`1689736` (upstream :mysqlbug:`86260`).
 
-The ``SET STATEMENT .. FOR`` statement changed the global instead of the session
-value of a variable if the statement occurred immediately after the ``SET
-GLOBAL`` or ``SHOW GLOBAL STATUS`` command. Bug fixed :bug:`1385352`.
+The ``SET STATEMENT .. FOR`` statement changed the global instead of the
+session value of a variable if the statement occurred immediately after the
+``SET GLOBAL`` or ``SHOW GLOBAL STATUS`` command. Bug fixed :bug:`1385352`.
 
 When running ``SHOW ENGINE INNODB STATUS``, the ``Buffer pool size, bytes``
 entry contained **0**. BUg fixed :bug:`1586262`.
-     
+
 The synchronization between the LRU manager and page cleaner threads was not
 done at shutdown. Bug fixed :bug:`1689552`.
 
@@ -124,7 +124,7 @@ Compatibility Matrix
 =======================  =======  ==================  ====================
 Feature                  YaSSL    OpenSSL < 1.0.2     OpenSSL >= 1.0.2
 =======================  =======  ==================  ====================
-'commonName' validation  Yes      Yes                 Yes         
-SAN validation           No       Yes                 Yes         
-Wildcards support        No       No                  Yes         
+'commonName' validation  Yes      Yes                 Yes
+SAN validation           No       Yes                 Yes
+Wildcards support        No       No                  Yes
 =======================  =======  ==================  ====================

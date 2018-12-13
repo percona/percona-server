@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -760,7 +760,7 @@ static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
 
-static Sys_var_ulong Sys_binlog_group_commit_sync_delay(
+static Sys_var_long Sys_binlog_group_commit_sync_delay(
        "binlog_group_commit_sync_delay",
        "The number of microseconds the server waits for the "
        "binary log group commit sync queue to fill before "
@@ -987,6 +987,11 @@ static Sys_var_enum rbr_exec_mode(
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(prevent_global_rbr_exec_mode_idempotent),
        ON_UPDATE(NULL));
+
+static Sys_var_mybool Sys_binlog_encryption(
+       "encrypt_binlog", "Encrypt binary logs (including relay logs)",
+       READ_ONLY GLOBAL_VAR(encrypt_binlog), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
 
 static const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
 static Sys_var_enum Sys_binlog_row_image(
@@ -1673,13 +1678,22 @@ static Sys_var_ulong Sys_expire_logs_days(
        GLOBAL_VAR(expire_logs_days),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 99), DEFAULT(0), BLOCK_SIZE(1));
 
+static Sys_var_ulonglong Sys_binlog_space_limit(
+       "binlog_space_limit", "Maximum space to use for all binary logs. "
+       "Default is 0, this feature is disabled.",
+       READ_ONLY GLOBAL_VAR(binlog_space_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_max_binlog_files(
        "max_binlog_files",
        "Maximum number of binlog files. Used with --max-binlog-size this can "
        "be used to limit the total amount of disk space used for the binlog. "
-       "Default is 0, don't limit.",
+       "Default is 0, don't limit. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(max_binlog_files),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 102400), DEFAULT(0), BLOCK_SIZE(1));
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 102400), DEFAULT(0),
+       BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_slowlog_size(
        "max_slowlog_size",
@@ -1759,6 +1773,13 @@ static Sys_var_charptr Sys_ft_stopword_file(
        "Use stopwords from this file instead of built-in list",
        READ_ONLY GLOBAL_VAR(ft_stopword_file), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
+
+static Sys_var_mybool Sys_ft_query_extra_word_chars(
+       "ft_query_extra_word_chars",
+       "If enabled, all non-whitespace characters are considered word symbols "
+       "for full text search queries",
+       SESSION_VAR(ft_query_extra_word_chars), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_ignore_builtin_innodb(
        "ignore_builtin_innodb",
@@ -1939,6 +1960,18 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
   {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
              var->var->name.str);
+    return true;
+  }
+  /*
+    Disallow changing variable 'transaction_write_set_extraction' while
+    binlog_transaction_dependency_tracking is different from COMMIT_ORDER.
+  */
+  if (mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode
+      != DEPENDENCY_TRACKING_COMMIT_ORDER)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0),
+             "transaction_write_set_extraction (changed)",
+             "binlog_transaction_dependency_tracking (!= COMMIT_ORDER)");
     return true;
   }
   return false;
@@ -3727,6 +3760,68 @@ static Sys_var_enum Mts_parallel_type(
        NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
+static bool check_binlog_transaction_dependency_tracking(sys_var *self, THD *thd, set_var *var)
+{
+  if (global_system_variables.transaction_write_set_extraction == HASH_ALGORITHM_OFF
+      && var->save_result.ulonglong_value != DEPENDENCY_TRACKING_COMMIT_ORDER)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0),
+             "binlog_transaction_dependency_tracking (!= COMMIT_ORDER)",
+             "transaction_write_set_extraction (= OFF)");
+
+    return true;
+  }
+  return false;
+}
+
+static bool update_binlog_transaction_dependency_tracking(sys_var* var, THD* thd, enum_var_type v)
+{
+  /*
+    the writeset_history_start needs to be set to 0 whenever there is a
+    change in the transaction dependency source so that WS and COMMIT
+    transition smoothly.
+  */
+  mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
+  return false;
+}
+
+void PolyLock_lock_log::rdlock()
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+}
+
+void PolyLock_lock_log::wrlock()
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+}
+
+void PolyLock_lock_log::unlock()
+{
+  mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+}
+
+static PolyLock_lock_log PLock_log;
+static const char *opt_binlog_transaction_dependency_tracking_names[]=
+       {"COMMIT_ORDER", "WRITESET", "WRITESET_SESSION", NullS};
+static Sys_var_enum Binlog_transaction_dependency_tracking(
+       "binlog_transaction_dependency_tracking",
+       "Selects the source of dependency information from which to "
+       "assess which transactions can be executed in parallel by the "
+       "slave's multi-threaded applier. "
+       "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
+       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
+       CMD_LINE(REQUIRED_ARG), opt_binlog_transaction_dependency_tracking_names,
+       DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER), &PLock_log,
+       NOT_IN_BINLOG, ON_CHECK(check_binlog_transaction_dependency_tracking),
+       ON_UPDATE(update_binlog_transaction_dependency_tracking));
+static Sys_var_ulong Binlog_transaction_dependency_history_size(
+       "binlog_transaction_dependency_history_size",
+       "Maximum number of rows to keep in the writeset history.",
+       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size),
+       CMD_LINE(REQUIRED_ARG, 0), VALID_RANGE(1, 1000000), DEFAULT(25000),
+       BLOCK_SIZE(1), &PLock_log, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(NULL));
+
 static Sys_var_mybool Sys_slave_preserve_commit_order(
        "slave_preserve_commit_order",
        "Force slave workers to make commits in the same order as on the master. "
@@ -3741,6 +3836,12 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
   bool check_purge= false;
 
+  /*
+    SET binlog_checksome command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
@@ -3898,6 +3999,22 @@ static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
                           ER_WARN_DEPRECATED_SQLMODE,
                           ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
                           "NO_AUTO_CREATE_USER");
+    }
+    static const sql_mode_t deprecated_mask= MODE_DB2 | MODE_MAXDB |
+      MODE_MSSQL | MODE_MYSQL323 | MODE_MYSQL40 | MODE_ORACLE |
+      MODE_POSTGRESQL | MODE_NO_FIELD_OPTIONS | MODE_NO_KEY_OPTIONS |
+      MODE_NO_TABLE_OPTIONS;
+    sql_mode_t deprecated_modes=
+      var->save_result.ulonglong_value & deprecated_mask;
+    if (deprecated_modes != 0)
+    {
+      LEX_STRING buf;
+      if (sql_mode_string_representation(thd, deprecated_modes, &buf))
+        return true; // OOM
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SQLMODE,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
+                          buf.str);
     }
   }
 
@@ -4524,12 +4641,18 @@ static char *server_version_ptr;
 static Sys_var_version Sys_version(
        "version", "Server version",
        READ_ONLY GLOBAL_VAR(server_version_ptr), NO_CMD_LINE,
-       IN_SYSTEM_CHARSET, DEFAULT(server_version));
+       IN_SYSTEM_CHARSET, DEFAULT(MYSQL_SERVER_VERSION));
+
+static char *server_version_suffix_ptr;
+static Sys_var_charptr Sys_version_suffix(
+       "version_suffix", "version_suffix",
+       GLOBAL_VAR(server_version_suffix_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(server_version_suffix));
 
 static char *server_version_comment_ptr;
 static Sys_var_charptr Sys_version_comment(
        "version_comment", "version_comment",
-       READ_ONLY GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE,
+       GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE,
        IN_SYSTEM_CHARSET, DEFAULT(MYSQL_COMPILATION_COMMENT));
 
 static char *server_version_compile_machine_ptr;
@@ -5884,6 +6007,13 @@ static Sys_var_ulong Sys_sp_cache_size(
        GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(16, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
+static Sys_var_mybool Sys_encrypt_tmp_files(
+       "encrypt_tmp_files",
+       "Encrypt temporary files "
+       "(created for filesort, binary log cache, etc)",
+       READ_ONLY GLOBAL_VAR(encrypt_tmp_files),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
 {
   if (check_outside_trx(self, thd, var))
@@ -6284,3 +6414,48 @@ static Sys_var_charptr Sys_disabled_storage_engines(
        READ_ONLY GLOBAL_VAR(opt_disabled_storage_engines),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(""));
+
+static Sys_var_mybool Sys_show_create_table_verbosity(
+       "show_create_table_verbosity",
+       "When this option is enabled, it increases the verbosity of "
+       "'SHOW CREATE TABLE'.",
+        SESSION_VAR(show_create_table_verbosity),
+        CMD_LINE(OPT_ARG),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(0), ON_UPDATE(0));
+
+static bool check_keyring_access(sys_var*, THD* thd, set_var*)
+{
+  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  {
+    my_error(ER_KEYRING_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER");
+    return true;
+  }
+  return false;
+}
+
+/**
+  This is a mutex used to protect global variable @@keyring_operations.
+*/
+static PolyLock_mutex PLock_keyring_operations(&LOCK_keyring_operations);
+/**
+  This variable provides access to keyring service APIs. When this variable
+  is disabled calls to keyring_key_generate(), keyring_key_store() and
+  keyring_key_remove() will report error until this variable is enabled.
+  This variable is protected under a mutex named PLock_keyring_operations.
+  To access this variable you must first set this mutex.
+
+  @sa PLock_keyring_operations
+*/
+static Sys_var_mybool Sys_keyring_operations(
+       "keyring_operations",
+       "This variable provides access to keyring service APIs. When this "
+       "option is disabled calls to keyring_key_generate(), keyring_key_store() "
+       "and keyring_key_remove() will report error until this variable is enabled.",
+       GLOBAL_VAR(opt_keyring_operations),
+       NO_CMD_LINE, DEFAULT(TRUE),
+       &PLock_keyring_operations,
+       NOT_IN_BINLOG,
+       ON_CHECK(check_keyring_access),
+       ON_UPDATE(0));

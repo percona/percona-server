@@ -361,7 +361,7 @@ static int add_msghdr(conn *c)
 }
 
 static const char *prot_text(enum protocol prot) {
-    char *rv = "unknown";
+    const char *rv = "unknown";
     switch(prot) {
         case ascii_prot:
             rv = "ascii";
@@ -2259,7 +2259,7 @@ static void process_bin_complete_sasl_auth(conn *c) {
 
     switch(result) {
     case SASL_OK:
-        write_bin_response(c, "Authenticated", 0, 0, strlen("Authenticated"));
+        write_bin_response(c, (void*)"Authenticated", 0, 0, strlen("Authenticated"));
         auth_data_t data;
         get_auth_data(c, &data);
         perform_callbacks(ON_AUTH, (const void*)&data, c);
@@ -2967,7 +2967,7 @@ static void dispatch_bin_command(conn *c) {
     switch (c->cmd) {
         case PROTOCOL_BINARY_CMD_VERSION:
             if (extlen == 0 && keylen == 0 && bodylen == 0) {
-                write_bin_response(c, VERSION, 0, 0, strlen(VERSION));
+                write_bin_response(c, (void*)VERSION, 0, 0, strlen(VERSION));
             } else {
                 protocol_error = 1;
             }
@@ -3583,11 +3583,16 @@ static size_t tokenize_command(char *command, token_t *tokens, const size_t max_
     return ntokens;
 }
 
-static void detokenize(token_t *tokens, int ntokens, char **out, int *nbytes) {
-    int i, nb;
+#ifdef INNODB_MEMCACHED
+static void detokenize(token_t *tokens, size_t ntokens, char **out, int *nbytes)
+#else
+static void detokenize(token_t *tokens, int ntokens, char **out, int *nbytes)
+#endif
+{
+    int i;
     char *buf, *p;
+    size_t nb = ntokens; // account for spaces, which is ntokens-1, plus the null
 
-    nb = ntokens; // account for spaces, which is ntokens-1, plus the null
     for (i = 0; i < ntokens; ++i) {
         nb += tokens[i].length;
     }
@@ -4046,6 +4051,7 @@ static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens
     item *it;
     token_t *key_token = &tokens[KEY_TOKEN];
     assert(c != NULL);
+    (void)ntokens;
 
     /* We temporarily block the mgets commands till wl6650 checked in. */
     if ((key_token + 1)->length > 0) {
@@ -4495,8 +4501,6 @@ static char *process_bind_command(conn *c, token_t *tokens,
                                        name, name_len);
     }
 
-    /* For some reason the SLAB_INCR tries to access this... */
-    item_info info = { .nvalue = 1 };
     switch (ret) {
     case ENGINE_SUCCESS:
         out_string(c, "SUCCEED");

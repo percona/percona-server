@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_perror\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_PERROR\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_PERROR\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -122,10 +122,77 @@ The following table includes all options that are specific to the NDB Cluster pr
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.100.\ \& This table describes command\-line options for the ndb_perror program
+.B Table\ \&21.343.\ \&Command\-line options for the ndb_perror program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--help,
+.PP
+-?
+T}:T{
+Display help text
+T}:T{
+.PP
+ADDED: NDB 7.6.4
+T}
+T{
+.PP
+--ndb
+T}:T{
+For compatibility with applications depending on old versions of perror;
+              does nothing
+T}:T{
+.PP
+ADDED: NDB 7.6.4
+T}
+T{
+.PP
+--silent,
+.PP
+-s
+T}:T{
+Show error message only
+T}:T{
+.PP
+ADDED: NDB 7.6.4
+T}
+T{
+.PP
+--version,
+.PP
+-V
+T}:T{
+Print program version information and exit
+T}:T{
+.PP
+ADDED: NDB 7.6.4
+T}
+T{
+.PP
+--verbose,
+.PP
+-v
+T}:T{
+Verbose output; disable with --silent
+T}:T{
+.PP
+ADDED: NDB 7.6.4
+T}
 .TE
 .sp 1
 Additional Options
@@ -142,29 +209,34 @@ Additional Options
 \fB\-?\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--help
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.4
+5.7.19-ndb-7.6.4
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-help
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -184,29 +256,34 @@ Display program help text and exit\&.
 \fB\-\-ndb\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--ndb
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.4
+5.7.19-ndb-7.6.4
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-ndb
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -233,29 +310,34 @@ does nothing, and is ignored by it\&.
 \fB\-s\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--silent
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.4
+5.7.19-ndb-7.6.4
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-silent
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -276,29 +358,34 @@ Show error message only\&.
 \fB\-V\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--version
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.4
+5.7.19-ndb-7.6.4
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-version
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -319,29 +406,34 @@ Print program version information and exit\&.
 \fB\-v\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--verbose
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.4
+5.7.19-ndb-7.6.4
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-verbose
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -353,7 +445,7 @@ Verbose output; disable with
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

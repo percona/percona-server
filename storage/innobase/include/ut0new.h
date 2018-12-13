@@ -176,7 +176,6 @@ extern PSI_memory_key	mem_key_log_online_sys;
 extern PSI_memory_key	mem_key_log_online_read_buf;
 extern PSI_memory_key	mem_key_log_online_iterator_files;
 extern PSI_memory_key	mem_key_log_online_iterator_page;
-extern PSI_memory_key	mem_key_trx_distinct_page_access_hash;
 extern PSI_memory_key	mem_key_parallel_doublewrite;
 
 /** Setup the internal objects needed for UT_NEW() to operate.
@@ -605,7 +604,8 @@ public:
 	pointer
 	allocate_large(
 		size_type	n_elements,
-		ut_new_pfx_t*	pfx)
+		ut_new_pfx_t*	pfx,
+		bool            populate)
 	{
 		if (n_elements == 0 || n_elements > max_size()) {
 			return(NULL);
@@ -614,7 +614,7 @@ public:
 		ulint	n_bytes = n_elements * sizeof(T);
 
 		pointer	ptr = reinterpret_cast<pointer>(
-			os_mem_alloc_large(&n_bytes));
+			os_mem_alloc_large(&n_bytes, populate));
 
 #ifdef UNIV_PFS_MEMORY
 		if (ptr != NULL) {
@@ -663,8 +663,8 @@ public:
 
 		/* e.g. "btr0cur", derived from "/path/to/btr0cur.cc" */
 		char		keyname[FILENAME_MAX];
-		const size_t	len = ut_basename_noext(file, keyname,
-							sizeof(keyname));
+		const size_t	len MY_ATTRIBUTE((unused)) =
+			ut_basename_noext(file, keyname, sizeof(keyname));
 		/* If sizeof(keyname) was not enough then the output would
 		be truncated, assert that this did not happen. */
 		ut_a(len < sizeof(keyname));

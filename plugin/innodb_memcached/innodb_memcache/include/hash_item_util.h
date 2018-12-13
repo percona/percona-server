@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <stdint.h>
+#include <arpa/inet.h>
 
 #include <memcached/engine.h> 
 

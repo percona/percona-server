@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,8 +97,6 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                Name_resolution_context *context);
 
 inline bool is_system_table_name(const char *name, size_t length);
-
-static ulong get_form_pos(File file, uchar *head);
 
 /**************************************************************************
   Object_creation_ctx implementation.
@@ -392,7 +390,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                        table_cache_instances * sizeof(*cache_element_array),
                        NULL))
   {
-    memset(share, 0, sizeof(*share));
+    new (share) TABLE_SHARE;
 
     share->set_table_cache_key(key_buff, key, key_length);
 
@@ -458,7 +456,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_ENTER("init_tmp_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
-  memset(share, 0, sizeof(*share));
+  new (share) TABLE_SHARE;
   init_sql_alloc(key_memory_table_share,
                  &share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   share->table_category=         TABLE_CATEGORY_TEMPORARY;
@@ -2205,6 +2203,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       next_chunk+= 2 + share->encrypt_type.length;
     }
+
+    if (next_chunk + strlen("ENCRYPTION_KEY_ID") + 4 // + 4 for encryption_key_id value, ENCRYPTION_KEY_ID is used here as a marker
+        <= buff_end && 
+        strncmp(reinterpret_cast<char*>(next_chunk), "ENCRYPTION_KEY_ID",
+                strlen("ENCRYPTION_KEY_ID")) == 0)
+    {
+          share->encryption_key_id= uint4korr(next_chunk + strlen("ENCRYPTION_KEY_ID"));
+          share->was_encryption_key_id_set= true;
+          next_chunk += 4 + strlen("ENCRYPTION_KEY_ID");
+    }
   }
   share->key_block_size= uint2korr(head+62);
 
@@ -3168,7 +3176,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                       share->table_name.str, (long) outparam));
 
   error= 1;
-  memset(outparam, 0, sizeof(*outparam));
+  new (outparam) TABLE;
   outparam->in_use= thd;
   outparam->s= share;
   outparam->db_stat= db_stat;
@@ -3658,7 +3666,7 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size)
   @retval The form position.
 */
 
-static ulong get_form_pos(File file, uchar *head)
+ulong get_form_pos(File file, uchar *head)
 {
   uchar *pos, *buf;
   uint names, length;
@@ -4420,7 +4428,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
 
   /* Whether the table definition has already been validated. */
   if (table->s->table_field_def_cache == table_def)
-    DBUG_RETURN(FALSE);
+    goto end;
 
   if (table->s->fields != table_def->count)
   {
@@ -4537,6 +4545,15 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
 
   if (! error)
     table->s->table_field_def_cache= table_def;
+
+end:
+
+  if (has_keys && !error && !table->key_info)
+  {
+    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    error= TRUE;
+  }
 
   DBUG_RETURN(error);
 }
@@ -4808,8 +4825,24 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   
-  bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
-  DBUG_ASSERT(!error);
+  /*
+    Do not call refix_gc_items() for tables which are not directly used by the
+    statement (i.e. used by the substatements of routines or triggers to be
+    invoked by the statement).
+
+    Firstly, there will be call to refix_gc_items() at the start of execution
+    of substatement which directly uses this table anyway.Secondly, cleanup of
+    generated column (call to cleanup_gc_items()) for the table will be done
+    only at the end of execution of substatement which uses it. Because of this
+    call to refix_gc_items() for prelocking placeholder will miss corresponding
+    call to cleanup_gc_items() if substatement which uses the table is not
+    executed for some reason.
+  */
+  if (!pos_in_table_list->prelocking_placeholder)
+  {
+    bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
+    DBUG_ASSERT(!error);
+  }
 }
 
 
@@ -4976,14 +5009,16 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
   DBUG_ASSERT(belongs_to && select);
 
   TABLE_LIST *const join_nest=
-    (TABLE_LIST *) alloc_root(allocator, ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                                    sizeof(NESTED_JOIN));
+    (TABLE_LIST*) alloc_root(allocator, sizeof(TABLE_LIST));
   if (join_nest == NULL)
     return NULL;
+  new (join_nest) TABLE_LIST;
 
-  memset(join_nest, 0, ALIGN_SIZE(sizeof(TABLE_LIST)) + sizeof(NESTED_JOIN));
   join_nest->nested_join=
-    (NESTED_JOIN *) ((uchar *)join_nest + ALIGN_SIZE(sizeof(TABLE_LIST)));
+    (NESTED_JOIN*) alloc_root(allocator, sizeof(NESTED_JOIN));
+  if (join_nest->nested_join == NULL)
+    return NULL;
+  new (join_nest->nested_join) NESTED_JOIN;
 
   join_nest->db= (char *)"";
   join_nest->db_length= 0;
@@ -7890,7 +7925,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
     if (!vfield->stored_in_db &&
         bitmap_is_set(table->read_set, vfield->field_index))
     {
-      if (vfield->type() == MYSQL_TYPE_BLOB)
+      if ((vfield->flags & BLOB_FLAG) != 0)
       {
         (down_cast<Field_blob*>(vfield))->keep_old_value();
         (down_cast<Field_blob*>(vfield))->set_keep_old_value(true);
@@ -7964,11 +7999,11 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
     if (bitmap_is_set(bitmap, vfield->field_index))
     {
       /*
-        For a virtual generated column of blob type, we have to keep
+        For a virtual generated column based on the blob type, we have to keep
         the current blob value since this might be needed by the
         storage engine during updates.
       */
-      if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
+      if ((vfield->flags & BLOB_FLAG) != 0 && vfield->is_virtual_gcol())
       {
         (down_cast<Field_blob*>(vfield))->keep_old_value();
         (down_cast<Field_blob*>(vfield))->set_keep_old_value(true);

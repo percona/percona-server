@@ -5,6 +5,9 @@
 #include "vault_key.h"
 #include "vault_base64.h"
 #include "my_rnd.h"
+#include "i_keys_container.h"
+
+boost::movelib::unique_ptr<keyring::IKeys_container> keys(NULL);
 
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring

@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,8 +18,7 @@ IF(NOT GMOCK_FOUND)
   RETURN()
 ENDIF()
 
-INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR})
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 INCLUDE_DIRECTORIES(
   ${GMOCK_INCLUDE_DIRS}
@@ -28,11 +27,13 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/plugin/keyring
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common
   ${CMAKE_SOURCE_DIR}/unittest/gunit
+  ${CMAKE_SOURCE_DIR}/include/mysql
 )
 
 SET(TESTS
   keyring-api
   keys_container
+  system_keys_container
   buffered_file_io
   file_io
 )
@@ -55,6 +56,9 @@ IF (MERGE_UNITTESTS)
   LIST(APPEND SRC_FILES
        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_keys_container.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_key_adapter.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
@@ -84,6 +88,8 @@ ENDIF(MERGE_UNITTESTS)
     SET(SRC_FILES ${test}-t.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_keys_container.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_key_adapter.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc

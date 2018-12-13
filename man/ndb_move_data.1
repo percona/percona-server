@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_move_data\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_MOVE_DATA\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_MOVE_DATA\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -58,10 +58,125 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.99.\ \& This table describes command\-line options for the ndb_move_data program
+.B Table\ \&21.342.\ \&Command\-line options for the ndb_move_data program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--abort-on-error
+T}:T{
+Dump core on permanent error (debug option)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--character-sets-dir=name
+T}:T{
+Directory where character sets are
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--database=dbname,
+.PP
+-d
+T}:T{
+Name of the database in which the table is found
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--drop-source
+T}:T{
+Drop source table after all rows have been moved
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--error-insert
+T}:T{
+Insert random temporary errors (testing option)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--exclude-missing-columns
+T}:T{
+Ignore extra columns in source or target table
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--lossy-conversions,
+.PP
+-l
+T}:T{
+Allow attribute data to be truncated when converted to a smaller type
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--promote-attributes,
+.PP
+-A
+T}:T{
+Allow attribute data to be converted to a larger type
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--staging-tries=x[,y[,z]]
+T}:T{
+Specify tries on temporary errors. Format is x[,y[,z]] where x=max tries
+              (0=no limit), y=min delay (ms), z=max delay (ms)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--verbose
+T}:T{
+Enable verbose messages
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
 .TE
 .sp 1
 .sp
@@ -76,23 +191,28 @@ allbox tab(:);
 \fB\-\-abort\-on\-error\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-abort\-on\-error
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--abort-on-error
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -112,23 +232,28 @@ Dump core on permanent error (debug option)\&.
 \fB\-\-character\-sets\-dir\fR=\fIname\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-character\-sets\-dir=name
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--character-sets-dir=name
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -149,23 +274,28 @@ Directory where character sets are\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-database=dbname
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--database=dbname
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 TEST_DB
 T}
@@ -185,23 +315,28 @@ Name of the database in which the table is found\&.
 \fB\-\-drop\-source\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-drop\-source
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--drop-source
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -221,23 +356,28 @@ Drop source table after all rows have been moved\&.
 \fB\-\-error\-insert\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-error\-insert
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--error-insert
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -257,23 +397,28 @@ Insert random temporary errors (testing option)\&.
 \fB\-\-exclude\-missing\-columns\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-exclude\-missing\-columns
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--exclude-missing-columns
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -294,23 +439,28 @@ Ignore extra columns in source or target table\&.
 \fB\-l\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-lossy\-conversions
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--lossy-conversions
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -331,23 +481,28 @@ Allow attribute data to be truncated when converted to a smaller type\&.
 \fB\-A\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-promote\-attributes
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--promote-attributes
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -367,23 +522,28 @@ Allow attribute data to be converted to a larger type\&.
 \fB\-\-staging\-tries\fR=\fIx[,y[,z]]\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-staging\-tries=x[,y[,z]]
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--staging-tries=x[,y[,z]]
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 0,1000,60000
 T}
@@ -403,23 +563,28 @@ Specify tries on temporary errors\&. Format is x[,y[,z]] where x=max tries (0=no
 \fB\-\-verbose\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-verbose
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--verbose
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -430,7 +595,7 @@ Enable verbose messages\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

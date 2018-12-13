@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgm\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGM\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_MGM\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -76,10 +76,43 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.89.\ \& This table describes command\-line options for the ndb_mgm program
+.B Table\ \&21.332.\ \&Command\-line options for the ndb_mgm program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+l l l
+l l l.
+T{
+.PP
+--try-reconnect=#,
+.PP
+-t
+T}:T{
+Set the number of times to retry a connection before giving up; synonym
+              for --connect-retries
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--execute=name,
+.PP
+-e
+T}:T{
+Execute command and exit
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
 .TE
 .sp 1
 .sp
@@ -94,35 +127,40 @@ allbox tab(:);
 \fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-connect\-retries=#
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connect-retries=#
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 3
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -153,11 +191,18 @@ Options Common to NDB Cluster Programs(1), for more information\&.
 \fB\-e \fR\fBcommand\fR
 .TS
 allbox tab(:);
-l l s s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-execute=name
+Value
+T}
+.T&
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--execute=name
 T}
 .TE
 .sp 1
@@ -214,67 +259,58 @@ be enclosed in quotation marks\&. Either single or double quotation marks may be
 \fB\-\-try\-reconnect=\fR\fB\fInumber\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--try-reconnect=#
+T}
 T{
 \fBDeprecated\fR
 T}:T{
-5\&.6\&.28\-ndb\-7\&.4\&.9
+5.6.28-ndb-7.4.9
 T}
 T{
-\fBCommand\-Line Format\fR
+\fBType\fR (>= 5.7.10-ndb-7.5.0)
 T}:T{
-\-\-try\-reconnect=#
+Numeric
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
-integer
-T}
-:T{
-\fBDefault\fR
-T}:T{
-3
-T}
-:T{
-\fBMin Value\fR
-T}:T{
-0
-T}
-:T{
-\fBMax Value\fR
-T}:T{
-4294967295
+Integer
 T}
 T{
-\fBPermitted Values\fR (>= 5\&.7\&.10\-ndb\-7\&.5\&.0)
-T}:T{
-\fBType\fR
-T}:T{
-numeric
-T}
-:T{
-\fBDefault\fR
+\fBDefault Value\fR (>= 5.7.10-ndb-7.5.0)
 T}:T{
 12
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBDefault Value\fR
+T}:T{
+3
+T}
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -295,7 +331,7 @@ Section\ \&21.5.2, \(lqCommands in the NDB Cluster Management Client\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

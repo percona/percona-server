@@ -18,9 +18,11 @@
 #define _rdb_psi_h_
 
 /* MySQL header files */
-#include <my_global.h>
-#include <my_thread.h>
-#include <mysql/psi/psi.h>
+#include "my_global.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_thread.h"
 
 /* MyRocks header files */
 #include "./rdb_utils.h"
@@ -41,7 +43,7 @@ extern my_core::PSI_mutex_key rdb_psi_open_tbls_mutex_key,
     rdb_signal_bg_psi_mutex_key, rdb_signal_drop_idx_psi_mutex_key,
     rdb_collation_data_mutex_key, rdb_mem_cmp_space_mutex_key,
     key_mutex_tx_list, rdb_sysvars_psi_mutex_key, rdb_cfm_mutex_key,
-    rdb_bulk_load_mutex_key;
+    rdb_sst_commit_key, rdb_block_cache_resize_mutex_key;
 
 extern my_core::PSI_rwlock_key key_rwlock_collation_exception_list,
     key_rwlock_read_free_rpl_tables, key_rwlock_skip_unique_check_tables;

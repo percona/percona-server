@@ -22,10 +22,10 @@
 #include <vector>
 
 /* MySQL header files */
-#include "../sql/log.h"
-#include "./my_stacktrace.h"
-#include "./sql_string.h"
-#include "./sql_regex.h"
+#include "log.h"
+#include "my_stacktrace.h"
+#include "sql_regex.h"
+#include "sql_string.h"
 
 /* RocksDB header files */
 #include "rocksdb/slice.h"
@@ -78,17 +78,13 @@ namespace myrocks {
 
   Use the power of SHIP_ASSERT() wisely.
 */
-#ifndef abort_with_stack_traces
-#define abort_with_stack_traces abort
-#endif
-
 #ifndef SHIP_ASSERT
-#define SHIP_ASSERT(expr)                                               \
-  do {                                                                  \
-    if (!(expr)) {                                                      \
-      my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr);  \
-      abort_with_stack_traces();                                        \
-    }                                                                   \
+#define SHIP_ASSERT(expr)                                                      \
+  do {                                                                         \
+    if (!(expr)) {                                                             \
+      my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr);         \
+      abort();                                                                 \
+    }                                                                          \
   } while (0)
 #endif  // SHIP_ASSERT
 
@@ -135,8 +131,8 @@ namespace myrocks {
   make sure that both failure and success paths are clearly identifiable. The
   definitions of FALSE and TRUE come from <my_global.h>.
 */
-#define HA_EXIT_SUCCESS FALSE
-#define HA_EXIT_FAILURE TRUE
+#define HA_EXIT_SUCCESS false
+#define HA_EXIT_FAILURE true
 
 /*
   Macros to better convey the intent behind checking the results from locking
@@ -240,11 +236,19 @@ inline void rdb_check_mutex_call_result(const char *function_name,
 
     // This will hopefully result in a meaningful stack trace which we can use
     // to efficiently debug the root cause.
-    abort_with_stack_traces();
+    abort();
   }
 }
 
 void rdb_log_status_error(const rocksdb::Status &s, const char *msg = nullptr);
+
+// return true if the marker file exists which indicates that the corruption
+// has been detected
+bool rdb_check_rocksdb_corruption();
+
+// stores a marker file in the data directory so that after restart server
+// is still aware that rocksdb data is corrupted
+void rdb_persist_corruption_marker();
 
 /*
   Helper functions to parse strings.
@@ -252,26 +256,26 @@ void rdb_log_status_error(const rocksdb::Status &s, const char *msg = nullptr);
 
 const char *rdb_skip_spaces(const struct charset_info_st *const cs,
                             const char *str)
-    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+    MY_ATTRIBUTE((__warn_unused_result__));
 
 bool rdb_compare_strings_ic(const char *const str1, const char *const str2)
-    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+    MY_ATTRIBUTE((__warn_unused_result__));
 
 const char *rdb_find_in_string(const char *str, const char *pattern,
                                bool *const succeeded)
-    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+    MY_ATTRIBUTE((__warn_unused_result__));
 
 const char *rdb_check_next_token(const struct charset_info_st *const cs,
                                  const char *str, const char *const pattern,
                                  bool *const succeeded)
-    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+    MY_ATTRIBUTE((__warn_unused_result__));
 
 const char *rdb_parse_id(const struct charset_info_st *const cs,
                          const char *str, std::string *const id)
-    MY_ATTRIBUTE((__nonnull__(1, 2), __warn_unused_result__));
+    MY_ATTRIBUTE((__warn_unused_result__));
 
 const char *rdb_skip_id(const struct charset_info_st *const cs, const char *str)
-    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+    MY_ATTRIBUTE((__warn_unused_result__));
 
 const std::vector<std::string> parse_into_tokens(const std::string& s,
                                                  const char delim);
@@ -281,8 +285,7 @@ const std::vector<std::string> parse_into_tokens(const std::string& s,
 */
 
 std::string rdb_hexdump(const char *data, const std::size_t data_len,
-                        const std::size_t maxsize = 0)
-    MY_ATTRIBUTE((__nonnull__));
+                        const std::size_t maxsize = 0);
 
 /*
   Helper function to see if a database exists

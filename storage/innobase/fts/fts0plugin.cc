@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -129,7 +129,7 @@ fts_query_add_word_for_parser(
 		if (cur_node->type != FTS_AST_PARSER_PHRASE_LIST) {
 			break;
 		}
-		// fallthrough
+		// Fall through.
 
 	case FT_TOKEN_WORD:
 		term_node = fts_ast_create_node_term_for_parser(
@@ -240,13 +240,14 @@ fts_parse_query_internal(
 	uchar**	start = reinterpret_cast<uchar**>(&query);
 	uchar*	end = reinterpret_cast<uchar*>(query + len);
 	FT_WORD	w = {NULL, 0, 0};
+	const bool extra_word_chars = thd_get_ft_query_extra_word_chars();
 
 	info.prev = ' ';
 	info.quot = 0;
 	memset(&w, 0, sizeof(w));
 	/* Note: We don't handle simple parser mode here,
 	but user supplied plugin parser should handler it. */
-	while (fts_get_word(cs, start, end, &w, &info)) {
+	while (fts_get_word(cs, extra_word_chars, start, end, &w, &info)) {
 		int ret = param->mysql_add_word(
 				param,
 				reinterpret_cast<char*>(w.pos),

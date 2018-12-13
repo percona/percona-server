@@ -38,6 +38,11 @@ public:
   {
     return FALSE;
   }
+  virtual void set_curl_timeout(uint timeout)
+  {
+    DBUG_ASSERT(vault_curl != NULL);
+    vault_curl->set_timeout(timeout);
+  }
 
 private:
   bool write_key(const Vault_key &key);

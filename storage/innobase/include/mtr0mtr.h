@@ -225,6 +225,7 @@ struct mtr_t {
 	mtr_t()
 	{
 		m_impl.m_state = MTR_STATE_INIT;
+		m_impl.m_flush_observer = NULL;
 	}
 
 	~mtr_t() { }

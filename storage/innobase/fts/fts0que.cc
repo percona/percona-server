@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1623,6 +1623,8 @@ fts_query_match_phrase_terms(
 	byte*			ptr = *start;
 	const ib_vector_t*	tokens = phrase->tokens;
 	ulint			distance = phrase->distance;
+	const bool		extra_word_chars
+		= thd_get_ft_query_extra_word_chars();
 
 	/* We check only from the second term onwards, since the first
 	must have matched otherwise we wouldn't be here. */
@@ -1635,7 +1637,7 @@ fts_query_match_phrase_terms(
 
 		ret = innobase_mysql_fts_get_token(
 			phrase->charset, ptr,
-			const_cast<byte*>(end), &match);
+			const_cast<byte*>(end), extra_word_chars, &match);
 
 		if (match.f_len > 0) {
 			/* Get next token to match. */
@@ -1711,6 +1713,9 @@ fts_proximity_is_word_in_range(
 	ut_ad(proximity_pos->n_pos == proximity_pos->min_pos.size());
 	ut_ad(proximity_pos->n_pos == proximity_pos->max_pos.size());
 
+	const bool		extra_word_chars
+		= thd_get_ft_query_extra_word_chars();
+
 	/* Search each matched position pair (with min and max positions)
 	and count the number of words in the range */
 	for (ulint i = 0; i < proximity_pos->n_pos; i++) {
@@ -1727,7 +1732,7 @@ fts_proximity_is_word_in_range(
 			len = innobase_mysql_fts_get_token(
 				phrase->charset,
 				start + cur_pos,
-				start + total_len, &str);
+				start + total_len, extra_word_chars, &str);
 
 			if (len == 0) {
 				break;
@@ -1885,6 +1890,10 @@ fts_query_match_phrase(
 
 	ut_a(phrase->match->start < ib_vector_size(positions));
 
+	const bool		extra_word_chars
+		= phrase->parser
+		? false : thd_get_ft_query_extra_word_chars();
+
 	for (i = phrase->match->start; i < ib_vector_size(positions); ++i) {
 		ulint		pos;
 		byte*		ptr = start;
@@ -1933,7 +1942,8 @@ fts_query_match_phrase(
 			match.f_str = ptr;
 			ret = innobase_mysql_fts_get_token(
 				phrase->charset, start + pos,
-				const_cast<byte*>(end), &match);
+				const_cast<byte*>(end), extra_word_chars,
+				&match);
 
 			if (match.f_len == 0) {
 				break;
@@ -2649,6 +2659,10 @@ fts_query_phrase_split(
 		term_node = node->list.head;
 	}
 
+	const bool		extra_word_chars
+		= node->type == FTS_AST_TEXT
+		? thd_get_ft_query_extra_word_chars() : false;
+
 	while (true) {
 		fts_cache_t*	cache = query->index->table->fts->cache;
 		ulint		cur_len;
@@ -2664,7 +2678,7 @@ fts_query_phrase_split(
 				reinterpret_cast<const byte*>(phrase.f_str)
 				+ cur_pos,
 				reinterpret_cast<const byte*>(phrase.f_str)
-				+ len,
+				+ len, extra_word_chars,
 				&result_str);
 
 			if (cur_len == 0) {
@@ -4079,9 +4093,17 @@ fts_query(
 	lc_query_str_len = query_len * charset->casedn_multiply + 1;
 	lc_query_str = static_cast<byte*>(ut_malloc_nokey(lc_query_str_len));
 
+	/* For binary collations, a case sensitive search is
+	performed. Hence don't convert to lower case. */
+	if (my_binary_compare(charset)) {
+	memcpy(lc_query_str, query_str, query_len);
+		lc_query_str[query_len]= 0;
+		result_len= query_len;
+	} else {
 	result_len = innobase_fts_casedn_str(
-		charset, (char*) query_str, query_len,
-		(char*) lc_query_str, lc_query_str_len);
+				charset, (char*)( query_str), query_len,
+				(char*)(lc_query_str), lc_query_str_len);
+	}
 
 	ut_ad(result_len < lc_query_str_len);
 
@@ -4099,6 +4121,7 @@ fts_query(
 	/* Parse the input query string. */
 	if (fts_query_parse(&query, lc_query_str, result_len)) {
 		fts_ast_node_t*	ast = query.root;
+		ast->trx = trx;
 
 		/* Optimize query to check if it's a single term */
 		fts_query_can_optimize(&query, flags);
@@ -4125,6 +4148,11 @@ fts_query(
 		query.error = fts_ast_visit(
 			FTS_NONE, ast, fts_query_visitor,
 			&query, &will_be_ignored);
+		if (query.error == DB_INTERRUPTED) {
+			error = DB_INTERRUPTED;
+			ut_free(lc_query_str);
+			goto func_exit;
+		}
 
 		/* If query expansion is requested, extend the search
 		with first search pass result */
@@ -4149,6 +4177,15 @@ fts_query(
 		/* still return an empty result set */
 		*result = static_cast<fts_result_t*>(
 			ut_zalloc_nokey(sizeof(**result)));
+	}
+
+	if (trx_is_interrupted(trx)) {
+		error = DB_INTERRUPTED;
+		ut_free(lc_query_str);
+		if (result != NULL) {
+			fts_query_free_result(*result);
+		}
+		goto func_exit;
 	}
 
 	ut_free(lc_query_str);

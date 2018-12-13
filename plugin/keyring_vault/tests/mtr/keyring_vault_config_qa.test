@@ -12,8 +12,16 @@ call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_va
 
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault. Vault has returned the following error\\(s\\): \\[\"permission denied\"\\]'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '.*' not found");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not read file with credentials.'");
 
 --source generate_default_conf_files.inc
+--source is_vault_server_up.inc
+
+# Create mount points
+--let MOUNT_POINT_SERVICE_OP=CREATE
+--let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
+--source mount_point_service.inc
 
 # Installing keyring plugin.
 --replace_regex /\.dll/.so/
@@ -76,7 +84,10 @@ FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 
 # Cleanup
 DROP TABLE t1;
+
+# Delete mount points
+--let MOUNT_POINT_SERVICE_OP=DELETE
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
---source vault_cleanup.inc
+--source mount_point_service.inc
 --echo
 --echo #End:

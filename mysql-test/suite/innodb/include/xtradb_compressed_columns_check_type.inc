@@ -19,6 +19,13 @@ if($full_field_type)
 }
 
 --disable_query_log
+
+SET @saved_max_allowed_packet = @@global.max_allowed_packet;
+eval SET GLOBAL max_allowed_packet = GREATEST((($field_length + 1023) DIV 1024 + 1) * 1024, 1048576);
+
+--source include/count_sessions.inc
+--connect (comp_con,localhost,root,,,,,COMPRESS)
+
 eval CREATE TABLE t1(
   a $local_full_field_type
 ) ROW_FORMAT = $row_format ENGINE=InnoDB;
@@ -117,4 +124,11 @@ while($current_value_length <= $max_value_length)
 }
 
 DROP TABLE t1;
+
+--connection default
+--disconnect comp_con
+--source include/wait_until_count_sessions.inc
+
+SET GLOBAL max_allowed_packet = @saved_max_allowed_packet;
+
 --enable_query_log

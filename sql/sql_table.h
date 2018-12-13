@@ -144,6 +144,8 @@ static const uint FRM_ONLY=        1 << 3;
 static const uint NO_HA_TABLE=     1 << 4;
 /** Don't check foreign key constraints while renaming table */
 static const uint NO_FK_CHECKS=    1 << 5;
+/** Percona : Database and table name are encoded in fscs already */
+static const uint FN_IS_ENCODED=   1 << 6;
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
 #ifndef DBUG_OFF

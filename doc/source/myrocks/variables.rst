@@ -1,19 +1,8 @@
-.. _myrocks_variables:
-
-=================
-MyRocks Variables
-=================
-
-MyRocks provides variables to tune performance
-and manage the behavior of the storage engine.
-
-.. contents::
-   :local:
-
 .. _myrocks_server_variables:
 
+========================
 MyRocks Server Variables
-------------------------
+========================
 
 The MyRocks server variables expose configuration
 of the underlying RocksDB engine.
@@ -59,6 +48,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_allow_to_start_after_corruption`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_allow_mmap_reads`
      - Yes
      - No
@@ -91,6 +84,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_bulk_load_allow_sk`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_bulk_load_allow_unsorted`
      - Yes
      - Yes
@@ -101,7 +98,7 @@ Also, all variables can exist in one or both of the following scopes:
      - Global
    * - :variable:`rocksdb_bytes_per_sync`
      - Yes
-     - No
+     - Yes
      - Global
    * - :variable:`rocksdb_cache_index_and_filter_blocks`
      - Yes
@@ -119,6 +116,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_commit_time_batch_for_recovery`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_compact_cf`
      - Yes
      - Yes
@@ -171,10 +172,30 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_deadlock_detect_depth`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_debug_optimizer_no_zero_cardinality`
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_debug_ttl_ignore_pk`
+     - Yes
+     - Yes
+     - Global
+   * - :variable:`rocksdb_debug_ttl_read_filter_ts`
+     - Yes
+     - Yes
+     - Global
+   * - :variable:`rocksdb_debug_ttl_rec_ts`
+     - Yes
+     - Yes
+     - Global
+   * - :variable:`rocksdb_debug_ttl_snapshot_ts`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_default_cf_options`
      - Yes
      - No
@@ -195,6 +216,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_enable_ttl_read_filtering`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_enable_thread_tracking`
      - Yes
      - No
@@ -204,6 +229,10 @@ Also, all variables can exist in one or both of the following scopes:
      - No
      - Global
    * - :variable:`rocksdb_error_if_exists`
+     - Yes
+     - No
+     - Global
+   * - :variable:`rocksdb_error_on_suboptimal_collation`
      - Yes
      - No
      - Global
@@ -236,6 +265,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Global, Session
    * - :variable:`rocksdb_hash_index_allow_collision`
+     - Yes
+     - No
+     - Global
+   * - :variable:`rocksdb_ignore_unknown_options`
      - Yes
      - No
      - Global
@@ -291,6 +324,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_max_latest_deadlocks`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_max_log_file_size`
      - Yes
      - No
@@ -320,6 +357,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Global, Session
    * - :variable:`rocksdb_merge_combine_read_size`
+     - Yes
+     - Yes
+     - Global, Session
+   * - :variable:`rocksdb_merge_tmp_file_removal_delay_ms`
      - Yes
      - Yes
      - Global, Session
@@ -411,6 +452,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_stats_recalc_rate`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_store_row_debug_checksums`
      - Yes
      - Yes
@@ -435,6 +480,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_two_write_queues`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_trace_sst_api`
      - Yes
      - Yes
@@ -473,7 +522,7 @@ Also, all variables can exist in one or both of the following scopes:
      - Global, Session
    * - :variable:`rocksdb_wal_bytes_per_sync`
      - Yes
-     - No
+     - Yes
      - Global
    * - :variable:`rocksdb_wal_dir`
      - Yes
@@ -507,6 +556,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_write_policy`
+     - Yes
+     - No
+     - Global
 
 .. variable:: rocksdb_access_hint_on_compaction_start
 
@@ -551,6 +604,24 @@ Enabled by default.
 
 Specifies whether to allow multiple writers to update memtables in parallel.
 Disabled by default.
+
+.. variable:: rocksdb_allow_to_start_after_corruption
+
+  :version 5.7.21-20: Implemented
+  :cli: ``--rocksdb_allow_to_start_after_corruption``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+Specifies whether to allow server to restart once MyRocks reported data
+corruption. Disabled by default. 
+
+Once corruption is detected server writes marker file (named
+ROCKSDB_CORRUPTED) in the data directory and aborts. If marker file exists,
+then mysqld exits on startup with an error message. The restart failure will
+continue until the problem is solved or until mysqld is started with this
+variable turned on in the command line.
 
 .. note:: Not all memtables support concurrent writes.
 
@@ -635,6 +706,7 @@ Allowed range is from ``1`` to ``2147483647``.
 .. variable:: rocksdb_block_size
 
   :version 5.7.19-17: Implemented
+  :version 5.7.20-18: Minimum value has chaned from ``0`` to ``1024``
   :cli: ``--rocksdb-block-size``
   :dyn: No
   :scope: Global
@@ -643,7 +715,7 @@ Allowed range is from ``1`` to ``2147483647``.
 
 Specifies the size of the data block for reading RocksDB data files.
 Default value is ``4096``.
-Allowed range is from ``1`` to ``18446744073709551615``.
+Allowed range is from ``1024`` to ``18446744073709551615``.
 
 .. variable:: rocksdb_block_size_deviation
 
@@ -662,6 +734,19 @@ Default value is ``10``, meaning that the block is not closed
 until there is less than 10 bits of free space remaining.
 
 Allowed range is from ``1`` to ``2147483647``.
+
+.. variable:: rocksdb_bulk_load_allow_sk
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--rocksdb-bulk-load-allow-sk``
+  :dyn: Yes
+  :scope: Global, Session
+  :vartype: Boolean
+  :default: ``OFF``
+
+Enabling this variable allows secondary keys to be added using the bulk loading
+feature. This variable can be toggled only when bulk load is disabled, i.e.
+when :variable:`rocksdb_bulk_load` is ``OFF``.
 
 .. variable:: rocksdb_bulk_load_allow_unsorted
 
@@ -715,8 +800,9 @@ Allowed range is from ``1`` to ``1073741824``.
 .. variable:: rocksdb_bytes_per_sync
 
   :version 5.7.19-17: Implemented
+  :version 5.7.21-20: Changed to dynamic
   :cli: ``--rocksdb-bytes-per-sync``
-  :dyn: No
+  :dyn: Yes
   :scope: Global
   :vartype: Numeric
   :default: ``0``
@@ -783,6 +869,21 @@ when a batch contains more than the value of
 This is disabled by default
 and will be enabled if :variable:`rocksdb_bulk_load` is enabled.
 
+.. variable:: rocksdb_commit_time_batch_for_recovery
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--rocksdb-commit-time-batch-for-recovery``
+  :dyn: Yes
+  :scope: Global, Session
+  :vartype: Boolean
+  :default: ``OFF``
+
+Specifies whether to write the commit time write batch into the database or
+not.
+
+.. note:: If the commit time write batch is only useful for recovery, then
+          writing to WAL is enough.
+
 .. variable:: rocksdb_compact_cf
 
   :version 5.7.19-17: Implemented
@@ -811,7 +912,7 @@ to ensure sequential reads instead of random.
 Maximum allowed value is ``18446744073709551615``.
 
 .. note:: If you set this variable to a non-zero value,
-   :variable:`new_table_reader_for_compaction_inputs` is enabled.
+   :variable:`rocksdb_new_table_reader_for_compaction_inputs` is enabled.
 
 .. variable:: rocksdb_compaction_sequential_deletes
 
@@ -888,6 +989,10 @@ Allowed range is up to ``2000000`` (two million).
   :vartype: Boolean
   :default: ``ON``
 
+When enabled this variable allows/encourages threads that are using
+two-phase commit to ``prepare`` in parallel. Variable has been
+deprecated in the |Percona Server| 5.7.21-20, as it has been
+renamed in upstream to :variable:`rocksdb_two_write_queues`.
 
 .. variable:: rocksdb_create_checkpoint
 
@@ -965,6 +1070,18 @@ Allowed range is up to ``18446744073709551615``.
 Specifies whether MyRocks should detect deadlocks.
 Disabled by default.
 
+.. variable:: rocksdb_deadlock_detect_depth
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-deadlock-detect-depth``
+  :dyn: Yes
+  :scope: Global, Session
+  :vartype: Numeric
+  :default: ``50``
+
+Specifies the number of transactions deadlock detection will traverse
+through before assuming deadlock.
+
 .. variable:: rocksdb_debug_optimizer_no_zero_cardinality
 
   :version 5.7.19-17: Implemented
@@ -976,6 +1093,64 @@ Disabled by default.
 
 Specifies whether MyRocks should prevent zero cardinality
 by always overriding it with some value.
+
+.. variable:: rocksdb_debug_ttl_ignore_pk
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-debug-ttl-ignore-pk``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+For debugging purposes only. If true, compaction filtering will not occur
+on Primary Key TTL data. This variable is a no-op in non-debug builds.
+
+.. variable:: rocksdb_debug_ttl_read_filter_ts
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb_debug-ttl-read-filter-ts``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Numeric
+  :default: ``0``
+
+For debugging purposes only.  Overrides the TTL read
+filtering time to time + :variable:`debug_ttl_read_filter_ts`.
+A value of ``0`` denotes that the variable is not set.
+This variable is a no-op in non-debug builds.
+
+.. variable:: rocksdb_debug_ttl_rec_ts
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-debug-ttl-rec-ts``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Numeric
+  :default: ``0``
+
+For debugging purposes only.  Overrides the TTL of
+records to ``now()`` + :variable:`debug_ttl_rec_ts`.
+The value can be +/- to simulate a record inserted in the past vs a record
+inserted in the "future". A value of ``0`` denotes that the
+variable is not set.
+This variable is a no-op in non-debug builds.
+
+.. variable:: rocksdb_debug_ttl_snapshot_ts
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb_debug_ttl_ignore_pk``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Numeric
+  :default: ``0``
+
+For debugging purposes only.  Sets the snapshot during
+compaction to ``now()`` + :variable:`rocksdb_debug_set_ttl_snapshot_ts`.
+The value can be +/- to simulate a snapshot in the past vs a
+snapshot created in the "future". A value of ``0`` denotes
+that the variable is not set. This variable is a no-op in
+non-debug builds.
 
 .. variable:: rocksdb_default_cf_options
 
@@ -1047,6 +1222,21 @@ Specifies whether to keep expired TTL records during compaction.
 Enabled by default.
 If disabled, expired TTL records will be dropped during compaction.
 
+.. variable:: rocksdb_enable_ttl_read_filtering
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-enable-ttl-read-filtering``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+For tables with TTL, expired records are skipped/filtered
+out during processing and in query results. Disabling
+this will allow these records to be seen, but as a result
+rows may disappear in the middle of transactions as they
+are dropped during compaction. **Use with caution.**
+
 .. variable:: rocksdb_enable_thread_tracking
 
   :version 5.7.19-17: Implemented
@@ -1088,6 +1278,19 @@ Enable it to increase throughput for concurrent workloads.
 Specifies whether to report an error when a database already exists.
 Disabled by default.
 
+.. variable:: rocksdb_error_on_suboptimal_collation
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--rocksdb-error-on-suboptimal-collation``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+Specifies whether to report an error instead of a warning if an index is
+created on a char field where the table has a sub-optimal collation (case
+insensitive). Enabled by default.
+
 .. variable:: rocksdb_flush_log_at_trx_commit
 
   :version 5.7.19-17: Implemented
@@ -1120,6 +1323,7 @@ Possible values:
 .. variable:: rocksdb_flush_memtable_on_analyze
 
   :version 5.7.19-17: Implemented
+  :version 5.7.21-20: Variable removed
   :cli: ``--rocksdb-flush-memtable-on-analyze``
   :dyn: Yes
   :scope: Global, Session
@@ -1211,6 +1415,17 @@ Set to ``0`` if you do not want to override the returned value.
 Specifies whether hash collisions are allowed.
 Enabled by default, which uses less memory.
 If disabled, full prefix is stored to prevent hash collisions.
+
+.. variable:: rocksdb_ignore_unknown_options
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-ignore-unknown-options``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+When enabled, it allows RocksDB to receive unknown options and not exit.
 
 .. variable:: rocksdb_index_type
 
@@ -1353,6 +1568,8 @@ Allowed range is up to ``18446744073709551615``.
   :vartype: Boolean
   :default: ``ON``
 
+This variable can be used to disable automatic/timed WAL flushing and instead
+rely on the application to do the flushing.
 
 .. variable:: rocksdb_max_background_compactions
 
@@ -1406,6 +1623,17 @@ how many threads to allocate towards flush/compaction. It was implemented to
 reduce the number of (confusing) options users and can tweak and push the
 responsibility down to RocksDB level.
 
+.. variable:: rocksdb_max_latest_deadlocks
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-max-latest-deadlocks``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Numeric
+  :default: ``5``
+
+Specifies the maximum number of recent deadlocks to store.
+
 .. variable:: rocksdb_max_log_file_size
 
   :version 5.7.19-17: Implemented
@@ -1439,24 +1667,36 @@ only one manifest file is used.
 .. variable:: rocksdb_max_open_files
 
   :version 5.7.19-17: Implemented
+  :version 5.7.19-17: Default value changed to ``1000``
   :cli: ``--rocksdb-max-open-files``
   :dyn: No
   :scope: Global
   :vartype: Numeric
-  :default: ``4294967295``
+  :default: ``1000``
 
 Specifies the maximum number of file handles opened by MyRocks.
-Default value is also the maximum, making it practically unlimited:
-all opened files remain open.
+Values in the range between ``0`` and ``open_files_limit`` 
+are taken as they are. If :variable:`rocksdb_max_open_files` value is 
+greater than ``open_files_limit``, it will be reset to 1/2 of 
+``open_files_limit``, and a warning will be emitted to the ``mysqld``
+error log. A value of ``-2`` denotes auto tuning: just sets 
+:variable:`rocksdb_max_open_files` value to 1/2 of ``open_files_limit``. 
+Finally, ``-1`` means no limit, i.e. an infinite number of file handles.
+
+.. warning::
+
+  Setting :variable:`rocksdb_max_open_files` to ``-1`` is dangerous, 
+  as server may quickly run out of file handles in this case.
 
 .. variable:: rocksdb_max_row_locks
 
   :version 5.7.19-17: Implemented
+  :version 5.7.21-21: Default value has changed from ``1073741824`` to ``1048576``
   :cli: ``--rocksdb-max-row-locks``
   :dyn: Yes
   :scope: Global, Session
   :vartype: Numeric
-  :default: ``1073741824``
+  :default: ``1048576``
 
 Specifies the limit on the maximum number of row locks a transaction can have
 before it fails.
@@ -1522,6 +1762,21 @@ as described in :variable:`rocksdb_merge_buf_size`.
 Default size is 1 GB (``1073741824``).
 Allowed range is from ``100`` to ``18446744073709551615``.
 
+.. variable:: rocksdb_merge_tmp_file_removal_delay_ms
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb_merge_tmp_file_removal_delay_ms``
+  :dyn: Yes
+  :scope: Global, Session
+  :vartype: Numeric
+  :default: ``0``
+
+Fast secondary index creation creates merge files when needed. After finishing
+secondary index creation, merge files are removed. By default, the file removal
+is done without any sleep, so removing GBs of merge files within <1s may
+happen, which will cause trim stalls on Flash. This variable can be used to
+rate limit the delay in milliseconds.
+
 .. variable:: rocksdb_new_table_reader_for_compaction_inputs
 
   :version 5.7.19-17: Implemented
@@ -1586,7 +1841,17 @@ Enabled by default.
   :default: ``OFF``
 
 Specifies whether MyRocks should pause all background operations.
-Disabled by default.
+Disabled by default. There is no practical reason for a user to ever
+use this variable because it is intended as a test synchronization tool
+for the MyRocks MTR test suites.
+
+.. warning::
+
+  If someone were to set a :variable:`rocksdb_force_flush_memtable_now` to
+  ``1`` while :variable:`rocksdb_pause_background_work` is set to ``1``,
+  the client that issued the ``rocksdb_force_flush_memtable_now=1`` will be
+  blocked indefinitely until :variable:`rocksdb_pause_background_work`
+  is set to ``0``.
 
 .. variable:: rocksdb_perf_context_level
 
@@ -1709,6 +1974,8 @@ Resets MyRocks internal statistics dynamically
 .. variable:: rocksdb_rpl_skip_tx_api
 
   :version 5.7.19-17: Implemented
+  :version 5.7.20-19: Variable removed
+  :version 5.7.21-21: Re-implemented
   :cli: ``--rocksdb-rpl-skip-tx-api``
   :dyn: No
   :scope: Global
@@ -1717,7 +1984,11 @@ Resets MyRocks internal statistics dynamically
 
 Specifies whether write batches should be used for replication thread
 instead of the transaction API.
-Disabled by default.
+Disabled by default. 
+
+There are two conditions which are necessary to
+use it: row replication format and slave
+operating in super read only mode.
 
 .. variable:: rocksdb_seconds_between_stat_computes
 
@@ -1748,7 +2019,7 @@ Signals the MyRocks drop index thread to wake up.
 .. variable:: rocksdb_sim_cache_size
 
   :version 5.7.20-18: Implemented
-  :cli: ``--rocksdb-sim-cache-size
+  :cli: ``--rocksdb-sim-cache-size``
   :dyn: No
   :scope: Global
   :vartype: Numeric
@@ -1784,14 +2055,15 @@ Disabled by default (caching is not skipped).
 .. variable:: rocksdb_sst_mgr_rate_bytes_per_sec
 
   :version 5.7.19-17: Implemented
+  :version 5.7.20-18: Default value changed from ``67108864`` to ``0``
   :cli: ``--rocksdb-sst-mgr-rate-bytes-per-sec``
   :dyn: Yes
   :scope: Global, Session
   :vartype: Numeric
-  :default: ``67108864``
+  :default: ``0``
 
 Specifies the maximum rate for writing to data files.
-Default value is ``67108864`` (64 MB/sec).
+Default value is ``0``. This option is not effective on HDD.
 Allowed range is from ``0`` to ``18446744073709551615``.
 
 .. variable:: rocksdb_stats_dump_period_sec
@@ -1807,6 +2079,19 @@ Specifies the period in seconds for performing a dump of the MyRocks statistics
 to the info log.
 Default value is ``600``.
 Allowed range is up to ``2147483647``.
+
+.. variable:: rocksdb_stats_recalc_rate
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--rocksdb-stats-recalc-rate``
+  :dyn: No
+  :scope: Global
+  :vartype: Numeric
+  :default: ``0``
+
+Specifies the number of indexes to recalculate per second. Recalculating index
+statistics periodically ensures it to match the actual sum from SST files.
+Default value is ``0``. Allowed range is up to ``4294967295``.
 
 .. variable:: rocksdb_store_row_debug_checksums
 
@@ -1850,6 +2135,7 @@ Empty by default.
 .. variable:: rocksdb_table_cache_numshardbits
 
   :version 5.7.19-17: Implemented
+  :version 5.7.20-18: Max value changed from ``2147483647`` to ``19``
   :cli: ``--rocksdb-table-cache-numshardbits``
   :dyn: No
   :scope: Global
@@ -1858,7 +2144,7 @@ Empty by default.
 
 Specifies the number if table caches.
 Default value is ``6``.
-Allowed range is from ``0`` to ``2147483647``.
+Allowed range is from ``0`` to ``19``.
 
 .. variable:: rocksdb_table_stats_sampling_pct
 
@@ -1897,6 +2183,18 @@ Specifies the path to the directory for temporary files during DDL operations.
 Specifies whether to generate trace output in the log
 for each call to ``SstFileWriter``.
 Disabled by default.
+
+.. variable:: rocksdb_two_write_queues
+
+  :version 5.7.21-20: Implemented
+  :cli: ``--rocksdb-two_write_queues``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+When enabled this variable allows/encourages threads that are using
+two-phase commit to ``prepare`` in parallel.
 
 .. variable:: rocksdb_unsafe_for_binlog
 
@@ -2007,8 +2305,9 @@ Disabled by default.
 .. variable:: rocksdb_wal_bytes_per_sync
 
   :version 5.7.19-17: Implemented
+  :version 5.7.21-20: Changed to dynamic
   :cli: ``--rocksdb-wal-bytes-per-sync``
-  :dyn: No
+  :dyn: Yes
   :scope: Global
   :vartype: Numeric
   :default: ``0``
@@ -2088,7 +2387,7 @@ Make sure that lookups use the whole key for matching.
 .. variable:: rocksdb_write_batch_max_bytes
 
   :version 5.7.20-18: Implemented
-  :cli: ``--rocksdb-write_batch_max_bytes``
+  :cli: ``--rocksdb-write-batch-max-bytes``
   :dyn: Yes
   :scope: Global, Session
   :vartype: Numeric
@@ -2123,605 +2422,20 @@ which can be useful for bulk loading.
 Specifies whether to ignore writes to column families that do not exist.
 Disabled by default (writes to non-existent column families are not ignored).
 
-.. _myrocks_status_variables:
-
-MyRocks Status Variables
--------------------------
-
-MyRocks status variables provide details
-about the inner workings of the storage engine
-and they can be useful in tuning the storage engine
-to a particular environment.
-
-You can view these variables and their values by running:
-
-.. code-block:: mysql
-
-  mysql> SHOW STATUS LIKE 'rocksdb%';
-
-The following global status variables are available:
-
-.. tabularcolumns:: |p{9cm}|p{6cm}|
-
-.. list-table::
-   :header-rows: 1
-
-   * - Name
-     - Var Type
-   * - :variable:`rocksdb_rows_deleted`
-     - Numeric
-   * - :variable:`rocksdb_rows_inserted`
-     - Numeric
-   * - :variable:`rocksdb_rows_read`
-     - Numeric
-   * - :variable:`rocksdb_rows_updated`
-     - Numeric
-   * - :variable:`rocksdb_rows_expired`
-     - Numeric
-   * - :variable:`rocksdb_system_rows_deleted`
-     - Numeric
-   * - :variable:`rocksdb_system_rows_inserted`
-     - Numeric
-   * - :variable:`rocksdb_system_rows_read`
-     - Numeric
-   * - :variable:`rocksdb_system_rows_updated`
-     - Numeric
-   * - :variable:`rocksdb_memtable_total`
-     - Numeric
-   * - :variable:`rocksdb_memtable_unflushed`
-     - Numeric
-   * - :variable:`rocksdb_queries_point`
-     - Numeric
-   * - :variable:`rocksdb_queries_range`
-     - Numeric
-   * - :variable:`rocksdb_covered_secondary_key_lookups`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_add`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_add_failures`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_bytes_read`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_bytes_write`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_data_add`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_data_bytes_insert`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_data_hit`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_data_miss`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_filter_add`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_filter_bytes_evict`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_filter_bytes_insert`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_filter_hit`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_filter_miss`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_hit`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_index_add`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_index_bytes_evict`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_index_bytes_insert`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_index_hit`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_index_miss`
-     - Numeric
-   * - :variable:`rocksdb_block_cache_miss`
-     - Numeric
-   * - :variable:`rocksdb_block_cachecompressed_hit`
-     - Numeric
-   * - :variable:`rocksdb_block_cachecompressed_miss`
-     - Numeric
-   * - :variable:`rocksdb_bloom_filter_prefix_checked`
-     - Numeric
-   * - :variable:`rocksdb_bloom_filter_prefix_useful`
-     - Numeric
-   * - :variable:`rocksdb_bloom_filter_useful`
-     - Numeric
-   * - :variable:`rocksdb_bytes_read`
-     - Numeric
-   * - :variable:`rocksdb_bytes_written`
-     - Numeric
-   * - :variable:`rocksdb_compact_read_bytes`
-     - Numeric
-   * - :variable:`rocksdb_compact_write_bytes`
-     - Numeric
-   * - :variable:`rocksdb_compaction_key_drop_new`
-     - Numeric
-   * - :variable:`rocksdb_compaction_key_drop_obsolete`
-     - Numeric
-   * - :variable:`rocksdb_compaction_key_drop_user`
-     - Numeric
-   * - :variable:`rocksdb_flush_write_bytes`
-     - Numeric
-   * - :variable:`rocksdb_get_hit_l0`
-     - Numeric
-   * - :variable:`rocksdb_get_hit_l1`
-     - Numeric
-   * - :variable:`rocksdb_get_hit_l2_and_up`
-     - Numeric
-   * - :variable:`rocksdb_getupdatessince_calls`
-     - Numeric
-   * - :variable:`rocksdb_iter_bytes_read`
-     - Numeric
-   * - :variable:`rocksdb_memtable_hit`
-     - Numeric
-   * - :variable:`rocksdb_memtable_miss`
-     - Numeric
-   * - :variable:`rocksdb_no_file_closes`
-     - Numeric
-   * - :variable:`rocksdb_no_file_errors`
-     - Numeric
-   * - :variable:`rocksdb_no_file_opens`
-     - Numeric
-   * - :variable:`rocksdb_num_iterators`
-     - Numeric
-   * - :variable:`rocksdb_number_block_not_compressed`
-     - Numeric
-   * - :variable:`rocksdb_number_db_next`
-     - Numeric
-   * - :variable:`rocksdb_number_db_next_found`
-     - Numeric
-   * - :variable:`rocksdb_number_db_prev`
-     - Numeric
-   * - :variable:`rocksdb_number_db_prev_found`
-     - Numeric
-   * - :variable:`rocksdb_number_db_seek`
-     - Numeric
-   * - :variable:`rocksdb_number_db_seek_found`
-     - Numeric
-   * - :variable:`rocksdb_number_deletes_filtered`
-     - Numeric
-   * - :variable:`rocksdb_number_keys_read`
-     - Numeric
-   * - :variable:`rocksdb_number_keys_updated`
-     - Numeric
-   * - :variable:`rocksdb_number_keys_written`
-     - Numeric
-   * - :variable:`rocksdb_number_merge_failures`
-     - Numeric
-   * - :variable:`rocksdb_number_multiget_bytes_read`
-     - Numeric
-   * - :variable:`rocksdb_number_multiget_get`
-     - Numeric
-   * - :variable:`rocksdb_number_multiget_keys_read`
-     - Numeric
-   * - :variable:`rocksdb_number_reseeks_iteration`
-     - Numeric
-   * - :variable:`rocksdb_number_sst_entry_delete`
-     - Numeric
-   * - :variable:`rocksdb_number_sst_entry_merge`
-     - Numeric
-   * - :variable:`rocksdb_number_sst_entry_other`
-     - Numeric
-   * - :variable:`rocksdb_number_sst_entry_put`
-     - Numeric
-   * - :variable:`rocksdb_number_sst_entry_singledelete`
-     - Numeric
-   * - :variable:`rocksdb_number_stat_computes`
-     - Numeric
-   * - :variable:`rocksdb_number_superversion_acquires`
-     - Numeric
-   * - :variable:`rocksdb_number_superversion_cleanups`
-     - Numeric
-   * - :variable:`rocksdb_number_superversion_releases`
-     - Numeric
-   * - :variable:`rocksdb_rate_limit_delay_millis`
-     - Numeric
-   * - :variable:`rocksdb_snapshot_conflict_errors`
-     - Numeric
-   * - :variable:`rocksdb_stall_l0_file_count_limit_slowdowns`
-     - Numeric
-   * - :variable:`rocksdb_stall_locked_l0_file_count_limit_slowdowns`
-     - Numeric
-   * - :variable:`rocksdb_stall_l0_file_count_limit_stops`
-     - Numeric
-   * - :variable:`rocksdb_stall_locked_l0_file_count_limit_stops`
-     - Numeric
-   * - :variable:`rocksdb_stall_pending_compaction_limit_stops`
-     - Numeric
-   * - :variable:`rocksdb_stall_pending_compaction_limit_slowdowns`
-     - Numeric
-   * - :variable:`rocksdb_stall_memtable_limit_stops`
-     - Numeric
-   * - :variable:`rocksdb_stall_memtable_limit_slowdowns`
-     - Numeric
-   * - :variable:`rocksdb_stall_total_stops`
-     - Numeric
-   * - :variable:`rocksdb_stall_total_slowdowns`
-     - Numeric
-   * - :variable:`rocksdb_stall_micros`
-     - Numeric
-   * - :variable:`rocksdb_wal_bytes`
-     - Numeric
-   * - :variable:`rocksdb_wal_group_syncs`
-     - Numeric
-   * - :variable:`rocksdb_wal_synced`
-     - Numeric
-   * - :variable:`rocksdb_write_other`
-     - Numeric
-   * - :variable:`rocksdb_write_self`
-     - Numeric
-   * - :variable:`rocksdb_write_timedout`
-     - Numeric
-   * - :variable:`rocksdb_write_wal`
-     - Numeric
-
-.. variable:: rocksdb_rows_deleted
-
-This variable shows the number of rows that were deleted from MyRocks tables.
-
-.. variable:: rocksdb_rows_inserted
-
-This variable shows the number of rows that were inserted into MyRocks tables.
-
-.. variable:: rocksdb_rows_read
-
-This variable shows the number of rows that were read from MyRocks tables.
-
-.. variable:: rocksdb_rows_updated
-
-This variable shows the number of rows that were updated in MyRocks tables.
-
-.. variable:: rocksdb_rows_expired
-
-This variable shows the number of expired rows in MyRocks tables.
-
-.. variable:: rocksdb_system_rows_deleted
-
-This variable shows the number of rows that were deleted
-from MyRocks system tables.
-
-.. variable:: rocksdb_system_rows_inserted
-
-This variable shows the number of rows that were inserted
-into MyRocks system tables.
-
-.. variable:: rocksdb_system_rows_read
-
-This variable shows the number of rows that were read
-from MyRocks system tables.
-
-.. variable:: rocksdb_system_rows_updated
-
-This variable shows the number of rows that were updated
-in MyRocks system tables.
-
-.. variable:: rocksdb_memtable_total
-
-.. variable:: rocksdb_memtable_unflushed
-
-.. variable:: rocksdb_queries_point
-
-.. variable:: rocksdb_queries_range
-
-.. variable:: rocksdb_covered_secondary_key_lookups
-
-.. variable:: rocksdb_block_cache_add
-
-This variable shows the number of blocks added to block cache.
-
-.. variable:: rocksdb_block_cache_add_failures
-
-This variable shows the number of failures when adding blocks to block cache.
-
-.. variable:: rocksdb_block_cache_bytes_read
-
-This variable shows the number of bytes read from cache.
-
-.. variable:: rocksdb_block_cache_bytes_write
-
-This variable shows the number of bytes written into cache.
-
-.. variable:: rocksdb_block_cache_data_add
-
-This variable shows the number of data blocks added to block cache.
-
-.. variable:: rocksdb_block_cache_data_bytes_insert
-
-This variable shows the number of bytes of data blocks inserted into cache.
-
-.. variable:: rocksdb_block_cache_data_hit
-
-This variable shows the number of cache hits when accessing the
-data block from the block cache.
-
-.. variable:: rocksdb_block_cache_data_miss
-
-This variable shows the number of cache misses when accessing the
-data block from the block cache.
-
-.. variable:: rocksdb_block_cache_filter_add
-
-This variable shows the number of filter blocks added to block cache.
-
-.. variable:: rocksdb_block_cache_filter_bytes_evict
-
-This variable shows the number of bytes of bloom filter blocks
-removed from cache.
-
-.. variable:: rocksdb_block_cache_filter_bytes_insert
-
-This variable shows the number of bytes of bloom filter blocks
-inserted into cache.
-
-.. variable:: rocksdb_block_cache_filter_hit
-
-This variable shows the number of times cache hit when accessing filter block
-from block cache.
-
-.. variable:: rocksdb_block_cache_filter_miss
-
-This variable shows the number of times cache miss when accessing filter
-block from block cache.
-
-.. variable:: rocksdb_block_cache_hit
-
-This variable shows the total number of block cache hits.
-
-.. variable:: rocksdb_block_cache_index_add
-
-This variable shows the number of index blocks added to block cache.
-
-.. variable:: rocksdb_block_cache_index_bytes_evict
-
-This variable shows the number of bytes of index block erased from cache.
-
-.. variable:: rocksdb_block_cache_index_bytes_insert
-
-This variable shows the number of bytes of index blocks inserted into cache.
-
-.. variable:: rocksdb_block_cache_index_hit
-
-This variable shows the total number of block cache index hits.
-
-.. variable:: rocksdb_block_cache_index_miss
-
-This variable shows the number of times cache hit when accessing index
-block from block cache.
-
-.. variable:: rocksdb_block_cache_miss
-
-This variable shows the total number of block cache misses.
-
-.. variable:: rocksdb_block_cachecompressed_hit
-
-This variable shows the number of hits in the compressed block cache.
-
-.. variable:: rocksdb_block_cachecompressed_miss
-
-This variable shows the number of misses in the compressed block cache.
-
-.. variable:: rocksdb_bloom_filter_prefix_checked
-
-This variable shows the number of times bloom was checked before
-creating iterator on a file.
-
-.. variable:: rocksdb_bloom_filter_prefix_useful
-
-This variable shows the number of times the check was useful in avoiding
-iterator creation (and thus likely IOPs).
-
-.. variable:: rocksdb_bloom_filter_useful
-
-This variable shows the number of times bloom filter has avoided file reads.
-
-.. variable:: rocksdb_bytes_read
-
-This variable shows the total number of uncompressed bytes read. It could be
-either from memtables, cache, or table files.
-
-.. variable:: rocksdb_bytes_written
-
-This variable shows the total number of uncompressed bytes written.
-
-.. variable:: rocksdb_compact_read_bytes
-
-This variable shows the number of bytes read during compaction
-
-.. variable:: rocksdb_compact_write_bytes
-
-This variable shows the number of bytes written during compaction.
-
-.. variable:: rocksdb_compaction_key_drop_new
-
-This variable shows the number of key drops during compaction because
-it was overwritten with a newer value.
-
-.. variable:: rocksdb_compaction_key_drop_obsolete
-
-This variable shows the number of key drops during compaction because
-it was obsolete.
-
-.. variable:: rocksdb_compaction_key_drop_user
-
-This variable shows the number of key drops during compaction because
-user compaction function has dropped the key.
-
-.. variable:: rocksdb_flush_write_bytes
-
-This variable shows the number of bytes written during flush.
-
-.. variable:: rocksdb_get_hit_l0
-
-This variable shows the number of ``Get()`` queries served by L0.
-
-.. variable:: rocksdb_get_hit_l1
-
-This variable shows the number of ``Get()`` queries served by L1.
-
-.. variable:: rocksdb_get_hit_l2_and_up
-
-This variable shows the number of ``Get()`` queries served by L2 and up.
-
-.. variable:: rocksdb_getupdatessince_calls
-
-This variable shows the number of calls to ``GetUpdatesSince`` function.
-Useful to keep track of transaction log iterator refreshes
-
-.. variable:: rocksdb_iter_bytes_read
-
-This variable shows the number of uncompressed bytes read from an iterator.
-It includes size of key and value.
-
-.. variable:: rocksdb_memtable_hit
-
-This variable shows the number of memtable hits.
-
-.. variable:: rocksdb_memtable_miss
-
-This variable shows the number of memtable misses.
-
-.. variable:: rocksdb_no_file_closes
-
-This variable shows the number of time file were closed.
-
-.. variable:: rocksdb_no_file_errors
-
-.. variable:: rocksdb_no_file_opens
-
-This variable shows the number of time file were opened.
-
-.. variable:: rocksdb_num_iterators
-
-This variable shows the number of currently open iterators.
-
-.. variable:: rocksdb_number_block_not_compressed
-
-This variable shows the number of uncompressed blocks.
-
-.. variable:: rocksdb_number_db_next
-
-This variable shows the number of calls to ``next``.
-
-.. variable:: rocksdb_number_db_next_found
-
-This variable shows the number of calls to ``next`` that returned data.
-
-.. variable:: rocksdb_number_db_prev
-
-This variable shows the number of calls to ``prev``.
-
-.. variable:: rocksdb_number_db_prev_found
-
-This variable shows the number of calls to ``prev`` that returned data.
-
-.. variable:: rocksdb_number_db_seek
-
-This variable shows the number of calls to ``seek``.
-
-.. variable:: rocksdb_number_db_seek_found
-
-This variable shows the number of calls to ``seek`` that returned data.
-
-.. variable:: rocksdb_number_deletes_filtered
-
-This variable shows the number of deleted records that were not required to be
-written to storage because key did not exist.
-
-.. variable:: rocksdb_number_keys_read
-
-This variable shows the number of keys read.
-
-.. variable:: rocksdb_number_keys_updated
-
-This variable shows the number of keys updated, if inplace update is enabled.
-
-.. variable:: rocksdb_number_keys_written
-
-This variable shows the number of keys written to the database.
-
-.. variable:: rocksdb_number_merge_failures
-
-.. variable:: rocksdb_number_multiget_bytes_read
-
-.. variable:: rocksdb_number_multiget_get
-
-.. variable:: rocksdb_number_multiget_keys_read
-
-.. variable:: rocksdb_number_reseeks_iteration
-
-This variable shows the number of times reseek happened inside an iteration to
-skip over large number of keys with same userkey.
-
-.. variable:: rocksdb_number_sst_entry_delete
-
-.. variable:: rocksdb_number_sst_entry_merge
-
-.. variable:: rocksdb_number_sst_entry_other
-
-.. variable:: rocksdb_number_sst_entry_put
-
-.. variable:: rocksdb_number_sst_entry_singledelete
-
-.. variable:: rocksdb_number_stat_computes
-
-.. variable:: rocksdb_number_superversion_acquires
-
-.. variable:: rocksdb_number_superversion_cleanups
-
-.. variable:: rocksdb_number_superversion_releases
-
-.. variable:: rocksdb_rate_limit_delay_millis
-
-.. variable:: rocksdb_snapshot_conflict_errors
-
-.. variable:: rocksdb_stall_l0_file_count_limit_slowdowns
-
-.. variable:: rocksdb_stall_locked_l0_file_count_limit_slowdowns
-
-.. variable:: rocksdb_stall_l0_file_count_limit_stops
-
-.. variable:: rocksdb_stall_locked_l0_file_count_limit_stops
-
-.. variable:: rocksdb_stall_pending_compaction_limit_stops
-
-.. variable:: rocksdb_stall_pending_compaction_limit_slowdowns
-
-.. variable:: rocksdb_stall_memtable_limit_stops
-
-.. variable:: rocksdb_stall_memtable_limit_slowdowns
-
-.. variable:: rocksdb_stall_total_stops
-
-.. variable:: rocksdb_stall_total_slowdowns
-
-.. variable:: rocksdb_stall_micros
-
-This variable shows how long (in microseconds) the writer had to wait for
-compaction or flush to finish.
-
-.. variable:: rocksdb_wal_bytes
-
-This variables shows the number of bytes written to WAL.
-
-.. variable:: rocksdb_wal_group_syncs
-
-.. variable:: rocksdb_wal_synced
-
-This variable shows the number of times WAL sync was done.
-
-.. variable:: rocksdb_write_other
-
-This variable shows the number of writes processed by another thread.
-
-.. variable:: rocksdb_write_self
-
-This variable shows the number of writes that were processed
-by a requesting thread.
-
-.. variable:: rocksdb_write_timedout
-
-This variable shows the number of writes ending up with timed-out.
-
-.. variable:: rocksdb_write_wal
-
-This variable shows the number of Write calls that request WAL
+.. variable:: rocksdb_write_policy
+
+  :version 5.7.23-23: Implemented
+  :cli: ``--rocksdb-write-policy``
+  :dyn: No
+  :scope: Global
+  :vartype: String
+  :default: ``write_committed``
+
+Specifies when two-phase commit data are actually written into the database.
+Allowed values are ``write_committed``, ``write_prepared``, and
+``write_unprepared``.
+
+Default value is ``write_committed`` which means data are written at commit
+time. If the value is set to ``write_prepared``, then data are written after
+the prepare phase of a two-phase transaction. If the value is set to 
+``write_unprepared``, then data are written before the prepare phase.

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_import\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_IMPORT\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_IMPORT\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -110,9 +110,9 @@ client:
 .nf
 mysql> \fBUSE myinnodb;\fR
 mysql> \fBSELECT * INTO OUTFILE \*(Aq/tmp/myndb_table\&.csv\*(Aq\fR
-mysql>  \fBFIELDS TERMINATED BY \*(Aq,\*(Aq OPTIONALLY ENCLOSED BY \*(Aq"\*(Aq ESCAPED BY \*(Aq\e\e\*(Aq\fR
-mysql>  \fBLINES TERMINATED BY \*(Aq\en\*(Aq\fR
-mysql>  \fBFROM myinnodbtable;\fR
+     >  \fBFIELDS TERMINATED BY \*(Aq,\*(Aq OPTIONALLY ENCLOSED BY \*(Aq"\*(Aq ESCAPED BY \*(Aq\e\e\*(Aq\fR
+     >  \fBLINES TERMINATED BY \*(Aq\en\*(Aq\fR
+     >  \fBFROM myinnodbtable;\fR
 mysql> \fBCREATE DATABASE myndb;\fR
 mysql> \fBUSE myndb;\fR
 mysql> \fBCREATE TABLE myndb_table LIKE myinnodb\&.myinnodb_table;\fR
@@ -182,10 +182,423 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.97.\ \& This table describes command\-line options for the ndb_import program
+.B Table\ \&21.340.\ \&Command\-line options for the ndb_import program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--abort-on-error
+T}:T{
+Dump core on any fatal error; used for debugging
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--ai-increment=#
+T}:T{
+For table with hidden PK, specify autoincrement increment. See mysqld
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--ai-offset=#
+T}:T{
+For table with hidden PK, specify autoincrement offset. See mysqld
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--ai-prefetch-sz=#
+T}:T{
+For table with hidden PK, specify number of autoincrement values that
+              are prefetched. See mysqld
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--connections=#
+T}:T{
+Number of cluster connections to create
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--continue
+T}:T{
+When job fails, continue to next job
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--db-workers=#
+T}:T{
+Number of threads, per data node, executing database operations
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--errins-type=name
+T}:T{
+Error insert type, for testing purposes; use "list" to obtain all
+              possible values
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--errins-delay=#
+T}:T{
+Error insert delay in milliseconds; random variation is added
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--fields-enclosed-by=char
+T}:T{
+Same as FIELDS ENCLOSED BY option for LOAD DATA statements. For CSV
+              input this is same as using
+              --fields-optionally-enclosed-by
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--fields-escaped-by=name
+T}:T{
+Same as FIELDS ESCAPED BY option for LOAD DATA statements
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--fields-optionally-enclosed-by=char
+T}:T{
+Same as FIELDS OPTIONALLY ENCLOSED BY option for LOAD DATA statements
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--fields-terminated-by=char
+T}:T{
+Same as FIELDS TERMINATED BY option for LOAD DATA statements.
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--idlesleep=#
+T}:T{
+Number of milliseconds to sleep waiting for more to do
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--idlespin=#
+T}:T{
+Number of times to re-try before idlesleep
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--ignore-lines=#
+T}:T{
+Ignore first # lines in input file. Used to skip a non-data header.
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--input-type=name
+T}:T{
+Input type: random or csv
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--input-workers=#
+T}:T{
+Number of threads processing input. Must be 2 or more if --input-type is
+              csv.
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--lines-terminated-by=name
+T}:T{
+Same as LINES TERMINATED BY option for LOAD DATA statements
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--max-rows=#
+T}:T{
+Import only this number of input data rows; default is 0, which imports
+              all rows
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--monitor=#
+T}:T{
+Periodically print status of running job if something has changed
+              (status, rejected rows, temporary errors). Value 0
+              disables. Value 1 prints any change seen. Higher values
+              reduce status printing exponentially up to some
+              pre-defined limit.
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--no-asynch
+T}:T{
+Run database operations as batches, in single transactions
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--no-hint
+T}:T{
+Do not use distribution key hint to select data node (TC)
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--opbatch=#
+T}:T{
+A db execution batch is a set of transactions and operations sent to NDB
+              kernel. This option limits NDB operations (including blob
+              operations) in a db execution batch. Therefore it also
+              limits number of asynch transactions. Value 0 is not valid
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--opbytes=#
+T}:T{
+Limit bytes in execution batch (default 0 = no limit)
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--output-type=name
+T}:T{
+Output type: ndb is default, null used for testing
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--output-workers=#
+T}:T{
+Number of threads processing output or relaying database operations
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--pagesize=#
+T}:T{
+Align I/O buffers to given size
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--pagecnt=#
+T}:T{
+Size of I/O buffers as multiple of page size. CSV input worker allocates
+              a double-sized buffer
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--polltimeout=#
+T}:T{
+Timeout per poll for completed asynchonous transactions; polling
+              continues until all polls are completed, or error occurs
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--rejects=#
+T}:T{
+Limit number of rejected rows (rows with permanent error) in data load.
+              Default is 0 which means that any rejected row causes a
+              fatal error. The row exceeding the limit is also added to
+              *.rej
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--resume
+T}:T{
+If job aborted (temporary error, user interrupt), resume with rows not
+              yet processed
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--rowbatch=#
+T}:T{
+Limit rows in row queues (default 0 = no limit); must be 1 or more if
+              --input-type is random
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--rowbytes=#
+T}:T{
+Limit bytes in row queues (0 = no limit)
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--state-dir=name
+T}:T{
+Where to write state files; currect directory is default
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--tempdelay=#
+T}:T{
+Number of milliseconds to sleep between temporary errors
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--temperrors=#
+T}:T{
+Number of times a transaction can fail due to a temporary error, per
+              execution batch; 0 means any temporary error is fatal.
+              Such errors do not cause any rows to be written to .rej
+              file
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--verbose=#,
+.PP
+-v
+T}:T{
+Verbosity level for debug messages (maximum is 4 for debug builds)
+T}:T{
+.PP
+ADDED: NDB 7.6.2
+T}
 .TE
 .sp 1
 .sp
@@ -200,29 +613,34 @@ allbox tab(:);
 \fB\-\-abort\-on\-error\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--abort-on-error
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-abort\-on\-error
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -242,41 +660,46 @@ Dump core on any fatal error; used for debugging only\&.
 \fB\-\-ai\-increment\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--ai-increment=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-ai\-increment=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -298,41 +721,46 @@ system variable does in the MySQL Server\&.
 \fB\-\-ai\-offset\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--ai-offset=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-ai\-offset=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -354,41 +782,46 @@ system variable\&.
 \fB\-\-ai\-prefetch\-sz\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--ai-prefetch-sz=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-ai\-prefetch\-sz=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 1024
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -410,41 +843,46 @@ system variable does in the MySQL Server\&.
 \fB\-\-connections\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connections=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-connections=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -464,29 +902,34 @@ Number of cluster connections to create\&.
 \fB\-\-continue\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--continue
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-continue
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -506,41 +949,46 @@ When a job fails, continue to the next job\&.
 \fB\-\-db\-workers\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--db-workers=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-db\-workers=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -560,52 +1008,50 @@ Number of threads, per data node, executing database operations\&.
 \fB\-\-errins\-type\fR=\fIname\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ lt l s
-^ ^ l s
-^ ^ l s
-^ ^ l s
-^ ^ l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--errins-type=name
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-errins\-type=name
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-enumeration
+Enumeration
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
-:T{
+T{
 \fBValid Values\fR
 T}:T{
+.PP
 stopjob
-T}
-::T{
+.PP
 stopall
-T}
-::T{
+.PP
 sighup
-T}
-::T{
+.PP
 sigint
-T}
-::T{
+.PP
 list
 T}
 .TE
@@ -628,41 +1074,46 @@ value to obtain all possible values\&. This option is used for testing purposes 
 \fB\-\-errins\-delay\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--errins-delay=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-errins\-delay=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 1000
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -682,29 +1133,34 @@ Error insert delay in milliseconds; random variation is added\&. This option is 
 \fB\-\-fields\-enclosed\-by\fR=\fIchar\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--fields-enclosed-by=char
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-fields\-enclosed\-by=char
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -729,31 +1185,36 @@ statement, specifying a character to be interpeted as quoting field values\&. Fo
 \fB\-\-fields\-escaped\-by\fR=\fIname\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--fields-escaped-by=name
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-fields\-escaped\-by=name
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
-\e
+\
 T}
 .TE
 .sp 1
@@ -775,29 +1236,34 @@ statement\&.
 \fB\-\-fields\-optionally\-enclosed\-by\fR=\fIchar\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--fields-optionally-enclosed-by=char
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-fields\-optionally\-enclosed\-by=char
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -822,31 +1288,36 @@ statement, specifying a character to be interpeted as optionally quoting field v
 \fB\-\-fields\-terminated\-by\fR=\fIchar\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--fields-terminated-by=char
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-fields\-terminated\-by=char
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
-\et
+\t
 T}
 .TE
 .sp 1
@@ -868,41 +1339,46 @@ statement, specifying a character to be interpeted as the field separator\&.
 \fB\-\-idlesleep\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--idlesleep=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-idlesleep=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -922,41 +1398,46 @@ Number of milliseconds to sleep waiting for more work to perform\&.
 \fB\-\-idlespin\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--idlespin=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-idlespin=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -976,41 +1457,46 @@ Number of times to retry before sleeping\&.
 \fB\-\-ignore\-lines\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--ignore-lines=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-ignore\-lines=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1032,40 +1518,44 @@ lines of the input file\&. This can be employed to skip a file header that does 
 \fB\-\-input\-type\fR=\fIname\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ lt l s
-^ ^ l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--input-type=name
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-input\-type=name
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-enumeration
+Enumeration
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 csv
 T}
-:T{
+T{
 \fBValid Values\fR
 T}:T{
+.PP
 random
-T}
-::T{
+.PP
 csv
 T}
 .TE
@@ -1087,41 +1577,46 @@ is intended for testing purposes only\&. \&.
 \fB\-\-input\-workers\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--input-workers=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-input\-workers=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 2
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1141,31 +1636,36 @@ Set the number of threads processing input\&.
 \fB\-\-lines\-terminated\-by\fR=\fIname\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--lines-terminated-by=name
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-lines\-terminated\-by=name
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
-\en
+\n
 T}
 .TE
 .sp 1
@@ -1187,41 +1687,46 @@ statement, specifying a character to be interpeted as end\-of\-line\&.
 \fB\-\-max\-rows\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--max-rows=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-max\-rows=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1241,41 +1746,46 @@ Import only this number of input data rows; the default is 0, which imports all 
 \fB\-\-monitor\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--monitor=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-monitor=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 2
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1295,29 +1805,34 @@ Periodically print the status of a running job if something has changed (status,
 \fB\-\-no\-asynch\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--no-asynch
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-no\-asynch
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -1337,29 +1852,34 @@ Run database operations as batches, in single transactions\&.
 \fB\-\-no\-hint\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--no-hint
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-no\-hint
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -1379,41 +1899,46 @@ Do not use distribution key hinting to select a data node\&.
 \fB\-\-opbatch\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--opbatch=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-opbatch=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 256
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1433,41 +1958,46 @@ Set a limit on the number of operations (including blob operations), and thus th
 \fB\-\-opbytes\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--opbytes=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-opbytes=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1487,34 +2017,39 @@ Set a limit on the number of bytes per execution batch\&. Use 0 for no limit\&.
 \fB\-\-output\-type\fR=\fIname\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ lt l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--output-type=name
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-output\-type=name
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-enumeration
+Enumeration
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 ndb
 T}
-:T{
+T{
 \fBValid Values\fR
 T}:T{
 null
@@ -1539,41 +2074,46 @@ is used only for testing\&.
 \fB\-\-output\-workers\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--output-workers=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-output\-workers=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 2
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1593,41 +2133,46 @@ Set the number of threads processing output or relaying database operations\&.
 \fB\-\-pagesize\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--pagesize=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-pagesize=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 4096
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1647,41 +2192,46 @@ Align I/O buffers to the given size\&.
 \fB\-\-pagecnt\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--pagecnt=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-pagecnt=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 64
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1701,41 +2251,46 @@ Set the size of I/O buffers as multiple of page size\&. The CSV input worker all
 \fB\-\-polltimeout\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--polltimeout=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-polltimeout=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 1000
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 1
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1755,41 +2310,46 @@ Set a timeout per poll for completed asynchonous transactions; polling continues
 \fB\-\-rejects\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--rejects=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-rejects=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1811,29 +2371,34 @@ file\&.
 \fB\-\-resume\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--resume
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-resume
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -1853,41 +2418,46 @@ If a job is aborted (due to a temporary db error or when interrupted by the user
 \fB\-\-rowbatch\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--rowbatch=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-rowbatch=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1907,41 +2477,46 @@ Set a limit on the number of rows per row queue\&. Use 0 for no limit\&.
 \fB\-\-rowbytes\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--rowbytes=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-rowbytes=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 262144
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -1961,31 +2536,36 @@ Set a limit on the number of bytes per row queue\&. Use 0 for no limit\&.
 \fB \-\-state\-dir\fR=\fIname\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--state-dir=name
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-state\-dir=name
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-string
+String
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
-\&.
+.
 T}
 .TE
 .sp 1
@@ -2006,41 +2586,46 @@ Where to write the state files (\fItbl_name\fR\&.map,
 \fB\-\-tempdelay\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--tempdelay=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-tempdelay=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 10
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -2060,41 +2645,46 @@ Number of milliseconds to sleep between temporary errors\&.
 \fB\-\-temperrors\fR=\fI#\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--temperrors=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-temperrors=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -2117,41 +2707,46 @@ file\&.
 \fB\-v\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--verbose=#
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.18\-ndb\-7\&.6\&.2
+5.7.18-ndb-7.6.2
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-verbose=#
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.2)
-T}:T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMin Value\fR
+T{
+\fBMinimum Value\fR
 T}:T{
 0
 T}
-:T{
-\fBMax Value\fR
+T{
+\fBMaximum Value\fR
 T}:T{
 2
 T}
@@ -2173,7 +2768,7 @@ was added in NDB 7\&.6\&.2\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

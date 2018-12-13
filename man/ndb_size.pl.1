@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_size.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_SIZE\&.PL\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_SIZE\&.PL\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -101,10 +101,130 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.107.\ \& This table describes command\-line options for the ndb_size\&.pl program
+.B Table\ \&21.352.\ \&Command\-line options for the ndb_size\&.pl program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--database=dbname
+T}:T{
+The database or databases to examine; accepts a comma-delimited list;
+              the default is ALL (use all databases found on the server)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--hostname[:port]
+T}:T{
+Specify host and optional port as host[:port]
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--socket=file_name
+T}:T{
+Specify a socket to connect to
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--user=string
+T}:T{
+Specify a MySQL user name
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--password=string
+T}:T{
+Specify a MySQL user password
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--format=string
+T}:T{
+Set output format (text or HTML)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--excludetables=tbl_list
+T}:T{
+Skip any tables in a comma-separated list of tables
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--excludedbs=db_list
+T}:T{
+Skip any databases in a comma-separated list of databases
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--savequeries=file
+T}:T{
+Saves all queries to the database into the file specified
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--loadqueries=file
+T}:T{
+Loads all queries from the file specified; does not connect to a
+              database
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--real_table_name=table
+T}:T{
+Designates a table to handle unique index size calculations
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
 .TE
 .sp 1
 Usage
@@ -275,7 +395,7 @@ required per table and table row\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

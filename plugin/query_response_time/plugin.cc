@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,  USA */
 
+#ifndef MYSQL_SERVER
 #define MYSQL_SERVER
+#endif
 #include <sql_class.h>
 #include <table.h>
 #include <sql_show.h>
@@ -25,9 +27,36 @@
 
 
 ulong opt_query_response_time_range_base= QRT_DEFAULT_BASE;
-my_bool opt_query_response_time_stats= FALSE;
+static my_bool opt_query_response_time_stats= FALSE;
 static my_bool opt_query_response_time_flush= FALSE;
 
+class qrt_atomic_flag
+{
+  public:
+    explicit qrt_atomic_flag(bool initial_value):
+      value_(initial_value ? 1 : 0)
+    {}
+    void set()
+    {
+      my_atomic_store32(&value_, 1);
+    }
+    void clear()
+    {
+      my_atomic_store32(&value_, 0);
+    }
+    bool is_set() const
+    {
+      int32 res= my_atomic_load32(const_cast<volatile int32*>(&value_));
+      return res != 0;
+    }
+
+  private:
+    qrt_atomic_flag(const qrt_atomic_flag&);
+    qrt_atomic_flag& operator = (const qrt_atomic_flag&);
+
+    volatile int32 value_;
+};
+static qrt_atomic_flag qrt_vars_initialized(false);
 
 static void query_response_time_flush_update(
               MYSQL_THD thd __attribute__((unused)),
@@ -61,6 +90,22 @@ static MYSQL_THDVAR_ULONGLONG(exec_time_debug, PLUGIN_VAR_NOCMDOPT,
        NULL, NULL, 0, 0, LONG_TIMEOUT, 1);
 #endif
 
+enum session_stat
+{
+  session_stat_global,
+  session_stat_on,
+  session_stat_off
+};
+
+static const char *session_stat_names[]= {"GLOBAL", "ON", "OFF", NullS};
+static TYPELIB session_stat_typelib= { array_elements(session_stat_names) - 1,
+                                       "", session_stat_names, NULL};
+
+static MYSQL_THDVAR_ENUM(session_stats, PLUGIN_VAR_RQCMDARG,
+       "Controls query response time statistics collection for the current "
+       "session: ON - enable, OFF - disable, GLOBAL - use "
+       "query_response_time_stats value", NULL, NULL,
+       session_stat_global, &session_stat_typelib);
 
 static struct st_mysql_sys_var *query_response_time_info_vars[]=
 {
@@ -70,6 +115,7 @@ static struct st_mysql_sys_var *query_response_time_info_vars[]=
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(exec_time_debug),
 #endif
+  MYSQL_SYSVAR(session_stats),
   NULL
 };
 
@@ -122,6 +168,12 @@ static int query_response_time_info_init(void *p)
   return 0;
 }
 
+static int query_response_time_info_init_main(void *p)
+{
+  int res= query_response_time_info_init(p);
+  qrt_vars_initialized.set();
+  return res;
+}
 
 static int query_response_time_info_deinit(void *arg __attribute__((unused)))
 {
@@ -130,9 +182,24 @@ static int query_response_time_info_deinit(void *arg __attribute__((unused)))
   return 0;
 }
 
+static int query_response_time_info_deinit_main(void *arg)
+{
+  qrt_vars_initialized.clear();
+  return query_response_time_info_deinit(arg);
+}
 
 static struct st_mysql_information_schema query_response_time_info_descriptor=
 { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+
+static bool query_response_time_should_log(MYSQL_THD thd)
+{
+  const enum session_stat session_stat_val= qrt_vars_initialized.is_set() ?
+    static_cast<session_stat>(THDVAR(thd, session_stats)) :
+    session_stat_off;
+  return (session_stat_val == session_stat_on)
+    || (session_stat_val == session_stat_global
+        && opt_query_response_time_stats);
+}
 
 static int query_response_time_audit_notify(MYSQL_THD thd,
                                             mysql_event_class_t event_class,
@@ -142,7 +209,7 @@ static int query_response_time_audit_notify(MYSQL_THD thd,
     (const struct mysql_event_general *) event;
   DBUG_ASSERT(event_class == MYSQL_AUDIT_GENERAL_CLASS);
   if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_STATUS &&
-      opt_query_response_time_stats)
+      query_response_time_should_log(thd))
   {
     /*
      Get sql command id of currently executed statement
@@ -216,8 +283,8 @@ mysql_declare_plugin(query_response_time)
   "Percona and Sergey Vojtovich",
   "Query Response Time Distribution INFORMATION_SCHEMA Plugin",
   PLUGIN_LICENSE_GPL,
-  query_response_time_info_init,
-  query_response_time_info_deinit,
+  query_response_time_info_init_main,
+  query_response_time_info_deinit_main,
   0x0100,
   NULL,
   query_response_time_info_vars,

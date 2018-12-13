@@ -25,7 +25,7 @@
 #include <string>
 
 /* MySQL header files */
-#include "./log.h"
+#include "log.h"
 
 /* RocksDB header files */
 #include "rocksdb/utilities/convenience.h"
@@ -68,7 +68,7 @@ bool Rdb_cf_options::init(
   return true;
 }
 
-void Rdb_cf_options::get(const std::string &cf_name,
+bool Rdb_cf_options::get(const std::string &cf_name,
                          rocksdb::ColumnFamilyOptions *const opts) {
   DBUG_ASSERT(opts != nullptr);
 
@@ -80,7 +80,9 @@ void Rdb_cf_options::get(const std::string &cf_name,
 
   if (it != m_name_map.end()) {
     rocksdb::GetColumnFamilyOptionsFromString(*opts, it->second, opts);
+    return true;
   }
+  return false;
 }
 
 void Rdb_cf_options::update(const std::string &cf_name,
@@ -323,15 +325,24 @@ Rdb_cf_options::get_cf_comparator(const std::string &cf_name) {
   }
 }
 
-void Rdb_cf_options::get_cf_options(const std::string &cf_name,
+std::shared_ptr<rocksdb::MergeOperator>
+Rdb_cf_options::get_cf_merge_operator(const std::string &cf_name) {
+  return (cf_name == DEFAULT_SYSTEM_CF_NAME)
+             ? std::make_shared<Rdb_system_merge_op>()
+             : nullptr;
+}
+
+bool Rdb_cf_options::get_cf_options(const std::string &cf_name,
                                     rocksdb::ColumnFamilyOptions *const opts) {
   DBUG_ASSERT(opts != nullptr);
 
   *opts = m_default_cf_opts;
-  get(cf_name, opts);
+  bool ret = get(cf_name, opts);
 
   // Set the comparator according to 'rev:'
   opts->comparator = get_cf_comparator(cf_name);
+  opts->merge_operator = get_cf_merge_operator(cf_name);
+  return ret;
 }
 
 } // namespace myrocks

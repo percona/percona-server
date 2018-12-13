@@ -45,6 +45,15 @@ Created 10/25/1995 Heikki Tuuri
 #include <list>
 #include <vector>
 
+#include "fil0rkinfo.h"
+#include "create_info_encryption_key.h"
+
+//#include "fil0crypt.h" //TODO:Robert This should be removed, when fil_space_crypt_t will be moved to appropriate place
+/** Structure containing encryption specification */
+struct fil_space_crypt_t;
+
+#define REDO_LOG_ENCRYPT_NO_VERSION 0
+
 #ifdef UNIV_HOTBACKUP
 #include <cstring>
 /** determine if file is intermediate / temporary.These files are created during
@@ -199,6 +208,9 @@ struct fil_space_t {
 				Dropping of the tablespace is forbidden
 				if this is positive.
 				Protected by fil_system->mutex. */
+	ulint 		n_pending_ops_from_space_list;
+
+        ulint		n_pending_ios;
 	hash_node_t	hash;	/*!< hash chain node */
 	hash_node_t	name_hash;/*!< hash chain the name_hash table */
 #ifndef UNIV_HOTBACKUP
@@ -215,8 +227,19 @@ struct fil_space_t {
 				/*!< true if this space is currently in
 				unflushed_spaces */
 	bool		is_corrupt;
+
+	bool		is_encrypted;
+
+        bool            exclude_from_rotation;
+
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
+	UT_LIST_NODE_T(fil_space_t) rotation_list;
+	/** whether this tablespace needs key rotation */
+	bool		is_in_rotation_list;
+
+	/** MariaDB encryption data */
+        fil_space_crypt_t* crypt_data;
 
 	/** Compression algorithm */
 	Compression::Type	compression_type;
@@ -230,14 +253,28 @@ struct fil_space_t {
 	/** Encrypt key length*/
 	ulint			encryption_klen;
 
+	/** Encrypt key version*/
+	ulint			encryption_key_version;
+
 	/** Encrypt initial vector */
-	byte			encryption_iv[ENCRYPTION_KEY_LEN];
+        byte			encryption_iv[ENCRYPTION_KEY_LEN];
+
+        //ulint                   encryption_key_version; //TODO: Should this be minimal key version?
+
+        //fil_encryption_t        encryption;
 
 	/** Release the reserved free extents.
 	@param[in]	n_reserved	number of reserved extents */
 	void release_free_extents(ulint n_reserved);
 
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
+
+	/** @return whether the tablespace is about to be dropped or
+	truncated */
+	bool is_stopping() const
+	{
+		return stop_new_ops || is_being_truncated;
+	}
 };
 
 /** Value of fil_space_t::magic_n */
@@ -503,6 +540,10 @@ static const ulint FIL_PAGE_ORIGINAL_SIZE_V1 = FIL_PAGE_ORIGINAL_TYPE_V1 + 2;
 /** Size after compression (u16) */
 static const ulint FIL_PAGE_COMPRESS_SIZE_V1 = FIL_PAGE_ORIGINAL_SIZE_V1 + 2;
 
+static const ulint FIL_PAGE_ENCRYPTION_KEY_VERSION = FIL_PAGE_ORIGINAL_SIZE_V1;
+
+static const ulint FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC = FIL_PAGE_VERSION;
+
 /** This overloads FIL_PAGE_FILE_FLUSH_LSN for RTREE Split Sequence Number */
 #define	FIL_RTREE_SPLIT_SEQ_NUM	FIL_PAGE_FILE_FLUSH_LSN
 
@@ -519,6 +560,9 @@ static const ulint FIL_PAGE_COMPRESS_SIZE_V1 = FIL_PAGE_ORIGINAL_SIZE_V1 + 2;
 					to store the page checksum, the
 					last 4 bytes should be identical
 					to the last 4 bytes of FIL_PAGE_LSN */
+
+//static const ulint FIL_PAGE_ENCRYPTION_ENCRYPTED_CHECKSUM = FIL_PAGE_END_LSN_OLD_CHKSUM + 4;
+
 #define FIL_PAGE_DATA_END	8	/*!< size of the page trailer */
 /* @} */
 
@@ -563,6 +607,16 @@ index */
 
 #ifndef UNIV_INNOCHECKSUM
 
+/** Enum values for encryption table option */
+enum fil_encryption_t {
+	/** Encrypted if innodb_encrypt_tables=ON (srv_encrypt_tables) */
+	FIL_ENCRYPTION_DEFAULT,
+	/** Encrypted */
+	FIL_ENCRYPTION_ON,
+	/** Not encrypted */
+	FIL_ENCRYPTION_OFF
+};
+
 /** The number of fsyncs done to the log */
 extern ulint	fil_n_log_flushes;
 
@@ -573,6 +627,66 @@ extern ulint	fil_n_pending_tablespace_flushes;
 
 /** Number of files currently open */
 extern ulint	fil_n_file_opened;
+
+//TODO: Robert: Moved here from fil0fil.c the way it is in MariaDB
+
+struct fil_system_t {
+#ifndef UNIV_HOTBACKUP
+	ib_mutex_t	mutex;		/*!< The mutex protecting the cache */
+#endif /* !UNIV_HOTBACKUP */
+	hash_table_t*	spaces;		/*!< The hash table of spaces in the
+					system; they are hashed on the space
+					id */
+	hash_table_t*	name_hash;	/*!< hash table based on the space
+					name */
+	UT_LIST_BASE_NODE_T(fil_node_t) LRU;
+					/*!< base node for the LRU list of the
+					most recently used open files with no
+					pending i/o's; if we start an i/o on
+					the file, we first remove it from this
+					list, and return it to the start of
+					the list when the i/o ends;
+					log files and the system tablespace are
+					not put to this list: they are opened
+					after the startup, and kept open until
+					shutdown */
+	UT_LIST_BASE_NODE_T(fil_space_t) unflushed_spaces;
+					/*!< base node for the list of those
+					tablespaces whose files contain
+					unflushed writes; those spaces have
+					at least one file node where
+					modification_counter > flush_counter */
+	ulint		n_open;		/*!< number of files currently open */
+	ulint		max_n_open;	/*!< n_open is not allowed to exceed
+					this */
+	int64_t		modification_counter;/*!< when we write to a file we
+					increment this by one */
+	ulint		max_assigned_id;/*!< maximum space id in the existing
+					tables, or assigned during the time
+					mysqld has been up; at an InnoDB
+					startup we scan the data dictionary
+					and set here the maximum of the
+					space id's of the tables there */
+	UT_LIST_BASE_NODE_T(fil_space_t) space_list;
+					/*!< list of all file spaces */
+	UT_LIST_BASE_NODE_T(fil_space_t) named_spaces;
+					/*!< list of all file spaces
+					for which a MLOG_FILE_NAME
+					record has been written since
+					the latest redo log checkpoint.
+					Protected only by log_sys->mutex. */
+	UT_LIST_BASE_NODE_T(fil_space_t) rotation_list;
+					/*!< list of all file spaces needing
+					key rotation.*/
+	bool		space_id_reuse_warned;
+					/* !< true if fil_space_create()
+					has issued a warning about
+					potential space_id reuse */
+};
+
+/** The tablespace memory cache. This variable is NULL before the module is
+initialized. */
+extern fil_system_t*	fil_system;
 
 /** Look up a tablespace.
 The caller should hold an InnoDB table lock or a MDL that prevents
@@ -655,12 +769,23 @@ Error messages are issued to the server log.
 @param[in]	purpose	tablespace purpose
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval NULL on failure (such as when the same tablespace exists) */
+/*
 fil_space_t*
 fil_space_create(
 	const char*	name,
 	ulint		id,
 	ulint		flags,
 	fil_type_t	purpose)
+	MY_ATTRIBUTE((warn_unused_result));
+        */
+fil_space_t*
+fil_space_create(
+	const char*		name,
+	ulint			id,
+	ulint			flags,
+	fil_type_t		purpose,
+	fil_space_crypt_t*	crypt_data,
+	fil_encryption_t	mode = FIL_ENCRYPTION_DEFAULT)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /*******************************************************************//**
@@ -817,6 +942,51 @@ void
 fil_space_release(
 	fil_space_t*	space);
 
+/** Acquire a tablespace for reading or writing a block,
+when it could be dropped concurrently.
+@param[in]	id	tablespace ID
+@return	the tablespace
+@retval	NULL if missing */
+fil_space_t*
+fil_space_acquire_for_io(ulint id);
+
+/** Release a tablespace acquired with fil_space_acquire_for_io().
+@param[in,out]	space	tablespace to release  */
+void
+fil_space_release_for_io(fil_space_t* space);
+
+/** Return the next fil_space_t.
+Once started, the caller must keep calling this until it returns NULL.
+fil_space_acquire() and fil_space_release() are invoked here which
+blocks a concurrent operation from dropping the tablespace.
+@param[in,out]	prev_space	Pointer to the previous fil_space_t.
+If NULL, use the first fil_space_t on fil_system->space_list.
+@return pointer to the next fil_space_t.
+@retval NULL if this was the last  */
+fil_space_t*
+fil_space_next(
+	fil_space_t*	prev_space)
+	MY_ATTRIBUTE((warn_unused_result));
+
+/** Return the next fil_space_t from key rotation list.
+Once started, the caller must keep calling this until it returns NULL.
+fil_space_acquire() and fil_space_release() are invoked here which
+blocks a concurrent operation from dropping the tablespace.
+@param[in,out]	prev_space	Pointer to the previous fil_space_t.
+If NULL, use the first fil_space_t on fil_system->space_list.
+@return pointer to the next fil_space_t.
+@retval NULL if this was the last*/
+fil_space_t*
+fil_space_keyrotate_next(
+	fil_space_t*	prev_space)
+	MY_ATTRIBUTE((warn_unused_result));
+
+void
+fil_io_set_encryption(
+	IORequest&		req_type,
+	const page_id_t&	page_id,
+	fil_space_t*		space);
+
 /** Wrapper with reference-counting for a fil_space_t. */
 class FilSpace
 {
@@ -828,8 +998,9 @@ public:
 	/** Constructor: Look up the tablespace and increment the
 	referece count if found.
 	@param[in]	space_id	tablespace ID */
-	explicit FilSpace(ulint space_id)
-		: m_space(fil_space_acquire(space_id)) {}
+	explicit FilSpace(ulint space_id, bool silent = false)
+		: m_space(silent ? fil_space_acquire_silent(space_id)
+                                 : fil_space_acquire(space_id)) {}
 
 	/** Assignment operator: This assumes that fil_space_acquire()
 	has already been done for the fil_space_t. The caller must
@@ -1057,7 +1228,9 @@ fil_ibd_create(
 	const char*	name,
 	const char*	path,
 	ulint		flags,
-	ulint		size)
+	ulint		size,
+        fil_encryption_t mode,
+        const CreateInfoEncryptionKeyId &create_info_encryption_key_id)
 	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Tries to open a single-table tablespace and optionally checks the space id is
@@ -1096,7 +1269,8 @@ fil_ibd_open(
 	ulint		id,
 	ulint		flags,
 	const char*	tablename,
-	const char*	path_in)
+	const char*	path_in,
+        Keyring_encryption_info &keyring_encryption_info)
 	MY_ATTRIBUTE((warn_unused_result));
 
 enum fil_load_status {
@@ -1541,6 +1715,12 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	MY_ATTRIBUTE((warn_unused_result));
 
+//TODO:Robert - why exactly do I need those mutexes ?
+/** Acquire the fil_system mutex. */
+#define fil_system_enter()	mutex_enter(&fil_system->mutex)
+/** Release the fil_system mutex. */
+#define fil_system_exit()	mutex_exit(&fil_system->mutex)
+
 /** Note that a non-predefined persistent tablespace has been modified
 by redo log.
 @param[in,out]	space	tablespace */
@@ -1582,12 +1762,24 @@ fil_get_compression(
 @param[in] key			Encryption key
 @param[in] iv			Encryption iv
 @return DB_SUCCESS or error code */
+/*
 dberr_t
 fil_set_encryption(
 	ulint			space_id,
 	Encryption::Type	algorithm,
 	byte*			key,
-	byte*			iv)
+	byte*			iv,
+        ulint                   key_version,
+        fil_encryption_t        encryption)
+	MY_ATTRIBUTE((warn_unused_result));
+*/
+dberr_t
+fil_set_encryption(
+	ulint			space_id,
+	Encryption::Type	algorithm,
+	byte*			key,
+	byte*			iv,
+        bool aquire_mutex = true)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -1660,6 +1852,14 @@ fil_names_clear(
 	lsn_t	lsn,
 	bool	do_write);
 
+/** Enable encryption of temporary tablespace
+@param[in,out]	space	tablespace object
+@return DB_SUCCESS on success, DB_ERROR on failure */
+MY_NODISCARD
+dberr_t
+fil_temp_update_encryption(
+	fil_space_t*	space);
+
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 /**
 Try and enable FusionIO atomic writes.
@@ -1698,4 +1898,18 @@ fil_space_set_corrupt(
 /*==================*/
 	ulint	space_id);
 
+void
+fil_space_set_encrypted(
+/*==================*/
+	ulint	space_id);
+
+
+typedef std::vector<ulint> space_id_vec;
+
+/** Rotate tablespace keys of global tablespaces like system, temporary, etc.
+This is used only at startup to fix the empty UUIDs.
+@param[in]	space_ids	vector of space_ids
+@return true on success, false on failure */
+bool
+fil_encryption_rotate_global(const space_id_vec& space_ids);
 #endif /* fil0fil_h */

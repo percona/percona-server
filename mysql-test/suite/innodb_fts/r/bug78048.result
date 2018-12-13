@@ -1,0 +1,48 @@
+create table `ngram_simple` (
+`i` int(11) not null auto_increment,
+`txt` text collate utf8mb4_bin not null,
+primary key (`i`),
+fulltext key `fx_txts` (`txt`) ) engine=InnoDB auto_increment=10 default charset=utf8mb4 collate=utf8mb4_bin;
+insert into ngram_simple (txt) values ('CompP&C01');
+insert into ngram_simple (txt) values ('CompP&C02');
+insert into ngram_simple (txt) values ('CompP&C03');
+insert into ngram_simple (txt) values ('CompP&C04');
+insert into ngram_simple (txt) values ('CompP&C05');
+insert into ngram_simple (txt) values ('CompP&C06');
+insert into ngram_simple (txt) values ('CompP&c04');
+insert into ngram_simple (txt) values ('abc*efg');
+insert into ngram_simple (txt) values ('abc&efg');
+insert into ngram_simple (txt) values ('abC&efGh');
+select * from ngram_simple where match(txt) against ('abc' in boolean mode);
+i	txt
+17	abc*efg
+18	abc&efg
+select * from ngram_simple where match(txt) against ('abC' in boolean mode);
+i	txt
+19	abC&efGh
+select * from ngram_simple where match(txt) against ('C04' in boolean mode);
+i	txt
+13	CompP&C04
+select * from ngram_simple where match(txt) against ('c04' in boolean mode);
+i	txt
+16	CompP&c04
+alter table ngram_simple drop key fx_txts;
+alter table ngram_simple add fulltext key `fx_txts` (`txt`) with parser ngram;
+optimize table ngram_simple;
+Table	Op	Msg_type	Msg_text
+test.ngram_simple	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.ngram_simple	optimize	status	OK
+select * from ngram_simple where match(txt) against ('abc' in boolean mode);
+i	txt
+17	abc*efg
+18	abc&efg
+select * from ngram_simple where match(txt) against ('abC' in boolean mode);
+i	txt
+19	abC&efGh
+select * from ngram_simple where match(txt) against ('C04' in boolean mode);
+i	txt
+13	CompP&C04
+select * from ngram_simple where match(txt) against ('c04' in boolean mode);
+i	txt
+16	CompP&c04
+drop table ngram_simple;

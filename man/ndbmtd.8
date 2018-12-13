@@ -2,12 +2,12 @@
 .\"     Title: \fBndbmtd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBMTD\FR" "8" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBMTD\FR" "8" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,14 +28,14 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndbmtd \- the NDB Cluster data node daemon (multi\-threaded version)
+ndbmtd \- the NDB Cluster data node daemon (multithreaded version)
 .SH "SYNOPSIS"
 .HP \w'\fBndbmtd\ \fR\fB\fIoptions\fR\fR\ 'u
 \fBndbmtd \fR\fB\fIoptions\fR\fR
 .SH "DESCRIPTION"
 .PP
 \fBndbmtd\fR
-is a multi\-threaded version of
+is a multithreaded version of
 \fBndbd\fR, the process that is used to handle all the data in tables using the
 NDBCLUSTER
 storage engine\&.
@@ -47,7 +47,7 @@ functions in the same way as
 \fBndbmtd\fR
 differs from
 \fBndbd\fR, and you should consult
-\fBndbd\fR(8), for additional information about running NDB Cluster data nodes that apply to both the single\-threaded and multi\-threaded versions of the data node process\&.
+\fBndbd\fR(8), for additional information about running NDB Cluster data nodes that apply to both the single\-threaded and multithreaded versions of the data node process\&.
 .PP
 Command\-line options and configuration parameters used with
 \fBndbd\fR
@@ -65,13 +65,13 @@ can be stopped, the binary replaced with
 MaxNoOfExecutionThreads
 is set to an apppriate value before restarting the node if you wish for
 \fBndbmtd\fR
-to run in multi\-threaded fashion\&.) Similarly, an
+to run in multithreaded fashion\&.) Similarly, an
 \fBndbmtd\fR
 binary can be replaced with
 \fBndbd\fR
 simply by stopping the node and then starting
 \fBndbd\fR
-in place of the multi\-threaded binary\&. It is not necessary when switching between the two to start the data node binary using
+in place of the multithreaded binary\&. It is not necessary when switching between the two to start the data node binary using
 \fB\-\-initial\fR\&.
 .PP
 Using
@@ -193,7 +193,7 @@ concurrently on different data nodes in the same NDB Cluster\&. However, such co
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

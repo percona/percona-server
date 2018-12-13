@@ -18,9 +18,9 @@
 --source include/not_embedded.inc
 
 # Suppress warnings
+--disable_query_log
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted");
 call mtr.add_suppression("InnoDB: Operating system error number");
 call mtr.add_suppression("The error means the system cannot find the path specified");
 call mtr.add_suppression("InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
@@ -31,6 +31,7 @@ call mtr.add_suppression("InnoDB: Cannot open table tde_db/t_encrypt.* from the 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
+--enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 

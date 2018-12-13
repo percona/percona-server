@@ -1,23 +1,41 @@
+/* Copyright (c) 2018 Percona LLC and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
 #include <my_global.h>
 #include <boost/scope_exit.hpp>
+#include <boost/core/noncopyable.hpp>
 #include <algorithm>
 #include "my_rdtsc.h"
 #include "sql_error.h"
 #include "mysqld.h"
 #include "mysql/service_thd_wait.h"
 #include "vault_curl.h"
-#include "vault_memory.h"
+#include "secure_string.h"
 #include "vault_base64.h"
 
 namespace keyring
 {
 
 static const size_t max_response_size = 32000000;
-static const long timeout = 300; // 5m timeout
 static MY_TIMER_INFO curl_timer_info;
 static ulonglong last_ping_time;
 static bool was_thd_wait_started = false;
+#ifndef NDEBUG
 static const ulonglong slow_connection_threshold = 100; // [ms]
+#endif
 
 class Thd_wait_end_guard
 {
@@ -37,6 +55,21 @@ class Thd_wait_end_guard
         was_thd_wait_started = false;
       }
     }
+};
+
+class Curl_session_guard : private boost::noncopyable
+{
+public:
+  Curl_session_guard(CURL *curl)
+    : curl(curl)
+  {}
+  ~Curl_session_guard()
+  {
+    if (curl != NULL)
+      curl_easy_cleanup(curl);
+  }
+private:
+  CURL *curl;
 };
 
 static size_t write_response_memory(void *contents, size_t size, size_t nmemb, void *userp)
@@ -131,23 +164,9 @@ bool Vault_curl::init(const Vault_credentials &vault_credentials)
   return false;
 }
 
-bool Vault_curl::reset_curl_session()
+bool Vault_curl::setup_curl_session(CURL *curl)
 {
   CURLcode curl_res = CURLE_OK;
-  if (unlikely(curl == NULL))
-  {
-    curl = curl_easy_init();
-    if (curl == NULL)
-    {
-      logger->log(MY_ERROR_LEVEL, "Could not create CURL session");
-      return true;
-    }
-    return false; 
-  }
-  else
-  {
-    curl_easy_reset(curl);
-  }
   read_data_ss.str("");
   read_data_ss.clear();
   curl_errbuf[0] = '\0';
@@ -171,9 +190,10 @@ bool Vault_curl::reset_curl_session()
        (curl_res = curl_easy_setopt(curl, CURLOPT_CAINFO, vault_ca.c_str())) != CURLE_OK
       ) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback)) ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L))
+      (curl_res = curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback)) != CURLE_OK ||
+      (curl_res = curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L)) != CURLE_OK ||
+      (curl_res = curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, timeout)) != CURLE_OK ||
+      (curl_res = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout)) != CURLE_OK
      )
   {
     logger->log(MY_ERROR_LEVEL, get_error_from_curl(curl_res).c_str());
@@ -190,7 +210,15 @@ bool Vault_curl::list_keys(Secure_string *response)
   Thd_wait_end_guard thd_wait_end_guard;
   (void)thd_wait_end_guard; // silence unused variable error
 
-  if (reset_curl_session() ||
+  CURL *curl = curl_easy_init();
+  if (curl == NULL)
+  {
+    logger->log(MY_ERROR_LEVEL, "Cannot initialize curl session");
+    return true;
+  }
+  Curl_session_guard curl_session_guard(curl);
+
+  if (setup_curl_session(curl) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL, (vault_url + "?list=true").c_str())) != CURLE_OK ||
       (curl_res = curl_easy_perform(curl)) != CURLE_OK ||
       (curl_res = curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code)) != CURLE_OK)
@@ -249,8 +277,16 @@ bool Vault_curl::write_key(const Vault_key &key, Secure_string *response)
 
   Thd_wait_end_guard thd_wait_end_guard;
   (void)thd_wait_end_guard; //silence unused variable error
-  
-  if (reset_curl_session() ||
+
+  CURL *curl = curl_easy_init();
+  if (curl == NULL)
+  {
+    logger->log(MY_ERROR_LEVEL, "Cannot initialize curl session");
+    return true;
+  }
+  Curl_session_guard curl_session_guard(curl);
+
+  if (setup_curl_session(curl) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL,
                                    key_url.c_str())) != CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postdata.c_str())) != CURLE_OK ||
@@ -273,7 +309,15 @@ bool Vault_curl::read_key(const Vault_key &key, Secure_string *response)
   Thd_wait_end_guard thd_wait_end_guard;
   (void)thd_wait_end_guard; // silence unused variable error
 
-  if (reset_curl_session() ||
+  CURL *curl = curl_easy_init();
+  if (curl == NULL)
+  {
+    logger->log(MY_ERROR_LEVEL, "Cannot initialize curl session");
+    return true;
+  }
+  Curl_session_guard curl_session_guard(curl);
+
+  if (setup_curl_session(curl) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL,
                                    key_url.c_str())) != CURLE_OK ||
       (curl_res = curl_easy_perform(curl)) != CURLE_OK)
@@ -294,8 +338,15 @@ bool Vault_curl::delete_key(const Vault_key &key, Secure_string *response)
 
   Thd_wait_end_guard thd_wait_end_guard;
   (void)thd_wait_end_guard; // silence unused variable error
-  
-  if (reset_curl_session() ||
+  CURL *curl = curl_easy_init();
+  if (curl == NULL)
+  {
+    logger->log(MY_ERROR_LEVEL, "Cannot initialize curl session");
+    return true;
+  }
+  Curl_session_guard curl_session_guard(curl);
+
+  if (setup_curl_session(curl) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL, key_url.c_str())) !=
       CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE")) != CURLE_OK ||

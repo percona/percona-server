@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -186,6 +186,7 @@ extern bool opt_using_transactions;
 extern ulong max_long_data_size;
 extern ulong current_pid;
 extern ulong expire_logs_days;
+extern ulonglong binlog_space_limit;
 extern ulong max_binlog_files;
 extern ulong max_slowlog_size;
 extern ulong max_slowlog_files;
@@ -259,7 +260,7 @@ extern ulong open_files_limit;
 extern ulong binlog_cache_size, binlog_stmt_cache_size;
 extern ulonglong max_binlog_cache_size, max_binlog_stmt_cache_size;
 extern int32 opt_binlog_max_flush_queue_time;
-extern ulong opt_binlog_group_commit_sync_delay;
+extern long opt_binlog_group_commit_sync_delay;
 extern ulong opt_binlog_group_commit_sync_no_delay_count;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong slave_max_allowed_packet;
@@ -331,6 +332,8 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
 #endif
 extern ulong log_warnings;
+extern my_bool encrypt_binlog;
+extern my_bool encrypt_tmp_files;
 extern bool  opt_log_syslog_enable;
 extern char *opt_log_syslog_tag;
 #ifndef _WIN32
@@ -340,6 +343,20 @@ extern char *opt_log_syslog_facility;
 /** The size of the host_cache. */
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
+
+extern bool opt_keyring_operations;
+extern char *opt_keyring_migration_user;
+extern char *opt_keyring_migration_host;
+extern char *opt_keyring_migration_password;
+extern char *opt_keyring_migration_socket;
+extern char *opt_keyring_migration_source;
+extern char *opt_keyring_migration_destination;
+extern ulong opt_keyring_migration_port;
+/**
+  Variable to check if connection related options are set
+  as part of keyring migration.
+*/
+extern bool migrate_connect_options;
 
 /** System variable show_compatibility_56. */
 extern my_bool show_compatibility_56;
@@ -443,7 +460,8 @@ extern PSI_mutex_key
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
   key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
-  key_LOCK_cost_const, key_LOCK_current_cond;
+  key_LOCK_cost_const, key_LOCK_current_cond,
+  key_LOCK_keyring_operations;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -462,7 +480,6 @@ extern PSI_mutex_key key_mts_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
 extern PSI_mutex_key key_LOCK_offline_mode;
 extern PSI_mutex_key key_LOCK_default_password_lifetime;
-extern PSI_mutex_key key_LOCK_group_replication_handler;
 
 #ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
@@ -828,6 +845,7 @@ extern size_t mysql_real_data_home_len;
 extern const char *mysql_real_data_home_ptr;
 extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
+extern "C" MYSQL_PLUGIN_IMPORT char server_version_suffix[SERVER_VERSION_LENGTH];
 extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
 extern MYSQL_PLUGIN_IMPORT struct system_variables global_system_variables;
@@ -866,7 +884,7 @@ extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_rwlock_t LOCK_consistent_snapshot;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
-extern mysql_mutex_t LOCK_group_replication_handler;
+extern mysql_mutex_t LOCK_keyring_operations;
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath, *opt_tls_version;
@@ -945,7 +963,14 @@ enum options_mysqld
   OPT_SHOW_OLD_TEMPORALS,
   OPT_ENFORCE_GTID_CONSISTENCY,
   OPT_TRANSACTION_READ_ONLY,
-  OPT_TRANSACTION_ISOLATION
+  OPT_TRANSACTION_ISOLATION,
+  OPT_KEYRING_MIGRATION_SOURCE,
+  OPT_KEYRING_MIGRATION_DESTINATION,
+  OPT_KEYRING_MIGRATION_USER,
+  OPT_KEYRING_MIGRATION_HOST,
+  OPT_KEYRING_MIGRATION_PASSWORD,
+  OPT_KEYRING_MIGRATION_SOCKET,
+  OPT_KEYRING_MIGRATION_PORT
 };
 
 

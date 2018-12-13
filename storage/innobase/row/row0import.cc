@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -109,20 +109,21 @@ struct row_index_t {
 struct row_import {
 	row_import() UNIV_NOTHROW
 		:
-		m_table(),
-		m_version(),
-		m_hostname(),
-		m_table_name(),
-		m_autoinc(),
+		m_table(NULL),
+		m_version(0),
+		m_hostname(NULL),
+		m_table_name(NULL),
+		m_autoinc(0),
 		m_page_size(0, 0, false),
-		m_flags(),
-		m_n_cols(),
-		m_cols(),
-		m_col_names(),
-		m_n_indexes(),
-		m_indexes(),
+		m_flags(0),
+		m_n_cols(0),
+		m_cols(NULL),
+		m_col_names(NULL),
+		m_n_indexes(0),
+		m_indexes(NULL),
 		m_missing(true),
-		m_cfp_missing(true)	{ }
+		m_cfp_missing(true),
+		m_is_keyring_encrypted(false) { }
 
 	~row_import() UNIV_NOTHROW;
 
@@ -220,6 +221,8 @@ struct row_import {
 
 	bool		m_cfp_missing;		/*!< true if a .cfp file was
 						found and was readable */
+
+	bool		m_is_keyring_encrypted;
 };
 
 /** Use the page cursor to iterate over records in a block. */
@@ -870,7 +873,8 @@ private:
 	enum import_page_status_t {
 		IMPORT_PAGE_STATUS_OK,		/*!< Page is OK */
 		IMPORT_PAGE_STATUS_ALL_ZERO,	/*!< Page is all zeros */
-		IMPORT_PAGE_STATUS_CORRUPTED	/*!< Page is corrupted */
+		IMPORT_PAGE_STATUS_CORRUPTED,	/*!< Page is corrupted */
+                IMPORT_PAGE_STATUS_DECRYPTION_FAILED /*< Page decryption failed */
 	};
 
 	/** Update the page, set the space id, max trx id and index id.
@@ -1314,11 +1318,19 @@ row_import::match_schema(
 		= m_table->flags & ~DICT_TF_MASK_DATA_DIR;
 
 	if (relevant_flags != relevant_table_flags) {
-		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-			 "Table flags don't match, server table has 0x%x "
-			 "and the meta-data file has 0x%x",
-			 relevant_table_flags, relevant_flags);
-
+		if (dict_tf_to_row_format_string(relevant_flags) !=
+			dict_tf_to_row_format_string(relevant_table_flags)) {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+				 "Table flags don't match, server table has %s"
+				 " and the meta-data file has %s",
+				(const char*)dict_tf_to_row_format_string(
+					relevant_table_flags),
+				(const char*)dict_tf_to_row_format_string(
+					relevant_flags));
+		} else {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+				"Table flags don't match");
+		}
 		return(DB_ERROR);
 	} else if (m_table->n_cols != m_n_cols) {
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
@@ -1785,12 +1797,6 @@ PageConverter::update_records(
 
 		rec_t*	rec = m_rec_iter.current();
 
-		/* FIXME: Move out of the loop */
-
-		if (rec_get_status(rec) == REC_STATUS_NODE_PTR) {
-			break;
-		}
-
 		ibool	deleted = rec_get_deleted_flag(rec, comp);
 
 		/* For the clustered index we have to adjust the BLOB
@@ -1891,6 +1897,10 @@ PageConverter::update_index_page(
 		return(DB_SUCCESS);
 	}
 
+	if (!page_is_leaf(block->frame)) {
+		return (DB_SUCCESS);
+	}
+
 	return(update_records(block));
 }
 
@@ -1972,7 +1982,7 @@ PageConverter::update_page(
 	case FIL_PAGE_TYPE_XDES:
 		err = set_current_xdes(
 			block->page.id.page_no(), get_frame(block));
-		// fallthrough
+		/* Fall through. */
 	case FIL_PAGE_INODE:
 	case FIL_PAGE_TYPE_TRX_SYS:
 	case FIL_PAGE_IBUF_FREE_LIST:
@@ -2011,21 +2021,31 @@ PageConverter::validate(
 	the file. Flag as corrupt if it doesn't. Disable the check
 	for LSN in buf_page_is_corrupted() */
 
+	ulint page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
+	ulint original_page_type = mach_read_from_2(page + FIL_PAGE_ORIGINAL_TYPE_V1);
+	bool was_page_read_encrypted = original_page_type == FIL_PAGE_ENCRYPTED;
+	block->page.encrypted = block->page.encrypted || was_page_read_encrypted || page_type == FIL_PAGE_ENCRYPTED || page_type == FIL_PAGE_ENCRYPTED_RTREE ||
+			   page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED;
+
 	if (buf_page_is_corrupted(
 		false, page, get_page_size(),
 		fsp_is_checksum_disabled(block->page.id.space()))
-	    || (page_get_page_no(page) != offset / m_page_size.physical()
+		|| (page_get_page_no(page) != offset / m_page_size.physical()
 		&& page_get_page_no(page) != 0)) {
 
-		return(IMPORT_PAGE_STATUS_CORRUPTED);
+		return block->page.encrypted
+                  ? IMPORT_PAGE_STATUS_DECRYPTION_FAILED
+                  : IMPORT_PAGE_STATUS_CORRUPTED;
 
 	} else if (offset > 0 && page_get_page_no(page) == 0) {
 
 		/* The page is all zero: do nothing. We already checked
 		for all NULs in buf_page_is_corrupted() */
+		block->page.encrypted= false;
 		return(IMPORT_PAGE_STATUS_ALL_ZERO);
 	}
 
+	block->page.encrypted= false;
 	return(IMPORT_PAGE_STATUS_OK);
 }
 
@@ -2094,6 +2114,14 @@ PageConverter::operator() (
 		/* The page is all zero: leave it as is. */
 		break;
 
+        case IMPORT_PAGE_STATUS_DECRYPTION_FAILED:
+                ib::warn() << "Page " << (offset / m_page_size.physical())
+                        << " at offet " << offset
+                        << " in file " << m_filepath << " cannot be decrypted. "
+                        << "Are you using correct keyring that contain the key used to "
+                        << "encrypt the tablespace before it was discared ?";
+                return (DB_DECRYPTION_FAILED);
+
 	case IMPORT_PAGE_STATUS_CORRUPTED:
 
 		ib::warn() << "Page " << (offset / m_page_size.physical())
@@ -2148,7 +2176,7 @@ row_import_discard_changes(
 		index->space = FIL_NULL;
 	}
 
-	table->ibd_file_missing = TRUE;
+	table->set_file_unreadable();
 
 	fil_close_tablespace(trx, table->space);
 }
@@ -2503,7 +2531,7 @@ row_import_cfg_read_index_fields(
 
 	dict_field_t*	field = index->m_fields;
 
-	memset(field, 0x0, sizeof(*field) * n_fields);
+	std::uninitialized_fill_n(field, n_fields, dict_field_t());
 
 	for (ulint i = 0; i < n_fields; ++i, ++field) {
 		byte*		ptr = row;
@@ -3107,6 +3135,9 @@ row_import_read_meta_data(
 	case IB_EXPORT_CFG_VERSION_V1:
 
 		return(row_import_read_v1(file, thd, &cfg));
+        case IB_EXPORT_CFG_VERSION_V1_WITH_RK:
+                cfg.m_is_keyring_encrypted = true;
+		return(row_import_read_v1(file, thd, &cfg));
 	default:
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 			"Unsupported meta-data version number (%lu),"
@@ -3569,7 +3600,7 @@ row_import_for_mysql(
 
 	ut_a(table->space);
 	ut_ad(prebuilt->trx);
-	ut_a(table->ibd_file_missing);
+	ut_a(table->file_unreadable);
 
 	ibuf_delete_for_discarded_space(table->space);
 
@@ -3622,8 +3653,6 @@ row_import_for_mysql(
 
 	row_import	cfg;
 	ulint		space_flags = 0;
-
-	memset(&cfg, 0x0, sizeof(cfg));
 
 	err = row_import_read_cfg(table, trx->mysql_thd, cfg);
 
@@ -3711,7 +3740,7 @@ row_import_for_mysql(
 
 		/* If table is set to encrypted, but can't find
 		cfp file, then return error. */
-		if (cfg.m_cfp_missing== true
+		if (cfg.m_cfp_missing== true && !cfg.m_is_keyring_encrypted
 		    && ((space_flags != 0
 			 && FSP_FLAGS_GET_ENCRYPTION(space_flags))
 			|| dict_table_is_encrypted(table))) {
@@ -3767,10 +3796,13 @@ row_import_for_mysql(
 			table_name, sizeof(table_name),
 			table->name.m_name);
 
-		ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			ER_INTERNAL_ERROR,
-			"Cannot reset LSNs in table %s : %s",
-			table_name, ut_strerr(err));
+
+		if (err != DB_DECRYPTION_FAILED) {
+			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				ER_INTERNAL_ERROR,
+				"Cannot reset LSNs in table %s : %s",
+				table_name, ut_strerr(err));
+                }
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
@@ -3811,13 +3843,28 @@ row_import_for_mysql(
 	fil_space_set_imported() to declare it a persistent tablespace. */
 
 	ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags, false);
-	if (table->encryption_key != NULL) {
+	if (table->encryption_key != NULL || cfg.m_is_keyring_encrypted) {
 		fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
 	}
 
+	Keyring_encryption_info keyring_encryption_info;
+
 	err = fil_ibd_open(
 		true, true, FIL_TYPE_IMPORT, table->space,
-		fsp_flags, table->name.m_name, filepath);
+		fsp_flags, table->name.m_name, filepath, keyring_encryption_info);
+
+	if (err == DB_SUCCESS && cfg.m_is_keyring_encrypted &&
+		(!keyring_encryption_info.page0_has_crypt_data || !FSP_FLAGS_GET_ENCRYPTION(fsp_flags))) {
+		ut_ad(!keyring_encryption_info.is_encryption_in_progress());	// it should not be possible to FLUSH FOR EXPORT when encryption
+									// is in progress
+		ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+		ER_TABLE_SCHEMA_MISMATCH,
+		"Table is marked as encrypted with KEYRING in cfg file, but there"
+		" is no KEYRING encryption information in tablespace header"
+		" Please make sure that ibd and cfg files are match");
+
+		err = DB_ERROR;
+	} 
 
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
 			err = DB_TABLESPACE_NOT_FOUND;);
@@ -3836,9 +3883,9 @@ row_import_for_mysql(
 
 	/* For encrypted table, set encryption information. */
 	if (dict_table_is_encrypted(table)) {
-
 		err = fil_set_encryption(table->space,
-					 Encryption::AES,
+					 cfg.m_is_keyring_encrypted ? Encryption::KEYRING
+								    : Encryption::AES,
 					 table->encryption_key,
 					 table->encryption_iv);
 	}
@@ -3940,7 +3987,7 @@ row_import_for_mysql(
 	ib::info() << "Phase IV - Flush complete";
 	fil_space_set_imported(prebuilt->table->space);
 
-	if (dict_table_is_encrypted(table)) {
+	if (dict_table_is_encrypted(table) && !cfg.m_is_keyring_encrypted) {
 		fil_space_t*	space;
 		mtr_t		mtr;
 		byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
@@ -3981,7 +4028,7 @@ row_import_for_mysql(
 		return(row_import_error(prebuilt, trx, err));
 	}
 
-	table->ibd_file_missing = false;
+	table->set_file_readable();
 	table->flags2 &= ~DICT_TF2_DISCARDED;
 
 	/* Set autoinc value read from cfg file. The value is set to zero

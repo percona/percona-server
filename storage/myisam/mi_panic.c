@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,8 +53,9 @@ int mi_panic(enum ha_panic_function flag)
       {
 	if (flush_io_cache(&info->rec_cache))
 	  error=my_errno();
-	reinit_io_cache(&info->rec_cache,READ_CACHE,0,
-		       (pbool) (info->lock_type != F_UNLCK),1);
+        if (reinit_io_cache(&info->rec_cache, READ_CACHE, 0,
+              (info->lock_type != F_UNLCK), 1))
+          error= my_errno();
       }
       if (info->lock_type != F_UNLCK && ! info->was_locked)
       {
@@ -62,7 +63,7 @@ int mi_panic(enum ha_panic_function flag)
 	if (mi_lock_database(info,F_UNLCK))
 	  error=my_errno();
       }
-    // fallthrough
+      break;
     case HA_PANIC_READ:			/* Restore to before WRITE */
       if (info->was_locked)
       {

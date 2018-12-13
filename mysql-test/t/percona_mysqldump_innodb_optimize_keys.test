@@ -247,8 +247,8 @@ INSERT INTO t1 VALUES (1, 1234);
 DROP TABLE t1;
 
 #############################################################################
-# Bug #1081016: mysqldump --innodb-optimize-keys may produce invalid SQL with
-#               explicitly named FK constraints
+# Bug #1081016 (PS-605): mysqldump --innodb-optimize-keys may produce invalid
+#                        SQL with explicitly named FK constraints
 #############################################################################
 
 CREATE TABLE `t1` (
@@ -258,6 +258,38 @@ CREATE TABLE `t1` (
   KEY `a` (`a`),
   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO t1(a) VALUES (1), (2), (3);
+
+--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 >$file
+
+--echo ######################################
+--cat_file $file
+--echo ######################################
+
+# Check that the resulting dump can be imported back
+
+--exec $MYSQL test < $file
+
+--remove_file $file
+
+DROP TABLE t1;
+
+#############################################################################
+# Bug #1081016 (PS-605): mysqldump --innodb-optimize-keys may produce invalid
+#                        SQL with explicitly named FK constraints
+#############################################################################
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `a_index` (`a`),
+  CONSTRAINT `t1_const` FOREIGN KEY (`a`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+INSERT INTO t1(`id`) VALUES (4);
 
 --exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 >$file
 
@@ -300,5 +332,108 @@ PARTITIONS 2*/;
 --remove_file $file
 
 DROP TABLE t1;
+
+#############################################################################
+# Bug PS-1125: mysqldump --innodb-optimize-keys mysqldump produces incorrect
+#              dumps with self-referenced foreign keys
+#############################################################################
+
+CREATE TABLE `t1` (
+  `id` int(11) DEFAULT NULL,
+  `a` int(11) DEFAULT NULL,
+  KEY (`id`),
+  FOREIGN KEY (`a`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+INSERT INTO t1(`id`) VALUES (4);
+INSERT INTO t1(`a`) VALUES (4);
+
+--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 >$file
+
+--echo ######################################
+--cat_file $file
+--echo ######################################
+
+# Check that the resulting dump can be imported back
+
+--exec $MYSQL test < $file
+
+--remove_file $file
+
+DROP TABLE t1;
+
+#############################################################################
+# Bug PS-3863: mysqldump --innodb-optimize-keys may produce invalid SQL with
+#              implicitly named FK constraints
+#############################################################################
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`a`) REFERENCES `t1` (`id`),
+  FOREIGN KEY (`b`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 VALUES (1,1,1), (2,2,2), (3,3,3);
+INSERT INTO t1(`id`) VALUES (4);
+
+--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 >$file
+
+--echo ######################################
+--cat_file $file
+--echo ######################################
+
+# Check that the resulting dump can be imported back
+
+--exec $MYSQL test < $file
+
+--remove_file $file
+
+DROP TABLE t1;
+
+#############################################################################
+# Bug PS-4524: Error occurs only if a variable name is a prefix of the
+#              name of the second variable with AUTO_INCREMENT
+#############################################################################
+
+CREATE TABLE `t1` (
+  `prefix` int(5) NOT NULL,
+  `prefix_autoinc` int(5) NOT NULL AUTO_INCREMENT,
+  UNIQUE KEY `prefix_autoinc` (`prefix_autoinc`),
+  PRIMARY KEY (`prefix`)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+INSERT INTO t1(`prefix`) VALUES (4);
+
+CREATE TABLE `t2` (
+  `prefix` int(5) NOT NULL,
+  `prefix_autoinc` int(5) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`prefix`),
+  UNIQUE KEY `prefix_autoinc` (`prefix_autoinc`)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1,10), (2,11), (3,12);
+INSERT INTO t2(`prefix`) VALUES (13);
+
+
+--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 t2 >$file
+
+--echo ######################################
+--cat_file $file
+--echo ######################################
+
+# Check that the resulting dump can be imported back
+
+--exec $MYSQL test < $file
+
+--remove_file $file
+
+DROP TABLE t1, t2;
+
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

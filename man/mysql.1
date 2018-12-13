@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ mysql_store_result()\&.
 .br
 .PP
 Alternatively, MySQL Shell offers access to the X DevAPI\&. For details, see
-Chapter\ \&18, MySQL Shell User Guide\&.
+\m[blue]\fBMySQL Shell 8\&.0 (part of MySQL 8\&.0)\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .sp .5v
 .RE
 .PP
@@ -228,8 +228,7 @@ option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-binary\-as\-hex\fR,
-\fB\-b\fR
+\fB\-\-binary\-as\-hex\fR
 .sp
 When this option is given,
 \fBmysql\fR
@@ -299,7 +298,7 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -356,7 +355,7 @@ Whether to strip or preserve comments in statements sent to the server\&. The de
 \fBNote\fR
 .ps -1
 .br
-As of MySQL 5\&.7\&.7, the
+In MySQL 5\&.7, the
 \fBmysql\fR
 client always passes optimizer hints to the server, regardless of whether this option is given\&. To ensure that optimizer hints are not stripped if you are using an older version of the
 \fBmysql\fR
@@ -398,7 +397,7 @@ Compress all information sent between the client and the server if both support 
 Indicate to the server that the client can handle sandbox mode if the account used to connect has an expired password\&. This can be useful for noninteractive invocations of
 \fBmysql\fR
 because normally the server disconnects noninteractive clients that attempt to connect using an account with an expired password\&. (See
-Section\ \&6.3.8, \(lqPassword Expiration and Sandbox Mode\(rq\&.) This option was added in MySQL 5\&.7\&.2\&.
+Section\ \&6.3.8, \(lqPassword Expiration and Sandbox Mode\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -498,8 +497,8 @@ This option can be useful if the operating system uses one character set and the
 client by default uses another\&. In this case, output may be formatted incorrectly\&. You can usually fix such issues by using this option to force the client to use the system character set instead\&.
 .sp
 For more information, see
-Section\ \&10.1.4, \(lqConnection Character Sets and Collations\(rq, and
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq, and
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -610,7 +609,7 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
+Section\ \&6.5.1.6, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -643,6 +642,35 @@ does not use the history file\&.
 \fB\-f\fR
 .sp
 Continue even if an SQL error occurs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-get\-server\-public\-key\fR
+.sp
+Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that that authenticate with the
+caching_sha2_password
+authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For information about the
+caching_sha2_password
+plugin, see
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-get\-server\-public\-key\fR
+option was added in MySQL 5\&.7\&.23\&.
 .RE
 .sp
 .RS 4
@@ -705,7 +733,7 @@ Produce HTML output\&.
 Ignore spaces after function names\&. The effect of this is described in the discussion for the
 IGNORE_SPACE
 SQL mode (see
-Section\ \&5.1.8, \(lqServer SQL Modes\(rq)\&.
+Section\ \&5.1.10, \(lqServer SQL Modes\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1189,14 +1217,20 @@ If the connection to the server is lost, automatically try to reconnect\&. A sin
 \fB\-\-i\-am\-a\-dummy\fR,
 \fB\-U\fR
 .sp
-Permit only those
+If this option is enabled,
 UPDATE
 and
 DELETE
-statements that specify which rows to modify by using key values\&. If you have set this option in an option file, you can override it by using
-\fB\-\-safe\-updates\fR
-on the command line\&. See
-the section called \(lqMYSQL TIPS\(rq, for more information about this option\&.
+statements that do not use a key in the
+WHERE
+clause or a
+LIMIT
+clause produce an error\&. In addition, restrictions are placed on
+SELECT
+statements that produce (or are estimated to produce) very large result sets\&. If you have set this option in an option file, you can use
+\fB\-\-skip\-safe\-updates\fR
+on the command line to override it\&. For more information about this option, see
+the section called \(lqUsing Safe\-Updates Mode (\-\-safe\-updates)\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1239,20 +1273,21 @@ Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-server\-public\-key\-path=\fR\fBfile_name\fR
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
 .sp
-The path name to a file containing the same RSA public key used by the server\&. The file must be in PEM format\&. The public key is required for for RSA key pair\-based password exchange\&. This option is used by clients that connect to the server using an account that authenticates with the
+The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
 sha256_password
-plugin\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not needed, as is the case when the client connects to the server using a secure connection\&.
+authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
-The server sends the public key to the client as needed, so it is not necessary to use this option for RSA password encryption to occur\&. It is more efficient to do so because then the server need not send the key\&.
+This option is available only if MySQL was built using OpenSSL\&.
 .sp
 For information about the
 sha256_password
-plugin, see
-Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq\&.
-.sp
-This option is available only if MySQL was built using OpenSSL\&.
+and
+caching_sha2_password
+plugins, see
+Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1266,7 +1301,7 @@ This option is available only if MySQL was built using OpenSSL\&.
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
-MYSQL\&. The shared\-memory name is case sensitive\&.
+MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
 The server must be started with the
 \fB\-\-shared\-memory\fR
@@ -1761,7 +1796,7 @@ or loaded using the
 source
 command)\&.
 .PP
-Each command has both a long and short form\&. The long form is not case sensitive; the short form is\&. The long form can be followed by an optional semicolon terminator, but the short form should not\&.
+Each command has both a long and short form\&. The long form is not case\-sensitive; the short form is\&. The long form can be followed by an optional semicolon terminator, but the short form should not\&.
 .PP
 The use of short\-form commands within multiple\-line
 /* \&.\&.\&. */
@@ -2112,7 +2147,7 @@ option\&.)
 resetconnection,
 \ex
 .sp
-Reset the connection to clear the session state\&. This command was added in MySQL 5\&.7\&.3\&.
+Reset the connection to clear the session state\&.
 .sp
 Resetting a connection has effects similar to
 mysql_change_user()
@@ -2168,6 +2203,8 @@ Read the named file and executes the statements contained therein\&. On Windows,
 /
 or
 \e\e\&.
+.sp
+Quote characters are taken as part of the file name itself\&. For best results, the name should not include space characters\&.
 .RE
 .sp
 .RS 4
@@ -2181,9 +2218,9 @@ or
 status,
 \es
 .sp
-Provide status information about the connection and the server you are using\&. If you are running in
+Provide status information about the connection and the server you are using\&. If you are running with
 \fB\-\-safe\-updates\fR
-mode,
+enabled,
 status
 also prints the values for the
 \fBmysql\fR
@@ -2470,92 +2507,92 @@ l l
 l l
 l l.
 T{
-\eC
+\C
 T}:T{
-The current connection identifier (MySQL 5\&.7\&.6 and up)
+The current connection identifier
 T}
 T{
-\ec
+\c
 T}:T{
 A counter that increments for each statement you issue
 T}
 T{
-\eD
+\D
 T}:T{
 The full current date
 T}
 T{
-\ed
+\d
 T}:T{
 The default database
 T}
 T{
-\eh
+\h
 T}:T{
 The server host
 T}
 T{
-\el
+\l
 T}:T{
 The current delimiter
 T}
 T{
-\em
+\m
 T}:T{
 Minutes of the current time
 T}
 T{
-\en
+\n
 T}:T{
 A newline character
 T}
 T{
-\eO
+\O
 T}:T{
-The current month in three\-letter format (Jan, Feb, \&...)
+The current month in three-letter format (Jan, Feb, \&...)
 T}
 T{
-\eo
+\o
 T}:T{
 The current month in numeric format
 T}
 T{
-\eP
+\P
 T}:T{
 am/pm
 T}
 T{
-\ep
+\p
 T}:T{
 The current TCP/IP port or socket file
 T}
 T{
-\eR
+\R
 T}:T{
-The current time, in 24\-hour military time (0\(en23)
+The current time, in 24-hour military time (0\(en23)
 T}
 T{
-\er
+\r
 T}:T{
-The current time, standard 12\-hour time (1\(en12)
+The current time, standard 12-hour time (1\(en12)
 T}
 T{
-\eS
+\S
 T}:T{
 Semicolon
 T}
 T{
-\es
+\s
 T}:T{
 Seconds of the current time
 T}
 T{
-\et
+\t
 T}:T{
 A tab character
 T}
 T{
-\eU
+\U
 T}:T{
 .PP
 Your full
@@ -2563,57 +2600,57 @@ Your full
 account name
 T}
 T{
-\eu
+\u
 T}:T{
 Your user name
 T}
 T{
-\ev
+\v
 T}:T{
 The server version
 T}
 T{
-\ew
+\w
 T}:T{
-The current day of the week in three\-letter format (Mon, Tue, \&...)
+The current day of the week in three-letter format (Mon, Tue, \&...)
 T}
 T{
-\eY
+\Y
 T}:T{
 The current year, four digits
 T}
 T{
-\ey
+\y
 T}:T{
 The current year, two digits
 T}
 T{
-\e_
+\_
 T}:T{
 A space
 T}
 T{
-\e\ \&
+\\ \&
 T}:T{
 A space (a space follows the backslash)
 T}
 T{
-\e\*(Aq
+\'
 T}:T{
 Single quote
 T}
 T{
-\e"
+\"
 T}:T{
 Double quote
 T}
 T{
-\e\e
+\\
 T}:T{
-A literal \e backslash character
+A literal \ backslash character
 T}
 T{
-\e\fIx\fR
+\\fIx\fR
 T}:T{
 .PP
 \fIx\fR, for any
@@ -2797,6 +2834,39 @@ file\&.
 .RE
 .PP
 The following discussion describes characteristics that apply to all logging types and provides information specific to each logging type\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+How Logging Occurs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Controlling the History File
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+syslog Logging Characteristics
+.RE
 How Logging Occurs.PP
 For each enabled logging destination, statement logging occurs as follows:
 .sp
@@ -3149,7 +3219,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.10, \(lqServer-Side Help\(rq)\&.
+Section\ \&5.1.14, \(lqServer-Side Help\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -3498,7 +3568,8 @@ with the
 (or
 utf8mb4) option\&. This option is necessary because
 utf16le
-is not supported as a connection character set\&.
+is one of the character sets that cannot be used as the client character set\&. See
+the section called \(lqImpermissible Client Character Sets\(rq\&.
 .RE
 .PP
 With those changes,
@@ -3560,23 +3631,33 @@ Monty
 .if n \{\
 .RE
 .\}
-.SS "Using the \-\-safe\-updates Option"
+.SS "Using Safe\-Updates Mode (\-\-safe\-updates)"
 .PP
 For beginners, a useful startup option is
 \fB\-\-safe\-updates\fR
 (or
-\fB\-\-i\-am\-a\-dummy\fR, which has the same effect)\&. It is helpful for cases when you might have issued a
-DELETE FROM \fItbl_name\fR
+\fB\-\-i\-am\-a\-dummy\fR, which has the same effect)\&. Safe\-updates mode is helpful for cases when you might have issued an
+UPDATE
+or
+DELETE
 statement but forgotten the
 WHERE
-clause\&. Normally, such a statement deletes all rows from the table\&. With
-\fB\-\-safe\-updates\fR, you can delete rows only by specifying the key values that identify them\&. This helps prevent accidents\&.
+clause indicating which rows to modify\&. Normally, such statements update or delete all rows in the table\&. With
+\fB\-\-safe\-updates\fR, you can modify rows only by specifying the key values that identify them, or a
+LIMIT
+clause, or both\&. This helps prevent accidents\&. Safe\-updates mode also restricts
+SELECT
+statements that produce (or are estimated to produce) very large result sets\&.
 .PP
-When you use the
+The
 \fB\-\-safe\-updates\fR
-option,
+option causes
 \fBmysql\fR
-issues the following statement when it connects to the MySQL server:
+to execute the following statement when it connects to the MySQL server, to set the session values of the
+sql_safe_updates,
+sql_select_limit, and
+max_join_size
+system variables:
 .sp
 .if n \{\
 .RS 4
@@ -3588,12 +3669,9 @@ SET sql_safe_updates=1, sql_select_limit=1000, max_join_size=1000000;
 .RE
 .\}
 .PP
-See
-Section\ \&5.1.5, \(lqServer System Variables\(rq\&.
-.PP
 The
 SET
-statement has the following effects:
+statement affects statement processing as follows:
 .sp
 .RS 4
 .ie n \{\
@@ -3603,15 +3681,17 @@ statement has the following effects:
 .sp -1
 .IP \(bu 2.3
 .\}
-You are not permitted to execute an
+Enabling
+sql_safe_updates
+causes
 UPDATE
-or
+and
 DELETE
-statement unless you specify a key constraint in the
+statements to produce an error if they do not specify a key constraint in the
 WHERE
-clause or provide a
+clause, or provide a
 LIMIT
-clause (or both)\&. For example:
+clause, or both\&. For example:
 .sp
 .if n \{\
 .RS 4
@@ -3633,9 +3713,11 @@ UPDATE \fItbl_name\fR SET \fInot_key_column\fR=\fIval\fR LIMIT 1;
 .sp -1
 .IP \(bu 2.3
 .\}
-The server limits all large
+Setting
+sql_select_limit
+to 1,000 causes the server to limit all
 SELECT
-results to 1,000 rows unless the statement includes a
+result sets to 1,000 rows unless the statement includes a
 LIMIT
 clause\&.
 .RE
@@ -3648,26 +3730,117 @@ clause\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-The server aborts multiple\-table
+Setting
+max_join_size
+to 1,000,000 causes multiple\-table
 SELECT
-statements that probably need to examine more than 1,000,000 row combinations\&.
+statements to produce an error if the server estimates it must examine more than 1,000,000 row combinations\&.
 .RE
 .PP
-To specify limits different from 1,000 and 1,000,000, you can override the defaults by using the
+To specify result set limits different from 1,000 and 1,000,000, you can override the defaults by using the
 \fB\-\-select_limit\fR
 and
 \fB\-\-max_join_size\fR
-options:
+options when you invoke
+\fBmysql\fR:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-safe\-updates \-\-select_limit=500 \-\-max_join_size=10000\fR
+mysql \-\-safe\-updates \-\-select_limit=500 \-\-max_join_size=10000
 .fi
 .if n \{\
 .RE
 .\}
+.PP
+It is possible for
+UPDATE
+and
+DELETE
+statements to produce an error in safe\-updates mode even with a key specified in the
+WHERE
+clause, if the optimizer decides not to use the index on the key column:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Range access on the index cannot be used if memory usage exceeds that permitted by the
+range_optimizer_max_mem_size
+system variable\&. The optimizer then falls back to a table scan\&. See
+the section called \(lqLimiting Memory Use for Range Optimization\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If key comparisons require type conversion, the index may not be used (see
+Section\ \&8.3.1, \(lqHow MySQL Uses Indexes\(rq)\&. Suppose that an indexed string column
+c1
+is compared to a numeric value using
+WHERE c1 = 2222\&. For such comparisons, the string value is converted to a number and the operands are compared numerically (see
+Section\ \&12.2, \(lqType Conversion in Expression Evaluation\(rq), preventing use of the index\&. If safe\-updates mode is enabled, an error occurs\&.
+.RE
+.PP
+As of MySQL 5\&.7\&.25, safe\-updates mode includes these behaviors:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+EXPLAIN
+with
+UPDATE
+and
+DELETE
+statements does not produce safe\-updates errors\&. This enables use of
+EXPLAIN
+plus
+SHOW WARNINGS
+to see why an index is not used, which can be helpful in cases such as when a
+range_optimizer_max_mem_size
+violation or type conversion occurs and the optimizer does not use an index even though a key column was specified in the
+WHERE
+clause\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+When a safe\-updates error occurs, the error message includes the first diagnostic that was produced, to provide information about the reason for failure\&. For example, the message may indicate that the
+range_optimizer_max_mem_size
+value was exceeded or type conversion occurred, either of which can preclude use of an index\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+For multiple\-table deletes and updates, an error is produced with safe updates enabled only if any target table uses a table scan\&.
+.RE
 .SS "Disabling mysql Auto\-Reconnect"
 .PP
 If the
@@ -3715,7 +3888,7 @@ Section\ \&27.8.20, \(lqC API Automatic Reconnection Control\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -3723,6 +3896,12 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
+.SH "NOTES"
+.IP " 1." 4
+MySQL Shell 8.0 (part of MySQL 8.0)
+.RS 4
+\%http://dev.mysql.com/doc/mysql-shell/8.0/en/
+.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available

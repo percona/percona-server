@@ -3,9 +3,10 @@
 select variable_name, variable_value from performance_schema.global_variables where variable_name="rocksdb_ignore_unknown_options";
 
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec find $MYSQLD_DATADIR/.rocksdb/OPTIONS* | sort -n | tail -1 | xargs -0 -I {} -t sh -c "echo hello=world>>{}"
+--exec find $MYSQLD_DATADIR/.rocksdb/OPTIONS* | sort -t- -k 2 -n | tail -1 | xargs -0 -I {} -t sh -c "sed -i 's/rocksdb_version=.*/rocksdb_version=99.9.9/' {}"
+--exec find $MYSQLD_DATADIR/.rocksdb/OPTIONS* | sort -t- -k 2 -n | tail -1 | xargs -0 -I {} -t sh -c "echo hello=world>>{}"
 
---let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_errors.err
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rocksdb.check_ignore_unknown_options.err
 --let $restart_parameters=restart:--log-error=$SEARCH_FILE --rocksdb_ignore_unknown_options=0
 --replace_result $SEARCH_FILE LOG_FILE
 --source include/restart_mysqld.inc
@@ -15,6 +16,6 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 --let $restart_parameters=
 --source include/restart_mysqld.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/rocksdb.check_ignore_unknown_options.err
 
---exec find $MYSQLD_DATADIR/.rocksdb/OPTIONS* | sort -n | tail -1 | xargs -0 -I {} -t sh -c "sed -i '/hello=world/d' {}"
 select variable_name, variable_value from performance_schema.global_variables where variable_name="rocksdb_ignore_unknown_options";

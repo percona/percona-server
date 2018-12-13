@@ -333,12 +333,14 @@ fsp_header_decode_encryption_info(
 	byte*		iv,
 	byte*		encryption_info);
 
+
 /** Reads the encryption key from the first page of a tablespace.
 @param[in]	fsp_flags	tablespace flags
 @param[in/out]	key		tablespace key
 @param[in/out]	iv		tablespace iv
 @param[in]	page	first page of a tablespace
 @return true if success */
+
 bool
 fsp_header_get_encryption_key(
 	ulint		fsp_flags,
@@ -367,6 +369,29 @@ fsp_header_init_fields(
 	ulint	flags);		/*!< in: tablespace flags (FSP_SPACE_FLAGS):
 				0, or table->flags if newer than COMPACT */
 
+/** Get the offset of encrytion information in page 0.
+ * @param[in]	page_size	page size.
+ * @return	offset on success, otherwise 0. */
+MY_NODISCARD
+ulint
+fsp_header_get_encryption_offset(
+	const page_size_t&	page_size);
+
+/** Write the encryption info into the space header.
+@param[in]      space_id                tablespace id
+@param[in]      space_flags             tablespace flags
+@param[in]      encrypt_info            buffer for re-encrypt key
+@param[in]      update_fsp_flags        if it need to update the space flags
+@param[in,out]  mtr                     mini-transaction
+@return true if success. */
+bool
+fsp_header_write_encryption(
+        ulint                   space_id,
+        ulint                   space_flags,
+        byte*                   encrypt_info,
+        bool                    update_fsp_flags,
+        mtr_t*                  mtr);
+
 /** Rotate the encryption info in the space header.
 @param[in]	space		tablespace
 @param[in]      encrypt_info	buffer for re-encrypt key.
@@ -377,6 +402,27 @@ fsp_header_rotate_encryption(
 	fil_space_t*		space,
 	byte*			encrypt_info,
 	mtr_t*			mtr);
+
+MY_NODISCARD
+bool
+fsp_header_fill_encryption_info(
+	byte* key, byte* iv,
+	byte*			encrypt_info);
+
+MY_NODISCARD
+bool
+fsp_header_fill_encryption_info(
+	uint key_version,
+	byte* iv,
+	byte*			encrypt_info);
+
+bool
+fsp_is_undo_tablespace(uint32 space_id);
+
+MY_NODISCARD
+bool
+fsp_is_system_or_temp_tablespace(
+	uint32 space_id);
 
 /** Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0.
@@ -698,6 +744,14 @@ ulint
 fsp_flags_to_dict_tf(
 	ulint	fsp_flags,
 	bool	compact);
+
+/** Enable encryption for already existing tablespace.
+@param[in,out]	space	tablespace object
+@return true if success, else false */
+MY_NODISCARD
+bool
+fsp_enable_encryption(
+	fil_space_t*	space);
 
 /** Calculates the descriptor index within a descriptor page.
 @param[in]	page_size	page size

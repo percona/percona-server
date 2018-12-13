@@ -66,9 +66,7 @@ struct Rtree_value_maker_bggeom
   template<typename  T>
   result_type operator()(T const &v) const
   {
-    BG_box box;
-    boost::geometry::envelope(v.value(), box);
-
+    BG_box box = boost::geometry::return_envelope<BG_box>(v.value());
     return result_type(box, v.index());
   }
 };

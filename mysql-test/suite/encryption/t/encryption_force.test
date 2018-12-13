@@ -1,0 +1,56 @@
+-- source include/have_innodb.inc
+-- source include/have_partition.inc
+# embedded does not support restart
+-- source include/not_embedded.inc
+
+select @@innodb_encrypt_tables;
+
+set global innodb_encrypt_tables='KEYRING_FORCE';
+
+create table t1 (a int) engine=innodb encryption='KEYRING';
+create table t2 (a varchar(255)) engine=innodb;
+--error ER_INVALID_ENCRYPTION_OPTION
+create table t3 (a int) engine=innodb encryption='N';
+
+create table t4 (a int) engine=innodb encryption='KEYRING' partition by hash(a) partitions 2;
+--error ER_INVALID_ENCRYPTION_OPTION
+create table t5 (a int) engine=innodb encryption='N' partition by hash(a) partitions 2;
+
+set global innodb_encrypt_tables='KEYRING_ON';
+create table t3 (a int) engine=innodb encryption='N';
+set global innodb_encrypt_tables='KEYRING_FORCE';
+
+show create table t1;
+show create table t2;
+show create table t3;
+show create table t4;
+
+--error ER_INVALID_ENCRYPTION_OPTION
+alter table t1 encryption='N';
+alter table t2 encryption='KEYRING';
+alter table t3 encryption='KEYRING';
+--error ER_INVALID_ENCRYPTION_OPTION
+alter table t4 encryption='N';
+
+show create table t1;
+show create table t2;
+show create table t3;
+
+insert t2 values (repeat('tempsecret', 12));
+
+--let $MYSQLD_DATADIR=`select @@datadir`
+--let t2_IBD = $MYSQLD_DATADIR/test/t2.ibd
+
+--source include/shutdown_mysqld.inc
+
+--let SEARCH_PATTERN=tempsecret
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$t2_IBD
+--source include/search_pattern_in_file.inc
+
+-- source include/start_mysqld.inc
+
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;

@@ -28,6 +28,12 @@ DO
 
 delimiter ;|
 
+--let $wait_condition= SELECT COUNT(*)= 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner1'
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)= 1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner2'
+--source include/wait_condition.inc
+
 --let $i=400
 --echo # Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY
 --disable_query_log
@@ -75,3 +81,5 @@ DROP EVENT query_tables;
 
 DROP USER event_runner1@localhost;
 DROP USER event_runner2@localhost;
+
+--source include/no_running_event_scheduler.inc

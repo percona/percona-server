@@ -1,0 +1,22 @@
+--echo #
+--echo # Bug PS-3959 "Installing QRT plugins causes server crash"
+--echo # https://jira.percona.com/browse/PS-3959
+--echo #
+
+--source include/have_query_response_time_plugin.inc
+
+--let $assert_text= QUERY_RESPONSE_TIME_AUDIT must not be present on startup
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = \'QUERY_RESPONSE_TIME_AUDIT\']" = 0
+--source include/assert.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN QUERY_RESPONSE_TIME_AUDIT SONAME '$PLUGIN_QUERY_RESPONSE_TIME';
+--let $assert_text= QUERY_RESPONSE_TIME_AUDIT must be active
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = \'QUERY_RESPONSE_TIME_AUDIT\' AND PLUGIN_STATUS = \'ACTIVE\']" = 1
+--source include/assert.inc
+
+UNINSTALL PLUGIN QUERY_RESPONSE_TIME_AUDIT;
+
+--let $assert_text= QUERY_RESPONSE_TIME_AUDIT must not be present after uninstall
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = \'QUERY_RESPONSE_TIME_AUDIT\']" = 0
+--source include/assert.inc

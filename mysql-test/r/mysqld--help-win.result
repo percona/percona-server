@@ -141,6 +141,13 @@ The following options may be given as the first argument:
  non-transactional engines for the binary log. If you
  often use statements updating a great number of rows, you
  can increase this to get more performance
+ --binlog-transaction-dependency-history-size=# 
+ Maximum number of rows to keep in the writeset history.
+ --binlog-transaction-dependency-tracking=name 
+ Selects the source of dependency information from which
+ to assess which transactions can be executed in parallel
+ by the slave's multi-threaded applier. Possible values
+ are COMMIT_ORDER, WRITESET and WRITESET_SESSION.
  --block-encryption-mode=name 
  mode for AES_ENCRYPT/AES_DECRYPT
  --bootstrap         Used by mysql installation scripts.
@@ -217,6 +224,7 @@ The following options may be given as the first argument:
  Skip the check for non-natively partitioned tables during
  bootstrap. This option is deprecated along with the
  partition engine.
+ (Defaults to on; use --skip-disable-partition-engine-check to disable.)
  --disabled-storage-engines=name 
  Limit CREATE TABLE for the storage engines listed
  --disconnect-on-expired-password 
@@ -374,6 +382,26 @@ The following options may be given as the first argument:
  The default size of key cache blocks
  --key-cache-division-limit=# 
  The minimum percentage of warm blocks in key cache
+ --keyring-migration-destination=name 
+ Keyring plugin to which the keys are migrated to. This
+ option must be specified along with
+ --keyring-migration-source.
+ --keyring-migration-host=name 
+ Connect to host.
+ --keyring-migration-password[=name] 
+ Password to use when connecting to server during keyring
+ migration. If password value is not specified then it
+ will be asked from the tty.
+ --keyring-migration-port=# 
+ Port number to use for connection.
+ --keyring-migration-socket=name 
+ The socket file to use for connection.
+ --keyring-migration-source=name 
+ Keyring plugin from where the keys needs to be migrated
+ to. This option must be specified along with
+ --keyring-migration-destination.
+ --keyring-migration-user=name 
+ User to login to server.
  -L, --language=name Client error messages in given language. May be given as
  a full path. Deprecated. Use --lc-messages-dir instead.
  --lc-messages=name  Set the language used for the error messages.
@@ -1069,6 +1097,9 @@ The following options may be given as the first argument:
  --show-compatibility-56 
  SHOW commands / INFORMATION_SCHEMA tables compatible with
  MySQL 5.6
+ --show-create-table-verbosity 
+ When this option is enabled, it increases the verbosity
+ of 'SHOW CREATE TABLE'.
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1311,6 +1342,8 @@ binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
 binlog-stmt-cache-size 32768
+binlog-transaction-dependency-history-size 25000
+binlog-transaction-dependency-tracking COMMIT_ORDER
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
@@ -1336,7 +1369,7 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
-disable-partition-engine-check FALSE
+disable-partition-engine-check TRUE
 disabled-storage-engines 
 disconnect-on-expired-password TRUE
 disconnect-slave-event-count 0
@@ -1380,6 +1413,12 @@ key-buffer-size 8388608
 key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
+keyring-migration-destination (No default value)
+keyring-migration-host (No default value)
+keyring-migration-port 0
+keyring-migration-socket (No default value)
+keyring-migration-source (No default value)
+keyring-migration-user (No default value)
 language MYSQL_SHAREDIR/
 lc-messages en_US
 lc-messages-dir MYSQL_SHAREDIR/
@@ -1405,7 +1444,7 @@ log-statements-unsafe-for-binlog TRUE
 log-syslog FALSE
 log-syslog-tag 
 log-tc tc.log
-log-tc-size 24576
+log-tc-size #####
 log-throttle-queries-not-using-indexes 0
 log-timestamps UTC
 log-warnings 0
@@ -1578,6 +1617,7 @@ sha256-password-proxy-users FALSE
 shared-memory FALSE
 shared-memory-base-name MYSQL
 show-compatibility-56 FALSE
+show-create-table-verbosity FALSE
 show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE

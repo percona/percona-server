@@ -23,9 +23,17 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test/.*` be
 call mtr.add_suppression("\\[Error\\] InnoDB: Failed to find tablespace for table");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Can't read encryption key from file");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to decrpt encryption information, please check key file is not changed!");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to decrypt encryption information, please confirm the master key was not changed.");
 
 --source generate_default_conf_files.inc
+--source is_vault_server_up.inc
+
+# Create mount points
+--let MOUNT_POINT_SERVICE_OP=CREATE
+--let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
+--source mount_point_service.inc
+--let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
+--source mount_point_service.inc
 
 # Invalid syntax
 --error ER_PARSE_ERROR
@@ -182,8 +190,11 @@ SELECT * FROM t5;
 
 # Cleanup
 DROP TABLE t1,t2,t5,t12,t10;
+
+# Delete mount points
+--let MOUNT_POINT_SERVICE_OP=DELETE
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
---source vault_cleanup.inc
+--source mount_point_service.inc
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
---source vault_cleanup.inc
+--source mount_point_service.inc
 --echo #End:

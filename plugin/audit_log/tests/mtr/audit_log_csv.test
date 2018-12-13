@@ -7,7 +7,7 @@ SET GLOBAL audit_log_flush=ON;
 --remove_file $MYSQLD_DATADIR/test_audit.log
 SET GLOBAL audit_log_flush=ON;
 
---source ../plugin/audit_log/tests/mtr/audit_log_events.inc
+--source audit_log_events.inc
 
 --move_file $MYSQLD_DATADIR/test_audit.log $MYSQLD_DATADIR/test_audit_csv.log
 set global audit_log_flush= ON;

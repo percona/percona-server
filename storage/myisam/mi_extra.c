@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,10 +53,10 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
 					/* Next/prev gives first/last */
     if (info->opt_flag & READ_CACHE_USED)
     {
-      reinit_io_cache(&info->rec_cache,READ_CACHE,0,
-		      (pbool) (info->lock_type != F_UNLCK),
-		      (pbool) MY_TEST(info->update & HA_STATE_ROW_CHANGED)
-		      );
+      if ((error= reinit_io_cache(&info->rec_cache,READ_CACHE, 0,
+                    (info->lock_type != F_UNLCK),
+                    MY_TEST(info->update & HA_STATE_ROW_CHANGED))))
+        break;
     }
     info->update= ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
 		   HA_STATE_PREV_FOUND);
@@ -114,9 +114,10 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_REINIT_CACHE:
     if (info->opt_flag & READ_CACHE_USED)
     {
-      reinit_io_cache(&info->rec_cache,READ_CACHE,info->nextpos,
-		      (pbool) (info->lock_type != F_UNLCK),
-		      (pbool) MY_TEST(info->update & HA_STATE_ROW_CHANGED));
+      if ((error= reinit_io_cache(&info->rec_cache, READ_CACHE,
+                    info->nextpos, (info->lock_type != F_UNLCK),
+                    MY_TEST(info->update & HA_STATE_ROW_CHANGED))))
+        break;
       info->update&= ~HA_STATE_ROW_CHANGED;
       if (share->concurrent_insert)
 	info->rec_cache.end_of_file=info->state->data_file_length;
@@ -150,6 +151,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       break;
     // fallthrough
     /* Remove read/write cache if dynamic rows */
+    // Fall through.
   case HA_EXTRA_NO_CACHE:
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {

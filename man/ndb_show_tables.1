@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_show_tables\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_SHOW_TABLES\F" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_SHOW_TABLES\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -51,10 +51,88 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.106.\ \& This table describes command\-line options for the ndb_show_tables program
+.B Table\ \&21.351.\ \&Command\-line options for the ndb_show_tables program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--database=string,
+.PP
+-d
+T}:T{
+Specifies the database in which the table is found
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--loops=#,
+.PP
+-l
+T}:T{
+Number of times to repeat output
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--parsable,
+.PP
+-p
+T}:T{
+Return output suitable for MySQL LOAD DATA INFILE statement
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--show-temp-status
+T}:T{
+Show table temporary flag
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--type=#,
+.PP
+-t
+T}:T{
+Limit output to objects of this type
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--unqualified,
+.PP
+-u
+T}:T{
+Do not qualify table names
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
 .TE
 .sp 1
 Usage
@@ -220,7 +298,7 @@ API applications such as
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

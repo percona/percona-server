@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -299,7 +299,7 @@ shell> \fBmysqldump [options] > dump\&.sql\fR
 .\}
 .PP
 However, UTF\-16 is not permitted as a connection character set (see
-Section\ \&10.1.4, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
+the section called \(lqImpermissible Client Character Sets\(rq), so the dump file will not load correctly\&. To work around this issue, use the
 \fB\-\-result\-file\fR
 option, which creates the output in ASCII format:
 .sp
@@ -464,9 +464,38 @@ Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
+Section\ \&6.5.1.6, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-get\-server\-public\-key\fR
+.sp
+Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that that authenticate with the
+caching_sha2_password
+authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For information about the
+caching_sha2_password
+plugin, see
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-get\-server\-public\-key\fR
+option was added in MySQL 5\&.7\&.23\&.
 .RE
 .sp
 .RS 4
@@ -601,7 +630,7 @@ Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .\}
 \fB\-\-secure\-auth\fR
 .sp
-Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&. This option was added in MySQL 5\&.7\&.4\&.
+Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
 .sp
 As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future MySQL release\&. It is always enabled and attempting to disable it (\fB\-\-skip\-secure\-auth\fR,
 \fB\-\-secure\-auth=0\fR) produces an error\&. Before MySQL 5\&.7\&.5, this option is enabled by default but can be disabled\&.
@@ -621,6 +650,43 @@ Passwords that use the pre\-4\&.1 hashing method are less secure than passwords 
 Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+.sp
+The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
+sha256_password
+or
+caching_sha2_password
+authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For
+sha256_password, this option applies only if MySQL was built using OpenSSL\&.
+.sp
+For information about the
+sha256_password
+and
+caching_sha2_password
+plugins, see
+Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-server\-public\-key\-path\fR
+option was added in MySQL 5\&.7\&.23\&.
 .RE
 .sp
 .RS 4
@@ -1229,7 +1295,7 @@ command represents character data with national language settings\&.
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1245,7 +1311,7 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
 \fBmysqldump\fR
 uses
 utf8\&.
@@ -1367,7 +1433,7 @@ respectively\&. These are the master server coordinates from which the slave sho
 .ps -1
 .br
 Inconsistencies in the sequence of transactions from the relay log which have been executed can cause the wrong position to be used\&. See
-Section\ \&16.4.1.34, \(lqReplication and Transaction Inconsistencies\(rq
+Section\ \&16.4.1.33, \(lqReplication and Transaction Inconsistencies\(rq
 for more information\&.
 .sp .5v
 .RE
@@ -1505,22 +1571,32 @@ l l.
 T{
 OFF
 T}:T{
-Add no SET statement to the output\&.
+Add no SET statement to the output.
 T}
 T{
 ON
 T}:T{
-Add a SET statement to the output\&. An error occurs if
-                    GTIDs are not enabled on the server\&.
+Add a SET statement to the output. An error occurs if
+                  GTIDs are not enabled on the server.
 T}
 T{
 AUTO
 T}:T{
 Add a SET statement to the output if GTIDs are
-                    enabled on the server\&.
+                  enabled on the server.
 T}
 .TE
 .sp 1
+A partial dump from a server that is using GTID\-based replication requires the
+\fB\-\-set\-gtid\-purged={ON|OFF}\fR
+option to be specified\&. Use
+ON
+if the intention is to deploy a new replication slave using only some of the data from the dumped server\&. Use
+OFF
+if the intention is to repair a table by copying it within a topology\&. Use
+OFF
+if the intention is to copy a table between replication topologies that are disjoint and will remain so\&.
+.sp
 The
 \fB\-\-set\-gtid\-purged\fR
 option has the following effect on binary logging when the dump file is reloaded:
@@ -1565,6 +1641,24 @@ is added to the output if GTIDs are enabled on the server you are backing up (th
 AUTO
 evaluates to
 ON)\&.
+.RE
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+It is not recommended to load a dump file when GTIDs are enabled on the server (gtid_mode=ON), if your dump file includes system tables\&.
+\fBmysqldump\fR
+issues DML instructions for the system tables which use the non\-transactional MyISAM storage engine, and this combination is not permitted when GTIDs are enabled\&. Also be aware that loading a dump file from a server with GTIDs enabled, into another server with GTIDs enabled, causes different transaction identifiers to be generated\&.
+.sp .5v
 .RE
 .RE
 Format Options.PP
@@ -1613,13 +1707,11 @@ maxdb,
 no_key_options,
 no_table_options, or
 no_field_options\&. To use several values, separate them by commas\&. These values have the same meaning as the corresponding options for setting the server SQL mode\&. See
-Section\ \&5.1.8, \(lqServer SQL Modes\(rq\&.
+Section\ \&5.1.10, \(lqServer SQL Modes\(rq\&.
 .sp
 This option does not guarantee compatibility with other servers\&. It only enables those SQL mode values that are currently available for making dump output more compatible\&. For example,
 \fB\-\-compatible=oracle\fR
 does not map data types to Oracle types or use Oracle comment syntax\&.
-.sp
-\fIThis option requires a server version of 4\&.1\&.0 or higher\fR\&. With older servers, it does nothing\&.
 .RE
 .sp
 .RS 4
@@ -1879,16 +1971,19 @@ l l.
 T{
 NULL (\fIunknown value\fR)
 T}:T{
+.PP
 <field name="\fIcolumn_name\fR" xsi:nil="true" />
 T}
 T{
-\*(Aq\*(Aq (\fIempty string\fR)
+'' (\fIempty string\fR)
 T}:T{
+.PP
 <field name="\fIcolumn_name\fR"></field>
 T}
 T{
-\*(AqNULL\*(Aq (\fIstring value\fR)
+'NULL' (\fIstring value\fR)
 T}:T{
+.PP
 <field name="\fIcolumn_name\fR">NULL</field>
 T}
 .TE
@@ -1993,7 +2088,7 @@ statements are included in the output before each new database\&.
 This option may be used to dump the
 INFORMATION_SCHEMA
 and
-performace_schema
+performance_schema
 databases, which normally are not dumped even with the
 \fB\-\-all\-databases\fR
 option\&. (Also use the
@@ -2047,8 +2142,6 @@ execution\&. If the
 option is also given to ignore all errors,
 \fB\-\-force\fR
 takes precedence\&.
-.sp
-This option was added in MySQL 5\&.7\&.1\&.
 .RE
 .sp
 .RS 4
@@ -2149,15 +2242,12 @@ To be able to dump a table\*(Aqs triggers, you must have the
 TRIGGER
 privilege for the table\&.
 .sp
-Before MySQL 5\&.7\&.2, a table cannot have multiple triggers that have the same combination of trigger event (INSERT,
-UPDATE,
-DELETE) and action time (BEFORE,
-AFTER)\&. MySQL 5\&.7\&.2 lifts this limitation and multiple triggers are permitted\&.
+Multiple triggers are permitted\&.
 \fBmysqldump\fR
 dumps triggers in activation order so that when the dump file is reloaded, triggers are created in the same activation order\&. However, if a
 \fBmysqldump\fR
 dump file contains multiple triggers for a table that have the same trigger event and action time, an error occurs for attempts to load the dump file into an older server that does not support multiple triggers\&. (For a workaround, see
-Section\ \&2.11.2.1, \(lqChanges Affecting Downgrades from MySQL 5.7\(rq; you can convert triggers to be compatible with older servers\&.)
+Section\ \&2.11.2.3, \(lqDowngrade Notes\(rq; you can convert triggers to be compatible with older servers\&.)
 .RE
 .sp
 .RS 4
@@ -2397,9 +2487,9 @@ database for proper restoration\&.
 \fBNote\fR
 .ps -1
 .br
-For upgrades to MySQL 5\&.7\&.2 or higher from older versions, do not use
+For upgrades to MySQL 5\&.7 or higher from older versions, do not use
 \fB\-\-flush\-privileges\fR\&. For upgrade instructions in this case, see
-Section\ \&2.11.1.1, \(lqChanges Affecting Upgrades to MySQL 5.7\(rq\&.
+Section\ \&2.11.1.3, \(lqChanges in MySQL 5.7\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -2501,7 +2591,7 @@ table, but makes the dump operation take considerably longer\&.
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
-MYSQL\&. The shared\-memory name is case sensitive\&.
+MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
 The server must be started with the
 \fB\-\-shared\-memory\fR
@@ -2782,7 +2872,7 @@ Restrictions.PP
 \fBmysqldump\fR
 does not dump the
 INFORMATION_SCHEMA,
-performance_schema, or (as of MySQL 5\&.7\&.8)
+performance_schema, or
 sys
 schema by default\&. To dump any of these, name them explicitly on the command line\&. You can also name them with the
 \fB\-\-databases\fR
@@ -2798,10 +2888,16 @@ does not dump the NDB Cluster
 ndbinfo
 information database\&.
 .PP
+\fBmysqldump\fR
+does not dump
+InnoDB
+CREATE TABLESPACE
+statements\&.
+.PP
 It is not recommended to restore from a dump made using
 \fBmysqldump\fR
 to a MySQL 5\&.6\&.9 or earlier server that has GTIDs enabled\&. See
-Section\ \&16.1.3.4, \(lqRestrictions on Replication with GTIDs\(rq\&.
+Section\ \&16.1.3.6, \(lqRestrictions on Replication with GTIDs\(rq\&.
 .PP
 \fBmysqldump\fR
 includes statements to recreate the
@@ -2818,7 +2914,7 @@ for a workaround\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

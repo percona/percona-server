@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,19 +59,19 @@ typedef struct {
   lf_pinbox_free_func *free_func;
   void *free_func_arg;
   uint free_ptr_offset;
-  uint32 volatile pinstack_top_ver;         /* this is a versioned pointer */
-  uint32 volatile pins_in_array;            /* number of elements in array */
+  uint64 volatile pinstack_top_ver;         /* this is a versioned pointer */
+  uint64 volatile pins_in_array;            /* number of elements in array */
 } LF_PINBOX;
 
 typedef struct st_lf_pins {
   void * volatile pin[LF_PINBOX_PINS];
   LF_PINBOX *pinbox;
   void  *purgatory;
-  uint32 purgatory_count;
-  uint32 volatile link;
+  uint64 purgatory_count;
+  uint64 volatile link;
 /* we want sizeof(LF_PINS) to be 64 to avoid false sharing */
-#if SIZEOF_INT*2+SIZEOF_CHARP*(LF_PINBOX_PINS+2) != 64
-  char pad[64-sizeof(uint32)*2-sizeof(void*)*(LF_PINBOX_PINS+2)];
+#if 2*8+SIZEOF_CHARP*(LF_PINBOX_PINS+2) != 64
+  char pad[64-sizeof(uint64)*2-sizeof(void*)*(LF_PINBOX_PINS+2)];
 #endif
 } LF_PINS;
 
@@ -149,7 +149,7 @@ typedef void lf_hash_init_func(uchar *dst, const uchar* src);
 #define LF_HASH_UNIQUE 1
 
 /* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
-extern const int LF_HASH_OVERHEAD;
+extern MYSQL_PLUGIN_IMPORT const int LF_HASH_OVERHEAD;
 
 typedef struct st_lf_hash {
   LF_DYNARRAY array;                    /* hash itself */

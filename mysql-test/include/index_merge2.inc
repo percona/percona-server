@@ -4,7 +4,8 @@
 #
 # The variable
 #     $engine_type       -- storage engine to be tested
-# has to be set before sourcing this script.
+#     $eval_before_analyze -- statement to execute before any analyze table
+# have to be set before sourcing this script.
 #
 # Note: The comments/expectations refer to InnoDB.
 #       They might be not valid for other storage engines.
@@ -44,6 +45,10 @@ while ($1)
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -69,6 +74,10 @@ alter table t1 add primary key (str1, zeroval, str2, str3);
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -102,6 +111,10 @@ while ($1)
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -139,11 +152,19 @@ insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
   select key1a, key1b, key2a, key2b, key3a, key3b from t1;
 insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
   select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 select count(*) from t1;
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t2;
 -- enable_result_log
 -- enable_query_log
@@ -382,8 +403,15 @@ update t1 set key2=key1,key3=key1;
 SET @@GLOBAL.innodb_fast_shutdown = 0;
 --source include/restart_mysqld.inc
 
+# reset default engine after restart
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
+
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -422,6 +450,10 @@ INSERT INTO t1 VALUES
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log
@@ -477,6 +509,10 @@ INSERT INTO t1 VALUES (1,1,'a'), (2,2,'b');
 
 -- disable_query_log
 -- disable_result_log
+if ($eval_before_analyze)
+{
+  eval $eval_before_analyze;
+}
 analyze table t1;
 -- enable_result_log
 -- enable_query_log

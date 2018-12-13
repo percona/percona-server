@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -120,7 +120,7 @@ If you upgrade to MySQL 5\&.7\&.2 or later from a version older than 5\&.7\&.2, 
 mysql\&.user
 table requires a special sequence of steps to perform an upgrade using
 \fBmysql_upgrade\fR\&. For details, see
-Section\ \&2.11.1.1, \(lqChanges Affecting Upgrades to MySQL 5.7\(rq\&.
+Section\ \&2.11.1.3, \(lqChanges in MySQL 5.7\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -136,7 +136,7 @@ Section\ \&2.11.1.1, \(lqChanges Affecting Upgrades to MySQL 5.7\(rq\&.
 .ps -1
 .br
 .PP
-On Windows Server 2008, Vista, and newer, you must run
+On Windows, you must run
 \fBmysql_upgrade\fR
 with administrator privileges\&. You can do this by running a Command Prompt as Administrator and running the command\&. Failure to do so may result in the upgrade failing to execute correctly\&.
 .sp .5v
@@ -200,6 +200,46 @@ shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3308 [\fR\fB\fIother_options\fR\fR\
 For local host connections on Unix, the
 \fB\-\-protocol=tcp\fR
 option forces a connection using TCP/IP rather than the Unix socket file\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+If you run the server with the
+disabled_storage_engines
+system variable set to disable certain storage engines (for example,
+MyISAM),
+\fBmysql_upgrade\fR
+might fail with an error like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql_upgrade: [ERROR] 3161: Storage engine MyISAM is disabled
+(Table creation is disallowed)\&.
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+To handle this, restart the server with
+disabled_storage_engines
+disabled\&. Then you should be able to run
+\fBmysql_upgrade\fR
+successfully\&. After that, restart the server with
+disabled_storage_engines
+set to its original value\&.
+.sp .5v
+.RE
 .PP
 \fBmysql_upgrade\fR
 processes all tables in all databases, which might take a long time to complete\&. Each table is locked and therefore unavailable to other sessions while it is being processed\&. Check and repair operations can be time\-consuming, particularly for large tables\&.
@@ -247,7 +287,7 @@ Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .PP
 \fBmysql_upgrade\fR
 does not upgrade the contents of the help tables\&. For upgrade instructions, see
-Section\ \&5.1.10, \(lqServer-Side Help\(rq\&.
+Section\ \&5.1.14, \(lqServer-Side Help\(rq\&.
 .PP
 As of MySQL 5\&.7\&.7, unless invoked with the
 \fB\-\-skip\-sys\-schema\fR
@@ -418,7 +458,7 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -522,7 +562,7 @@ Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -796,7 +836,7 @@ Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
-MYSQL\&. The shared\-memory name is case sensitive\&.
+MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
 The server must be started with the
 \fB\-\-shared\-memory\fR
@@ -961,32 +1001,14 @@ By default, binary logging by
 is disabled\&. Invoke the program with
 \fB\-\-write\-binlog\fR
 if you want its actions to be written to the binary log\&.
-.if n \{\
 .sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-this option is not recommended on MySQL Servers running with
-\fB\-\-gtid\-mode=ON\fR
-because
-\fBmysql_upgrade\fR
-can make changes to system tables that use the
-MyISAM
-storage engine, which is non\-transactional\&.
-.sp .5v
-.RE
+When the server is running with global transaction identifiers (GTIDs) enabled (gtid_mode=ON), do not enable binary logging by
+\fBmysql_upgrade\fR\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -92,13 +92,13 @@
   Pins are given away from a "pinbox". Pinbox is stack-based allocator.
   It used dynarray for storing pins, new elements are allocated by dynarray
   as necessary, old are pushed in the stack for reuse. ABA is solved by
-  versioning a pointer - because we use an array, a pointer to pins is 16 bit,
-  upper 16 bits are used for a version.
+  versioning a pointer - because we use an array, a pointer to pins is 32 bit,
+  upper 32 bits are used for a version.
 */
 #include "lf.h"
 #include "mysys_priv.h" /* key_memory_lf_node */
 
-#define LF_PINBOX_MAX_PINS 65536
+#define LF_PINBOX_MAX_PINS (65536ULL*65536ULL)
 
 static void lf_pinbox_real_free(LF_PINS *pins);
 
@@ -136,15 +136,14 @@ void lf_pinbox_destroy(LF_PINBOX *pinbox)
 */
 LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox)
 {
-  uint32 pins, next, top_ver;
+  uint64 pins, next, top_ver;
   LF_PINS *el;
   /*
-    We have an array of max. 64k elements.
     The highest index currently allocated is pinbox->pins_in_array.
     Freed elements are in a lifo stack, pinstack_top_ver.
-    pinstack_top_ver is 32 bits; 16 low bits are the index in the
-    array, to the first element of the list. 16 high bits are a version
-    (every time the 16 low bits are updated, the 16 high bits are
+    pinstack_top_ver is 64 bits; 32 low bits are the index in the
+    array, to the first element of the list. 32 high bits are a version
+    (every time the 32 low bits are updated, the 32 high bits are
     incremented). Versioning prevents the ABA problem.
   */
   top_ver= pinbox->pinstack_top_ver;
@@ -153,7 +152,7 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox)
     if (!(pins= top_ver % LF_PINBOX_MAX_PINS))
     {
       /* the stack of free elements is empty */
-      pins= my_atomic_add32((int32 volatile*) &pinbox->pins_in_array, 1)+1;
+      pins= my_atomic_add64((int64 volatile*) &pinbox->pins_in_array, 1)+1;
       if (unlikely(pins >= LF_PINBOX_MAX_PINS))
         return 0;
       /*
@@ -167,8 +166,8 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox)
     }
     el= (LF_PINS *)lf_dynarray_value(&pinbox->pinarray, pins);
     next= el->link;
-  } while (!my_atomic_cas32((int32 volatile*) &pinbox->pinstack_top_ver,
-                            (int32*) &top_ver,
+  } while (!my_atomic_cas64((int64 volatile*) &pinbox->pinstack_top_ver,
+                            (int64*) &top_ver,
                             top_ver-pins+next+LF_PINBOX_MAX_PINS));
   /*
     set el->link to the index of el in the dynarray (el->link has two usages:
@@ -191,7 +190,7 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox)
 void lf_pinbox_put_pins(LF_PINS *pins)
 {
   LF_PINBOX *pinbox= pins->pinbox;
-  uint32 top_ver, nr;
+  uint64 top_ver, nr;
   nr= pins->link;
 
 #ifndef DBUG_OFF
@@ -221,8 +220,8 @@ void lf_pinbox_put_pins(LF_PINS *pins)
   do
   {
     pins->link= top_ver % LF_PINBOX_MAX_PINS;
-  } while (!my_atomic_cas32((int32 volatile*) &pinbox->pinstack_top_ver,
-                            (int32*) &top_ver,
+  } while (!my_atomic_cas64((int64 volatile*) &pinbox->pinstack_top_ver,
+                            (int64*) &top_ver,
                             top_ver-pins->link+nr+LF_PINBOX_MAX_PINS));
 }
 

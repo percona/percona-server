@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -233,7 +233,14 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
         case HA_KEYTYPE_VARTEXT1:
         case HA_KEYTYPE_VARBINARY2:
         case HA_KEYTYPE_VARTEXT2:
-          length+= 2;
+          /*
+            For BTREE algorithm, key length, greater than or equal
+            to 255, is packed on 3 bytes.
+          */
+          if(keyinfo->algorithm == HA_KEY_ALG_BTREE)
+            length += size_to_store_key_length(keyinfo->seg[j].length);
+          else
+            length += 2;
           break;
 	default:
 	  break;

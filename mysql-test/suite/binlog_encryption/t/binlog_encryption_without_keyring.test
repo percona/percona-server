@@ -1,0 +1,44 @@
+# Bug: PS-288: mysqld got signal 6 if you try to enable encrypt_binlog + binary log without keyring-file plugin
+
+# Server is aborted when binlog_error_action is set to ABORT_SERVER and binlog encryption could not be
+# initialized. An error message generated in server log got improved in this case by mentioning that
+# encryption could be a reason why server got aborted.
+
+--source include/not_embedded.inc
+--source include/have_log_bin.inc
+
+--let restart_hide_args=1
+--let $restart_parameters=restart:--log-error=$MYSQLTEST_VARDIR/tmp/binlog_encryption_without_keyring.err
+--source include/restart_mysqld.inc
+
+UNINSTALL PLUGIN keyring_file;
+
+--let $assert_text= No keyring plugin should be installed
+--let $assert_cond= "[SELECT COUNT(PLUGIN_NAME) = 0 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name LIKE \\'keyring%\\']" = 1
+--source include/assert.inc
+
+--let $assert_text= Binlog should be ON
+--let $assert_cond= "[SELECT @@GLOBAL.log_bin = 1]" = 1
+--source include/assert.inc
+
+--let $assert_text= Binlog encryption should be ON
+--let $assert_cond= "[SELECT @@GLOBAL.encrypt_binlog = 1]" = 1
+--source include/assert.inc
+
+SET GLOBAL binlog_error_action= ABORT_SERVER;
+--disable_reconnect
+--source include/expect_crash.inc
+--echo # open new binlog file
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+RESET MASTER;
+--echo # Check that error messages related to encryption are present in error log
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/binlog_encryption_without_keyring.err
+--let SEARCH_PATTERN= Binary logging not possible. Message: Either disk is full or file system is read only or encryption failed while opening the binlog. Aborting the server.
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN= Failed to fetch or create percona_binlog key from/in keyring and thus failed to initialize binlog encryption. Have you enabled keyring plugin?
+--source include/search_pattern_in_file.inc
+
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_encryption_without_keyring.err

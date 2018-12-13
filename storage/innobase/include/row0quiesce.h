@@ -34,6 +34,7 @@ struct trx_t;
 
 /** The version number of the export meta-data text file. */
 #define IB_EXPORT_CFG_VERSION_V1	0x1UL
+#define IB_EXPORT_CFG_VERSION_V1_WITH_RK 0xFFFFFFFF
 
 /*********************************************************************//**
 Quiesce the tablespace that the table resides in. */

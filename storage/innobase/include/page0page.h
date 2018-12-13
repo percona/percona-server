@@ -143,6 +143,8 @@ typedef	byte		page_header_t;
 			==============
 */
 
+extern my_bool srv_immediate_scrub_data_uncompressed;
+
 typedef	byte			page_dir_slot_t;
 typedef page_dir_slot_t		page_dir_t;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -221,10 +221,13 @@ ngram_parser_parse(
 		break;
 
 	case MYSQL_FTPARSER_FULL_BOOLEAN_INFO:
+		const bool	extra_word_chars =
+			thd_get_ft_query_extra_word_chars();
 		/* Ngram parser cannot handle query in boolean mode, so we
 		first parse query into words with boolean info, then we parse
 		the words into ngram. */
-		while (fts_get_word(cs, start, end, &word, &bool_info)) {
+		while (fts_get_word(cs, extra_word_chars, start, end, &word,
+				    &bool_info)) {
 			if (bool_info.type == FT_TOKEN_WORD) {
 				if (bool_info.quot != NULL) {
 					/* Phrase search */

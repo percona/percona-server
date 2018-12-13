@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,10 @@
 #include "tc_log.h"                    // TC_LOG
 #include "atomic_class.h"
 #include "rpl_gtid.h"                  // Gtid_set, Sid_map
+#include "rpl_trx_tracking.h"
+#include "rpl_constants.h"
+#include "binlog_crypt_data.h"
+
 
 class Relay_log_info;
 class Master_info;
@@ -39,45 +43,6 @@ struct Gtid;
 
 typedef int64 query_id_t;
 
-/**
-  Logical timestamp generator for logical timestamping binlog transactions.
-  A transaction is associated with two sequence numbers see
-  @c Transaction_ctx::last_committed and @c Transaction_ctx::sequence_number.
-  The class provides necessary interfaces including that of
-  generating a next consecutive value for the latter.
-*/
-class  Logical_clock
-{
-private:
-  int64 state;
-  /*
-    Offset is subtracted from the actual "absolute time" value at
-    logging a replication event. That is the event holds logical
-    timestamps in the "relative" format. They are meaningful only in
-    the context of the current binlog.
-    The member is updated (incremented) per binary log rotation.
-  */
-  int64 offset;
-public:
-  Logical_clock();
-  int64 step();
-  int64 set_if_greater(int64 new_val);
-  int64 get_timestamp();
-  int64 get_offset() { return offset; }
-  /*
-    Updates the offset.
-    This operation is invoked when binlog rotates and at that time
-    there can't any concurrent step() callers so no need to guard
-    the assignement.
-  */
-  void update_offset(int64 new_offset)
-  {
-    DBUG_ASSERT(offset <= new_offset);
-
-    offset= new_offset;
-  }
-  ~Logical_clock() { }
-};
 
 /**
   Class for maintaining the commit stages for binary log group commit.
@@ -152,7 +117,12 @@ public:
 
     /** Lock for protecting the queue. */
     mysql_mutex_t m_lock;
-  } MY_ATTRIBUTE((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
+    /*
+      This attribute did not have the desired effect, at least not according
+      to -fsanitize=undefined with gcc 5.2.1
+      Also: it fails to compile with gcc 7.2
+     */
+  }; // MY_ATTRIBUTE((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
 
 public:
   Stage_manager()
@@ -278,7 +248,7 @@ public:
                     session is waiting on
     @param stage    which stage queue size to compare count against.
    */
-  void wait_count_or_timeout(ulong count, ulong usec, StageID stage);
+  void wait_count_or_timeout(ulong count, long usec, StageID stage);
 
   void signal_done(THD *queue);
 
@@ -404,6 +374,7 @@ class MYSQL_BIN_LOG: public TC_LOG
 
   my_off_t binlog_end_pos;
   ulonglong bytes_written;
+  ulonglong binlog_space_total;
   IO_CACHE index_file;
   char index_file_name[FN_REFLEN];
   /*
@@ -437,6 +408,9 @@ class MYSQL_BIN_LOG: public TC_LOG
   uint open_count;				// For replication
   int readers_count;
 
+  /* binlog encryption data */
+  Binlog_crypt_data crypto;
+
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
      sync_relay_log_period
@@ -468,6 +442,8 @@ class MYSQL_BIN_LOG: public TC_LOG
   {
     return *sync_period_ptr;
   }
+
+  int write_to_file(Log_event* event);
 
   int write_to_file(IO_CACHE *cache);
   /*
@@ -584,11 +560,8 @@ public:
 #endif
 
 public:
-  /* Committed transactions timestamp */
-   Logical_clock max_committed_transaction;
-  /* "Prepared" transactions timestamp */
-   Logical_clock transaction_counter;
-  void update_max_committed(THD *thd);
+  /** Manage the MTS dependency tracking */
+  Transaction_dependency_tracker m_dependency_tracker;
 
   /**
     Find the oldest binary log that contains any GTID that
@@ -858,7 +831,7 @@ public:
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
 #ifdef HAVE_REPLICATION
-  bool append_buffer(const char* buf, uint len, Master_info *mi);
+  bool append_buffer(uchar* buf, size_t len, Master_info *mi);
   bool append_event(Log_event* ev, Master_info *mi);
 private:
   bool after_append_to_relay_log(Master_info *mi);
@@ -889,6 +862,8 @@ public:
   int purge_logs(const char *to_log, bool included,
                  bool need_lock_index, bool need_update_threads,
                  ulonglong *decrease_log_space, bool auto_purge);
+  int count_binlog_space(bool need_lock_index);
+  int purge_logs_by_size(bool need_lock_index);
   int purge_logs_maximum_number(ulong max_nr_files);
   int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int purge_first_log(Relay_log_info* rli, bool included);
@@ -966,6 +941,11 @@ public:
     True while rotating binlog, which is caused by logging Incident_log_event.
   */
   bool is_rotating_caused_by_incident;
+
+  Binlog_crypt_data* get_crypto_data()
+  {
+    return &crypto;
+  }
 private:
   void publish_coordinates_for_global_status(void) const;
 };
@@ -979,6 +959,19 @@ typedef struct st_load_file_info
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 
+/**
+  Check if at least one of transacaction and statement binlog caches contains
+  an empty transaction, other one is empty or contains an empty transaction,
+  which has two binlog events "BEGIN" and "COMMIT".
+
+  @param thd The client thread that executed the current statement.
+
+  @retval true  At least one of transacaction and statement binlog caches
+                contains an empty transaction, other one is empty or
+                contains an empty transaction.
+  @retval false Otherwise.
+*/
+bool is_empty_transaction_in_binlog_cache(const THD* thd);
 bool trans_has_updated_trans_table(const THD* thd);
 bool stmt_has_updated_trans_table(Ha_trx_info* ha_list);
 bool ending_trans(THD* thd, const bool all);

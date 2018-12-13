@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1408,7 +1408,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	yylval->lex_str.length=2;
 	return NULL_SYM;
       }
-      // fallthrough
+      // Fall through.
     case MY_LEX_CHAR:			// Unknown or single char token
     case MY_LEX_SKIP:			// This should not happen
       if (c == '-' && lip->yyPeek() == '-' &&
@@ -1483,14 +1483,14 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	state= MY_LEX_HEX_NUMBER;
 	break;
       }
-      // fallthrough
+      // Fall through.
     case MY_LEX_IDENT_OR_BIN:
       if (lip->yyPeek() == '\'')
       {                                 // Found b'bin-number'
         state= MY_LEX_BIN_NUMBER;
         break;
       }
-      // fallthrough
+      // Fall through.
     case MY_LEX_IDENT:
       const char *start;
       if (use_mb(cs))
@@ -1850,6 +1850,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       }
       // fallthrough
       /* " used for strings */
+      // Fall through.
     case MY_LEX_STRING:			// Incomplete text string
       if (!(yylval->lex_str.str = get_text(lip, 1, 1)))
       {
@@ -2285,7 +2286,9 @@ st_select_lex::st_select_lex
   outer_join(0),
   opt_hints_qb(NULL),
   m_agg_func_used(false),
-  sj_candidates(NULL)
+  m_json_agg_func_used(false),
+  sj_candidates(NULL),
+  hidden_order_field_count(0)
 {
 }
 

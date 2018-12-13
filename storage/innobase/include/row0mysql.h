@@ -38,6 +38,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0types.h"
 #include "sess0sess.h"
 
+#include "create_info_encryption_key.h"
+
 // Forward declaration
 struct SysIndexCallback;
 
@@ -409,6 +411,18 @@ row_create_update_node_for_mysql(
 /*=============================*/
 	dict_table_t*	table,	/*!< in: table to update */
 	mem_heap_t*	heap);	/*!< in: mem heap from which allocated */
+
+/**********************************************************************//**
+Does a cascaded delete or set null in a foreign key operation.
+@return error code or DB_SUCCESS */
+dberr_t
+row_update_cascade_for_mysql(
+/*=========================*/
+        que_thr_t*      thr,    /*!< in: query thread */
+        upd_node_t*     node,   /*!< in: update node used in the cascade
+                                or set null operation */
+        dict_table_t*   table)  /*!< in: table where we do the operation */
+        MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Locks the data dictionary exclusively for performing a table create or other
 data dictionary modification operation. */
@@ -457,7 +471,9 @@ row_create_table_for_mysql(
                                 /*!< in: compression algorithm to use,
                                 can be NULL */
 	trx_t*		trx,	/*!< in/out: transaction */
-	bool		commit)	/*!< in: if true, commit the transaction */
+	bool		commit, /*!< in: if true, commit the transaction */
+        fil_encryption_t mode,	/*!< in: encryption mode */
+        const CreateInfoEncryptionKeyId &create_info_encryption_key_id) /*!< in: encryption key_id */
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Does an index creation operation for MySQL. TODO: currently failure
@@ -572,7 +588,7 @@ row_mysql_drop_temp_tables(void);
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
-the table. Also the flag table->ibd_file_missing is set TRUE.
+the table. Also the flag table->file_unreadable is set TRUE.
 @return error code or DB_SUCCESS */
 dberr_t
 row_discard_tablespace_for_mysql(
@@ -621,6 +637,7 @@ row_rename_table_for_mysql(
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_partitions_for_mysql(
+	THD*		thd,
 	const char*	old_name,
 	const char*	new_name,
 	trx_t*		trx)

@@ -4512,7 +4512,6 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
   space_id_t space_id;
   bool is_temp;
-  bool file_unreadable;
   bool is_discarded;
   bool shared_tablespace;
   table_id_t table_id;
@@ -4520,7 +4519,6 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
   space_id = table->space;
   table_id = table->id;
-  file_unreadable = table->file_unreadable;
   is_discarded = dict_table_is_discarded(table);
   is_temp = table->is_temporary();
   shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
@@ -4573,15 +4571,9 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
   /* Do not attempt to drop known-to-be-missing tablespaces,
   nor system or shared general tablespaces. */
-  if (is_discarded || file_unreadable || is_temp || shared_tablespace ||
+  if (is_discarded || is_temp || shared_tablespace ||
       fsp_is_system_or_temp_tablespace(space_id)) {
-    /* For encrypted table, if ibd file can not be decrypt,
-    we also set file_unreadable. We still need to try to
-    remove the ibd file for this. */
-
-    if (is_discarded || !file_unreadable) {
-      goto funct_exit;
-    }
+    goto funct_exit;
   }
 
   ut_ad(file_per_table);

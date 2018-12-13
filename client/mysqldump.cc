@@ -2781,13 +2781,11 @@ static void skip_secondary_keys(const char *table, char *create_str,
 
       /* Remove the trailing comma */
       if (*end == ',') end--;
-      char *data =
-          my_strndup(PSI_NOT_INSTRUMENTED, ptr, end - ptr + 1, MYF(MY_FAE));
 
       if (type == key_type_t::CONSTRAINT)
-        alter_constraints_list.emplace_back(data);
+        alter_constraints_list.emplace_back(ptr, end - ptr + 1);
       else
-        skipped_keys_list.emplace_back(data);
+        skipped_keys_list.emplace_back(ptr, end - ptr + 1);
 
       memmove(orig_ptr, tmp + 1, strend - tmp);
       ptr = orig_ptr;

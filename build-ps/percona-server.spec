@@ -127,21 +127,15 @@
 %global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
 %endif
 
-%if 0%{?commercial}
-%global license_files_server  %{src_dir}/LICENSE.mysql
-%global license_type          Commercial
-%else
-#%global license_files_server  %{src_dir}/COPYING %{src_dir}/README
 %global license_files_server  %{src_dir}/README
 %global license_type          GPLv2
-%endif
 
 Name:           percona-server
 Summary:        Percona-Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        %{mysql_version}
 Release:        %{release}
-License:        Copyright (c) 2000, 2015, %{mysql_vendor}. All rights reserved. Under the GNU General Public License (http://www.gnu.org/licenses/).
+License:        Copyright (c) 2000, 2018, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field..
 Source0:        http://www.percona.com/downloads/Percona-Server-8.0/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>

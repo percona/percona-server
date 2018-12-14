@@ -1662,10 +1662,17 @@ bool Field::send_binary(Protocol *protocol) {
 */
 bool Field::has_different_compression_attributes_with(
     const Create_field &new_field) const noexcept {
-  return (new_field.column_format() == COLUMN_FORMAT_TYPE_COMPRESSED ||
-          column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) &&
-         (new_field.column_format() != column_format() ||
-          !::is_equal(&new_field.zip_dict_name, &zip_dict_name));
+  if (new_field.column_format() != COLUMN_FORMAT_TYPE_COMPRESSED &&
+      column_format() != COLUMN_FORMAT_TYPE_COMPRESSED)
+    return false;
+
+  if (new_field.column_format() != column_format()) return true;
+
+  if ((zip_dict_name.str == nullptr) &&
+      (new_field.zip_dict_name.str == nullptr))
+    return false;
+
+  return !::is_equal(&new_field.zip_dict_name, &zip_dict_name);
 }
 
 /**

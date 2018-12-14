@@ -12,7 +12,7 @@ SELECT @@innodb_sys_tablespace_encrypt;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 
-CREATE TABLE t2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+CREATE TABLE t2(a TEXT) TABLESPACE = innodb_system;
 DROP TABLE t2;
 
 CREATE TABLE t3(a TEXT) TABLESPACE = innodb_system;
@@ -29,7 +29,7 @@ DROP TABLE t4;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t5(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 
-CREATE TABLE t6(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+CREATE TABLE t6(a TEXT) TABLESPACE = innodb_system;
 DROP TABLE t6;
 
 --echo # System is unencrypted, test with innodb_encrypt_tables=ON
@@ -42,8 +42,8 @@ CREATE TABLE t7(a TEXT) TABLESPACE = innodb_system;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t8(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 
-CREATE TABLE t8(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
-DROP TABLE t8;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t8(a TEXT) TABLESPACE = innodb_system;
 
 --echo # System is unencrypted, test with innodb_encrypt_tables=FORCE
 SET GLOBAL innodb_encrypt_tables="FORCE";
@@ -55,7 +55,7 @@ CREATE TABLE t9(a TEXT) TABLESPACE = innodb_system;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t10(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 
---error ER_INVALID_ENCRYPTION_OPTION
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t11(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
 
 --echo # Stop the instance which was created by MTR
@@ -120,24 +120,24 @@ EOF
 
 SELECT @@innodb_sys_tablespace_encrypt;
 
-CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system;
 
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
 
 --error ER_ILLEGAL_HA_CREATE_OPTION
-CREATE TABLE t3(a TEXT) TABLESPACE = innodb_system;
+CREATE TABLE t3(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 
 --echo # System is encrypted, test with innodb_encrypt_tables=OFF
 SET GLOBAL innodb_encrypt_tables=OFF;
 SELECT @@innodb_encrypt_tables;
---error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t4(a TEXT) TABLESPACE = innodb_system;
+DROP TABLE t4;
 
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t4_1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
 
-CREATE TABLE t4_2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+CREATE TABLE t4_2(a TEXT) TABLESPACE = innodb_system;
 DROP TABLE t4_2;
 
 --echo # System is encrypted, test with innodb_encrypt_tables=ON
@@ -148,19 +148,20 @@ CREATE TABLE t5(a TEXT) TABLESPACE = innodb_system;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t5_1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
 
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t5_2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
-DROP TABLE t5_2;
 
 --echo # System is encrypted, test with innodb_encrypt_tables=FORCE
 SET GLOBAL innodb_encrypt_tables="FORCE";
 SELECT @@innodb_encrypt_tables;
 CREATE TABLE t5_3(a TEXT) TABLESPACE = innodb_system;
+DROP TABLE t5_3;
 
---error ER_INVALID_ENCRYPTION_OPTION
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t5_4(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
 
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t5_5(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
-DROP TABLE t5_5;
 
 SET GLOBAL innodb_encrypt_tables=default;
 
@@ -168,12 +169,12 @@ INSERT INTO t1 (a) VALUES ('Abracadabra is of unknown origin, and its first occu
 INSERT INTO t5 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
 
 --echo # rebuild a table remains encrypted
-CREATE TABLE t6(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+CREATE TABLE t6(a TEXT) TABLESPACE = innodb_system;
 INSERT INTO t6 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
 ALTER TABLE t6 ALGORITHM=COPY, TABLESPACE=innodb_system;
 SHOW CREATE TABLE t6;
 
-CREATE TABLE t7(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
+CREATE TABLE t7(a TEXT) TABLESPACE = innodb_system;
 INSERT INTO t7 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
 ALTER TABLE t7 ALGORITHM=COPY;
 SHOW CREATE TABLE t7;
@@ -189,25 +190,33 @@ SHOW CREATE TABLE t7;
 
 --echo # Move encrypted table in system tablespace to file_per_table tablespace
 --echo # t7 should be encrypted table. Verify the ibd later
+--error ER_TARGET_TS_UNENCRYPTED
 ALTER TABLE t7 TABLESPACE=`innodb_file_per_table`;
 SHOW CREATE TABLE t7;
 
---echo # Move encrypted table in sytem tablespace as an unencrypted table
+ALTER TABLE t7 TABLESPACE=`innodb_file_per_table`, ENCRYPTION='Y';
+SHOW CREATE TABLE t7;
+
+--echo # Move encrypted table in system tablespace as an unencrypted table
+--error ER_TARGET_TS_UNENCRYPTED
 ALTER TABLE t6 TABLESPACE=`innodb_file_per_table`, ENCRYPTION='N';
 SHOW CREATE TABLE t6;
 
 --echo # Move unencrypted file_per_table to a table in encrypted system tablespace
 CREATE TABLE t8(a TEXT);
 INSERT INTO t8 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
---error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t8 TABLESPACE=`innodb_system`;
 
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t8 TABLESPACE=`innodb_system`, ENCRYPTION='Y';
 
 --echo # Move encrypted file_per_table to a table in encrypted system tablespace
 CREATE TABLE t9(a TEXT) ENCRYPTION='Y';
 INSERT INTO t9 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
+SELECT @@innodb_sys_tablespace_encrypt;
+
 ALTER TABLE t9 TABLESPACE=`innodb_system`;
+SHOW CREATE TABLE t9;
 
 --source include/shutdown_mysqld.inc
 

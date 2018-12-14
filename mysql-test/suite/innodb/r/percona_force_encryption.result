@@ -23,6 +23,7 @@ engine=innodb tablespace ts_encrypted1
 partition by range (a) partitions 2 (
 partition p1 values less than (20),
 partition p2 values less than (40) tablespace ts_encrypted2);
+ERROR HY000: InnoDB : A partitioned table is not allowed in a shared tablespace.
 create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE="InnoDB";
 ERROR HY000: InnoDB: Tablespace `ts_unencrypted1` cannot contain an ENCRYPTED table.
 set global innodb_encrypt_tables='OFF';
@@ -33,7 +34,7 @@ engine=innodb tablespace ts_encrypted1
 partition by range (a) partitions 2 (
 partition p1 values less than (20),
 partition p2 values less than (40) tablespace ts_encrypted2);
-ERROR HY000: InnoDB: Tablespace `ts_encrypted1` can contain only an ENCRYPTED tables.
+ERROR HY000: InnoDB : A partitioned table is not allowed in a shared tablespace.
 set global innodb_encrypt_tables='FORCE';
 insert into t1_default_explicit_on values (42);
 insert into t2_default_explicit_off values (42);
@@ -81,15 +82,6 @@ Table	Create Table
 t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
-show create table t7_partitioned;
-Table	Create Table
-t7_partitioned	CREATE TABLE `t7_partitioned` (
-  `a` int(11) NOT NULL,
-  PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `ts_encrypted1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
-/*!50100 PARTITION BY RANGE (`a`)
-(PARTITION p1 VALUES LESS THAN (20) TABLESPACE = `ts_encrypted1` ENGINE = InnoDB,
- PARTITION p2 VALUES LESS THAN (40) TABLESPACE = `ts_encrypted2` ENGINE = InnoDB) */
 alter table t1_default_explicit_on encryption="N";
 ERROR HY000: InnoDB: Only Master Key encrypted tables (ENCRYPTION='Y') can be created with innodb_encrypt_tables=FORCE.
 alter table t2_default_explicit_off encryption="Y";
@@ -155,15 +147,6 @@ Table	Create Table
 t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
-show create table t7_partitioned;
-Table	Create Table
-t7_partitioned	CREATE TABLE `t7_partitioned` (
-  `a` int(11) NOT NULL,
-  PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `ts_encrypted1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
-/*!50100 PARTITION BY RANGE (`a`)
-(PARTITION p1 VALUES LESS THAN (20) TABLESPACE = `ts_encrypted1` ENGINE = InnoDB,
- PARTITION p2 VALUES LESS THAN (40) TABLESPACE = `ts_encrypted2` ENGINE = InnoDB) */
 flush tables;
 show create table t1_default_explicit_on;
 Table	Create Table
@@ -223,6 +206,25 @@ a
 select * from t6_force_default;
 a
 42
+#
+# PS-5120 - Cannot add encrypted tables in to encrypted tablespace
+#
+set global innodb_encrypt_tables = ON;
+create tablespace ts1 add datafile 'ts1.ibd' encryption='Y';
+create table t7(a INT);
+show create table t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+alter table t7 tablespace=ts1;
+show create table t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t7;
+drop tablespace ts1;
 drop table t1_default_explicit_on;
 drop table t2_default_explicit_off;
 drop table t3_on_default;
@@ -231,7 +233,6 @@ drop table t5_off_explicit_off;
 drop table t6_force_default;
 drop table t6_force_default_dup;
 drop table t5_off_explicit_off_dup;
-drop table t7_partitioned;
 drop tablespace ts_encrypted1;
 drop tablespace ts_encrypted2;
 drop tablespace ts_unencrypted1;

@@ -9518,7 +9518,7 @@ dberr_t fil_temp_update_encryption(fil_space_t *space) {
 }
 
 /** Reset the encryption type for the tablespace
-@param[in] space_id   Space ID of tablespace for which to set
+@param[in] space_id             Space ID of tablespace for which to set
 @return DB_SUCCESS or error code */
 dberr_t fil_reset_encryption(space_id_t space_id) {
   ut_ad(space_id != TRX_SYS_SPACE);

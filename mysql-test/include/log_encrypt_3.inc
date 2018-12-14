@@ -1,212 +1,173 @@
-call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
+# InnoDB transparent encryption on redo log.
+# This test case will test basic encryption support features.
+--source include/no_valgrind_without_big.inc
+--source include/have_innodb_max_16k.inc
+
+call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
 call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Redo log cannot be encrypted if the keyring plugin is not loaded.");
 call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Redo log key generation failed.");
+
+let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
 CREATE DATABASE tde_db;
 USE tde_db;
-SET GLOBAL innodb_redo_log_encrypt = KEYRING_KEY;
-Warnings:
-Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
-SHOW WARNINGS;
-Level	Code	Message
-Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
-CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
-INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
-SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-1	aaaaaaaaaa
-# restart
-SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-1	aaaaaaaaaa
-DROP TABLE tde_db.t4;
-DROP DATABASE tde_db;
-CREATE DATABASE tde_db;
-USE tde_db;
-# Starting server with keyring plugin
+
+# Restart server
+--let $restart_parameters = restart: $KEYRING_PARAMS
+--source include/restart_mysqld_no_echo.inc
+
+# Explicitly run , INSTALL PLUGIN keyring_file SONAME 'keyring_file.so'
+# Expected : plugin already installed
+
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-MASTER_KEY
-INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
-ERROR HY000: Function 'keyring_file' already exists
+
+--replace_regex /\.dll/.so/
+--error ER_UDF_EXISTS
+eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
 UNINSTALL PLUGIN keyring_file;
+
+# Flush logs
+#  (closes and reopens any flushable logs for installed storage engines.
+#  This causes InnoDB to flush its logs to disk. )
+--let $restart_parameters = restart: $KEYRING_PARAMS
+--source include/restart_mysqld_no_echo.inc
+
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-MASTER_KEY
-SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_encrypt_mode;
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-MASTER_KEY
+
 CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t1;
-a	LEFT(b,10)
-1	aaaaaaaaaa
+
 CREATE TABLE tde_db.t2 (a BIGINT PRIMARY KEY, b LONGBLOB)
-ENCRYPTION='Y' ENGINE=InnoDB;
+			ENCRYPTION='Y' ENGINE=InnoDB;
 INSERT INTO t2 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t2;
-a	LEFT(b,10)
-1	aaaaaaaaaa
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-OFF
+
 CREATE TABLE tde_db.t3 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t3 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t3;
-a	LEFT(b,10)
-1	aaaaaaaaaa
+
 CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB)
-ENCRYPTION='Y' ENGINE=InnoDB;
+			ENCRYPTION='Y' ENGINE=InnoDB;
 INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-1	aaaaaaaaaa
 FLUSH LOGS;
-# Kill and restart:<hidden args>
+
+--let $restart_parameters = restart: $KEYRING_PARAMS
+--let $do_not_echo_parameters = 1
+--source include/kill_and_restart_mysqld.inc
+
 SELECT
-PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
+ PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
 FROM INFORMATION_SCHEMA.PLUGINS
-WHERE PLUGIN_NAME LIKE '%keyring_file%';
-PLUGIN_NAME	PLUGIN_STATUS	PLUGIN_TYPE
-keyring_file	ACTIVE	KEYRING
+  WHERE PLUGIN_NAME LIKE '%keyring_file%';
+
 SELECT a,LEFT(b,10) FROM tde_db.t1;
-a	LEFT(b,10)
-1	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t2;
-a	LEFT(b,10)
-1	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t3;
-a	LEFT(b,10)
-1	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-1	aaaaaaaaaa
+
 DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4;
+
+# innodb_redo_log_encrypt=ON/OFF  with transaction
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-MASTER_KEY
 CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 CREATE TABLE tde_db.t2 (a BIGINT PRIMARY KEY, b LONGBLOB)
-ENCRYPTION='Y' ENGINE=InnoDB;
+			ENCRYPTION='Y' ENGINE=InnoDB;
+
 START TRANSACTION;
-SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_encrypt_mode;
 INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 INSERT INTO t2 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t1;
-a	LEFT(b,10)
-1	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t2;
-a	LEFT(b,10)
-1	aaaaaaaaaa
 ROLLBACK;
+
 START TRANSACTION;
 INSERT INTO t1 (a, b) VALUES (2, REPEAT('a', 6*512*512));
 INSERT INTO t2 (a, b) VALUES (2, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t1;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t2;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 COMMIT;
+
 CREATE TABLE tde_db.t3 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB)
-ENCRYPTION='Y' ENGINE=InnoDB;
+			ENCRYPTION='Y' ENGINE=InnoDB;
+
 START TRANSACTION;
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-OFF
 INSERT INTO t3 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t3;
-a	LEFT(b,10)
-1	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-1	aaaaaaaaaa
 ROLLBACK;
+
 START TRANSACTION;
 INSERT INTO t3 (a, b) VALUES (2, REPEAT('a', 6*512*512));
 INSERT INTO t4 (a, b) VALUES (2, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t3;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 COMMIT;
+
+--let $restart_parameters = restart: $KEYRING_PARAMS
+--source include/restart_mysqld_no_echo.inc
+
 SELECT
-PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
+  PLUGIN_NAME, PLUGIN_STATUS, PLUGIN_TYPE
 FROM INFORMATION_SCHEMA.PLUGINS
-WHERE PLUGIN_NAME LIKE '%keyring_file%';
-PLUGIN_NAME	PLUGIN_STATUS	PLUGIN_TYPE
-keyring_file	ACTIVE	KEYRING
+  WHERE PLUGIN_NAME LIKE '%keyring_file%';
+
 SELECT a,LEFT(b,10) FROM tde_db.t1;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t2;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t3;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-2	aaaaaaaaaa
+
+# Rotate master key when innodb_redo_log_encrypt=ON/OFF
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-OFF
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SELECT a,LEFT(b,10) FROM tde_db.t1;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t2;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t3;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-2	aaaaaaaaaa
-SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
+
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_encrypt_mode;
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-MASTER_KEY
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SELECT a,LEFT(b,10) FROM tde_db.t1;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t2;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t3;
-a	LEFT(b,10)
-2	aaaaaaaaaa
 SELECT a,LEFT(b,10) FROM tde_db.t4;
-a	LEFT(b,10)
-2	aaaaaaaaaa
+
+# Non-privileged user can not set innodb_redo_log_encrypt variable.
 CREATE USER encryptnonprivuser@localhost IDENTIFIED BY 'noauth';
 GRANT SELECT ON *.* to encryptnonprivuser@localhost;
 FLUSH PRIVILEGES;
-# In connection 1 - with encryptnonprivuser
+
+--echo # In connection 1 - with encryptnonprivuser
+connect (con1,localhost,encryptnonprivuser,'noauth',);
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-MASTER_KEY
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET GLOBAL innodb_redo_log_encrypt = 0;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-MASTER_KEY
-SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_encrypt_mode;
 SELECT @@global.innodb_redo_log_encrypt;
-@@global.innodb_redo_log_encrypt
-MASTER_KEY
-# In connection default
+disconnect con1;
+
+--echo # In connection default
+connection default;
 DROP TABLE tde_db.t1,tde_db.t2,tde_db.t3,tde_db.t4;
+
+# Cleanup
+--disable_query_log
+eval SET GLOBAL innodb_redo_log_encrypt=$old_innodb_redo_log_encrypt;
+DROP USER encryptnonprivuser@localhost;
+DROP DATABASE tde_db;
+--enable_query_log

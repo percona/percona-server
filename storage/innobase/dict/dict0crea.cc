@@ -801,7 +801,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
 variable.
 @return TRUE if all OK */
 static bool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
-                                       void *user_arg) /*!< in: int32 id */
+                                         void *user_arg) /*!< in: int32 id */
 {
   sel_node_t *node = static_cast<sel_node_t *>(row);
   dfield_t *dfield = que_node_get_val(node->select_list);

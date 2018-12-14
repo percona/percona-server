@@ -521,6 +521,8 @@ struct fil_space_t {
   /** Encryption metadata */
   Encryption_metadata m_encryption_metadata;
 
+  ulint encryption_key_version;
+
   /** Encryption is in progress */
   Encryption::Progress encryption_op_in_progress{Encryption::Progress::NONE};
 

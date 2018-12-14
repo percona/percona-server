@@ -17,6 +17,7 @@ performance_schema.global_variables WHERE variable_name NOT IN
 'innodb_monitor_disable',
 'innodb_monitor_reset',
 'innodb_monitor_reset_all',
+'innodb_default_encryption_key_id',
 'rbr_exec_mode',
 'jemalloc_profiling');
 ************************************************************

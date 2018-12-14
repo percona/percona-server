@@ -97,6 +97,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0crypt.h"
 #include "ha_innodb.h"
 #include "sql/handler.h"
+#include "system_key.h"
 #include "ut0mem.h"
 
 #ifdef UNIV_HOTBACKUP

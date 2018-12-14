@@ -1,0 +1,11 @@
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	OFF
+# create bootstrap file
+# Stop the MTR default DB server
+# Run the bootstrap command of datadir1
+# Start the DB server with datadir1
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	ON
+# restart:

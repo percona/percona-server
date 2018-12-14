@@ -1536,6 +1536,9 @@ static SHOW_VAR innodb_status_variables[] = {
     {"encryption_n_rowlog_blocks_decrypted",
      (char *)&export_vars.innodb_n_rowlog_blocks_decrypted, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
+    {"encryption_redo_key_version",
+     (char *)&export_vars.innodb_redo_key_version, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     /* Encryption */
     {"encryption_rotation_pages_read_from_cache",
@@ -9552,7 +9555,7 @@ static void innobase_store_multi_value_low(json_binary::Value *bv,
       row_mysql_store_col_in_innobase_format(dfield, buf, true, mysql_data,
                                              col_len, comp, false, nullptr, 0,
                                              nullptr);
-     } else if (type == DATA_CHAR || type == DATA_VARCHAR ||
+    } else if (type == DATA_CHAR || type == DATA_VARCHAR ||
                type == DATA_VARMYSQL) {
       mysql_data = (byte *)elt.get_data();
       col_len = (ulint)elt.get_data_length();
@@ -22389,7 +22392,7 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   mutex_enter(&undo::ddl_mutex);
 
   /* Enable encryption for UNDO tablespaces */
-  bool ret = srv_enable_undo_encryption(thd);
+  bool ret = srv_enable_undo_encryption(nullptr);
 
   if (!ret) {
     /* At this point, all UNDO tablespaces have been encrypted. */
@@ -22402,10 +22405,10 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
 
 /** Validate the value of innodb_redo_log_encrypt global variable. This function
 is registered as a callback with MySQL.
-@param[in]      thd       thread handle
-@param[in]      var       pointer to system variable
-@param[in]      save      possibly updated variable value
-@param[in]      value     current variable value
+@param[in]	thd       thread handle
+@param[in]	var       pointer to system variable
+@param[in]	save      possibly updated variable value
+@param[in]	value     current variable value
 @return error code */
 static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
                                             struct st_mysql_value *value) {

@@ -301,6 +301,16 @@ struct fil_crypt_stat_t {
   ulint estimated_iops;
 };
 
+struct redo_log_key final {
+  uint version;
+  char key[Encryption::KEY_LEN];
+  ulint read_count;
+  ulint write_count;
+  bool present;
+
+  bool persisted() const noexcept { return version != 0; }
+};
+
 /*********************************************************************
 Init space crypt */
 void fil_space_crypt_init();

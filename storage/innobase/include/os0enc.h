@@ -120,6 +120,14 @@ class Encryption {
   information version. */
   static constexpr char KEY_MAGIC_V3[] = "lCC";
 
+  /** Encryption magic bytes before 8.0.19, it's for checking KEYRING
+  redo log information version. */
+  static constexpr char KEY_MAGIC_RK_V1[] = "lRK";
+
+  /** Encryption magic bytes for 8.0.19+, it's for checking KEYRING
+  redo log information version. */
+  static constexpr char KEY_MAGIC_RK_V2[] = "RKB";
+
   static constexpr char KEY_MAGIC_PS_V1[] = "PSA";
 
   /** Encryption master key prifix */
@@ -378,6 +386,9 @@ class Encryption {
   static bool fill_encryption_info(
       const Encryption_metadata &encryption_metadata, bool encrypt_key,
       byte *encrypt_info) noexcept;
+
+  static bool fill_encryption_info(uint key_version, byte *iv,
+                                   byte *encrypt_info);
 
   /** Get master key from encryption information
   @param[in]      encrypt_info  encryption information

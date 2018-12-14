@@ -267,6 +267,8 @@ static const char ENCRYPTION_KEY_MAGIC_V2[] = "lCB";
 information version. */
 static const char ENCRYPTION_KEY_MAGIC_V3[] = "lCC";
 
+static const char ENCRYPTION_KEY_MAGIC_RK[] = "lRK";
+
 static const char ENCRYPTION_KEY_MAGIC_PS_V1[] = "PSA";
 
 /** Encryption master key prifix */
@@ -523,6 +525,9 @@ struct Encryption {
   @return true if success. */
   static bool fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
                                    bool is_boot);
+
+  static bool fill_encryption_info(uint key_version, byte *iv,
+                                   byte *encrypt_info);
 
   /** Get master key from encryption information
   @param[in]	encrypt_info	encryption information

@@ -170,7 +170,8 @@ my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,"
   ."innodb_zip,perfschema,funcs_1,funcs_2,opt_trace,parts,auth_sec,"
   ."connection_control,jp,stress,engines/iuds,engines/funcs,"
   ."query_response_time,innodb_stress,tokudb.add_index,tokudb.alter_table,"
-  ."tokudb,tokudb.bugs,tokudb.parts,tokudb.rpl,tokudb.perfschema";
+  ."tokudb,tokudb.bugs,tokudb.parts,tokudb.rpl,tokudb.perfschema,"
+  ."percona-pam-for-mysql";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose

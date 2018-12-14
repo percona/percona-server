@@ -38,5 +38,12 @@ IF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R AND HAVE_DLFCN_H)
                    ../../sql-common/get_password.cc
                    LINK_LIBRARIES perconaserverclient
                    MODULE_ONLY)
+
+  IF(UNIX)
+    IF(INSTALL_MYSQLTESTDIR)
+      INSTALL(DIRECTORY tests/mtr/ DESTINATION ${INSTALL_MYSQLTESTDIR}/suite/percona-pam-for-mysql COMPONENT Test)
+    ENDIF()
+  ENDIF()
+
 ENDIF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R AND HAVE_DLFCN_H)
 ENDIF(WITH_PAM)

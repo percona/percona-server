@@ -253,11 +253,11 @@ SET session rocksdb_merge_combine_read_size = 566;
 SET session rocksdb_merge_buf_size = 340;
 
 show variables like 'rocksdb_bulk_load%';
-CREATE TABLE t1 (a VARCHAR(80)) ENGINE=RocksDB;
-INSERT INTO t1 (a) VALUES (REPEAT("a", 80));
-INSERT INTO t1 (a) VALUES (REPEAT("a", 80));
-INSERT INTO t1 (a) VALUES (REPEAT("a", 80));
-INSERT INTO t1 (a) VALUES (REPEAT("a", 80));
+CREATE TABLE t1 (a VARCHAR(30)) ENGINE=RocksDB;
+INSERT INTO t1 (a) VALUES (REPEAT("a", 30));
+INSERT INTO t1 (a) VALUES (REPEAT("a", 30));
+INSERT INTO t1 (a) VALUES (REPEAT("a", 30));
+INSERT INTO t1 (a) VALUES (REPEAT("a", 30));
 ALTER TABLE t1 ADD INDEX ka(a), ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 CHECK TABLE t1;

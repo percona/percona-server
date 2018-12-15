@@ -10902,6 +10902,13 @@ my_core::enum_alter_inplace_result ha_rocksdb::check_if_supported_inplace_alter(
 
   DBUG_ASSERT(ha_alter_info != nullptr);
 
+  /* No need for a table rebuild when changing only index metadata */
+  if (ha_alter_info->handler_flags == Alter_inplace_info::RENAME_INDEX &&
+      ha_alter_info->alter_info->flags == Alter_info::ALTER_INDEX_VISIBILITY &&
+      ha_alter_info->create_info->used_fields == 0) {
+    DBUG_RETURN(my_core::HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
+  }
+
   if (ha_alter_info->handler_flags &
       ~(my_core::Alter_inplace_info::DROP_INDEX |
         my_core::Alter_inplace_info::DROP_UNIQUE_INDEX |

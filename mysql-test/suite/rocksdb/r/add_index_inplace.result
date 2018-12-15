@@ -477,4 +477,35 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	0	PRIMARY	1	a	A	4	NULL	NULL		SE_SPECIFIC			YES	NULL
 t1	1	kb	1	b	A	2	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 DROP TABLE t1;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b varchar(10),
+index kb(b(5))
+) ENGINE = ROCKSDB charset utf8 collate utf8_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t1 (a,b) VALUES (1,'1111122222');
+INSERT INTO t1 (a,b) VALUES (2,'2222233333');
+INSERT INTO t1 (a,b) VALUES (3,'3333344444');
+ALTER TABLE t1 ALTER INDEX kb INVISIBLE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `kb` (`b`(5)) /*!80000 INVISIBLE */
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+ALTER TABLE t1 ALTER INDEX kb VISIBLE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `kb` (`b`(5))
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+include/assert.inc [No new index ids allocated]
+DROP TABLE t1;
 SET global rocksdb_table_stats_sampling_pct = @prior_rocksdb_table_stats_sampling_pct;

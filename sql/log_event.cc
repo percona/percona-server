@@ -8045,10 +8045,10 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
        so we don't need to check engine type here.
     */
     if (delete_update_lookup_condition && table->s->primary_key == MAX_KEY) {
-      if (!table->s->rfr_lookup_warning) {
+      if (table->s->rfr_lookup_warning != 0) {
         sql_print_warning(
             "Slave: read free replication is disabled "
-            "for tokudb table `%s.%s` "
+            "for table `%s.%s` "
             "as it does not have implicit primary key, "
             "continue with rows lookup",
             print_slave_db_safe(table->s->db.str), m_table->s->table_name.str);

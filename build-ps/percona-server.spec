@@ -860,11 +860,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_vault.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_vault.so
 #
-%attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
-%attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql
-%attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables.sql
-%attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables_data.sql
-%attr(644, root, root) %{_datadir}/percona-server/mysql_test_data_timezone.sql
+#%attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
+#%attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql
+#%attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables.sql
+#%attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables_data.sql
+#%attr(644, root, root) %{_datadir}/percona-server/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/percona-server/mysql-log-rotate
 #%attr(644, root, root) %{_datadir}/percona-server/mysql_security_commands.sql
 %attr(644, root, root) %{_datadir}/percona-server/dictionary.txt
@@ -911,7 +911,7 @@ fi
 %attr(755, root, root) %{_datadir}/percona-server/spanish/
 %attr(755, root, root) %{_datadir}/percona-server/swedish/
 %attr(755, root, root) %{_datadir}/percona-server/ukrainian/
-%attr(755, root, root) %{_datadir}/percona-server/mysql_system_users.sql
+#%attr(755, root, root) %{_datadir}/percona-server/mysql_system_users.sql
 
 %files -n percona-server-client
 %defattr(-, root, root, -)

@@ -67,7 +67,6 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DSYSCONFDIR=/etc/mysql \
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
 		-DCMAKE_BUILD_TYPE=Debug \
-		-DWITH_LIBWRAP=ON \
 		-DWITH_ZLIB=system \
 		-DWITH_SSL=system \
 		-DCOMPILATION_COMMENT=$(COMPILATION_COMMENT_DEBUG) \
@@ -101,7 +100,6 @@ endif
 		-DSYSCONFDIR=/etc/mysql \
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
 		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
-		-DWITH_LIBWRAP=ON \
 		-DWITH_ZLIB=system \
 		-DWITH_SSL=system \
 		-DCOMPILATION_COMMENT=$(COMPILATION_COMMENT_RELEASE) \

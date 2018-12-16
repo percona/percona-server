@@ -19,6 +19,19 @@ COMMIT;
 Grepping the error log for lock wait timeout info
 Pattern "Lock wait timeout info:" found
 DROP TABLE t;
+#
+# Test for PS-5134 : handle_fatal_signal (sig=11) in thd_get_thread_id
+#
+CREATE TABLE t5134(c0 INT UNSIGNED AUTO_INCREMENT PRIMARY KEY) ENGINE=INNODB;
+BEGIN;
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE table_name='t5134' FOR UPDATE;
+database_name	table_name
+test	t5134
+INSERT INTO t5134 VALUES (), ();
+Grepping the error log for lock wait timeout info
+Pattern "Requested thread id: <background>" found
+ROLLBACK;
+DROP TABLE t5134;
 SET GLOBAL innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
 SET GLOBAL innodb_print_lock_wait_timeout_info =
 @innodb_print_lock_wait_timeout_info_saved;

@@ -61,6 +61,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DINSTALL_MYSQLSHAREDIR=share/mysql \
 		-DINSTALL_MYSQLTESTDIR=lib/mysql-test \
 		-DINSTALL_PLUGINDIR=lib/mysql/plugin/debug \
+		-DROUTER_INSTALL_PLUGINDIR=lib/mysqlrouter/plugin \
 		-DINSTALL_SBINDIR=sbin \
 		-DINSTALL_SCRIPTDIR=bin \
 		-DINSTALL_SUPPORTFILESDIR=share/mysql \
@@ -96,6 +97,7 @@ endif
 		-DINSTALL_MYSQLSHAREDIR=share/mysql \
 		-DINSTALL_MYSQLTESTDIR=lib/mysql-test \
 		-DINSTALL_PLUGINDIR=lib/mysql/plugin \
+		-DROUTER_INSTALL_PLUGINDIR=lib/mysqlrouter/plugin \
 		-DINSTALL_SBINDIR=sbin \
 		-DINSTALL_SCRIPTDIR=bin \
 		-DINSTALL_SUPPORTFILESDIR=share/mysql \
@@ -168,5 +170,6 @@ override_dh_installinit:
 	@echo "RULES.$@"
 	if [ "$(DISTRELEASE)" != "precise" -a "$(DISTRELEASE)" != "trusty" -a "$(DISTRELEASE)" != "wheezy" ]; then dh_systemd_enable --name=mysql; fi
 	dh_installinit --name=mysql -- defaults 19 21
+	dh_installinit --name=mysqlrouter -- defaults 19 21
 	if [ "$(DISTRELEASE)" != "precise" -a "$(DISTRELEASE)" != "trusty" -a "$(DISTRELEASE)" != "wheezy" ]; then dh_systemd_start --restart-after-upgrade; fi
 	touch $@

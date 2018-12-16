@@ -60,7 +60,7 @@ SHOW CREATE TABLE test.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts_unenc` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) /*!50100 TABLESPACE `ts_unenc` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
@@ -70,12 +70,12 @@ SHOW CREATE TABLE test.t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts_enc` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) /*!50100 TABLESPACE `ts_enc` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Remove copied files
 # Restart the server with default options.
 # restart

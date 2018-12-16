@@ -6275,3 +6275,22 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
 
   return err;
 }
+
+bool dict_detect_encryption(bool is_upgrade) {
+  bool encrypt_mysql = false;
+  if (is_upgrade) {
+    space_id_t space_id = fil_space_get_id_by_name("mysql/plugin");
+    ut_ad(space_id != SPACE_UNKNOWN);
+
+    fil_space_t *space = fil_space_get(space_id);
+    ut_ad(space != nullptr);
+
+    if (space == nullptr) {
+      return (false);
+    }
+    encrypt_mysql = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+  }
+
+  return (encrypt_mysql ||
+          srv_default_table_encryption == DEFAULT_TABLE_ENC_ON);
+}

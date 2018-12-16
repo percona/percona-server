@@ -1,10 +1,10 @@
 #! /bin/bash
 #
 # mysqlrouter	This shell script takes care of starting and stopping
-#		the MySQL Router
+#		the Percona Server Router
 #
 # chkconfig: 2345 66 34
-# description: MySQL Router
+# description: Percona Server Router
 # processname: mysqlrouter
 # config: /etc/mysqlrouter/mysqlrouter.conf
 # pidfile: /var/run/mysqlrouter/mysqlrouter.pid

@@ -278,3 +278,13 @@ Description: Debugging package for Percona Server
  robustness and ease of use.
  .
  This package contains the debugging symbols for the Percona Server binaries.
+
+Package: percona-server-router
+Architecture: any
+Description: Percona Server Router
+Depends: ${shlibs:Depends}, ${misc:Depends}
+
+Package: percona-server-router-dev
+Architecture: any
+Description: Percona Server Router development files
+Depends: ${shlibs:Depends}, ${misc:Depends}

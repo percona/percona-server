@@ -224,10 +224,18 @@ static void print_lock_wait_timeout(const trx_t &trx,
   size_t unused;
 
   outs << "Lock wait timeout info:\n";
-  outs << "Requested thread id: " << thd_get_thread_id(trx.mysql_thd) << "\n";
+  if (trx.mysql_thd)
+    outs << "Requested thread id: " << thd_get_thread_id(trx.mysql_thd) << "\n";
+  else
+    outs << "Requested thread id: "
+         << "<background>"
+         << "\n";
   outs << "Requested trx id: " << trx_get_id_for_print(&trx) << "\n";
-  outs << "Requested query: "
-       << innobase_get_stmt_unsafe(trx.mysql_thd, &unused) << "\n";
+  if (trx.mysql_thd)
+    outs << "Requested query: "
+         << innobase_get_stmt_unsafe(trx.mysql_thd, &unused) << "\n";
+  else
+    outs << "Requested query: <unknown>\n";
 
   outs << "Total blocking transactions count: " << blocking_count << "\n";
 

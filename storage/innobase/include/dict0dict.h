@@ -1659,6 +1659,14 @@ static inline void dict_allocate_mem_intrinsic_cache(dict_index_t *index);
 void dict_table_set_corrupt_by_space(space_id_t space_id,
                                      bool need_mutex) noexcept;
 
+/** Detect if Percona Server 5.7 mysql database has encrypted InnoDB tables.
+This can happen if Percona Server is bootstrapped with
+--innodb-encrypt-tables=ON If yes or if srv_encrypt_tables is ON/FORCE, during
+upgrade, mysql.ibd should be encrpted.
+@param[in]  is_upgrade true in upgrade mode
+@return true if encrypted, false if not encrypted */
+bool dict_detect_encryption(bool is_upgrade);
+
 /** Set the compression type for the tablespace of a table
 @param[in]  table         The table that should be compressed
 @param[in]  algorithm     Text representation of the algorithm

@@ -4889,13 +4889,15 @@ static int innodb_init(void *p) {
 /** Create a hard-coded tablespace file at server initialization.
 @param[in]	space_id	fil_space_t::id
 @param[in]	filename	file name
+@param[in]	flags		tabelspace flags
 @retval false	on success
 @retval true	on failure */
-static bool dd_create_hardcoded(space_id_t space_id, const char *filename) {
+static bool dd_create_hardcoded(space_id_t space_id, const char *filename,
+                                ulint flags) {
   page_no_t pages = FIL_IBD_FILE_INITIAL_SIZE;
 
   dberr_t err = fil_ibd_create(space_id, dict_sys_t::s_dd_space_name, filename,
-                               predefined_flags, pages, FIL_ENCRYPTION_DEFAULT,
+                               flags, pages, FIL_ENCRYPTION_DEFAULT,
                                CreateInfoEncryptionKeyId());
 
   if (err == DB_SUCCESS) {
@@ -4918,9 +4920,11 @@ static bool dd_create_hardcoded(space_id_t space_id, const char *filename) {
 /** Open a hard-coded tablespace file at server initialization.
 @param[in]	space_id	fil_space_t::id
 @param[in]	filename	file name
+@param[in]	flags		tabelspace flags
 @retval false	on success
 @retval true	on failure */
-static bool dd_open_hardcoded(space_id_t space_id, const char *filename) {
+static bool dd_open_hardcoded(space_id_t space_id, const char *filename,
+                              ulint flags) {
   bool fail = false;
   fil_space_t *space = fil_space_acquire_silent(space_id);
   Keyring_encryption_info keyring_encryption_info;
@@ -4930,7 +4934,7 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename) {
     tablespace. */
 
     /* The tablespace was already opened up by redo log apply. */
-    ut_ad(space->flags == predefined_flags);
+    ut_ad(space->flags == flags);
 
     if (strstr(space->files.front().name, filename) != 0 &&
         space->flags == predefined_flags) {
@@ -4942,7 +4946,7 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename) {
 
     fil_space_release(space);
 
-  } else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id, predefined_flags,
+  } else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id, flags,
                           dict_sys_t::s_dd_space_name,
                           dict_sys_t::s_dd_space_name, filename, true, false,
                           keyring_encryption_info) == DB_SUCCESS) {
@@ -4955,6 +4959,12 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename) {
   }
 
   if (fail) {
+    const char *str =
+        srv_encrypt_tables == SRV_ENCRYPT_TABLES_OFF ? "ON or FORCE" : "OFF";
+
+    ib::error(ER_XB_MSG_2)
+        << "If mysql.ibd opening failed with flags mismatch, try startup with"
+        << " innodb_encrypt_tables = " << str;
     my_error(ER_CANT_OPEN_FILE, MYF(0), filename, 0, "");
   }
 
@@ -5049,16 +5059,30 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     dict_stats_evict_tablespaces();
 
     btr_search_enabled = old_btr_search_value;
+
+  }
+
+  bool do_encrypt = dict_detect_encryption(srv_is_upgrade_mode);
+
+  if (do_encrypt && !Encryption::check_keyring()) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    DBUG_RETURN(innodb_init_abort());
   }
 
   bool ret;
 
+  const ulint dd_space_flags =
+      do_encrypt ? predefined_flags | FSP_FLAGS_MASK_ENCRYPTION
+                 : predefined_flags;
+
   // For upgrade from 5.7, create mysql.ibd
   create |= (dict_init_mode == DICT_INIT_UPGRADE_57_FILES);
   ret = create ? dd_create_hardcoded(dict_sys_t::s_space_id,
-                                     dict_sys_t::s_dd_space_file_name)
+                                     dict_sys_t::s_dd_space_file_name,
+                                     dd_space_flags)
                : dd_open_hardcoded(dict_sys_t::s_space_id,
-                                   dict_sys_t::s_dd_space_file_name);
+                                   dict_sys_t::s_dd_space_file_name,
+				   dd_space_flags);
 
   /* Once hardcoded tablespace mysql is created or opened,
   prepare it along with innodb system tablespace for server.
@@ -5071,12 +5095,16 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     snprintf(se_private_data_innodb_system, len, fmt, TRX_SYS_SPACE,
              srv_sys_space.flags(), DD_SPACE_CURRENT_SRV_VERSION,
              DD_SPACE_CURRENT_SPACE_VERSION);
+
     snprintf(se_private_data_dd, len, fmt, dict_sys_t::s_space_id,
-             predefined_flags, DD_SPACE_CURRENT_SRV_VERSION,
+             dd_space_flags, DD_SPACE_CURRENT_SRV_VERSION,
              DD_SPACE_CURRENT_SPACE_VERSION);
 
-    static Plugin_tablespace dd_space(dict_sys_t::s_dd_space_name, "",
-                                      se_private_data_dd, "",
+    const char *dd_space_options =
+        do_encrypt ? "encryption=y" : "";
+
+    static Plugin_tablespace dd_space(dict_sys_t::s_dd_space_name,
+                                      dd_space_options, se_private_data_dd, "",
                                       innobase_hton_name);
     static Plugin_tablespace::Plugin_tablespace_file dd_file(
         dict_sys_t::s_dd_space_file_name, "");

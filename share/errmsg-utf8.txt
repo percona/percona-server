@@ -18463,6 +18463,9 @@ ER_XB_MSG_1
 ER_COMPRESSION_DICTIONARY_NO_CREATE
   eng "Cannot create compression dictionary tables in %s%sread-only mode."
 
+ER_XB_MSG_2
+  eng "%s"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

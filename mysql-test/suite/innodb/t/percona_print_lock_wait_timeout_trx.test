@@ -40,9 +40,39 @@ COMMIT;
 --let SEARCH_FILE= $log_error_path
 --let SEARCH_PATTERN= Lock wait timeout info:
 --source include/search_pattern.inc
---remove_file $log_error_path
 
 DROP TABLE t;
+
+--echo #
+--echo # Test for PS-5134 : handle_fatal_signal (sig=11) in thd_get_thread_id
+--echo #
+# When a background thread (innodb_table_stats harvester) encounters a lock wait
+# timeout and innodb_print_lock_wait_timeout_info is enabled, the background
+# thread will segfault when printing the info while trying to access the
+# trx.mysql_thd thread id as the trx.mysql_thd will be nullptr in the background
+# thread.  The fix checks for this and instead prints <background> for the
+# thread id.
+CREATE TABLE t5134(c0 INT UNSIGNED AUTO_INCREMENT PRIMARY KEY) ENGINE=INNODB;
+
+--let $wait_condition= SELECT COUNT(*) = 1 FROM mysql.innodb_table_stats where table_name='t5134'
+--source include/wait_condition.inc
+
+BEGIN;
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE table_name='t5134' FOR UPDATE;
+INSERT INTO t5134 VALUES (), ();
+
+--echo Grepping the error log for lock wait timeout info
+--let SEARCH_FILE= $log_error_path
+--let SEARCH_PATTERN= Requested thread id: <background>
+--source include/wait_for_search_pattern.inc
+
+ROLLBACK;
+DROP TABLE t5134;
+
+
+# cleanup
+--remove_file $log_error_path
+
 SET GLOBAL innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
 SET GLOBAL innodb_print_lock_wait_timeout_info =
   @innodb_print_lock_wait_timeout_info_saved;

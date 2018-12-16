@@ -397,6 +397,27 @@ Requires:       percona-server-client = %{version}-%{release}
 This package contains the RocksDB plugin for Percona Server %{version}-%{release}
 %endif
 
+%package  -n   percona-server-router
+Summary:       Percona Server Router
+Group:         Applications/Databases
+Provides:      percona-server-router = %{version}-%{release}
+Obsoletes:     percona-server-router < %{version}-%{release}
+Provides:      mysql-router
+
+%description -n percona-server-router
+The Percona-Server Router software delivers a fast, multi-threaded way of
+routing connections from MySQL Clients to MySQL Servers.
+
+%package   -n   percona-server-router-devel
+Summary:        Development header files and libraries for Percona Server Router
+Group:          Applications/Databases
+Provides:       percona-server-router-devel = %{version}-%{release}
+Obsoletes:      mysql-router-devel
+
+%description -n percona-server-router-devel
+This package contains the development header files and libraries
+necessary to develop Percona Server Router applications.
+
 %prep
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
 pushd %{src_dir}
@@ -448,6 +469,8 @@ mkdir debug
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
+           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DINSTALL_MYSQLSHAREDIR=share/percona-server \
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
@@ -483,6 +506,8 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
+           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DINSTALL_MYSQLSHAREDIR=share/percona-server \
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
@@ -522,6 +547,10 @@ install -d -m 0755 %{buildroot}/var/run/mysqld
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
 install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 
+# Router directories
+install -d -m 0755 %{buildroot}/var/log/mysqlrouter
+install -d -m 0755 %{buildroot}/var/run/mysqlrouter
+
 # Install all binaries
 cd $MBD/release
 make DESTDIR=%{buildroot} install
@@ -552,6 +581,13 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
   install -p -m 0755 %{SOURCE5} %{buildroot}/%{_bindir}/mysql_config
 %endif
 
+%if 0%{?systemd}
+install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
+install -D -p -m 0644 packaging/rpm-common/mysqlrouter.tmpfiles.d %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
+%else
+install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
+%endif
+install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
@@ -570,6 +606,12 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
+
+# Remove removed manpages here until they are removed from the docs repo
+
+# remove some unwanted router files
+rm -rf %{buildroot}/%{_libdir}/libmysqlharness.{a,so}
+rm -rf %{buildroot}/%{_libdir}/libmysqlrouter.so
 
 %check
 %if 0%{?runselftest}
@@ -707,6 +749,39 @@ if [ $1 -eq 1 ] ; then
 fi
 %endif
 
+%pre -n percona-server-router
+/usr/sbin/groupadd -r mysqlrouter >/dev/null 2>&1 || :
+/usr/sbin/useradd -M -N -g mysqlrouter -r -d /var/lib/mysqlrouter -s /bin/false \
+    -c "Percona Server Router" mysqlrouter >/dev/null 2>&1 || :
+
+%post -n percona-server-router
+/sbin/ldconfig
+%if 0%{?systemd}
+%systemd_post mysqlrouter.service
+%else
+/sbin/chkconfig --add mysqlrouter
+%endif # systemd
+
+%preun -n percona-server-router
+%if 0%{?systemd}
+%systemd_preun mysqlrouter.service
+%else
+if [ "$1" = 0 ]; then
+    /sbin/service mysqlrouter stop >/dev/null 2>&1 || :
+    /sbin/chkconfig --del mysqlrouter
+fi
+%endif # systemd
+
+%postun -n percona-server-router
+/sbin/ldconfig
+%if 0%{?systemd}
+%systemd_postun_with_restart mysqlrouter.service
+%else
+if [ $1 -ge 1 ]; then
+    /sbin/service mysqlrouter condrestart >/dev/null 2>&1 || :
+fi
+%endif # systemd
+
 
 %files -n percona-server-server
 %defattr(-, root, root, -)
@@ -783,6 +858,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
@@ -807,6 +883,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
@@ -1140,6 +1217,25 @@ fi
 %attr(755, root, root) %{_bindir}/sst_dump
 %endif
 
+%files -n percona-server-router
+%defattr(-, root, root, -)
+%doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
+%dir %{_sysconfdir}/mysqlrouter
+%config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%{_bindir}/mysqlrouter
+%{_bindir}/mysqlrouter_plugin_info
+%if 0%{?systemd}
+%{_unitdir}/mysqlrouter.service
+%{_tmpfilesdir}/mysqlrouter.conf
+%else
+%{_sysconfdir}/init.d/mysqlrouter
+%endif
+%{_libdir}/libmysqlharness.so.*
+%{_libdir}/libmysqlrouter.so.*
+%dir %{_libdir}/mysqlrouter
+%{_libdir}/mysqlrouter/*.so
+%dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
+%dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
 * Wed Aug  2 2017 Evgeniy Patlan <evgeniy.patlan@percona.com>

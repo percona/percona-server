@@ -1,5 +1,5 @@
 [Unit]
-Description=MySQL Router
+Description=Percona Server Router
 After=syslog.target
 After=network.target
 

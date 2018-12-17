@@ -21,5 +21,5 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # legal
-usr/LICENSE.router usr/share/doc/percona-server-router/
-usr/README.router usr/share/doc/percona-server-router/
+usr/LICENSE.router usr/share/doc/percona-mysql-router/
+usr/README.router usr/share/doc/percona-mysql-router/

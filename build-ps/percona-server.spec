@@ -398,26 +398,26 @@ Requires:       percona-server-client = %{version}-%{release}
 This package contains the RocksDB plugin for Percona Server %{version}-%{release}
 %endif
 
-%package  -n   percona-server-router
-Summary:       Percona Server Router
+%package  -n   percona-mysql-router
+Summary:       Percona MySQL Router
 Group:         Applications/Databases
-Provides:      percona-server-router = %{version}-%{release}
-Obsoletes:     percona-server-router < %{version}-%{release}
+Provides:      percona-mysql-router = %{version}-%{release}
+Obsoletes:     percona-mysql-router < %{version}-%{release}
 Provides:      mysql-router
 
-%description -n percona-server-router
-The Percona-Server Router software delivers a fast, multi-threaded way of
+%description -n percona-mysql-router
+The Percona MySQL Router software delivers a fast, multi-threaded way of
 routing connections from MySQL Clients to MySQL Servers.
 
-%package   -n   percona-server-router-devel
-Summary:        Development header files and libraries for Percona Server Router
+%package   -n   percona-mysql-router-devel
+Summary:        Development header files and libraries for Percona MySQL Router
 Group:          Applications/Databases
-Provides:       percona-server-router-devel = %{version}-%{release}
+Provides:       percona-mysql-router-devel = %{version}-%{release}
 Obsoletes:      mysql-router-devel
 
-%description -n percona-server-router-devel
+%description -n percona-mysql-router-devel
 This package contains the development header files and libraries
-necessary to develop Percona Server Router applications.
+necessary to develop Percona MySQL Router applications.
 
 %prep
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
@@ -752,12 +752,12 @@ if [ $1 -eq 1 ] ; then
 fi
 %endif
 
-%pre -n percona-server-router
+%pre -n percona-mysql-router
 /usr/sbin/groupadd -r mysqlrouter >/dev/null 2>&1 || :
 /usr/sbin/useradd -M -N -g mysqlrouter -r -d /var/lib/mysqlrouter -s /bin/false \
-    -c "Percona Server Router" mysqlrouter >/dev/null 2>&1 || :
+    -c "Percona MySQL Router" mysqlrouter >/dev/null 2>&1 || :
 
-%post -n percona-server-router
+%post -n percona-mysql-router
 /sbin/ldconfig
 %if 0%{?systemd}
 %systemd_post mysqlrouter.service
@@ -765,7 +765,7 @@ fi
 /sbin/chkconfig --add mysqlrouter
 %endif # systemd
 
-%preun -n percona-server-router
+%preun -n percona-mysql-router
 %if 0%{?systemd}
 %systemd_preun mysqlrouter.service
 %else
@@ -775,7 +775,7 @@ if [ "$1" = 0 ]; then
 fi
 %endif # systemd
 
-%postun -n percona-server-router
+%postun -n percona-mysql-router
 /sbin/ldconfig
 %if 0%{?systemd}
 %systemd_postun_with_restart mysqlrouter.service
@@ -1220,7 +1220,7 @@ fi
 %attr(755, root, root) %{_bindir}/sst_dump
 %endif
 
-%files -n percona-server-router
+%files -n percona-mysql-router
 %defattr(-, root, root, -)
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter

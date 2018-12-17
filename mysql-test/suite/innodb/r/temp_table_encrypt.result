@@ -1,5 +1,6 @@
 call mtr.add_suppression("\\[InnoDB\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[InnoDB\\] Can't set temporary tablespace to be encrypted because keyring plugin is not available.");
+call mtr.add_suppression("\\[InnoDB\\] Unable to encrypt a session temp tablespace. Probably due to missing keyring plugin");
 #
 # PS-4727: instrinsic temp table behaviour shouldn't depend on innodb_encrypt_tables
 #
@@ -8,6 +9,7 @@ INSERT INTO t1 VALUES (1, 'hello'), (2, 'hi'), (3, 'satya');
 SET GLOBAL innodb_encrypt_tables=ON;
 SET big_tables=ON;
 INSERT INTO t1 SELECT * FROM t1;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 DROP TABLE t1;
 SET big_tables=default;
 SET GLOBAL innodb_encrypt_tables=default;
@@ -23,9 +25,9 @@ SELECT @@innodb_temp_tablespace_encrypt;
 @@innodb_temp_tablespace_encrypt
 0
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
-ERROR HY000: InnoDB: Tablespace `innodb_temporary` cannot contain an ENCRYPTED table.
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='N';
-DROP TABLE t01;
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 # in innodb_read_only mode, temp tablespace cannot be encrypted
@@ -41,19 +43,27 @@ SELECT @@innodb_temp_tablespace_encrypt;
 # startup failure when innodb_temp_tablespace =ON and no keyring plugin
 Pattern found.
 # restart:<hidden args>
+CREATE TABLE t1 (a INT, b BLOB);
+INSERT INTO t1 VALUES (1, 'hello'), (2, 'hi'), (3, 'satya');
+SET GLOBAL innodb_encrypt_tables=ON;
+SET big_tables=ON;
+INSERT INTO t1 SELECT * FROM t1;
+DROP TABLE t1;
+SET big_tables=default;
+SET GLOBAL innodb_encrypt_tables=default;
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 SHOW WARNINGS;
 Level	Code	Message
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
-ERROR HY000: InnoDB: Tablespace `innodb_temporary` can contain only an ENCRYPTED tables.
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+DROP TABLE t01;
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 SET GLOBAL innodb_encrypt_tables=ON;
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 SET GLOBAL innodb_encrypt_tables=OFF;
 INSERT INTO t01 VALUES (1), (2), (3);
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;

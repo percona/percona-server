@@ -177,6 +177,38 @@ dberr_t dict_build_tablespace(
   return (err);
 }
 
+/** Determine the session temporary tablespace for temp or intrinsic tables
+@param[in]   innodb_session   InnoDB session context(thd)
+@param[in]   is_intrinsic     true if temp table is created by optimizer
+@param[in]   is_slave_thd     true if temp table is created by slave thread
+                              (happens only with binlog row format)
+@return Session temporary tablespace on success, else nullptr on failure */
+static ibt::Tablespace *determine_session_temp_tblsp(
+    innodb_session_t *innodb_session, bool is_intrinsic, bool is_slave_thd) {
+  ibt::Tablespace *tblsp = nullptr;
+  if (srv_encrypt_tables == SRV_ENCRYPT_TABLES_ON ||
+      srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE ||
+      srv_tmp_tablespace_encrypt) {
+    if (is_slave_thd) {
+      tblsp = ibt::get_enc_rpl_slave_tblsp();
+    } else if (is_intrinsic) {
+      tblsp = innodb_session->get_enc_instrinsic_temp_tblsp();
+    } else {
+      tblsp = innodb_session->get_enc_usr_temp_tblsp();
+    }
+
+  } else if (srv_encrypt_tables == SRV_ENCRYPT_TABLES_OFF) {
+    if (is_slave_thd) {
+      tblsp = ibt::get_rpl_slave_tblsp();
+    } else if (is_intrinsic) {
+      tblsp = innodb_session->get_instrinsic_temp_tblsp();
+    } else {
+      tblsp = innodb_session->get_usr_temp_tblsp();
+    }
+  }
+  return (tblsp);
+}
+
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]	table	Table to build in its own tablespace.
 @param[in,out]	trx	Transaction
@@ -314,16 +346,11 @@ dberr_t dict_build_tablespace_for_table(
       ut_ad(dict_tf_get_rec_format(table->flags) != REC_FORMAT_COMPRESSED);
 
       innodb_session_t *innodb_session = thd_to_innodb_session(trx->mysql_thd);
-      ibt::Tablespace *tblsp = nullptr;
 
       bool is_slave_thd = thd_is_replication_slave_thread(trx->mysql_thd);
-      if (is_slave_thd) {
-        tblsp = ibt::get_rpl_slave_tblsp();
-      } else if (table->is_intrinsic()) {
-        tblsp = innodb_session->get_instrinsic_temp_tblsp();
-      } else {
-        tblsp = innodb_session->get_usr_temp_tblsp();
-      }
+      bool is_intrinsic = table->is_intrinsic();
+      const ibt::Tablespace *tblsp = determine_session_temp_tblsp(
+          innodb_session, is_intrinsic, is_slave_thd);
 
       /* Session temporary tablespace couldn't be allocated. This means,
       we have run out of disk space */

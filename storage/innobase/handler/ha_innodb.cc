@@ -11404,7 +11404,7 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
   if (!m_use_shared_space) {
     if (!m_use_file_per_table) {
       /* System or temporary tablespace is being used for table */
-      if (m_create_info->encrypt_type.str && !is_temp) {
+      if (m_create_info->encrypt_type.str) {
         /* Encryption option is not allowed for table in general/shared
         tablesapces. */
         my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
@@ -11922,22 +11922,26 @@ void ha_innobase::adjust_encryption_options(HA_CREATE_INFO *create_info,
 
   bool is_tmp = (create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0;
 
-  /* If table is intrinsic, it will use encryption for table based on
-  temporary tablespace encryption property. For non-intrinsic tables
-  without explicit encryption attribute, table will be forced to be
-  encrypted if innodb_encrypt_tables=ON/FORCE */
+  if (is_intrinsic || is_tmp) {
+	  return;
+  }
+
   if (create_info->encrypt_type.length == 0 &&
       create_info->encrypt_type.str == nullptr) {
-    if ((is_intrinsic && srv_tmp_space.is_encrypted()) ||
-        (!is_intrinsic && (srv_encrypt_tables == SRV_ENCRYPT_TABLES_ON ||
-                           srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE))) {
-      create_info->encrypt_type = yes_string;
-    } else if (!is_intrinsic && !is_tmp &&
-               (srv_encrypt_tables == SRV_ENCRYPT_TABLES_KEYRING_ON ||
-                srv_encrypt_tables == SRV_ENCRYPT_TABLES_KEYRING_FORCE ||
-                srv_encrypt_tables ==
-                    SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE)) {
-      create_info->encrypt_type = keyring_string;
+    switch (srv_encrypt_tables) {
+      case SRV_ENCRYPT_TABLES_ON:
+      case SRV_ENCRYPT_TABLES_FORCE:
+        create_info->encrypt_type = yes_string;
+        break;
+      case SRV_ENCRYPT_TABLES_KEYRING_ON:
+      case SRV_ENCRYPT_TABLES_KEYRING_FORCE:
+      case SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE:
+        create_info->encrypt_type = keyring_string;
+        break;
+     case SRV_ENCRYPT_TABLES_OFF:
+	break;
+      default:
+	ut_ad(0);
     }
   }
 

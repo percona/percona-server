@@ -78,7 +78,9 @@ class innodb_session_t {
         m_open_tables(),
         m_dict_mutex_locked(0),
         m_usr_temp_tblsp(),
-        m_intrinsic_temp_tblsp() {
+        m_enc_usr_temp_tblsp(),
+        m_intrinsic_temp_tblsp(),
+        m_enc_intrinsic_temp_tblsp() {
     /* Do nothing. */
   }
 
@@ -97,8 +99,16 @@ class innodb_session_t {
       ibt::free_tmp(m_usr_temp_tblsp);
     }
 
+    if (m_enc_usr_temp_tblsp != nullptr) {
+      ibt::free_tmp(m_enc_usr_temp_tblsp);
+    }
+
     if (m_intrinsic_temp_tblsp != nullptr) {
       ibt::free_tmp(m_intrinsic_temp_tblsp);
+    }
+
+    if (m_enc_intrinsic_temp_tblsp != nullptr) {
+      ibt::free_tmp(m_enc_intrinsic_temp_tblsp);
     }
   }
 
@@ -142,6 +152,7 @@ class innodb_session_t {
     return m_dict_mutex_locked != 0;
   }
 
+  /** @return un-encrypted tablespace of user created temp tables */
   ibt::Tablespace *get_usr_temp_tblsp() {
     if (m_usr_temp_tblsp == nullptr) {
       my_thread_id id = thd_thread_id(m_trx->mysql_thd);
@@ -151,6 +162,17 @@ class innodb_session_t {
     return (m_usr_temp_tblsp);
   }
 
+  /** @return encrypted tablespace of user created temp tables */
+  ibt::Tablespace *get_enc_usr_temp_tblsp() {
+    if (m_enc_usr_temp_tblsp == nullptr) {
+      my_thread_id id = thd_thread_id(m_trx->mysql_thd);
+      m_enc_usr_temp_tblsp = ibt::tbsp_pool->get(id, ibt::TBSP_ENC_USER);
+    }
+
+    return (m_enc_usr_temp_tblsp);
+  }
+
+  /** @return un-encrypted tablespace of optimizer created temp tables */
   ibt::Tablespace *get_instrinsic_temp_tblsp() {
     if (m_intrinsic_temp_tblsp == nullptr) {
       my_thread_id id = thd_thread_id(m_trx->mysql_thd);
@@ -158,6 +180,17 @@ class innodb_session_t {
     }
 
     return (m_intrinsic_temp_tblsp);
+  }
+
+  /** @return encrypted tablespace of optimizer created temp tables */
+  ibt::Tablespace *get_enc_instrinsic_temp_tblsp() {
+    if (m_enc_intrinsic_temp_tblsp == nullptr) {
+      my_thread_id id = thd_thread_id(m_trx->mysql_thd);
+      m_enc_intrinsic_temp_tblsp =
+          ibt::tbsp_pool->get(id, ibt::TBSP_ENC_INTRINSIC);
+    }
+
+    return (m_enc_intrinsic_temp_tblsp);
   }
 
  public:
@@ -181,9 +214,12 @@ class innodb_session_t {
 
   /** Current session's user temp tablespace */
   ibt::Tablespace *m_usr_temp_tblsp;
-
+  /** Current session's encrypted user temp tablespace */
+  ibt::Tablespace *m_enc_usr_temp_tblsp;
   /** Current session's optimizer temp tablespace */
   ibt::Tablespace *m_intrinsic_temp_tblsp;
+  /** Current session's encrypted optimizer temp tablespace */
+  ibt::Tablespace *m_enc_intrinsic_temp_tblsp;
 };
 
 /** A guard class which sets dict_mutex locked flag for the provided innodb

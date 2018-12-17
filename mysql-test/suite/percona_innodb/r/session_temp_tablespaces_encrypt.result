@@ -1,0 +1,114 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+SELECT @@innodb_temp_tablespace_encrypt;
+@@innodb_temp_tablespace_encrypt
+0
+SET GLOBAL big_tables=ON;
+# Create a new connection.
+# A session tablespace will be allocated to connection 1
+# for explicit temporary tables and state will be active
+SELECT @@session.big_tables;
+@@session.big_tables
+1
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+CREATE TEMPORARY TABLE test.t2(a INT, b BLOB);
+CREATE TABLE t3 like t1;
+INSERT INTO t1 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t2 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t3 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t2;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294501264	./#innodb_temp/temp_8.ibt	98304	ACTIVE	INTRINSIC
+ID	4294501265	./#innodb_temp/temp_9.ibt	114688	ACTIVE	USER
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+OFF
+SET GLOBAL default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+ON
+CREATE TEMPORARY TABLE test.t4(a INT, b BLOB);
+CREATE TEMPORARY TABLE test.t5(a INT, b BLOB);
+CREATE TABLE t6 like t1;
+INSERT INTO t4 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t5 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t6 SELECT * FROM t4;
+INSERT INTO t6 SELECT * FROM t5;
+INSERT INTO t6 SELECT * FROM t6;
+INSERT INTO t6 SELECT * FROM t6;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294501262	./#innodb_temp/temp_6.ibt	98304	ACTIVE	INTRINSIC ENCRYTPED
+ID	4294501263	./#innodb_temp/temp_7.ibt	114688	ACTIVE	USER ENCRYPTED
+ID	4294501264	./#innodb_temp/temp_8.ibt	98304	ACTIVE	INTRINSIC
+ID	4294501265	./#innodb_temp/temp_9.ibt	114688	ACTIVE	USER
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+ON
+SET GLOBAL default_table_encryption=OFF;
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+OFF
+DROP TABLE t3, t6;
+SET GLOBAL innodb_temp_tablespace_encrypt=ON;
+# Create a new connection.
+SELECT @@session.big_tables;
+@@session.big_tables
+1
+# Ensure entries in information_schema.processlist and
+# information_schema.innodb_session_temp_tablespaces are
+# in sync
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+CREATE TEMPORARY TABLE test.t2(a INT, b BLOB);
+CREATE TABLE t3 like t1;
+INSERT INTO t1 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t2 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t3 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t2;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294501260	./#innodb_temp/temp_4.ibt	98304	ACTIVE	INTRINSIC ENCRYTPED
+ID	4294501261	./#innodb_temp/temp_5.ibt	114688	ACTIVE	USER ENCRYPTED
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+OFF
+SET GLOBAL default_table_encryption=ON;
+SELECT @@global.default_table_encryption;
+@@global.default_table_encryption
+ON
+CREATE TEMPORARY TABLE test.t4(a INT, b BLOB);
+CREATE TEMPORARY TABLE test.t5(a INT, b BLOB);
+CREATE TABLE t6 like t1;
+INSERT INTO t4 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t5 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t6 SELECT * FROM t4;
+INSERT INTO t6 SELECT * FROM t5;
+INSERT INTO t6 SELECT * FROM t6;
+INSERT INTO t6 SELECT * FROM t6;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294501260	./#innodb_temp/temp_4.ibt	98304	ACTIVE	INTRINSIC ENCRYTPED
+ID	4294501261	./#innodb_temp/temp_5.ibt	147456	ACTIVE	USER ENCRYPTED
+SET GLOBAL innodb_temp_tablespace_encrypt=default;
+SET GLOBAL default_table_encryption=default;
+SET GLOBAL big_tables=default;
+DROP TABLE t3;
+DROP TABLE t6;
+include/assert.inc [Active session temp tablespaces count should be 2]
+include/assert.inc [Inactive session temp tablespaces count should be 8]
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

@@ -2918,18 +2918,23 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
 
     bool is_stored = innobase_is_s_fld(field);
 
+    const ulint is_compressed =
+        field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED
+            ? DATA_COMPRESSED
+            : 0;
+
     if (!is_virtual) {
-      prtype =
-          dtype_form_prtype((ulint)field->type() | nulls_allowed |
-                                unsigned_type | binary_type | long_true_varchar,
-                            charset_no);
+      prtype = dtype_form_prtype((ulint)field->type() | nulls_allowed |
+                                     unsigned_type | binary_type |
+                                     long_true_varchar | is_compressed,
+                                 charset_no);
       dict_mem_table_add_col(m_table, heap, field->field_name, mtype, prtype,
                              col_len);
     } else {
-      prtype = dtype_form_prtype((ulint)field->type() | nulls_allowed |
-                                     unsigned_type | binary_type |
-                                     long_true_varchar | is_virtual,
-                                 charset_no);
+      prtype = dtype_form_prtype(
+          (ulint)field->type() | nulls_allowed | unsigned_type | binary_type |
+              long_true_varchar | is_virtual | is_compressed,
+          charset_no);
       dict_mem_table_add_v_col(m_table, heap, field->field_name, mtype, prtype,
                                col_len, i,
                                field->gcol_info->non_virtual_base_columns());

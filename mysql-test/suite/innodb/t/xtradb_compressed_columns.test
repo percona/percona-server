@@ -1,4 +1,5 @@
-# only blob/text/varchar/varbinary/json are supported
+
+--echo # only blob/text/varchar/varbinary/json are supported
 --error ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE
 CREATE TABLE t1 (a INT COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
 CREATE TABLE t2 (a VARCHAR(100) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
@@ -20,8 +21,8 @@ SHOW CREATE TABLE t9;
 CREATE TABLE t10 (a JSON COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
 SHOW CREATE TABLE t10;
 
-# test index creation
-# compressed columns are not allowed to defined as a part or a key
+--echo # test index creation
+--echo # compressed columns are not allowed to defined as a part or a key
 --error ER_COMPRESSED_COLUMN_USED_AS_KEY
 CREATE TABLE t1(a BLOB COLUMN_FORMAT COMPRESSED, KEY(a(10)));
 
@@ -31,10 +32,10 @@ ALTER TABLE t3 ADD KEY(a(10));
 
 DROP TABLE t1;
 CREATE TABLE t1 (a BLOB) ENGINE=InnoDB;
-# it's ok if a blob column is not compressed
+--echo # it's ok if a blob column is not compressed
 ALTER TABLE t1 ADD KEY(a(10));
 
-# test modifying column format
+--echo # test modifying column format
 DROP TABLE t1;
 CREATE TABLE t1 (a BLOB) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (REPEAT('abc',5));
@@ -50,7 +51,7 @@ ALTER TABLE t1 MODIFY COLUMN a VARCHAR(10000);
 ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED;
 CHECKSUM TABLE t1;
 
-# test adding column with default value
+--echo # test adding column with default value
 DROP TABLE t1;
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (NULL);
@@ -62,7 +63,7 @@ ALTER TABLE t1 ADD COLUMN d VARCHAR(10000) COLUMN_FORMAT COMPRESSED DEFAULT "hel
 INSERT INTO t1 (a,b,c) VALUES (NULL, "hello", "world!");
 SELECT * FROM t1;
 
-# test new option: innodb_compressed_columns_zip_level
+--echo # test new option: innodb_compressed_columns_zip_level
 SHOW VARIABLES LIKE 'innodb_compressed_columns_zip_level';
 SET @old_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
 
@@ -85,7 +86,7 @@ SELECT @@global.innodb_compressed_columns_zip_level;
 
 SELECT MAX(LENGTH(a)) FROM t1;
 
-#test new option: innodb_compressed_columns_threshold
+--echo # test new option: innodb_compressed_columns_threshold
 SHOW VARIABLES LIKE 'innodb_compressed_columns_threshold';
 SET @old_innodb_compressed_columns_threshold = @@global.innodb_compressed_columns_threshold;
 
@@ -116,7 +117,7 @@ SELECT COUNT(*) FROM t1;
 SELECT a,b,c FROM t1 LIMIT 10;
 SELECT MAX(LENGTH(d)) FROM t1;
 
-#test checksum
+--echo # test checksum
 DROP TABLE t2;
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 SELECT * FROM t1;
@@ -125,14 +126,14 @@ SHOW CREATE TABLE t2;
 
 CHECKSUM TABLE t1, t2;
 
-#cleanup
+--echo # cleanup
 SET GLOBAL innodb_compressed_columns_zip_level = @old_innodb_compressed_columns_zip_level;
 SET GLOBAL innodb_compressed_columns_threshold = @old_innodb_compressed_columns_threshold;
 DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
 
-#
-# Bug lp:1621708 "InnoDB: Failing assertion: len <= col->len || col->mtype == 5 || (col->len == 0 && col->mtype == 1) Edit"
-#
+--echo #
+--echo # Bug lp:1621708 "InnoDB: Failing assertion: len <= col->len || col->mtype == 5 || (col->len == 0 && col->mtype == 1) Edit"
+--echo #
 SET @saved_innodb_compressed_columns_threshold = @@global.innodb_compressed_columns_threshold;
 
 CREATE TABLE t1(
@@ -164,9 +165,9 @@ DROP TABLE t1;
 
 SET GLOBAL innodb_compressed_columns_threshold = @saved_innodb_compressed_columns_threshold;
 
-#
-# Bug lp:1622588 "handle_fatal_signal (sig=11) in free_root from TABLE_SHARE::destroy on ALTER TABLE t1 ADD COLUMN ... COLUMN_FORMAT COMPRESSED"
-#
+--echo #
+--echo # Bug lp:1622588 "handle_fatal_signal (sig=11) in free_root from TABLE_SHARE::destroy on ALTER TABLE t1 ADD COLUMN ... COLUMN_FORMAT COMPRESSED"
+--echo #
 CREATE TABLE t1(
   id INT
 );
@@ -174,9 +175,9 @@ ALTER TABLE t1 ADD COLUMN c VARCHAR(1000) COLUMN_FORMAT COMPRESSED;
 
 DROP TABLE t1;
 
-#
-# A bug in row_merge_buf_add(): "ut_ad(len <= col->len || col->mtype == DATA_BLOB)" assertion
-#
+--echo #
+--echo # A bug in row_merge_buf_add(): "ut_ad(len <= col->len || col->mtype == DATA_BLOB)" assertion
+--echo #
 SET @saved_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
 SET GLOBAL innodb_compressed_columns_zip_level = 0;
 
@@ -196,11 +197,19 @@ DROP TABLE t1;
 
 SET GLOBAL innodb_compressed_columns_zip_level = @saved_innodb_compressed_columns_zip_level;
 
-#
-# Bug lp:1640810 "Adding COMPRESSED attributes to InnoDB special tables fields can lead to server crashes"
-#
+--echo #
+--echo # Bug lp:1640810 "Adding COMPRESSED attributes to InnoDB special tables fields can lead to server crashes"
+--echo #
 call mtr.add_suppression("InnoDB: Column .* in table .* has unexpected COMPRESSED attribute");
 
 --error ER_NOT_ALLOWED_COMMAND
 ALTER TABLE mysql.innodb_index_stats
   MODIFY stat_description VARCHAR(1024) COLLATE utf8_bin NOT NULL COLUMN_FORMAT COMPRESSED;
+
+--echo #
+--echo # Bug PS-5025 Assertion after altering a compressed column
+--echo #
+CREATE TABLE t1 (c1 VARBINARY(5) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+ALTER TABLE t1 ADD c2 CHAR(10) FIRST;
+INSERT INTO t1 VALUES(0,11111);
+DROP TABLE t1;

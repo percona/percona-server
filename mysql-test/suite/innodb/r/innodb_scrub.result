@@ -1,6 +1,12 @@
 select * from performance_schema.global_status
 where variable_name like 'innodb_scrub_background%';
 VARIABLE_NAME	VARIABLE_VALUE
+Innodb_scrub_background_page_reorganizations	0
+Innodb_scrub_background_page_splits	0
+Innodb_scrub_background_page_split_failures_underflow	0
+Innodb_scrub_background_page_split_failures_out_of_filespace	0
+Innodb_scrub_background_page_split_failures_missing_index	0
+Innodb_scrub_background_page_split_failures_unknown	0
 # FIXME: Add index(b) to each table; ensure that undo logs are scrubbed.
 # see MDEV-8139 for details
 create table delete_3 (
@@ -119,4 +125,8 @@ test.insert_rollback_0	check	status	OK
 drop table delete_0, delete_rollback_delete_0, insert_rollback_0;
 show variables like 'innodb_%scrub_data%';
 Variable_name	Value
+innodb_background_scrub_data_check_interval	3600
+innodb_background_scrub_data_compressed	OFF
+innodb_background_scrub_data_interval	604800
+innodb_background_scrub_data_uncompressed	OFF
 innodb_immediate_scrub_data_uncompressed	ON

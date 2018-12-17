@@ -1,17 +1,21 @@
-call mtr.add_suppression("\\[InnoDB\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
+--source include/have_component_keyring_file.inc
+
+call mtr.add_suppression("\\[InnoDB\\] Check keyring fail, please check the keyring is loaded.");
 call mtr.add_suppression("\\[InnoDB\\] Can't set temporary tablespace to be encrypted because keyring plugin is not available.");
+call mtr.add_suppression("\\[InnoDB\\] Unable to encrypt a session temp tablespace. Probably due to missing keyring plugin");
 
 --echo #
 --echo # PS-4727: instrinsic temp table behaviour shouldn't depend on innodb_encrypt_tables
 --echo #
 CREATE TABLE t1 (a INT, b BLOB);
 INSERT INTO t1 VALUES (1, 'hello'), (2, 'hi'), (3, 'satya');
-SET GLOBAL innodb_encrypt_tables=ON;
+SET GLOBAL default_table_encryption=ON;
 SET big_tables=ON;
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
 INSERT INTO t1 SELECT * FROM t1;
 DROP TABLE t1;
 SET big_tables=default;
-SET GLOBAL innodb_encrypt_tables=default;
+SET GLOBAL default_table_encryption=default;
 
 --echo # without keyring plugin, try to enable encryption of temporary
 --echo # tablespace
@@ -19,11 +23,15 @@ SELECT @@innodb_temp_tablespace_encrypt;
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 SELECT @@innodb_temp_tablespace_encrypt;
 
+--let $assert_text = Temporary tablespace should be unencrypted
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \"innodb_temporary\"]" = "N"
+--source include/assert.inc
+
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='N';
-DROP TABLE t01;
 
 --source include/restart_innodb_read_only.inc
 
@@ -31,6 +39,10 @@ DROP TABLE t01;
 SELECT @@innodb_temp_tablespace_encrypt;
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 SELECT @@innodb_temp_tablespace_encrypt;
+
+--let $assert_text = Temporary tablespace should be unencrypted
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \"innodb_temporary\"]" = "N"
+--source include/assert.inc
 
 --source include/shutdown_mysqld.inc
 
@@ -45,9 +57,17 @@ SELECT @@innodb_temp_tablespace_encrypt;
 --source include/grep_pattern.inc
 --remove_file $ERROR_LOG
 
---let $do_not_echo_parameters = 1
---let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/ts_encrypt_keyring $KEYRING_PLUGIN_OPT
 --source include/start_mysqld.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+
+CREATE TABLE t1 (a INT, b BLOB);
+INSERT INTO t1 VALUES (1, 'hello'), (2, 'hi'), (3, 'satya');
+SET GLOBAL default_table_encryption=ON;
+SET big_tables=ON;
+INSERT INTO t1 SELECT * FROM t1;
+DROP TABLE t1;
+SET big_tables=default;
+SET GLOBAL default_table_encryption=default;
 
 --source include/count_sessions.inc
 connect (other1,localhost,root,,test);
@@ -60,14 +80,17 @@ connection default;
 
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 SHOW WARNINGS;
+--let $assert_text = Temporary tablespace should be encrypted
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \"innodb_temporary\"]" = "Y"
+--source include/assert.inc
 
 connect (other2,localhost,root,,test);
 connection other2;
 
---error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+DROP TABLE t01;
 
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 
 disconnect other2;
@@ -75,9 +98,9 @@ disconnect other2;
 connect (other2,localhost,root,,test);
 connection other2;
 
-SET GLOBAL innodb_encrypt_tables=ON;
+SET GLOBAL default_table_encryption=ON;
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
-SET GLOBAL innodb_encrypt_tables=OFF;
+SET GLOBAL default_table_encryption=OFF;
 INSERT INTO t01 VALUES (1), (2), (3);
 
 connection default;
@@ -85,10 +108,13 @@ connection default;
 disconnect other2;
 disconnect other1;
 
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
+--let $assert_text = Temporary tablespace should be encrypted. Once encrypted, it cannot be unencrypted
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \"innodb_temporary\"]" = "Y"
+--source include/assert.inc
 
 --source include/wait_until_count_sessions.inc
---remove_file $MYSQL_TMP_DIR/ts_encrypt_keyring
+--source suite/component_keyring_file/inc/teardown_component.inc

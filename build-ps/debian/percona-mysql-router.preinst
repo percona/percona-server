@@ -32,7 +32,7 @@ case "$1" in
 
     addgroup --quiet --system mysqlrouter
     adduser --quiet --system --ingroup mysqlrouter --disabled-login --home ${MYSQLROUTERHOME} --shell /bin/false \
-      --gecos "Percona Server Router" mysqlrouter
+      --gecos "Percona MySQL Router" mysqlrouter
 
     if [ ! -d $LOGDIR ] && [ ! -L $LOGDIR ]; then
       install -d -m 0750 -o mysqlrouter -g adm ${LOGDIR}

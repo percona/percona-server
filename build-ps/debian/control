@@ -279,12 +279,12 @@ Description: Debugging package for Percona Server
  .
  This package contains the debugging symbols for the Percona Server binaries.
 
-Package: percona-server-router
+Package: percona-mysql-router
 Architecture: any
-Description: Percona Server Router
+Description: Percona MySQL Router
 Depends: ${shlibs:Depends}, ${misc:Depends}
 
-Package: percona-server-router-dev
+Package: percona-mysql-router-dev
 Architecture: any
-Description: Percona Server Router development files
+Description: Percona MySQL Router development files
 Depends: ${shlibs:Depends}, ${misc:Depends}

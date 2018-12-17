@@ -1,3 +1,4 @@
+# only blob/text/varchar/varbinary/json are supported
 CREATE TABLE t1 (a INT COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
 ERROR HY000: Can not define column 'a' in compressed format
 CREATE TABLE t2 (a VARCHAR(100) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
@@ -54,6 +55,8 @@ Table	Create Table
 t10	CREATE TABLE `t10` (
   `a` json /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# test index creation
+# compressed columns are not allowed to defined as a part or a key
 CREATE TABLE t1(a BLOB COLUMN_FORMAT COMPRESSED, KEY(a(10)));
 ERROR HY000: Compressed column 'a' is not allowed in the key list
 CREATE TABLE t1(a BLOB COLUMN_FORMAT COMPRESSED);
@@ -61,7 +64,9 @@ ALTER TABLE t3 ADD KEY(a(10));
 ERROR HY000: Compressed column 'a' is not allowed in the key list
 DROP TABLE t1;
 CREATE TABLE t1 (a BLOB) ENGINE=InnoDB;
+# it's ok if a blob column is not compressed
 ALTER TABLE t1 ADD KEY(a(10));
+# test modifying column format
 DROP TABLE t1;
 CREATE TABLE t1 (a BLOB) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (REPEAT('abc',5));
@@ -94,6 +99,7 @@ ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED;
 CHECKSUM TABLE t1;
 Table	Checksum
 test.t1	1570560110
+# test adding column with default value
 DROP TABLE t1;
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (NULL);
@@ -109,6 +115,7 @@ a	b	c	d
 2	NULL	NULL	hello, world! see you!
 3	hello!	world!	hello, world! see you!
 4	hello	world!	hello, world! see you!
+# test new option: innodb_compressed_columns_zip_level
 SHOW VARIABLES LIKE 'innodb_compressed_columns_zip_level';
 Variable_name	Value
 innodb_compressed_columns_zip_level	6
@@ -141,6 +148,7 @@ SELECT @@global.innodb_compressed_columns_zip_level;
 SELECT MAX(LENGTH(a)) FROM t1;
 MAX(LENGTH(a))
 800
+# test new option: innodb_compressed_columns_threshold
 SHOW VARIABLES LIKE 'innodb_compressed_columns_threshold';
 Variable_name	Value
 innodb_compressed_columns_threshold	96
@@ -200,6 +208,7 @@ a	b	c
 SELECT MAX(LENGTH(d)) FROM t1;
 MAX(LENGTH(d))
 300
+# test checksum
 DROP TABLE t2;
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 SELECT * FROM t1;
@@ -217,9 +226,13 @@ CHECKSUM TABLE t1, t2;
 Table	Checksum
 test.t1	2260691284
 test.t2	2260691284
+# cleanup
 SET GLOBAL innodb_compressed_columns_zip_level = @old_innodb_compressed_columns_zip_level;
 SET GLOBAL innodb_compressed_columns_threshold = @old_innodb_compressed_columns_threshold;
 DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+#
+# Bug lp:1621708 "InnoDB: Failing assertion: len <= col->len || col->mtype == 5 || (col->len == 0 && col->mtype == 1) Edit"
+#
 SET @saved_innodb_compressed_columns_threshold = @@global.innodb_compressed_columns_threshold;
 CREATE TABLE t1(
 a VARCHAR(1) COLUMN_FORMAT COMPRESSED
@@ -260,11 +273,17 @@ abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcab
 abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc
 DROP TABLE t1;
 SET GLOBAL innodb_compressed_columns_threshold = @saved_innodb_compressed_columns_threshold;
+#
+# Bug lp:1622588 "handle_fatal_signal (sig=11) in free_root from TABLE_SHARE::destroy on ALTER TABLE t1 ADD COLUMN ... COLUMN_FORMAT COMPRESSED"
+#
 CREATE TABLE t1(
 id INT
 );
 ALTER TABLE t1 ADD COLUMN c VARCHAR(1000) COLUMN_FORMAT COMPRESSED;
 DROP TABLE t1;
+#
+# A bug in row_merge_buf_add(): "ut_ad(len <= col->len || col->mtype == DATA_BLOB)" assertion
+#
 SET @saved_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
 SET GLOBAL innodb_compressed_columns_zip_level = 0;
 CREATE TABLE t1 (
@@ -282,7 +301,17 @@ number_of_rows_after_alteration
 1
 DROP TABLE t1;
 SET GLOBAL innodb_compressed_columns_zip_level = @saved_innodb_compressed_columns_zip_level;
+#
+# Bug lp:1640810 "Adding COMPRESSED attributes to InnoDB special tables fields can lead to server crashes"
+#
 call mtr.add_suppression("InnoDB: Column .* in table .* has unexpected COMPRESSED attribute");
 ALTER TABLE mysql.innodb_index_stats
 MODIFY stat_description VARCHAR(1024) COLLATE utf8_bin NOT NULL COLUMN_FORMAT COMPRESSED;
 ERROR 42000: The used command is not allowed with this MySQL version
+#
+# Bug PS-5025 Assertion after altering a compressed column
+#
+CREATE TABLE t1 (c1 VARBINARY(5) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+ALTER TABLE t1 ADD c2 CHAR(10) FIRST;
+INSERT INTO t1 VALUES(0,11111);
+DROP TABLE t1;

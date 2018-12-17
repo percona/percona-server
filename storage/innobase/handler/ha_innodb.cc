@@ -6107,7 +6107,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
                                      dd_space_flags)
                : dd_open_hardcoded(dict_sys_t::s_dict_space_id,
                                    dict_sys_t::s_dd_space_file_name,
-				   dd_space_flags);
+                                   dd_space_flags);
 
   /* Once hardcoded tablespace mysql is created or opened,
   prepare it along with innodb system tablespace for server.
@@ -6127,8 +6127,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
              dd_space_flags, DD_SPACE_CURRENT_SRV_VERSION,
              DD_SPACE_CURRENT_SPACE_VERSION);
 
-    const char *dd_space_options =
-        do_encrypt ? "encryption=y" : "";
+    const char *dd_space_options = do_encrypt ? "encryption=y" : "";
 
     static Plugin_tablespace dd_space(dict_sys_t::s_dd_space_name,
                                       dd_space_options, se_private_data_dd, "",

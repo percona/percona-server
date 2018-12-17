@@ -7577,8 +7577,10 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
   }
 
   /* For writing temporary tablespace, if encryption for temporary
-  tablespace is disabled, skip setting encryption. */
-  if (fsp_is_system_temporary(space->id) && !srv_tmp_tablespace_encrypt &&
+  tablespace is disabled, skip setting encryption.
+  Encryption of session temporary tablespaces is independent of
+  innodb_temp_tablespace_encrypt */
+  if (fsp_is_global_temporary(space->id) && !srv_tmp_tablespace_encrypt &&
       req_type.is_write()) {
     req_type.clear_encrypted();
     return;

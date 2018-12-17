@@ -7387,12 +7387,7 @@ static int i_s_innodb_session_temp_tablespaces_fill_one(
 
   ibt::tbsp_purpose purpose = ts->purpose();
 
-  const char *p =
-      purpose == ibt::TBSP_NONE
-          ? "NONE"
-          : (purpose == ibt::TBSP_USER
-                 ? "USER"
-                 : (purpose == ibt::TBSP_INTRINSIC ? "INTRINSIC" : "SLAVE"));
+  const char *p = ibt::get_purpose_str(purpose);
 
   OK(field_store_string(fields[INNODB_SESSION_TEMP_TABLESPACES_PURPOSE], p));
 
@@ -7422,7 +7417,13 @@ static int i_s_innodb_session_temp_tablespaces_fill(THD *thd, Table_ref *tables,
   mutex again */
   check_trx_exists(thd);
   innodb_session_t *innodb_session = thd_to_innodb_session(thd);
-  innodb_session->get_instrinsic_temp_tblsp();
+  if (srv_default_table_encryption == DEFAULT_TABLE_ENC_ON ||
+      srv_tmp_tablespace_encrypt) {
+    innodb_session->get_enc_instrinsic_temp_tblsp();
+  } else {
+    innodb_session->get_instrinsic_temp_tblsp();
+  }
+
   auto print = [&](const ibt::Tablespace *ts) {
     i_s_innodb_session_temp_tablespaces_fill_one(thd, ts, tables->table);
   };

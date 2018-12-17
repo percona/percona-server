@@ -391,7 +391,7 @@
 +  TARGET_LINK_LIBRARIES(bug25714 mysqlclient)
    SET_TARGET_PROPERTIES(bug25714 PROPERTIES LINKER_LANGUAGE CXX)
  ENDIF()
---- plugin/percona-pam-for-mysql/CMakeLists.txt_new     2018-08-21 07:01:38.155232659 -0400
+--- plugin/percona-pam-for-mysql/CMakeLists.txt 2018-08-21 07:01:38.155232659 -0400
 +++ plugin/percona-pam-for-mysql/CMakeLists.txt 2018-08-21 07:02:18.194400527 -0400
 @@ -37,7 +37,7 @@
    MYSQL_ADD_PLUGIN(dialog
@@ -400,8 +400,8 @@
 -                   LINK_LIBRARIES perconaserverclient
 +                   LINK_LIBRARIES mysqlclient
                     MODULE_ONLY)
- ENDIF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R AND HAVE_DLFCN_H)
- ENDIF(WITH_PAM)
+ 
+   IF(UNIX)
 --- unittest/gunit/group_replication/CMakeLists.txt     2018-08-22 01:55:48.775894920 -0400
 +++ unittest/gunit/group_replication/CMakeLists.txt     2018-08-22 01:56:19.804229110 -0400
 @@ -45,7 +45,7 @@

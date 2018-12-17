@@ -71,7 +71,7 @@ static const constexpr auto max_pam_buffered_msg_len = 10240;
 static PSI_memory_key key_memory_pam_msg_buf;
 
 static PSI_memory_info pam_auth_memory[] = {
-    {&key_memory_pam_msg_buf, "auth_pam_msg_buf", PSI_FLAG_SINGLETON,
+    {&key_memory_pam_msg_buf, "auth_pam_msg_buf", PSI_FLAG_ONLY_GLOBAL_STAT,
      PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
 };
 

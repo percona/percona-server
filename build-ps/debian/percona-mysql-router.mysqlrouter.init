@@ -6,9 +6,9 @@
 # Required-Stop:     $remote_fs $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Start / Stop MySQL Router
+# Short-Description: Start / Stop Percona MySQL Router
 # Description:       This service script facilitates startup and shutdown of
-#                    MySQL Router.
+#                    Percona MySQL Router.
 ### END INIT INFO
 
 # Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
@@ -32,10 +32,10 @@
 
 . /lib/lsb/init-functions
 
-DESC="Start / Stop Percona Server Router"
+DESC="Start / Stop Percona MySQL Router"
 DAEMON=/usr/bin/mysqlrouter
 DAEMON_OPTIONS="-c /etc/mysqlrouter/mysqlrouter.conf"
-NAME="Percona Server Router"
+NAME="Percona MySQL Router"
 RUNTIMEDIR=/var/run/mysqlrouter/
 PID=${RUNTIMEDIR}/mysqlrouter.pid
 STOP_RETRY=3
@@ -46,7 +46,7 @@ DATADIR=/var/lib/mysqlrouter
 do_start() {
 
   local retval=0
-  log_daemon_msg "Starting Percona Server Router"
+  log_daemon_msg "Starting Percona MySQL Router"
 
   if [ ! -x $DAEMON ]; then
     log_end_msg 1

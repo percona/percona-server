@@ -369,8 +369,16 @@ extern const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char *srv_log_group_home_dir;
 
+enum redo_log_encrypt_enum {
+	REDO_LOG_ENCRYPT_OFF = 0,
+	REDO_LOG_ENCRYPT_ON = 1,
+	REDO_LOG_ENCRYPT_MK = 2,
+	REDO_LOG_ENCRYPT_RK = 3,
+};
+
+
 /** Enable or Disable Encrypt of REDO tablespace. */
-extern bool srv_redo_log_encrypt;
+extern ulong srv_redo_log_encrypt;
 
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100

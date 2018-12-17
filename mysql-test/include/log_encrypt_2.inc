@@ -3,36 +3,13 @@
 
 --source include/no_valgrind_without_big.inc
 
-#Suppress following messages from myslqd log
---disable_query_log
-call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Function 'keyring_file' already exists");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
-call mtr.add_suppression("Plugin keyring_file reported");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set redo log tablespace to be encrypted.");
-call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
---enable_query_log
-
---sleep 2
-
 CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
 
 DROP TABLE t1;
 
 # Restart the server with keyring loaded
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+--let restart_parameters="restart:$KEYRING_PARAMS"
+--source include/restart_mysqld_no_echo.inc
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -59,17 +36,15 @@ INSERT INTO t1 select * from t1;
 INSERT INTO t1 select * from t1;
 INSERT INTO t1 select * from t1;
 INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
 
 SELECT * FROM t1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let restart_parameters="restart:$KEYRING_PARAMS"
+--source include/restart_mysqld_no_echo.inc
 
 SELECT * FROM t1 LIMIT 10;
 
@@ -91,33 +66,35 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
 
 # Restart to confirm the encryption info can be retrieved properly.
---source include/kill_mysqld.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let restart_parameters="restart:$KEYRING_PARAMS"
+--let $restart_hide_args = 1
+--source include/kill_and_restart_mysqld.inc
 
 SELECT * FROM t1 LIMIT 10;
 DROP TABLE t1;
 
-
-
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT ;
+let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
-#
+--source include/restart_mysqld_no_echo.inc
+
 # Check no effect of block_encryption_mode = 'aes-256-cbc' variable on table encryption
 SET block_encryption_mode = 'aes-256-cbc';
 # Test encryption .
---disable_warnings
-DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
 CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENCRYPTION = 'Y' ENGINE = InnoDB;
---enable_warnings
-#
+
 INSERT INTO tde_db.t1 VALUES(0, 'abc');
 INSERT INTO tde_db.t1 VALUES(1, 'xyz');
 INSERT INTO tde_db.t1 VALUES(2, null);

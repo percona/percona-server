@@ -5,20 +5,13 @@
 --source include/have_innodb_max_16k.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Could not find a valid tablespace file for");
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Ignoring tablespace .* because it could not be opened");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("Redo log key generation failed.");
 --enable_query_log
 
-#Enable redo log encryption, should report error in server log, since keyring is not loaded.
-SET GLOBAL innodb_redo_log_encrypt = ON;
---sleep 1
+# Enable redo log encryption, should report error in server log, since keyring is not loaded.
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_mode;
 
 # Create a table with encryption, should fail since keyring is not
 # loaded.
@@ -30,14 +23,13 @@ CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
 
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_log1 --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT ;
+let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source include/restart_mysqld_no_echo.inc
 
 #Enable redo log encryption
-SET GLOBAL innodb_redo_log_encrypt = ON;
---sleep 1
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_mode;
 
 SHOW CREATE TABLE t1;
 
@@ -61,10 +53,10 @@ INSERT INTO t1 select * from t1;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_log1 --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON;
+let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log --innodb_redo_log_encrypt=$redo_log_mode;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source include/restart_mysqld_no_echo.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
@@ -85,11 +77,8 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
---source include/kill_mysqld.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_log1 $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let $restart_parameters = restart: $KEYRING_PARAMS
+--source include/restart_mysqld_no_echo.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 DELETE FROM t1;
@@ -107,10 +96,10 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_log1 --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON;
+let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log --innodb_redo_log_encrypt=$redo_log_mode;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
 --replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--source include/restart_mysqld_no_echo.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
@@ -128,5 +117,4 @@ INSERT INTO t1 VALUES(9, "jjjjj");
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Cleanup
---remove_file $MYSQL_TMP_DIR/mysecret_keyring_log1
 DROP TABLE t1;

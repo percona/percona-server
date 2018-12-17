@@ -21,6 +21,7 @@
 
 #define PERCONA_BINLOG_KEY_NAME "percona_binlog"
 #define PERCONA_INNODB_KEY_NAME "percona_innodb"
+#define PERCONA_REDO_KEY_NAME "percona_redo"
 
 bool is_valid_percona_system_key(const char *key_name, size_t *key_length);
 

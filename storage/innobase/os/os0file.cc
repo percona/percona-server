@@ -8797,6 +8797,31 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
   return (true);
 }
 
+bool Encryption::fill_encryption_info(uint key_version, byte *iv,
+                                      byte *encrypt_info) {
+  byte *ptr = encrypt_info;
+  ulint crc;
+  memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+  memcpy(ptr, ENCRYPTION_KEY_MAGIC_RK, ENCRYPTION_MAGIC_SIZE);
+  ptr += ENCRYPTION_MAGIC_SIZE;
+  /* Write master key id. */
+  mach_write_to_4(ptr, key_version);
+  ptr += sizeof(ulint);
+  /* Write server uuid. */
+  memcpy(ptr, s_uuid, ENCRYPTION_SERVER_UUID_LEN);
+  ptr += ENCRYPTION_SERVER_UUID_LEN;
+  /* Write tablespace iv. */
+  memcpy(ptr, iv, ENCRYPTION_KEY_LEN);
+  ptr += ENCRYPTION_KEY_LEN * 2;
+  /* Write checksum bytes. */
+  crc = ut_crc32(encrypt_info, ENCRYPTION_KEY_LEN * 2);
+  mach_write_to_4(ptr, crc);
+#ifdef UNIV_ENCRYPT_DEBUG
+  fprintf(stderr, "Encrypting log with key version: %u\n", key_version);
+#endif
+  return true;
+}
+
 /** Get master key from encryption information
 @param[in]	encrypt_info	encryption information
 @param[in]	version		version of encryption information

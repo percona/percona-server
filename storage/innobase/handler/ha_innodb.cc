@@ -472,6 +472,20 @@ ibool meb_get_checksum_algorithm_enum(const char *algo_name,
 }
 #endif /* !UNIV_HOTBACKUP */
 
+static const char* redo_log_encrypt_names[] = {
+  "off",
+  "on",
+  "master_key",
+  "keyring_key",
+  NullS
+};
+static TYPELIB redo_log_encrypt_typelib = {
+  array_elements(redo_log_encrypt_names) - 1,
+  "redo_log_encrypt_typelib",
+  redo_log_encrypt_names,
+  nullptr
+};
+
 #ifndef UNIV_HOTBACKUP
 /* The following counter is used to convey information to InnoDB
 about server activity: in case of normal DML ops it is not
@@ -3989,6 +4003,8 @@ bool innobase_fix_tablespaces_empty_uuid() {
     return (false);
   }
 
+  log_enable_encryption_if_set();
+
   /* We only need to handle the case when an encrypted tablespace
   is created at startup. If it is 0, there is no encrypted tablespace,
   If it is > 1, it means we already have fixed the UUID */
@@ -4035,7 +4051,7 @@ bool innobase_fix_tablespaces_empty_uuid() {
   /* Rotate log tablespace */
   bool failure1 = !log_rotate_encryption();
 
-  bool failure2 = !fil_encryption_rotate_global(space_ids);
+  bool failure2 = !fil_encryption_rotate_global(space_ids) ||  !log_rotate_encryption();
 
   my_free(master_key);
 
@@ -22004,10 +22020,11 @@ static MYSQL_SYSVAR_ENUM(
     " The ROW_FORMAT value COMPRESSED is not allowed",
     NULL, NULL, DEFAULT_ROW_FORMAT_DYNAMIC, &innodb_default_row_format_typelib);
 
-static MYSQL_SYSVAR_BOOL(redo_log_encrypt, srv_redo_log_encrypt,
-                         PLUGIN_VAR_OPCMDARG,
-                         "Enable or disable Encryption of REDO tablespace.",
-                         NULL, NULL, FALSE);
+static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
+    PLUGIN_VAR_OPCMDARG,
+    "Enable or disable Encryption of REDO tablespace."
+    "Possible values: OFF, ON, MASTER_KEY, KEYRING_KEY.",
+    NULL, NULL, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
 
 static MYSQL_SYSVAR_BOOL(
     print_ddl_logs, srv_print_ddl_logs, PLUGIN_VAR_OPCMDARG,

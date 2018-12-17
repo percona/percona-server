@@ -18,6 +18,4 @@ ERROR HY000: Binary logging not possible. Message: Either disk is full or file s
 Pattern "Binary logging not possible. Message: Either disk is full or file system is read only or encryption failed while opening the relay_log. Aborting the server." found
 Pattern "Failed to fetch or create percona_binlog key from/in keyring and thus failed to initialize relay_log encryption. Have you enabled keyring plugin?" found
 include/rpl_start_server.inc [server_number=2]
-include/start_slave.inc
-include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

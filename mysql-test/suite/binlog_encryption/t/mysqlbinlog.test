@@ -15,7 +15,7 @@ let remote=--read-from-remote-server --protocol=tcp --host=127.0.0.1 --port=$MAS
 let outfile=$MYSQLTEST_VARDIR/tmp/binlog_enc.sql;
 --error 1
 exec $MYSQL_BINLOG $local > $outfile;
-exec $MYSQL_BINLOG $local -#d,'expect_Unknown_event' --force-read >> $outfile;
-exec $MYSQL_BINLOG $local -#d,'expect_Unknown_event' --force-read --offset=3 >> $outfile;
+exec $MYSQL_BINLOG $local --force-read >> $outfile;
+exec $MYSQL_BINLOG $local --force-read --offset=3 >> $outfile;
 exec $MYSQL_BINLOG $remote >> $outfile;
 remove_file $outfile;

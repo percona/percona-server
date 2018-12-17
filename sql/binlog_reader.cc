@@ -15,6 +15,7 @@
 
 #include "sql/binlog_reader.h"
 #include "sql/log_event.h"
+#include "sql/event_crypt.h"
 
 unsigned char *Default_binlog_event_allocator::allocate(size_t size) {
   DBUG_EXECUTE_IF("simulate_allocate_failure", return nullptr;);
@@ -51,6 +52,21 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
 }
 #endif  // ifdef DBUG_OFF
 
+bool Binlog_event_data_istream::start_decryption(
+    binary_log::Start_encryption_event *see) {
+  DBUG_ASSERT(!crypto_data.is_enabled());
+
+  Start_encryption_log_event *sele =
+      down_cast<Start_encryption_log_event *>(see);
+  if (!sele->is_valid() ||
+      crypto_data.init(see->crypto_scheme, see->key_version, see->nonce)) {
+    m_error->set_type(Binlog_read_error::DECRYPT_INIT_FAILURE);
+    return true;
+  }
+  return false;
+}
+
+
 Binlog_event_data_istream::Binlog_event_data_istream(
     Binlog_read_error *error, Basic_istream *istream,
     unsigned int max_event_size)
@@ -61,6 +77,51 @@ bool Binlog_event_data_istream::read_event_header() {
       m_header, LOG_EVENT_MINIMAL_HEADER_LEN);
 }
 
+Binlog_event_data_istream::Decryption_buffer::~Decryption_buffer() {
+  resize(0);
+}
+
+bool Binlog_event_data_istream::Decryption_buffer::resize(size_t new_size) {
+  memset_s(m_buffer, m_size, 0, m_size);
+  delete[] m_buffer;
+  m_size = 0;
+  m_buffer = nullptr;
+  if (new_size == 0) {
+    return false;
+  }
+  m_buffer = new (std::nothrow) uchar[new_size];
+  if (m_buffer == nullptr) {
+    return true;
+  }
+  m_size = new_size;
+  return false;
+}
+
+bool Binlog_event_data_istream::Decryption_buffer::set_size(size_t size_to_set) {
+  if (size_to_set == m_size) {
+    return false;
+  }
+  if (size_to_set > m_size) {
+    return resize(size_to_set);
+  }
+  DBUG_ASSERT(size_to_set < m_size);
+
+  if (size_to_set < (m_size / 2) && ++m_number_of_events_with_half_the_size == 100) {
+    // There were already 101 events which size was a half of currently
+    // allocated size. This is strong indication that we had occured an
+    // event which was unusually big. Shrink the buffer to half the size.
+    if (resize(m_size / 2)) {
+      return true;
+    }
+    m_number_of_events_with_half_the_size = 0;
+  }
+  return false;
+}
+
+uchar* Binlog_event_data_istream::Decryption_buffer::data() {
+  return m_buffer;
+}
+
 bool Binlog_event_data_istream::fill_event_data(
     unsigned char *event_data, bool verify_checksum,
     enum_binlog_checksum_alg checksum_alg) {
@@ -69,6 +130,21 @@ bool Binlog_event_data_istream::fill_event_data(
           event_data + LOG_EVENT_MINIMAL_HEADER_LEN,
           m_event_length - LOG_EVENT_MINIMAL_HEADER_LEN))
     return true;
+
+  if (crypto_data.is_enabled()) {
+    // crypto only works on binlog files
+    Basic_binlog_ifile* binlog_file = down_cast<Basic_binlog_ifile*>(m_istream);
+    
+    // if file position if larger than 4 bytes we still care only about
+    // least significant 4 bytes
+    if (m_decryption_buffer.set_size(m_event_length) ||
+        decrypt_event(static_cast<uint32_t>((binlog_file->position() - m_event_length)), crypto_data, event_data, m_decryption_buffer.data(),
+                      m_event_length)) {
+      return m_error->set_type(Binlog_read_error::DECRYPT);
+    }
+
+    memcpy(event_data, m_decryption_buffer.data(), m_event_length);
+  }
 
 #ifndef DBUG_OFF
   debug_corrupt_event(event_data, m_event_length);
@@ -82,7 +158,8 @@ bool Binlog_event_data_istream::fill_event_data(
     if (Log_event_footer::event_checksum_test(event_data, m_event_length,
                                               checksum_alg) &&
         !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
-      return m_error->set_type(Binlog_read_error::CHECKSUM_FAILURE);
+      return m_error->set_type(crypto_data.is_enabled() ? Binlog_read_error::CHECKSUM_FAILURE
+                                                        : Binlog_read_error::DECRYPT);
     }
   }
   return false;
@@ -109,16 +186,6 @@ Binlog_read_error::Error_type binlog_event_deserialize(
 
   DBUG_ENTER("binlog_event_deserialize");
 
-#ifndef MYSQL_SERVER
-  static bool was_start_encryption_event = false;
-  if (was_start_encryption_event) {
-    // We know that binlog is encrypted (as we read Start_encryption event) and
-    // we know that client applications cannot decrypt encrypted binlogs as they
-    // have no access to keyring. Thus we return Unknown_event for all encrypted
-    // events when force is used and close mysqlbinlog when no force.
-    if (!force_opt) DBUG_RETURN(Binlog_read_error::DECRYPT);
-  }
-#endif
 
   DBUG_ASSERT(fde != 0);
   DBUG_PRINT("info", ("binlog_version: %d", fde->binlog_version));
@@ -142,31 +209,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
                     : Binlog_read_error::TRUNC_EVENT);
   }
 
-  unique_ptr_my_free<char> decrypted_packet;
-  if (fde != nullptr && fde->is_decrypting()) {
-    const Format_description_log_event &fdle =
-        dynamic_cast<const Format_description_log_event &>(*fde);
-    size_t true_data_len = event_len + LOG_EVENT_MINIMAL_HEADER_LEN;
-
-    decrypted_packet.reset(reinterpret_cast<char *>(
-        my_malloc(key_memory_log_event, true_data_len + 1,
-                  MYF(MY_WME))));  // TODO laurynas why +1?
-
-    if (!decrypted_packet) DBUG_RETURN(Binlog_read_error::MEM_ALLOCATE);
-
-    uchar *src = (uchar *)buf;
-    uchar *dst = (uchar *)decrypted_packet.get();
-    memcpy(src + EVENT_LEN_OFFSET, src, 4);
-
-    // TODO laurynas: fdle->crypto_data.offs must be updated
-    if (decrypt_event(fdle.crypto_data, src, dst, true_data_len)) {
-      DBUG_RETURN(Binlog_read_error::DECRYPT);
-    }
-
-    buf = decrypted_packet.get();
-  }
-
-  uint event_type = buf[EVENT_TYPE_OFFSET];
+  uchar event_type = buf[EVENT_TYPE_OFFSET];
 
   /*
     Sanity check for Format description event. This is needed because
@@ -205,6 +248,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
   }
 
   if (event_type > fde->number_of_event_types &&
+      event_type != binary_log::START_ENCRYPTION_EVENT &&
       /*
         Skip the event type check when simulating an unknown ignorable event.
       */
@@ -215,7 +259,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
     */
     DBUG_PRINT("error", ("event type %d found, but the current "
                          "Format_description_event supports only %d event "
-                         "types",
+                         "types, plus Start Encryption Event",
                          event_type, fde->number_of_event_types));
     DBUG_RETURN(Binlog_read_error::INVALID_EVENT);
   }
@@ -319,9 +363,6 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       break;
     case binary_log::START_ENCRYPTION_EVENT:
       ev = new Start_encryption_log_event(buf, fde);
-#ifndef MYSQL_SERVER
-      was_start_encryption_event = true;
-#endif
       break;
     default:
       /*

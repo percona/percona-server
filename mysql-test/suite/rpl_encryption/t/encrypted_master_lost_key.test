@@ -165,8 +165,9 @@ USE test;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_1, MASTER_USER='root', MASTER_LOG_FILE='$good_master_binlog';
 --source include/start_slave.inc
 --enable_connect_log
---source include/sync_slave_sql.inc
 
+--connection server_1
+--source include/sync_slave_sql_with_master.inc
 --sorted_result
 SHOW TABLES;
 
@@ -190,8 +191,9 @@ USE test;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_1, MASTER_USER='root';
 --source include/start_slave.inc
 --enable_connect_log
---source include/sync_slave_sql.inc
 
+--connection server_1
+--source include/sync_slave_sql_with_master.inc
 --sorted_result
 SHOW TABLES;
 

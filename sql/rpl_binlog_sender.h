@@ -162,8 +162,6 @@ class Binlog_sender : Gtid_mode_copy {
    */
   const static float PACKET_SHRINK_FACTOR;
 
-  std::unique_ptr<Format_description_log_event> m_fdle;
-
   uint32 m_flag;
   /*
     It is true if any plugin requires to observe the transmission for each

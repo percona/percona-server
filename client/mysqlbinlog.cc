@@ -1317,8 +1317,6 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         break;
       }
       case binary_log::START_ENCRYPTION_EVENT: {
-        glob_description_event.start_decryption(
-            static_cast<Start_encryption_log_event *>(ev));
         ev->print(result_file, print_event_info);
         if (head->error == -1) goto err;
         break;
@@ -2351,15 +2349,40 @@ class Mysqlbinlog_event_data_istream : public Binlog_event_data_istream {
   bool read_event_data(unsigned char **buffer, unsigned int *length,
                        ALLOCATOR *allocator, bool verify_checksum,
                        enum_binlog_checksum_alg checksum_alg) {
-    return Binlog_event_data_istream::read_event_data(
-               buffer, length, allocator, verify_checksum, checksum_alg) ||
-           rewrite_db(buffer, length);
+    bool error = Binlog_event_data_istream::read_event_data(
+               buffer, length, allocator, verify_checksum, checksum_alg);
+
+    if (m_binlog_encrypted && m_error->get_type() != Binlog_read_error::READ_EOF) {
+      if (!force_opt) {
+        m_error->set_type(Binlog_read_error::DECRYPT);
+      } else {
+        m_error->set_type(Binlog_read_error::SUCCESS);
+        // We will be creating Unknown_log_events with events marked as encrypted
+      }
+      return true;
+    }
+
+    if (!error && (*buffer)[EVENT_TYPE_OFFSET] == binary_log::START_ENCRYPTION_EVENT) {
+      m_binlog_encrypted = true;
+    }
+
+    return error || rewrite_db(buffer, length);
   }
+
+  bool start_decryption(binary_log::Start_encryption_event *see MY_ATTRIBUTE((unused))) {
+    m_binlog_encrypted = true;
+    return false;
+  }
+
+  void reset_crypto() noexcept { m_binlog_encrypted = false; }
+
+  bool is_binlog_encrypted() { return m_binlog_encrypted; }
 
   void set_multi_binlog_magic() { m_multi_binlog_magic = true; };
 
  private:
   bool m_multi_binlog_magic = false;
+  bool m_binlog_encrypted = false;
 
   bool rewrite_db(unsigned char **buffer, unsigned int *length) {
     ulong len = *length;
@@ -2512,10 +2535,15 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     char llbuff[21];
     my_off_t old_off = mysqlbinlog_file_reader.position();
 
-    binary_log_debug::debug_expect_unknown_event =
-        DBUG_EVALUATE_IF("expect_Unknown_event", true, false);
-
     Log_event *ev = mysqlbinlog_file_reader.read_event_object();
+    if (mysqlbinlog_file_reader.event_data_istream()->is_binlog_encrypted() &&
+        mysqlbinlog_file_reader.get_error_type() != Binlog_read_error::READ_EOF &&
+        (!ev || ev->get_type_code() != binary_log::START_ENCRYPTION_EVENT)) {
+      DBUG_ASSERT(ev == nullptr);
+      if (force_opt) {
+        ev = new Unknown_log_event;
+      }
+    }
     if (ev == NULL) {
       /*
         if binlog wasn't closed properly ("in use" flag is set) don't complain

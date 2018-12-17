@@ -1260,13 +1260,21 @@ class Binlog_event_writer : public Basic_ostream {
 
         if (header_len == LOG_EVENT_HEADER_LEN) {
           update_header();
-          if (event_encrypter.is_encryption_enabled() &&
-              event_encrypter.init(m_binlog_file, header, header_len)) {
-            DBUG_RETURN(true);
+          if (event_encrypter.is_encryption_enabled()) {
+
+            uchar *header_for_encryption = header;
+            size_t header_for_encryption_length = header_len;
+
+            if (event_encrypter.init(m_binlog_file, header_for_encryption, header_for_encryption_length)) {
+              DBUG_RETURN(true);
+            }
+            if (event_encrypter.encrypt_and_write(m_binlog_file, header_for_encryption,
+                                                header_for_encryption_length))
+              DBUG_RETURN(true);
+          } else {
+            if (event_encrypter.encrypt_and_write(m_binlog_file, header, header_len))
+              DBUG_RETURN(true);
           }
-          if (event_encrypter.encrypt_and_write(m_binlog_file, header,
-                                                header_len))
-            DBUG_RETURN(true);
           thd->binlog_bytes_written += header_len;
           event_len -= header_len;
           header_len = 0;
@@ -1288,15 +1296,20 @@ class Binlog_event_writer : public Basic_ostream {
         buffer += write_bytes;
 
         // The whole event is copied, now add the checksum
-        if (have_checksum && event_len == 0) {
-          uchar checksum_buf[BINLOG_CHECKSUM_LEN];
+        if (event_len == 0) {
+          if (have_checksum) {
+            uchar checksum_buf[BINLOG_CHECKSUM_LEN];
 
-          int4store(checksum_buf, checksum);
-          if (event_encrypter.encrypt_and_write(m_binlog_file, checksum_buf,
-                                                BINLOG_CHECKSUM_LEN))
+            int4store(checksum_buf, checksum);
+            if (event_encrypter.encrypt_and_write(m_binlog_file, checksum_buf,
+                                                  BINLOG_CHECKSUM_LEN))
+              DBUG_RETURN(true);
+            thd->binlog_bytes_written += BINLOG_CHECKSUM_LEN;
+            checksum = initial_checksum;
+          }
+          if (event_encrypter.is_encryption_enabled() && event_encrypter.finish(m_binlog_file))
             DBUG_RETURN(true);
-          thd->binlog_bytes_written += BINLOG_CHECKSUM_LEN;
-          checksum = initial_checksum;
+
         }
       }
     }
@@ -3928,6 +3941,7 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
     // This is not a fatal error; the log may just be truncated.
     // @todo but what other errors could happen? IO error?
     LogErr(WARNING_LEVEL, ER_BINLOG_ERROR_READING_GTIDS_FROM_RELAY_LOG, -1);
+    sql_print_warning(relaylog_file_reader.get_error_str());
   }
 
 #ifndef DBUG_OFF
@@ -4160,6 +4174,7 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
 
     // @todo but what other errors could happen? IO error?
     LogErr(WARNING_LEVEL, ER_BINLOG_ERROR_READING_GTIDS_FROM_BINARY_LOG, -1);
+    sql_print_warning(binlog_file_reader.get_error_str());
   }
 
   if (all_gtids)
@@ -4876,7 +4891,9 @@ bool MYSQL_BIN_LOG::open_binlog(
     extra_description_event->created = 0;
     /* Don't set log_pos in event header */
     extra_description_event->set_artificial_event();
-
+    if (crypto.is_enabled()) {
+      extra_description_event->event_encrypter.enable_encryption(&crypto);
+    }
     if (binary_event_serialize(extra_description_event, m_binlog_file))
       goto err;
     bytes_written += extra_description_event->common_header->data_written;
@@ -6681,6 +6698,9 @@ bool MYSQL_BIN_LOG::write_event(Log_event *ev, Master_info *mi) {
 
   mysql_mutex_assert_owner(&LOCK_log);
 
+  if (crypto.is_enabled() && !ev->event_encrypter.is_encryption_enabled()) {
+    ev->event_encrypter.enable_encryption(&crypto);
+  }
   // write data
   bool error = false;
   if (!binary_event_serialize(ev, m_binlog_file)) {
@@ -7343,6 +7363,10 @@ inline bool MYSQL_BIN_LOG::write_event_to_binlog(Log_event *ev) {
           : static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
   DBUG_ASSERT(ev->common_footer->checksum_alg !=
               binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+
+  if (crypto.is_enabled()) {
+    ev->event_encrypter.enable_encryption(&crypto);
+  }
 
   /*
     Stores current position into log_pos, it is used to calculate correcty

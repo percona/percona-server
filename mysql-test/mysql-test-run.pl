@@ -165,7 +165,8 @@ my $DEFAULT_SUITES =
   ."audit_log,keyring_vault,"
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl,tokudb.perfschema,"
-  ."rocksdb,rocksdb.rpl,rocksdb.sys_vars";
+  ."rocksdb,rocksdb.rpl,rocksdb.sys_vars,"
+  ."percona-pam-for-mysql";
 
 my $build_thread       = 0;
 my $daemonize_mysqld   = 0;

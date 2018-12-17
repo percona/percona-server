@@ -34,9 +34,9 @@ PSI_memory_key key_memory_pam_group_iter;
 
 static PSI_memory_info common_pam_memory[] = {
     {&key_memory_pam_mapping_iter, "auth_pam_mapping_iterator",
-     PSI_FLAG_SINGLETON, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
-    {&key_memory_pam_group_iter, "auth_pam_group_iterator", PSI_FLAG_SINGLETON,
-     PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+    {&key_memory_pam_group_iter, "auth_pam_group_iterator",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
 };
 
 /** The MySQL service name for PAM configuration */

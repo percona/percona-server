@@ -1028,6 +1028,13 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
     result = HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE;
   }
 #endif
+  else if (only_flags(ha_alter_info->handler_flags,
+                      Alter_inplace_info::RENAME_INDEX) &&
+           only_flags(ha_alter_info->alter_info->flags,
+                      Alter_info::ALTER_INDEX_VISIBILITY) &&
+           ha_alter_info->create_info->used_fields == 0) {
+    result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+  }
 
   if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_ALTER_TABLE)) &&
       result != HA_ALTER_INPLACE_NOT_SUPPORTED &&

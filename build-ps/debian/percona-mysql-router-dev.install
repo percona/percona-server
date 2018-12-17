@@ -24,5 +24,5 @@ usr/lib/*/libmysqlrouter.so
 usr/lib/*/libmysqlharness.so
 
 # legal
-usr/LICENSE.router usr/share/doc/percona-server-router-dev/
-usr/README.router usr/share/doc/percona-server-router-dev/
+usr/LICENSE.router usr/share/doc/percona-mysql-router-dev/
+usr/README.router usr/share/doc/percona-mysql-router-dev/

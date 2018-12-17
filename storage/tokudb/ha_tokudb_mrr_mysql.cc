@@ -31,6 +31,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 int ha_tokudb::multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                                      uint n_ranges, uint mode,
                                      HANDLER_BUFFER *buf) {
+  ds_mrr.init(table);
   return ds_mrr.dsmrr_init(seq, seq_init_param, n_ranges, mode, buf);
 }
 

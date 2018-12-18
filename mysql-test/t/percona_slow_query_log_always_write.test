@@ -7,6 +7,8 @@
 # Force deterministic session and query ids
 --source include/restart_mysqld.inc
 
+--source include/log_prepare.inc
+
 SET @old_long_query_time=@@global.long_query_time;
 SET @old_log_slow_rate_type=@@global.log_slow_rate_type;
 SET @old_log_slow_rate_limit=@@global.log_slow_rate_limit;

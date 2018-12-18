@@ -37,8 +37,6 @@ class Basic_ostream {
   */
   virtual bool write(const unsigned char *buffer, my_off_t length) = 0;
   virtual ~Basic_ostream() {}
-
-  virtual my_off_t position() const noexcept = 0;
 };
 
 /**
@@ -105,8 +103,6 @@ class IO_CACHE_ostream : public Truncatable_ostream {
   bool seek(my_off_t offset) override;
   bool truncate(my_off_t offset) override;
 
-  my_off_t position() const noexcept override;
-
   /**
      Flush data to IO_CACHE's file if there is any data in IO_CACHE's buffer.
 
@@ -145,10 +141,6 @@ class StringBuffer_ostream : public Basic_ostream,
   bool write(const unsigned char *buffer, my_off_t length) override {
     return StringBuffer<BUFFER_SIZE>::append(
         reinterpret_cast<const char *>(buffer), length);
-  }
-
-  virtual my_off_t position() const noexcept override {
-    return StringBuffer<BUFFER_SIZE>::length();
   }
 };
 

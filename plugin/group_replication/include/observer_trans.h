@@ -84,11 +84,6 @@ class Transaction_message : public Plugin_gcs_message, public Basic_ostream {
   */
   my_off_t length();
 
-  my_off_t position() const noexcept {
-    DBUG_ASSERT(0);
-    return const_cast<Transaction_message *>(this)->length();
-  }
-
  protected:
   /*
    Implementation of the template methods

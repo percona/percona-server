@@ -51,6 +51,8 @@
 #include "sql/tc_log.h"  // TC_LOG
 #include "thr_mutex.h"
 
+#include "sql/binlog_ostream.h"
+
 class Format_description_log_event;
 class Gtid_monitoring_info;
 class Gtid_set;
@@ -319,7 +321,70 @@ struct LOG_INFO {
 */
 class MYSQL_BIN_LOG : public TC_LOG {
  public:
-  class Binlog_ofile;
+  class Binlog_ofile : public Basic_ostream {
+   public:
+    ~Binlog_ofile() { close(); }
+
+    /**
+       Opens the binlog file. It opens the lower layer storage.
+
+       @param[in] log_file_key  The PSI_file_key for this stream
+       @param[in] binlog_name  The file to be opened
+       @param[in] flags  The flags used by IO_CACHE.
+
+       @retval false  Success
+       @retval true  Error
+    */
+    bool open(
+#ifdef HAVE_PSI_INTERFACE
+        PSI_file_key log_file_key,
+#endif
+        const char *binlog_name, myf flags);
+
+    void close();
+    /**
+       Writes data into storage and maintains binlog position.
+
+       @param[in] buffer  the data will be written
+       @param[in] length  the length of the data
+
+       @retval false  Success
+       @retval true  Error
+    */
+    bool write(const unsigned char *buffer, my_off_t length) override;
+    /**
+       Updates some bytes in the binlog file. If is only used for clearing
+       LOG_EVENT_BINLOG_IN_USE_F.
+
+       @param[in] buffer  the data will be written
+       @param[in] length  the length of the data
+       @param[in] offset  the offset of the bytes will be updated
+
+       @retval false  Success
+       @retval true  Error
+    */
+    bool update(const unsigned char *buffer, my_off_t length, my_off_t offset);
+    /**
+       Truncates some data at the end of the binlog file.
+
+       @param[in] offset  where the binlog file will be truncated to.
+
+       @retval false  Success
+       @retval true  Error
+    */
+    bool truncate(my_off_t offset);
+    bool flush() { return m_file_ostream.flush(); }
+    bool sync() { return m_file_ostream.sync(); }
+    bool flush_and_sync() { return flush() || sync(); }
+    my_off_t position() { return m_position; }
+    bool is_empty() { return position() == 0; }
+    bool is_open() { return m_pipeline_head != NULL; }
+
+   private:
+    my_off_t m_position = 0;
+    Truncatable_ostream *m_pipeline_head = NULL;
+    IO_CACHE_ostream m_file_ostream;
+  };
 
  private:
   enum enum_log_state { LOG_OPENED, LOG_CLOSED, LOG_TO_BE_OPENED };

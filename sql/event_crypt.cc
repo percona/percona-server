@@ -1,7 +1,7 @@
 #include "event_crypt.h"
 
+#include "binlog.h"
 #include "my_byteorder.h"
-#include "sql/binlog_ostream.h"
 
 static bool encrypt_event(uint32 offs, int flags,
                           const Binlog_crypt_data &crypto, uchar *buf,
@@ -41,10 +41,16 @@ bool decrypt_event(uint32 offs, const Binlog_crypt_data &crypto, uchar *buf,
                        buf_len);
 }
 
+#ifdef MYSQL_SERVER
 bool Event_encrypter::init(Basic_ostream *ostream, uchar *&header,
                            size_t &buf_len) {
   uchar iv[binary_log::Start_encryption_event::IV_LENGTH];
-  crypto->set_iv(iv, ostream->position());
+
+  // encryption is only possible on Binlog files
+  MYSQL_BIN_LOG::Binlog_ofile *binlog_ostream =
+      down_cast<MYSQL_BIN_LOG::Binlog_ofile *>(ostream);
+
+  crypto->set_iv(iv, binlog_ostream->position());
   if (ctx != nullptr) {
     my_aes_crypt_free_ctx(ctx);
     ctx = nullptr;
@@ -119,3 +125,4 @@ bool Event_encrypter::finish(Basic_ostream *ostream) {
     return true;
   return false;
 }
+#endif

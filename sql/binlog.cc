@@ -264,103 +264,50 @@ static SHOW_VAR binlog_status_vars_detail[] = {
    Logical binlog file which wraps and hides the detail of lower layer storage
    implementation. Binlog code just use this class to control real storage
  */
-class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
- public:
-  ~Binlog_ofile() { close(); }
-
-  /**
-     Opens the binlog file. It opens the lower layer storage.
-
-     @param[in] log_file_key  The PSI_file_key for this stream
-     @param[in] binlog_name  The file to be opened
-     @param[in] flags  The flags used by IO_CACHE.
-
-     @retval false  Success
-     @retval true  Error
-  */
-  bool open(
+bool MYSQL_BIN_LOG::Binlog_ofile::open(
 #ifdef HAVE_PSI_INTERFACE
-      PSI_file_key log_file_key,
+    PSI_file_key log_file_key,
 #endif
-      const char *binlog_name, myf flags) {
-    DBUG_ASSERT(m_pipeline_head == NULL);
+    const char *binlog_name, myf flags) {
+  DBUG_ASSERT(m_pipeline_head == NULL);
 
-    if (m_file_ostream.open(log_file_key, binlog_name, flags)) return true;
+  if (m_file_ostream.open(log_file_key, binlog_name, flags)) return true;
 
-    m_pipeline_head = &m_file_ostream;
-    return false;
-  }
+  m_pipeline_head = &m_file_ostream;
+  return false;
+}
 
-  void close() {
-    m_file_ostream.close();
-    m_pipeline_head = NULL;
-    m_position = 0;
-  }
+void MYSQL_BIN_LOG::Binlog_ofile::close() {
+  m_file_ostream.close();
+  m_pipeline_head = NULL;
+  m_position = 0;
+}
 
-  /**
-     Writes data into storage and maintains binlog position.
+bool MYSQL_BIN_LOG::Binlog_ofile::write(const unsigned char *buffer,
+                                        my_off_t length) {
+  DBUG_ASSERT(m_pipeline_head != NULL);
 
-     @param[in] buffer  the data will be written
-     @param[in] length  the length of the data
+  if (m_pipeline_head->write(buffer, length)) return true;
 
-     @retval false  Success
-     @retval true  Error
-  */
-  bool write(const unsigned char *buffer, my_off_t length) override {
-    DBUG_ASSERT(m_pipeline_head != NULL);
+  m_position += length;
+  return false;
+}
 
-    if (m_pipeline_head->write(buffer, length)) return true;
+bool MYSQL_BIN_LOG::Binlog_ofile::update(const unsigned char *buffer,
+                                         my_off_t length, my_off_t offset) {
+  DBUG_ASSERT(m_pipeline_head != NULL);
+  DBUG_ASSERT(offset + length <= m_position);
+  return m_pipeline_head->seek(offset) ||
+         m_pipeline_head->write(buffer, length);
+}
 
-    m_position += length;
-    return false;
-  }
+bool MYSQL_BIN_LOG::Binlog_ofile::truncate(my_off_t offset) {
+  DBUG_ASSERT(m_pipeline_head != NULL);
 
-  /**
-     Updates some bytes in the binlog file. If is only used for clearing
-     LOG_EVENT_BINLOG_IN_USE_F.
-
-     @param[in] buffer  the data will be written
-     @param[in] length  the length of the data
-     @param[in] offset  the offset of the bytes will be updated
-
-     @retval false  Success
-     @retval true  Error
-  */
-  bool update(const unsigned char *buffer, my_off_t length, my_off_t offset) {
-    DBUG_ASSERT(m_pipeline_head != NULL);
-    DBUG_ASSERT(offset + length <= m_position);
-    return m_pipeline_head->seek(offset) ||
-           m_pipeline_head->write(buffer, length);
-  }
-
-  /**
-     Truncates some data at the end of the binlog file.
-
-     @param[in] offset  where the binlog file will be truncated to.
-
-     @retval false  Success
-     @retval true  Error
-  */
-  bool truncate(my_off_t offset) {
-    DBUG_ASSERT(m_pipeline_head != NULL);
-
-    if (m_pipeline_head->truncate(offset)) return true;
-    m_position = offset;
-    return false;
-  }
-
-  bool flush() { return m_file_ostream.flush(); }
-  bool sync() { return m_file_ostream.sync(); }
-  bool flush_and_sync() { return flush() || sync(); }
-  my_off_t position() const noexcept override { return m_position; }
-  bool is_empty() { return position() == 0; }
-  bool is_open() { return m_pipeline_head != NULL; }
-
- private:
-  my_off_t m_position = 0;
-  Truncatable_ostream *m_pipeline_head = NULL;
-  IO_CACHE_ostream m_file_ostream;
-};
+  if (m_pipeline_head->truncate(offset)) return true;
+  m_position = offset;
+  return false;
+}
 
 /**
   Helper class to hold a mutex for the duration of the
@@ -1321,10 +1268,6 @@ class Binlog_event_writer : public Basic_ostream {
     Returns true if per event checksum is enabled.
   */
   bool is_checksum_enabled() { return have_checksum; }
-
-  my_off_t position() const noexcept override {
-    return m_binlog_file->position();
-  }
 };
 
 /*

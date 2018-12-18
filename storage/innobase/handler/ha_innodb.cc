@@ -472,19 +472,11 @@ ibool meb_get_checksum_algorithm_enum(const char *algo_name,
 }
 #endif /* !UNIV_HOTBACKUP */
 
-static const char* redo_log_encrypt_names[] = {
-  "off",
-  "on",
-  "master_key",
-  "keyring_key",
-  NullS
-};
+static const char *redo_log_encrypt_names[] = {"off", "on", "master_key",
+                                               "keyring_key", NullS};
 static TYPELIB redo_log_encrypt_typelib = {
-  array_elements(redo_log_encrypt_names) - 1,
-  "redo_log_encrypt_typelib",
-  redo_log_encrypt_names,
-  nullptr
-};
+    array_elements(redo_log_encrypt_names) - 1, "redo_log_encrypt_typelib",
+    redo_log_encrypt_names, nullptr};
 
 #ifndef UNIV_HOTBACKUP
 /* The following counter is used to convey information to InnoDB
@@ -4051,7 +4043,8 @@ bool innobase_fix_tablespaces_empty_uuid() {
   /* Rotate log tablespace */
   bool failure1 = !log_rotate_encryption();
 
-  bool failure2 = !fil_encryption_rotate_global(space_ids) ||  !log_rotate_encryption();
+  bool failure2 =
+      !fil_encryption_rotate_global(space_ids) || !log_rotate_encryption();
 
   my_free(master_key);
 
@@ -5075,7 +5068,6 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     dict_stats_evict_tablespaces();
 
     btr_search_enabled = old_btr_search_value;
-
   }
 
   bool do_encrypt = dict_detect_encryption(srv_is_upgrade_mode);
@@ -5098,7 +5090,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
                                      dd_space_flags)
                : dd_open_hardcoded(dict_sys_t::s_space_id,
                                    dict_sys_t::s_dd_space_file_name,
-				   dd_space_flags);
+                                   dd_space_flags);
 
   /* Once hardcoded tablespace mysql is created or opened,
   prepare it along with innodb system tablespace for server.
@@ -5116,8 +5108,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
              dd_space_flags, DD_SPACE_CURRENT_SRV_VERSION,
              DD_SPACE_CURRENT_SPACE_VERSION);
 
-    const char *dd_space_options =
-        do_encrypt ? "encryption=y" : "";
+    const char *dd_space_options = do_encrypt ? "encryption=y" : "";
 
     static Plugin_tablespace dd_space(dict_sys_t::s_dd_space_name,
                                       dd_space_options, se_private_data_dd, "",
@@ -11939,7 +11930,7 @@ void ha_innobase::adjust_encryption_options(HA_CREATE_INFO *create_info,
   bool is_tmp = (create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0;
 
   if (is_intrinsic || is_tmp) {
-	  return;
+    return;
   }
 
   if (create_info->encrypt_type.length == 0 &&
@@ -11954,10 +11945,10 @@ void ha_innobase::adjust_encryption_options(HA_CREATE_INFO *create_info,
       case SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE:
         create_info->encrypt_type = keyring_string;
         break;
-     case SRV_ENCRYPT_TABLES_OFF:
-	break;
+      case SRV_ENCRYPT_TABLES_OFF:
+        break;
       default:
-	ut_ad(0);
+        ut_ad(0);
     }
   }
 
@@ -20170,8 +20161,8 @@ static int innodb_track_changed_pages_validate(THD *thd, SYS_VAR *var,
     return 0;
   }
 
-  if (intbuf == srv_track_changed_pages) { // == 0
-    *reinterpret_cast<ulong*>(save) = srv_track_changed_pages;
+  if (intbuf == srv_track_changed_pages) {  // == 0
+    *reinterpret_cast<ulong *>(save) = srv_track_changed_pages;
     return 0;
   }
 
@@ -22025,10 +22016,11 @@ static MYSQL_SYSVAR_ENUM(
     NULL, NULL, DEFAULT_ROW_FORMAT_DYNAMIC, &innodb_default_row_format_typelib);
 
 static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
-    PLUGIN_VAR_OPCMDARG,
-    "Enable or disable Encryption of REDO tablespace."
-    "Possible values: OFF, ON, MASTER_KEY, KEYRING_KEY.",
-    NULL, NULL, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+                         PLUGIN_VAR_OPCMDARG,
+                         "Enable or disable Encryption of REDO tablespace."
+                         "Possible values: OFF, ON, MASTER_KEY, KEYRING_KEY.",
+                         NULL, NULL, REDO_LOG_ENCRYPT_OFF,
+                         &redo_log_encrypt_typelib);
 
 static MYSQL_SYSVAR_BOOL(
     print_ddl_logs, srv_print_ddl_logs, PLUGIN_VAR_OPCMDARG,

@@ -269,7 +269,7 @@ Tablespace *Tablespace_pool::get(my_thread_id id, enum tbsp_purpose purpose) {
 
   ts = m_free->back();
   if (is_encrypt(purpose)) {
-    if(!ts->encrypt()) {
+    if (!ts->encrypt()) {
       release();
       ib::error() << "Unable to encrypt a session temp tablespace. Probably due"
                   << " to missing keyring plugin";
@@ -437,9 +437,7 @@ dberr_t open_or_create(bool create_new_db) {
   return (err);
 }
 
-void free_tmp(Tablespace *ts) {
-  tbsp_pool->free_ts(ts);
-}
+void free_tmp(Tablespace *ts) { tbsp_pool->free_ts(ts); }
 
 void delete_pool_manager() { UT_DELETE(tbsp_pool); }
 

@@ -76,7 +76,7 @@ class innodb_session_t {
         m_open_tables(),
         m_dict_mutex_locked(0),
         m_usr_temp_tblsp(),
-	m_enc_usr_temp_tblsp(),
+        m_enc_usr_temp_tblsp(),
         m_intrinsic_temp_tblsp(),
         m_enc_intrinsic_temp_tblsp() {
     /* Do nothing. */
@@ -182,7 +182,8 @@ class innodb_session_t {
   ibt::Tablespace *get_enc_instrinsic_temp_tblsp() {
     if (m_enc_intrinsic_temp_tblsp == nullptr) {
       my_thread_id id = thd_thread_id(m_trx->mysql_thd);
-      m_enc_intrinsic_temp_tblsp = ibt::tbsp_pool->get(id, ibt::TBSP_ENC_INTRINSIC);
+      m_enc_intrinsic_temp_tblsp =
+          ibt::tbsp_pool->get(id, ibt::TBSP_ENC_INTRINSIC);
     }
 
     return (m_enc_intrinsic_temp_tblsp);

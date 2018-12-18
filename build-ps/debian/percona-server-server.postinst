@@ -88,10 +88,13 @@ case "$1" in
 				fi
             fi
 		fi
-
+                CNF_ACTION="Use NEW my.cnf"
 		# If the existing config file is a proper file, we back it up
 		if [ -f "/etc/mysql/my.cnf" ] && [ ! -L "/etc/mysql/my.cnf" ]; then
 			cp /etc/mysql/my.cnf /etc/mysql/my.cnf.bak
+			db_input high percona-server-server/existing_config_file || true
+			db_go
+			db_get percona-server-server/existing_config_file && CNF_ACTION=${RET}
 		fi
 		if [ -d /etc/mysql/percona-server.conf.d ]; then
 			CONF_EXISTS=$(grep "percona-server.conf.d" /etc/mysql/mysql.cnf | wc -l)
@@ -99,8 +102,9 @@ case "$1" in
 				echo "!includedir /etc/mysql/percona-server.conf.d/" >> /etc/mysql/mysql.cnf
 			fi
 		fi
-
-		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
+                if [ "${RET}" = "Use NEW my.cnf" ]; then
+		        update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
+                fi
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
 		then
 			db_get percona-server-server/root-pass && PASSWD=${RET}

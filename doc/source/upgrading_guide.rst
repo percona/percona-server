@@ -167,21 +167,26 @@ indexes needed and do the modifications needed:
 .. note::
 
    If you're using |TokuDB| storage engine you'll need re-enable the storage
-   engine plugin by running the: ``ps_tokudb_admin --enable`` before running
+   engine plugin by running the: |ps-admin.enable-tokudb| before running
    ``mysql_upgrade`` otherwise you'll get errors.
 
 .. code-block:: bash
 
    $ mysql_upgrade
-   Checking if update is needed.
-   Checking server version.
-   Running queries to upgrade MySQL server.
-   Checking system database.
-   mysql.columns_priv                                 OK
-   mysql.db                                           OK
-   ...
-   pgrade process completed successfully.
-   Checking if update is needed.
+
+.. admonition:: Output
+
+   .. code-block:: guess
+
+      Checking if update is needed.
+      Checking server version.
+      Running queries to upgrade MySQL server.
+      Checking system database.
+      mysql.columns_priv                                 OK
+      mysql.db                                           OK
+      ...
+      pgrade process completed successfully.
+      Checking if update is needed.
 
 Once this is done, just restart the server as usual: |service.mysql.restart| 
 
@@ -358,10 +363,10 @@ rebuild the indexes needed and do the modifications needed:
 .. note::
 
    If you're using |TokuDB| storage engine you'll need re-enable the storage
-   engine plugin by running the: ``ps-admin --enable`` before running
+   engine plugin by running the: |ps-admin.enable-tokudb| before running
    ``mysql_upgrade`` otherwise you'll get errors.
 
-After this is done, just restart the server as usual: :bash:`service mysql restart`
+After this is done, just restart the server as usual: |service.mysql.restart|
 
 .. include:: .res/replace.txt
 .. include:: .res/replace.program.txt

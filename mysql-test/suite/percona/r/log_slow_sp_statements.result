@@ -1,5 +1,3 @@
-DROP PROCEDURE IF EXISTS test_outer;
-DROP PROCEDURE IF EXISTS test_inner;
 SET SESSION min_examined_row_limit=0;
 SET SESSION long_query_time=0;
 CREATE PROCEDURE test_inner()
@@ -12,6 +10,7 @@ SELECT 1;
 CALL test_inner();
 END^
 PREPARE stmt FROM "CALL test_outer()";
+SET @saved_log_slow_sp_statements=@@GLOBAL.log_slow_sp_statements;
 SET GLOBAL log_slow_sp_statements=ON;
 [log_start.inc] percona.slow_extended.sp1
 SELECT "log_always";
@@ -94,6 +93,4 @@ EXECUTE stmt;
 [log_grep.inc] lines:   0
 DROP PROCEDURE test_outer;
 DROP PROCEDURE test_inner;
-SET GLOBAL log_slow_sp_statements=default;
-SET SESSION long_query_time=default;
-SET SESSION min_examined_row_limit=default;
+SET GLOBAL log_slow_sp_statements=@saved_log_slow_sp_statements;

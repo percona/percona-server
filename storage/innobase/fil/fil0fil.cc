@@ -7407,8 +7407,10 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
   }
 
   /* For writing temporary tablespace, if encryption for temporary
-  tablespace is disabled, skip setting encryption. */
-  if (fsp_is_system_temporary(space->id) && !srv_tmp_tablespace_encrypt &&
+  tablespace is disabled, skip setting encryption.
+  Encryption of session temporary tablespaces is independent of
+  innodb_temp_tablespace_encrypt */
+  if (fsp_is_global_temporary(space->id) && !srv_tmp_tablespace_encrypt &&
       req_type.is_write()) {
     req_type.clear_encrypted();
     return;
@@ -9135,10 +9137,6 @@ static bool encryption_rotate_low(fil_space_t *space) {
 @return DB_SUCCESS or error code */
 dberr_t fil_reset_encryption(space_id_t space_id) {
   ut_ad(space_id != TRX_SYS_SPACE);
-
-  if (fsp_is_system_or_temp_tablespace(space_id)) {
-    return (DB_IO_NO_ENCRYPT_TABLESPACE);
-  }
 
   auto shard = fil_system->shard_by_id(space_id);
 

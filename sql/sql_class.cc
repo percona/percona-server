@@ -2309,6 +2309,7 @@ void THD::inc_examined_row_count(ha_rows count) {
 void THD::inc_status_created_tmp_disk_tables() {
   DBUG_ASSERT(!status_var_aggregated);
   status_var.created_tmp_disk_tables++;
+  tmp_tables_disk_used++;
   query_plan_flags |= QPLAN_TMP_DISK;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
@@ -2318,6 +2319,7 @@ void THD::inc_status_created_tmp_disk_tables() {
 void THD::inc_status_created_tmp_tables() {
   DBUG_ASSERT(!status_var_aggregated);
   status_var.created_tmp_tables++;
+  tmp_tables_used++;
   query_plan_flags |= QPLAN_TMP_TABLE;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);

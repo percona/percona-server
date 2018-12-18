@@ -1,10 +1,7 @@
 #
 # Test slow-logging of statements in stored procedures
 #
---disable_warnings
-DROP PROCEDURE IF EXISTS test_outer;
-DROP PROCEDURE IF EXISTS test_inner;
---enable_warnings
+--source include/log_prepare.inc
 
 SET SESSION min_examined_row_limit=0;
 SET SESSION long_query_time=0;
@@ -26,6 +23,7 @@ delimiter ;^
 
 PREPARE stmt FROM "CALL test_outer()";
 
+SET @saved_log_slow_sp_statements=@@GLOBAL.log_slow_sp_statements;
 SET GLOBAL log_slow_sp_statements=ON;
 --let log_file=percona.slow_extended.sp1
 --source include/log_start.inc
@@ -85,7 +83,5 @@ EXECUTE stmt;
 DROP PROCEDURE test_outer;
 DROP PROCEDURE test_inner;
 
-SET GLOBAL log_slow_sp_statements=default;
-SET SESSION long_query_time=default;
-SET SESSION min_examined_row_limit=default;
+SET GLOBAL log_slow_sp_statements=@saved_log_slow_sp_statements;
 --source include/log_cleanup.inc

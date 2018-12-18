@@ -102,7 +102,7 @@ case "$1" in
 				echo "!includedir /etc/mysql/percona-server.conf.d/" >> /etc/mysql/mysql.cnf
 			fi
 		fi
-                if [ "${RET}" = "Use NEW my.cnf" ]; then
+                if [ "${CNF_ACTION}" = "Use NEW my.cnf" ]; then
 		        update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
                 fi
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];

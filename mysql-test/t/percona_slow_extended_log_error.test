@@ -1,13 +1,11 @@
 #
 # Test last_errno in extended slow query log
-# 
+#
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+--source include/log_prepare.inc
 
 SET SESSION min_examined_row_limit=0;
-SET long_query_time=0;
+SET SESSION long_query_time=0;
 
 --let log_file=percona.slow_extended.log_error_1
 --source include/log_start.inc
@@ -26,6 +24,4 @@ CREATE TABLE t1(a INT);
 
 DROP TABLE t1;
 
-SET long_query_time=default;
-SET SESSION min_examined_row_limit=default;
 --source include/log_cleanup.inc

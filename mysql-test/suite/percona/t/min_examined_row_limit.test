@@ -1,15 +1,16 @@
 --source include/have_debug.inc
 
---disable_warnings
-drop table if exists t;
---enable_warnings
+--source include/log_prepare.inc
 
 create table t(id INT PRIMARY KEY);
 insert into t values(1);
 insert into t values(2);
 insert into t values(3);
 
+SET @saved_min_examined_row_limit=@@GLOBAL.min_examined_row_limit;
+SET @saved_long_query_time=@@GLOBAL.long_query_time;
 SET GLOBAL long_query_time=2;
+SET @saved_slow_query_log_use_global_control=@@GLOBAL.slow_query_log_use_global_control;
 SET GLOBAL slow_query_log_use_global_control='long_query_time,min_examined_row_limit';
 --let log_file=percona.slow_extended.min_examined_row_limit
 --source include/log_start.inc
@@ -25,9 +26,9 @@ SELECT 1;
 SET SESSION query_exec_time=default;
 
 --source include/log_stop.inc
-SET GLOBAL min_examined_row_limit=default;
-SET GLOBAL slow_query_log_use_global_control=default;
-SET GLOBAL long_query_time=default;
+SET GLOBAL min_examined_row_limit=@saved_min_examined_row_limit;
+SET GLOBAL slow_query_log_use_global_control=@saved_slow_query_log_use_global_control;
+SET GLOBAL long_query_time=@saved_long_query_time;
 
 --let grep_pattern = Query_time
 --source include/log_grep.inc

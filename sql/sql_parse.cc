@@ -3342,14 +3342,11 @@ int mysql_execute_command(THD *thd, bool first_level) {
         goto error;
       }
 
-      Is_instance_backup_locked_result is_instance_locked =
-          is_instance_backup_locked(thd);
+      const auto backup_lock_acquired =
+          thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::BACKUP_LOCK, "",
+                                                       "", MDL_SHARED);
 
-      if (is_instance_locked == Is_instance_backup_locked_result::OOM) {
-        my_error(ER_OOM, MYF(0));
-        goto error;
-      }
-      if (is_instance_locked == Is_instance_backup_locked_result::LOCKED) {
+      if (backup_lock_acquired) {
         my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
         goto error;
       }

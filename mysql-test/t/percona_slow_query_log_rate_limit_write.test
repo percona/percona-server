@@ -6,6 +6,8 @@
 
 --source include/restart_mysqld.inc
 
+--source include/log_prepare.inc
+
 SET @old_log_slow_rate_type=@@global.log_slow_rate_type;
 SET @old_long_query_time=@@global.long_query_time;
 SET @old_log_slow_rate_limit=@@global.log_slow_rate_limit;
@@ -63,9 +65,6 @@ SELECT 'this-should-not-be-logged';
 
 --let grep_pattern= ^# Log_slow_rate_type:
 --source include/log_grep.inc
-
-# off the rate limit
-SET GLOBAL long_query_time=0;
 
 SET GLOBAL debug=@old_debug;
 SET GLOBAL log_slow_rate_type=@old_log_slow_rate_type;

@@ -3336,7 +3336,20 @@ int mysql_execute_command(THD *thd, bool first_level) {
         client thread has locked tables
       */
       if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction() ||
-          thd->global_read_lock.is_acquired()) {
+          thd->global_read_lock.is_acquired() ||
+          thd->backup_tables_lock.is_acquired()) {
+        my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+        goto error;
+      }
+
+      Is_instance_backup_locked_result is_instance_locked =
+          is_instance_backup_locked(thd);
+
+      if (is_instance_locked == Is_instance_backup_locked_result::OOM) {
+        my_error(ER_OOM, MYF(0));
+        goto error;
+      }
+      if (is_instance_locked == Is_instance_backup_locked_result::LOCKED) {
         my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
         goto error;
       }

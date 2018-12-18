@@ -22,5 +22,24 @@ LOCK TABLES FOR BACKUP;
 START SLAVE;
 UNLOCK TABLES;
 # connection master
+# connection slave
+LOCK TABLES FOR BACKUP;
+# connection master
+INSERT INTO t_myisam VALUES (0);
+# connection slave
+STOP SLAVE SQL_THREAD;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+# connection master
+# connection slave
+LOCK INSTANCE FOR BACKUP;
+# connection master
+CREATE TABLE t (a INT);
+# connection slave
+STOP SLAVE SQL_THREAD;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK INSTANCE;
+# connection master
+DROP TABLE t;
 DROP TABLE t_innodb, t_myisam;
 include/rpl_end.inc

@@ -48,3 +48,9 @@ Description: Select default authentication plugin
  The change will be written to the file /etc/mysql/mysql.conf.d/default-auth-override.cnf
  .
  After installation, the default can be changed by setting the default_authentication_plugin server setting.
+
+Template: percona-server-server/existing_config_file
+Type: select
+Choices: Use existent my.cnf (RECOMMENDED), Use NEW my.cnf
+Description: Select which my.cnf should be used
+ It was detected that there is my.cnf file on the system. Probably it comes from previous setup. Please decide should it be replaced or not.

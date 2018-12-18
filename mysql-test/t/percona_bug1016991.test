@@ -1,6 +1,12 @@
 #
 # bug 1016991 - long_query_time not respected when slow_query_log_use_global_control = all
-# 
+#
+--source include/log_prepare.inc
+
+SET @saved_long_query_time= @@long_query_time;
+SET @saved_slow_query_log_use_global_control=@@GLOBAL.slow_query_log_use_global_control;
+SET GLOBAL slow_query_log_use_global_control=ALL;
+
 --let log_file=percona_slow_extended_query_log_1
 --source include/log_start.inc
 
@@ -16,5 +22,6 @@ SELECT 1;
 --let grep_pattern= ^# Time: \d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d.\d{6}
 --source include/log_grep.inc
 
-SET GLOBAL long_query_time=default;
+SET GLOBAL long_query_time= @saved_long_query_time;
+SET GLOBAL slow_query_log_use_global_control=@saved_slow_query_log_use_global_control;
 --source include/log_cleanup.inc

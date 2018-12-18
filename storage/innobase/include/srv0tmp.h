@@ -40,12 +40,12 @@ enum tbsp_purpose {
   TBSP_SLAVE,     /*!< Tablespace is used by the slave node
                   in a replication setup */
 
-  TBSP_ENC_USER,  /*!< Tablespace is used for encrypted user temporary
-                  tables */
+  TBSP_ENC_USER,      /*!< Tablespace is used for encrypted user temporary
+                      tables */
   TBSP_ENC_INTRINSIC, /*!< Tablespace is used for encrypted intrinsic
                   tables */
-  TBSP_ENC_SLAVE, /*!< Tablespace is used by the slave node
-                  in a replication setup for encrypted purpose */
+  TBSP_ENC_SLAVE,     /*!< Tablespace is used by the slave node
+                      in a replication setup for encrypted purpose */
 };
 
 /** @return const string for session tablespace purpose enum

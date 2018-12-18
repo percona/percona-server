@@ -1,3 +1,9 @@
+#
+# Arguments:
+# - $log_accept_any_innodb_io: if 0 (the default), will grep for zero and non-zero InnoDB I/Os
+#   separately. If 1, both cases will be handled by the same grep, to be used when I/O happens
+#   non-deterministically and it does not matter for the test.
+#
 # Common extensions to the slow query log
 --let grep_pattern = ^# Schema: .+  Last_errno: \d+  Killed: \d+\$
 --let log_expected_matches = $log_slow_verbosity_expected_matches
@@ -18,12 +24,18 @@
 --let grep_pattern = ^# Filesort: (Yes|No)  Filesort_on_disk: (Yes|No)  Merge_passes: \d+\$
 --source include/log_grep.inc
 # InnoDB
-# I/O read stats have two cases: all-zeros if fully-cached or all non-zeros. A third case is possible
-# with InnoDB_IO_r_wait !=0 and the other two == 0, this can be added when it's tested
---let grep_pattern = ^#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0\.0*\$
---source include/log_grep.inc
---let grep_pattern = ^#   InnoDB_IO_r_ops: [1-9]\d*  InnoDB_IO_r_bytes: [1-9]\d*  InnoDB_IO_r_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)\$
---source include/log_grep.inc
+if (!$log_accept_any_innodb_io) {
+  # I/O read stats have two cases: all-zeros if fully-cached or all non-zeros. A third case is possible
+  # with InnoDB_IO_r_wait !=0 and the other two == 0, this can be added when it's tested
+  --let grep_pattern = ^#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0\.0*\$
+  --source include/log_grep.inc
+  --let grep_pattern = ^#   InnoDB_IO_r_ops: [1-9]\d*  InnoDB_IO_r_bytes: [1-9]\d*  InnoDB_IO_r_wait: (0\.\d*[1-9]\d*|[1-9]\d*\.\d+)\$
+  --source include/log_grep.inc
+}
+if ($log_accept_any_innodb_io) {
+  --let grep_pattern = ^#   InnoDB_IO_r_ops: \d+  InnoDB_IO_r_bytes: \d+  InnoDB_IO_r_wait: \d+\.\d+\$
+  --source include/log_grep.inc
+}
 # Rec lock wait and queue wait: check format
 --let grep_pattern = ^#   InnoDB_rec_lock_wait: \d*\.\d*  InnoDB_queue_wait: \d*\.\d*\$
 --source include/log_grep.inc

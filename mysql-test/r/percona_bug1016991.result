@@ -1,3 +1,6 @@
+SET @saved_long_query_time= @@long_query_time;
+SET @saved_slow_query_log_use_global_control=@@GLOBAL.slow_query_log_use_global_control;
+SET GLOBAL slow_query_log_use_global_control=ALL;
 [log_start.inc] percona_slow_extended_query_log_1
 SET GLOBAL long_query_time=10000;
 SELECT 1;
@@ -10,4 +13,5 @@ SELECT 1;
 [log_stop.inc] percona_slow_extended_query_log_1
 [log_grep.inc] file: percona_slow_extended_query_log_1 pattern: ^# Time: \d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d.\d{6}
 [log_grep.inc] lines:   1
-SET GLOBAL long_query_time=default;
+SET GLOBAL long_query_time= @saved_long_query_time;
+SET GLOBAL slow_query_log_use_global_control=@saved_slow_query_log_use_global_control;

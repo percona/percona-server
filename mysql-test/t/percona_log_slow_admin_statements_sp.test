@@ -2,6 +2,8 @@
 # Test log_slow_slave_admin_statements in stored procedures
 #
 
+--source include/log_prepare.inc
+
 CREATE TABLE t1 (a INT);
 
 SET @old_log_slow_admin_statements=@@global.log_slow_admin_statements;

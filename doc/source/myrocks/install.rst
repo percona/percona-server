@@ -4,35 +4,20 @@
 Percona MyRocks Installation Guide
 ==================================
 
+Percona MyRocks is distributed as a separate package that can be enabled as a
+plugin for |Percona Server| 8.0 and later versions.
 
-Percona MyRocks is distributed as a separate package
-that can be enabled as a plugin for Percona Server 5.7 and later versions.
+.. note::
 
-.. note:: File formats across different MyRocks variants may not be compatible.
-   Percona Server supports only *Percona MyRocks*.
-   Migrating from one variant to another
-   requires a logical data dump and reload.
+   File formats across different MyRocks variants may not be compatible.
+   |Percona Server| supports only *Percona MyRocks*.  Migrating from one variant
+   to another requires a logical data dump and reload.
 
 .. contents::
    :local:
 
 Installing Percona MyRocks
 ==========================
-
-Percona provides packages for most popular 64-bit Linux distributions:
-
-* Debian 8 ("jessie")
-* Debian 9 ("stretch")
-* Ubuntu 14.04 LTS (Trusty Tahr)
-* Ubuntu 16.04 LTS (Xenial Xerus)
-* Ubuntu 16.10 (Yakkety Yak)
-* Ubuntu 17.04 (Zesty Zapus)
-* Red Hat Enterprise Linux or CentOS 6 (Santiago)
-* Red Hat Enterprise Linux or CentOS 7 (Maipo)
-
-.. note:: Percona MyRocks should work on other DEB-based and RPM-based systems
-   (for example, Oracle Linux and Amazon Linux AMI),
-   but it is tested only on those listed above.
 
 It is recommended to install Percona software from official repositories:
 
@@ -44,19 +29,21 @@ It is recommended to install Percona software from official repositories:
 
    * For Debian or Ubuntu::
 
-      $ sudo apt-get install percona-server-rocksdb-5.7
+      $ sudo apt-get install percona-server-rocksdb-8.0
 
    * For RHEL or CentOS::
 
-      $ sudo yum install Percona-Server-rocksdb-57.x86_64
+      $ sudo yum install Percona-Server-rocksdb-80.x86_64
 
 After you install the Percona MyRocks package,
 you should see the following output::
 
- * This release of Percona Server is distributed with RocksDB storage engine.
- * Run the following script to enable the RocksDB storage engine in Percona Server:
+* This release of |Percona Server| is distributed with RocksDB storage engine.
+* Run the following script to enable the RocksDB storage engine in Percona Server:
 
-        ps-admin --enable-rocksdb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]
+  .. code-block:: bash 
+
+     $ ps-admin --enable-rocksdb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]
 
 Run the ``ps-admin`` script as system root user or with :program:`sudo`
 and provide the MySQL root user credentials
@@ -75,8 +62,10 @@ to properly enable the RocksDB (MyRocks) storage engine:
    Installing RocksDB engine...
    INFO: Successfully installed RocksDB engine plugin.
 
-.. note:: When you use the ``ps-admin`` script to enable Percona MyRocks,
-   it performs the following:
+.. note::
+
+   When you use the ``ps-admin`` script to enable Percona MyRocks, it
+   performs the following:
 
    * Disables Transparent huge pages
    * Installs and enables the RocksDB plugin
@@ -101,7 +90,7 @@ Note that the RocksDB engine is not set to be default,
 new tables will still be created using the InnoDB (XtraDB) storage engine.
 To make RocksDB storage engine default,
 set ``default-storage-engine=rocksdb`` in the ``[mysqld]`` section
-of :file:`my.cnf` and restart Percona Server.
+of :file:`my.cnf` and restart |Percona Server|.
 
 Alternatively, you can add ``ENGINE=RocksDB``
 after the ``CREATE TABLE`` statement
@@ -137,14 +126,14 @@ remove the Percona MyRocks package:
 
 * For Debian or Ubuntu::
 
-  $ sudo apt-get remove percona-server-rocksdb-5.7
+  $ sudo apt-get remove percona-server-rocksdb-8.0
 
 * For RHEL or CentOS::
 
-  $ sudo yum remove Percona-Server-rocksdb-57.x86_64
+  $ sudo yum remove percona-server-rocksdb-80.x86_64
 
 Finally, remove all the :ref:`myrocks_server_variables`
 from the configuration file (:file:`my.cnf`)
-and restart Percona Server.
+and restart |Percona Server|.
 
 

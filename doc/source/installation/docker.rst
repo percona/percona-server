@@ -1,45 +1,47 @@
 .. _docker:
 
-============================================
-Running Percona Server in a Docker Container
-============================================
+================================================
+ Running |Percona Server| in a Docker Container
+================================================
 
-Docker images of Percona Server are hosted publicly on Docker Hub at
+Docker images of |Percona Server| are hosted publicly on Docker Hub at
 https://hub.docker.com/r/percona/percona-server/.
 
 For more information about using Docker, see the `Docker Docs`_.
 
 .. _`Docker Docs`: https://docs.docker.com/
 
-.. note:: Make sure that you are using the latest version of Docker.
-   The ones provided via ``apt`` and ``yum``
-   may be outdated and cause errors.
+.. note::
 
-.. note:: By default, Docker will pull the image from Docker Hub
-   if it is not available locally.
+   Make sure that you are using the latest version of Docker.  The
+   ones provided via ``apt`` and ``yum`` may be outdated and cause
+   errors.
 
-Using the Percona Server Images
-===============================
+   By default, Docker will pull the image from Docker Hub if it is not
+   available locally.
 
-The following procedure describes how to run and access Percona Server 5.7
+
+Using the |Percona Server| Images
+=================================
+
+The following procedure describes how to run and access Percona Server 8.0
 using Docker.
 
-Starting a Percona Server Instance in a Container
--------------------------------------------------
+Starting an Instance of |Percona Server| in a Container
+-------------------------------------------------------
 
-To start a container named ``ps``
-running the latest version in the Percona Server 5.7 series,
-with the root password set to ``root``::
+To start a container named ``ps`` running the latest version of
+|Percona Server| 8.0, with the root password set to ``root``::
 
  [root@docker-host] $ docker run -d \
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
-   percona/percona-server:5.7
+   percona/percona-server:8.0
 
-.. note:: ``root`` is not a secure password.
+.. important:: ``root`` is not a secure password.
 
-Accessing the Percona Server Container
---------------------------------------
+Accessing the |Percona Server| Container
+----------------------------------------
 
 To access the shell in the container::
 
@@ -59,7 +61,7 @@ to access the database directly::
  mysql: [Warning] Using a password on the command line interface can be insecure.
  Welcome to the MySQL monitor.  Commands end with ; or \g.
  Your MySQL connection id is 4
- Server version: 5.7.19-17 Percona Server (GPL), Release '17', Revision 'e19a6b7b73f'
+ Server version: 8.0.13-3 Percona Server (GPL), Release '17', Revision 'e19a6b7b73f'
 
  Copyright (c) 2009-2017 Percona LLC and/or its affiliates
  Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
@@ -70,8 +72,8 @@ to access the database directly::
 
  mysql>
 
-Accessing Percona Server from Application in Another Container
---------------------------------------------------------------
+Accessing |Percona Server| from Application in Another Container
+----------------------------------------------------------------
 
 The image exposes the standard MySQL port 3306,
 so container linking makes Percona Server instance available
@@ -218,12 +220,12 @@ you run the container with the following command::
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
    -v /local/datadir:/var/lib/mysql \
-   percona/percona-server:5.7
+   percona/percona-server:8.0
 
 The ``-v /local/datadir:/var/lib/mysql`` option
 mounts the ``/local/datadir`` directory on the host
 to ``/var/lib/mysql`` in the container,
-which is the default data directory used by Percona Server.
+which is the default data directory used by |Percona Server|.
 
 .. note:: If you the Percona Server container instance
    with a data directory that already contains data
@@ -253,21 +255,21 @@ To map the standard MySQL port 3306 to port 6603 on the host::
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
    -p 6603:3306 \
-   percona/percona-server:5.7
+   percona/percona-server:8.0
 
-Passing Options to Percona Server
-=================================
+Passing Options to |Percona Server|
+===================================
 
-You can pass options to Percona Server when running the container
+You can pass options to |Percona Server| when running the container
 by appending them to the ``docker run`` command.
-For example, to start run Percona Server with UTF-8
+For example, to start run |Percona Server| with UTF-8
 as the default setting for character set
 and collation for all databases::
 
   [root@docker-host] $ docker run -d \
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
-   percona/percona-server:5.7 \
+   percona/percona-server:8.0 \
    --character-set-server=utf8 \
    --collation-server=utf8_general_ci
 

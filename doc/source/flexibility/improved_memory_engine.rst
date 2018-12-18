@@ -97,10 +97,6 @@ The explicit request is set with one of the following options in the ``CREATE TA
 
     * Requests the DFR with the specified block size (in bytes)
 
-  * ``ROW_FORMAT = DYNAMIC``
-
-    * Requests the dynamic format with the default block size (256 bytes)
-
 Despite its name, the ``KEY_BLOCK_SIZE`` option refers to a block size used to store data rather then indexes. The reason for this is that an existing ``CREATE TABLE`` option is reused to avoid introducing new ones.
 
 *The Improved MEMORY Engine* checks whether the specified block size is large enough to keep all key column values. If it is too small, table creation will abort with an error.
@@ -119,20 +115,20 @@ Examples
 On a 32-bit platform: ::
 
   mysql> CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
-                          PRIMARY KEY (f1)) KEY_BLOCK_SIZE=124 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
+                          PRIMARY KEY (f1)) KEY_BLOCK_SIZE=124 ENGINE=HEAP;
   
   mysql> SHOW TABLE STATUS LIKE 't1';
-  Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-  t1	MEMORY	10	Dynamic	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=124	
+  Name	Engine	Version	   Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+  t1	MEMORY	10	   X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=124	
 
 On a 64-bit platform: ::
 
   mysql> CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
-                          PRIMARY KEY (f1)) KEY_BLOCK_SIZE=124 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
+                          PRIMARY KEY (f1)) KEY_BLOCK_SIZE=124 ENGINE=HEAP;
   
   mysql> SHOW TABLE STATUS LIKE 't1';
-  Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment	
-  t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=124	
+  Name	Engine	Version	   Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment	
+  t1	MEMORY	10	   X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	KEY_BLOCK_SIZE=124	
 
 Implementation Details
 ======================

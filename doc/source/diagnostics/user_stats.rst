@@ -12,8 +12,8 @@ The functionality is disabled by default, and must be enabled by setting ``users
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`:
-     Feature ported from |Percona Server| 5.6.
+  * :rn:`8.0.12-1`:
+     Feature ported from |Percona Server| 5.7.
 
 Other Information
 =================

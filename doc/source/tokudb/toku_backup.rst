@@ -14,7 +14,7 @@ Percona |TokuBackup| is an open-source hot backup utility for |MySQL| servers ru
 Installing From Binaries
 ------------------------
 
-|TokuBackup| is included with |Percona Server| :rn:`5.7.10-1` and later versions. Installation can be performed with the ``ps_tokudb_admin`` script.
+The installation of |TokuBackup| can be performed with the ``ps_tokudb_admin`` script.
 
 To install |Percona TokuBackup|:
 
@@ -127,7 +127,11 @@ For example, to exclude all :file:`lost+found` directories from backup, use the 
 
   mysql> SET tokudb_backup_exclude='/lost\\+found($|/)';
 
-.. note:: In |Percona Server| :rn:`5.7.10-3` to address bug :backupbug:`125`, server ``pid`` file is excluded by default. If you're providing your own additions to the exclusions and have the ``pid`` file in the default location, you will need to add the mysqld_safe.pid entry.
+.. note::
+
+   The server ``pid`` file is excluded by default. If you're providing your own
+   additions to the exclusions and have the ``pid`` file in the default
+   location, you will need to add the mysqld_safe.pid entry.
 
 Throttling Backup Rate
 **********************

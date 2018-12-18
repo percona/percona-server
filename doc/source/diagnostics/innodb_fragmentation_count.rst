@@ -21,8 +21,7 @@ Server| now provides the following counters as status variables:
 Version Specific Information
 ============================
 
-  * :rn:`5.7.20-18`:
-    Feature Implemented
+* :rn:`8.0.12-1`: The feature was ported from |Percona Server| 5.7
 
 Status Variables
 ================
@@ -74,4 +73,4 @@ Related Reading
     <https://www.percona.com/blog/2009/11/05/innodb-look-after-fragmentation/>`_
  
   * `Defragmenting a Table
-    <https://dev.mysql.com/doc/refman/5.7/en/innodb-file-defragmenting.html>`_
+    <https://dev.mysql.com/doc/refman/8.0/en/innodb-file-defragmenting.html>`_

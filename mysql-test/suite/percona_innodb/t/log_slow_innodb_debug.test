@@ -3,6 +3,8 @@
 #
 --source include/have_debug_sync.inc
 
+--source include/log_prepare.inc
+
 --source include/count_sessions.inc
 
 SET @saved_innodb_thread_sleep_delay = @@GLOBAL.innodb_thread_sleep_delay;
@@ -33,7 +35,7 @@ send INSERT INTO t1 VALUES ();
 --connection default
 SET DEBUG_SYNC = 'now WAIT_FOR waiting';
 SET DEBUG_SYNC = 'now SIGNAL finish2';
-real_sleep 2;
+sleep 2;
 SET DEBUG_SYNC = 'now SIGNAL finish1';
 
 --connection con1

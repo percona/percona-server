@@ -41,7 +41,8 @@ bool decrypt_event(uint32 offs, const Binlog_crypt_data &crypto, uchar *buf,
                        buf_len);
 }
 
-bool Event_encrypter::init(Basic_ostream *ostream, uchar* &header, size_t &buf_len) {
+bool Event_encrypter::init(Basic_ostream *ostream, uchar *&header,
+                           size_t &buf_len) {
   uchar iv[binary_log::Start_encryption_event::IV_LENGTH];
   crypto->set_iv(iv, ostream->position());
   if (ctx != nullptr) {
@@ -59,8 +60,8 @@ bool Event_encrypter::init(Basic_ostream *ostream, uchar* &header, size_t &buf_l
   DBUG_ASSERT(event_len >= buf_len);
   memcpy(header + EVENT_LEN_OFFSET, header, 4);
 
-  header += 4; // We moved first 4 bytes in place of event size
-  buf_len -= 4;// We will add event size in its proper offset later on
+  header += 4;   // We moved first 4 bytes in place of event size
+  buf_len -= 4;  // We will add event size in its proper offset later on
 
   return false;
 }

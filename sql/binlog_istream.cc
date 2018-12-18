@@ -51,7 +51,8 @@ const char *Binlog_read_error::get_str() const {
       return "Binlog has bad magic number;  It's not a binary log file "
              "that can be used by this version of MySQL";
     case DECRYPT_INIT_FAILURE:
-      return "Failed to initialize binlog encryption. Please make sure that the correct keyring "
+      return "Failed to initialize binlog encryption. Please make sure that "
+             "the correct keyring "
              "is loaded.";
     case DECRYPT:
       return "Error decrypting an event.";

@@ -14,8 +14,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql/binlog_reader.h"
-#include "sql/log_event.h"
 #include "sql/event_crypt.h"
+#include "sql/log_event.h"
 
 unsigned char *Default_binlog_event_allocator::allocate(size_t size) {
   DBUG_EXECUTE_IF("simulate_allocate_failure", return nullptr;);
@@ -66,7 +66,6 @@ bool Binlog_event_data_istream::start_decryption(
   return false;
 }
 
-
 Binlog_event_data_istream::Binlog_event_data_istream(
     Binlog_read_error *error, Basic_istream *istream,
     unsigned int max_event_size)
@@ -97,7 +96,8 @@ bool Binlog_event_data_istream::Decryption_buffer::resize(size_t new_size) {
   return false;
 }
 
-bool Binlog_event_data_istream::Decryption_buffer::set_size(size_t size_to_set) {
+bool Binlog_event_data_istream::Decryption_buffer::set_size(
+    size_t size_to_set) {
   if (size_to_set == m_size) {
     return false;
   }
@@ -106,7 +106,8 @@ bool Binlog_event_data_istream::Decryption_buffer::set_size(size_t size_to_set) 
   }
   DBUG_ASSERT(size_to_set < m_size);
 
-  if (size_to_set < (m_size / 2) && ++m_number_of_events_with_half_the_size == 100) {
+  if (size_to_set < (m_size / 2) &&
+      ++m_number_of_events_with_half_the_size == 100) {
     // There were already 101 events which size was a half of currently
     // allocated size. This is strong indication that we had occured an
     // event which was unusually big. Shrink the buffer to half the size.
@@ -118,9 +119,7 @@ bool Binlog_event_data_istream::Decryption_buffer::set_size(size_t size_to_set) 
   return false;
 }
 
-uchar* Binlog_event_data_istream::Decryption_buffer::data() {
-  return m_buffer;
-}
+uchar *Binlog_event_data_istream::Decryption_buffer::data() { return m_buffer; }
 
 bool Binlog_event_data_istream::fill_event_data(
     unsigned char *event_data, bool verify_checksum,
@@ -133,13 +132,16 @@ bool Binlog_event_data_istream::fill_event_data(
 
   if (crypto_data.is_enabled()) {
     // crypto only works on binlog files
-    Basic_binlog_ifile* binlog_file = down_cast<Basic_binlog_ifile*>(m_istream);
-    
+    Basic_binlog_ifile *binlog_file =
+        down_cast<Basic_binlog_ifile *>(m_istream);
+
     // if file position if larger than 4 bytes we still care only about
     // least significant 4 bytes
     if (m_decryption_buffer.set_size(m_event_length) ||
-        decrypt_event(static_cast<uint32_t>((binlog_file->position() - m_event_length)), crypto_data, event_data, m_decryption_buffer.data(),
-                      m_event_length)) {
+        decrypt_event(
+            static_cast<uint32_t>((binlog_file->position() - m_event_length)),
+            crypto_data, event_data, m_decryption_buffer.data(),
+            m_event_length)) {
       return m_error->set_type(Binlog_read_error::DECRYPT);
     }
 
@@ -158,8 +160,9 @@ bool Binlog_event_data_istream::fill_event_data(
     if (Log_event_footer::event_checksum_test(event_data, m_event_length,
                                               checksum_alg) &&
         !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
-      return m_error->set_type(crypto_data.is_enabled() ? Binlog_read_error::CHECKSUM_FAILURE
-                                                        : Binlog_read_error::DECRYPT);
+      return m_error->set_type(crypto_data.is_enabled()
+                                   ? Binlog_read_error::CHECKSUM_FAILURE
+                                   : Binlog_read_error::DECRYPT);
     }
   }
   return false;
@@ -185,7 +188,6 @@ Binlog_read_error::Error_type binlog_event_deserialize(
   enum_binlog_checksum_alg alg;
 
   DBUG_ENTER("binlog_event_deserialize");
-
 
   DBUG_ASSERT(fde != 0);
   DBUG_PRINT("info", ("binlog_version: %d", fde->binlog_version));

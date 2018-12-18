@@ -1560,6 +1560,7 @@ class Format_description_log_event : public Format_description_event,
     */
     return Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN;
   }
+
  protected:
 #if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli) override;

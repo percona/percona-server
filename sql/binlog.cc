@@ -1261,18 +1261,20 @@ class Binlog_event_writer : public Basic_ostream {
         if (header_len == LOG_EVENT_HEADER_LEN) {
           update_header();
           if (event_encrypter.is_encryption_enabled()) {
-
             uchar *header_for_encryption = header;
             size_t header_for_encryption_length = header_len;
 
-            if (event_encrypter.init(m_binlog_file, header_for_encryption, header_for_encryption_length)) {
+            if (event_encrypter.init(m_binlog_file, header_for_encryption,
+                                     header_for_encryption_length)) {
               DBUG_RETURN(true);
             }
-            if (event_encrypter.encrypt_and_write(m_binlog_file, header_for_encryption,
-                                                header_for_encryption_length))
+            if (event_encrypter.encrypt_and_write(m_binlog_file,
+                                                  header_for_encryption,
+                                                  header_for_encryption_length))
               DBUG_RETURN(true);
           } else {
-            if (event_encrypter.encrypt_and_write(m_binlog_file, header, header_len))
+            if (event_encrypter.encrypt_and_write(m_binlog_file, header,
+                                                  header_len))
               DBUG_RETURN(true);
           }
           thd->binlog_bytes_written += header_len;
@@ -1307,9 +1309,9 @@ class Binlog_event_writer : public Basic_ostream {
             thd->binlog_bytes_written += BINLOG_CHECKSUM_LEN;
             checksum = initial_checksum;
           }
-          if (event_encrypter.is_encryption_enabled() && event_encrypter.finish(m_binlog_file))
+          if (event_encrypter.is_encryption_enabled() &&
+              event_encrypter.finish(m_binlog_file))
             DBUG_RETURN(true);
-
         }
       }
     }

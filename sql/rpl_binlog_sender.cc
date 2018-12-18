@@ -1040,7 +1040,8 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
   }
 
   binlog_read_error = binlog_event_deserialize(
-      event_ptr, event_len, reader->format_description_event(), false, &ev, reader->position());
+      event_ptr, event_len, reader->format_description_event(), false, &ev,
+      reader->position());
 
   if (binlog_read_error.has_error()) {
     set_fatal_error(binlog_read_error.get_str());
@@ -1048,7 +1049,6 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
   }
 
   if (ev && ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT) {
-
     Start_encryption_log_event *sele =
         down_cast<Start_encryption_log_event *>(ev);
 
@@ -1061,7 +1061,7 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
       set_fatal_error("Could not decrypt binlog: encryption key error");
       DBUG_RETURN(1);
     }
-   
+
     if (start_pos <= BIN_LOG_HEADER_SIZE) {
       const auto log_pos = reader->position();
       // We have read start encryption event from master binlog, but we have

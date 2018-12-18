@@ -472,19 +472,11 @@ ibool meb_get_checksum_algorithm_enum(const char *algo_name,
 }
 #endif /* !UNIV_HOTBACKUP */
 
-static const char* redo_log_encrypt_names[] = {
-  "off",
-  "on",
-  "master_key",
-  "keyring_key",
-  NullS
-};
+static const char *redo_log_encrypt_names[] = {"off", "on", "master_key",
+                                               "keyring_key", NullS};
 static TYPELIB redo_log_encrypt_typelib = {
-  array_elements(redo_log_encrypt_names) - 1,
-  "redo_log_encrypt_typelib",
-  redo_log_encrypt_names,
-  nullptr
-};
+    array_elements(redo_log_encrypt_names) - 1, "redo_log_encrypt_typelib",
+    redo_log_encrypt_names, nullptr};
 
 #ifndef UNIV_HOTBACKUP
 /* The following counter is used to convey information to InnoDB
@@ -4051,7 +4043,8 @@ bool innobase_fix_tablespaces_empty_uuid() {
   /* Rotate log tablespace */
   bool failure1 = !log_rotate_encryption();
 
-  bool failure2 = !fil_encryption_rotate_global(space_ids) ||  !log_rotate_encryption();
+  bool failure2 =
+      !fil_encryption_rotate_global(space_ids) || !log_rotate_encryption();
 
   my_free(master_key);
 
@@ -22023,10 +22016,11 @@ static MYSQL_SYSVAR_ENUM(
     NULL, NULL, DEFAULT_ROW_FORMAT_DYNAMIC, &innodb_default_row_format_typelib);
 
 static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
-    PLUGIN_VAR_OPCMDARG,
-    "Enable or disable Encryption of REDO tablespace."
-    "Possible values: OFF, ON, MASTER_KEY, KEYRING_KEY.",
-    NULL, NULL, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+                         PLUGIN_VAR_OPCMDARG,
+                         "Enable or disable Encryption of REDO tablespace."
+                         "Possible values: OFF, ON, MASTER_KEY, KEYRING_KEY.",
+                         NULL, NULL, REDO_LOG_ENCRYPT_OFF,
+                         &redo_log_encrypt_typelib);
 
 static MYSQL_SYSVAR_BOOL(
     print_ddl_logs, srv_print_ddl_logs, PLUGIN_VAR_OPCMDARG,

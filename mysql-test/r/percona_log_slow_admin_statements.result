@@ -1,7 +1,7 @@
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT);
 SET SESSION min_examined_row_limit=0;
 SET SESSION long_query_time=0;
+SET @saved_log_slow_admin_statements=@@GLOBAL.log_slow_admin_statements;
 SET GLOBAL log_slow_admin_statements=ON;
 [log_start.inc] percona_log_slow_admin_stmt_1
 ALTER TABLE t1 ADD INDEX a(a);
@@ -14,7 +14,5 @@ ALTER TABLE t1 DROP INDEX a;
 [log_stop.inc] percona_log_slow_admin_stmt_2
 [log_grep.inc] file: percona_log_slow_admin_stmt_2 pattern: ALTER TABLE t1 DROP INDEX a;
 [log_grep.inc] lines:   0
-SET GLOBAL log_slow_admin_statements=default;
-SET SESSION long_query_time=default;
-SET SESSION min_examined_row_limit=default;
+SET GLOBAL log_slow_admin_statements=@saved_log_slow_admin_statements;
 DROP TABLE t1;

@@ -3,6 +3,8 @@
 #
 --source include/have_debug_sync.inc
 
+--source include/log_prepare.inc
+
 --source include/count_sessions.inc
 
 SET @saved_innodb_thread_sleep_delay = @@GLOBAL.innodb_thread_sleep_delay;

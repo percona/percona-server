@@ -1,6 +1,8 @@
-DROP TABLE IF EXISTS t;
+SET @saved_log_slow_admin_statements=@@GLOBAL.log_slow_admin_statements;
 SET GLOBAL log_slow_admin_statements=ON;
+SET @saved_long_query_time=@@GLOBAL.long_query_time;
 SET GLOBAL long_query_time=0;
+SET @saved_min_examined_row_limit=@@GLOBAL.min_examined_row_limit;
 SET GLOBAL min_examined_row_limit=0;
 CREATE TABLE t(a INT);
 [log_start.inc] percona.slow_extended.error_on_quit_1
@@ -22,6 +24,6 @@ a
 [log_grep.inc] file: percona.slow_extended.error_on_quit_3 pattern: Last_errno: 0\s expected_matches: 3
 [log_grep.inc] found expected match count: 3
 DROP TABLE t;
-SET GLOBAL log_slow_admin_statements=default;
-SET GLOBAL long_query_time=default;
-SET GLOBAL min_examined_row_limit=default;
+SET GLOBAL log_slow_admin_statements=@saved_log_slow_admin_statements;
+SET GLOBAL long_query_time=@saved_long_query_time;
+SET GLOBAL min_examined_row_limit=@saved_min_examined_row_limit;

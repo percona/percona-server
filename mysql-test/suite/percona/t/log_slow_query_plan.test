@@ -2,6 +2,8 @@
 # Test that various query plans are logged correctly in the slow query log.
 #
 
+--source include/log_prepare.inc
+
 FLUSH STATUS;
 
 CREATE TABLE t1(
@@ -246,7 +248,9 @@ EXPLAIN SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
 --source include/log_start.inc
 SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
 --source include/log_stop.inc
---let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*\$
+# The pattern below should also check for "Tmp_table_sizes: [1-9][0-9]*", but
+# this is disabled because of https://jira.percona.com/browse/PS-5168
+--let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [0-9]*\$
 --let log_expected_matches= 1
 --source include/log_grep.inc
 --let grep_pattern = ^#.*Tmp_table: Yes  Tmp_table_on_disk: No\$
@@ -285,10 +289,12 @@ INSERT INTO t4 VALUES (1, "aaa"), (2, "bbb"), (3, "ccc");
 
 ANALYZE TABLE t4;
 
-EXPLAIN SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.a;
+SET SESSION internal_tmp_mem_storage_engine = MEMORY;
+
+EXPLAIN SELECT SQL_BIG_RESULT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.a;
 --let log_file=percona_slow_query_log.query_plan_10
 --source include/log_start.inc
-SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.b;
+SELECT SQL_BIG_RESULT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.b;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*\$
 --let log_expected_matches= 1
@@ -319,13 +325,9 @@ SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.b;
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
 
-SET SESSION log_slow_filter=default;
-
-SET SESSION long_query_time=default;
-SET SESSION min_examined_row_limit=default;
-SET SESSION log_slow_verbosity=default;
-
 DROP TABLE t1, t2, t3, t4;
+
+SET SESSION internal_tmp_mem_storage_engine = default;
 
 --echo #
 --echo # Bug#1592694 Query plan temp flag set is missed in

@@ -7,7 +7,11 @@
 CREATE TABLE t(id INT);
 --source include/sync_slave_sql_with_master.inc
 
+--source include/log_prepare.inc
+
+SET @saved_min_examined_row_limit=@@GLOBAL.min_examined_row_limit;
 SET GLOBAL min_examined_row_limit=0;
+SET @saved_long_query_time=@@GLOBAL.long_query_time;
 SET GLOBAL long_query_time=0;
 SET @saved_log_slow_replica_statements=@@GLOBAL.log_slow_replica_statements;
 SET GLOBAL log_slow_replica_statements=OFF;
@@ -61,5 +65,6 @@ SET GLOBAL log_slow_replica_statements=@saved_log_slow_replica_statements;
 SET GLOBAL long_query_time=@saved_long_query_time;
 SET GLOBAL min_examined_row_limit=@saved_min_examined_row_limit;
 
---source include/rpl_end.inc
 --source include/log_cleanup.inc
+
+--source include/rpl_end.inc

@@ -1,10 +1,7 @@
 #
 # Test log_slow_slave_admin_statements
 #
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+--source include/log_prepare.inc
 
 CREATE TABLE t1 (a INT);
 
@@ -14,6 +11,7 @@ SET SESSION long_query_time=0;
 #
 # Test enabled admin statement slow-logging
 #
+SET @saved_log_slow_admin_statements=@@GLOBAL.log_slow_admin_statements;
 SET GLOBAL log_slow_admin_statements=ON;
 --let log_file=percona_log_slow_admin_stmt_1
 --source include/log_start.inc
@@ -35,9 +33,7 @@ ALTER TABLE t1 DROP INDEX a;
 --let log_expected_matches= 0
 --source include/log_grep.inc
 
-SET GLOBAL log_slow_admin_statements=default;
-SET SESSION long_query_time=default;
-SET SESSION min_examined_row_limit=default;
+SET GLOBAL log_slow_admin_statements=@saved_log_slow_admin_statements;
 
 DROP TABLE t1;
 --source include/log_cleanup.inc

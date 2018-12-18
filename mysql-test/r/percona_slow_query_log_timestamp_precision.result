@@ -1,7 +1,8 @@
 SET @old_slow_query_log_timestamp_always=@@slow_query_log_timestamp_always;
 SET SESSION min_examined_row_limit=0;
-SET long_query_time=0;
+SET SESSION long_query_time=0;
 SET GLOBAL slow_query_log_timestamp_always=TRUE;
+SET @old_slow_query_log_timestamp_precision=@@slow_query_log_timestamp_precision;
 SET GLOBAL slow_query_log_timestamp_precision='microsecond';
 [log_start.inc] percona_slow_extended_1
 SELECT 1;
@@ -18,7 +19,5 @@ SELECT 1;
 [log_stop.inc] percona_slow_extended_2
 [log_grep.inc] file: percona_slow_extended_2 pattern: ^# Time: \d{6} (\d| )\d:\d\d:\d\d$
 [log_grep.inc] lines:   2
-SET long_query_time=default;
-SET SESSION min_examined_row_limit=default;
 SET GLOBAL slow_query_log_timestamp_always=@old_slow_query_log_timestamp_always;
-SET GLOBAL slow_query_log_timestamp_precision=default;
+SET GLOBAL slow_query_log_timestamp_precision=@old_slow_query_log_timestamp_precision;

@@ -98,7 +98,7 @@ Sort_merge_passes	6
 SET SESSION sort_buffer_size=default;
 SHOW SESSION STATUS LIKE 'Select_scan';
 Variable_name	Value
-Select_scan	37
+Select_scan	19
 [log_start.inc] percona_slow_query_log.query_plan_4
 SELECT * FROM t1 WHERE a=1;
 a	b
@@ -108,7 +108,7 @@ a	b
 [log_grep.inc] found expected match count: 2
 SHOW SESSION STATUS LIKE 'Select_scan';
 Variable_name	Value
-Select_scan	40
+Select_scan	19
 [log_start.inc] percona_slow_query_log.query_plan_5
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -118,7 +118,7 @@ COUNT(*)
 [log_grep.inc] found expected match count: 1
 SHOW SESSION STATUS LIKE 'Select_scan';
 Variable_name	Value
-Select_scan	44
+Select_scan	20
 SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk,filesort,filesort_on_disk';
 [log_start.inc] percona_slow_query_log.query_plan_5a
 SELECT COUNT(*) FROM t1;
@@ -129,7 +129,7 @@ COUNT(*)
 [log_grep.inc] lines:   0
 SHOW SESSION STATUS LIKE 'Select_scan';
 Variable_name	Value
-Select_scan	48
+Select_scan	21
 SET SESSION log_slow_filter=default;
 CREATE TABLE t3(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t3 VALUES (1), (2), (3);
@@ -173,7 +173,7 @@ Select_full_join	2
 SET SESSION log_slow_filter=default;
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
-Created_tmp_tables	49
+Created_tmp_tables	13
 SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	0
@@ -191,7 +191,7 @@ COUNT(*)
 [log_grep.inc] found expected match count: 2
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
-Created_tmp_tables	52
+Created_tmp_tables	13
 SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	0
@@ -211,7 +211,7 @@ COUNT(*)
 [log_grep.inc] found expected match count: 1
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
-Created_tmp_tables	57
+Created_tmp_tables	15
 SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	0
@@ -228,7 +228,7 @@ COUNT(*)
 [log_grep.inc] lines:   0
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
-Created_tmp_tables	61
+Created_tmp_tables	16
 SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	0
@@ -254,7 +254,7 @@ COUNT(*)
 [log_grep.inc] found expected match count: 1
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
-Created_tmp_tables	66
+Created_tmp_tables	18
 SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
@@ -271,14 +271,10 @@ COUNT(*)
 [log_grep.inc] lines:   0
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
-Created_tmp_tables	70
+Created_tmp_tables	19
 SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	2
-SET SESSION log_slow_filter=default;
-SET SESSION long_query_time=default;
-SET SESSION min_examined_row_limit=default;
-SET SESSION log_slow_verbosity=default;
 DROP TABLE t1, t2, t3, t4;
 #
 # Bug#1592694 Query plan temp flag set is missed in

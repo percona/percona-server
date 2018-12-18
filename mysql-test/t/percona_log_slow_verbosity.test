@@ -3,6 +3,8 @@
 #
 --source include/have_innodb.inc
 
+--source include/log_prepare.inc
+
 CREATE TABLE t1(a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUE(0);
 
@@ -43,7 +45,7 @@ SELECT 1;
 # Test only 'microtime' in the output (bug 730173: InnoDB and query plan information
 # are logged when not enabled)
 #
-SET log_slow_verbosity='microtime';
+SET SESSION log_slow_verbosity='microtime';
 --let log_file=percona.slow_extended.log_slow_verbosity_2
 
 --source include/log_start.inc
@@ -56,7 +58,7 @@ INSERT INTO t1 VALUE(1);
 #
 # Test 'query_plan'
 #
-SET log_slow_verbosity='microtime,query_plan';
+SET SESSION log_slow_verbosity='microtime,query_plan';
 --let log_file=percona.slow_extended.log_slow_verbosity_3
 
 --source include/log_start.inc
@@ -65,10 +67,6 @@ INSERT INTO t1 VALUE(2);
 
 --echo log_slow_verbosity='query_plan':
 --source include/percona_slow_log_verbosity_grep.inc
-
-SET SESSION log_slow_verbosity=default;
-SET SESSION long_query_time=default;
-SET SESSION min_examined_row_limit=default;
 
 DROP TABLE t1;
 --source include/log_cleanup.inc

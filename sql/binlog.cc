@@ -3166,8 +3166,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
     LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
     SELECT_LEX_UNIT *unit = thd->lex->unit;
     ha_rows event_count, limit_start, limit_end;
-    my_off_t pos =
-        max<my_off_t>(BIN_LOG_HEADER_SIZE, lex_mi->pos);  // user-friendly
+    my_off_t pos = lex_mi->pos;
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
 
@@ -3225,7 +3224,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
 
       DEBUG_SYNC(thd, "wait_in_show_binlog_events_loop");
       if (event_count >= limit_start &&
-          ev->net_send(protocol, linfo.log_file_name, pos)) {
+          ev->net_send(protocol, linfo.log_file_name,
+                       max<my_off_t>(BIN_LOG_HEADER_SIZE, pos))) {
         errmsg = "Net error";
         delete ev;
         goto err;

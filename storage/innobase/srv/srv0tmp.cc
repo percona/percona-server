@@ -64,6 +64,7 @@ Tablespace_pool *tbsp_pool = nullptr;
 /* Directory to store session temporary tablespaces, provided by user */
 char *srv_temp_dir = nullptr;
 
+/** @return true for encrypted purpose, else false */
 static bool is_encrypt(enum tbsp_purpose purpose) {
   switch (purpose) {
     case TBSP_USER:
@@ -77,6 +78,9 @@ static bool is_encrypt(enum tbsp_purpose purpose) {
     default:
       ut_ad(0);
   }
+  /* Make compilers happy */
+  ut_ad(0);
+  return (false);
 }
 
 /** Sesssion Temporary tablespace */
@@ -199,12 +203,13 @@ void Tablespace::decrypt() {
 
   rw_lock_x_lock(&space->latch);
   /* Reset In-mem encryption for tablespace */
-#ifdef UNIV_DEBUG
-  dberr_t err =
-#endif
-      fil_reset_encryption(m_space_id);
+
+  /* fil_space_t of session temp tablespace will be always found and
+  DB_NOT_FOUND is not possible from fil_reset_encryption() */
+  dberr_t err = fil_reset_encryption(m_space_id);
+  ut_a(err == DB_SUCCESS);
+
   rw_lock_x_unlock(&space->latch);
-  ut_ad(err == DB_SUCCESS);
 }
 
 uint32_t Tablespace::file_id() const {

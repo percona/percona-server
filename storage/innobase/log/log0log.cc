@@ -1435,8 +1435,10 @@ log_enable_encryption_if_set()
 				}
 			}
 
-			ut_ad(redo_key_type && strcmp(redo_key_type, "AES") == 0);
-			my_free(redo_key_type);
+			if (encryption_enabled) {
+				ut_ad(redo_key_type && strcmp(redo_key_type, "AES") == 0);
+				my_free(redo_key_type);
+			}
 
 #ifdef UNIV_ENCRYPT_DEBUG
 				fprintf(stderr, "Fetched redo key: %s.\n", key);

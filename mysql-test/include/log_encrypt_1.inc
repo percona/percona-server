@@ -6,7 +6,11 @@
 --source include/not_embedded.inc
 --source include/have_innodb_max_16k.inc
 
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+--disable_query_log
+call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("Redo log key generation failed.");
+--enable_query_log
 
 # eNable redo log encryption, should report error in server log, since keyring is not loaded.
 eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_mode;

@@ -3915,6 +3915,8 @@ innobase_fix_tablespaces_empty_uuid()
 		return(false);
 	}
 
+	log_enable_encryption_if_set();
+
 	/* We only need to handle the case when an encrypted tablespace
 	is created at startup. If it is 0, there is no encrypted tablespace,
 	If it is > 1, it means we already have fixed the UUID */
@@ -3953,7 +3955,7 @@ innobase_fix_tablespaces_empty_uuid()
 	space_ids.push_back(srv_sys_space.space_id());
 	space_ids.push_back(srv_tmp_space.space_id());
 
-	bool	ret = !fil_encryption_rotate_global(space_ids);
+	bool	ret = !fil_encryption_rotate_global(space_ids) || !log_rotate_encryption();
 
 	my_free(master_key);
 
@@ -4010,7 +4012,7 @@ innobase_encryption_key_rotation()
                 return(true);
         }
 
-	ret = !fil_encryption_rotate();
+	ret = !fil_encryption_rotate() || !log_rotate_encryption();
 
 	my_free(master_key);
 
@@ -20668,8 +20670,10 @@ innodb_track_changed_pages_validate(
 		return 0;
 	}
 
-	if (intbuf == srv_track_changed_pages)
+	if (intbuf == srv_track_changed_pages) { // == 0
+		*reinterpret_cast<ulong*>(save) = srv_track_changed_pages;
 		return 0;
+	}
 
 	return 1;
 }

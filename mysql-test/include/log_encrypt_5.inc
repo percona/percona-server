@@ -41,7 +41,7 @@ CREATE DATABASE test;
 EOF
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 --secure-file-priv="" >$MYSQLTEST_VARDIR/tmp/bootstrap1.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 --secure-file-priv="" >$MYSQL_TMP_DIR/bootstrap1.log 2>&1;
 
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
@@ -119,7 +119,7 @@ DROP DATABASE tde_db;
 
 --force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir1
 --force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir
---remove_file $MYSQLTEST_VARDIR/tmp/bootstrap1.log
+--remove_file $MYSQL_TMP_DIR/bootstrap1.log
 --remove_file $BOOTSTRAP_SQL
 --disable_query_log
 eval SET GLOBAL innodb_file_per_table=$old_innodb_file_per_table;

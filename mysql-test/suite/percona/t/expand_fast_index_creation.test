@@ -116,3 +116,127 @@ EXPLAIN SELECT COUNT(*) FROM t1, t1 t2 WHERE t1.a = t2.a AND t1.b = t2.b;
 SET expand_fast_index_creation = 0;
 
 DROP TABLE t1;
+
+--echo # Check expanded fast index creation with partitions
+SET SESSION expand_fast_index_creation=ON;
+CREATE TABLE t1(a int,b CHAR (1),KEY (b)) PARTITION BY HASH (a) PARTITIONS 2;
+ALTER TABLE t1 ADD COLUMN c BLOB, ALGORITHM=COPY;
+DROP TABLE t1;
+
+--echo # Check expanded fast index creation with temporary tables
+CREATE TEMPORARY TABLE t1(a INT, b INT, c INT, d INT, PRIMARY KEY(a), KEY k1(b), KEY k2 (c,d));
+INSERT INTO t1 VALUES(1, 2, 3, 4);
+INSERT INTO t1 VALUES(2, 3, 4, 5);
+ALTER TABLE t1 ROW_FORMAT=COMPACT, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(id int auto_increment key,a int,index(a));
+ALTER TABLE t1 MODIFY COLUMN a ENUM('','a6','a7','a8','a9','a10');
+DROP TABLE t1;
+
+--echo #
+--echo # PS-5043: Assertion failure: handler0alter.cc:3703:table->has_instant_cols()
+--echo #
+CREATE TABLE t1(c1 CHAR (1));
+ALTER TABLE t1 ADD COLUMN c2 INT;
+ALTER TABLE t1 CHANGE c1 c1 BLOB;
+ALTER TABLE t1 ADD INDEX(c1(1));
+ALTER TABLE t1 ADD c4 BLOB AFTER c2;
+ALTER TABLE t1 CHANGE c1 c1 NUMERIC;
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 INT UNSIGNED);
+ALTER TABLE t1 ADD c4 TIMESTAMP;
+ALTER TABLE t1 CHANGE c1 c1 INT SIGNED,ADD KEY(c1);
+DROP TABLE t1;
+
+--echo #
+--echo # PS-6903: CREATE TEMPORARY TABLE crashes with expand_fast index creation
+--echo #
+CREATE TEMPORARY TABLE t1 LIKE information_schema.processlist;
+
+--echo #
+--echo # PS-6922: Running ALTER TABLE with with expand_fast_index_creation enabled can lead to a crash
+--echo #
+--echo # Below queries would crash the server. Check that they work OK now.
+
+ALTER TABLE mysql.db ORDER BY db DESC;
+--echo 1
+--error 1265 #WARN_DATA_TRUNCATED
+ALTER TABLE mysql.tables_priv MODIFY User CHAR DEFAULT'',MODIFY gRANTOR CHAR DEFAULT'';
+
+CREATE TABLE t_part
+(a int,
+ b int,
+ c varchar(64),
+ KEY (a),
+ KEY (b),
+ KEY (c,b))
+ENGINE = InnoDB
+ENCRYPTION='N'
+PARTITION BY HASH (a) PARTITIONS 5;
+
+ALTER TABLE t_part ORDER BY a DESC;
+
+CREATE TABLE t2_part
+(a int,
+ b int,
+ c varchar(64),
+ KEY (a),
+ KEY (b),
+ KEY (c,b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 5;
+
+ALTER TABLE t2_part ENCRYPTION='N', ORDER BY a DESC;
+
+DROP TABLE t_part,t2_part;
+
+--echo #
+--echo # PS-10260: Expanded Fast Index Creation fails with Partitioned Tables
+--echo #
+
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 int AUTO_INCREMENT, c2 int, c3 int, PRIMARY KEY(c1,c3), KEY(c2));
+INSERT INTO t1(c2, c3) SELECT value + 1, value + 2 FROM PERCONA_SEQUENCE_TABLE(50) AS tt;
+
+SHOW VARIABLES LIKE 'expand_fast_index_creation';
+
+ALTER TABLE t1 PARTITION BY RANGE (c3) (
+  PARTITION p0 VALUES LESS THAN (10),
+  PARTITION p1 VALUES LESS THAN (20),
+  PARTITION p2 VALUES LESS THAN (25),
+  PARTITION p4 VALUES LESS THAN (60)
+);
+SHOW WARNINGS;
+
+ALTER TABLE t1 REORGANIZE PARTITION p1 INTO (
+  PARTITION p1a VALUES LESS THAN (15),
+  PARTITION p1b VALUES LESS THAN (20)
+);
+
+ALTER TABLE t1 REORGANIZE PARTITION p1a, p1b INTO (
+  PARTITION p1 VALUES LESS THAN (20)
+);
+
+ALTER TABLE t1 ADD PARTITION (
+  PARTITION p3 VALUES LESS THAN (100)
+);
+
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+
+ALTER TABLE t1 DROP PARTITION p2;
+
+ALTER TABLE t1 REBUILD PARTITION ALL;
+
+ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 4;
+ALTER TABLE t1 PARTITION BY KEY(c1) PARTITIONS 4;
+
+ALTER TABLE t1 COALESCE PARTITION 2;
+
+ALTER TABLE t1 REMOVE PARTITIONING;
+
+DROP TABLE t1;
+
+SET SESSION expand_fast_index_creation=OFF;

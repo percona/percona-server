@@ -74,6 +74,7 @@ static const std::set<String_type> default_valid_option_keys = {
 
 Index_impl::Index_impl()
     : m_hidden(false),
+      m_disabled(false),
       m_is_generated(false),
       m_ordinal_position(0),
       m_options(default_valid_option_keys),
@@ -88,6 +89,7 @@ Index_impl::Index_impl()
 
 Index_impl::Index_impl(Table_impl *table)
     : m_hidden(false),
+      m_disabled(false),
       m_is_generated(false),
       m_ordinal_position(0),
       m_options(default_valid_option_keys),
@@ -390,6 +392,7 @@ Index_impl::Index_impl(const Index_impl &src, Table_impl *parent)
     : Weak_object(src),
       Entity_object_impl(src),
       m_hidden(src.m_hidden),
+      m_disabled(src.m_disabled),
       m_is_generated(src.m_is_generated),
       m_ordinal_position(src.m_ordinal_position),
       m_comment(src.m_comment),

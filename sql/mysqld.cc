@@ -9914,6 +9914,10 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   global_system_variables.long_query_time =
       (ulonglong)(global_system_variables.long_query_time_double * 1e6);
 
+  // Override any value specified on command line until the functionality
+  // is ported to 8.0.
+  global_system_variables.expand_fast_index_creation = false;
+
   init_log_slow_verbosity();
   init_slow_query_log_use_global_control();
   init_log_slow_sp_statements();

@@ -263,6 +263,13 @@ bool dd_table_match(const dict_table_t *table, const Table *dd_table) {
   }
 
   for (const auto dd_index : dd_table->indexes()) {
+    if (table->skip_alter_undo && dd_index->is_disabled()) {
+      /* Only secondary indexes can be disabled with expanded fast index
+      creation */
+      ut_ad(dd_index->type() == dd::Index::IT_MULTIPLE);
+      continue;
+    }
+
     if (dd_table->tablespace_id() == dict_sys_t::s_dd_sys_space_id &&
         dd_index->tablespace_id() != dd_table->tablespace_id()) {
       ib::warn(ER_IB_MSG_167)
@@ -2649,6 +2656,11 @@ void dd_write_table(dd::Object_id dd_space_id, Table *dd_table,
   }
 
   for (auto dd_index : *dd_table->indexes()) {
+    if (table->skip_alter_undo && dd_index->is_disabled()) {
+      ut_ad(dd_index->type() == dd::Index::IT_MULTIPLE);
+      continue;
+    }
+
     /* Don't assume the index orders are the same, even on
     CREATE TABLE. This could be called from TRUNCATE path,
     which would do some adjustment on FULLTEXT index, thus

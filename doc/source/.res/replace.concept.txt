@@ -1,0 +1,4 @@
+
+.. |cfname| replace:: `cf_name`
+.. |cf-name| replace:: `cf_name`
+.. |sql.comment| replace:: ``COMMENT``

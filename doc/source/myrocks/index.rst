@@ -26,5 +26,7 @@ engines, if your workload uses fast storage, such as SSD:
    install
    limitations
    differences
+   column-family
    variables
    information-schema-tables
+

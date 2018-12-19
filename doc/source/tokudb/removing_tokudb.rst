@@ -79,5 +79,4 @@ or :bash:`apt remove percona-server-tokudb-8.0`
 
    Make sure you've removed all the TokuDB specific variables from your configuration file (:file:`my.cnf`) before you restart the server, otherwise server could show errors or warnings and won't be able to start.
 
-
-
+.. include:: ../.res/replace.program.txt

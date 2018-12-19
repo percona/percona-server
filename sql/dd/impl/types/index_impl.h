@@ -125,6 +125,14 @@ class Index_impl : public Entity_object_impl, public Index {
   void set_hidden(bool hidden) override { m_hidden = hidden; }
 
   /////////////////////////////////////////////////////////////////////////
+  // is_disabled.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_disabled() const noexcept override { return m_disabled; }
+
+  void set_disabled(bool disable) noexcept override { m_disabled = disable; }
+
+  /////////////////////////////////////////////////////////////////////////
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
@@ -266,6 +274,7 @@ class Index_impl : public Entity_object_impl, public Index {
   // Fields.
 
   bool m_hidden;
+  bool m_disabled;  // in-memory only attribute
   bool m_is_generated;
 
   uint m_ordinal_position;

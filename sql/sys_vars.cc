@@ -1795,8 +1795,8 @@ static Sys_var_bool Sys_expand_fast_index_creation(
     "Enable/disable improvements to the InnoDB fast index creation "
     "functionality. Has no effect when fast index creation is disabled with "
     "the fast-index-creation option",
-    READ_ONLY SESSION_VAR(expand_fast_index_creation), CMD_LINE(OPT_ARG),
-    DEFAULT(false));
+    READ_ONLY NON_PERSIST SESSION_VAR(expand_fast_index_creation),
+    CMD_LINE(OPT_ARG), DEFAULT(false));
 
 static Sys_var_ulong Sys_expire_logs_days(
     "expire_logs_days",

@@ -186,9 +186,27 @@ dberr_t dict_build_tablespace(
 static ibt::Tablespace *determine_session_temp_tblsp(
     innodb_session_t *innodb_session, bool is_intrinsic, bool is_slave_thd) {
   ibt::Tablespace *tblsp = nullptr;
-  if (srv_encrypt_tables == SRV_ENCRYPT_TABLES_ON ||
-      srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE ||
-      srv_tmp_tablespace_encrypt) {
+  bool encrypted = false;
+  switch (srv_encrypt_tables) {
+    case SRV_ENCRYPT_TABLES_ON:
+    case SRV_ENCRYPT_TABLES_FORCE:
+    case SRV_ENCRYPT_TABLES_KEYRING_ON:
+    case SRV_ENCRYPT_TABLES_KEYRING_FORCE:
+    case SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING:
+    case SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE:
+      encrypted = true;
+      break;
+    case SRV_ENCRYPT_TABLES_OFF:
+    case SRV_ENCRYPT_TABLES_ONLINE_FROM_KEYRING_TO_UNENCRYPTED:
+      if (srv_tmp_tablespace_encrypt) {
+        encrypted = true;
+      }
+      break;
+    default:
+      ut_ad(0);
+  }
+
+  if (encrypted) {
     if (is_slave_thd) {
       tblsp = ibt::get_enc_rpl_slave_tblsp();
     } else if (is_intrinsic) {
@@ -197,7 +215,7 @@ static ibt::Tablespace *determine_session_temp_tblsp(
       tblsp = innodb_session->get_enc_usr_temp_tblsp();
     }
 
-  } else if (srv_encrypt_tables == SRV_ENCRYPT_TABLES_OFF) {
+  } else {
     if (is_slave_thd) {
       tblsp = ibt::get_rpl_slave_tblsp();
     } else if (is_intrinsic) {

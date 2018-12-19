@@ -25,7 +25,7 @@ f.INDEX_ID = i.INDEX_ID
 ORDER BY
 i.NAME, f.NAME;
 NAME	TYPE	N_FIELDS	NAME	POS
-k1	0	1	b	0
+k1	0	2	b	0
 k2	0	2	a	0
 k2	0	2	b	1
 k3	0	3	a	0
@@ -34,7 +34,7 @@ k3	0	3	d	2
 k4	2	3	a	0
 k4	2	3	c	1
 k4	2	3	d	2
-PRIMARY	3	1	a	0
+PRIMARY	3	7	a	0
 TRUNCATE TABLE performance_schema.events_stages_history_long;
 ALTER TABLE t MODIFY COLUMN z VARCHAR(1);
 SELECT COUNT(*)
@@ -61,7 +61,7 @@ f.INDEX_ID = i.INDEX_ID
 ORDER BY
 i.NAME, f.NAME;
 NAME	TYPE	N_FIELDS	NAME	POS
-k1	0	1	b	0
+k1	0	2	b	0
 k2	0	2	a	0
 k2	0	2	b	1
 k3	0	3	a	0
@@ -70,7 +70,7 @@ k3	0	3	d	2
 k4	2	3	a	0
 k4	2	3	c	1
 k4	2	3	d	2
-PRIMARY	3	1	a	0
+PRIMARY	3	7	a	0
 SELECT COUNT(DISTINCT a) FROM idx;
 COUNT(DISTINCT a)
 10
@@ -110,3 +110,79 @@ Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 SET expand_fast_index_creation = 0;
 DROP TABLE t1;
+# Check expanded fast index creation with partitions
+SET SESSION expand_fast_index_creation=ON;
+CREATE TABLE t1(a int,b CHAR (1),KEY (b)) PARTITION BY HASH (a) PARTITIONS 2;
+ALTER TABLE t1 ADD COLUMN c BLOB, ALGORITHM=COPY;
+DROP TABLE t1;
+# Check expanded fast index creation with temporary tables
+CREATE TEMPORARY TABLE t1(a INT, b INT, c INT, d INT, PRIMARY KEY(a), KEY k1(b), KEY k2 (c,d));
+INSERT INTO t1 VALUES(1, 2, 3, 4);
+INSERT INTO t1 VALUES(2, 3, 4, 5);
+ALTER TABLE t1 ROW_FORMAT=COMPACT, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `k1` (`b`),
+  KEY `k2` (`c`,`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1(id int auto_increment key,a int,index(a));
+ALTER TABLE t1 MODIFY COLUMN a ENUM('','a6','a7','a8','a9','a10');
+DROP TABLE t1;
+#
+# PS-5043: Assertion failure: handler0alter.cc:3703:table->has_instant_cols()
+#
+CREATE TABLE t1(c1 CHAR (1));
+ALTER TABLE t1 ADD COLUMN c2 INT;
+ALTER TABLE t1 CHANGE c1 c1 BLOB;
+ALTER TABLE t1 ADD INDEX(c1(1));
+ALTER TABLE t1 ADD c4 BLOB AFTER c2;
+ALTER TABLE t1 CHANGE c1 c1 NUMERIC;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT UNSIGNED);
+ALTER TABLE t1 ADD c4 TIMESTAMP;
+ALTER TABLE t1 CHANGE c1 c1 INT SIGNED,ADD KEY(c1);
+DROP TABLE t1;
+#
+# PS-6903: CREATE TEMPORARY TABLE crashes with expand_fast index creation
+#
+CREATE TEMPORARY TABLE t1 LIKE information_schema.processlist;
+#
+# PS-6922: Running ALTER TABLE with with expand_fast_index_creation enabled can lead to a crash
+#
+# Below queries would crash the server. Check that they work OK now.
+ALTER TABLE mysql.db ORDER BY db DESC;
+Warnings:
+Warning	1105	ORDER BY ignored as there is a user-defined clustered index in the table 'db'
+1
+ALTER TABLE mysql.tables_priv MODIFY User CHAR DEFAULT'',MODIFY gRANTOR CHAR DEFAULT'';
+ERROR 01000: Data truncated for column 'User' at row 1
+CREATE TABLE t_part
+(a int,
+b int,
+c varchar(64),
+KEY (a),
+KEY (b),
+KEY (c,b))
+ENGINE = InnoDB
+ENCRYPTION='N'
+PARTITION BY HASH (a) PARTITIONS 5;
+ALTER TABLE t_part ORDER BY a DESC;
+CREATE TABLE t2_part
+(a int,
+b int,
+c varchar(64),
+KEY (a),
+KEY (b),
+KEY (c,b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 5;
+ALTER TABLE t2_part ENCRYPTION='N', ORDER BY a DESC;
+DROP TABLE t_part,t2_part;
+SET SESSION expand_fast_index_creation=OFF;

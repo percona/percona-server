@@ -120,6 +120,37 @@ DROP TABLE seq_0_to_9;
 DROP TABLE seq_0_to_26;
 DROP TABLE universal_seq;
 
+--echo #
+--echo # [PS8QA] handle_fatal_signal (sig=11) in my_strnncollsp_simple | ctype-simple.cc:190
+--echo #
+
+SET SESSION tmp_table_size=1024;
+CREATE TABLE t1(a TEXT,b TEXT);
+INSERT INTO t1 VALUES(7553,'7553');
+INSERT INTO t1 VALUES(662,'aaaaaaaaaaaaaaaaaaaa');
+INSERT INTO t1 VALUES(1,10),(2,20);
+REPLACE INTO t1 VALUES(@id,"REPLACE,deleting the duplicate");
+INSERT INTO t1 VALUES(2,"ccccc");
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3),(4,4);
+INSERT INTO t1 VALUES("abcd", -3);
+INSERT INTO t1 SET b=REPEAT('a',600);
+INSERT INTO t1 VALUES(1,"aaa"),(2,"bbb"),(3,"ccc");
+INSERT INTO t1 values("john","doe"),("John","Doe");
+INSERT INTO t1 VALUES(1,0),(1,1);
+INSERT INTO t1 VALUES(4811,'4811');
+INSERT INTO t1 VALUES(3,'2001-01-01 10:11:02');
+INSERT INTO t1 VALUES('a','a'),('b','b'),('c','c'),('aa','aa'),('bb','bb'),('cc','cc');
+INSERT INTO t1 VALUES(8799,'8799');
+INSERT INTO t1 VALUES(7436,'7436');
+SELECT GROUP_CONCAT(DISTINCT UCASE(b)) FROM t1;
+
+SET SESSION tmp_table_size = default;
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.7 testcases
+--echo #
+
 --source include/wait_until_count_sessions.inc
 
 SET GLOBAL binlog_format = @binlog_format_saved;

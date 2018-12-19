@@ -118,8 +118,8 @@ static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                         merge_chunk,
                         static_cast<ulonglong>(merge_chunk->file_position()),
                         static_cast<ulonglong>(bytes_to_read)));
-    if (mysql_file_pread(fromfile->file, merge_chunk->buffer_start(),
-                         bytes_to_read, merge_chunk->file_position(), MYF_RW))
+    if (my_b_pread(fromfile, merge_chunk->buffer_start(), bytes_to_read,
+                   merge_chunk->file_position()))
       DBUG_RETURN((uint)-1); /* purecov: inspected */
 
     merge_chunk->init_current_key();

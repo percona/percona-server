@@ -359,6 +359,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_no_create_column_family`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_override_cf_options`
      - Yes
      - No
@@ -1065,10 +1069,18 @@ non-debug builds.
   :dyn: No
   :scope: Global
   :vartype: String
-  :default:
+  :default: | block_based_table_factory= { cache_index_and_filter_blocks=1;
+	    |                             filter_policy=bloomfilter:10:false;
+	    |                             whole_key_filtering=1};
+	    | level_compaction_dynamic_level_bytes=true;
+	    | optimize_filters_for_hits=true;
+	    | compaction_pri=kMinOverlappingRatio;
+	    | compression=kLZ4Compression;
+	    | bottommost_compression=kLZ4Compression;
 
-Specifies the default column family options for MyRocks.
-Empty by default.
+Specifies the default column family options for |MyRocks|. On startup, the
+server applies this option to all existing column families. This option is
+read-only at runtime.
 
 .. variable:: rocksdb_delayed_write_rate
 
@@ -1654,6 +1666,30 @@ Specifies whether to disable the block cache for column families.
 Variable is disabled by default,
 meaning that using the block cache is allowed.
 
+.. variable:: rocksdb_no_create_column_family
+
+  :cli: ``--rocksdb-no-create-column-family``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+Controls the processing of the |column-family| name given in the |sql.comment|
+clause in the |sql.create-table| or |sql.alter-table| statement in case the |cf|
+name does not refer to an existing |cf|.
+
+If |opt.nccf| is set to `NO`, a new |cf| will be created and the new index will
+be placed into it.
+
+If |opt.nccf| is set to `YES`, no new |cf| will be created and the index will be
+placed into the `default` |cf|. A warning is issued in this case informing that
+the specified |cf| does not exist and cannot be created.
+
+.. seealso::
+
+   More information about column families
+      :ref:`ps.myrocks.column-family`
+
 .. variable:: rocksdb_override_cf_options
 
   :cli: ``--rocksdb-override-cf-options``
@@ -1662,7 +1698,7 @@ meaning that using the block cache is allowed.
   :vartype: String
   :default:
 
-Specifies option overrides for each column family.
+Specifies option overrides for each column family. 
 Empty by default.
 
 .. variable:: rocksdb_paranoid_checks
@@ -2206,3 +2242,6 @@ which can be useful for bulk loading.
 
 Specifies whether to ignore writes to column families that do not exist.
 Disabled by default (writes to non-existent column families are not ignored).
+
+.. include:: ../.res/replace.opt.txt
+.. include:: ../.res/replace.concept.txt

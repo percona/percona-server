@@ -541,7 +541,7 @@ For more information see :ref:`toku_backup`.
   :scope: Session, Global
   :dyn: Yes
   :vartype: Numeric
-  :default: 4194304
+  :default: 512 MB
   :range: 4096 - 4294967295
 
 This variable controls the maximum size of node in memory before messages
@@ -1333,8 +1333,7 @@ PROCESSLIST`` several times to understand what progress is being made.
   :range: ``TOKUDB_DEFAULT``, ``TOKUDB_FAST``, ``TOKUDB_SMALL``, ``TOKUDB_ZLIB``, ``TOKUDB_QUICKLZ``, ``TOKUDB_LZMA``, ``TOKUDB_SNAPPY``, ``TOKUDB_UNCOMPRESSED``
   :default: ``TOKUDB_QUICKLZ``
 
-This controls the default compression algorithm used to compress data when no
-row format is specified in the ``CREATE TABLE`` command. For more information
+This controls the default compression algorithm used to compress data. For more information
 on compression algorithms see :ref:`Compression Details <tokudb_compression>`.
 
 .. variable:: tokudb_rpl_check_readonly

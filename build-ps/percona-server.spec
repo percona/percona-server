@@ -631,15 +631,15 @@ echo "See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_t
   fi
 %endif
 if [ "$1" = 0 ]; then
-  timestamp=$(date "+%Y%m%d-%H%M%S")
+  timestamp=$(date '+%Y%m%d-%H%M')
   if [ ! -L /etc/my.cnf ]; then
-    cp -p /etc/my.cnf /etc/my.cnf_back-${timestamp}
+    cp -p /etc/my.cnf /etc/my.cnf_backup-${timestamp}
   else
     realfile=$(readlink -f /etc/my.cnf)
-    cp "${realfile}" "${realfile}_back-${timestamp}"
+    cp "${realfile}" "${realfile}_backup-${timestamp}"
   fi
-  cp -rp /etc/percona-server.conf.d /etc/percona-server.conf.d_back-${timestamp}
-  cp -rp /etc/my.cnf.d /etc/my.cnf.d_back-${timestamp}
+  cp -rp /etc/percona-server.conf.d /etc/percona-server.conf.d_backup-${timestamp}
+  cp -rp /etc/my.cnf.d /etc/my.cnf.d_backup-${timestamp}
 fi
 
 

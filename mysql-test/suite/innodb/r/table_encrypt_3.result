@@ -210,10 +210,10 @@ Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, fo
 Error	1031	Table storage engine for 't_encrypt' doesn't have this option
 DROP TABLESPACE s_alt1;
 CREATE TEMPORARY TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" ENGINE=InnoDB;
-ERROR HY000: InnoDB: Tablespace `innodb_temporary` cannot contain an ENCRYPTED table.
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB: Tablespace `innodb_temporary` cannot contain an ENCRYPTED table.
+Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 Error	1031	Table storage engine for 't_encrypt' doesn't have this option
 CREATE TABLE tde_db.t_encrypt_myisam (a int, b text) ENCRYPTION="Y" ENGINE=MyISAM;
 ERROR HY000: Table storage engine for 't_encrypt_myisam' doesn't have this option

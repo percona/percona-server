@@ -16,6 +16,7 @@ of incompatible changes that could cause automatic upgrade to fail:
 - :ref:`changed_in_8.0`
 - `Upgrading MySQL <http://dev.mysql.com/doc/refman/8.0/en/upgrading.html>`_
 - `Upgrading from MySQL 5.7 to 8.0 <http://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html>`_
+- `Upgrade Paths <https://dev.mysql.com/doc/refman/8.0/en/upgrade-paths.html>`_
 - `Preparing your Installation for Upgrade <https://dev.mysql.com/doc/refman/8.0/en/upgrade-prerequisites.html>`_
 - `Partitioning Limitations Relating to Storage Engines
   <https://dev.mysql.com/doc/refman/8.0/en/partitioning-limitations-storage-engines.html>`_
@@ -32,7 +33,6 @@ of incompatible changes that could cause automatic upgrade to fail:
    in ``CREATE TABLE`` and ``ALTER TABLE`` statements. Instead, use the
    :variable:`tokudb_row_format` variable to set the default compression
    algorithm.
-
 
 Upgrading using the Percona repositories
 ================================================================================
@@ -117,7 +117,6 @@ Having done the full backup (and dump if possible), stop the server:
    service manager you can invoke the above command with :program:`systemctl`
    instead of :program:`service`. Currently both are supported.
 
-
 .. admonition:: Output of :bash:`rpm -qa | grep Percona-Server`
 
    .. code-block:: guess
@@ -139,6 +138,16 @@ After checking, proceed to remove them without dependencies:
 
 It is important that you remove them without dependencies as many packages may
 depend on these (as they replace ``mysql``) and will be removed if omitted.
+
+.. important:: |etc.my-cnf| Backed Up in |centos| 7
+
+   In |centos| 7, the |etc.my-cnf| configuration file is backed up when you
+   uninstall the |Percona Server| packages with the |rpm.e.nodeps| command.
+
+   The backup file is stored in the same directory with the `_backup` suffix
+   followed by a timestamp: |etc.my-cnf-backup|.
+
+	       
 
 Substitute :bash:`grep '^mysql-'` for :bash:`grep 'Percona-Server'` in the previous command and
 remove the listed packages.
@@ -379,3 +388,4 @@ After this is done, just restart the server as usual: |service.mysql.restart|
 
 .. include:: .res/replace.txt
 .. include:: .res/replace.program.txt
+.. include:: .res/replace.file.txt

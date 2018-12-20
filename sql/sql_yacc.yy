@@ -12886,7 +12886,7 @@ binlog_in:
         ;
 
 binlog_from:
-          /* empty */        { Lex->mi.pos = 4; /* skip magic number */ }
+          /* empty */        { Lex->mi.pos = 0; }
         | FROM ulonglong_num { Lex->mi.pos = $2; }
         ;
 

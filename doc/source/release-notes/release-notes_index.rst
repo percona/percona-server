@@ -6,3 +6,4 @@
    :maxdepth: 1
 
    Percona-Server-8.0.12-2rc1
+   Percona-Server-8.0.13-3

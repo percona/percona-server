@@ -1,0 +1,8 @@
+CREATE TABLESPACE t1 ENCRYPT=‘y’;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ENCRYPT=‘y’' at line 1
+CREATE TABLESPACE t2 ADD DATAFILE ‘t2.ibd’ ENCRYPTION=‘y’;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '‘t2.ibd’ ENCRYPTION=‘y’' at line 1
+CREATE TABLESPACE t9 ADD DATAFILE ‘t9.ibd’ ENCRYPTION y;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '‘t9.ibd’ ENCRYPTION y' at line 1
+ALTER TABLESPACE t10 ENCRYPTION=‘y’;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '‘y’' at line 1

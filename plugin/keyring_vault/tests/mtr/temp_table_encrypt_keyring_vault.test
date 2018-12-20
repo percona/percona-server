@@ -16,7 +16,7 @@ call mtr.add_suppression("\\[ERROR\\] Function 'keyring_vault' already exists");
 call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.*'.");
 call mtr.add_suppression("Plugin keyring_vault reported");
 
---source suite/innodb/include/temp_table_encrypt.inc
+--source suite/innodb/include/percona_temp_table_encrypt.inc
 
 # Delete mount points
 --let MOUNT_POINT_SERVICE_OP=DELETE

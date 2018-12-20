@@ -1,4 +1,10 @@
 
 .. |cfname| replace:: `cf_name`
 .. |cf-name| replace:: `cf_name`
-.. |sql.comment| replace:: ``COMMENT``
+
+.. |cf| replace:: column family
+.. |column-family| replace:: column family
+
+.. |sql.comment| replace:: :mysql:`COMMENT`
+.. |sql.create-table| replace:: :mysql:`CREATE TABLE`
+.. |sql.alter-table| replace:: :mysql:`ALTER TABLE`

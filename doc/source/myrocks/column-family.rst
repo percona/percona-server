@@ -4,7 +4,6 @@
 |myrocks| Column Families
 ================================================================================
 
-
 |MyRocks| stores all data in a single server instance as a collection of
 key-value pairs within the `log structured merge tree` data structure. This is a
 flat data structure that requires that keys be unique throughout the whole data

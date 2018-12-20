@@ -55,10 +55,6 @@ bool IO_CACHE_ostream::seek(my_off_t offset) {
   return reinit_io_cache(&m_io_cache, WRITE_CACHE, offset, false, true);
 }
 
-my_off_t IO_CACHE_ostream::position() const noexcept {
-  return my_b_tell(&m_io_cache);
-}
-
 bool IO_CACHE_ostream::write(const unsigned char *buffer, my_off_t length) {
   DBUG_ASSERT(my_b_inited(&m_io_cache));
   DBUG_EXECUTE_IF("simulate_ostream_write_failure", return true;);

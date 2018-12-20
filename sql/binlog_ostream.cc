@@ -76,10 +76,6 @@ bool IO_CACHE_binlog_cache_storage::reset() {
   return false;
 }
 
-my_off_t IO_CACHE_binlog_cache_storage::position() const noexcept {
-  return my_b_tell(&m_io_cache);
-}
-
 size_t IO_CACHE_binlog_cache_storage::disk_writes() const {
   return m_io_cache.disk_writes;
 }

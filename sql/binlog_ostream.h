@@ -80,9 +80,6 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   /* purecov: inspected */
   /* binlog cache doesn't need seek operation. Setting true to return error */
   bool seek(my_off_t offset MY_ATTRIBUTE((unused))) override { return true; }
-
-  my_off_t position() const noexcept override;
-
   /**
      Reset status and drop all data. It looks like a cache never was used after
      reset.
@@ -152,10 +149,6 @@ class Binlog_cache_storage : public Basic_ostream {
      @retval true  Error
   */
   bool truncate(my_off_t offset) { return m_pipeline_head->truncate(offset); }
-
-  my_off_t position() const noexcept override {
-    return m_pipeline_head->position();
-  };
 
   /**
      Reset status and drop all data. It looks like a cache was never used

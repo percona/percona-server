@@ -25,7 +25,7 @@ call mtr.add_suppression("A message intended for a client cannot be sent there a
 
 --let $keyring_restart_param = restart: $KEYRING_VAULT_PLUGIN_OPT $KEYRING_VAULT_PLUGIN_EARLY_LOAD --keyring_vault_config=$vault_conf_file
 
---source suite/innodb/include/temp_table_encrypt.inc
+--source suite/innodb/include/percona_temp_table_encrypt.inc
 
 # Delete mount points
 --let $mount_point_service_op = DELETE

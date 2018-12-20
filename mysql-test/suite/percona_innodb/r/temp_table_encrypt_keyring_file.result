@@ -1,29 +1,27 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring is loaded.");
 # restart:<hidden args>
 CREATE TEMPORARY TABLE t01 (a TEXT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES ('Lorem ipsum dolor sit amet, consectetur adipiscing elit');
-Pattern found.
 CREATE TEMPORARY TABLE t04 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
-INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
-Pattern found.
-DROP TABLE t04;
+ERROR HY000: CREATE TEMPORARY TABLE is not allowed with ROW_FORMAT=COMPRESSED or KEY_BLOCK_SIZE.
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
-CREATE TEMPORARY TABLE t02 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
-CREATE TEMPORARY TABLE t03 (a TEXT) ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TEMPORARY TABLE t02 (a INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t03 (a TEXT) ENGINE=InnoDB;
 INSERT INTO t03 VALUES ('Curabitur laoreet, velit non interdum venenatis');
-Pattern not found.
-SET GLOBAL innodb_encrypt_tables=ON;
-CREATE TEMPORARY TABLE t04 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
-SET GLOBAL innodb_encrypt_tables=OFF;
-INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
-Pattern not found.
-CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='y';
+CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB;
 INSERT INTO t05 VALUES (1), (2), (3);
-CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='n';
-ERROR HY000: InnoDB: Tablespace `innodb_temporary` can contain only an ENCRYPTED tables.
+CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ENCRYPTION='n';
+ERROR HY000: InnoDB: ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
-CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB;
 INSERT INTO t07 VALUES (1), (2), (3);
+DROP TABLE t07;
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 CREATE TABLE t10 (a INT AUTO_INCREMENT PRIMARY KEY, b INT);
 INSERT INTO t10 (b) VALUES (FLOOR(RAND() * 10000)), (FLOOR(RAND() * 10000)), (FLOOR(RAND() * 10000));
@@ -45,16 +43,10 @@ DROP INDEX t10_b ON t10;
 CREATE INDEX t10_b ON t10 (b) ALGORITHM=COPY;
 DROP INDEX t10_b ON t10 ALGORITHM=COPY;
 # restart:<hidden args>
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
-INSERT INTO t01 VALUES (1), (2), (3);
-# Kill and restart:<hidden args>
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
-INSERT INTO t01 VALUES (1), (2), (3);
-# restart:<hidden args>
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 # restart:<hidden args>
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 DROP TABLE t10;
 # restart:<hidden args>
@@ -66,3 +58,10 @@ SELECT * FROM t1 WHERE a IN(SELECT MAX(a) FROM t1);
 a
 11061
 DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

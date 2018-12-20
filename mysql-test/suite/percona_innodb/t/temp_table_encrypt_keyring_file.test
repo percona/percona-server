@@ -2,4 +2,4 @@
 
 let $keyring_restart_param = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/ts_encrypt_keyring $KEYRING_PLUGIN_OPT;
 
---source suite/innodb/include/temp_table_encrypt.inc
+--source ../include/percona_temp_table_encrypt.inc

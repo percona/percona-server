@@ -1,0 +1,15 @@
+# Parser test for tablespace encrypt option
+# CREATE TABLESPACE with encryption is now tested by usptream.
+# Only the non-covered cases are here
+
+--error ER_PARSE_ERROR
+CREATE TABLESPACE t1 ENCRYPT=‘y’;
+
+--error ER_PARSE_ERROR
+CREATE TABLESPACE t2 ADD DATAFILE ‘t2.ibd’ ENCRYPTION=‘y’;
+
+--error ER_PARSE_ERROR
+CREATE TABLESPACE t9 ADD DATAFILE ‘t9.ibd’ ENCRYPTION y;
+
+--error ER_PARSE_ERROR
+ALTER TABLESPACE t10 ENCRYPTION=‘y’;

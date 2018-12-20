@@ -6,7 +6,7 @@ call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, 
 
 # we need restart to make sure keyring settings are picked up
 let $do_not_echo_parameters = 1;
-let $restart_parameters = $KEYRING_RESTART_PARAM --innodb_max_dirty_pages_pct=0;
+let $restart_parameters = $KEYRING_RESTART_PARAM --innodb_max_dirty_pages_pct=0 --innodb_max_dirty_pages_pct_lwm=0;
 --source include/restart_mysqld.inc
 
 CREATE TEMPORARY TABLE t01 (a TEXT) ENGINE=InnoDB;
@@ -16,92 +16,54 @@ INSERT INTO t01 VALUES ('Lorem ipsum dolor sit amet, consectetur adipiscing elit
 --let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
 --source include/wait_condition.inc
 
-# make sure ibtmp1 is not encrypted
+# make sure the temp table went to unencrypted session temp tablespace
 
---let $grep_pattern= Lorem ipsum dolor sit amet
---let $grep_file= $MYSQL_DATA_DIR/ibtmp1
---let $grep_output= boolean
---source include/grep_pattern.inc
+--let $session_temp_file = `SELECT CONCAT(@@datadir, PATH) FROM information_schema.innodb_session_temp_tablespaces WHERE ID = connection_id() AND PURPOSE="USER"`
+
+--let SEARCH_PATTERN= Lorem ipsum dolor sit amet
+--let SEARCH_FILE= $MYSQL_DATA_DIR/ibtmp1
+--let ABORT_ON= FOUND
+--source include/search_pattern_in_file.inc
 
 
 # this table created in separate file per table tablespace, make sure it not
 # encrypted
+--error  ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
 CREATE TEMPORARY TABLE t04 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
-INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
-
-# wait until pages flushed
---let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
---source include/wait_condition.inc
-
---let $t04_fn= `SELECT CONCAT(@@tmpdir, '/', NAME, '.ibd') FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO WHERE NAME LIKE '#%';`
-
-# make sure t04 is not encrypted
-
---let $grep_pattern= Praesent tristique eros a tempus fringilla
---let $grep_file= $t04_fn
---let $grep_output= boolean
---source include/grep_pattern.inc
-
-DROP TABLE t04;
 
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 
---let $innodb_master_loops= `SELECT SUM(VARIABLE_VALUE) FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'innodb_master%loops'`
+CREATE TEMPORARY TABLE t02 (a INT) ENGINE=InnoDB;
 
-# wait for couple of master thread turnarounds
---let $wait_condition= SELECT SUM(VARIABLE_VALUE) > $innodb_master_loops + 2 FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'innodb_master%loops'
---source include/wait_condition.inc
-
-CREATE TEMPORARY TABLE t02 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
-
-CREATE TEMPORARY TABLE t03 (a TEXT) ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TEMPORARY TABLE t03 (a TEXT) ENGINE=InnoDB;
 INSERT INTO t03 VALUES ('Curabitur laoreet, velit non interdum venenatis');
 
 # wait until pages flushed
 --let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
 --source include/wait_condition.inc
 
-# make sure ibtmp1 is encrypted now
+# make sure the temp table went to encrypted session temp tablespace
+--let $session_temp_file = `SELECT CONCAT(@@datadir, PATH) FROM information_schema.innodb_session_temp_tablespaces WHERE ID = connection_id() AND PURPOSE="USER ENCRYPTED"`
 
---let $grep_pattern= Curabitur laoreet, velit non interdum venenatis
---let $grep_file= $MYSQL_DATA_DIR/ibtmp1
---let $grep_output= boolean
---source include/grep_pattern.inc
+--let SEARCH_PATTERN= Curabitur laoreet, velit non interdum venenatis
+--let SEARCH_FILE= $MYSQL_DATA_DIR/ibtmp1
+--let ABORT_ON= FOUND
+--source include/search_pattern_in_file.inc
 
-# this table created in separate file per table tablespace, make sure it is
-# encrypted as well
-SET GLOBAL innodb_encrypt_tables=ON;
-CREATE TEMPORARY TABLE t04 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
-SET GLOBAL innodb_encrypt_tables=OFF;
-INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
-
-# wait until pages flushed
---let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
---source include/wait_condition.inc
-
---let $t04_fn= `SELECT CONCAT(@@tmpdir, '/', NAME, '.ibd') FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO WHERE NAME LIKE '#%';`
-
-# make sure t04 is encrypted
-
---let $grep_pattern= Praesent tristique eros a tempus fringilla
---let $grep_file= $t04_fn
---let $grep_output= boolean
---source include/grep_pattern.inc
-
-CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='y';
+CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB;
 INSERT INTO t05 VALUES (1), (2), (3);
 
---error ER_ILLEGAL_HA_CREATE_OPTION
-CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='n';
+--error ER_CANNOT_USE_ENCRYPTION_CLAUSE
+CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ENCRYPTION='n';
 
 # test that we can turn encryption OFF and ON
 
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
 
-# Setting OFF after encryption doesn't make it decrypted. So temp tablespace
-# is still encrypted.
-CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+# Setting OFF makes table to unencrypted session temp tablespace
+CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB;
 INSERT INTO t07 VALUES (1), (2), (3);
+DROP TABLE t07;
 
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 
@@ -129,22 +91,6 @@ DROP INDEX t10_b ON t10;
 CREATE INDEX t10_b ON t10 (b) ALGORITHM=COPY;
 DROP INDEX t10_b ON t10 ALGORITHM=COPY;
 
-# test restarting
-let $restart_hide_args = 1;
-let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt --innodb_max_dirty_pages_pct=0;
---source include/restart_mysqld.inc
-
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
-INSERT INTO t01 VALUES (1), (2), (3);
-
-# test crashing
-let $restart_hide_args = 1;
-let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt --innodb_max_dirty_pages_pct=0;
---source include/kill_and_restart_mysqld.inc
-
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
-INSERT INTO t01 VALUES (1), (2), (3);
-
 # and able to startup without keyring plugin
 let $do_not_echo_parameters = 1;
 let $restart_parameters = ;
@@ -154,10 +100,10 @@ CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 
 let $do_not_echo_parameters = 1;
-let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt --innodb_max_dirty_pages_pct=0;
+let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt --innodb_max_dirty_pages_pct=0 --innodb_max_dirty_pages_pct_lwm=0;
 --source include/restart_mysqld.inc
 
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 
 DROP TABLE t10;

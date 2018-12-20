@@ -4,6 +4,8 @@
  Installing |Percona Server| on Red Hat Enterprise Linux and CentOS
 ====================================================================
 
+.. package name: percona-server-server-8.0.13-3.1.el7.x86_64.rpm
+
 Ready-to-use packages are available from the |Percona Server| software
 repositories and the `download page
 <http://www.percona.com/downloads/Percona-Server-8.0/>`_. The
@@ -54,15 +56,15 @@ Each of the |Percona Server| RPM packages have a particular purpose.
 
    * - Package
      - Contains
-   * - percona-server-server-80
+   * - percona-server-server
      - The server itself (the ``mysqld`` binary)
-   * - percona-server-80-debuginfo
+   * - percona-server-debuginfo
      - Debug symbols for the server
-   * - percona-server-client-80
+   * - percona-server-client
      - The command line client
-   * - percona-server-devel-80
+   * - percona-server-devel
      - the header files needed to compile software using the client library.
-   * - percona-server-shared-80
+   * - percona-server-shared
      - The client shared library.
    * - percona-server-shared-compat
      - Shared libraries for software compiled against old versions of
@@ -70,7 +72,7 @@ Each of the |Percona Server| RPM packages have a particular purpose.
        this package: ``libmysqlclient.so.12``,
        ``libmysqlclient.so.14``, ``libmysqlclient.so.15``,
        ``libmysqlclient.so.16``, and ``libmysqlclient.so.18``.
-   * - percona-server-test-80
+   * - percona-server-test
      - package includes the test suite for |Percona Server|.
 
 Installing |Percona Server| from Percona ``yum`` repository
@@ -88,23 +90,14 @@ Installing |Percona Server| from Percona ``yum`` repository
 
    .. code-block:: bash
 
-     Retrieving http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-8.noarch.rpm
-     Preparing...                ########################################### [100%]
-        1:percona-release        ########################################### [100%]
+      Retrieving http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-8.noarch.rpm
+      Preparing...                ########################################### [100%]
+      1:percona-release        ########################################### [100%]
 
-#. Enable the repository:
-
-   .. code-block:: bash
-
-      $ sudo percona-release enable ps-80 testing
-
+#. Enable the repository: :bash:`percona-release enable ps-80 release`
 #. Install the packages
 
-   You can now install |Percona Server| by running:
-
-   .. code-block:: bash
-
-     sudo yum install percona-server
+   You can now install |Percona Server| by running: :bash:`yum install percona-server-server`
 
 .. note::
 
@@ -238,19 +231,14 @@ Uninstalling |Percona Server|
 
 To completely uninstall |Percona Server| you'll need to remove all the installed packages and data files.
 
-1.  Stop the |Percona Server| service
-
-    .. code-block:: bash
-
-       service mysql stop
-
-2. Remove the packages 
+1.  Stop the |Percona Server| service: |service.mysql.stop|
+#. Remove the packages:
 
    .. code-block:: bash
 
-      yum remove Percona-Server*
+      yum remove percona-server*
 
-3. Remove the data and configuration files
+#. Remove the data and configuration files
 
    .. code-block:: bash
 
@@ -266,3 +254,5 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 .. rubric:: Footnotes
 
 .. [#f1] 
+
+.. include:: ../.res/replace.program.txt

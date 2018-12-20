@@ -100,9 +100,9 @@ You can install the |Percona Server| with the |TokuDB| engine by using
 the respective package manager:
 
 |yum|
-   :bash:`yum install Percona-Server-tokudb-80.x86_64`
+   :bash:`yum install percona-server-tokudb.x86_64`
 |apt|
-   :bash:`apt install percona-server-tokudb-8.0`
+   :bash:`apt install percona-server-tokudb`
 
 .. _tokudb_quick_install:
 

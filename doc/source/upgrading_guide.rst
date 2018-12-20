@@ -45,7 +45,7 @@ Instructions for enabling the repositories in a system can be found in:
 * :doc:`Percona APT Repository <installation/apt_repo>`
 * :doc:`Percona YUM Repository <installation/yum_repo>`
 
-``DEB``-based distributions
+DEB-based distributions
 --------------------------------------------------------------------------------
 
 |tip.run-all.root|
@@ -67,20 +67,23 @@ Enable the repository:
 
 .. code-block:: bash
 
-   $ percona-release enable ps-80 testing
+   $ percona-release enable ps-80 release
    $ apt-get update
 
 .. code-block:: bash
 
-   $ apt-get install percona-server
+   $ apt-get install percona-server-server
 
-If you're using |Percona Server| 8.0 with |TokuDB| you'll need to specify the |TokuDB| package as well:
+If you're using |Percona Server| 8.0 with |TokuDB| you'll need to
+specify the |TokuDB| package as well:
 
 .. code-block:: bash
 
-   $ apt-get install percona-server percona-server-tokudb-8.0
+   $ apt-get install percona-server-server percona-server-tokudb
 
-The installation script will *NOT* run automatically :command:`mysql_upgrade` as it was the case in previous versions. You'll need to run the command manually and restart the service after it's finished.
+The installation script will *NOT* run automatically :command:`mysql_upgrade` as
+it was the case in previous versions. You'll need to run the command manually
+and restart the service after it's finished.
 
 .. code-block:: bash
 
@@ -99,7 +102,7 @@ The installation script will *NOT* run automatically :command:`mysql_upgrade` as
  
    $ service mysql restart
 
-``RPM``-based distributions
+RPM-based distributions
 ---------------------------
 
 |tip.run-all.root|
@@ -119,12 +122,14 @@ Having done the full backup (and dump if possible), stop the server:
 
    .. code-block:: guess
 
-      Percona-Server-shared-80-8.0.12-rel76.1.el7.x86_64
-      Percona-Server-server-80-8.0.12-rel76.1.el7.x86_64
-      Percona-Server-devel-80-8.0.12-rel76.1.el7.x86_64
-      Percona-Server-client-80-8.0.12-rel76.1.el7.x86_64
-      Percona-Server-test-80-8.0.12-rel76.1.el7.x86_64
-      Percona-Server-80-debuginfo-8.0.12-rel76.1.el7.x86_64
+      Percona-Server-57-debuginfo-5.7.10-3.1.el7.x86_64
+      Percona-Server-client-57-5.7.10-3.1.el7.x86_64
+      Percona-Server-devel-57-5.7.10-3.1.el7.x86_64
+      Percona-Server-server-57-5.7.10-3.1.el7.x86_64
+      Percona-Server-shared-57-5.7.10-3.1.el7.x86_64
+      Percona-Server-shared-compat-57-5.7.10-3.1.el7.x86_64
+      Percona-Server-test-57-5.7.10-3.1.el7.x86_64
+      Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64
 
 After checking, proceed to remove them without dependencies: 
 
@@ -132,20 +137,20 @@ After checking, proceed to remove them without dependencies:
 
    $ rpm -qa | grep Percona-Server | xargs rpm -e --nodeps
 
-It is important that you remove it without dependencies as many packages may
+It is important that you remove them without dependencies as many packages may
 depend on these (as they replace ``mysql``) and will be removed if omitted.
 
 Substitute :bash:`grep '^mysql-'` for :bash:`grep 'Percona-Server'` in the previous command and
 remove the listed packages.
 
-You will have to install the ``percona-server`` package: :bash:`yum install percona-server`
+You will have to install the ``percona-server-server`` package: :bash:`yum install percona-server-server`
 
 If you're using |Percona Server| 8.0 with |TokuDB| you'll need to specify the
 |TokuDB| package as well when doing the upgrade:
 
 .. code-block:: bash
 
-   $ yum install percona-server Percona-Server-tokudb-80
+   $ yum install percona-server-server percona-server-tokudb
 
 Once installed, proceed to modify your configuration file - :file:`my.cnf` - and
 reinstall the plugins if necessary.
@@ -208,34 +213,35 @@ as explained at the beginning of this guide.
 
 Then, download the following packages for your architecture:
 
-- ``percona-server-server-8.0``
-- ``percona-server-client-8.0``
-- ``percona-server-common-8.0``
-- ``libperconaserverclient20``
+- ``percona-server-server``
+- ``percona-server-client``
+- ``percona-server-common``
+- ``libperconaserverclient21``
 
 The following example will download |Percona Server| :rn:`8.0.13-3` release
 packages for *Debian* 8.0:
 
 .. code-block:: bash
 
-   $ wget https://www.percona.com/downloads/Percona-Server-8.9/Percona-Server-8.0.13-3/binary/debian/jessie/x86_64/Percona-Server-8.0.13-3-r63dafaf-jessie-x86_64-bundle.tar
+   $ wget https://www.percona.com/downloads/Percona-Server-8.9/Percona-Server-8.0.13-3/binary/debian/stretch/x86_64/percona-server-8.0.13-3-r63dafaf-stretch-x86_64-bundle.tar
 
-You should then unpack the bundle to get the packages: :bash:`tar xvf Percona-Server-8.0.13-3-r63dafaf-jessie-x86_64-bundle.tar`
+You should then unpack the bundle to get the packages: :bash:`tar xvf Percona-Server-8.0.13-3-r63dafaf-stretch-x86_64-bundle.tar`
 
 After you unpack the bundle you should see the following packages:
 
 .. code-block:: bash
 
    $ ls *.deb
-   libperconaserverclient20-dev_8.0.10-3-1.jessie_amd64.deb
-   libperconaserverclient20_8.0.10-3-1.jessie_amd64.deb
-   percona-server-8.0-dbg_8.0.10-3-1.jessie_amd64.deb
-   percona-server-client-8.0_8.0.13-3.jessie_amd64.deb
-   percona-server-common-8.0_8.0.13-3.jessie_amd64.deb
-   percona-server-server-8.0_8.0.13-3.jessie_amd64.deb
-   percona-server-source-8.0_8.0.13-3.jessie_amd64.deb
-   percona-server-test-8.0_8.0.13-3.jessie_amd64.deb
-   percona-server-tokudb-8.0_8.0.13-3.jessie_amd64.deb
+
+   libperconaserverclient21-dev_8.0.13-3-1.stretch_amd64.deb
+   libperconaserverclient21_8.0.13-3-1.stretch_amd64.deb
+   percona-server-dbg_8.0.13-3-1.stretch_amd64.deb
+   percona-server-client_8.0.13-3-1.stretch_amd64.deb
+   percona-server-common_8.0.13-3-1.stretch_amd64.deb
+   percona-server-server_8.0.13-3-1.stretch_amd64.deb
+   percona-server-source_8.0.13-3-1.stretch_amd64.deb
+   percona-server-test_8.0.13-3-1.stretch_amd64.deb
+   percona-server-tokudb_8.0.13-3-1.stretch_amd64.deb
 
 Now you can install |Percona Server| by running:
 
@@ -245,11 +251,11 @@ Now you can install |Percona Server| by running:
 
 This will install all the packages from the bundle. Another option is to
 download/specify only the packages you need for running |Percona Server|
-installation (``libperconaserverclient20_8.0.13-3.jessie_amd64.deb``,
-``percona-server-client-8.0_8.0.13-3.jessie_amd64.deb``,
-``percona-server-common-8.0_8.0.13-3.jessie_amd64.deb``, and
-``percona-server-server-8.0_8.0.13-3.jessie_amd64.deb``. Optionally you can
-install ``percona-server-tokudb-8.0_8.0.13-3.jessie_amd64.deb`` if you want
+installation (``libperconaserverclient21_8.0.13-3.stretch_amd64.deb``,
+``percona-server-client-8.0.13-3.stretch_amd64.deb``,
+``percona-server-common-8.0.13-3.stretch_amd64.deb``, and
+``percona-server-server-8.0.13-3.stretch_amd64.deb``. Optionally you can
+install ``percona-server-tokudb-8.0.13-3.stretch_amd64.deb`` if you want
 |TokuDB| storage engine).
 
 .. note::
@@ -278,16 +284,18 @@ Having done the full backup (and dump if possible), stop the server (command:
 
    $ rpm -qa | grep Percona-Server
    
-   Percona-Server-shared-80-8.0.13-3.el6.x86_64
-   Percona-Server-server-80-8.0.13-3.el6.x86_64
-   Percona-Server-client-80-8.0.13-3.el6.x86_64
-   Percona-Server-tokudb-80-8.0.13-3.el6.x86_64
+   Percona-Server-57-debuginfo-5.7.10-3.1.el7.x86_64
+   Percona-Server-client-57-5.7.10-3.1.el7.x86_64
+   Percona-Server-devel-57-5.7.10-3.1.el7.x86_64
+   Percona-Server-server-57-5.7.10-3.1.el7.x86_64
+   Percona-Server-shared-57-5.7.10-3.1.el7.x86_64
+   Percona-Server-shared-compat-57-5.7.10-3.1.el7.x86_64
+   Percona-Server-test-57-5.7.10-3.1.el7.x86_64
+   Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64
 
-You may have a fourth, ``shared-compat``, which is for compatibility purposes.
+You may have the ``shared-compat`` package, which is for compatibility purposes.
 
-After checked that, proceed to remove them without dependencies: ::
-
-  $ rpm -qa | grep Percona-Server | xargs rpm -e --nodeps
+After checked that, proceed to remove them without dependencies: :bash:`rpm -qa | grep percona-server | xargs rpm -e --nodeps`
 
 It is important that you remove it without dependencies as many packages may
 depend on these (as they replace ``mysql``) and will be removed if ommited.
@@ -313,26 +321,27 @@ After you unpack the bundle you should see the following packages: :bash:`ls *.r
 
    .. code-block:: guess
 
-      percona-server-80-debuginfo-8.0.13-3.el7.x86_64.rpm
-      percona-server-client-80-8.0.13-3.el7.x86_64.rpm
-      percona-server-devel-80-8.0.13-3.el7.x86_64.rpm
-      percona-server-server-80-8.0.13-3.el7.x86_64.rpm
-      percona-server-shared-80-8.0.13-3.el7.x86_64.rpm
-      percona-server-shared-compat-80-8.0.13-3.el7.x86_64.rpm
-      percona-server-test-80-8.0.13-3.el7.x86_64.rpm
-      percona-server-tokudb-80-8.0.13-3.el7.x86_64.rpm
+      percona-server-debuginfo-8.0.13-3.1.el7.x86_64.rpm
+      percona-server-client-8.0.13-3.1.el7.x86_64.rpm
+      percona-server-devel-8.0.13-3.1.el7.x86_64.rpm
+      percona-server-server-8.0.13-3.1.el7.x86_64.rpm
+      percona-server-shared-8.0.13-3.1.el7.x86_64.rpm
+      percona-server-shared-compat-8.0.13-3.1.el7.x86_64.rpm
+      percona-server-test-8.0.13-3.1.el7.x86_64.rpm
+      percona-server-tokudb-8.0.13-3.1.el7.x86_64.rpm
 
-Now you can install |Percona Server| 8.0 by running:
+
+Now, you can install |Percona Server| 8.0 by running:
 
 .. code-block:: bash
 
-   rpm -ivh percona-Server-server-8.0.13-3.el7.x86_64.rpm \
-   percona-perver-client-8.0.13-3.el7.x86_64.rpm \
-   percona-server-shared-8.0.13-3.el7.x86_64.rpm
+   rpm -ivh percona-server-server_8.0.13-3.el7.x86_64.rpm \
+   percona-server-client_8.0.13-3.el7.x86_64.rpm \
+   percona-server-shared_8.0.13-3.el7.x86_64.rpm
 
 This will install only packages required to run the |Percona Server|
 8.0. Optionally you can install :ref:`TokuDB <tokudb_intro>` storage engine by
-adding the ``Percona-Server-tokudb-80-8.0.13-3.el7.x86_64.rpm`` to the command
+adding the ``percona-server-tokudb-8.0.13-3.el7.x86_64.rpm`` to the command
 above. You can find more information on how to install and enable the |TokuDB|
 storage in the :ref:`tokudb_installation` guide.
 

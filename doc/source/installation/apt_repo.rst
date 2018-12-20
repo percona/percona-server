@@ -27,21 +27,21 @@ What's in each DEB package?
 
    * - Package
      - Contains
-   * - percona-server-server-8.0
+   * - percona-server-server
      - The database server itself, the ``mysqld`` binary and associated files.
-   * - percona-server-common-8.0
+   * - percona-server-common
      - The files common to the server and client.
-   * - percona-server-client-8.0
+   * - percona-server-client
      - The command line client.
-   * - percona-server-8.0-dbg
+   * - percona-server-dbg
      - Debug symbols for the server.
-   * - percona-server-test-8.0
+   * - percona-server-test
      - The database test suite.
-   * - percona-server-source-8.0
+   * - percona-server-source
      - The server source.
-   * - libperconaserverclient20-dev
+   * - libperconaserverclient21-dev
      - Header files needed to compile software to use the client library.
-   * - libperconaserverclient20
+   * - libperconaserverclient21
      - The client shared library. The version is incremented when there is an
        ABI change that requires software using the client library to be
        recompiled or its source code modified.
@@ -100,7 +100,7 @@ Percona offers pre-release builds from the testing repository. To enable it, run
 
 .. code-block:: bash
 
-   $ percona-release enable ps=80 testing
+   $ percona-release enable ps-80 testing
 
 Apt-Pinning the packages
 --------------------------------------------------------------------------------
@@ -147,15 +147,15 @@ After you unpack the bundle you should see the following packages:
 
      .. code-block:: guess
      		  
-        libperconaserverclient20-dev_8.0.3-13.stretch_amd64.deb
-        libperconaserverclient20_8.0.3-13.stretch_amd64.deb
-        percona-server-8.0-dbg_8.0.3-13.stretch_amd64.deb
-        percona-server-client-8.0.3-13.stretch_amd64.deb
-        percona-server-common-8.0.3-13.stretch_amd64.deb
-        percona-server-server-8.0.3-13.stretch_amd64.deb
-        percona-server-source-8.0.3-13.stretch_amd64.deb
-        percona-server-test-8.0.3-13.stretch_amd64.deb
-        percona-server-tokudb-8.0.3-13.stretch_amd64.deb
+        libperconaserverclient21-dev_8.0.13-3-1.stretch_amd64.deb
+        libperconaserverclient21_8.0.13-3-1.stretch_amd64.deb
+        percona-server-dbg_8.0.13-3-1.stretch_amd64.deb
+        percona-server-client_8.0.13-3-1.stretch_amd64.deb
+        percona-server-common_8.0.13-3-1.stretch_amd64.deb
+        percona-server-server_8.0.13-3-1.stretch_amd64.deb
+        percona-server-source_8.0.13-3-1.stretch_amd64.deb
+        percona-server-test_8.0.13-3-1.stretch_amd64.deb
+        percona-server-tokudb_8.0.13-3-1.stretch_amd64.deb
 
 
 
@@ -167,11 +167,11 @@ Now, you can install |Percona Server| using |dpkg|. |tip.run-this.root|
 
 This will install all the packages from the bundle. Another option is to
 download/specify only the packages you need for running |Percona Server|
-installation (``libperconaserverclient20_8.0.3-13.stretch_amd64.deb``,
-``percona-server-client-8.0.3-13.stretch_amd64.deb``,
-``percona-server-common-8.0.3-13.stretch_amd64.deb``, and
-``percona-server-server-8.0.3-13.stretch_amd64.deb``. Optionally, you can install
-``percona-server-tokudb-8.0.3-13.stretch_amd64.deb`` if you want the |TokuDB|
+installation (``libperconaserverclient21_8.0.13-3-1.stretch_amd64.deb``,
+``percona-server-client_8.0.13-3-1.stretch_amd64.deb``,
+``percona-server-common_8.0.13-3-1.stretch_amd64.deb``, and
+``percona-server-server_8.0.13-3-1.stretch_amd64.deb``. Optionally, you can install
+``percona-server-tokudb_8.0.13-3-1.stretch_amd64.deb`` if you want the |TokuDB|
 storage engine).
 
 .. note::

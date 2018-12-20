@@ -2,18 +2,16 @@ call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, 
 # restart:<hidden args>
 CREATE TEMPORARY TABLE t01 (a TEXT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES ('Lorem ipsum dolor sit amet, consectetur adipiscing elit');
-Pattern found.
 CREATE TEMPORARY TABLE t04 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
 ERROR HY000: CREATE TEMPORARY TABLE is not allowed with ROW_FORMAT=COMPRESSED or KEY_BLOCK_SIZE.
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 CREATE TEMPORARY TABLE t02 (a INT) ENGINE=InnoDB;
 CREATE TEMPORARY TABLE t03 (a TEXT) ENGINE=InnoDB;
 INSERT INTO t03 VALUES ('Curabitur laoreet, velit non interdum venenatis');
-Pattern not found.
 CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB;
 INSERT INTO t05 VALUES (1), (2), (3);
 CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ENCRYPTION='n';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: InnoDB: ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
 CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB;
 INSERT INTO t07 VALUES (1), (2), (3);

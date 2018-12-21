@@ -1,3 +1,5 @@
+.. |d11n| replace:: documentation
+
 .. |tip.run-all.root|  replace:: Run the following commands as root or by using the :program:`sudo` command
 .. |tip.run-this.root| replace:: Run this command as root or by using the :program:`sudo` command
 
@@ -19,4 +21,5 @@
 .. |centos| replace:: CentOS
 .. |rhel| replace:: RHEL
 
+.. |mysql.last-version| replace:: MySQL 8.0
 		      

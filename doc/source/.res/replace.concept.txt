@@ -8,3 +8,4 @@
 .. |sql.comment| replace:: :mysql:`COMMENT`
 .. |sql.create-table| replace:: :mysql:`CREATE TABLE`
 .. |sql.alter-table| replace:: :mysql:`ALTER TABLE`
+.. |sql.upgrade-partitioning| replace:: :mysql:`UPGRADE PARTITIONING`

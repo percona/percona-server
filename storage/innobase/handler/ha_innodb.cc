@@ -6214,6 +6214,8 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     return innodb_init_abort();
   }
 
+  space_id_t upgrade_mysql_plugin_space = SPACE_UNKNOWN;
+
   if (srv_is_upgrade_mode) {
     if (!dict_sys_table_id_build()) {
       return innodb_init_abort();
@@ -6254,6 +6256,15 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
 
     buf_flush_sync_all_buf_pools();
 
+    /* We have to find the space_id of "mysql/plugin" here. i.e. before we evict
+    the tables from cache. */
+    dict_table_t *table = dict_table_open_on_name("mysql/plugin", false, true,
+                                                  DICT_ERR_IGNORE_NONE);
+    if (table != nullptr) {
+      upgrade_mysql_plugin_space = table->space;
+      dict_table_close(table, false, false);
+    }
+
     dict_upgrade_evict_tables_cache();
 
     dict_stats_evict_tablespaces();
@@ -6261,7 +6272,8 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     btr_search_enabled = old_btr_search_value;
   }
 
-  bool do_encrypt = dict_detect_encryption(srv_is_upgrade_mode);
+  bool do_encrypt =
+      dict_detect_encryption(srv_is_upgrade_mode, upgrade_mysql_plugin_space);
   bool ret;
 
   if (do_encrypt && !Encryption::check_keyring()) {

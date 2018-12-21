@@ -1703,9 +1703,11 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
 This can happen if Percona Server is bootstrapped with
 --innodb-encrypt-tables=ON If yes or if srv_encrypt_tables is ON/FORCE, during
 upgrade, mysql.ibd should be encrpted.
-@param[in]  is_upgrade true in upgrade mode
+@param[in]  is_upgrade          true in upgrade mode
+@param[in]  mysql_plugin_space  space_id of mysql/plugin table. Used only
+                                during upgrade
 @return true if encrypted, false if not encrypted */
-bool dict_detect_encryption(bool is_upgrade);
+bool dict_detect_encryption(bool is_upgrade, space_id_t mysql_plugin_space);
 
 /** Set the compression type for the tablespace of a table
 @param[in]  table         The table that should be compressed

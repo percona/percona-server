@@ -16,15 +16,21 @@ series. All of |Percona|’s software is open-source and free.
 Percona Server for MySQL 8.0 includes all the `features available in MySQL 8.0
 Community Edition
 <https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html>`__ in addition to
-enterprise-grade features developed by Percona for the community.  For a list of
+enterprise-grade features developed by Percona.  For a list of
 highlighted features from both MySQL 8.0 and Percona Server for MySQL 8.0,
 please see the `GA release announcement
 <https://www.percona.com/blog/2018/12/21/announcing-general-availability-of-percona-server-for-mysql-8-0/>`__.
 
-Note: If you are upgrading from 5.7 to 8.0, please ensure that you read the `upgrade guide <https://www.percona.com/doc/percona-server/8.0/upgrading_guide.html>`__ and the document `Changed in Percona Server for MySQL 8.0 <https://www.percona.com/doc/percona-server/8.0/changed_in_version.html>`__.
+.. note::
+
+   If you are upgrading from 5.7 to 8.0, please ensure that you read the
+   `upgrade guide
+   <https://www.percona.com/doc/percona-server/8.0/upgrading_guide.html>`__ and the
+   document `Changed in Percona Server for MySQL 8.0
+   <https://www.percona.com/doc/percona-server/8.0/changed_in_version.html>`__.
 
 Features Removed in Percona Server for MySQL 8.0
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+================================================================================
 
 - Slow Query Log Rotation and Expiration: Not widely used, can be accomplished
   using ``logrotate``
@@ -40,7 +46,7 @@ Features Removed in Percona Server for MySQL 8.0
   MySQL 8.0
 
 Features Being Deprecated in Percona Server for MySQL 8.0
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+================================================================================
 
 - |TokuDB| Storage Engine: |TokuDB| will be supported throughout the |Percona
   Server| 8.0 release series, but will not be available in the next major
@@ -48,8 +54,11 @@ Features Being Deprecated in Percona Server for MySQL 8.0
   Engine which provides similar benefits for the majority of workloads and has
   better optimized support for modern hardware.
 
-Improvements
+Issues Resolved in |Percona Server| |release|
 ================================================================================
+
+Improvements
+--------------------------------------------------------------------------------
 
 -  :psbug:`5014`: Update Percona Backup Locks feature to use the new ``BACKUP_ADMIN``
    privilege in MySQL 8.0
@@ -57,7 +66,7 @@ Improvements
 -  :psbug:`4790`: Improved accuracy of User Statistics feature
 
 Bugs Fixed Since 8.0.12-rc1
-================================================================================
+--------------------------------------------------------------------------------
 
 -  Fixed a crash in ``mysqldump`` in the ``--innodb-optimize-keys``
    functionality :psbug:`4972`
@@ -85,19 +94,18 @@ Other Bugs Fixed:
 Known Issues
 ================================================================================
 
-Due to the significant structural changes in 8.0, this was a more
-difficult porting process than is typical. We have a few features and
-issues outstanding that should be resolved in the next release.
+We have a few features and issues outstanding that should be resolved in the
+next release.
 
 Pending Feature Re-Implementations and Improvements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------------------------------------------------------
 
 -  :psbug:`4892`: Re-Implement Expanded Fast Index Creation feature.
 -  :psbug:`5216`: Re-Implement Utility User feature.
 -  :psbug:`5143`: Identify Percona features which can make use of dynamic privileges instead of ``SUPER``
 
 Notable Issues in Features
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------------------------------------------------------
 
 -  :psbug:`5148`: Regression in Compressed Columns Feature when using ``innodb-force-recovery``
 -  :psbug:`4996`: Regression in User Statistics feature where ``TOTAL_CONNECTIONS`` field report incorrect data

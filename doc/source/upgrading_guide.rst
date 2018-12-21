@@ -32,6 +32,8 @@ of incompatible changes that could cause automatic upgrade to fail:
    With partitioned tables that use the TokuDB or MyRocks storage
    engine, the upgrade only works with native partitioning.
 
+--------------------------------------------------------------------------------
+
 .. contents::
    :local:
    :depth: 1

@@ -268,3 +268,4 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 .. [#f1] 
 
 .. include:: ../.res/replace.program.txt
+.. include:: ../.res/replace.txt

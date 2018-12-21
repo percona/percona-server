@@ -131,13 +131,11 @@ void dict_table_close_and_drop(
 /** Inits the data dictionary module. */
 void dict_init(void);
 
-dict_table_t*
-dict_table_open_on_index_id(
-/*==================*/
-        space_index_t      table_id,       /*!< in: table id */
-        bool            dict_locked)    /*!< in: TRUE=data dictionary locked */
-        __attribute__((warn_unused_result));
-
+dict_table_t *dict_table_open_on_index_id(
+    /*==================*/
+    space_index_t table_id, /*!< in: table id */
+    bool dict_locked)       /*!< in: TRUE=data dictionary locked */
+    __attribute__((warn_unused_result));
 
 /** Inits the structure for persisting dynamic metadata */
 void dict_persist_init(void);
@@ -1790,9 +1788,11 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
 This can happen if Percona Server is bootstrapped with
 --innodb-encrypt-tables=ON If yes or if srv_encrypt_tables is ON/FORCE, during
 upgrade, mysql.ibd should be encrpted.
-@param[in]  is_upgrade true in upgrade mode
+@param[in]  is_upgrade          true in upgrade mode
+@param[in]  mysql_plugin_space  space_id of mysql/plugin table. Used only
+                                during upgrade
 @return true if encrypted, false if not encrypted */
-bool dict_detect_encryption(bool is_upgrade);
+bool dict_detect_encryption(bool is_upgrade, space_id_t mysql_plugin_space);
 
 #include "dict0dict.ic"
 

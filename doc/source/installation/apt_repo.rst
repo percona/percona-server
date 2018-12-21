@@ -48,20 +48,19 @@ What's in each DEB package?
 Installing |Percona Server| from Percona ``apt`` repository
 ===========================================================
 
-
 |tip.run-all.root|
 
 1. Fetch the repository packages from Percona web: 
 
    .. code-block:: bash
 
-      wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb
+      $ wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb
 
 #. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`: 
 
    .. code-block:: bash
 
-      dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
+      $ sudo dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
 
 #. Once you install this package the Percona repositories should be added. You
    can check the repository setup in the
@@ -71,13 +70,13 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-     $ percona-release setup ps80
+     $ sudo percona-release setup ps80
 
 #. After that you can install the server package:
 
    .. code-block:: bash
 
-      $ apt-get install percona-server-server
+      $ sudo apt-get install percona-server-server
 
 .. note:: 
 
@@ -96,7 +95,7 @@ Percona offers pre-release builds from the testing repository. To enable it, run
 
 .. code-block:: bash
 
-   $ percona-release enable ps-80 testing
+   $ sudo percona-release enable ps-80 testing
 
 Apt-Pinning the packages
 --------------------------------------------------------------------------------

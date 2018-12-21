@@ -19,4 +19,6 @@
 .. |centos| replace:: CentOS
 .. |rhel| replace:: RHEL
 
-		      
+.. |version.next| replace:: 9.0
+.. |version.prev| replace:: 5.7
+.. |version.previous| replace:: 5.7

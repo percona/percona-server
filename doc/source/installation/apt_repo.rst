@@ -12,7 +12,6 @@ Supported Releases:
 - |debian-last|
 - |ubuntu| 16.04 (xenial) 
 - |ubuntu-lts|
-- |ubuntu-last|
   
 Supported Platforms:
 

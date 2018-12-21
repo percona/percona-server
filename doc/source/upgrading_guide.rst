@@ -74,12 +74,22 @@ Enable the repository:
 
    $ apt-get install percona-server-server
 
-If you're using |Percona Server| 8.0 with |TokuDB| you'll need to
-specify the |TokuDB| package as well:
+The |TokuDB| and |MyRocks| storage engines are installed separately.
+
+If you used the |TokuDB| storage engine in |Percona Server| |version-prev|, 
+install the ``percona-server-tokudb`` package:
 
 .. code-block:: bash
 
-   $ apt-get install percona-server-server percona-server-tokudb
+   $ apt-get install percona-server-tokudb
+
+If you used the |MyRocks| storage engin in |Percona Server| |version.prev|, install the
+``percona-server-rocksdb`` package:
+
+.. code-block:: bash
+
+   $ apt-get install percona-server-rocksdb
+
 
 The installation script will *NOT* run automatically :command:`mysql_upgrade` as
 it was the case in previous versions. You'll need to run the command manually
@@ -147,19 +157,31 @@ depend on these (as they replace ``mysql``) and will be removed if omitted.
    The backup file is stored in the same directory with the `_backup` suffix
    followed by a timestamp: |etc.my-cnf-backup|.
 
-	       
-
 Substitute :bash:`grep '^mysql-'` for :bash:`grep 'Percona-Server'` in the previous command and
 remove the listed packages.
 
-You will have to install the ``percona-server-server`` package: :bash:`yum install percona-server-server`
-
-If you're using |Percona Server| 8.0 with |TokuDB| you'll need to specify the
-|TokuDB| package as well when doing the upgrade:
+You will have to install the ``percona-server-server`` package:
 
 .. code-block:: bash
 
-   $ yum install percona-server-server percona-server-tokudb
+   $ yum install percona-server-server
+
+The |TokuDB| and |MyRocks| storage engines are installed separately.
+
+If you used |TokuDB| in |Percona Server| |version.prev|, install the
+``percona-server-tokudb`` package when doing the upgrade. This command installs
+both
+
+.. code-block:: bash
+
+   $ yum install percona-server-tokudb
+
+If you used the |MyRocks| storage engine in |Percona Server| |version.prev|, install the
+``percona-server-rocksdb`` package:
+
+.. code-block:: bash
+
+   $ yum install percona-server-rocksdb
 
 Once installed, proceed to modify your configuration file - :file:`my.cnf` - and
 reinstall the plugins if necessary.
@@ -228,7 +250,7 @@ Then, download the following packages for your architecture:
 - ``libperconaserverclient21``
 
 The following example will download |Percona Server| :rn:`8.0.13-3` release
-packages for *Debian* 8.0:
+packages for *Debian* 9.0:
 
 .. code-block:: bash
 

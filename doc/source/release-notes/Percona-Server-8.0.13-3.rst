@@ -4,36 +4,49 @@
 |Percona Server| |release|
 ================================================================================
 
-|Percona| announces the GA release of |Percona Server| |release| on
-|date| (downloads are available `here <https://www.percona.com/downloads/Percona-Server-8.0/>`__ and from the `Percona SoftwareRepositories <https://www.percona.com/doc/percona-server/8.0/installation.html#installing-from-binaries>`__). 
-This release merges changes of |MySQL| 8.0.13, including
-all the bug fixes in it. |Percona Server| |release| is now the
-current GA release in the 8.0 series. All of |Percona|’s software is
-open-source and free.
+|Percona| announces the GA release of |Percona Server| |release| on |date|
+(downloads are available `here
+<https://www.percona.com/downloads/Percona-Server-8.0/>`__ and from the `Percona
+SoftwareRepositories
+<https://www.percona.com/doc/percona-server/8.0/installation.html#installing-from-binaries>`__).
+This release merges changes of |MySQL| 8.0.13, including all the bug fixes in
+it. |Percona Server| |release| is now the current GA release in the 8.0
+series. All of |Percona|’s software is open-source and free.
 
-Percona Server for MySQL 8.0 includes all the `features available in
-MySQL 8.0 Community
-Edition <https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html>`__
-in addition to enterprise-grade features developed by Percona for the
-community.  For a list of highlighted features from both MySQL 8.0 and 
-Percona Server for MySQL 8.0, please see the `GA release announcement <https://www.percona.com/blog/2018/12/21/announcing-general-availability-of-percona-server-for-mysql-8-0/>`__.
+Percona Server for MySQL 8.0 includes all the `features available in MySQL 8.0
+Community Edition
+<https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html>`__ in addition to
+enterprise-grade features developed by Percona for the community.  For a list of
+highlighted features from both MySQL 8.0 and Percona Server for MySQL 8.0,
+please see the `GA release announcement
+<https://www.percona.com/blog/2018/12/21/announcing-general-availability-of-percona-server-for-mysql-8-0/>`__.
 
 Note: If you are upgrading from 5.7 to 8.0, please ensure that you read the `upgrade guide <https://www.percona.com/doc/percona-server/8.0/upgrading_guide.html>`__ and the document `Changed in Percona Server for MySQL 8.0 <https://www.percona.com/doc/percona-server/8.0/changed_in_version.html>`__.
 
 Features Removed in Percona Server for MySQL 8.0
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
--  Slow Query Log Rotation and Expiration: Not widely used, can be accomplished using ``logrotate``
--  CSV engine mode for standard-compliant quote and comma parsing
--  Expanded program option modifiers
--  The ``ALL_O_DIRECT`` InnoDB flush method: it is not compatible with the
-   new redo logging implementation
--  ``XTRADB_RSEG`` table from ``INFORMATION_SCHEMA``
--  InnoDB memory size information from ``SHOW ENGINE INNODB STATUS;`` the
-   same information is available from Performance Schema memory summary
-   tables
--  Query cache enhancements: The query cache is no longer present in
-   MySQL 8.0
+- Slow Query Log Rotation and Expiration: Not widely used, can be accomplished
+  using ``logrotate``
+- CSV engine mode for standard-compliant quote and comma parsing
+- Expanded program option modifiers
+- The ``ALL_O_DIRECT`` InnoDB flush method: it is not compatible with the
+  new redo logging implementation
+- ``XTRADB_RSEG`` table from ``INFORMATION_SCHEMA``
+- InnoDB memory size information from ``SHOW ENGINE INNODB STATUS;`` the
+  same information is available from Performance Schema memory summary
+  tables
+- Query cache enhancements: The query cache is no longer present in
+  MySQL 8.0
+
+Features Being Deprecated in Percona Server for MySQL 8.0
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- |TokuDB| Storage Engine: |TokuDB| will be supported throughout the |Percona
+  Server| 8.0 release series, but will not be available in the next major
+  release. |Percona| encourages |TokuDB| users to explore the |MyRocks| Storage
+  Engine which provides similar benefits for the majority of workloads and has
+  better optimized support for modern hardware.
 
 Improvements
 ================================================================================
@@ -46,8 +59,6 @@ Improvements
 Bugs Fixed Since 8.0.12-rc1
 ================================================================================
 
--  Disabled the variables for Expanded Fast Index Creation since the
-   feature is not yet re-implemented :psbug:`5195`
 -  Fixed a crash in ``mysqldump`` in the ``--innodb-optimize-keys``
    functionality :psbug:`4972`
 -  Fixed a crash that can occur when system tables are locked by the

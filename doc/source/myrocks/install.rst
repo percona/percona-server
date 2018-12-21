@@ -33,7 +33,7 @@ It is recommended to install Percona software from official repositories:
 
    * For RHEL or CentOS::
 
-      $ sudo yum install percona-server-rocksdb.x86_64
+      $ sudo yum install percona-server-rocksdb
 
 After you install the Percona MyRocks package,
 you should see the following output::

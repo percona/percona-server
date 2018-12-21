@@ -78,26 +78,38 @@ Each of the |Percona Server| RPM packages have a particular purpose.
 Installing |Percona Server| from Percona ``yum`` repository
 ===========================================================
 
+
+|tip.run-all.root|
+
 1. Install the Percona repository 
    
    You can install Percona yum repository by running the following command as a ``root`` user or with sudo:
 
    .. code-block:: bash
-
-     $ sudo yum install https://repo.percona.com/centos/7/RPMS/noarch/percona-release-0.1-8.noarch.rpm
+        
+      $ sudo yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
    You should see some output such as the following: 
 
    .. code-block:: bash
 
-      Retrieving http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-8.noarch.rpm
+      Retrieving http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-latest.noarch.rpm
       Preparing...                ########################################### [100%]
       1:percona-release        ########################################### [100%]
 
-#. Enable the repository: :bash:`percona-release enable ps-80 release`
+#. Enable the repository:
+
+   .. code-block:: bash
+
+      $ percona-release setup ps-80
+
 #. Install the packages
 
-   You can now install |Percona Server| by running: :bash:`yum install percona-server-server`
+   You can now install |Percona Server| by running:
+
+   .. code-block:: bash
+
+      $ yum install percona-server-server
 
 .. note::
 

@@ -83,7 +83,7 @@ class Rdb_cf_manager {
   rocksdb::ColumnFamilyHandle *get_cf(const std::string &cf_name) const;
 
   /* Look up cf by id; used by datadic */
-  rocksdb::ColumnFamilyHandle *get_cf(const uint32_t &id) const;
+  rocksdb::ColumnFamilyHandle *get_cf(const uint32_t id) const;
 
   /* Used to iterate over column families for show status */
   std::vector<std::string> get_cf_names(void) const;

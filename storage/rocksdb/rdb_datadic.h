@@ -199,13 +199,13 @@ class Rdb_key_def {
   uint pack_record(const TABLE *const tbl, uchar *const pack_buffer,
                    const uchar *const record, uchar *const packed_tuple,
                    Rdb_string_writer *const unpack_info,
-                   const bool &should_store_row_debug_checksums,
-                   const longlong &hidden_pk_id = 0, uint n_key_parts = 0,
+                   const bool should_store_row_debug_checksums,
+                   const longlong hidden_pk_id = 0, uint n_key_parts = 0,
                    uint *const n_null_fields = nullptr,
                    uint *const ttl_pk_offset = nullptr,
                    const char *const ttl_bytes = nullptr) const;
   /* Pack the hidden primary key into mem-comparable form. */
-  uint pack_hidden_pk(const longlong &hidden_pk_id,
+  uint pack_hidden_pk(const longlong hidden_pk_id,
                       uchar *const packed_tuple) const;
   int unpack_field(Rdb_field_packing *const fpi, Field *const field,
                    Rdb_string_reader *reader, const uchar *const default_value,
@@ -213,7 +213,7 @@ class Rdb_key_def {
   int unpack_record(TABLE *const table, uchar *const buf,
                     const rocksdb::Slice *const packed_key,
                     const rocksdb::Slice *const unpack_info,
-                    const bool &verify_row_debug_checksums) const;
+                    const bool verify_row_debug_checksums) const;
 
   static bool unpack_info_has_checksum(const rocksdb::Slice &unpack_info);
   int compare_keys(const rocksdb::Slice *key1, const rocksdb::Slice *key2,
@@ -278,10 +278,10 @@ class Rdb_key_def {
   }
 
   /* Make a key that is right after the given key. */
-  static int successor(uchar *const packed_tuple, const uint &len);
+  static int successor(uchar *const packed_tuple, const uint len);
 
   /* Make a key that is right before the given key. */
-  static int predecessor(uchar *const packed_tuple, const uint &len);
+  static int predecessor(uchar *const packed_tuple, const uint len);
 
   /*
     This can be used to compare prefixes.
@@ -553,19 +553,19 @@ class Rdb_key_def {
   rocksdb::ColumnFamilyHandle *get_cf() const { return m_cf_handle; }
 
   /* Check if keypart #kp can be unpacked from index tuple */
-  inline bool can_unpack(const uint &kp) const;
+  inline bool can_unpack(const uint kp) const;
   /* Check if keypart #kp needs unpack info */
-  inline bool has_unpack_info(const uint &kp) const;
+  inline bool has_unpack_info(const uint kp) const;
 
   /* Check if given table has a primary key */
   static bool table_has_hidden_pk(const TABLE *const table);
 
-  void report_checksum_mismatch(const bool &is_key, const char *const data,
+  void report_checksum_mismatch(const bool is_key, const char *const data,
                                 const size_t data_size) const;
 
   /* Check if index is at least pk_min if it is a PK,
     or at least sk_min if SK.*/
-  bool index_format_min_check(const int &pk_min, const int &sk_min) const;
+  bool index_format_min_check(const int pk_min, const int sk_min) const;
 
   void pack_tiny(Rdb_field_packing *const fpi, Field *const field,
                  uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
@@ -713,7 +713,7 @@ class Rdb_key_def {
                      Rdb_string_reader *const unp_reader) const;
 
   int unpack_floating_point(uchar *const dst, Rdb_string_reader *const reader,
-                            const size_t &size, const int &exp_digit,
+                            const size_t size, const int exp_digit,
                             const uchar *const zero_pattern,
                             const uchar *const zero_val,
                             void (*swap_func)(uchar *, const uchar *)) const;
@@ -762,7 +762,7 @@ class Rdb_key_def {
 
  private:
 #ifndef NDEBUG
-  inline bool is_storage_available(const int &offset, const int &needed) const {
+  inline bool is_storage_available(const int offset, const int needed) const {
     const int storage_length = static_cast<int>(max_storage_fmt_length());
     return (storage_length - offset) >= needed;
   }
@@ -966,37 +966,37 @@ class Rdb_field_packing {
   rdb_index_field_skip_t m_skip_func;
 
  private:
-  /*
-    Location of the field in the table (key number and key part number).
+ /*
+   Location of the field in the table (key number and key part number).
 
-    Note that this describes not the field, but rather a position of field in
-    the index. Consider an example:
+   Note that this describes not the field, but rather a position of field in
+   the index. Consider an example:
 
-      col1 VARCHAR (100),
-      INDEX idx1 (col1)),
-      INDEX idx2 (col1(10)),
+     col1 VARCHAR (100),
+     INDEX idx1 (col1)),
+     INDEX idx2 (col1(10)),
 
-    Here, idx2 has a special Field object that is set to describe a 10-char
-    prefix of col1.
+   Here, idx2 has a special Field object that is set to describe a 10-char
+   prefix of col1.
 
-    We must also store the keynr. It is needed for implicit "extended keys".
-    Every key in MyRocks needs to include PK columns.  Generally, SQL layer
-    includes PK columns as part of its "Extended Keys" feature, but sometimes
-    it does not (known examples are unique secondary indexes and partitioned
-    tables).
-    In that case, MyRocks's index descriptor has invisible suffix of PK
-    columns (and the point is that these columns are parts of PK, not parts
-    of the current index).
-  */
-  uint m_keynr;
-  uint m_key_part;
+   We must also store the keynr. It is needed for implicit "extended keys".
+   Every key in MyRocks needs to include PK columns.  Generally, SQL layer
+   includes PK columns as part of its "Extended Keys" feature, but sometimes
+   it does not (known examples are unique secondary indexes and partitioned
+   tables).
+   In that case, MyRocks's index descriptor has invisible suffix of PK
+   columns (and the point is that these columns are parts of PK, not parts
+   of the current index).
+ */
+ uint m_keynr;
+ uint m_key_part;
 
  public:
-  bool setup(const Rdb_key_def *const key_descr, const Field *const field,
-             const uint &keynr_arg, const uint &key_part_arg,
-             const uint16 &key_length);
-  Field *get_field_in_table(const TABLE *const tbl) const;
-  void fill_hidden_pk_val(uchar **dst, const longlong &hidden_pk_id) const;
+ bool setup(const Rdb_key_def *const key_descr, const Field *const field,
+            const uint keynr_arg, const uint key_part_arg,
+            const uint16 key_length);
+ Field *get_field_in_table(const TABLE *const tbl) const;
+ void fill_hidden_pk_val(uchar **dst, const longlong hidden_pk_id) const;
 };
 
 /*
@@ -1049,12 +1049,12 @@ inline Field *Rdb_key_def::get_table_field_for_part_no(TABLE *table,
   return m_pack_info[part_no].get_field_in_table(table);
 }
 
-inline bool Rdb_key_def::can_unpack(const uint &kp) const {
+inline bool Rdb_key_def::can_unpack(const uint kp) const {
   assert(kp < m_key_parts);
   return (m_pack_info[kp].m_unpack_func != nullptr);
 }
 
-inline bool Rdb_key_def::has_unpack_info(const uint &kp) const {
+inline bool Rdb_key_def::has_unpack_info(const uint kp) const {
   assert(kp < m_key_parts);
   return m_pack_info[kp].uses_unpack_info();
 }
@@ -1091,12 +1091,12 @@ class Rdb_tbl_def {
     set_name(name);
   }
 
-  Rdb_tbl_def(const char *const name, const size_t &len)
+  Rdb_tbl_def(const char *const name, const size_t len)
       : m_key_descr_arr(nullptr), m_hidden_pk_val(0), m_auto_incr_val(0) {
     set_name(std::string(name, len));
   }
 
-  explicit Rdb_tbl_def(const rocksdb::Slice &slice, const size_t &pos = 0)
+  explicit Rdb_tbl_def(const rocksdb::Slice &slice, const size_t pos = 0)
       : m_key_descr_arr(nullptr), m_hidden_pk_val(0), m_auto_incr_val(0) {
     set_name(std::string(slice.data() + pos, slice.size() - pos));
   }
@@ -1116,7 +1116,7 @@ class Rdb_tbl_def {
   bool m_is_mysql_system_table;
 
   bool put_dict(Rdb_dict_manager *const dict, rocksdb::WriteBatch *const batch,
-                uchar *const key, const size_t &keylen);
+                uchar *const key, const size_t keylen);
 
   const std::string &full_tablename() const { return m_dbname_tablename; }
   const std::string &base_dbname() const { return m_dbname; }
@@ -1140,7 +1140,7 @@ class Rdb_seq_generator {
   Rdb_seq_generator &operator=(const Rdb_seq_generator &) = delete;
   Rdb_seq_generator() = default;
 
-  void init(const uint &initial_number) {
+  void init(const uint initial_number) {
     mysql_mutex_init(0, &m_mutex, MY_MUTEX_INIT_FAST);
     m_next_number = initial_number;
   }
@@ -1191,7 +1191,7 @@ class Rdb_ddl_manager {
     /* Load the data dictionary from on-disk storage */
 #if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
   bool init(Rdb_dict_manager *const dict_arg, Rdb_cf_manager *const cf_manager,
-            const uint32_t &validate_tables);
+            const uint32_t validate_tables);
 #else
   bool init(Rdb_dict_manager *const dict_arg, Rdb_cf_manager *const cf_manager);
 #endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
@@ -1199,19 +1199,19 @@ class Rdb_ddl_manager {
 
   void cleanup();
 
-  Rdb_tbl_def *find(const std::string &table_name, const bool &lock = true);
+  Rdb_tbl_def *find(const std::string &table_name, const bool lock = true);
   std::shared_ptr<const Rdb_key_def> safe_find(GL_INDEX_ID gl_index_id);
   void set_stats(const std::unordered_map<GL_INDEX_ID, Rdb_index_stats> &stats);
   void adjust_stats(const std::vector<Rdb_index_stats> &new_data,
                     const std::vector<Rdb_index_stats> &deleted_data =
                         std::vector<Rdb_index_stats>());
-  void persist_stats(const bool &sync = false);
+  void persist_stats(const bool sync = false);
 
   /* Modify the mapping and write it to on-disk storage */
   int put_and_write(Rdb_tbl_def *const key_descr,
                     rocksdb::WriteBatch *const batch);
   void remove(Rdb_tbl_def *const rec, rocksdb::WriteBatch *const batch,
-              const bool &lock = true);
+              const bool lock = true);
   bool rename(const std::string &from, const std::string &to,
               rocksdb::WriteBatch *const batch);
 
@@ -1232,7 +1232,7 @@ class Rdb_ddl_manager {
 
  private:
   /* Put the data into in-memory table (only) */
-  int put(Rdb_tbl_def *const key_descr, const bool &lock = true);
+  int put(Rdb_tbl_def *const key_descr, const bool lock = true);
 
   /* Helper functions to be passed to my_core::HASH object */
   static const uchar *get_hash_key(Rdb_tbl_def *const rec, size_t *const length,
@@ -1324,7 +1324,7 @@ class Rdb_dict_manager {
   /* Functions for fast DROP TABLE/INDEX */
   void resume_drop_indexes() const;
   void log_start_drop_table(const std::shared_ptr<Rdb_key_def> *const key_descr,
-                            const uint32 &n_keys,
+                            const uint32 n_keys,
                             const char *const log_action) const;
   void log_start_drop_index(GL_INDEX_ID gl_index_id,
                             const char *log_action) const;
@@ -1349,7 +1349,7 @@ class Rdb_dict_manager {
 
   /* Raw RocksDB operations */
   std::unique_ptr<rocksdb::WriteBatch> begin() const;
-  int commit(rocksdb::WriteBatch *const batch, const bool &sync = true) const;
+  int commit(rocksdb::WriteBatch *const batch, const bool sync = true) const;
   rocksdb::Status get_value(const rocksdb::Slice &key,
                             std::string *const value) const;
   void put_key(rocksdb::WriteBatchBase *const batch, const rocksdb::Slice &key,
@@ -1368,9 +1368,9 @@ class Rdb_dict_manager {
                       struct Rdb_index_info *const index_info) const;
 
   /* CF id => CF flags */
-  void add_cf_flags(rocksdb::WriteBatch *const batch, const uint &cf_id,
-                    const uint &cf_flags) const;
-  bool get_cf_flags(const uint &cf_id, uint *const cf_flags) const;
+  void add_cf_flags(rocksdb::WriteBatch *const batch, const uint cf_id,
+                    const uint cf_flags) const;
+  bool get_cf_flags(const uint cf_id, uint *const cf_flags) const;
 
   /* Functions for fast CREATE/DROP TABLE/INDEX */
   void
@@ -1386,7 +1386,7 @@ class Rdb_dict_manager {
                                    Rdb_key_def::DATA_DICT_TYPE dd_type) const;
   bool is_drop_index_empty() const;
   void add_drop_table(std::shared_ptr<Rdb_key_def> *const key_descr,
-                      const uint32 &n_keys,
+                      const uint32 n_keys,
                       rocksdb::WriteBatch *const batch) const;
   void add_drop_index(const std::unordered_set<GL_INDEX_ID> &gl_index_ids,
                       rocksdb::WriteBatch *const batch) const;
@@ -1437,7 +1437,7 @@ class Rdb_dict_manager {
 
   bool get_max_index_id(uint32_t *const index_id) const;
   bool update_max_index_id(rocksdb::WriteBatch *const batch,
-                           uint32_t index_id) const;
+                           const uint32_t index_id) const;
   void add_stats(rocksdb::WriteBatch *const batch,
                  const std::vector<Rdb_index_stats> &stats) const;
   Rdb_index_stats get_stats(GL_INDEX_ID gl_index_id) const;

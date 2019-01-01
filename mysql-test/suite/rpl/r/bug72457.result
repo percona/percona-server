@@ -1,4 +1,4 @@
-include/master-slave.inc
+include/rpl/init_source_replica.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
@@ -11,9 +11,12 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # Bug #88223 "Replication with no tmpdir space and InnoDB as tmp_storage_engine can break"
 # (https://bugs.mysql.com/bug.php?id=88223)
 #
-call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master\\. Message: The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log\\. Error_code:");
-call mtr.add_suppression("The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log\\. An incident event has been written to the binary log which will stop the slaves\\.");
-SET @saved_binlog_error_action = @@global.binlog_error_action;
+CALL mtr.add_suppression("An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.");
+CALL mtr.add_suppression("Error writing file.*(errno: 28 - No space left on device)");
+# Restart master with a custom error log
+include/rpl/restart_server.inc [server_number=1]
+                               [parameters: --log-error=ERROR_LOG_FILE]
+include/rpl/reset.inc
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 CREATE TABLE t1(f1 TEXT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(MD5(1));
@@ -27,19 +30,30 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
-include/sync_slave_sql_with_master.inc
+include/rpl/sync_to_replica.inc
 [connection master]
 SET SESSION debug = "+d,simulate_tmpdir_partition_full";
 INSERT INTO t1 SELECT * FROM t1;
-ERROR HY000: Error writing file <tmp_file_name> (Errcode: ##)
+Warnings:
+Error	3	Error writing file <tmp_file_name> (Errcode: ##)
+Error	1026	Error writing file <tmp_file_name> (Errcode: ##)
 SET SESSION debug = "-d,simulate_tmpdir_partition_full";
+# Check if INSERT is committed
+include/assert.inc [Count of elements in t1 should be 2048.]
+# Cleanup and stop slave
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=13119]
-Last_SQL_Error = 'The incident LOST_EVENTS occurred on the master. Message: The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log.'
-include/stop_slave_io.inc
-RESET SLAVE;
 DROP TABLE t1;
+include/rpl/stop_replica.inc
+# Binlog is closed due to above error. Restart the server to
+# enable the binlog again to continue the test. Use default error log.
+include/rpl/restart_server.inc [server_number=1]
 [connection master]
+# Only "Stop" should be logged
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Stop	#	#	
+# Make sure that the warnings are present in a custom error log.
+Pattern "An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'." found
 DROP TABLE t1;
-SET GLOBAL binlog_error_action = @saved_binlog_error_action;
-include/rpl_end.inc
+SET GLOBAL binlog_error_action= ABORT_SERVER;
+include/rpl/deinit.inc

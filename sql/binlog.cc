@@ -9184,7 +9184,18 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
       binlog_error_action=IGNORE_ERROR, clear the error
       and allow the commit to happen in storage engine.
     */
-    if (check_write_error(thd)) thd->clear_error();
+    if (check_write_error(thd)) {
+      /* we have DA_ERROR */
+      thd->clear_error(); /* sets thd->get_stmt_da()->status() to DA_EMPTY */
+      /* For SQLCOM_COMMIT, ROLLBACK, ROLLBACK TO SAVEPOINT, there is already
+      my_ok() in mysql_execute_command. Doing double my_ok() is not allowed. So
+      we avoid that here */
+      if (thd_sql_command(thd) != SQLCOM_COMMIT &&
+          thd_sql_command(thd) != SQLCOM_ROLLBACK &&
+          thd_sql_command(thd) != SQLCOM_ROLLBACK_TO_SAVEPOINT) {
+        my_ok(thd); /* sets thd->get_stmt_da()->status() to DA_OK */
+      }
+    }
 
     if (need_lock_log) mysql_mutex_unlock(&LOCK_log);
     DEBUG_SYNC(thd, "after_binlog_closed_due_to_error");

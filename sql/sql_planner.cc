@@ -498,8 +498,6 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
               on the same index,
               (2) and that quick select uses more keyparts (i.e. it will
               scan equal/smaller interval then this ref(const))
-              (3) and E(#rows) for quick select is higher then our
-              estimate,
               Then use E(#rows) from quick select.
 
               One observation is that when there are multiple
@@ -515,11 +513,12 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
               TODO: figure this out and adjust the plan choice if needed.
             */
             if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
-                table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
-                cur_fanout <= (double)table->quick_rows[key])        // (3)
+                table->quick_key_parts[key] > cur_used_keyparts)    // (2)
                 {
-                  cur_fanout= (double)table->quick_rows[key];
+                  trace_access_idx.add("chosen", false)
+                      .add_alnum("cause", "range_uses_more_keyparts");
                   is_dodgy= true;
+                  continue;
                 }
 
             tmp_fanout= cur_fanout;

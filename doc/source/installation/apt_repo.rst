@@ -95,7 +95,7 @@ Percona offers pre-release builds from the testing repository. To enable it, run
 
 .. code-block:: bash
 
-   $ sudo percona-release enable ps-80 testing
+   $ sudo percona-release enable ps80 testing
 
 Apt-Pinning the packages
 --------------------------------------------------------------------------------

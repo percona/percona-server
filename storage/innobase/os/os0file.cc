@@ -5403,6 +5403,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 
   const ib_uint64_t start_time = trx_stats::start_io_read(trx, n);
 
+  (void)os_atomic_increment_ulint(&os_n_pending_reads, 1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 
   ssize_t n_bytes = os_file_io(type, file, buf, n, offset, err);

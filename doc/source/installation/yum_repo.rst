@@ -103,7 +103,7 @@ lease add sudo to percona-release setup and yum install commands
 
    .. code-block:: bash
 
-      $ sudo percona-release setup ps-80
+      $ sudo percona-release setup ps80
 
 #. Install the packages
 

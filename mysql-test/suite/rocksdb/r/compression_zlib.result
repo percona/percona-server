@@ -9,7 +9,7 @@ SUM(id)	SUM(data)
 50005000	50005000
 select cf_name, option_type, value from information_schema.rocksdb_cf_options where cf_name='default' and option_type like 'COMPRESSION%' order by option_type;
 cf_name	option_type	value
-default	COMPRESSION_OPTS	-14:-1:0
+default	COMPRESSION_OPTS	-14:32767:0
 default	COMPRESSION_PER_LEVEL	NUL
 default	COMPRESSION_TYPE	kZlibCompression
 select table_name, index_name, cf from information_schema.rocksdb_ddl where table_name='t1' order by table_name, index_name;

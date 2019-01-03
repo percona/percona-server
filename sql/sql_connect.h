@@ -166,5 +166,8 @@ int get_or_create_user_conn(THD *thd, const char *user, const char *host,
 int check_for_max_user_connections(THD *thd, const USER_CONN *uc);
 // Uses the THD to update the global stats by user name and client IP
 void update_global_user_stats(THD *thd, bool create_user, ulonglong now);
+void update_global_user_stats(THD *thd, bool create_user, ulonglong now,
+                              const char *user_string,
+                              const char *client_string);
 
 #endif /* SQL_CONNECT_INCLUDED */

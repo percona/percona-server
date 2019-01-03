@@ -2880,6 +2880,7 @@ mysql_execute_command(THD *thd)
     */
     if (deny_updates_if_read_only_option(thd, all_tables))
     {
+      thd->diff_access_denied_errors++;
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                opt_super_readonly ? "--read-only (super)" : "--read-only");
       DBUG_RETURN(-1);
@@ -2955,6 +2956,7 @@ mysql_execute_command(THD *thd)
   if (thd->tx_read_only &&
       (sql_command_flags[lex->sql_command] & CF_DISALLOW_IN_RO_TRANS))
   {
+    thd->diff_access_denied_errors++;
     my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
     goto error;
   }
@@ -6090,6 +6092,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
              (db ? db : (thd->db ?
                          thd->db :
                          "unknown")));
+  thd->diff_access_denied_errors++;
   DBUG_RETURN(TRUE);
 
 }

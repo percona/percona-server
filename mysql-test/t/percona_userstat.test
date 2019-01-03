@@ -136,7 +136,9 @@ FROM
   INFORMATION_SCHEMA.USER_STATISTICS
 ;
 
+--echo #
 --echo # Bug lp:1659992 "Function over userstat tables cause mysql to crash"
+--echo #
 
 delimiter |;
 CREATE FUNCTION utility_get_global_variable(in_name VARCHAR(64)) RETURNS VARCHAR(1024) CHARSET utf8 DETERMINISTIC SQL SECURITY INVOKER
@@ -158,5 +160,22 @@ SELECT *
 --enable_result_log
 
 DROP FUNCTION utility_get_global_variable;
+
+
+--echo #
+--echo # Bug PS-4996: statistics commit counter doesn't work
+--echo #
+SET autocommit=0;
+START TRANSACTION;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (42);
+COMMIT;
+START TRANSACTION;
+INSERT INTO t1 VALUES (42);
+ROLLBACK;
+SELECT COMMIT_TRANSACTIONS, ROLLBACK_TRANSACTIONS FROM INFORMATION_SCHEMA.THREAD_STATISTICS;
+SELECT COMMIT_TRANSACTIONS, ROLLBACK_TRANSACTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS;
+SET autocommit=1;
+DROP TABLE t1;
 
 SET GLOBAL userstat= @userstat_old;

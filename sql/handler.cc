@@ -1934,6 +1934,8 @@ end:
     });
   }
 
+  if (!error) thd->diff_commit_trans++;
+
   return error;
 }
 

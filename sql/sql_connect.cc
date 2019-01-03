@@ -345,28 +345,38 @@ static void update_global_thread_stats_with_thread(const THD &thd,
   thread_stats->empty_queries += thd.diff_empty_queries;
 }
 
-// Updates the global stats of a user or client
 void update_global_user_stats(THD *thd, bool create_user, ulonglong now) {
-  const char *user_string =
-      get_valid_user_string(thd->m_main_security_ctx.user().str);
-  const char *client_string = get_client_host(*thd);
+  update_global_user_stats(
+      thd, create_user, now,
+      get_valid_user_string(thd->security_context()->user().str),
+      get_client_host(*thd));
+}
 
+// Updates the global stats of a user or client
+void update_global_user_stats(THD *thd, bool create_user, ulonglong now,
+                              const char *user_string,
+                              const char *client_string) {
   mysql_mutex_lock(&LOCK_global_user_client_stats);
 
   // Update by user name
-  const auto &user_it = global_user_stats->find(user_string);
-  if (user_it != global_user_stats->cend())
-    update_global_user_stats_with_user(*thd, &user_it->second, now);
-  else if (create_user)
-    increment_count_by_name(user_string, user_string, global_user_stats, *thd);
+  if (user_string) {
+    const auto &user_it = global_user_stats->find(user_string);
+    if (user_it != global_user_stats->cend())
+      update_global_user_stats_with_user(*thd, &user_it->second, now);
+    else if (create_user)
+      increment_count_by_name(user_string, user_string, global_user_stats,
+                              *thd);
+  }
 
   // Update by client IP
-  const auto &client_it = global_client_stats->find(client_string);
-  if (client_it != global_client_stats->cend())
-    update_global_user_stats_with_user(*thd, &client_it->second, now);
-  else if (create_user)
-    increment_count_by_name(client_string, user_string, global_client_stats,
-                            *thd);
+  if (client_string) {
+    const auto &client_it = global_client_stats->find(client_string);
+    if (client_it != global_client_stats->cend())
+      update_global_user_stats_with_user(*thd, &client_it->second, now);
+    else if (create_user)
+      increment_count_by_name(client_string, user_string, global_client_stats,
+                              *thd);
+  }
 
   if (opt_thread_statistics) {
     // Update by thread ID
@@ -970,7 +980,6 @@ static bool login_connection(THD *thd) {
     if (vio_type(thd->get_protocol_classic()->get_vio()) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000); /* must wait after eof() */
 #endif
-    thd->diff_denied_connections++;
     return true;
   }
   /* Connect completed, set read/write timeouts back to default */

@@ -2300,11 +2300,11 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   */
   DBUG_PRINT("error", ("Access denied"));
   if (!no_errors) {
-    thd->diff_access_denied_errors++;
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->priv_host().str,
              (db ? db : (thd->db().str ? thd->db().str : "unknown")));
   }
+  thd->diff_access_denied_errors++;
   return true;
 }
 

@@ -1584,15 +1584,18 @@ static void cannot_proxy_error(THD *thd, const MPVIO_EXT &mpvio,
   a helper function to report an access denied error in all the proper places
 */
 static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used) {
+  thd->diff_denied_connections++;
+  update_global_user_stats(thd, false, time(nullptr),
+                           mpvio->auth_info.user_name,
+                           mpvio->auth_info.host_or_ip);
+
   if (thd->is_error()) {
     LogEvent()
         .prio(INFORMATION_LEVEL)
         .errcode(ER_ABORTING_USER_CONNECTION)
         .subsys(LOG_SUBSYSTEM_TAG)
         .verbatim(thd->get_stmt_da()->message_text());
-  }
-
-  else if (passwd_used == 2) {
+  } else if (passwd_used == 2) {
     my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
              mpvio->auth_info.user_name, mpvio->auth_info.host_or_ip);
     query_logger.general_log_print(

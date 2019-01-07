@@ -2361,6 +2361,10 @@ class Mysqlbinlog_event_data_istream : public Binlog_event_data_istream {
         // We will be creating Unknown_log_events with events marked as
         // encrypted
       }
+      if (*buffer != nullptr) {
+        allocator->deallocate(*buffer);
+        *buffer = nullptr;
+      }
       return true;
     }
 
@@ -2543,8 +2547,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     if (mysqlbinlog_file_reader.event_data_istream()->is_binlog_encrypted() &&
         mysqlbinlog_file_reader.get_error_type() !=
             Binlog_read_error::READ_EOF &&
-        (!ev || ev->get_type_code() != binary_log::START_ENCRYPTION_EVENT)) {
-      DBUG_ASSERT(ev == nullptr);
+        !ev) {
       if (force_opt) {
         ev = new Unknown_log_event;
       }

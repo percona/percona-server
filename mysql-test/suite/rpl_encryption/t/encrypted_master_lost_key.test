@@ -132,6 +132,8 @@ INSERT INTO table3_to_encrypt SELECT NULL,NOW(),b FROM table3_to_encrypt;
 --echo #####################################################
 --connection server_2
 
+call mtr.add_suppression('Event decryption failure');
+
 --disable_connect_log
 START SLAVE SQL_THREAD;
 START SLAVE IO_THREAD;

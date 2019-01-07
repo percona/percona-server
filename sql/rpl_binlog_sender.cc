@@ -1034,9 +1034,12 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
   if (send_packet()) DBUG_RETURN(1);
 
   // Let's check if next event is Start encryption event
+  // If we go outside the file read_event will also return an error
   const auto binlog_pos_after_fdle = reader->position();
   if (read_event(reader, &event_ptr, &event_len)) {
-    DBUG_RETURN(1);
+    reader->seek(binlog_pos_after_fdle);
+    set_last_pos(binlog_pos_after_fdle);
+    DBUG_RETURN(0);
   }
 
   binlog_read_error = binlog_event_deserialize(

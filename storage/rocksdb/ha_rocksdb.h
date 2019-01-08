@@ -1226,6 +1226,9 @@ class ha_rocksdb : public my_core::handler {
   int finalize_bulk_load(bool print_client_error = true)
       MY_ATTRIBUTE((__warn_unused_result__));
 
+  bool should_skip_invalidated_record(const int rc) const;
+  bool should_recreate_snapshot(const int rc, const bool is_new_snapshot) const;
+
  public:
   void set_pk_can_be_decoded(bool flag) { m_pk_can_be_decoded = flag; }
   int index_init(uint idx, bool sorted) override

@@ -161,8 +161,8 @@ bool Binlog_event_data_istream::fill_event_data(
                                               checksum_alg) &&
         !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
       return m_error->set_type(crypto_data.is_enabled()
-                                   ? Binlog_read_error::CHECKSUM_FAILURE
-                                   : Binlog_read_error::DECRYPT);
+                                   ? Binlog_read_error::DECRYPT
+                                   : Binlog_read_error::CHECKSUM_FAILURE);
     }
   }
   return false;

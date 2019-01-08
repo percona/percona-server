@@ -101,6 +101,7 @@ connection master;
 #         This behavior is confirmed in MDEV-11323
 #####################################################
 connection server_2;
+call mtr.add_suppression('Event decryption failure');
 START SLAVE SQL_THREAD;
 START SLAVE IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13114 # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG]

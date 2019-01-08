@@ -39,7 +39,7 @@
 --source include/have_binlog_format_row.inc
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-let $total_persistent_vars=359;
+let $total_persistent_vars=413;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
@@ -58,6 +58,8 @@ CREATE TABLE global_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64
 # ERROR 1231 (42000): Variable 'innodb_monitor_reset' can't be set to the value of 'NULL'
 # -> SET GLOBAL innodb_monitor_reset_all = @@global.innodb_monitor_reset_all;
 # ERROR 1231 (42000): Variable 'innodb_monitor_reset_all' can't be set to the value of 'NULL'
+# -> SET GLOBAL innodb_default_encryption_key_id = @@global.innodb_default_encryption_key_id;
+# ERROR 1231 (42000): Variable 'innodb_default_encryption_key_id' can't be set to the value of '0'
 
 # Bug#27534122 - RBR_EXEC_MODE DOES NOT SUPPORT GLOBAL SCOPE
 INSERT INTO global_vars (var_name, var_value) SELECT * FROM
@@ -66,6 +68,7 @@ performance_schema.global_variables WHERE variable_name NOT IN
 'innodb_monitor_disable',
 'innodb_monitor_reset',
 'innodb_monitor_reset_all',
+'innodb_default_encryption_key_id',
 'rbr_exec_mode');
 
 --let $count_vars= `SELECT COUNT(*) FROM global_vars;`
@@ -120,14 +123,15 @@ WHERE variable_name NOT IN
 'innodb_ft_user_stopword_table',
 'innodb_tmpdir',
 'innodb_ft_server_stopword_table',
+'innodb_default_encryption_key_id',
 'rbr_exec_mode')
 AND variable_name NOT LIKE 'ndb_%'
 ORDER BY variable_name;
 
 --let $count_vars= `SELECT COUNT(*) FROM all_vars;`
 --echo
---let $assert_text= 'Expect 554 variables in the table. Due to open Bugs, we are checking for 547'
---let $assert_cond= [SELECT COUNT(*) as count FROM all_vars, count, 1] = $total_global_vars-7
+--let $assert_text= 'Expect 625 variables in the table. Due to open Bugs, we are checking for 617'
+--let $assert_cond= [SELECT COUNT(*) as count FROM all_vars, count, 1] = $total_global_vars-8
 --source include/assert.inc
 
 --echo
@@ -152,7 +156,7 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --enable_warnings
 --enable_query_log
 --echo
---let $assert_text= 'Expect 358 persisted variables in the table. Due to open Bugs, we are checking for 353'
+--let $assert_text= 'Expect 413 persisted variables in the table. Due to open Bugs, we are checking for 408'
 
 # Below are the persisted variables we are unable to test at the moment due to
 # existing Bugs.

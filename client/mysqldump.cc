@@ -2995,8 +2995,7 @@ static void print_optional_create_compression_dictionary(
         "FROM `INFORMATION_SCHEMA`.`COMPRESSION_DICTIONARY` "
         "WHERE `DICT_NAME` = '%s'";
 
-    processed_compression_dictionaries->emplace(
-        my_strdup(PSI_NOT_INSTRUMENTED, dictionary_name, MYF(0)));
+    processed_compression_dictionaries->emplace(dictionary_name);
 
     char query_buff[QUERY_LENGTH];
     snprintf(query_buff, sizeof(query_buff), get_zip_dict_data_stmt,

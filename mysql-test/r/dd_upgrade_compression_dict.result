@@ -1,7 +1,4 @@
 # Set different paths for --datadir
-# Copy the remote tablespace & DB zip files from suite location to working location.
-# Check that the file exists in the working folder.
-# Unzip the zip file.
 # Stop DB server which was created by MTR default
 # Start the 8.0 server on 5.7 datadir
 # restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1

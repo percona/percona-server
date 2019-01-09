@@ -1,7 +1,7 @@
 # create bootstrap file
 # Stop the MTR default DB server
 # Run the bootstrap command which skips creation of compression dictionary tables
-# restart: --datadir=MYSQLD_DATADIR --innodb_log_file_size=LOG_FILE_SIZE --innodb_log_files_in_group=2 --innodb_undo_tablespaces=2
+# restart: --datadir=MYSQLD_DATADIR --innodb_redo_log_capacity=LOG_FILE_SIZE
 CREATE COMPRESSION_DICTIONARY d1('blah');
 CREATE TABLE t1(a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d1);
 SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;

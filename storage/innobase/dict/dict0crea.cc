@@ -59,6 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "fil0crypt.h"  //dla FIL_ENCRYPTION_KEY_DEFAULT
 #include "fil0fil.h"
+#include "sql/sql_zip_dict.h"
 
 /** Build a table definition without updating SYSTEM TABLES
 @param[in,out]	table	dict table object
@@ -80,11 +81,17 @@ dberr_t dict_build_table_def(
   during bootstrap or upgrade */
   static uint32_t dd_table_id = 1;
 
-  if (is_dd_table) {
+  /* Treat mysql.compression_dictionary like DD table during bootstrap or
+  during upgrade. Only exemption is when this table is created by Percona
+  server started on mysql datadir. In that scenario, we should
+  use the next available table id */
+  if (is_dd_table ||
+      (compression_dict::is_hardcoded(db_buf, tbl_buf) && dd_table_id != 1)) {
     table->id = dd_table_id++;
     table->is_dd_table = true;
 
-    ut_ad(strcmp(tbl_buf, innodb_dd_table[table->id - 1].name) == 0);
+    ut_ad(strcmp(tbl_buf, innodb_dd_table[table->id - 1].name) == 0 ||
+          compression_dict::is_hardcoded(db_buf, tbl_buf));
 
   } else {
     dict_table_assign_new_id(table, trx);

@@ -2063,16 +2063,41 @@ mysql.compression_dictionary_cols
 @param[in,out]  thd  Session context
 @return false on success, true on failure */
 static bool check_and_create_compression_dict_tables(THD *thd) {
-  const dd::Table *new_table_def = nullptr;
-
+  const dd::Table *comp_table_def = nullptr;
   if (thd->dd_client()->acquire("mysql", "compression_dictionary",
-                                &new_table_def)) {
+                                &comp_table_def)) {
     return true;
   }
 
-  if (new_table_def != nullptr) {
-    // Compression dictionary table exists. Do nothing
-    return false;
+  const dd::Table *comp_cols_table_def = nullptr;
+  if (thd->dd_client()->acquire("mysql", "compression_dictionary_cols",
+                                &comp_cols_table_def)) {
+    return true;
+  }
+
+  const dd::Table *view_table_def = nullptr;
+  if (thd->dd_client()->acquire("mysql", "view_table_usage", &view_table_def)) {
+    return true;
+  }
+
+  /*
+    If compression dictionary tables were created by upgrade from 5.7 to
+    PS-8.0.13-3, the table_ids would be wrong. Use the first available hardcoded
+    table_id
+  */
+  bool fix_table_ids = false;
+
+  if (comp_table_def != nullptr && comp_cols_table_def != nullptr) {
+    uint64 comp_table_id = comp_table_def->se_private_id();
+    uint64 comp_cols_table_id = comp_cols_table_def->se_private_id();
+    uint64 view_table_id = view_table_def->se_private_id();
+
+    if (comp_table_id == view_table_id + 1 &&
+        (comp_cols_table_id == view_table_id + 2)) {
+      return false;
+    } else {
+      fix_table_ids = true;
+    }
   }
 
   /*
@@ -2095,6 +2120,33 @@ static bool check_and_create_compression_dict_tables(THD *thd) {
   if (ddse->is_dict_readonly && ddse->is_dict_readonly()) {
     LogErr(WARNING_LEVEL, ER_COMPRESSION_DICTIONARY_NO_CREATE, "InnoDB", " ");
     return false;
+  }
+
+  DBUG_EXECUTE_IF("skip_compression_dict_fix", fix_table_ids = false;);
+
+  if (fix_table_ids) {
+    dd::Table *comp_dict = nullptr;
+    if (thd->dd_client()->acquire_for_modification(
+            "mysql", "compression_dictionary", &comp_dict)) {
+    }
+
+    dd::Table *comp_cols_dict = nullptr;
+    if (thd->dd_client()->acquire_for_modification(
+            "mysql", "compression_dictionary_cols", &comp_cols_dict)) {
+    }
+
+    comp_dict->set_se_private_id(view_table_def->se_private_id() + 1);
+    comp_cols_dict->set_se_private_id(comp_dict->se_private_id() + 1);
+
+    if (thd->dd_client()->update<dd::Table>(comp_dict)) {
+      return true;
+    }
+
+    if (thd->dd_client()->update<dd::Table>(comp_cols_dict)) {
+      return true;
+    }
+
+    return (false);
   }
 
   // Create the compression dictionary tables

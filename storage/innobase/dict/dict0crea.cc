@@ -60,6 +60,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "usr0sess.h"
 #include "ut0vec.h"
 
+#include "fil0fil.h"
 #include "sql/sql_zip_dict.h"
 
 dberr_t dict_build_table_def(dict_table_t *table,
@@ -76,11 +77,18 @@ dberr_t dict_build_table_def(dict_table_t *table,
   during bootstrap or upgrade */
   static uint32_t dd_table_id = 1;
 
-  if (is_dd_table) {
+  /* Treat mysql.compression_dictionary like DD table during bootstrap or
+  during upgrade. Only exemption is when this table is created by Percona
+  server started on mysql datadir. In that scenario, we should
+  use the next available table id */
+  if (is_dd_table ||
+      (compression_dict::is_hardcoded(db_name.c_str(), tbl_name.c_str()) &&
+       dd_table_id != 1)) {
     table->id = dd_table_id++;
     table->is_dd_table = true;
 
-    ut_ad(strcmp(tbl_name.c_str(), innodb_dd_table[table->id - 1].name) == 0);
+    ut_ad(compression_dict::is_hardcoded(db_name.c_str(), tbl_name.c_str()) ||
+          strcmp(tbl_name.c_str(), innodb_dd_table[table->id - 1].name) == 0);
 
   } else {
     dict_table_assign_new_id(table);
@@ -796,7 +804,7 @@ static bool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
 
 /** Get a single compression dictionary id for the given
 (table id, column pos) pair.
-@return error code or DB_SUCCESS */
+@return	error code or DB_SUCCESS */
 dberr_t dict_create_get_zip_dict_id_by_reference(
     table_id_t table_id, /*!< in: table id */
     ulint column_pos,    /*!< in: column position */

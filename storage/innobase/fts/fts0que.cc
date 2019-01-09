@@ -700,6 +700,10 @@ static void fts_query_union_doc_id(
     query->total_size +=
         SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t) + RANKING_WORDS_INIT_LEN;
   }
+
+  if (query->limit != ULONG_UNDEFINED) {
+    query->n_docs++;
+  }
 }
 
 /** Remove the doc id from the query set only if it's not in the
@@ -3071,7 +3075,7 @@ static dberr_t fts_query_filter_doc_ids(
       fts_query_add_word_to_document(query, doc_id, word);
     }
 
-    if (query->limit != ULONG_UNDEFINED && query->limit <= ++query->n_docs) {
+    if (query->limit != ULONG_UNDEFINED && query->limit <= query->n_docs) {
       goto func_exit;
     }
   }
@@ -3083,7 +3087,6 @@ func_exit:
   if (query->total_size > fts_result_cache_limit) {
     return (DB_FTS_EXCEED_RESULT_CACHE_LIMIT);
   } else {
-    query->n_docs = 0;
     return (DB_SUCCESS);
   }
 }
@@ -3608,6 +3611,10 @@ static void fts_query_can_optimize(
   fts_ast_node_t *node = query->root;
 
   if (flags & FTS_EXPAND) {
+    return;
+  }
+
+  if (query->limit != ULONG_UNDEFINED) {
     return;
   }
 

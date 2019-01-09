@@ -1,5 +1,11 @@
+# This test contains zipped 5.7 data directory with innodb partitioned tables.
+# Innodb does not recognizes partition table created in linux from windows
+# due to difference in path format.
+--source include/not_windows.inc
 --source include/no_valgrind_without_big.inc
 --source include/have_util_unzip.inc
+# test access core DD tables directly which are available only in debug builds
+--source include/have_debug.inc
 
 --disable_query_log
 call mtr.add_suppression("Resizing redo log from");
@@ -67,89 +73,19 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_zip_dict;
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 --source include/mysql_upgrade_cleanup.inc
 
-SHOW CREATE TABLE test.t1;
-SHOW CREATE TABLE test.t2;
-SHOW CREATE TABLE test.t3;
-SHOW CREATE TABLE test.t4;
-SHOW CREATE TABLE test.t5;
-SHOW CREATE TABLE test.t6;
-SHOW CREATE TABLE test.t7;
-SHOW CREATE TABLE test.t8;
-SHOW CREATE TABLE test.t9;
-SHOW CREATE TABLE test.t10;
-SHOW CREATE TABLE test.t11;
+SET SESSION DEBUG = '+d,skip_dd_table_access_check';
 
-SET @long_dictionary_data = REPEAT('ab', 32506 / 2);
+--let $view_table_usage_table_id = `select se_private_id from mysql.tables where name = 'view_table_usage'`
+--let $compression_dict_table_id = `select se_private_id from mysql.tables where name = 'compression_dictionary'`
+--let $compression_dict_cols_table_id = `select  se_private_id from mysql.tables where name = 'compression_dictionary_cols'`
 
-SELECT dict_data = @long_dictionary_data AS long_dictionary_data_matches FROM information_schema.compression_dictionary WHERE dict_name = 'd1';
+--let $assert_text = table_id of compression_dictionary table should be equal to table_id of 'view_table_usage' + 1
+--let $assert_cond =  $compression_dict_table_id = $view_table_usage_table_id + 1
+--source include/assert.inc
 
-SET @dict_data8 = 'aaaaaaaabbbbbbbbccccccccdddddddd';
-SELECT dict_data = @dict_data8 AS short_dictionary_data_matches FROM information_schema.compression_dictionary WHERE dict_name = 'd2';
-
---echo # Retrieve all compression dictionaries
---echo # Long dictionary data is already retrieved and verifed above
-SELECT * FROM information_schema.compression_dictionary where dict_name != 'd1';
-
---echo # Retrieve all data from tables created in 5.7
-SELECT LENGTH(a) FROM t1;
-SELECT LENGTH(a) FROM t2;
-SELECT LENGTH(a) FROM t3;
-SELECT a, LENGTH(b), LENGTH(c), LENGTH(d) FROM t4;
-SELECT id, LENGTH(a) FROM t5;
-SELECT id, LENGTH(a) FROM t6;
-SELECT id, LENGTH(a) FROM t7;
-SELECT id, LENGTH(a) FROM t8;
-SELECT id, LENGTH(a) FROM t9;
-SELECT id, LENGTH(a) FROM t10;
-SELECT f1, LENGTH(f2), LENGTH(f3) FROM t11;
-
---echo # Do ALTER before restart and check schema
-ALTER TABLE t1 ADD COLUMN b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d2`;
-SET @t1_data = REPEAT('aaaaaaaabbbbbbbbccccccccdddddddd', 40);
-
-INSERT INTO t1 VALUES(@t1_data, @t1_data);
-SELECT LENGTH(a), LENGTH(b) FROM t1;
-
-SHOW CREATE TABLE t1;
-
---replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---source include/restart_mysqld.inc
-
---echo # Do ALTER before restart and check schema
-ALTER TABLE t9 ADD COLUMN b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d2`;
-
-INSERT INTO t9 VALUES(240, @t1_data, @t1_data);
-SELECT id, LENGTH(a), LENGTH(b) FROM t9;
-
---echo # Start the 8.0 server on 5.7 datadir
---let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --innodb-read-only"
-SET GLOBAL innodb_fast_shutdown = 0;
---replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---source include/restart_mysqld.inc
-
-SET @long_dictionary_data = REPEAT('ab', 32506 / 2);
-
-SELECT dict_data = @long_dictionary_data AS long_dictionary_data_matches FROM information_schema.compression_dictionary WHERE dict_name = 'd1';
-
-SET @dict_data8 = 'aaaaaaaabbbbbbbbccccccccdddddddd';
-SELECT dict_data = @dict_data8 AS short_dictionary_data_matches FROM information_schema.compression_dictionary WHERE dict_name = 'd2';
-
---echo # Retrieve all compression dictionaries
---echo # Long dictionary data is already retrieved and verifed above
-SELECT * FROM information_schema.compression_dictionary where dict_name != 'd1';
-
---echo # Retrieve all data from tables created in 5.7
-SELECT LENGTH(a) FROM t1;
-SELECT LENGTH(a) FROM t2;
-SELECT LENGTH(a) FROM t3;
-SELECT a, LENGTH(b), LENGTH(c), LENGTH(d) FROM t4;
-SELECT id, LENGTH(a) FROM t5;
-SELECT id, LENGTH(a) FROM t6;
-SELECT id, LENGTH(a) FROM t7;
-SELECT id, LENGTH(a) FROM t8;
-SELECT id, LENGTH(a) FROM t9;
-SELECT id, LENGTH(a) FROM t10;
-SELECT f1, LENGTH(f2), LENGTH(f3) FROM t11;
+--let $assert_text = table_id of compression_dictionary_cols table should be equal to table_id of 'compression_dictionary' + 1
+--let $assert_cond =  $compression_dict_cols_table_id = $compression_dict_table_id +1
+--source include/assert.inc
 
 --echo # Stop the server
 --source include/shutdown_mysqld.inc

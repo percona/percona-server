@@ -505,7 +505,8 @@ bool fts_ast_node_check_union(fts_ast_node_t *node) {
   } else if (node->type == FTS_AST_OPER &&
              (node->oper == FTS_IGNORE || node->oper == FTS_EXIST)) {
     return (false);
-  } else if (node->type == FTS_AST_TEXT) {
+  } else if (node->type == FTS_AST_TEXT ||
+             node->type == FTS_AST_PARSER_PHRASE_LIST) {
     /* Distance or phrase search query. */
     return (false);
   }

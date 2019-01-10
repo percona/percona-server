@@ -1432,16 +1432,26 @@ log_enable_encryption_if_set()
 					} else {
 						memcpy(key, rkey2, ENCRYPTION_KEY_LEN);
 					}
+					if (rkey2 != NULL) {
+						my_free(rkey2);
+					}
 				}
+			} else {
+				memcpy(key, rkey, ENCRYPTION_KEY_LEN);
 			}
 
 			if (encryption_enabled) {
 				ut_ad(redo_key_type && strcmp(redo_key_type, "AES") == 0);
+			}
+			if (redo_key_type != NULL) {
 				my_free(redo_key_type);
+			}
+			if (rkey != NULL) {
+				my_free(rkey);
 			}
 
 #ifdef UNIV_ENCRYPT_DEBUG
-				fprintf(stderr, "Fetched redo key: %s.\n", key);
+			fprintf(stderr, "Fetched redo key: %s.\n", key);
 #endif
 
 			if (encryption_enabled && !log_write_encryption(key, iv)) {
@@ -1517,6 +1527,16 @@ log_enable_encryption_if_set()
 			if (!log_write_encryption(NULL, NULL)) {
 				ib::error() << "Can't write redo log encryption information.";
 			}
+			if (rkey != NULL) {
+				my_free(rkey);
+			}
+			if (rkey2 != NULL) {
+				my_free(rkey2);
+			}
+			if (redo_key_type != NULL) {
+				my_free(redo_key_type);
+			}
+
 		}
 }
 

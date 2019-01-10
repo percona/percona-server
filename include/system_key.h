@@ -17,6 +17,7 @@
 #ifndef SYSTEM_KEY_INCLUDED
 #define SYSTEM_KEY_INCLUDED
 
+#include "map_helpers.h"
 #include "my_inttypes.h"
 
 #define PERCONA_BINLOG_KEY_NAME "percona_binlog"
@@ -40,4 +41,10 @@ bool is_valid_percona_system_key(const char *key_name, size_t *key_length);
 extern uchar *parse_system_key(const uchar *key, const size_t key_length,
                                uint *key_version, uchar **key_data,
                                size_t *key_data_length) noexcept;
+
+extern uchar *parse_system_key(const uchar *key, const size_t key_length,
+                               uint *key_version,
+                               unique_ptr_my_free<uchar> &key_data,
+                               size_t *key_data_length) noexcept;
+
 #endif  // SYSTEM_KEY_INCLUDED

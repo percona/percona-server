@@ -1,9 +1,8 @@
-call mtr.add_suppression("InnoDB: The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[123]\\.ibd' cannot be decrypted\\.");
-call mtr.add_suppression("failed to read or decrypt \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\]");
-call mtr.add_suppression("\\[Error\\] InnoDB: Page is still encrypted");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Post - encryption checksum verification failed - decryption failed for space id");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find tablespace key, please check the keyring plugin is loaded\.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Table is encrypted but encryption service or used key_id is not available\.  Can't continue reading table\.");
+call mtr.add_suppression("\\[InnoDB\\] Space to be marked as encrypted was not found for id");
+call mtr.add_suppression("\\[InnoDB\\] The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[123]\\.ibd' cannot be decrypted\\.");
+call mtr.add_suppression("\\[InnoDB\\] Post - encryption checksum verification failed - decryption failed for space id");
+call mtr.add_suppression("\\[InnoDB\\] Encryption can't find tablespace key, please check the keyring plugin is loaded\.");
+call mtr.add_suppression("\\[InnoDB\\] Table test/t(1|3) is encrypted but decryption failed\. Seems that the encryption key fetched from keyring is not the correct one\. Are you using the correct keyring?");
 SET GLOBAL innodb_file_per_table = ON;
 # Create and populate tables to be corrupted
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT,c char(200)) ENGINE=InnoDB ENCRYPTION='KEYRING' ;
@@ -19,11 +18,11 @@ COMMIT;
 # 1 Corrupt the page data - i.e. page after the header
 # restart
 SELECT * FROM t1;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
 SELECT * FROM t2;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
 SELECT * FROM t3;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
 # let's check for the presense of the warning
 # Restore the original tables
 # restart
@@ -343,11 +342,11 @@ a	b	c
 # 2 Corrupt the page header - encryption key's version
 # restart
 SELECT * FROM t1;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
 SELECT * FROM t2;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
 SELECT * FROM t3;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
 # Restore the original tables
 # restart
 DROP TABLE t1,t2,t3;

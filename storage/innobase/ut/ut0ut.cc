@@ -572,8 +572,6 @@ const char *ut_strerr(dberr_t num) {
           "of stored column");
     case DB_COMPUTE_VALUE_FAILED:
       return ("Compute generated column failed");
-    case DB_DECRYPTION_FAILED:
-      return ("Table is encrypted but decrypt failed.");
     case DB_PAGE_CORRUPTED:
       return ("Page read from tablespace is corrupted.");
 

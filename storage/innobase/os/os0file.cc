@@ -1778,7 +1778,6 @@ static bool load_key_needed_for_decryption(const IORequest &type,
                                        key_version_read_from_page, &key_read,
                                        &key_len) == false) {
       return false;
-      ut_ad(0);
     }
 
     // For test
@@ -1853,7 +1852,7 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
       if (err != DB_SUCCESS) return err;
 
       if (!load_key_needed_for_decryption(type, encryption, buf))
-        return DB_DECRYPTION_FAILED;
+        return DB_IO_DECRYPT_FAIL;
     }
 
     ret = encryption.decrypt(type, buf, src_len, scratch, len);
@@ -5916,6 +5915,9 @@ dberr_t os_file_read_first_page_func(IORequest &type, os_file_t file, void *buf,
     ut_ad(page_size.physical() <= n);
     err = os_file_read_page(type, file, buf, 0, page_size.physical(), nullptr,
                             true, nullptr);
+    if (err == DB_SUCCESS) {
+      srv_stats.page0_read.add(1);
+    }
   }
   return (err);
 }
@@ -8459,8 +8461,8 @@ void Encryption::get_latest_tablespace_key(uint key_id,
 }
 
 bool Encryption::tablespace_key_exists(uint key_id) {
-  uint tablespace_key_version;
-  byte *tablespace_key;
+  uint tablespace_key_version = 0;
+  byte *tablespace_key = NULL;
 
   get_latest_tablespace_key(key_id, &tablespace_key_version, &tablespace_key);
 
@@ -8521,8 +8523,8 @@ bool Encryption::can_page_be_keyring_encrypted(byte *page) {
 
 uint Encryption::encryption_get_latest_version(uint key_id) {
 #ifndef UNIV_INNOCHECKSUM
-  uint tablespace_key_version;
-  byte *tablespace_key;
+  uint tablespace_key_version = ENCRYPTION_KEY_VERSION_INVALID;
+  byte *tablespace_key = nullptr;
 
   get_latest_tablespace_key(key_id, &tablespace_key_version, &tablespace_key);
 

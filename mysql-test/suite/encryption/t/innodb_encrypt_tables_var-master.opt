@@ -1,0 +1,4 @@
+$KEYRING_PLUGIN_OPT
+--innodb-encrypt-tables=OFF
+--innodb-encryption-rotate-key-age=1
+--innodb-encryption-threads=0

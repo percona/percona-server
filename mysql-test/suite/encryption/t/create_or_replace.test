@@ -1,10 +1,5 @@
-#--source include/have_file_key_management_plugin.inc
-# This is needed for longer testcase timeout at least P7/P8
 --source include/big_test.inc
 
-#
-# MDEV-8164: Server crashes in pfs_mutex_enter_func after fil_crypt_is_closing or alike
-#
 SET default_storage_engine = InnoDB;
 
 CREATE TABLE t1 (pk INT PRIMARY KEY, c VARCHAR(256));
@@ -37,11 +32,6 @@ dec $i;
 --enable_query_log
 
 drop table t1,t2;
-SET GLOBAL innodb_encryption_threads = 0;
-
-#
-# MDEV-8173: InnoDB; Failing assertion: crypt_data->type == 1
-#
 
 SET GLOBAL innodb_encryption_threads = 4;
 
@@ -64,7 +54,6 @@ INSERT IGNORE INTO `table10_int_autoinc` ( `col_int` ) VALUES ( 6 ), ( 2 ), ( 3 
 --disable_warnings
 --disable_query_log
 
-#let $i = 500;
 let $i = 100;
 while ($i)
 {

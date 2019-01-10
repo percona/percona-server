@@ -5294,6 +5294,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     strcpy(tablespace, indexed_table->tablespace());
   }
 
+  adjust_encryption_key_id(ha_alter_info->create_info,
+                           &(new_dd_tab->options()));
+
   create_table_info_t info(m_user_thd, altered_table,
                            ha_alter_info->create_info, nullptr, nullptr,
                            indexed_table->tablespace ? tablespace : nullptr,
@@ -5301,7 +5304,12 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
   info.set_tablespace_type(is_file_per_table);
 
-  if (ha_alter_info->handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) {
+  if (ha_alter_info->handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION ||
+      (Encryption::should_be_keyring_encrypted(
+           ha_alter_info->create_info->encrypt_type.str) &&
+       innobase_spatial_exist(
+           altered_table))) {  // We need to make sure spatial index was not
+                               // added if this is to be keyring encrypted
     const char *invalid_opt = info.create_options_are_invalid();
     if (invalid_opt) {
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), table_type(), invalid_opt);
@@ -5326,14 +5334,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
       if (space()) {
         String str;
         const char *engine = table_type();
-
-        push_warning_printf(
-            m_user_thd, Sql_condition::SL_WARNING, HA_ERR_DECRYPTION_FAILED,
-            "Table %s in file %s is encrypted but encryption service or"
-            " used key_id is not available. "
-            " Can't continue reading table.",
-            table_share->table_name.str, space()->files.begin()->name);
-
+        ib::warn(ER_XB_MSG_4, table_share->table_name.str);
         my_error(ER_GET_ERRMSG, MYF(0), HA_ERR_DECRYPTION_FAILED, str.c_ptr(),
                  engine);
         DBUG_RETURN(true);
@@ -6173,7 +6174,7 @@ oom:
                get_error_key_name(m_prebuilt->trx->error_key_num, ha_alter_info,
                                   m_prebuilt->table));
       break;
-    case DB_DECRYPTION_FAILED: {
+    case DB_IO_DECRYPT_FAIL: {
       String str;
       const char *engine = table_type();
       get_error_message(HA_ERR_DECRYPTION_FAILED, &str);

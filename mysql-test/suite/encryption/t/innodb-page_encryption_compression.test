@@ -1,16 +1,8 @@
---skip # Test unstable on Jenkins centos6
-
-#let $innodb_compression_algorithm_orig=`SELECT @@innodb_compression_algorithm`;
-
-# zlib
-#set global innodb_compression_algorithm = 1;
-
 --disable_warnings # Disabling warnings as punch hole get generate ones when compression is enabled and
                    # filesystem is not supporting them
 create table innodb_normal(c1 bigint not null, b char(200)) engine=innodb COMPRESSION="zlib";
 show warnings;
 create table innodb_compact(c1 bigint not null, b char(200)) engine=innodb row_format=compact ENCRYPTION='KEYRING' encryption_key_id=1 COMPRESSION="zlib";
-#show warnings;
 create table innodb_dynamic(c1 bigint not null, b char(200)) engine=innodb row_format=dynamic ENCRYPTION='KEYRING' encryption_key_id=2 COMPRESSION="zlib";
 --enable_warnings
 #show warnings;

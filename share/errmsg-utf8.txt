@@ -5114,12 +5114,12 @@ ER_UNSUPPORTED_PS
         eng "This command is not supported in the prepared statement protocol yet"
         ger "Dieser Befehl wird im Protokoll für vorbereitete Anweisungen noch nicht unterstützt"
 ER_GET_ERRMSG  
-        dan "Modtog fejl %d '%-.100s' fra %s"
-        eng "Got error %d '%-.100s' from %s"
-        ger "Fehler %d '%-.100s' von %s"
-        jpn "エラー %d '%-.100s' が %s から返されました。"
-        nor "Mottok feil %d '%-.100s' fa %s"
-        norwegian-ny "Mottok feil %d '%-.100s' fra %s"
+        dan "Modtog fejl %d '%-.200s' fra %s"
+        eng "Got error %d '%-.200s' from %s"
+        ger "Fehler %d '%-.200s' von %s"
+        jpn "エラー %d '%-.200s' が %s から返されました。"
+        nor "Mottok feil %d '%-.200s' fa %s"
+        norwegian-ny "Mottok feil %d '%-.200s' fra %s"
 ER_GET_TEMPORARY_ERRMSG  
         dan "Modtog temporary fejl %d '%-.100s' fra %s"
         eng "Got temporary error %d '%-.100s' from %s"
@@ -18874,6 +18874,15 @@ ER_XB_MSG_2
 
 ER_XB_MSG_3
   eng "%s"
+
+ER_XB_MSG_4
+  eng "Table %s is encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?";
+
+ER_XB_MSG_5
+  eng "Tablespace id %u in file %s is encrypted but keyring or used key_id %u is not available. Can't continue reading table. Please provide the correct keyring.";
+
+ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD
+  eng "Waiting for keyring encryption threads to exit"
 
 #
 # End of Percona Server 8.0 server error log messages

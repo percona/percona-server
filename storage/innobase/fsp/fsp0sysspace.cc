@@ -569,6 +569,16 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   of SDI */
   set_flags(it->flags());
 
+  fil_space_crypt_t *crypt_data =
+      fil_space_read_crypt_data(page_size_t(it->m_flags), it->get_first_page());
+
+  if (crypt_data) {
+    keyring_encryption_info.page0_has_crypt_data = true;
+    keyring_encryption_info.keyring_encryption_min_key_version =
+        crypt_data->min_key_version;
+    fil_space_destroy_crypt_data(&crypt_data);
+  }
+
   it->close();
 
   return (DB_SUCCESS);
@@ -889,10 +899,9 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
 
       /* Create the tablespace entry for the multi-file
       tablespace in the tablespace manager. */
-      space =
-          fil_space_create(name(), space_id(), flags(),
-                           is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE,
-                           nullptr);
+      space = fil_space_create(
+          name(), space_id(), flags(),
+          is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE, nullptr);
     }
 
     ut_ad(fil_validate());

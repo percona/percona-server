@@ -1,27 +1,14 @@
---skip
---source include/have_64bit.inc
-
-call mtr.add_suppression("mysqld: File .*");
-call mtr.add_suppression("Plugin 'file_key_management' .*");
-call mtr.add_suppression("InnoDB: cannot enable encryption, encryption plugin is not available");
-call mtr.add_suppression("Plugin 'InnoDB' init function returned error.");
-call mtr.add_suppression("Plugin 'InnoDB' registration as a STORAGE ENGINE failed.");
-call mtr.add_suppression("InnoDB: The page \\[page id: space=[0-9]+, page number=[0-9]+\\] in file '.*test.t[1-4]\\.ibd' cannot be decrypted\\.");
-call mtr.add_suppression("failed to read or decrypt \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\]");
-
---echo # Restart mysqld --file-key-management-filename=keys2.txt
-#-- let $restart_parameters=--file-key-management-filename=$MYSQL_TEST_DIR/std_data/keys2.txt
-#-- source include/restart_mysqld.inc
+# This test is to test scenario when keyring encrypted table is to be created, but a crash occured and
+# on restart keyring is not available. Since the keyring is not available the redo log for writing
+# keyring encryption info to page 0 will report an error.
 
 SET GLOBAL innodb_file_per_table = ON;
 
-#create table t1(a int not null primary key auto_increment, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed ENCRYPTION='KEYRING' encryption_key_id=20;
+--source include/no_checkpoint_start.inc
+
 create table t1(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed ENCRYPTION='KEYRING' encryption_key_id=20;
-#create table t2(a int not null primary key auto_increment, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed;
 create table t2(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed;
-#create table t3(a int not null primary key auto_increment, c char(200), b blob, index(b(10))) engine=innodb ENCRYPTION='KEYRING' encryption_key_id=20;
 create table t3(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb ENCRYPTION='KEYRING' encryption_key_id=20;
-#create table t4(a int not null primary key auto_increment, c char(200), b blob, index(b(10))) engine=innodb;
 create table t4(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb;
 
 begin;
@@ -40,17 +27,9 @@ insert into t3 select * from t1;
 insert into t4 select * from t1;
 commit;
 
---source include/no_checkpoint_start.inc
-#
-# We test redo log page read at recv_read_page using
-# keys that are not in std_data/keys.txt. If checkpoint
-# happens we will skip this test. If no checkpoint
-# happens, InnoDB refuses to start as used
-# encryption key is not found.
-#
-
-#--disable_reconnect
-#--source include/expect_crash.inc
+# If checkpoint happens we will skip this test.
+# If no checkpoint  happens, InnoDB refuses to
+# start as used  encryption key is not found.
 
 SET GLOBAL innodb_flush_log_at_trx_commit=1;
 begin;
@@ -63,43 +42,36 @@ insert into t2 (a,c,b) values (21, repeat('secret7',20), repeat('secret8',6000))
 insert into t3 (a,c,b) values (21, repeat('secret9',20), repeat('secre10',6000));
 insert into t4 (a,c,b) values (21, repeat('secre11',20), repeat('secre12',6000));
 COMMIT;
+
 let $cleanup= drop table t1,t2,t3,t4;
 --let CLEANUP_IF_CHECKPOINT= $cleanup;
 --source include/no_checkpoint_end.inc
 
-#--disable_reconnect
-#--source include/expect_crash.inc
-
---echo # Robert: After no_checkpoint_end
 --echo # restart
 
 --let $error_log=$MYSQLTEST_VARDIR/tmp/my_restart.err
 
 --error 1
-#--exec xterm -e gdb $MYSQLD_CMD --log-error=$error_log
 --exec $MYSQLD_CMD --log-error=$error_log
 
-# We should get error in error log as it should not be possible to apply redo logs
-# to encrypted tables
+# We should get error in error log as it should not be possible to apply update to page0
+# of encrypted tablespace when keyring is not available
 
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$error_log
---let SEARCH_PATTERN=############### CORRUPT LOG RECORD FOUND ##################
+--let SEARCH_PATTERN=############### CORRUPT LOG RECORD FOUND ###############
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=Key cannot be read for space id = 4
 --source include/search_pattern_in_file.inc
 
-#--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#--let $restart_parameters=restart:
-#--source include/start_mysqld.inc
-
---echo # Robert: After start_mysqld.inc
-#
 # In above server does start but InnoDB refuses to start
-# thus we need to restart server with correct key file
-#
+# thus we need to restart server with correct keyring file
+
 --echo # Restart mysqld
+--let $restart_hide_args=1
 --let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
 --source include/start_mysqld.inc
 
 --remove_file $error_log
 
-drop table t1, t2,t3,t4;
+drop table t1,t2,t3,t4;

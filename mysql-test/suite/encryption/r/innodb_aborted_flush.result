@@ -8,14 +8,14 @@ insert t2 values (repeat('tempsecret', 12));
 insert t3 values (repeat('dummysecret', 12));
 insert t4 values (repeat('verysecret', 12));
 include/assert.inc [Make sure all tables have encrypted flag disabled]
-# We should encrypt all tables apart from t3
+# We should encrypt all tables apart from t3 and temporary tablespace
 SET GLOBAL debug="+d,fail_encryption_flag_update_on_t3";
 # Enable encryption
 SET GLOBAL innodb_encryption_rotate_key_age=15;
 SET GLOBAL innodb_encryption_threads = 4;
 SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
 # Wait for all tables to get encrypted
-include/assert.inc [Make sure only t3's encryption flag is not set]
+include/assert.inc [Make sure only t3's encryption flag is not set (ignore temporary tablepsace, which is never encrypted with keyring)]
 # Disable encryption
 SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL debug="-d,fail_encryption_flag_update_on_t3";
@@ -35,55 +35,12 @@ dummysecretdummysecretdummysecretdummysecretdummysecretdummysecretdummysecretdum
 SELECT * FROM t4;
 a
 verysecretverysecretverysecretverysecretverysecretverysecretverysecretverysecretverysecretverysecretverysecretverysecret
-include/assert.inc [Make sure only t3's encryption flag is not set]
+include/assert.inc [Make sure only t3's encryption flag is not set (ignore temporary tablespace)]
 # restart:--innodb-encryption-threads=4 --innodb-encrypt-tables=ONLINE_TO_KEYRING
 # Wait for all tables to get encrypted
-include/assert.inc [Make sure all tablespaces have encryption flag set]
-# restart:--innodb-encryption-threads=0 --innodb-encrypt-tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --log-error=MYSQL_TMP_DIR/my_restart2.err
+include/assert.inc [Make sure all tablespaces have encryption flag set (ignore temporary tablespace)]
 DROP TABLE t1,t2,t3,t4;
-# Recreate t1..t4 inside a tablespace
-CREATE TABLESPACE ts_1 ADD DATAFILE 'ts_1.ibd' ENGINE="InnoDB";
-CREATE TABLE t1 (a varchar(255)) TABLESPACE ts_1 ENGINE="InnoDB";
-CREATE TABLE t2 (a varchar(255)) TABLESPACE ts_1 ENGINE="InnoDB";
-CREATE TABLE t3 (a varchar(255)) TABLESPACE ts_1 ENGINE="InnoDB";
-CREATE TABLE t4 (a varchar(255)) TABLESPACE ts_1 ENGINE="InnoDB";
-CREATE TABLE t5 (a varchar(255)) ENGINE="InnoDB";
-insert t1 values (repeat('foobarsecret', 12));
-insert t2 values (repeat('tempsecret', 12));
-insert t3 values (repeat('dummysecret', 12));
-insert t4 values (repeat('verysecret', 12));
-include/assert.inc [Make sure ts_1's encryption flag is not set]
-# Since t3 flag's update will fail, the tablespace ts_1's flag should remain unencrypted
-SET GLOBAL debug="+d,fail_encryption_flag_update_on_t3";
-# Enable encryption
-SET GLOBAL innodb_encryption_rotate_key_age=15;
-SET GLOBAL innodb_encryption_threads = 1;
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
-# Wait for all tables to get encrypted (apart from ts_1)
-# Disable encryption
-SET GLOBAL innodb_encryption_threads = 0;
-SET GLOBAL debug="-d,fail_encryption_flag_update_on_t3";
-include/assert.inc [Make sure only ts_1's encryption flag is not set]
-# Check that error message about ts_1 being removed from encryption rotation is present in error log
-# On restart all tables with encrypted flag set should get validated against Data Dictionary. Let's check there is
-# no error related to encryption flag mismatch between DD and ibd file.
-# restart:--innodb-encryption-threads=0 --log-error=MYSQL_TMP_DIR/my_restart.err
-SELECT * FROM t1;
-a
-foobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecretfoobarsecret
-SELECT * FROM t2;
-a
-tempsecrettempsecrettempsecrettempsecrettempsecrettempsecrettempsecrettempsecrettempsecrettempsecrettempsecrettempsecret
-SELECT * FROM t3;
-a
-dummysecretdummysecretdummysecretdummysecretdummysecretdummysecretdummysecretdummysecretdummysecretdummysecretdummysecretdummysecret
-SELECT * FROM t4;
-a
-verysecretverysecretverysecretverysecretverysecretverysecretverysecretverysecretverysecretverysecretverysecretverysecret
-include/assert.inc [Make sure only ts_1's encryption flag is not set]
-# Turn ON encryption and check that ts_1 gets successfully encrypted after the restart.
-# restart:--innodb-encryption-threads=4 --innodb-encrypt-tables=ONLINE_TO_KEYRING
-# Wait for all tables to get encrypted
-include/assert.inc [Make sure all tablespaces have encryption flag set]
-DROP TABLE t1,t2,t3,t4;
-DROP TABLESPACE ts_1;
+SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL innodb_encrypt_tables=OFF;

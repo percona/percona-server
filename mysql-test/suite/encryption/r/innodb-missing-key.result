@@ -1,7 +1,5 @@
-call mtr.add_suppression("InnoDB: The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[123]\\.ibd' cannot be decrypted\\.");
-call mtr.add_suppression("failed to read or decrypt \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\]");
-call mtr.add_suppression("\\[Error\\] InnoDB: Page is still encrypted");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Table is encrypted but encryption service or used key_id is not available\.  Can't continue reading table\.");
+call mtr.add_suppression("\\[InnoDB\\] Tablespace id 4 in file t1\.ibd is encrypted but keyring or used key_id 7 is not available\. Can't continue reading table\. Please provide the correct keyring\.");
+SET GLOBAL innodb_encryption_threads=4;
 CREATE TABLE t1(a int not null primary key, b varchar(128)) engine=innodb ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=7;
 CREATE TABLE t2(a int not null primary key, b varchar(128)) engine=innodb ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=6;
 CREATE TABLE t3(a int not null primary key, b varchar(128)) engine=innodb ENCRYPTION='N';
@@ -523,11 +521,20 @@ SELECT COUNT(1) FROM t2;
 COUNT(1)
 500
 SELECT COUNT(1) FROM t2,t1 where t2.a = t1.a;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 SELECT COUNT(1) FROM t1 where b = 'ab';
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 SELECT COUNT(1) FROM t1;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 
 # Start server with keys2.txt
 # restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt
@@ -540,4 +547,12 @@ COUNT(1)
 SELECT COUNT(1) FROM t3;
 COUNT(1)
 500
-DROP TABLE t1, t2, t3;
+SELECT COUNT(1) FROM t4;
+COUNT(1)
+0
+DROP TABLE t1, t2, t3, t4;
+SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+# Wait max 10 min for encryption threads to decrypt all tables
+SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=0;

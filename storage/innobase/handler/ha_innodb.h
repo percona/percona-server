@@ -241,6 +241,9 @@ class ha_innobase : public handler {
   void adjust_encryption_options(HA_CREATE_INFO *create_info,
                                  dd::Table *table_def) noexcept;
 
+  void adjust_encryption_key_id(HA_CREATE_INFO *create_info,
+                                dd::Properties *options) noexcept;
+
   void update_create_info(HA_CREATE_INFO *create_info) override;
 
   /** Get storage-engine private data for a data dictionary table.

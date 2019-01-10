@@ -5465,10 +5465,21 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         return (err);
       }
     }
-
-    ib::error(ER_IB_MSG_817)
-        << "Tried to read " << n << " bytes at offset " << offset
-        << ", but was only able to read " << n_bytes;
+    char fdname[FN_REFLEN];
+    snprintf(fdname, sizeof fdname, "/proc/%d/fd/%d", getpid(), file);
+    char filename[FN_REFLEN];
+    int err_filename = my_readlink(filename, fdname, MYF(0));
+    if (err_filename != -1) {
+        ib::error(ER_IB_MSG_817)
+            << "Tried to read " << n << " bytes at offset " << offset
+            << ", but was only able to read " << n_bytes
+            << " of FD " << file
+            << ", filename " << std::string(filename);
+    } else {
+        ib::error(ER_IB_MSG_817)
+            << "Tried to read " << n << " bytes at offset " << offset
+            << ", but was only able to read " << n_bytes;
+    }
 
     if (exit_on_err) {
       if (!os_file_handle_error(NULL, "read")) {

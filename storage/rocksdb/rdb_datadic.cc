@@ -5066,25 +5066,17 @@ void Rdb_dict_manager::delete_with_prefix(
 void Rdb_dict_manager::add_or_update_index_cf_mapping(
     rocksdb::WriteBatch *batch, struct Rdb_index_info *const index_info) const {
   uchar key_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 3] = {0};
-  uchar value_buf[256] = {0};
+  Rdb_buf_writer<256> value_writer;
   dump_index_id(key_buf, Rdb_key_def::INDEX_INFO, index_info->m_gl_index_id);
   const rocksdb::Slice key = rocksdb::Slice((char *)key_buf, sizeof(key_buf));
 
-  uchar *ptr = value_buf;
-  rdb_netbuf_store_uint16(ptr, Rdb_key_def::INDEX_INFO_VERSION_LATEST);
-  ptr += RDB_SIZEOF_INDEX_INFO_VERSION;
-  rdb_netbuf_store_byte(ptr, index_info->m_index_type);
-  ptr += RDB_SIZEOF_INDEX_TYPE;
-  rdb_netbuf_store_uint16(ptr, index_info->m_kv_version);
-  ptr += RDB_SIZEOF_KV_VERSION;
-  rdb_netbuf_store_uint32(ptr, index_info->m_index_flags);
-  ptr += RDB_SIZEOF_INDEX_FLAGS;
-  rdb_netbuf_store_uint64(ptr, index_info->m_ttl_duration);
-  ptr += ROCKSDB_SIZEOF_TTL_RECORD;
+  value_writer.write_uint16(Rdb_key_def::INDEX_INFO_VERSION_LATEST);
+  value_writer.write_byte(index_info->m_index_type);
+  value_writer.write_uint16(index_info->m_kv_version);
+  value_writer.write_uint32(index_info->m_index_flags);
+  value_writer.write_uint64(index_info->m_ttl_duration);
 
-  const rocksdb::Slice value =
-      rocksdb::Slice((char *)value_buf, ptr - value_buf);
-  batch->Put(m_system_cfh, key, value);
+  batch->Put(m_system_cfh, key, value_writer.to_slice());
 }
 
 void Rdb_dict_manager::add_cf_flags(rocksdb::WriteBatch *const batch,
@@ -5230,14 +5222,12 @@ bool Rdb_dict_manager::get_cf_flags(const uint32_t cf_id,
 
   bool found = false;
   std::string value;
-  uchar key_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2] = {0};
+  Rdb_buf_writer<Rdb_key_def::INDEX_NUMBER_SIZE * 2> key_writer;
 
-  rdb_netbuf_store_uint32(key_buf, Rdb_key_def::CF_DEFINITION);
-  rdb_netbuf_store_uint32(key_buf + Rdb_key_def::INDEX_NUMBER_SIZE, cf_id);
+  key_writer.write_uint32(Rdb_key_def::CF_DEFINITION);
+  key_writer.write_uint32(cf_id);
 
-  const rocksdb::Slice key =
-      rocksdb::Slice(reinterpret_cast<char *>(key_buf), sizeof(key_buf));
-  const rocksdb::Status status = get_value(key, &value);
+  const rocksdb::Status status = get_value(key_writer.to_slice(), &value);
 
   if (status.ok()) {
     const uchar *val = (const uchar *)value.c_str();
@@ -5265,10 +5255,9 @@ void Rdb_dict_manager::get_ongoing_index_operation(
   DBUG_ASSERT(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
               dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
 
-  uchar index_buf[Rdb_key_def::INDEX_NUMBER_SIZE];
-  rdb_netbuf_store_uint32(index_buf, dd_type);
-  const rocksdb::Slice index_slice(reinterpret_cast<char *>(index_buf),
-                                   Rdb_key_def::INDEX_NUMBER_SIZE);
+  Rdb_buf_writer<Rdb_key_def::INDEX_NUMBER_SIZE> index_writer;
+  index_writer.write_uint32(dd_type);
+  const rocksdb::Slice index_slice = index_writer.to_slice();
 
   rocksdb::Iterator *it = new_iterator();
   for (it->Seek(index_slice); it->Valid(); it->Next()) {
@@ -5624,15 +5613,12 @@ Rdb_dict_manager::put_auto_incr_val(rocksdb::WriteBatchBase *batch,
       rocksdb::Slice(reinterpret_cast<char *>(key_buf), sizeof(key_buf));
 
   // Value is constructed by storing the version and the value.
-  uchar value_buf[RDB_SIZEOF_AUTO_INCREMENT_VERSION +
-                  ROCKSDB_SIZEOF_AUTOINC_VALUE] = {0};
-  uchar *ptr = value_buf;
-  rdb_netbuf_store_uint16(ptr, Rdb_key_def::AUTO_INCREMENT_VERSION);
-  ptr += RDB_SIZEOF_AUTO_INCREMENT_VERSION;
-  rdb_netbuf_store_uint64(ptr, val);
-  ptr += ROCKSDB_SIZEOF_AUTOINC_VALUE;
-  const rocksdb::Slice value =
-      rocksdb::Slice(reinterpret_cast<char *>(value_buf), ptr - value_buf);
+  Rdb_buf_writer<RDB_SIZEOF_AUTO_INCREMENT_VERSION +
+                 ROCKSDB_SIZEOF_AUTOINC_VALUE>
+      value_writer;
+  value_writer.write_uint16(Rdb_key_def::AUTO_INCREMENT_VERSION);
+  value_writer.write_uint64(val);
+  const rocksdb::Slice value = value_writer.to_slice();
 
   if (overwrite) {
     return batch->Put(m_system_cfh, key, value);

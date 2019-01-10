@@ -6206,12 +6206,18 @@ os_file_read_page(
 		char fdname[FN_REFLEN];
 		snprintf(fdname, sizeof fdname, "/proc/%d/fd/%d", getpid(), file);
 		char filename[FN_REFLEN];
-		my_readlink(filename, fdname, MYF(0));
-		ib::error() << "Tried to read " << n
-			<< " bytes at offset " << offset
-			<< ", but was only able to read " << n_bytes
-			<< " of FD " << file
-			<< ", filename " << std::string(filename);
+		int err_filename = my_readlink(filename, fdname, MYF(0));
+		if (err_filename != -1) {
+			ib::error() << "Tried to read " << n
+				<< " bytes at offset " << offset
+				<< ", but was only able to read " << n_bytes
+				<< " of FD " << file
+				<< ", filename " << std::string(filename);
+		} else {
+			ib::error() << "Tried to read " << n
+				<< " bytes at offset " << offset
+				<< ", but was only able to read " << n_bytes;
+		}
 
 		if (exit_on_err) {
 

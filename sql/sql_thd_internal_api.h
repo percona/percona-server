@@ -59,6 +59,8 @@ void thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key);
   @param background_thread  Is this a background thread?
   @param bound              True if bound to a physical thread.
   @param psi_key            Instrumentation key for the thread.
+  @param lock_global_system_var false if create_thd should not lock
+                                LOCK_global_system_variables
 
   @note Dynamic plugin support is only possible for THDs that
         are created after the server has initialized properly.
@@ -68,7 +70,7 @@ void thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key);
         terminate during shutdown.
 */
 THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
-                PSI_thread_key psi_key);
+                PSI_thread_key psi_key, bool lock_global_system_var = true);
 
 /**
   Cleanup the THD object, remove it from the global list of THDs

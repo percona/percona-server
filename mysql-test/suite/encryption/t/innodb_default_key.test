@@ -1,6 +1,8 @@
+let $innodb_encrypt_tables_orig = `SELECT @@innodb_encrypt_tables`;
+let $innodb_encryption_threads_orig = `SELECT @@innodb_encryption_threads`;
+
 --disable_warnings
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_file_format = `Barracuda`;
 SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads= 0;
 --enable_warnings
@@ -40,10 +42,10 @@ SET GLOBAL innodb_default_encryption_key_id = 8;
 SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads= 4;
 
---let encrypted_tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`
---echo #Wait for all tables to get encrypted (with arificial innodb_system)
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--echo #Wait for all tables to get encrypted (without temporary tablespace)
 --let $wait_timeout= 600
---let $wait_condition=SELECT COUNT(*) = $encrypted_tables_count + 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
 --let $assert_text= Table t3 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted) and CURRENT_KEY_ID = 8
@@ -81,10 +83,10 @@ SHOW CREATE TABLE t7;
 --let $restart_parameters=restart:--innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=6
 --source include/restart_mysqld.inc
 
---let encrypted_tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`
---echo #Wait for all tables to get encrypted (with arificial innodb_system)
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--echo #Wait for all tables to get encrypted (without temporary tablespace)
 --let $wait_timeout= 600
---let $wait_condition=SELECT COUNT(*) = $encrypted_tables_count + 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
 --let $assert_text= Table t6 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted) and CURRENT_KEY_ID = 6
@@ -100,3 +102,13 @@ CREATE TABLE t9 (a varchar(255)) ENCRYPTION="N" ENCRYPTION_KEY_ID=5 ENGINE=innod
 --source include/assert.inc
 
 drop table t1,t2,t3,t4,t5,t6,t7,t8,t9;
+
+SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+
+--echo # Wait for all tables to get decrypted encrypted
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+EVAL SET GLOBAL innodb_encrypt_tables = $innodb_encrypt_tables_orig;
+EVAL SET GLOBAL innodb_encryption_threads = $innodb_encryption_threads_orig;

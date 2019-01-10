@@ -170,7 +170,8 @@ extern plugin_ref plugin_lock_by_name(THD *thd, const LEX_CSTRING &name,
                                       int type);
 extern void plugin_unlock(THD *thd, plugin_ref plugin);
 extern void plugin_unlock_list(THD *thd, plugin_ref *list, size_t count);
-extern void plugin_thdvar_init(THD *thd, bool enable_plugins);
+extern void plugin_thdvar_init(THD *thd, bool enable_plugins,
+                               bool lock_global_system_var = true);
 extern void plugin_thdvar_cleanup(THD *thd, bool enable_plugins);
 extern void plugin_thdvar_safe_update(THD *thd, SYS_VAR *var, char **dest,
                                       const char *value);

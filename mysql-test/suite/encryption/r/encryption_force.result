@@ -1,7 +1,4 @@
-select @@innodb_encrypt_tables;
-@@innodb_encrypt_tables
-KEYRING_FORCE
-set global innodb_encrypt_tables='KEYRING_FORCE';
+# restart:<hidden args>
 create table t1 (a int) engine=innodb encryption='KEYRING';
 create table t2 (a varchar(255)) engine=innodb;
 create table t3 (a int) engine=innodb encryption='N';
@@ -16,23 +13,23 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
-/*!50100 PARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
+/*!50100 PARTITION BY HASH (`a`)
 PARTITIONS 2 */
 alter table t1 encryption='N';
 ERROR HY000: InnoDB: Only KEYRING encrypted tables (ENCRYPTION='KEYRING') can be created with innodb_encrypt_tables=KEYRING_FORCE.
@@ -44,20 +41,22 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=0
 insert t2 values (repeat('tempsecret', 12));
-# restart
+# restart:<hidden args>
 drop table t1;
 drop table t2;
 drop table t3;
 drop table t4;
+UNINSTALL PLUGIN keyring_file;
+SET GLOBAL innodb_encrypt_tables = OFF;

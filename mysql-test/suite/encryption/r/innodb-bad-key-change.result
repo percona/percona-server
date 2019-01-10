@@ -1,14 +1,5 @@
-call mtr.add_suppression("Plugin 'file_key_management' init function returned error");
-call mtr.add_suppression("Plugin 'file_key_management' registration.*failed");
-call mtr.add_suppression("InnoDB: The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[12]\\.ibd' cannot be decrypted\\.");
-call mtr.add_suppression("failed to read or decrypt \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\]");
-call mtr.add_suppression("File '.*mysql-test.std_data.keysbad3\\.txt' not found");
-call mtr.add_suppression("\\[Error\\] InnoDB: Page is still encrypted");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Table is encrypted but encryption service or used key_id is not available\.  Can't continue reading table\.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot save statistics for table `test`\.`t2` because file \./test/t2\.ibd cannot be decrypted\.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Table in tablespace is encrypted but encryption service or used key_id is not available\.  Can't continue reading table\.");
 # Start server with keys2.txt
-# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt --log-error=MYSQL_TMP_DIR/error_log.err
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE t1 (c VARCHAR(8)) ENGINE=InnoDB ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2;
 INSERT INTO t1 VALUES ('foobar');
@@ -28,52 +19,81 @@ SELECT * FROM t1;
 c	c2
 foobar	1
 foobar	2
+#### Missing key errors ####
+# Make sure that there is no error in error log related to missing key for t1
 
 # Restart server with keysbad3.txt
-# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keysbad3.txt
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keysbad3.txt --log-error=MYSQL_TMP_DIR/error_log.err
 SELECT * FROM t1;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
-# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keysbad3.txt
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
 DROP TABLE t1;
 # Start server with keys3.txt
-# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys3.txt
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys3.txt --log-error=MYSQL_TMP_DIR/error_log.err
 SET GLOBAL innodb_stats_persistent=OFF;
+#### Decryption errors ####
 SET SESSION innodb_default_encryption_key_id=5;
 CREATE TABLE t2 (c VARCHAR(8), id int not null primary key, b int, key(b)) ENGINE=InnoDB ENCRYPTION='KEYRING';
 INSERT INTO t2 VALUES ('foobar',1,2);
+# Make sure that there is no error in error log related to decryption failures of t2
 
 # Restart server with keys2.txt
-# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt --log-error=MYSQL_TMP_DIR/error_log.err
 SET GLOBAL innodb_stats_persistent=ON;
 SELECT * FROM t2;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 SELECT * FROM t2 where id = 1;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 SELECT * FROM t2 where b = 1;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 INSERT INTO t2 VALUES ('tmp',3,3);
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 DELETE FROM t2 where b = 3;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 DELETE FROM t2 where id = 3;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 UPDATE t2 set b = b +1;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 OPTIMIZE TABLE t2;
 Table	Op	Msg_type	Msg_text
-test.t2	optimize	Warning	Table t2 in file ./test/t2.ibd is encrypted but encryption service or used key_id is not available.  Can't continue reading table.
-test.t2	optimize	Error	Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+test.t2	optimize	Error	Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
 test.t2	optimize	error	Corrupt
 ALTER TABLE t2 ADD COLUMN d INT;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 ANALYZE TABLE t2;
 Table	Op	Msg_type	Msg_text
-test.t2	analyze	Warning	Table t2 in file ./test/t2.ibd is encrypted but encryption service or used key_id is not available.  Can't continue reading table.
-test.t2	analyze	Error	Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+test.t2	analyze	Error	Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
 test.t2	analyze	error	Corrupt
 TRUNCATE TABLE t2;
-ERROR HY000: Got error 500 'Table encrypted but decryption failed. This could be because correct encryption management plugin is not loaded, used encryption key is not available or encryption method does not match.' from InnoDB
+ERROR HY000: Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+include/assert.inc [One error message should be generated.]
+include/assert.inc [It should be an Error, not a Warning.]
+include/assert.inc [It should contain text]
 DROP TABLE t2;
+# Make sure that log contains t2 decryption errors
 
 # Start server with keys2.txt
 # restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt

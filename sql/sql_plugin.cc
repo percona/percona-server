@@ -2850,7 +2850,8 @@ static double *mysql_sys_var_double(THD *thd, int offset) {
   return (double *)intern_sys_var_ptr(thd, offset, true);
 }
 
-void plugin_thdvar_init(THD *thd, bool enable_plugins) {
+void plugin_thdvar_init(THD *thd, bool enable_plugins,
+                        bool lock_global_system_var) {
   plugin_ref old_table_plugin = thd->variables.table_plugin;
   plugin_ref old_temp_table_plugin = thd->variables.temp_table_plugin;
   DBUG_ENTER("plugin_thdvar_init");
@@ -2859,7 +2860,9 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins) {
   thd->variables.temp_table_plugin = NULL;
   cleanup_variables(thd, &thd->variables);
 
-  mysql_mutex_lock(&LOCK_global_system_variables);
+  if (lock_global_system_var) {
+    mysql_mutex_lock(&LOCK_global_system_variables);
+  }
   thd->variables = global_system_variables;
   thd->variables.table_plugin = NULL;
   thd->variables.temp_table_plugin = NULL;
@@ -2878,7 +2881,10 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins) {
     intern_plugin_unlock(NULL, old_temp_table_plugin);
     mysql_mutex_unlock(&LOCK_plugin);
   }
-  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (lock_global_system_var) {
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+  }
 
   /* Initialize all Sys_var_charptr variables here. */
 

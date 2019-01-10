@@ -2729,7 +2729,7 @@ class THD : public MDL_context_owner,
   // We don't want to load/unload plugins for unit tests.
   bool m_enable_plugins;
 
-  explicit THD(bool enable_plugins = true);
+  explicit THD(bool enable_plugins = true, bool lock_global_system_var = true);
 
   /*
     The THD dtor is effectively split in two:
@@ -4279,6 +4279,8 @@ class THD : public MDL_context_owner,
     transaction.
   */
   bool m_is_plugin_fake_ddl;
+
+  bool m_lock_global_system_var;
 
 #ifndef DBUG_OFF
   /**

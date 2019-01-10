@@ -2919,10 +2919,8 @@ dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
   }
 
   if (err != DB_SUCCESS) {
-    if (err == DB_DECRYPTION_FAILED) {
-      ib::warn() << "Table is encrypted but encryption service or"
-                    " used key_id is not available. "
-                    " Can't continue reading table.";
+    if (err == DB_IO_DECRYPT_FAIL) {
+      ib::warn(ER_XB_MSG_4, index->table_name);
       index->table->set_file_unreadable();
     }
     goto func_exit;

@@ -1,10 +1,6 @@
 #
 # MDEV-8817: Failing assertion: new_state->key_version != ENCRYPTION_KEY_VERSION_INVALID
 #
-
-let $encrypt_tables = `SELECT @@innodb_encrypt_tables`;
-let $threads = `SELECT @@innodb_encryption_threads`;
-
 SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads = 4;
 
@@ -78,10 +74,17 @@ connection default;
 --enable_warnings
 --enable_query_log
 
+
+# Cleanup
 drop table t1,t2;
 
-# reset system
---disable_query_log
-EVAL SET GLOBAL innodb_encrypt_tables = $encrypt_tables;
-EVAL SET GLOBAL innodb_encryption_threads = $threads;
---enable_query_log
+# Decrypt all tables
+SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+SET GLOBAL innodb_encrypt_tables = OFF;
+SET GLOBAL innodb_encryption_threads = 0;

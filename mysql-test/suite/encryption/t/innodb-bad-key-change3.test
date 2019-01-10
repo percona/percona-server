@@ -1,3 +1,4 @@
+--skip #has import
 -- source include/not_valgrind.inc
 
 call mtr.add_suppression("cannot be decrypted. Are you using correct keyring that contain the");

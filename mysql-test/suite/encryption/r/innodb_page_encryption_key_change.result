@@ -20,16 +20,10 @@ insert into innodb_compact select * from innodb_normal;
 insert into innodb_compressed select * from innodb_normal;
 insert into innodb_dynamic select * from innodb_normal;
 insert into innodb_redundant select * from innodb_normal;
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
+SELECT variable_value >= 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
 variable_value >= 0
-1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
+SELECT variable_value >= 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
 variable_value >= 0
-1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 alter table innodb_compact engine=innodb encryption_key_id = 6;
 alter table innodb_compressed engine=innodb encryption_key_id = 6;
 alter table innodb_dynamic engine=innodb encryption_key_id = 6;
@@ -64,16 +58,10 @@ c1	b
 2	foo
 3	bar
 4	mariadb
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
+SELECT variable_value >= 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
 variable_value >= 0
-1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
+SELECT variable_value >= 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
 variable_value >= 0
-1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 # Restart mysqld --loose-file-key-management-filename=keys3.txt
 # restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys3.txt
 select * from innodb_normal;
@@ -106,16 +94,10 @@ c1	b
 2	foo
 3	bar
 4	mariadb
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
+SELECT variable_value >= 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
 variable_value >= 0
-1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
+SELECT variable_value >= 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
 variable_value >= 0
-1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 alter table innodb_compact engine=innodb encryption_key_id = 2;
 alter table innodb_compressed engine=innodb encryption_key_id = 3;
 alter table innodb_dynamic engine=innodb encryption_key_id = 4;
@@ -150,16 +132,10 @@ c1	b
 2	foo
 3	bar
 4	mariadb
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
+SELECT variable_value >= 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
 variable_value >= 0
-1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
-SELECT variable_value >= 0 FROM information_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
+SELECT variable_value >= 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_num_pages_decrypted';
 variable_value >= 0
-1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 drop table innodb_normal;
 drop table innodb_compact;
 drop table innodb_compressed;

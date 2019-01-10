@@ -44,15 +44,14 @@ commit;
 set autocommit=1;
 
 --let $assert_text= Make sure t1 is encrypted
---let $assert_cond= "[SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME=\\'test/t1\\']" = 8192
+--let $assert_cond= "[SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME=\\'test/t1\\']" = 8192
 --source include/assert.inc
 
 --echo # Wait for all tables to get encrypted
---let $tables_count= `select count(*) from information_schema.tables where engine = 'InnoDB' and table_schema <> 'information_schema'`
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 --let $wait_timeout= 600
-# Encrypted tables count should be equal $tables_count + 1 - because INNODB_TABLESPACES_ENCRYPTION
-# contains an artificial table innodb_system
---let $wait_condition=SELECT COUNT(*) = $tables_count+1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+# Encrypted tables count should be equal tables_count - 1 because temporary tablespace is not encrypted
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
 --echo # We want only first 100 pages to be rotated
@@ -90,24 +89,15 @@ SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
 --source include/start_mysqld.inc
 
 --let $wait_timeout= 600
---echo # All tables should get encrypted. $tables_count + 1 - because INNODB_TABLESPACES_ENCRYPTION contains artificial table
---echo # innodb_system
---let $wait_condition=SELECT COUNT(*) = $tables_count + 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 2
+--echo # All tables should get encrypted. tables_count - 1 because temporary tablespace is not encrypted
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 2
 --source include/wait_condition.inc
-
-SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION;
 
 --echo # Make sure t1 is encrypted
 --let SEARCH_PATTERN=foobar
 --let ABORT_ON=FOUND
 --let SEARCH_FILE=$t1_IBD
 --source include/search_pattern_in_file.inc
-
---let $wait_timeout= 600
---echo # All tables should get encrypted. $tables_count + 1 - because INNODB_TABLESPACES_ENCRYPTION contains artificial table
---echo # innodb_system
---let $wait_condition=SELECT COUNT(*) = $tables_count + 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 2
---source include/wait_condition.inc
 
 SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 

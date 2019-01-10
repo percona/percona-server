@@ -504,7 +504,7 @@ dberr_t ibuf_init_at_db_start(void) {
   header_page = ibuf_header_page_get(&mtr);
 
   if (!header_page) {
-    return (DB_DECRYPTION_FAILED);
+    return (DB_IO_DECRYPT_FAIL);
   }
 
   fseg_n_reserved_pages(header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER,
@@ -4075,14 +4075,15 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
       update_ibuf_bitmap = FALSE;
     } else {
       page_t *bitmap_page;
-      ulint bitmap_bits;
+      ulint bitmap_bits = 0;
 
       ibuf_mtr_start(&mtr);
 
       bitmap_page = ibuf_bitmap_get_map_page(page_id, *page_size, &mtr);
-
-      bitmap_bits = ibuf_bitmap_page_get_bits(bitmap_page, page_id, *page_size,
-                                              IBUF_BITMAP_BUFFERED, &mtr);
+      if (bitmap_page) {
+        bitmap_bits = ibuf_bitmap_page_get_bits(
+            bitmap_page, page_id, *page_size, IBUF_BITMAP_BUFFERED, &mtr);
+      }
 
       ibuf_mtr_commit(&mtr);
 

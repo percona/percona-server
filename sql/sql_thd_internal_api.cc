@@ -95,8 +95,8 @@ void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
 }
 
 THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
-                PSI_thread_key psi_key) {
-  THD *thd = new THD(enable_plugins);
+                PSI_thread_key psi_key, bool lock_global_system_var) {
+  THD *thd = new THD(enable_plugins, lock_global_system_var);
   if (background_thread) thd->system_thread = SYSTEM_THREAD_BACKGROUND;
   (void)thd_init(thd, reinterpret_cast<char *>(&thd), bound, psi_key);
   return thd;

@@ -976,7 +976,7 @@ the buffer pool.
 @return whether the operation succeeded
 @retval DB_SUCCESS              always when writing, or if a read page was OK
 @retval	DB_PAGE_CORRUPTED       if the checksum fails on a page read
-@retval	DB_DECRYPTION_FAILED    if page post encryption checksum matches but
+@retval	DB_IO_DECRYPT_FAIL    if page post encryption checksum matches but
                                 after decryption normal page checksum does
                                 not match */
 dberr_t buf_page_io_complete(buf_page_t *bpage, bool evict = false);

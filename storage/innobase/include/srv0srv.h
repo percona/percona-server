@@ -198,6 +198,9 @@ struct Srv_threads {
 
   /** true if tablespace alter encrypt thread is created */
   bool m_ts_alter_encrypt_thread_active;
+
+  /** true if there is keyring encryption thread running */
+  bool m_encryption_threads_active;
 };
 
 struct Srv_cpu_usage {

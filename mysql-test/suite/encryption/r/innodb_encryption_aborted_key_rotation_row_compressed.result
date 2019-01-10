@@ -29,35 +29,8 @@ SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
 # Make sure that t1 is still encrypted
 # t1 is only half rotatted, now we will check if the encryption can be completed after the restart
 # restart:--innodb-encryption-threads=4
-# All tables should get encrypted. 21 + 1 - because INNODB_TABLESPACES_ENCRYPTION contains artificial table
-# innodb_system
-SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION;
-SPACE	NAME	ENCRYPTION_SCHEME	KEYSERVER_REQUESTS	MIN_KEY_VERSION	CURRENT_KEY_VERSION	KEY_ROTATION_PAGE_NUMBER	KEY_ROTATION_MAX_PAGE_NUMBER	CURRENT_KEY_ID	ROTATING_OR_FLUSHING
-2	mysql/plugin	1	0	2	2	NULL	NULL	0	0
-3	mysql/servers	1	0	2	2	NULL	NULL	0	0
-4	mysql/help_topic	1	0	2	2	NULL	NULL	0	0
-5	mysql/help_category	1	0	2	2	NULL	NULL	0	0
-6	mysql/help_relation	1	0	2	2	NULL	NULL	0	0
-7	mysql/help_keyword	1	0	2	2	NULL	NULL	0	0
-8	mysql/time_zone_name	1	0	2	2	NULL	NULL	0	0
-9	mysql/time_zone	1	0	2	2	NULL	NULL	0	0
-10	mysql/time_zone_transition	1	0	2	2	NULL	NULL	0	0
-11	mysql/time_zone_transition_type	1	0	2	2	NULL	NULL	0	0
-12	mysql/time_zone_leap_second	1	0	2	2	NULL	NULL	0	0
-13	mysql/innodb_table_stats	1	0	2	2	NULL	NULL	0	0
-14	mysql/innodb_index_stats	1	0	2	2	NULL	NULL	0	0
-15	mysql/slave_relay_log_info	1	0	2	2	NULL	NULL	0	0
-16	mysql/slave_master_info	1	0	2	2	NULL	NULL	0	0
-17	mysql/slave_worker_info	1	0	2	2	NULL	NULL	0	0
-18	mysql/gtid_executed	1	0	2	2	NULL	NULL	0	0
-19	mysql/server_cost	1	0	2	2	NULL	NULL	0	0
-20	mysql/engine_cost	1	0	2	2	NULL	NULL	0	0
-21	sys/sys_config	1	0	2	2	NULL	NULL	0	0
-23	test/t1	1	0	2	2	NULL	NULL	0	0
-0	innodb_system	1	0	2	2	NULL	NULL	0	0
+# All tables should get encrypted. tables_count - 1 because temporary tablespace is not encrypted
 # Make sure t1 is encrypted
-# All tables should get encrypted. 21 + 1 - because INNODB_TABLESPACES_ENCRYPTION contains artificial table
-# innodb_system
 SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 # All tables should get decrypted, apart from t1.
 SET GLOBAL innodb_encryption_threads=0;

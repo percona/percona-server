@@ -6087,33 +6087,61 @@ bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table) {
 /* Updates tablespace's DD flags.
 @param[in] Thread       THD
 @param[in] space_name   name of the space that DD flags are to be updated
+@param[in] is_space_being_removed - pass by pointer as this can check outside
+this function
 @param[in] update       function object that will be invoked for updating DD
 flags
 @return false on success */
 static bool dd_update_tablespace_dd_flags(
-    THD *thd, const char *space_name, std::function<void(uint32 &)> update) {
+    THD *thd, const char *space_name, volatile bool *is_space_being_removed,
+    std::function<void(uint32 &)> update) {
   Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
   dd::Tablespace *dd_space = nullptr;
 
-  trx_t *trx = check_trx_exists(thd);
-  trx_start_if_not_started(trx, true);
+  const unsigned long int lock_wait_timeout = 20;
+  unsigned long int waited_so_far_for_lock = 0;
 
-  if (dd::acquire_exclusive_tablespace_mdl(thd, space_name, false)) {
-    ut_a(false);
+  auto handle_timeout_or_space_drop = [&]() {
+    if (*is_space_being_removed ||
+        waited_so_far_for_lock > thd->variables.lock_wait_timeout) {
+      dd::commit_or_rollback_tablespace_change(
+          thd, dd_space, true);  // need to unlock tablespace mdl
+      if (waited_so_far_for_lock > thd->variables.lock_wait_timeout) {
+        my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+      }
+      return true;
+    }
+    return false;
+  };
+
+  while (dd::acquire_exclusive_tablespace_mdl(thd, space_name,
+                                              lock_wait_timeout)) {
+    waited_so_far_for_lock += lock_wait_timeout;
+    if (handle_timeout_or_space_drop()) {
+      return true;
+    }
   }
 
-  if (client->acquire_for_modification<dd::Tablespace>(space_name, &dd_space) ||
-      dd_space == nullptr) {
-    return (true);
+  waited_so_far_for_lock = 0;
+
+  while (
+      client->acquire_for_modification<dd::Tablespace>(space_name, &dd_space)) {
+    if (handle_timeout_or_space_drop()) {
+      return true;
+    }
+    os_thread_sleep(lock_wait_timeout);
+    waited_so_far_for_lock += lock_wait_timeout;
   }
 
+  waited_so_far_for_lock = 0;
   uint32_t dd_space_flags = 0;
 
   if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
                                       &dd_space_flags)) {
+    dd::commit_or_rollback_tablespace_change(thd, dd_space, true);
     return (true);
   }
 
@@ -6123,25 +6151,35 @@ static bool dd_update_tablespace_dd_flags(
   dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
                                   static_cast<uint32>(dd_space_flags));
 
-  if (dd::commit_or_rollback_tablespace_change(thd, dd_space, false)) {
-    return (true);
+  /* Pass 'true' for 'release_mdl_on_commit' parameter because we want
+  transactional locks to be released only in case of successful commit */
+  while (dd::commit_or_rollback_tablespace_change(thd, dd_space, false, true)) {
+    if (handle_timeout_or_space_drop()) {
+      return true;
+    }
+    os_thread_sleep(lock_wait_timeout);
+    waited_so_far_for_lock += lock_wait_timeout;
   }
 
   return (false);
 }
 
-bool dd_set_encryption_flag(THD *thd, const char *space_name) {
+bool dd_set_encryption_flag(THD *thd, const char *space_name,
+                            volatile bool *is_space_being_removed) {
   auto update_func = [](uint32_t &dd_space_flags) {
     dd_space_flags |= (1U << FSP_FLAGS_POS_ENCRYPTION);
   };
-  return dd_update_tablespace_dd_flags(thd, space_name, update_func);
+  return dd_update_tablespace_dd_flags(thd, space_name, is_space_being_removed,
+                                       update_func);
 }
 
-bool dd_clear_encryption_flag(THD *thd, const char *space_name) {
+bool dd_clear_encryption_flag(THD *thd, const char *space_name,
+                              volatile bool *is_space_being_removed) {
   auto update_func = [](uint32_t &dd_space_flags) {
     dd_space_flags &= ~(1U << FSP_FLAGS_POS_ENCRYPTION);
   };
-  return dd_update_tablespace_dd_flags(thd, space_name, update_func);
+  return dd_update_tablespace_dd_flags(thd, space_name, is_space_being_removed,
+                                       update_func);
 }
 
 static bool dd_get_tablespace_flags(THD *thd, const char *space_name,
@@ -6158,9 +6196,12 @@ static bool dd_get_tablespace_flags(THD *thd, const char *space_name,
 /* Sets tablespace's DD flags.
 @param[in] Thread       THD
 @param[in] space_name   name of the space for which DD flags are to be set
-@param[in] space_flags  DD flags that are to be assigned to space */
+@param[in] space_flags  DD flags that are to be assigned to space
+@param[in] is_space_being_removed - pass by pointer as this can check outside
+this function */
 static bool dd_set_flags(THD *thd, const char *space_name,
-                         const uint32_t space_flags) {
+                         const uint32_t space_flags,
+                         volatile bool *is_space_being_removed) {
   auto set_flags = [](uint32_t &dd_space_flags, uint32_t space_flags) {
     // currently we are using this function only for correcting encryption flag
     ut_ad(dd_space_flags == space_flags ||
@@ -6169,7 +6210,8 @@ static bool dd_set_flags(THD *thd, const char *space_name,
     dd_space_flags = space_flags;
   };
   auto update_func = std::bind(set_flags, std::placeholders::_1, space_flags);
-  return dd_update_tablespace_dd_flags(thd, space_name, update_func);
+  return dd_update_tablespace_dd_flags(thd, space_name, is_space_being_removed,
+                                       update_func);
 }
 
 bool dd_fix_mysql_ibd_encryption_flag_if_needed(THD *thd,
@@ -6195,7 +6237,9 @@ bool dd_fix_mysql_ibd_encryption_flag_if_needed(THD *thd,
         << ") This comparission does *not* include the encryption flag.";
     return true;
   }
-  return dd_set_flags(thd, dict_sys_t::s_dd_space_name, space_flags);
+  bool is_space_being_removed{false};
+  return dd_set_flags(thd, dict_sys_t::s_dd_space_name, space_flags,
+                      &is_space_being_removed);
 }
 
 #endif /* !UNIV_HOTBACKUP */

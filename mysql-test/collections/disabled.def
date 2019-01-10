@@ -183,3 +183,6 @@ tokudb.parts.partition_debug_tokudb : the debug code does not exist in 8.0
 tokudb.rpl.rpl_row_sp002_tokudb : tokudb does not support foreign keys
 tokudb.rpl.rpl_deadlock_tokudb : temporarily disabled until properly debugged
 tokudb.rpl.rpl_partition_tokudb : exchange partition is not supported
+
+# encryption suite tests
+encryption.innodb-bad-key-change2 : IMPORT tablespace is broken in 8.0 for keyring encryption

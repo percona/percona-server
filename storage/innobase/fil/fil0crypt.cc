@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0start.h"
 #include "ut0ut.h"
 
+#include "dict0dd.h"
 #include "dict0dict.h"
 #include "fts0priv.h"
 #include "lock0lock.h"
@@ -57,6 +58,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0file.h"
 
 #include <list>
+#include "sql_thd_internal_api.h"
 
 #define ENCRYPTION_MASTER_KEY_NAME_MAX_LEN 100
 
@@ -107,12 +109,9 @@ extern uint srv_background_scrub_data_check_interval;
 extern bool srv_background_scrub_data_uncompressed;
 extern bool srv_background_scrub_data_compressed;
 
-uint get_global_default_encryption_key_id_value();
+extern bool mysqld_server_started;
 
-bool is_online_encryption_on() {
-  return srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING ||
-         srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE;
-}
+uint get_global_default_encryption_key_id_value();
 
 #define DEBUG_KEYROTATION_THROTTLING 0
 
@@ -156,6 +155,8 @@ uchar *fil_space_crypt_t::get_cached_key(Cached_key &cached_key,
   Encryption::get_tablespace_key(this->key_id, key_version, &cached_key.key,
                                  &cached_key.key_len);
   ut_ad(cached_key.key == NULL || cached_key.key_len == ENCRYPTION_KEY_LEN);
+
+  cached_key.key_version = key_version;
 
   return cached_key.key;
 }
@@ -204,9 +205,7 @@ void fil_space_crypt_cleanup() {
 
 fil_space_crypt_t::fil_space_crypt_t(
     uint new_type, uint new_min_key_version, uint new_key_id,
-    fil_encryption_t new_encryption,
-    bool create_key,  // is used when we have a new tablespace to encrypt and is
-                      // not used when we read a crypto from page0
+    fil_encryption_t new_encryption, Crypt_key_operation key_operation,
     Encryption::Encryption_rotation encryption_rotation)
     : min_key_version(new_min_key_version),
       page0_offset(0),
@@ -229,7 +228,7 @@ fil_space_crypt_t::fil_space_crypt_t(
   type = new_type;
 
   if (new_encryption == FIL_ENCRYPTION_OFF ||
-      (is_online_encryption_on() == false &&
+      (Encryption::is_online_encryption_on() == false &&
        new_encryption == FIL_ENCRYPTION_DEFAULT)) {
     type = CRYPT_SCHEME_UNENCRYPTED;
     min_key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
@@ -240,8 +239,14 @@ fil_space_crypt_t::fil_space_crypt_t(
     // if it does not it will return ENCRYPTION_KEY_VERSION_INVALID
     uchar *key = NULL;
     uint key_version = 0;
-    Encryption::get_latest_tablespace_key_or_create_new_one(key_id,
-                                                            &key_version, &key);
+    if (key_operation == FETCH_OR_GENERATE_KEY) {
+      Encryption::get_latest_tablespace_key_or_create_new_one(
+          key_id, &key_version, &key);
+    } else if (key_operation == FETCH_KEY) {
+      Encryption::get_latest_tablespace_key(key_id, &key_version, &key);
+    } else {
+      ut_ad(0);
+    }
     if (key == NULL) {
       key_found = false;
       min_key_version = ENCRYPTION_KEY_VERSION_INVALID;
@@ -310,11 +315,12 @@ Create a fil_space_crypt_t object
 
 static fil_space_crypt_t *fil_space_create_crypt_data(
     uint type, fil_encryption_t encrypt_mode, uint min_key_version, uint key_id,
-    bool create_key = true) {
+    Crypt_key_operation key_operation =
+        Crypt_key_operation::FETCH_OR_GENERATE_KEY) {
   fil_space_crypt_t *crypt_data = NULL;
   if (void *buf = ut_zalloc_nokey(sizeof(fil_space_crypt_t))) {
     crypt_data = new (buf) fil_space_crypt_t(type, min_key_version, key_id,
-                                             encrypt_mode, create_key);
+                                             encrypt_mode, key_operation);
   }
 
   return crypt_data;
@@ -347,11 +353,12 @@ Create a fil_space_crypt_t object
 
 @param[in]	key_id		Encryption key id
 @return crypt object */
-fil_space_crypt_t *fil_space_create_crypt_data(fil_encryption_t encrypt_mode,
-                                               uint key_id, bool create_key) {
+fil_space_crypt_t *fil_space_create_crypt_data(
+    fil_encryption_t encrypt_mode, uint key_id,
+    Crypt_key_operation key_operation) {
   return (fil_space_create_crypt_data(0, encrypt_mode,
                                       ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED,
-                                      key_id, create_key));
+                                      key_id, key_operation));
 }
 
 /******************************************************************
@@ -440,7 +447,8 @@ fil_space_crypt_t *fil_space_read_crypt_data(const page_size_t &page_size,
       (fil_encryption_t)mach_read_from_1(page + offset + bytes_read);
   bytes_read += 1;
 
-  crypt_data = fil_space_create_crypt_data(encryption, key_id, false);
+  crypt_data = fil_space_create_crypt_data(encryption, key_id,
+                                           Crypt_key_operation::FETCH_KEY);
 
   /* We need to overwrite these as above function will initialize
   members */
@@ -665,10 +673,11 @@ byte *fil_parse_write_crypt_data(byte *ptr, const byte *end_ptr,
   fil_encryption_t encryption = (fil_encryption_t)mach_read_from_1(ptr);
   ptr += 1;
 
-  fil_space_crypt_t *crypt_data =
-      fil_space_create_crypt_data(encryption, key_id, false);
+  fil_space_crypt_t *crypt_data = fil_space_create_crypt_data(
+      encryption, key_id, Crypt_key_operation::FETCH_OR_GENERATE_KEY);
   /* Need to overwrite these as above will initialize fields. */
   crypt_data->page0_offset = offset;
+  DBUG_ASSERT(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
   crypt_data->min_key_version = min_key_version;
   crypt_data->encryption = encryption;
   memcpy(crypt_data->iv, ptr, iv_len);
@@ -696,16 +705,17 @@ byte *fil_parse_write_crypt_data(byte *ptr, const byte *end_ptr,
     crypt_data->set_tablespace_iv(tablespace_iv);
   }
 
+  /* Check is used key found from encryption plugin */
+  if (crypt_data->should_encrypt() && !crypt_data->is_key_found()) {
+    ib::error() << "Key cannot be read for space id = "
+                << space_id;  // TODO: To jest zmienione w MariaDB - zmienić!
+    recv_sys->set_corrupt_log();
+  }
+
   /* update fil_space memory cache with crypt_data */
   if (fil_space_t *space = fil_space_acquire_silent(space_id)) {
     crypt_data = fil_space_set_crypt_data(space, crypt_data);
     fil_space_release(space);
-    /* Check is used key found from encryption plugin */
-    if (crypt_data->should_encrypt() && !crypt_data->is_key_found()) {
-      ib::error() << "Key cannot be read for SPACE ID = "
-                  << space_id;  // TODO: To jest zmienione w MariaDB - zmienić!
-      recv_sys->set_corrupt_log();
-    }
   } else {
     fil_space_destroy_crypt_data(&crypt_data);
   }
@@ -736,15 +746,14 @@ Copy global key state
 @param[in]	crypt_data	crypt data */
 static void fil_crypt_get_key_state(key_state_t *new_state,
                                     fil_space_crypt_t *crypt_data) {
-  if (srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING ||
-      srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE) {
+  if (srv_encrypt_tables ==
+      SRV_ENCRYPT_TABLES_ONLINE_FROM_KEYRING_TO_UNENCRYPTED) {
+    new_state->key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
+    new_state->rotate_key_age = 0;
+  } else {
     new_state->key_version = crypt_data->key_get_latest_version();
     new_state->rotate_key_age = srv_fil_crypt_rotate_key_age;
     ut_a(new_state->key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
-  } else if (srv_encrypt_tables ==
-             SRV_ENCRYPT_TABLES_ONLINE_FROM_KEYRING_TO_UNENCRYPTED) {
-    new_state->key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
-    new_state->rotate_key_age = 0;
   }
 }
 
@@ -764,14 +773,15 @@ static bool fil_crypt_needs_rotation(fil_encryption_t encrypt_mode,
   }
 
   if (key_version == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED &&
-      latest_key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED) {
+      latest_key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED &&
+      Encryption::is_online_encryption_on()) {
     /* this is rotation unencrypted => encrypted
      * ignore rotate_key_age */
     return true;
   }
 
-  if (latest_key_version == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED &&
-      key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED) {
+  if (key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED &&
+      latest_key_version == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED) {
     if (encrypt_mode == FIL_ENCRYPTION_DEFAULT) {
       // this is rotation encrypted => unencrypted
       return true;
@@ -779,14 +789,11 @@ static bool fil_crypt_needs_rotation(fil_encryption_t encrypt_mode,
     return false;
   }
 
-  // TODO:Robert dodałem to nie wiem co robić gdy oba są not_encrypted - czy to
-  // możliwe, żeby doszedł tutaj ?:  ut_ad(!(latest_key_version ==
-  // ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED  && key_version ==
-  // ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED));
-
   /* this is rotation encrypted => encrypted,
    * only reencrypt if key is sufficiently old */
-  if (rotate_key_age > 0 &&
+  /* Do not encrypt tables which are unencrypted when key is rotated */
+  if (key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED &&
+      rotate_key_age > 0 &&
       (key_version + rotate_key_age <= latest_key_version)) {
     return true;
   }
@@ -831,7 +838,7 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
 
   /* If space is not encrypted and encryption is not enabled, then
   do not continue encrypting the space. */
-  if (!crypt_data && is_online_encryption_on() == false) {
+  if (!crypt_data && Encryption::is_online_encryption_on() == false) {
     mutex_exit(&fil_crypt_threads_mutex);
     return false;
   }
@@ -853,7 +860,7 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
 
   crypt_data = fil_space_create_crypt_data(
       FIL_ENCRYPTION_DEFAULT, get_global_default_encryption_key_id_value(),
-      false);  // TODO:Robert : zmiana na zero key_id - będzie to trzeba zmienić
+      Crypt_key_operation::FETCH_OR_GENERATE_KEY);
 
   if (crypt_data == NULL || crypt_data->key_found == false) {
     mutex_exit(&fil_crypt_threads_mutex);
@@ -973,11 +980,13 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
 
 /** State of a rotation thread */
 struct rotate_thread_t {
-  explicit rotate_thread_t(uint no) {
+  explicit rotate_thread_t(uint no, THD *thd) {
+    ut_ad(thd != nullptr);
     memset(this, 0, sizeof(*this));
     thread_no = no;
     first = true;
     estimated_max_iops = 20;
+    this->thd = thd;
   }
 
   uint thread_no;
@@ -996,6 +1005,9 @@ struct rotate_thread_t {
   fil_crypt_stat_t crypt_stat;  // statistics
   btr_scrub_t scrub_data; /*< thread local data used by btr_scrub-functions
                               when iterating pages of tablespace */
+
+  THD *thd;  // We need THD object to be able to update
+             // tablespace's DD encryption flag
 
   /** @return whether this thread should terminate */
   bool should_shutdown() const {
@@ -1085,7 +1097,7 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
     }
 
     /* No need to rotate space if encryption is disabled */
-    if (crypt_data->not_encrypted()) {
+    if (crypt_data->is_encryption_disabled()) {
       break;
     }
 
@@ -1339,6 +1351,8 @@ static bool fil_crypt_find_space_to_rotate(key_state_t *key_state,
 
     ut_ad(state->space->size);
 
+    // TODO: What about excluding spaces that are (has?) SPATIAL INDEXES ?
+
     // if space is marked as encrytped this means some of the pages are
     // encrypted and space should be skipped size must be set - i.e. tablespace
     // has been read
@@ -1412,7 +1426,7 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
     crypt_data->rotate_state.create_flush_observer(state->space->id);
 
     if (crypt_data->type == CRYPT_SCHEME_UNENCRYPTED &&
-        crypt_data->is_encrypted() &&
+        !crypt_data->is_encryption_disabled() &&
         key_state->key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED) {
       /* this is rotation unencrypted => encrypted */
       crypt_data->type = CRYPT_SCHEME_1;
@@ -1503,7 +1517,7 @@ static buf_block_t *fil_crypt_get_page_throttle_func(rotate_thread_t *state,
   }
 
   buf_block_t *block =
-      buf_page_get_gen(page_id, page_size, RW_X_LATCH, nullptr,
+      buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
                        Page_fetch::PEEK_IF_IN_POOL, file, line, mtr);
 
   if (block != NULL) {
@@ -1519,8 +1533,10 @@ static buf_block_t *fil_crypt_get_page_throttle_func(rotate_thread_t *state,
   state->crypt_stat.pages_read_from_disk++;
 
   uintmax_t start = ut_time_us(NULL);
-  block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, nullptr,
-                           Page_fetch::POSSIBLY_FREED, file, line, mtr);
+  dberr_t err;
+  block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
+                           Page_fetch::POSSIBLY_FREED, file, line, mtr, false,
+                           &err);
   uintmax_t end = ut_time_us(NULL);
 
   if (end < start) {
@@ -1665,8 +1681,15 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
 
       /* statistics */
       state->crypt_stat.pages_modified++;
+    } else if (mach_read_from_4(frame + FIL_PAGE_LSN) == 0) {
+      /* LSN == 0 means that the page was never flushed to disk. Thus it never
+       * had the key version assigned. We assign the key version to this page
+       * here, as it only exists in buffer */
+      mlog_write_ulint(frame + FIL_PAGE_ENCRYPTION_KEY_VERSION,
+                       crypt_data->encrypting_with_key_version, MLOG_4BYTES,
+                       &mtr);
     } else {
-      if (crypt_data->is_encrypted()) {
+      if (!crypt_data->is_encryption_disabled()) {
         if (kv == ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED ||
             kv < state->min_key_version_found) {
           state->min_key_version_found = kv;
@@ -1795,7 +1818,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 //[> There should be at most one matching record. So the value
 // must be the default value. */
 // ut_ad(mach_read_from_4(static_cast<byte*>(user_arg))
-//== UINT32_UNDEFINED);
+//== ULINT32_UNDEFINED);
 
 // ulint flags2 = mach_read_from_4(
 // static_cast<byte*>(dfield_get_data(dfield)));
@@ -1860,7 +1883,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 //"CLOSE c;\n"
 //"END;\n";
 
-// flags2 = UINT32_UNDEFINED;
+// flags2 = ULINT32_UNDEFINED;
 
 // info = pars_info_create();
 
@@ -1877,7 +1900,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 
 // dberr_t err = que_eval_sql(info, sql, false, trx);
 
-// ut_a(flags2 != UINT32_UNDEFINED);
+// ut_a(flags2 != ULINT32_UNDEFINED);
 
 // return(err);
 //}
@@ -1896,7 +1919,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 //// There should be at most one matching record. So the value
 //// must be the default value.
 // ut_ad(mach_read_from_4(static_cast<byte*>(user_arg))
-//== UINT32_UNDEFINED);
+//== ULINT32_UNDEFINED);
 
 // ulint  flags = mach_read_from_4(
 // static_cast<byte*>(dfield_get_data(dfield)));
@@ -1922,7 +1945,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 //// There should be at most one matching record. So the value
 //// must be the default value.
 // ut_ad(mach_read_from_4(static_cast<byte*>(user_arg))
-//== UINT32_UNDEFINED);
+//== ULINT32_UNDEFINED);
 
 // ulint  flags = mach_read_from_4(
 // static_cast<byte*>(dfield_get_data(dfield)));
@@ -1989,7 +2012,7 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 //"CLOSE c;\n"
 //"END;\n";
 
-// flags = UINT32_UNDEFINED;
+// flags = ULINT32_UNDEFINED;
 
 // info = pars_info_create();
 
@@ -2009,9 +2032,9 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
 
 // dberr_t err = que_eval_sql(info, sql, false, trx);
 
-// ut_a(flags != UINT32_UNDEFINED);
+// ut_a(flags != ULINT32_UNDEFINED);
 
-// if (flags == UINT32_UNDEFINED)
+// if (flags == ULINT32_UNDEFINED)
 // return DB_ERROR;
 
 // return(err);
@@ -2247,97 +2270,21 @@ class TransactionAndHeapGuard {
   bool do_rollback;
 };
 
-// static
-// dberr_t
-// fil_update_encrypted_flag(fil_space_t *space, bool set){
-//// We are only modifying DD so the lock on DD is enough, we do not need
-//// lock on space
+enum class UpdateEncryptedFlagOperation : char { SET, CLEAR };
 
-// TransactionAndHeapGuard	guard;
+static dberr_t fil_update_encrypted_flag(
+    const char *space_name, UpdateEncryptedFlagOperation update_operation,
+    volatile bool *is_space_being_removed, THD *thd) {
+  DBUG_EXECUTE_IF("fail_encryption_flag_update_on_t3",
+                  if (strcmp(space_name, "test/t3") == 0) { return DB_ERROR; });
 
-// if (!guard.lock_x_dict_operation_lock(space))
-// return DB_SUCCESS;
+  bool failure =
+      (update_operation == UpdateEncryptedFlagOperation::SET
+           ? dd_set_encryption_flag(thd, space_name, is_space_being_removed)
+           : dd_clear_encryption_flag(thd, space_name, is_space_being_removed));
 
-// if(!guard.allocate_trx())
-// return DB_ERROR;
-
-// guard.enter_dict_sys_mutex();
-
-// if (space->stop_new_ops) // space is about to be dropped
-// return DB_SUCCESS;
-
-// if (!guard.create_heap())
-// return DB_OUT_OF_MEMORY;
-
-// if (!guard.create_allocator())
-// return DB_OUT_OF_MEMORY;
-
-//[> We store the table ids of all the FTS indexes that were found. <]
-// if(!guard.create_table_ids_vector())
-// return DB_OUT_OF_MEMORY;
-
-// dberr_t	error = get_table_ids_in_space_sql(guard.get_trx(), space,
-// guard.get_table_ids());
-// if (error != DB_SUCCESS)
-// return error;
-
-//// First update tablespace's encryption flag
-// error = fts_update_encrypted_flag_for_tablespace_sql(guard.get_trx(),
-// space->id, set);
-// if (error != DB_SUCCESS)
-// return error;
-
-// if (!guard.create_table_ids_to_revert_vector())
-// return DB_OUT_OF_MEMORY;
-
-// while (!guard.is_table_ids_empty())
-//{
-// table_id_t	table_id = guard.pop_from_table_ids();
-
-//// Update table's encryption flag
-// error = fts_update_encrypted_tables_flag(guard.get_trx(),
-// table_id, set);
-
-// DBUG_EXECUTE_IF(
-//"fail_encryption_flag_update_on_t3",
-// dict_table_t*	table =
-// dict_table_open_on_id(table_id, TRUE,
-// DICT_TABLE_OP_NORMAL);
-
-// if (strcmp(table->name.m_name, "test/t3") == 0)
-// error = DB_ERROR;
-// dict_table_close(table, TRUE, FALSE);
-//);
-
-// if (error != DB_SUCCESS)
-//{
-// fil_revert_encryption_flag_updates(
-// guard.get_table_ids_to_revert(), !set);
-// return error;
-//}
-
-// dict_table_t*	table = dict_table_open_on_id(table_id, TRUE,
-// DICT_TABLE_OP_NORMAL);
-
-// ut_ad(table != NULL);
-
-// if (set)
-//{
-////ib::error() << "Setting encryption for table " << table->name.m_name;
-// DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION);
-//}
-// else
-// DICT_TF2_FLAG_UNSET(table, DICT_TF2_ENCRYPTION);
-
-// guard.push_to_table_ids_to_revert(table_id);
-
-// dict_table_close(table, TRUE, FALSE);
-//}
-
-// guard.commit();
-
-// return DB_SUCCESS;
-//}
+  return (failure ? DB_ERROR : DB_SUCCESS);
+}
 
 /***********************************************************************
 Flush rotated pages and then update page 0
@@ -2391,32 +2338,39 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
                           ? CRYPT_SCHEME_UNENCRYPTED
                           : crypt_data->type;
 
-  if (space->id != 0) {
-    // if (DB_SUCCESS != fil_update_encrypted_flag(space, current_type ==
-    // CRYPT_SCHEME_UNENCRYPTED ? false : true)) {
-    // ut_ad(DBUG_EVALUATE_IF("fail_encryption_flag_update_on_t3", 1, 0));
-    // return DB_ERROR;
-    //}
+  UpdateEncryptedFlagOperation update_enc_flag_op =
+      (current_type == CRYPT_SCHEME_UNENCRYPTED)
+          ? UpdateEncryptedFlagOperation::CLEAR
+          : UpdateEncryptedFlagOperation::SET;
 
-    DBUG_EXECUTE_IF("crash_on_t1_flush_after_dd_update",
-                    if (strcmp(state->space->name, "test/t1") == 0)
-                        DBUG_ABORT(););
-
-    fil_lock_shard_by_id(space->id);
-    if (current_type == CRYPT_SCHEME_UNENCRYPTED)
-      space->flags &= ~(1U << FSP_FLAGS_POS_ENCRYPTION);
-    else
-      space->flags |= (1U << FSP_FLAGS_POS_ENCRYPTION);
-    fil_unlock_shard_by_id(space->id);
+  if (DB_SUCCESS != fil_update_encrypted_flag(space->name, update_enc_flag_op,
+                                              &space->stop_new_ops,
+                                              state->thd)) {
+    ut_ad(DBUG_EVALUATE_IF("fail_encryption_flag_update_on_t3", 1, 0) ||
+          state->space->stop_new_ops);
+    return (DB_ERROR);
   }
+
+  fil_lock_shard_by_id(space->id);
+  if (update_enc_flag_op == UpdateEncryptedFlagOperation::SET) {
+    space->flags |= (1U << FSP_FLAGS_POS_ENCRYPTION);
+  } else {
+    ut_ad(update_enc_flag_op == UpdateEncryptedFlagOperation::CLEAR);
+    space->flags &= ~(1U << FSP_FLAGS_POS_ENCRYPTION);
+  }
+  fil_unlock_shard_by_id(space->id);
+
+  DBUG_EXECUTE_IF("crash_on_t1_flush_after_dd_update",
+                  if (strcmp(state->space->name, "test/t1") == 0)
+                      DBUG_ABORT(););
 
   /* update page 0 */
   mtr_t mtr;
   mtr.start();
 
   if (buf_block_t *block = buf_page_get_gen(
-          page_id_t(space->id, 0), page_size_t(space->flags), RW_X_LATCH,
-          nullptr, Page_fetch::NORMAL, __FILE__, __LINE__, &mtr)) {
+          page_id_t(space->id, 0), page_size_t(space->flags), RW_X_LATCH, NULL,
+          Page_fetch::NORMAL, __FILE__, __LINE__, &mtr)) {
     // mtr.set_named_space(space);
     crypt_data->write_page0(space, block->frame, &mtr,
                             crypt_data->rotate_state.min_key_version_found,
@@ -2469,6 +2423,18 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
      */
     bool should_flush = last && done;
 
+    /* In case we simulate only 100 pages being rotated - we stop ourselves from
+     * writting to page0. Pages should be flushed in mtr test with FLUSH FOR
+     * EXPORT - this will make sure that buffers will get flushed * In MTR we
+     * can check if we reached this point by checking flushing field - it should
+     * be 1 if we are here */
+    DBUG_EXECUTE_IF("rotate_only_first_100_pages_from_t1",
+                    if (strcmp(state->space->name, "test/t1") == 0 &&
+                        number_of_t1_pages_rotated >= 100) {
+                      crypt_data->rotate_state.flushing = true;
+                      should_flush = false;
+                    });
+
     if (should_flush) {
       /* we're the last active thread */
       ut_ad(crypt_data->rotate_state.flushing == false);
@@ -2477,16 +2443,6 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
       crypt_data->set_tablespace_key(NULL);
       crypt_data->encryption_rotation = Encryption::NO_ROTATION;
     }
-
-    /* In case we simulate only 100 pages being rotated - we stop ourselves from
-     * writting to page0. Pages should be flushed in mtr test with FLUSH FOR
-     * EXPORT - this will make sure that buffers will get flushed * In MTR we
-     * can check if we reached this point by checking flushing field - it should
-     * be 1 if we are here */
-    DBUG_EXECUTE_IF(
-        "rotate_only_first_100_pages_from_t1",
-        if (strcmp(state->space->name, "test/t1") == 0 &&
-            number_of_t1_pages_rotated >= 100) should_flush = false;);
 
     DBUG_EXECUTE_IF(
         "crash_on_t1_flush_after_dd_update",
@@ -2523,17 +2479,20 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
       } else {
         mutex_enter(&crypt_data->mutex);
         crypt_data->rotate_state.flushing = false;
-        ib::error() << "Encryption thread failed to flush encryption "
-                       "information for tablespace "
-                    << state->space->name
-                    << ". This should not happen and could indicate problem "
-                       "with OS or filesystem. Excluding "
-                    << state->space->name << " from encryption rotation. "
-                    << "You can try decrypting/encrypting with alter statement "
-                       "for this table or restarting the server.";
-        state->space->exclude_from_rotation =
-            true;  // This will stop encryption threads from picking up this
-                   // tablespace for rotation
+        if (!state->space->stop_new_ops) {  // Flag updated failed not due to
+                                            // tablespace being dropped
+          ib::error() << "Encryption thread failed to flush encryption "
+                         "information for tablespace "
+                      << state->space->name
+                      << ". This should not happen and could indicate problem "
+                         "with OS or filesystem. Excluding "
+                      << state->space->name << " from encryption rotation. "
+                      << "You can try decrypting/encrypting with alter "
+                         "statement for this table or restarting the server.";
+          state->space->exclude_from_rotation =
+              true;  // This will stop encryption threads from picking up this
+                     // tablespace for rotation
+        }
       }
     }
 
@@ -2554,9 +2513,7 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
 /*********************************************************************/ /**
  A thread which monitors global key state and rotates tablespaces accordingly
  @return a dummy parameter */
-void fil_crypt_thread() {
-  my_thread_init();
-
+void fil_crypt_thread(bool lock_global_system_var) {
   /* TODO: Add this later */
   //#ifdef UNIV_PFS_THREAD
   // pfs_register_thread(page_cleaner_thread_key);
@@ -2564,14 +2521,28 @@ void fil_crypt_thread() {
   mutex_enter(&fil_crypt_threads_mutex);
   uint thread_no = srv_n_fil_crypt_threads_started;
   srv_n_fil_crypt_threads_started++;
+  srv_threads.m_encryption_threads_active = true;
   os_event_set(fil_crypt_event); /* signal that we started */
   mutex_exit(&fil_crypt_threads_mutex);
 
+  /* Wait for server to be fully started */
+  while (!mysqld_server_started) {
+    if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+      return;
+    }
+    os_thread_sleep(1000000);
+  }
+
+  my_thread_init();
+
+  THD *thd = create_thd(false, true, true, 0, lock_global_system_var);
+
   /* state of this thread */
-  rotate_thread_t thr(thread_no);
+  rotate_thread_t thr(thread_no, thd);
 
   /* if we find a space that is starting, skip over it and recheck it later */
   bool recheck = false;
+  bool reset_fil_crypt_threads_event = false;
 
   while (!thr.should_shutdown()) {
     key_state_t new_state;
@@ -2581,10 +2552,17 @@ void fil_crypt_thread() {
       /* wait for key state changes
        * i.e either new key version of change or
        * new rotate_key_age */
-      os_event_reset(fil_crypt_threads_event);
+      if (reset_fil_crypt_threads_event) {
+        os_event_reset(fil_crypt_threads_event);
+      }
+      reset_fil_crypt_threads_event = true;
 
       if (os_event_wait_time(fil_crypt_threads_event, 1000000) == 0) {
         break;
+      } else {
+        /* there was a timeout on fil_crypt_threads_event. Do not reset
+         * fil_crypt_threds_event before we start another wait on it. */
+        reset_fil_crypt_threads_event = false;
       }
 
       if (recheck) {
@@ -2667,12 +2645,17 @@ void fil_crypt_thread() {
 
   mutex_enter(&fil_crypt_threads_mutex);
   srv_n_fil_crypt_threads_started--;
+  if (srv_n_fil_crypt_threads_started == 0) {
+    srv_threads.m_encryption_threads_active = false;
+  }
   os_event_set(fil_crypt_event); /* signal that we stopped */
   mutex_exit(&fil_crypt_threads_mutex);
 
   /* We count the number of threads in os_thread_exit(). A created
   thread should always use that to exit and not use return() to exit. */
 
+  thr.thd = nullptr;
+  destroy_thd(thd);
   my_thread_end();
 }
 
@@ -2680,9 +2663,9 @@ void fil_crypt_thread() {
 Adjust thread count for key rotation
 @param[in]	enw_cnt		Number of threads to be used */
 
-void fil_crypt_set_thread_cnt(const uint new_cnt) {
+void fil_crypt_set_thread_cnt(const uint new_cnt, bool lock_global_system_var) {
   if (!fil_crypt_threads_inited) {
-    fil_crypt_threads_init();
+    fil_crypt_threads_init(lock_global_system_var);
   }
 
   mutex_enter(&fil_crypt_threads_mutex);
@@ -2691,7 +2674,8 @@ void fil_crypt_set_thread_cnt(const uint new_cnt) {
     uint add = new_cnt - srv_n_fil_crypt_threads;
     srv_n_fil_crypt_threads = new_cnt;
     for (uint i = 0; i < add; i++) {
-      os_thread_create(PSI_NOT_INSTRUMENTED, fil_crypt_thread);
+      os_thread_create(PSI_NOT_INSTRUMENTED, fil_crypt_thread,
+                       lock_global_system_var);
       ib::info() << "Creating #" << i + 1 << " encryption thread"
                  << " total threads " << new_cnt << ".";
     }
@@ -2744,7 +2728,7 @@ void fil_crypt_set_encrypt_tables(uint val) {
 /*********************************************************************
 Init threads for key rotation */
 
-void fil_crypt_threads_init() {
+void fil_crypt_threads_init(bool lock_global_system_var) {
   if (!fil_crypt_threads_inited) {
     fil_crypt_event = os_event_create(0);
     fil_crypt_threads_event = os_event_create(0);
@@ -2753,7 +2737,7 @@ void fil_crypt_threads_init() {
     uint cnt = srv_n_fil_crypt_threads;
     srv_n_fil_crypt_threads = 0;
     fil_crypt_threads_inited = true;
-    fil_crypt_set_thread_cnt(cnt);
+    fil_crypt_set_thread_cnt(cnt, lock_global_system_var);
   }
 }
 
@@ -2861,7 +2845,7 @@ void fil_space_crypt_get_status(const fil_space_t *space,
 
     mutex_exit(&crypt_data->mutex);
 
-    if (is_online_encryption_on() ||
+    if (Encryption::is_online_encryption_on() ||
         crypt_data->min_key_version != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED) {
       status->current_key_version =
           fil_crypt_get_latest_key_version(crypt_data);

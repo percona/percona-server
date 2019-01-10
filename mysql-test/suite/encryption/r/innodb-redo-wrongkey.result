@@ -1,0 +1,28 @@
+SET GLOBAL innodb_file_per_table = ON;
+SET GLOBAL innodb_encrypt_tables = KEYRING_ON;
+create table t1(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed ENCRYPTION='KEYRING' encryption_key_id=2;
+create table t2(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed;
+create table t3(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb ENCRYPTION='KEYRING' encryption_key_id=2;
+create table t4(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb;
+begin;
+insert into t2 select * from t1;
+insert into t3 select * from t1;
+insert into t4 select * from t1;
+commit;
+# restart:<hidden args>
+SET GLOBAL innodb_flush_log_at_trx_commit=1;
+begin;
+update t1 set c = repeat('secret3', 20);
+update t2 set c = repeat('secret4', 20);
+update t3 set c = repeat('secret4', 20);
+update t4 set c = repeat('secret4', 20);
+insert into t1 (a,c,b) values (21, repeat('secret5',20), repeat('secret6',6000));
+insert into t2 (a,c,b) values (21, repeat('secret7',20), repeat('secret8',6000));
+insert into t3 (a,c,b) values (21, repeat('secret9',20), repeat('secre10',6000));
+insert into t4 (a,c,b) values (21, repeat('secre11',20), repeat('secre12',6000));
+COMMIT;
+# Kill the server
+# Restart mysqld
+# restart:<hidden args>
+drop table t1,t2,t3,t4;
+SET GLOBAL innodb_encrypt_tables=OFF;

@@ -9,7 +9,7 @@ include/assert.inc [It should not be possible to rotate key percona]
 include/assert.inc [It should not be possible to rotate key system_key]
 include/assert.inc [It should not be possible to rotate key system_key]
 include/assert.inc [It should not be possible to rotate key system_key]
-include/assert.inc [It should BE possible to rotate key percona_innodb]
+include/assert.inc [It should be possible to rotate key percona_innodb]
 UNINSTALL PLUGIN keyring_file;
 include/assert.inc [It should not be possible to rotate key percona_innodb without keyring_file installed]
 # restart:

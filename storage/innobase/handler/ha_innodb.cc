@@ -381,6 +381,9 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"all"		/* IBUF_USE_ALL */
 };
 
+/* Deprecation warning text */
+const char PARTITION_IN_SHARED_TABLESPACE_WARNING[] =
+  "InnoDB : A table partition in a shared tablespace";
 
 /* This tablespace name is reserved by InnoDB in order to explicitly
 create a file_per_table tablespace for the table. */
@@ -2646,6 +2649,9 @@ innobase_get_lower_case_table_names(void)
 	return(lower_case_table_names);
 }
 
+/** return one of the temporary dir from tmpdir
+@return temporary directory */
+char *innobase_mysql_tmpdir(void) { return (mysql_tmpdir); }
 
 /** Creates a temporary file in the location specified by the parameter
 path. If the path is NULL, then it will be created in tmpdir.
@@ -3744,7 +3750,7 @@ ha_innobase::reset_template(void)
 	m_prebuilt->keep_other_fields_on_keyread = 0;
 	m_prebuilt->read_just_key = 0;
 	m_prebuilt->in_fts_query = 0;
-	m_prebuilt->m_end_range = false;
+        m_prebuilt->m_end_range = false;
 
 	/* Reset index condition pushdown state. */
 	if (m_prebuilt->idx_cond) {
@@ -3909,6 +3915,16 @@ innobase_fix_tablespaces_empty_uuid()
 		return(false);
 	}
 
+	if (Encryption::master_key_id == 0 && srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
+		/* redo log can be encrypted with keyring_key, which has to be 
+		   initialized even when nothing's encrypted with master_key - in
+		   which case, master_key_id == 0, so this condition succeeds. 
+		   We call this function here, because otherwise, if the redo log
+		   is encrypted with master_key, log encryption has to be initialized
+		   after Encryption::create_master_key. */
+		log_enable_encryption_if_set();
+	}
+
 	/* We only need to handle the case when an encrypted tablespace
 	is created at startup. If it is 0, there is no encrypted tablespace,
 	If it is > 1, it means we already have fixed the UUID */
@@ -3939,6 +3955,8 @@ innobase_fix_tablespaces_empty_uuid()
 		return(true);
 	}
 
+	log_enable_encryption_if_set();
+
 	/** Check if sys, temp need rotation to fix the empty uuid */
 	/* Also, in future, it is possible to fix empty uuid for redo & undo
 	here. Just add the space_id into vector */
@@ -3947,7 +3965,7 @@ innobase_fix_tablespaces_empty_uuid()
 	space_ids.push_back(srv_sys_space.space_id());
 	space_ids.push_back(srv_tmp_space.space_id());
 
-	bool	ret = !fil_encryption_rotate_global(space_ids);
+	bool	ret = !fil_encryption_rotate_global(space_ids) || !log_rotate_encryption();
 
 	my_free(master_key);
 
@@ -4004,7 +4022,7 @@ innobase_encryption_key_rotation()
                 return(true);
         }
 
-	ret = !fil_encryption_rotate();
+	ret = !fil_encryption_rotate() || !log_rotate_encryption();
 
 	my_free(master_key);
 
@@ -11967,16 +11985,21 @@ create_table_info_t::create_option_tablespace_is_valid()
 			if (THDVAR(m_thd, strict_mode)) {
 				/* Return error if STRICT mode is enabled. */
 				my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: innodb_file_per_table option"
-					" not supported for temporary tables.", MYF(0));
+					"InnoDB: TABLESPACE=%s option"
+					" is disallowed for temporary tables"
+					" with INNODB_STRICT_NODE=ON. This option is"
+					" deprecated and will be removed in a future release",
+					MYF(0), m_create_info->tablespace);
 				return(false);
 			}
 			/* STRICT mode turned off. Proceed with the
 			execution with a warning. */
 			push_warning_printf(m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: innodb_file_per_table option ignored"
-				" while creating temporary table with INNODB_STRICT_MODE=OFF.");
+				"InnoDB: TABLESPACE=%s option is ignored."
+				" This option is deprecated and will be"
+				" removed in a future release.",
+				m_create_info->tablespace);
 		}
 		return(true);
 	}
@@ -12921,6 +12944,13 @@ index_bad:
 			ut_ad(zip_ssize == 0);
 			m_flags2 |= DICT_TF2_INTRINSIC;
 			innodb_row_format = REC_FORMAT_DYNAMIC;
+		}
+		if (m_create_info->tablespace != NULL &&
+		    strcmp(m_create_info->tablespace, reserved_temporary_space_name) == 0) {
+			push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+			    ER_ILLEGAL_HA_CREATE_OPTION,
+			    "InnoDB: TABLESPACE=innodb_temporary option is"
+			    " deprecated and will be removed in a future release.");
 		}
 	}
 
@@ -16928,11 +16958,15 @@ ha_innobase::end_stmt()
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;
-
+	trx_mutex_enter(trx);
 	if (trx->lock.start_stmt) {
-		TrxInInnoDB::end_stmt(trx);
-
 		trx->lock.start_stmt = false;
+		trx_mutex_exit(trx);
+
+		TrxInInnoDB::end_stmt(trx);
+	}
+	else {
+		trx_mutex_exit(trx);
 	}
 
 	return(0);
@@ -17059,12 +17093,16 @@ ha_innobase::start_stmt(
 		++trx->will_lock;
 	}
 
+	trx_mutex_enter(trx);
 	/* Only do it once per transaction. */
 	if (!trx->lock.start_stmt && lock_type != TL_UNLOCK) {
+		trx->lock.start_stmt = true;
+		trx_mutex_exit(trx);
 
 		TrxInInnoDB::begin_stmt(trx);
-
-		trx->lock.start_stmt = true;
+	}
+	else {
+		trx_mutex_exit(trx);
 	}
 
 	DBUG_RETURN(0);
@@ -20642,8 +20680,10 @@ innodb_track_changed_pages_validate(
 		return 0;
 	}
 
-	if (intbuf == srv_track_changed_pages)
+	if (intbuf == srv_track_changed_pages) { // == 0
+		*reinterpret_cast<ulong*>(save) = srv_track_changed_pages;
 		return 0;
+	}
 
 	return 1;
 }
@@ -21379,6 +21419,34 @@ innodb_temp_tablespace_encryption_update(
 		*static_cast<my_bool*>(var_ptr) =
 			*static_cast<const my_bool*>(save);
 	}
+}
+
+/** Enable or disable encryption of redo logs
+@param[in]	thd	thread handle
+@param[in]	var	system variable
+@param[out]	var_ptr	current value
+@param[in]	save	immediate result from check function */
+static
+void
+innodb_redo_encryption_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	if (srv_read_only_mode) {
+		push_warning_printf(
+			thd, Sql_condition::SL_WARNING,
+			ER_WRONG_ARGUMENTS,
+			" Redo log cannot be"
+			" encrypted in innodb_read_only mode");
+		return;
+	}
+
+	*static_cast<ulong*>(var_ptr) =
+		*static_cast<const ulong*>(save);
+
+	log_enable_encryption_if_set();
 }
 
 static SHOW_VAR innodb_status_variables_export[]= {
@@ -22444,7 +22512,7 @@ static MYSQL_SYSVAR_ENUM(default_row_format, innodb_default_row_format,
 static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
   PLUGIN_VAR_OPCMDARG,
   "Enable or disable Encryption of REDO tablespace. Possible values: OFF, MASTER_KEY, KEYRING_KEY.",
-  NULL, NULL, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+  NULL, innodb_redo_encryption_update, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
@@ -23751,15 +23819,15 @@ innodb_buffer_pool_size_validate(
 		return(1);
 	}
 
-	if (srv_buf_pool_size == static_cast<ulint>(intbuf)) {
-		/* nothing to do */
-		return(0);
-	}
-
 	ulint	requested_buf_pool_size
 		= buf_pool_size_align(static_cast<ulint>(intbuf));
 
 	*static_cast<longlong*>(save) = requested_buf_pool_size;
+
+	if (srv_buf_pool_size == static_cast<ulint>(intbuf)) {
+		/* nothing to do */
+		return(0);
+	}
 
 	if (srv_buf_pool_size == requested_buf_pool_size) {
 		push_warning_printf(thd, Sql_condition::SL_WARNING,

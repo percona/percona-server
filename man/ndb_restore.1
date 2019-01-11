@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2018
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -72,7 +72,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.330.\ \&Command\-line options for the ndb_restore program
+.B Table\ \&21.345.\ \&Command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -718,7 +718,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-directory name
+Directory name
 T}
 T{
 \fBDefault Value\fR
@@ -750,7 +750,7 @@ and
 must be run twice\(emonce for each storage node in the cluster where the backup was taken\&. However,
 \fBndb_restore\fR
 cannot always restore backups made from a cluster running one version of MySQL to a cluster running a different MySQL version\&. See
-Section\ \&21.2.8, \(lqUpgrading and Downgrading NDB Cluster\(rq, for more information\&.
+Section\ \&21.2.9, \(lqUpgrading and Downgrading NDB Cluster\(rq, for more information\&.
 .if n \{\
 .sp
 .\}
@@ -768,9 +768,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.11 to a cluster running NDB Cluster 7\&.4\&.21, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.13 to a cluster running NDB Cluster 7\&.4\&.23, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.11 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.13 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -814,7 +814,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -874,7 +874,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -985,7 +985,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1028,7 +1028,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -1147,7 +1147,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1175,7 +1175,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.331.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
+.B Table\ \&21.346.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1369,7 +1369,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1410,7 +1410,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1455,7 +1455,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1525,7 +1525,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1566,7 +1566,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1593,7 +1593,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.332.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
+.B Table\ \&21.347.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1733,7 +1733,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1775,7 +1775,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -1856,7 +1856,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -1967,7 +1967,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -2014,7 +2014,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -2137,7 +2137,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -2207,7 +2207,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -2263,7 +2263,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -2307,7 +2307,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -2355,7 +2355,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -2405,7 +2405,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -2627,7 +2627,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -2708,7 +2708,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -2780,7 +2780,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -2829,7 +2829,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -3094,7 +3094,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-directory name
+Directory name
 T}
 .TE
 .sp 1
@@ -3137,7 +3137,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR

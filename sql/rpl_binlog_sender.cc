@@ -1056,13 +1056,19 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
   if (send_packet())
     DBUG_RETURN(1);
 
+  my_off_t binlog_pos_after_fdle= my_b_tell(log_cache);
+
   char header_buffer[LOG_EVENT_MINIMAL_HEADER_LEN];
   // Let's check if next event is Start encryption event
+  // If we go outside the file peek_event_header will also return an error
   if (Log_event::peek_event_header(header_buffer, log_cache))
-    DBUG_RETURN(1);
+  {
+    my_b_seek(log_cache, binlog_pos_after_fdle);
+    DBUG_RETURN(0);
+  }
 
   // peek_event_header actually moves the log_cache->read_pos, thus we need to rewind
-  log_cache->read_pos-= LOG_EVENT_MINIMAL_HEADER_LEN;
+  my_b_seek(log_cache, binlog_pos_after_fdle);
 
   if (static_cast<uchar>(header_buffer[EVENT_TYPE_OFFSET]) == binary_log::START_ENCRYPTION_EVENT)
   {

@@ -70,6 +70,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "trx0sys.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
+#include "btr0scrub.h"
 #include "rem0rec.h"
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
@@ -3029,6 +3030,7 @@ files_checked:
 		fts_optimize_init();
 
 		fil_system_enter();
+		btr_scrub_init();
 		fil_crypt_threads_init();
 		fil_system_exit();
 
@@ -3133,6 +3135,7 @@ innobase_shutdown_for_mysql(void)
 		dict_stats_thread_deinit();
 		/* Shutdown key rotation threads */
 		fil_crypt_threads_cleanup();
+		btr_scrub_cleanup();
 	}
 
 	/* This must be disabled before closing the buffer pool

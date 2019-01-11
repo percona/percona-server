@@ -1,0 +1,15 @@
+#
+# auth_pam MTR tests. Complete testing is impossible to do in MTR without
+# system-wide PAM setup, but it is possible to do minimal tests not involving
+# actual authentication
+#
+--source include/have_auth_pam.inc
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN auth_pam SONAME '$AUTH_PAM';
+
+CREATE USER 'pam_user'@'localhost' IDENTIFIED WITH auth_pam;
+
+DROP USER 'pam_user'@'localhost';
+
+UNINSTALL PLUGIN auth_pam;

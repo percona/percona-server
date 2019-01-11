@@ -2605,6 +2605,8 @@ mysql_execute_command(THD *thd, bool first_level)
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *const unit= lex->unit;
+  // keep GTID violation state in order to roll it back on statement failure
+  bool gtid_consistency_violation_state = thd->has_gtid_consistency_violation;
   DBUG_ASSERT(select_lex->master_unit() == unit);
   struct system_variables *per_query_variables_backup= NULL;
 
@@ -3466,6 +3468,10 @@ case SQLCOM_PREPARE:
       /* Push Strict_error_handler */
       if (!thd->lex->is_ignore() && thd->is_strict_mode())
         thd->push_internal_handler(&strict_handler);
+
+      Partition_in_shared_ts_error_handler partition_in_shared_ts_handler;
+      thd->push_internal_handler(&partition_in_shared_ts_handler);
+
       /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
       {
@@ -3479,6 +3485,9 @@ case SQLCOM_PREPARE:
         res= mysql_create_table(thd, create_table,
                                 &create_info, &alter_info);
       }
+
+      thd->pop_internal_handler();
+
       /* Pop Strict_error_handler */
       if (!thd->lex->is_ignore() && thd->is_strict_mode())
         thd->pop_internal_handler();
@@ -3658,7 +3667,10 @@ end_with_restore_list:
     client thread has locked tables
   */
   if (thd->locked_tables_mode ||
-      thd->in_active_multi_stmt_transaction() || thd->global_read_lock.is_acquired())
+      thd->in_active_multi_stmt_transaction() ||
+      thd->global_read_lock.is_acquired() ||
+      thd->backup_tables_lock.is_acquired() ||
+      thd->backup_binlog_lock.is_acquired())
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -5390,8 +5402,15 @@ finish:
   }
 #endif
 
-  if (!(res || thd->is_error()))
-    binlog_gtid_end_transaction(thd);
+  if (!res && !thd->is_error()) {      // if statement succeeded
+    binlog_gtid_end_transaction(thd);  // finalize GTID life-cycle
+    DEBUG_SYNC(thd, "persist_new_state_after_statement_succeeded");
+  } else if (!gtid_consistency_violation_state &&    // if the consistency state
+             thd->has_gtid_consistency_violation) {  // was set by the failing
+                                                     // statement
+    gtid_state->end_gtid_violating_transaction(thd);  // just roll it back
+    DEBUG_SYNC(thd, "restore_previous_state_after_statement_failed");
+  }
 
   DBUG_RETURN(res || thd->is_error());
 }

@@ -109,6 +109,7 @@ struct Rdb_deadlock_info {
     std::string table_name;
   };
   std::vector <Rdb_dl_trx_info> path;
+  int64_t deadlock_time;
   ulonglong victim_trx_id;
 };
 
@@ -148,6 +149,11 @@ const char *const BG_THREAD_NAME = "myrocks-bg";
   Name for the drop index thread.
 */
 const char *const INDEX_THREAD_NAME = "myrocks-index";
+
+/*
+  Name for the manual compaction thread.
+*/
+static const char constexpr MANUAL_COMPACTION_THREAD_NAME[] = "myrocks-mc";
 
 /*
   Separator between partition name and the qualifier. Sample usage:

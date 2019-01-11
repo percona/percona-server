@@ -619,12 +619,13 @@ static int rocksdb_validate_flush_log_at_trx_commit(
   *static_cast<uint32_t *>(var_ptr) = static_cast<uint32_t>(new_value);
   return HA_EXIT_SUCCESS;
 }
-static void rocksdb_compact_column_family_stub(
-    THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
-    const void *const save) {}
+static void rocksdb_compact_column_family_stub(THD *const thd,
+                                               struct SYS_VAR *const var,
+                                               void *const var_ptr,
+                                               const void *const save) {}
 
 static int rocksdb_compact_column_family(THD *const thd,
-                                         struct st_mysql_sys_var *const var,
+                                         struct SYS_VAR *const var,
                                          void *const var_ptr,
                                          struct st_mysql_value *const value);
 
@@ -1166,7 +1167,7 @@ static MYSQL_SYSVAR_BOOL(
 
 static MYSQL_SYSVAR_BOOL(
     cache_index_and_filter_with_high_priority,
-    *reinterpret_cast<my_bool *>(
+    *reinterpret_cast<bool *>(
         &rocksdb_tbl_options->cache_index_and_filter_blocks_with_high_priority),
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "cache_index_and_filter_blocks_with_high_priority for RocksDB", nullptr,
@@ -1743,7 +1744,7 @@ rdb_get_rocksdb_write_options(my_core::THD *const thd) {
 }
 
 static int rocksdb_compact_column_family(THD *const thd,
-                                         struct st_mysql_sys_var *const var,
+                                         struct SYS_VAR *const var,
                                          void *const var_ptr,
                                          struct st_mysql_value *const value) {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -1766,8 +1767,8 @@ static int rocksdb_compact_column_family(THD *const thd,
         return HA_EXIT_FAILURE;
       }
       // NO_LINT_DEBUG
-      sql_print_information("RocksDB: Manual compaction of column family: %s\n",
-                            cf);
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "Manual compaction of column family: %s\n", cf);
       // Checking thd state every short cycle (100ms). This is for allowing to
       // exiting this function without waiting for CompactRange to finish.
       do {
@@ -4419,9 +4420,9 @@ static int rocksdb_init_func(void *const p) {
   );
   if (err != 0) {
     // NO_LINT_DEBUG
-    sql_print_error(
-        "RocksDB: Couldn't start the manual compaction thread: (errno=%d)",
-        err);
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Couldn't start the manual compaction thread: (errno=%d)",
+                    err);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -4503,8 +4504,9 @@ static int rocksdb_done_func(void *const p) {
   err = rdb_mc_thread.join();
   if (err != 0) {
     // NO_LINT_DEBUG
-    sql_print_error(
-        "RocksDB: Couldn't stop the manual compaction thread: (errno=%d)", err);
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Couldn't stop the manual compaction thread: (errno=%d)",
+                    err);
   }
 
   if (rdb_open_tables.m_hash.size()) {
@@ -12300,8 +12302,9 @@ void Rdb_manual_compaction_thread::run() {
 
     DBUG_ASSERT(mcr.state == Manual_compaction_request::RUNNING);
     // NO_LINT_DEBUG
-    sql_print_information("Manual Compaction id %d cf %s started.", mcr.mc_id,
-                          mcr.cf->GetName().c_str());
+    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                    "Manual Compaction id %d cf %s started.", mcr.mc_id,
+                    mcr.cf->GetName().c_str());
     rocksdb_manual_compactions_running++;
     if (rocksdb_debug_manual_compaction_delay > 0) {
       // In Facebook MySQL 5.6.35, my_sleep breaks the sleep when the server
@@ -12330,12 +12333,14 @@ void Rdb_manual_compaction_thread::run() {
     rocksdb_manual_compactions_running--;
     if (s.ok()) {
       // NO_LINT_DEBUG
-      sql_print_information("Manual Compaction id %d cf %s ended.", mcr.mc_id,
-                            mcr.cf->GetName().c_str());
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "Manual Compaction id %d cf %s ended.", mcr.mc_id,
+                      mcr.cf->GetName().c_str());
     } else {
       // NO_LINT_DEBUG
-      sql_print_information("Manual Compaction id %d cf %s aborted. %s",
-                            mcr.mc_id, mcr.cf->GetName().c_str(), s.getState());
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "Manual Compaction id %d cf %s aborted. %s", mcr.mc_id,
+                      mcr.cf->GetName().c_str(), s.getState());
       if (!s.IsShutdownInProgress()) {
         rdb_handle_io_error(s, RDB_IO_ERROR_BG_THREAD);
       } else {

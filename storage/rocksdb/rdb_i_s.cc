@@ -1964,6 +1964,7 @@ struct st_mysql_plugin rdb_i_s_sst_props = {
     "RocksDB SST Properties",
     PLUGIN_LICENSE_GPL,
     rdb_i_s_sst_props_init,
+    nullptr,
     rdb_i_s_deinit,
     0x0001,  /* version number (0.1) */
     nullptr, /* status variables */

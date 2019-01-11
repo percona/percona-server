@@ -2059,6 +2059,15 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
   return (n_bytes);
 }
 
+MY_ATTRIBUTE((warn_unused_result))
+static std::string os_file_find_path_for_fd(os_file_t fd) {
+  char fdname[FN_REFLEN];
+  snprintf(fdname, sizeof fdname, "/proc/%d/fd/%d", getpid(), fd);
+  char filename[FN_REFLEN];
+  const auto err_filename = my_readlink(filename, fdname, MYF(0));
+  return std::string((err_filename != -1) ? filename : "");
+}
+
 /** Free storage space associated with a section of the file.
 @param[in]      fh              Open file handle
 @param[in]      off             Starting offset (SEEK_SET)
@@ -2081,10 +2090,18 @@ static dberr_t os_file_punch_hole_posix(os_file_t fh, os_offset_t off,
     return (DB_IO_NO_PUNCH_HOLE);
   }
 
-  ib::warn(ER_IB_MSG_754) << "fallocate(" << fh
-                          << ", FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, "
-                          << off << ", " << len
-                          << ") returned errno: " << errno;
+  const auto fd_path = os_file_find_path_for_fd(fh);
+  if (!fd_path.empty()) {
+    ib::warn(ER_IB_MSG_754)
+        << "fallocate(" << fh << " (" << fd_path
+        << "), FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, " << off << ", "
+        << len << ") returned errno: " << errno;
+  } else {
+    ib::warn(ER_IB_MSG_754)
+        << "fallocate(" << fh
+        << ", FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, " << off << ", "
+        << len << ") returned errno: " << errno;
+  }
 
   return (DB_IO_ERROR);
 
@@ -2962,11 +2979,15 @@ static int os_file_fsync_posix(os_file_t file) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         break;
 
-      case EIO:
-
-        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1358)
-            << "fsync() returned EIO, aborting.";
+      case EIO: {
+        const auto fd_path = os_file_find_path_for_fd(file);
+        if (!fd_path.empty())
+          ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1358)
+              << "fsync(\"" << fd_path << "\") returned EIO, aborting.";
+        else
+          ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
         break;
+      }
 
       case EINTR:
 
@@ -5427,9 +5448,17 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       }
     }
 
-    ib::error(ER_IB_MSG_817)
-        << "Tried to read " << n << " bytes at offset " << offset
-        << ", but was only able to read " << n_bytes;
+    const auto fd_path = os_file_find_path_for_fd(file);
+    if (!fd_path.empty()) {
+      ib::error(ER_IB_MSG_817)
+          << "Tried to read " << n << " bytes at offset " << offset
+          << ", but was only able to read " << n_bytes << " of FD " << file
+          << ", filename " << fd_path;
+    } else {
+      ib::error(ER_IB_MSG_817)
+          << "Tried to read " << n << " bytes at offset " << offset
+          << ", but was only able to read " << n_bytes;
+    }
 
     if (exit_on_err) {
       if (!os_file_handle_error(file_name, "read")) {

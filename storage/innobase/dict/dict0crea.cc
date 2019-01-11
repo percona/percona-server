@@ -90,8 +90,8 @@ dberr_t dict_build_table_def(
     table->id = dd_table_id++;
     table->is_dd_table = true;
 
-    ut_ad(strcmp(tbl_buf, innodb_dd_table[table->id - 1].name) == 0 ||
-          compression_dict::is_hardcoded(db_buf, tbl_buf));
+    ut_ad(compression_dict::is_hardcoded(db_buf, tbl_buf) ||
+          strcmp(tbl_buf, innodb_dd_table[table->id - 1].name) == 0);
 
   } else {
     dict_table_assign_new_id(table, trx);

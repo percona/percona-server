@@ -659,6 +659,10 @@ static bool log_block_epoch_no_is_valid(uint32_t log_block_epoch_no,
          log_block_epoch_no == expected_next_epoch_no;
 }
 
+bool is_mysql_ibd_page_0_in_redo() {
+  return recv_get_rec(dict_sys_t::s_dict_space_id, 0) != nullptr;
+}
+
 #ifndef UNIV_HOTBACKUP
 /** Store the collected persistent dynamic metadata to
 mysql.innodb_dynamic_metadata */

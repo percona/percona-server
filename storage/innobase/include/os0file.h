@@ -1469,6 +1469,14 @@ to original un-instrumented file I/O APIs */
 #endif
 
 #ifdef UNIV_PFS_IO
+#define os_file_read_first_page_noexit(type, file_name, file, buf, n) \
+  os_file_read_first_page_pfs(type, file_name, file, buf, n, false)
+#else
+#define os_file_read_first_page_noexit(type, file_name, file, buf, n) \
+  os_file_read_first_page_pfs(type, file_name, file.m_file, buf, n, false)
+#endif
+
+#ifdef UNIV_PFS_IO
 #define os_file_flush(file) os_file_flush_pfs(file)
 #else
 #define os_file_flush(file) os_file_flush_pfs(file.m_file)

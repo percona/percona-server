@@ -68,6 +68,7 @@ Data dictionary interface */
 #include "query_options.h"
 #include "sql_base.h"
 #include "sql_table.h"
+#include "thd_raii.h"
 #endif /* !UNIV_HOTBACKUP */
 
 const char *DD_instant_col_val_coder::encode(const byte *stream, size_t in_len,
@@ -6082,4 +6083,119 @@ bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table) {
     return false;
   }
 }
+
+/* Updates tablespace's DD flags.
+@param[in] Thread       THD
+@param[in] space_name   name of the space that DD flags are to be updated
+@param[in] update       function object that will be invoked for updating DD
+flags
+@return false on success */
+static bool dd_update_tablespace_dd_flags(
+    THD *thd, const char *space_name, std::function<void(uint32 &)> update) {
+  Disable_autocommit_guard autocommit_guard(thd);
+  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  dd::Tablespace *dd_space = nullptr;
+
+  trx_t *trx = check_trx_exists(thd);
+  trx_start_if_not_started(trx, true);
+
+  if (dd::acquire_exclusive_tablespace_mdl(thd, space_name, false)) {
+    ut_a(false);
+  }
+
+  if (client->acquire_for_modification<dd::Tablespace>(space_name, &dd_space) ||
+      dd_space == nullptr) {
+    return (true);
+  }
+
+  uint32_t dd_space_flags = 0;
+
+  if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
+                                      &dd_space_flags)) {
+    return (true);
+  }
+
+  update(dd_space_flags);
+
+  /* Update DD flags for tablespace */
+  dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
+                                  static_cast<uint32>(dd_space_flags));
+
+  if (dd::commit_or_rollback_tablespace_change(thd, dd_space, false)) {
+    return (true);
+  }
+
+  return (false);
+}
+
+bool dd_set_encryption_flag(THD *thd, const char *space_name) {
+  auto update_func = [](uint32_t &dd_space_flags) {
+    dd_space_flags |= (1U << FSP_FLAGS_POS_ENCRYPTION);
+  };
+  return dd_update_tablespace_dd_flags(thd, space_name, update_func);
+}
+
+bool dd_clear_encryption_flag(THD *thd, const char *space_name) {
+  auto update_func = [](uint32_t &dd_space_flags) {
+    dd_space_flags &= ~(1U << FSP_FLAGS_POS_ENCRYPTION);
+  };
+  return dd_update_tablespace_dd_flags(thd, space_name, update_func);
+}
+
+static bool dd_get_tablespace_flags(THD *thd, const char *space_name,
+                                    uint32_t &dd_space_flags) {
+  const dd::Tablespace *dd_space = nullptr;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  return thd->dd_client()->acquire(space_name, &dd_space) ||
+         dd_space == nullptr ||
+         dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
+                                         &dd_space_flags);
+}
+
+/* Sets tablespace's DD flags.
+@param[in] Thread       THD
+@param[in] space_name   name of the space for which DD flags are to be set
+@param[in] space_flags  DD flags that are to be assigned to space */
+static bool dd_set_flags(THD *thd, const char *space_name,
+                         const uint32_t space_flags) {
+  auto set_flags = [](uint32_t &dd_space_flags, uint32_t space_flags) {
+    // currently we are using this function only for correcting encryption flag
+    ut_ad(dd_space_flags == space_flags ||
+          FSP_FLAGS_GET_ENCRYPTION(dd_space_flags) !=
+              FSP_FLAGS_GET_ENCRYPTION(space_flags));
+    dd_space_flags = space_flags;
+  };
+  auto update_func = std::bind(set_flags, std::placeholders::_1, space_flags);
+  return dd_update_tablespace_dd_flags(thd, space_name, update_func);
+}
+
+bool dd_fix_mysql_ibd_encryption_flag_if_needed(THD *thd,
+                                                uint32_t space_flags) {
+  uint32_t dd_space_flags;
+  if (dd_get_tablespace_flags(thd, dict_sys_t::s_dd_space_name,
+                              dd_space_flags)) {
+    return true;
+  }
+  if (FSP_FLAGS_GET_ENCRYPTION(dd_space_flags) ==
+      FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
+    return false;
+  }
+  // exclude encryption flag from validation
+  dd_space_flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+  space_flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+  if (dd_space_flags != space_flags) {
+    // this should not happen - some other flags other than encryption flag are
+    // mismatched
+    ib::error(ER_IB_MSG_394)
+        << "Flags read from mysql.ibd file (" << space_flags
+        << ") are different from the flags read from DD (" << dd_space_flags
+        << ") This comparission does *not* include the encryption flag.";
+    return true;
+  }
+  return dd_set_flags(thd, dict_sys_t::s_dd_space_name, space_flags);
+}
+
 #endif /* !UNIV_HOTBACKUP */

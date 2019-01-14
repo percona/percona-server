@@ -7450,27 +7450,130 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
   return err;
 }
 
-bool dict_detect_encryption(bool is_upgrade, space_id_t mysql_plugin_space) {
-  bool encrypt_mysql = false;
-  if (is_upgrade) {
-    if (mysql_plugin_space == SYSTEM_TABLE_SPACE) {
-      return (srv_sys_space.is_encrypted());
-    }
-
-    space_id_t space_id = fil_space_get_id_by_name("mysql/plugin");
-    if (space_id == SPACE_UNKNOWN) {
-      return (false);
-    }
-
-    fil_space_t *space = fil_space_get(space_id);
-    ut_ad(space != nullptr);
-
-    if (space == nullptr) {
-      return (false);
-    }
-    encrypt_mysql = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+/** Detect if database has encrypted mysql plugin space. This is
+ *  indication that system tablespace was encrypted.
+@param[in] mysql_plugin_space   space_id of mysql/plugin table.
+@return true if encrypted, false if not (or fail to open mysql/plugin table) */
+static bool dict_is_mysql_plugin_space_encrypted(
+    space_id_t mysql_plugin_space) {
+  if (mysql_plugin_space == SYSTEM_TABLE_SPACE) {
+    return (srv_sys_space.is_encrypted());
   }
 
-  return (encrypt_mysql || srv_encrypt_tables == SRV_ENCRYPT_TABLES_ON ||
-          srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE);
+  space_id_t space_id = fil_space_get_id_by_name("mysql/plugin");
+  if (space_id == SPACE_UNKNOWN) {
+    return (false);
+  }
+
+  const fil_space_t *space = fil_space_get(space_id);
+  ut_ad(space != nullptr);
+
+  if (space == nullptr) {
+    return false;
+  }
+  return FSP_FLAGS_GET_ENCRYPTION(space->flags);
+}
+
+/** Detect if innodb_encrypt_tables is set either to ON or FORCE or
+ONLINE_TO_KEYRING*
+@return true if innodb_encrypt_tables is equal to ON or FORCE or
+ONLINE_TO_KEYRING* */
+static bool dict_should_be_keyring_encrypted() {
+  return srv_encrypt_tables == SRV_ENCRYPT_TABLES_ON ||
+         srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE ||
+         srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING ||
+         srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE;
+}
+
+/** Reads mysql.ibd's page0 from buffer
+@return page0 or nullptr */
+static buf_frame_t *get_mysql_ibd_page_0_from_buffer() {
+  fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
+  if (space == nullptr) {
+    return nullptr;
+  }
+
+  const page_size_t page_size(space->flags);
+  mtr_t mtr;
+  mtr_start(&mtr);
+  buf_block_t *block = buf_page_get(page_id_t(dict_sys_t::s_space_id, 0),
+                                    univ_page_size, RW_X_LATCH, &mtr);
+  mtr_commit(&mtr);
+
+  fil_space_release(space);
+
+  return !block ? nullptr : buf_block_get_frame(block);
+}
+
+/** Reads mysql.ibd's page0 directly from disk
+@param[in] buf - buffer for reading page0 into
+@return page0 or nullptr */
+static buf_frame_t *get_mysql_ibd_page_0_io(byte *buf) {
+  bool successful_read = false;
+
+  pfs_os_file_t file = os_file_create_simple_no_error_handling(
+      innodb_data_file_key, dict_sys_t::s_dd_space_file_name, OS_FILE_OPEN,
+      OS_FILE_READ_ONLY, srv_read_only_mode, &successful_read);
+
+  if (!successful_read) {
+    return nullptr;
+  }
+
+  buf_frame_t *page = static_cast<buf_frame_t *>(ut_align(buf, UNIV_PAGE_SIZE));
+
+  ut_ad(page == page_align(page));
+
+  IORequest request(IORequest::READ);
+  dberr_t err = os_file_read_first_page(request, file, page, UNIV_PAGE_SIZE);
+
+  os_file_close(file);
+
+  return DB_SUCCESS == err ? page : nullptr;
+}
+
+/** Detect if mysql.ibd's page0 has encryption flag set.
+ *  The page 0 either read from buffer (if available) or
+ *  directly from disk.
+@return tuple <0> success - true if no error
+              <1> true if encryption flag is set, false otherwise */
+static std::tuple<bool, bool> dict_mysql_ibd_page_0_has_encryption_flag_set() {
+  //<0> element - success, <1> element - encryption flag
+  auto result = std::make_tuple(false, false);
+  auto buf = ut_make_unique_ptr_null();
+
+  /* read from buffer */
+  buf_frame_t *page0 = get_mysql_ibd_page_0_from_buffer();
+  if (!page0) {
+    /* page0 of mysql.ibd is not in the buffer, try direct io */
+    buf = ut_make_unique_ptr_nokey(2 * UNIV_PAGE_SIZE);
+    if (buf == nullptr || !(page0 = get_mysql_ibd_page_0_io(buf.get()))) {
+      return result;
+    }
+  }
+
+  const ulint flags = fsp_header_get_flags(page0);
+  std::get<0>(result) = true;
+  std::get<1>(result) = FSP_FLAGS_GET_ENCRYPTION(flags);
+  return (result);
+}
+
+bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
+                                         space_id_t mysql_plugin_space,
+                                         bool &encrypt_mysql) {
+  bool success = false;
+  switch (dict_init_mode) {
+    case DICT_INIT_CREATE_FILES:
+      encrypt_mysql = dict_should_be_keyring_encrypted();
+      return true;
+    case DICT_INIT_UPGRADE_57_FILES:
+      encrypt_mysql = dict_is_mysql_plugin_space_encrypted(mysql_plugin_space);
+      return true;
+    case DICT_INIT_CHECK_FILES:
+      std::tie(success, encrypt_mysql) =
+          dict_mysql_ibd_page_0_has_encryption_flag_set();
+      return success;
+    default:
+      ut_ad(0);
+      return false;
+  }
 }

@@ -260,6 +260,8 @@ pages.
                                 own the log mutex */
 void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf);
 
+bool is_mysql_ibd_page_0_in_redo();
+
 #if defined(UNIV_DEBUG) || defined(UNIV_HOTBACKUP)
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum

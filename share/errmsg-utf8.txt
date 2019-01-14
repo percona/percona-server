@@ -18872,6 +18872,9 @@ ER_COMPRESSION_DICTIONARY_NO_CREATE
 ER_XB_MSG_2
   eng "%s"
 
+ER_XB_MSG_3
+  eng "%s"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

@@ -5257,7 +5257,7 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename,
     ut_ad(space->flags == flags);
 
     if (strstr(space->files.front().name, filename) != 0 &&
-        space->flags == predefined_flags) {
+        space->flags == flags) {
       fil_space_open_if_needed(space);
 
     } else {
@@ -5279,12 +5279,6 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename,
   }
 
   if (fail) {
-    const char *str =
-        srv_encrypt_tables == SRV_ENCRYPT_TABLES_OFF ? "ON or FORCE" : "OFF";
-
-    ib::error(ER_XB_MSG_2)
-        << "If mysql.ibd opening failed with flags mismatch, try startup with"
-        << " innodb_encrypt_tables = " << str;
     my_error(ER_CANT_OPEN_FILE, MYF(0), filename, 0, "");
   }
 
@@ -5392,15 +5386,19 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     btr_search_enabled = old_btr_search_value;
   }
 
-  bool do_encrypt =
-      dict_detect_encryption(srv_is_upgrade_mode, upgrade_mysql_plugin_space);
+  bool do_encrypt = false;
+  bool ret = dict_detect_encryption_of_mysql_ibd(
+      dict_init_mode, upgrade_mysql_plugin_space, do_encrypt);
+  if (!ret) {
+    ib::error(ER_XB_MSG_3) << "Failed to determine if mysql.ibd is encrypted. "
+                              "Have you deleted it?";
+    DBUG_RETURN(innodb_init_abort());
+  }
 
   if (do_encrypt && !Encryption::check_keyring()) {
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
     DBUG_RETURN(innodb_init_abort());
   }
-
-  bool ret;
 
   const ulint dd_space_flags =
       do_encrypt ? predefined_flags | FSP_FLAGS_MASK_ENCRYPTION

@@ -3,7 +3,8 @@
 # Unzip the zip file.
 # Stop DB server which was created by MTR default
 # Start the 8.0 server on 5.7 datadir
-# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --innodb-encrypt-tables=ON --keyring_file_data=MYSQL_TMP_DIR/data57_encrypted/mysecret_keyring --innodb_sys_tablespace_encrypt=ON KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD
+# PS-5333: Remove need for innodb_encrypt_tables to ON/FORCE when mysql.ibd is encrypted
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQL_TMP_DIR/data57_encrypted/mysecret_keyring --innodb_sys_tablespace_encrypt=ON KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD
 # Execute mysql_upgrade
 mysql.columns_priv                                 OK
 mysql.component                                    OK
@@ -79,3 +80,5 @@ t6	CREATE TABLE `t6` (
 # Remove copied files
 # Restart the server with default options.
 # restart
+# PS-5333: Remove need for innodb_encrypt_tables to ON/FORCE when mysql.ibd is encrypted
+# restart:--innodb-encrypt-tables=OFF

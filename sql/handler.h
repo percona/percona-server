@@ -57,6 +57,7 @@
 #include "mysql_com.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
+#include "sql/dd/types/init_mode.h"
 #include "sql/dd/types/object_table.h"  // dd::Object_table
 #include "sql/discrete_interval.h"      // Discrete_interval
 #include "sql/key.h"
@@ -1614,14 +1615,6 @@ typedef SE_cost_constants *(*get_cost_constants_t)(uint storage_category);
 */
 typedef void (*replace_native_transaction_in_thd_t)(THD *thd, void *new_trx_arg,
                                                     void **ptr_trx_arg);
-
-/** Mode for initializing the data dictionary. */
-enum dict_init_mode_t {
-  DICT_INIT_CREATE_FILES,      ///< Create all required SE files
-  DICT_INIT_CHECK_FILES,       ///< Verify existence of expected files
-  DICT_INIT_UPGRADE_57_FILES,  ///< Used for upgrade from mysql-5.7
-  DICT_INIT_IGNORE_FILES       ///< Don't care about files at all
-};
 
 /**
   Initialize the SE for being used to store the DD tables. Create

@@ -1222,5 +1222,9 @@ bool dd_tablespace_update_cache(THD *thd);
 @return true if it does. */
 bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table);
 
+bool dd_set_encryption_flag(THD *thd, const char *space_name);
+bool dd_clear_encryption_flag(THD *thd, const char *space_name);
+bool dd_fix_mysql_ibd_encryption_flag_if_needed(THD *thd, uint32_t space_flags);
+bool dd_set_flags(THD *thd, const char *space_name, const uint32_t space_flags);
 #include "dict0dd.ic"
 #endif

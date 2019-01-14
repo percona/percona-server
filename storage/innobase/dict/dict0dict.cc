@@ -7450,27 +7450,85 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
   return err;
 }
 
-bool dict_detect_encryption(bool is_upgrade, space_id_t mysql_plugin_space) {
-  bool encrypt_mysql = false;
-  if (is_upgrade) {
-    if (mysql_plugin_space == SYSTEM_TABLE_SPACE) {
-      return (srv_sys_space.is_encrypted());
-    }
+static bool dict_should_mysql_ibd_be_created_encrypted_due_to_upgrade(
+    space_id_t mysql_plugin_space) {
+  if (mysql_plugin_space == SYSTEM_TABLE_SPACE) {
+    return (srv_sys_space.is_encrypted());
+  }
 
     space_id_t space_id = fil_space_get_id_by_name("mysql/plugin");
     if (space_id == SPACE_UNKNOWN) {
       return (false);
     }
 
-    fil_space_t *space = fil_space_get(space_id);
-    ut_ad(space != nullptr);
+  const fil_space_t *space = fil_space_get(space_id);
+  ut_ad(space != nullptr);
 
-    if (space == nullptr) {
-      return (false);
-    }
-    encrypt_mysql = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+  if (space == nullptr) {
+    return false;
+  }
+  return FSP_FLAGS_GET_ENCRYPTION(space->flags);
+}
+
+static bool dict_should_mysql_ibd_be_created_encrypted() {
+  return srv_encrypt_tables == SRV_ENCRYPT_TABLES_ON ||
+         srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE;
+}
+
+static bool dict_should_mysql_ibd_be_opened_as_encrypted(const char *filepath,
+                                                         bool &success) {
+  pfs_os_file_t file = os_file_create_simple_no_error_handling(
+      innodb_data_file_key, filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY,
+      srv_read_only_mode, &success);
+
+  if (!success) {
+    return (false);
   }
 
-  return (encrypt_mysql || srv_encrypt_tables == SRV_ENCRYPT_TABLES_ON ||
-          srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE);
+  /* Read the first page of the tablespace */
+  std::unique_ptr<byte, std::function<void(byte *)>> buf(
+      static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE)),
+      [](byte *buf) { ut_free(buf); });
+  /* Align memory for file I/O if we might have O_DIRECT set */
+  byte *page = static_cast<byte *>(ut_align(buf.get(), UNIV_PAGE_SIZE));
+
+  ut_ad(page == page_align(page));
+
+  IORequest request(IORequest::READ);
+
+  dberr_t err = os_file_read_first_page(request, file, page, UNIV_PAGE_SIZE);
+
+  if (DB_SUCCESS != err) {
+    os_file_close(file);
+    success = false;
+    return (false);
+  }
+
+  const ulint flags = fsp_header_get_flags(page);
+  os_file_close(file);
+  success = true;
+  return (FSP_FLAGS_GET_ENCRYPTION(flags));
+}
+
+bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
+                                         space_id_t mysql_plugin_space,
+                                         const char *filepath,
+                                         bool &encrypt_mysql) {
+  bool success = false;
+  switch (dict_init_mode) {
+    case DICT_INIT_CREATE_FILES:
+      encrypt_mysql = dict_should_mysql_ibd_be_created_encrypted();
+      return true;
+    case DICT_INIT_UPGRADE_57_FILES:
+      encrypt_mysql = dict_should_mysql_ibd_be_created_encrypted_due_to_upgrade(
+          mysql_plugin_space);
+      return true;
+    case DICT_INIT_CHECK_FILES:
+      encrypt_mysql =
+          dict_should_mysql_ibd_be_opened_as_encrypted(filepath, success);
+      return success;
+    default:
+      ut_ad(0);
+      return false;
+  }
 }

@@ -51,6 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0types.h"
 #include "row0types.h"
 #include "sql/dd/object_id.h"
+#include "sql/dd/types/init_mode.h"  // dict_init_mode_t
 #include "srv0mon.h" /* for dict0dict.ic */
 #include "sync0rw.h"
 #include "trx0types.h"
@@ -1663,9 +1664,13 @@ void dict_table_set_corrupt_by_space(space_id_t space_id,
 This can happen if Percona Server is bootstrapped with
 --innodb-encrypt-tables=ON If yes or if srv_encrypt_tables is ON/FORCE, during
 upgrade, mysql.ibd should be encrpted.
-@param[in]  is_upgrade true in upgrade mode
-@return true if encrypted, false if not encrypted */
-bool dict_detect_encryption(bool is_upgrade);
+In no upgrade scenario it fetches encryption flag from first page of mysql.ibd
+to check whether it is encrypted.
+@param[in]  dict_init_mode  initalization mode
+@param[out] encrypt_mysql   true if encrypted, false if not encrypted
+@return true if success, false if failure */
+bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
+                                         bool &encrypt_mysql);
 
 /** Set the compression type for the tablespace of a table
 @param[in]  table         The table that should be compressed

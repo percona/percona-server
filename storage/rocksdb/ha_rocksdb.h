@@ -1232,6 +1232,8 @@ class ha_rocksdb : public my_core::handler {
   bool should_skip_invalidated_record(const int rc) const;
   bool should_recreate_snapshot(const int rc, const bool is_new_snapshot) const;
 
+  bool can_assume_tracked(THD *thd);
+
  public:
   void set_pk_can_be_decoded(bool flag) { m_pk_can_be_decoded = flag; }
   int index_init(uint idx, bool sorted) override

@@ -791,6 +791,9 @@ ELSE()
   ENDIF()
 ENDIF()
 
+# Portably get access to memset_s
+ADD_DEFINITIONS(-D__STDC_WANT_LIB_EXT1__=1)
+
 # Run platform tests
 INCLUDE(configure.cmake)
 
@@ -800,9 +803,6 @@ ADD_DEFINITIONS(-DHAVE_OPENSSL)            # TODO: remove #ifdef from C++ code
 ADD_DEFINITIONS(-D__STDC_LIMIT_MACROS)     # Enable C99 limit macros
 ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)    # Enable C99 printf format macros
 ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in math.h
-IF(APPLE)
-  ADD_DEFINITIONS(-D__STDC_WANT_LIB_EXT1__=1) # Get access to memset_s
-ENDIF()
 
 OPTION(ENABLE_EXPERIMENT_SYSVARS "Expose ussually hidden system variables to allow experiments" OFF)
 IF(ENABLE_EXPERIMENT_SYSVARS)

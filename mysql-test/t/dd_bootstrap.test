@@ -74,7 +74,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/Can\'t open file: \'mysql.ibd\'/gi,<FILE>);
+  my $c_e= grep(/Failed to determine if mysql\.ibd is encrypted\. Have you deleted it/gi,<FILE>);
   print "#     DD initialization error found $c_e times.\n";
   close(FILE);
 EOF

@@ -1543,6 +1543,25 @@ the dictionary.
 @return true if it does. */
 bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table);
 
+/* Sets tablespace's DD encryption flag.
+@param[in] Thread       THD
+@param[in] space_name   name of the space for which DD encryption flag is to be
+set */
+bool dd_set_encryption_flag(THD *thd, const char *space_name);
+
+/* Clears tablespace's DD encryption flag.
+@param[in] Thread       THD
+@param[in] space_name   name of the space for which DD encryption flag is to be
+cleared */
+bool dd_clear_encryption_flag(THD *thd, const char *space_name);
+
+/* If mysql_ibd's DD encryption flag is different from the encryption flag in
+ * space_flag   the mysql_ibd's encryption flag will be set to the
+ * one from space_flags.
+@param[in] Thread       THD
+@param[in] space_flags  with correct encryption flag */
+bool dd_fix_mysql_ibd_encryption_flag_if_needed(THD *thd, uint32_t space_flags);
+
 /** Parse the default value from dd::Column::se_private to dict_col_t
 @param[in]      se_private_data dd::Column::se_private
 @param[in,out]  col             InnoDB column object

@@ -746,6 +746,10 @@ fts_query_union_doc_id(
 
 		query->total_size += SIZEOF_RBT_NODE_ADD
 			+ sizeof(fts_ranking_t) + RANKING_WORDS_INIT_LEN;
+
+		if (query->limit != ULONG_UNDEFINED) {
+			query->n_docs++;
+		}
 	}
 }
 
@@ -3345,7 +3349,7 @@ fts_query_filter_doc_ids(
 		}
 
 		if (query->limit != ULONG_UNDEFINED
-		    && query->limit <= ++query->n_docs) {
+		    && query->n_docs >= query->limit) {
 			goto func_exit;
 		}
 	}
@@ -3357,7 +3361,6 @@ func_exit:
 	if (query->total_size > fts_result_cache_limit) {
 		return(DB_FTS_EXCEED_RESULT_CACHE_LIMIT);
 	} else {
-		query->n_docs = 0;
 		return(DB_SUCCESS);
 	}
 }
@@ -3952,6 +3955,10 @@ fts_query_can_optimize(
 	fts_ast_node_t*	node = query->root;
 
 	if (flags & FTS_EXPAND) {
+		return;
+	}
+
+	if (query->limit != ULONG_UNDEFINED) {
 		return;
 	}
 

@@ -549,8 +549,7 @@ fts_ast_node_check_union(
 	fts_ast_node_t*	node)
 {
 	if (node->type == FTS_AST_LIST
-	    || node->type == FTS_AST_SUBEXP_LIST
-	    || node->type == FTS_AST_PARSER_PHRASE_LIST) {
+	    || node->type == FTS_AST_SUBEXP_LIST) {
 
 		for (node = node->list.head; node; node = node->next) {
 			if (!fts_ast_node_check_union(node)) {
@@ -563,7 +562,8 @@ fts_ast_node_check_union(
 		       || node->oper == FTS_EXIST)) {
 
 		return(false);
-	} else if (node->type == FTS_AST_TEXT) {
+	} else if (node->type == FTS_AST_TEXT
+		   || node->type == FTS_AST_PARSER_PHRASE_LIST) {
 		/* Distance or phrase search query. */
 		return(false);
 	}

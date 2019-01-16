@@ -57,14 +57,13 @@ SET PERSIST binlog_row_image = @@GLOBAL.binlog_row_image;
 SET PERSIST binlog_row_metadata = @@GLOBAL.binlog_row_metadata;
 SET PERSIST binlog_row_value_options = @@GLOBAL.binlog_row_value_options;
 SET PERSIST binlog_rows_query_log_events = @@GLOBAL.binlog_rows_query_log_events;
+SET PERSIST binlog_skip_flush_commands = @@GLOBAL.binlog_skip_flush_commands;
 SET PERSIST binlog_space_limit = @@GLOBAL.binlog_space_limit;
 ERROR HY000: Variable 'binlog_space_limit' is a read only variable
 SET PERSIST binlog_stmt_cache_size = @@GLOBAL.binlog_stmt_cache_size;
 SET PERSIST binlog_transaction_compression = @@GLOBAL.binlog_transaction_compression;
 SET PERSIST binlog_transaction_compression_level_zstd = @@GLOBAL.binlog_transaction_compression_level_zstd;
 SET PERSIST binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
-SET PERSIST encrypt_binlog = @@GLOBAL.encrypt_binlog;
-ERROR HY000: Variable 'encrypt_binlog' is a read only variable
 SET PERSIST enforce_gtid_consistency = @@GLOBAL.enforce_gtid_consistency;
 SET PERSIST group_replication_consistency = @@GLOBAL.group_replication_consistency;
 SET PERSIST gtid_executed = @@GLOBAL.gtid_executed;
@@ -281,6 +280,7 @@ RESET PERSIST IF EXISTS binlog_row_image;
 RESET PERSIST IF EXISTS binlog_row_metadata;
 RESET PERSIST IF EXISTS binlog_row_value_options;
 RESET PERSIST IF EXISTS binlog_rows_query_log_events;
+RESET PERSIST IF EXISTS binlog_skip_flush_commands;
 RESET PERSIST IF EXISTS binlog_space_limit;
 Warnings:
 Warning	3615	Variable binlog_space_limit does not exist in persisted config file
@@ -288,9 +288,6 @@ RESET PERSIST IF EXISTS binlog_stmt_cache_size;
 RESET PERSIST IF EXISTS binlog_transaction_compression;
 RESET PERSIST IF EXISTS binlog_transaction_compression_level_zstd;
 RESET PERSIST IF EXISTS binlog_transaction_dependency_history_size;
-RESET PERSIST IF EXISTS encrypt_binlog;
-Warnings:
-Warning	3615	Variable encrypt_binlog does not exist in persisted config file
 RESET PERSIST IF EXISTS enforce_gtid_consistency;
 RESET PERSIST IF EXISTS group_replication_consistency;
 RESET PERSIST IF EXISTS gtid_executed;

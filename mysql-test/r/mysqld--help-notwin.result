@@ -221,6 +221,9 @@ The following options may be given as the first argument:
  of big documents may need significantly less space.
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
+ --binlog-skip-flush-commands 
+ If set to TRUE, FLUSH <XXX> commands will not be be
+ written to the binary log
  --binlog-space-limit=# 
  Maximum space to use for all binary logs. Default is 0,
  this feature is disabled.
@@ -1730,6 +1733,7 @@ binlog-row-image FULL
 binlog-row-metadata MINIMAL
 binlog-row-value-options 
 binlog-rows-query-log-events FALSE
+binlog-skip-flush-commands FALSE
 binlog-space-limit 0
 binlog-stmt-cache-size 32768
 binlog-transaction-compression FALSE

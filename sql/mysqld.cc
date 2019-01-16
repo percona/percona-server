@@ -1338,6 +1338,7 @@ bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[] = {"IGNORE_ERROR", "ABORT_SERVER",
                                           NullS};
+bool opt_binlog_skip_flush_commands = false;
 uint32 gtid_executed_compression_period = 0;
 bool opt_log_unsafe_statements;
 

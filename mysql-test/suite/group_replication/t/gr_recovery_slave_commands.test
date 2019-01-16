@@ -325,8 +325,10 @@ START REPLICA SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replicat
 
 # Bug#23575646 : FLUSH RELAY LOGS SHOULD HIT ERROR 3139 WHEN SERVER STATE IS RECOVERING
 --echo
---echo # ERROR when executing FLUSH RELAY LOGS on GR recovery channel
---error ER_RUN_HOOK_ERROR
+--echo # Executing FLUSH RELAY LOGS on GR recovery channel.
+--echo # In contrast to Oracle MySQL Server this command does not return
+--echo # ER_RUN_HOOK_ERROR as it is executed under super_read_only = ON and
+--echo # therefore is not written to the binary log.
 FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
 
 --echo

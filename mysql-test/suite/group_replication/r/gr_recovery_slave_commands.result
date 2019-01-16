@@ -179,9 +179,11 @@ include/assert.inc [recovery channel is active]
 # SHOW RELAYLOG EVENTS - Relay log files should exists
 include/assert.inc [Relay log name should not be empty as the command successfully executed.]
 
-# ERROR when executing FLUSH RELAY LOGS on GR recovery channel
+# Executing FLUSH RELAY LOGS on GR recovery channel.
+# In contrast to Oracle MySQL Server this command does not return
+# ER_RUN_HOOK_ERROR as it is executed under super_read_only = ON and
+# therefore is not written to the binary log.
 FLUSH RELAY LOGS FOR CHANNEL 'group_replication_recovery';
-ERROR HY000: Error on observer while running replication hook 'before_commit'.
 
 # RESET REPLICA command is blocked only when recovery channel is active.
 RESET REPLICA FOR CHANNEL "group_replication_recovery";

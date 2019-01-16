@@ -123,6 +123,9 @@ The following options may be given as the first argument:
  FULL).
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
+ --binlog-skip-flush-commands 
+ If set to TRUE, FLUSH <XXX> commands will not be be
+ written to the binary log
  --binlog-stmt-cache-size=# 
  The size of the statement cache for updates to
  non-transactional engines for the binary log. If you
@@ -1188,6 +1191,7 @@ binlog-order-commits TRUE
 binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
+binlog-skip-flush-commands FALSE
 binlog-stmt-cache-size 32768
 binlogging-impossible-mode IGNORE_ERROR
 block-encryption-mode aes-128-ecb

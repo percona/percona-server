@@ -1,0 +1,102 @@
+SET @start_global_value = @@global.binlog_skip_flush_commands;
+SELECT @start_global_value;
+@start_global_value
+0
+SELECT @@global.binlog_skip_flush_commands IN (0, 1);
+@@global.binlog_skip_flush_commands IN (0, 1)
+1
+SELECT @@global.binlog_skip_flush_commands;
+@@global.binlog_skip_flush_commands
+0
+SELECT @@session.binlog_skip_flush_commands;
+ERROR HY000: Variable 'binlog_skip_flush_commands' is a GLOBAL variable
+SHOW GLOBAL  VARIABLES LIKE 'binlog_skip_flush_commands';
+Variable_name	Value
+binlog_skip_flush_commands	OFF
+SHOW SESSION VARIABLES LIKE 'binlog_skip_flush_commands';
+Variable_name	Value
+binlog_skip_flush_commands	OFF
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	OFF
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	OFF
+SET GLOBAL binlog_skip_flush_commands = ON;
+SELECT @@global.binlog_skip_flush_commands;
+@@global.binlog_skip_flush_commands
+1
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	ON
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	ON
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SELECT @@global.binlog_skip_flush_commands;
+@@global.binlog_skip_flush_commands
+0
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	OFF
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	OFF
+SET GLOBAL binlog_skip_flush_commands = 'ON';
+SELECT @@global.binlog_skip_flush_commands;
+@@global.binlog_skip_flush_commands
+1
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	ON
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	ON
+SET GLOBAL binlog_skip_flush_commands = 'OFF';
+SELECT @@global.binlog_skip_flush_commands;
+@@global.binlog_skip_flush_commands
+0
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	OFF
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	OFF
+SET GLOBAL binlog_skip_flush_commands = 1;
+SELECT @@global.binlog_skip_flush_commands;
+@@global.binlog_skip_flush_commands
+1
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	ON
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	ON
+SET GLOBAL binlog_skip_flush_commands = 0;
+SELECT @@global.binlog_skip_flush_commands;
+@@global.binlog_skip_flush_commands
+0
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	OFF
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_SKIP_FLUSH_COMMANDS	OFF
+SET SESSION binlog_skip_flush_commands = 'OFF';
+ERROR HY000: Variable 'binlog_skip_flush_commands' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.binlog_skip_flush_commands = 'ON';
+ERROR HY000: Variable 'binlog_skip_flush_commands' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL binlog_skip_flush_commands = 1.1;
+ERROR 42000: Incorrect argument type to variable 'binlog_skip_flush_commands'
+SET GLOBAL binlog_skip_flush_commands = 1e1;
+ERROR 42000: Incorrect argument type to variable 'binlog_skip_flush_commands'
+SET GLOBAL binlog_skip_flush_commands = 2;
+ERROR 42000: Variable 'binlog_skip_flush_commands' can't be set to the value of '2'
+SET GLOBAL binlog_skip_flush_commands = -3;
+ERROR 42000: Variable 'binlog_skip_flush_commands' can't be set to the value of '-3'
+SET GLOBAL binlog_skip_flush_commands = 'AUTO';
+ERROR 42000: Variable 'binlog_skip_flush_commands' can't be set to the value of 'AUTO'
+SET GLOBAL binlog_skip_flush_commands = @start_global_value;
+SELECT @@global.binlog_skip_flush_commands;
+@@global.binlog_skip_flush_commands
+0

@@ -2404,6 +2404,13 @@ static Sys_var_enum Sys_binlog_error_action(
     GLOBAL_VAR(binlog_error_action), CMD_LINE(REQUIRED_ARG),
     binlog_error_action_list, DEFAULT(ABORT_SERVER));
 
+static Sys_var_bool Sys_binlog_skip_flush_commands(
+    "binlog_skip_flush_commands",
+    "If set to TRUE, FLUSH <XXX> commands will not be be written "
+    "to the binary log",
+    GLOBAL_VAR(opt_binlog_skip_flush_commands), CMD_LINE(OPT_ARG),
+    DEFAULT(false));
+
 static Sys_var_bool Sys_trust_function_creators(
     "log_bin_trust_function_creators",
     "If set to FALSE (the default), then when --log-bin is used, creation "

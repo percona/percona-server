@@ -5,6 +5,30 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  8.0
 ================================================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`93788` - main.mysqldump is failing because of dropped event                        |
+|:JIRA bug: :psbug:`5268`                                                                                     |
+|:Upstream State: Duplicate (checked on 2019-01-16)                                                           |
+|:Fix Released: 8.0.13-4                                                                                      |
+|:Upstream Fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`93703` - EXPLAIN SELECT returns inconsistent number of ROWS in main.group_by       |
+|:JIRA bug: :psbug:`5306`                                                                                     |
+|:Upstream State: Need Feedback (checked on 2019-01-16)                                                       |
+|:Fix Released: 8.0.13-4                                                                                      |
+|:Upstream Fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`93686` - innodb.upgrade_orphan fails because of left files                         |
+|:JIRA bug: :psbug:`5209`                                                                                     |
+|:Upstream State: Verified (checked on 2019-01-16)                                                            |
+|:Fix Released: 8.0.13-4                                                                                      |
+|:Upstream Fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`93544` -  SHOW BINLOG EVENTS FROM <bad offset> is not diagnosed                    |
+|:JIRA bug: :psbug:`5126`                                                                                     |
+|:Upstream State: Verified (checked on 2019-01-16)                                                            |
+|:Fix Released: 8.0.13-4                                                                                      |
+|:Upstream Fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`89840` - 60-80k connections causing empty reply for select                         |
 |:JIRA bug: :psbug:`314`                                                                                      |
 |:Upstream State: Verified (checked on 2018-11-20)                                                            |

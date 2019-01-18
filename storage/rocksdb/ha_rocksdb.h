@@ -132,7 +132,7 @@ extern const std::string DEFAULT_SYSTEM_CF_NAME;
 /*
   This is the name of the hidden primary key for tables with no pk.
 */
-const char *const HIDDEN_PK_NAME = "HIDDEN_PK_ID";
+const constexpr char HIDDEN_PK_NAME[] = "HIDDEN_PK_ID";
 
 /*
   Column family name which means "put this index into its own column family".
@@ -143,12 +143,12 @@ extern const std::string PER_INDEX_CF_NAME;
 /*
   Name for the background thread.
 */
-const char *const BG_THREAD_NAME = "myrocks-bg";
+const constexpr char BG_THREAD_NAME[] = "myrocks-bg";
 
 /*
   Name for the drop index thread.
 */
-const char *const INDEX_THREAD_NAME = "myrocks-index";
+const constexpr char INDEX_THREAD_NAME[] = "myrocks-index";
 
 /*
   Name for the manual compaction thread.
@@ -161,7 +161,7 @@ static const char constexpr MANUAL_COMPACTION_THREAD_NAME[] = "myrocks-mc";
   - p0_cfname=foo
   - p3_tts_col=bar
 */
-constexpr char RDB_PER_PARTITION_QUALIFIER_NAME_SEP = '_';
+const constexpr char RDB_PER_PARTITION_QUALIFIER_NAME_SEP = '_';
 
 /*
   Separator between qualifier name and value. Sample usage:
@@ -169,29 +169,29 @@ constexpr char RDB_PER_PARTITION_QUALIFIER_NAME_SEP = '_';
   - p0_cfname=foo
   - p3_tts_col=bar
 */
-constexpr char RDB_QUALIFIER_VALUE_SEP = '=';
+const constexpr char RDB_QUALIFIER_VALUE_SEP = '=';
 
 /*
   Separator between multiple qualifier assignments. Sample usage:
 
   - p0_cfname=foo;p1_cfname=bar;p2_cfname=baz
 */
-constexpr char RDB_QUALIFIER_SEP = ';';
+const constexpr char RDB_QUALIFIER_SEP = ';';
 
 /*
   Qualifier name for a custom per partition column family.
 */
-const char *const RDB_CF_NAME_QUALIFIER = "cfname";
+const constexpr char RDB_CF_NAME_QUALIFIER[] = "cfname";
 
 /*
   Qualifier name for a custom per partition ttl duration.
 */
-const char *const RDB_TTL_DURATION_QUALIFIER = "ttl_duration";
+const constexpr char RDB_TTL_DURATION_QUALIFIER[] = "ttl_duration";
 
 /*
   Qualifier name for a custom per partition ttl duration.
 */
-const char *const RDB_TTL_COL_QUALIFIER = "ttl_col";
+const constexpr char RDB_TTL_COL_QUALIFIER[] = "ttl_col";
 
 /*
   Default, minimal valid, and maximum valid sampling rate values when collecting
@@ -221,15 +221,15 @@ const char *const RDB_TTL_COL_QUALIFIER = "ttl_col";
   CPU-s and derive the values from there. This however has its own set of
   problems and we'll choose simplicity for now.
 */
-constexpr int MAX_BACKGROUND_JOBS = 64;
+const constexpr int MAX_BACKGROUND_JOBS = 64;
 
-constexpr int DEFAULT_SUBCOMPACTIONS = 1;
-constexpr int MAX_SUBCOMPACTIONS = 64;
+const constexpr int DEFAULT_SUBCOMPACTIONS = 1;
+const constexpr int MAX_SUBCOMPACTIONS = 64;
 
 /*
   Default value for rocksdb_sst_mgr_rate_bytes_per_sec = 0 (disabled).
 */
-constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
+const constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
 
 /*
   Defines the field sizes for serializing XID object to a string representation.
@@ -272,8 +272,8 @@ constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
 /*
   Maximum index prefix length in bytes.
 */
-constexpr uint MAX_INDEX_COL_LEN_LARGE = 3072;
-constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
+const constexpr uint MAX_INDEX_COL_LEN_LARGE = 3072;
+const constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
 
 /*
   MyRocks specific error codes. NB! Please make sure that you will update
@@ -347,7 +347,7 @@ class Rdb_transaction_impl;
 class Rdb_writebatch_impl;
 class Rdb_field_encoder;
 
-const char *const rocksdb_hton_name = "ROCKSDB";
+const constexpr char rocksdb_hton_name[] = "ROCKSDB";
 
 typedef struct _gl_index_id_s {
   uint32_t cf_id;

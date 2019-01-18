@@ -407,28 +407,29 @@ static int rocksdb_validate_set_block_cache_size(THD *thd,
 //////////////////////////////////////////////////////////////////////////////
 // Options definitions
 //////////////////////////////////////////////////////////////////////////////
-static constexpr ulong RDB_MAX_LOCK_WAIT_SECONDS = 1024 * 1024 * 1024;
-static constexpr ulong RDB_MAX_ROW_LOCKS = 1024 * 1024 * 1024;
-static constexpr ulong RDB_DEFAULT_ROW_LOCKS = 1024 * 1024;
-static constexpr ulong RDB_DEFAULT_BULK_LOAD_SIZE = 1000;
-static constexpr int RDB_DEFAULT_MAX_BACKGROUND_JOBS = 2;
-static constexpr ulong RDB_DEFAULT_BLOCK_SIZE = 0x4000;              // 16K
-static constexpr ulong RDB_DEFAULT_MAX_TOTAL_WAL_SIZE = 0x80000000;  // 2GB
-static constexpr ulong RDB_DEFAULT_TABLE_CACHE_NUMSHARDBITS = 6;
-static constexpr ulong RDB_MAX_BULK_LOAD_SIZE = 1024 * 1024 * 1024;
-static constexpr size_t RDB_DEFAULT_MERGE_BUF_SIZE = 64 * 1024 * 1024;
-static constexpr size_t RDB_MIN_MERGE_BUF_SIZE = 100;
-static constexpr size_t RDB_DEFAULT_MERGE_COMBINE_READ_SIZE =
+static const constexpr ulong RDB_MAX_LOCK_WAIT_SECONDS = 1024 * 1024 * 1024;
+static const constexpr ulong RDB_MAX_ROW_LOCKS = 1024 * 1024 * 1024;
+static const constexpr ulong RDB_DEFAULT_ROW_LOCKS = 1024 * 1024;
+static const constexpr ulong RDB_DEFAULT_BULK_LOAD_SIZE = 1000;
+static const constexpr int RDB_DEFAULT_MAX_BACKGROUND_JOBS = 2;
+static const constexpr ulong RDB_DEFAULT_BLOCK_SIZE = 0x4000;  // 16K
+static const constexpr ulong RDB_DEFAULT_MAX_TOTAL_WAL_SIZE =
+    0x80000000;  // 2GB
+static const constexpr ulong RDB_DEFAULT_TABLE_CACHE_NUMSHARDBITS = 6;
+static const constexpr ulong RDB_MAX_BULK_LOAD_SIZE = 1024 * 1024 * 1024;
+static const constexpr size_t RDB_DEFAULT_MERGE_BUF_SIZE = 64 * 1024 * 1024;
+static const constexpr size_t RDB_MIN_MERGE_BUF_SIZE = 100;
+static const constexpr size_t RDB_DEFAULT_MERGE_COMBINE_READ_SIZE =
     1024 * 1024 * 1024;
-static constexpr size_t RDB_MIN_MERGE_COMBINE_READ_SIZE = 100;
-static constexpr size_t RDB_DEFAULT_MERGE_TMP_FILE_REMOVAL_DELAY = 0;
-static constexpr size_t RDB_MIN_MERGE_TMP_FILE_REMOVAL_DELAY = 0;
-static constexpr int64 RDB_DEFAULT_BLOCK_CACHE_SIZE = 512 * 1024 * 1024;
-static constexpr int64 RDB_MIN_BLOCK_CACHE_SIZE = 1024;
-static constexpr int RDB_MAX_CHECKSUMS_PCT = 100;
-static constexpr uint32_t RDB_DEFAULT_FORCE_COMPUTE_MEMTABLE_STATS_CACHETIME =
-    60 * 1000 * 1000;
-static constexpr ulong RDB_DEADLOCK_DETECT_DEPTH = 50;
+static const constexpr size_t RDB_MIN_MERGE_COMBINE_READ_SIZE = 100;
+static const constexpr size_t RDB_DEFAULT_MERGE_TMP_FILE_REMOVAL_DELAY = 0;
+static const constexpr size_t RDB_MIN_MERGE_TMP_FILE_REMOVAL_DELAY = 0;
+static const constexpr int64 RDB_DEFAULT_BLOCK_CACHE_SIZE = 512 * 1024 * 1024;
+static const constexpr int64 RDB_MIN_BLOCK_CACHE_SIZE = 1024;
+static const constexpr int RDB_MAX_CHECKSUMS_PCT = 100;
+static const constexpr uint32_t
+    RDB_DEFAULT_FORCE_COMPUTE_MEMTABLE_STATS_CACHETIME = 60 * 1000 * 1000;
+static const constexpr ulong RDB_DEADLOCK_DETECT_DEPTH = 50;
 
 static long long rocksdb_block_cache_size = RDB_DEFAULT_BLOCK_CACHE_SIZE;
 static long long rocksdb_sim_cache_size = 0;

@@ -91,51 +91,51 @@ using rdb_index_field_pack_t =
     void (Rdb_key_def::*)(Rdb_field_packing *fpi, Field *field, uchar *buf,
                           uchar **dst, Rdb_pack_field_context *pack_ctx) const;
 
-const uint RDB_INVALID_KEY_LEN = uint(-1);
+const constexpr uint RDB_INVALID_KEY_LEN = uint(-1);
 
 /* How much one checksum occupies when stored in the record */
-const size_t RDB_CHECKSUM_SIZE = sizeof(uint32_t);
+const constexpr size_t RDB_CHECKSUM_SIZE = sizeof(uint32_t);
 
 /*
   How much the checksum data occupies in record, in total.
   It is storing two checksums plus 1 tag-byte.
 */
-const size_t RDB_CHECKSUM_CHUNK_SIZE = 2 * RDB_CHECKSUM_SIZE + 1;
+const constexpr size_t RDB_CHECKSUM_CHUNK_SIZE = 2 * RDB_CHECKSUM_SIZE + 1;
 
 /*
   Checksum data starts from CHECKSUM_DATA_TAG which is followed by two CRC32
   checksums.
 */
-const char RDB_CHECKSUM_DATA_TAG = 0x01;
+const constexpr char RDB_CHECKSUM_DATA_TAG = 0x01;
 
 /*
   Unpack data is variable length. The header is 1 tag-byte plus a two byte
   length field. The length field includes the header as well.
 */
-const char RDB_UNPACK_DATA_TAG = 0x02;
-const size_t RDB_UNPACK_DATA_LEN_SIZE = sizeof(uint16_t);
-const size_t RDB_UNPACK_HEADER_SIZE =
+const constexpr char RDB_UNPACK_DATA_TAG = 0x02;
+const constexpr size_t RDB_UNPACK_DATA_LEN_SIZE = sizeof(uint16_t);
+const constexpr size_t RDB_UNPACK_HEADER_SIZE =
     sizeof(RDB_UNPACK_DATA_TAG) + RDB_UNPACK_DATA_LEN_SIZE;
 
 /*
   This header format is 1 tag-byte plus a two byte length field plus a two byte
   covered bitmap. The length field includes the header size.
 */
-const char RDB_UNPACK_COVERED_DATA_TAG = 0x03;
-const size_t RDB_UNPACK_COVERED_DATA_LEN_SIZE = sizeof(uint16_t);
-const size_t RDB_COVERED_BITMAP_SIZE = sizeof(uint16_t);
-const size_t RDB_UNPACK_COVERED_HEADER_SIZE =
+const constexpr char RDB_UNPACK_COVERED_DATA_TAG = 0x03;
+const constexpr size_t RDB_UNPACK_COVERED_DATA_LEN_SIZE = sizeof(uint16_t);
+const constexpr size_t RDB_COVERED_BITMAP_SIZE = sizeof(uint16_t);
+const constexpr size_t RDB_UNPACK_COVERED_HEADER_SIZE =
     sizeof(RDB_UNPACK_COVERED_DATA_TAG) + RDB_UNPACK_COVERED_DATA_LEN_SIZE +
     RDB_COVERED_BITMAP_SIZE;
 
 /*
   Data dictionary index info field sizes.
 */
-constexpr size_t RDB_SIZEOF_INDEX_INFO_VERSION = sizeof(uint16);
-constexpr size_t RDB_SIZEOF_INDEX_TYPE = sizeof(uchar);
-constexpr size_t RDB_SIZEOF_KV_VERSION = sizeof(uint16);
-constexpr size_t RDB_SIZEOF_INDEX_FLAGS = sizeof(uint32);
-constexpr size_t RDB_SIZEOF_AUTO_INCREMENT_VERSION = sizeof(uint16);
+const constexpr size_t RDB_SIZEOF_INDEX_INFO_VERSION = sizeof(uint16);
+const constexpr size_t RDB_SIZEOF_INDEX_TYPE = sizeof(uchar);
+const constexpr size_t RDB_SIZEOF_KV_VERSION = sizeof(uint16);
+const constexpr size_t RDB_SIZEOF_INDEX_FLAGS = sizeof(uint32);
+const constexpr size_t RDB_SIZEOF_AUTO_INCREMENT_VERSION = sizeof(uint16);
 
 // Possible return values for rdb_index_field_unpack_t functions.
 enum {

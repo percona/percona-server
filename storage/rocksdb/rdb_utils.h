@@ -149,7 +149,7 @@ namespace myrocks {
 /*
   Generic constant.
 */
-const size_t RDB_MAX_HEXDUMP_LEN = 1000;
+const constexpr size_t RDB_MAX_HEXDUMP_LEN = 1000;
 
 /*
   Helper function to get an NULL terminated uchar* out of a given MySQL String.

@@ -1116,7 +1116,7 @@ class Rdb_tbl_def {
   bool m_is_mysql_system_table;
 
   bool put_dict(Rdb_dict_manager *const dict, rocksdb::WriteBatch *const batch,
-                uchar *const key, const size_t keylen);
+                const rocksdb::Slice &key);
 
   const std::string &full_tablename() const { return m_dbname_tablename; }
   const std::string &base_dbname() const { return m_dbname; }
@@ -1318,6 +1318,15 @@ class Rdb_dict_manager {
   static void dump_index_id(uchar *const netbuf,
                             Rdb_key_def::DATA_DICT_TYPE dict_type,
                             const GL_INDEX_ID &gl_index_id);
+  template <size_t T>
+  static void dump_index_id(Rdb_buf_writer<T> *buf_writer,
+                            Rdb_key_def::DATA_DICT_TYPE dict_type,
+                            const GL_INDEX_ID &gl_index_id) {
+    buf_writer->write_uint32(dict_type);
+    buf_writer->write_uint32(gl_index_id.cf_id);
+    buf_writer->write_uint32(gl_index_id.index_id);
+  }
+
   void delete_with_prefix(rocksdb::WriteBatch *const batch,
                           Rdb_key_def::DATA_DICT_TYPE dict_type,
                           const GL_INDEX_ID &gl_index_id) const;

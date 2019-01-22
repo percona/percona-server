@@ -679,13 +679,9 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
-<<<<<<< HEAD
+  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
 private:
   void publish_coordinates_for_global_status(void) const;
-||||||| merged common ancestors
-=======
-  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
->>>>>>> mysql-5.6.43
 };
 
 typedef struct st_load_file_info

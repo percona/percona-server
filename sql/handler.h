@@ -963,7 +963,17 @@ struct handlerton
                                     const char *table_name,
                                     bool is_sql_layer_system_table);
 
-<<<<<<< HEAD
+  /**
+    Check if the given database name is reserved.
+
+    @param  hton          Handlerton for SE.
+    @param  name          Database name.
+
+    @retval true          Database name is reserved by SE.
+    @retval false         Database name is not reserved.
+  */
+  bool (*is_reserved_db_name)(handlerton *hton, const char *name);
+
   /**
     Creates a new compression dictionary with the specified data for this SE.
 
@@ -996,20 +1006,6 @@ struct handlerton
   handler_drop_zip_dict_result (*drop_zip_dict)(handlerton *hton, THD* thd,
     const char* name, ulong* name_len);
 
-||||||| merged common ancestors
-=======
-  /**
-    Check if the given database name is reserved.
-
-    @param  hton          Handlerton for SE.
-    @param  name          Database name.
-
-    @retval true          Database name is reserved by SE.
-    @retval false         Database name is not reserved.
-  */
-  bool (*is_reserved_db_name)(handlerton *hton, const char *name);
-
->>>>>>> mysql-5.6.43
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
 };

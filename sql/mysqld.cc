@@ -10404,17 +10404,11 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
-<<<<<<< HEAD
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_LOCK_consistent_snapshot, "LOCK_consistent_snapshot", PSI_FLAG_GLOBAL}
-||||||| merged common ancestors
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
-=======
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
 #if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
   { &key_rwlock_LOCK_named_pipe_full_access_group, "LOCK_named_pipe_full_access_group", PSI_FLAG_GLOBAL},
 #endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
->>>>>>> mysql-5.6.43
+  { &key_rwlock_LOCK_consistent_snapshot, "LOCK_consistent_snapshot", PSI_FLAG_GLOBAL}
 };
 
 #ifdef HAVE_MMAP
@@ -10866,39 +10860,6 @@ void init_server_psi_keys(void)
 
 #endif /* HAVE_PSI_INTERFACE */
 
-<<<<<<< HEAD
-/* Detecting if being compiled with -fsanitize=address option */
-
-/* GCC has __SANITIZE_ADDRESS__ macro defined to 1 in this case */
-#ifdef __GNUC__
-  #if __SANITIZE_ADDRESS__ == 1
-    #define UNDER_ADDRESS_SANITIZER
-  #endif
-#endif
-
-/* Clang exposes __has_feature(address_sanitizer) */
-#ifdef __clang__
-  #if __has_feature(address_sanitizer)
-    #define UNDER_ADDRESS_SANITIZER
-  #endif
-#endif
-
-/*
-  As some MTR test cases check OOM, it is necessary to instruct address
-  sanitizer to not terminate the process when an allocation of a very
-  large memory block is requested and return NULL as expected. This can
-  be done by setting 'allocator_may_return_null' ASan option to 1.
-*/
-#ifdef UNDER_ADDRESS_SANITIZER
-
-extern "C" const char *__asan_default_options()
-{
-  return "allocator_may_return_null=1";
-}
-
-#endif
-||||||| merged common ancestors
-=======
 #if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
 // update_named_pipe_full_access_group returns false on success, true on failure
 bool update_named_pipe_full_access_group(const char *new_group_name)
@@ -10963,4 +10924,33 @@ bool update_named_pipe_full_access_group(const char *new_group_name)
 }
 
 #endif  /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
->>>>>>> mysql-5.6.43
+/* Detecting if being compiled with -fsanitize=address option */
+
+/* GCC has __SANITIZE_ADDRESS__ macro defined to 1 in this case */
+#ifdef __GNUC__
+  #if __SANITIZE_ADDRESS__ == 1
+    #define UNDER_ADDRESS_SANITIZER
+  #endif
+#endif
+
+/* Clang exposes __has_feature(address_sanitizer) */
+#ifdef __clang__
+  #if __has_feature(address_sanitizer)
+    #define UNDER_ADDRESS_SANITIZER
+  #endif
+#endif
+
+/*
+  As some MTR test cases check OOM, it is necessary to instruct address
+  sanitizer to not terminate the process when an allocation of a very
+  large memory block is requested and return NULL as expected. This can
+  be done by setting 'allocator_may_return_null' ASan option to 1.
+*/
+#ifdef UNDER_ADDRESS_SANITIZER
+
+extern "C" const char *__asan_default_options()
+{
+  return "allocator_may_return_null=1";
+}
+
+#endif

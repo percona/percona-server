@@ -1409,6 +1409,7 @@ normalize_table_name_low(
 	ibool           set_lower_case); /* in: TRUE if we want to set
 					 name to lower case */
 
+<<<<<<< HEAD
 /** Creates a new compression dictionary. */
 static
 handler_create_zip_dict_result
@@ -1475,6 +1476,20 @@ static void innodb_kill_idle_transaction_update(
 	srv_kill_idle_transaction= in_val;
 }
 
+||||||| merged common ancestors
+=======
+/*****************************************************************//**
+Checks if the filename name is reserved in InnoDB.
+@return true if the name is reserved */
+static
+bool
+innobase_check_reserved_file_name(
+/*===================*/
+        handlerton*     hton,           /*!< in: handlerton of Innodb */
+        const char*     name);          /*!< in: Name of the database */
+
+
+>>>>>>> mysql-5.6.43
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
 @return	0 for valid innodb_commit_concurrency */
@@ -3486,6 +3501,7 @@ innobase_init(
 	innobase_hton->purge_archive_logs = innobase_purge_archive_logs;
 
 	innobase_hton->data = &innodb_api_cb;
+<<<<<<< HEAD
 	innobase_hton->flush_changed_page_bitmaps
 		= innobase_flush_changed_page_bitmaps;
 	innobase_hton->purge_changed_page_bitmaps
@@ -3497,6 +3513,10 @@ innobase_init(
 
 	innobase_hton->create_zip_dict = innobase_create_zip_dict;
 	innobase_hton->drop_zip_dict = innobase_drop_zip_dict;
+||||||| merged common ancestors
+=======
+	innobase_hton->is_reserved_db_name= innobase_check_reserved_file_name;
+>>>>>>> mysql-5.6.43
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -19590,4 +19610,31 @@ ib_warn_row_too_big(const dict_table_t*	table)
 		, prefix ? "or using ROW_FORMAT=DYNAMIC or"
 		" ROW_FORMAT=COMPRESSED ": ""
 		, prefix ? DICT_MAX_FIXED_COL_LEN : 0);
+}
+
+/*****************************************************************//**
+Checks if the file name is reserved in InnoDB. Currently
+redo log files(ib_logfile*) is reserved.
+@return true if the name is reserved */
+static
+bool
+innobase_check_reserved_file_name(
+/*===================*/
+	handlerton*     hton,		/*!< in: handlerton of Innodb */
+	const char*	name)		/*!< in: Name of the database */
+{
+	CHARSET_INFO *ci= system_charset_info;
+	size_t logname_size = strlen(ib_logfile_basename);
+
+	/* Name is smaller than reserved name */
+	if (strlen(name) < logname_size) {
+		return (false);
+	}
+	/* Do case insensitive comparison for name. */
+	for (uint i=0; i < logname_size; i++) {
+		if (my_tolower(ci, name[i]) != ib_logfile_basename[i]){
+			return (false);
+		}
+	}
+	return (true);
 }

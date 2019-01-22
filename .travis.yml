@@ -214,9 +214,6 @@ script:
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
        sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test";
     fi;
-    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-       sudo -E apt-add-repository -y "ppa:jonathonf/mysql";
-    fi;
 
   - echo --- Update list of packages and download dependencies;
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
@@ -296,6 +293,10 @@ script:
           -DWITH_SCALABILITY_METRICS=ON
           -DWITH_INNODB_MEMCACHED=ON
         ";
+      fi;
+      `# disable -DWITH_PROTOBUF=system for gcc-4.8 as it causes linking issues`;
+      if [[ "$CC" == "gcc-4.8" ]]; then
+        CMAKE_OPT=${CMAKE_OPT/WITH_PROTOBUF=system/WITH_PROTOBUF=bundled};
       fi;
       `# disable RocksDB for gcc-8 until MyRocks is warning-free`;
       if [[ "$CC" == "gcc-8" ]]; then NOT_GCC_8=0; else NOT_GCC_8=1; fi;

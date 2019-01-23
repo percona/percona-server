@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/07/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/07/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "12/20/2018" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-mysql \- the MySQL command\-line tool
+mysql \- the MySQL command\-line client
 .SH "SYNOPSIS"
 .HP \w'\fBmysql\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIdb_name\fR\fR\ 'u
 \fBmysql [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR
@@ -104,8 +104,8 @@ shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIscript\&.sql\fR\fR\fB > \fR
 On Unix, the
 \fBmysql\fR
 client logs statements executed interactively to a history file\&. See
-the section called \(lqMYSQL LOGGING\(rq\&.
-.SH "MYSQL OPTIONS"
+the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
+.SH "MYSQL CLIENT OPTIONS"
 .PP
 \fBmysql\fR
 supports the following options, which can be specified on the command line or in the
@@ -482,6 +482,9 @@ Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -501,6 +504,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
 \&.mylogin\&.cnf\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -529,6 +535,9 @@ also reads the
 and
 [mysql_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -561,7 +570,7 @@ form only, or use named commands only at the beginning of a line ending with a s
 starts with this option
 \fIenabled\fR
 by default\&. However, even with this option, long\-format commands still work from the first line\&. See
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -623,7 +632,7 @@ Continue even if an SQL error occurs\&.
 \fB\-\-histignore\fR
 .sp
 A colon\-separated list of one or more patterns specifying statements to ignore for logging purposes\&. These patterns are added to the default pattern list ("*IDENTIFIED*:*PASSWORD*")\&. The value specified for this option affects logging of statements written to the history file\&. For more information, see
-the section called \(lqMYSQL LOGGING\(rq\&. This option was added in MySQL 5\&.6\&.8\&.
+the section called \(lqMYSQL CLIENT LOGGING\(rq\&. This option was added in MySQL 5\&.6\&.8\&.
 .RE
 .sp
 .RS 4
@@ -739,7 +748,10 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&. This option was added in MySQL 5\&.6\&.6\&.
+\fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -762,7 +774,7 @@ and
 both are recognized\&. Use
 \fB\-\-skip\-named\-commands\fR
 to disable named commands\&. See
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -818,6 +830,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -939,7 +954,7 @@ environment variable\&. Valid pagers are
 \fBmore\fR,
 \fBcat [> filename]\fR, and so forth\&. This option works only on Unix and only in interactive mode\&. To disable paging, use
 \fB\-\-skip\-pager\fR\&.
-the section called \(lqMYSQL COMMANDS\(rq, discusses output paging further\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses output paging further\&.
 .RE
 .sp
 .RS 4
@@ -1026,6 +1041,9 @@ The TCP/IP port number to use for the connection\&.
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1040,7 +1058,7 @@ Print the program name and all options that it gets from option files\&.
 .sp
 Set the prompt to the specified format\&. The default is
 mysql>\&. The special sequences that the prompt can contain are described in
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1152,14 +1170,20 @@ If the connection to the server is lost, automatically try to reconnect\&. A sin
 \fB\-\-i\-am\-a\-dummy\fR,
 \fB\-U\fR
 .sp
-Permit only those
+If this option is enabled,
 UPDATE
 and
 DELETE
-statements that specify which rows to modify by using key values\&. If you have set this option in an option file, you can override it by using
-\fB\-\-safe\-updates\fR
-on the command line\&. See
-the section called \(lqMYSQL TIPS\(rq, for more information about this option\&.
+statements that do not use a key in the
+WHERE
+clause or a
+LIMIT
+clause produce an error\&. In addition, restrictions are placed on
+SELECT
+statements that produce (or are estimated to produce) very large result sets\&. If you have set this option in an option file, you can use
+\fB\-\-skip\-safe\-updates\fR
+on the command line to override it\&. For more information about this option, see
+the section called \(lqUsing Safe\-Updates Mode (\-\-safe\-updates)\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1379,7 +1403,7 @@ Display output in table format\&. This is the default for interactive use, but c
 \fB\-\-tee=\fR\fB\fIfile_name\fR\fR
 .sp
 Append a copy of output to the given file\&. This option works only in interactive mode\&.
-the section called \(lqMYSQL COMMANDS\(rq, discusses tee files further\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses tee files further\&.
 .RE
 .sp
 .RS 4
@@ -1607,7 +1631,7 @@ SELECT
 statements when using
 \fB\-\-safe\-updates\fR\&. (Default value is 1,000\&.)
 .RE
-.SH "MYSQL COMMANDS"
+.SH "MYSQL CLIENT COMMANDS"
 .PP
 \fBmysql\fR
 sends each SQL statement that you issue to the server to be executed\&. There is also a set of commands that
@@ -1703,7 +1727,7 @@ help
 command,
 \fBmysql\fR
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. For more information, see
-the section called \(lqMYSQL SERVER\-SIDE HELP\(rq\&.
+the section called \(lqMYSQL CLIENT SERVER\-SIDE HELP\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2045,9 +2069,9 @@ Quote characters are taken as part of the file name itself\&. For best results, 
 status,
 \es
 .sp
-Provide status information about the connection and the server you are using\&. If you are running in
+Provide status information about the connection and the server you are using\&. If you are running with
 \fB\-\-safe\-updates\fR
-mode,
+enabled,
 status
 also prints the values for the
 \fBmysql\fR
@@ -2613,7 +2637,7 @@ mysql>
 .RE
 .\}
 .RE
-.SH "MYSQL LOGGING"
+.SH "MYSQL CLIENT LOGGING"
 .PP
 On Unix, the
 \fBmysql\fR
@@ -2622,6 +2646,28 @@ client logs statements executed interactively to a history file\&. By default, t
 in your home directory\&. To specify a different file, set the value of the
 MYSQL_HISTFILE
 environment variable\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+How Logging Occurs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Controlling the History File
+.RE
 How Logging Occurs.PP
 Statement logging occurs as follows:
 .sp
@@ -2824,7 +2870,7 @@ shell> \fBln \-s /dev/null $HOME/\&.mysql_history\fR
 .RE
 .\}
 .RE
-.SH "MYSQL SERVER\-SIDE HELP"
+.SH "MYSQL CLIENT SERVER\-SIDE HELP"
 .sp
 .if n \{\
 .RS 4
@@ -3064,7 +3110,7 @@ with an option such as
 .PP
 For more information about batch mode, see
 Section\ \&3.5, \(lqUsing mysql in Batch Mode\(rq\&.
-.SH "MYSQL TIPS"
+.SH "MYSQL CLIENT TIPS"
 .PP
 This section describes some techniques that can help you use
 \fBmysql\fR
@@ -3255,23 +3301,33 @@ Monty
 .if n \{\
 .RE
 .\}
-.SS "Using the \-\-safe\-updates Option"
+.SS "Using Safe\-Updates Mode (\-\-safe\-updates)"
 .PP
 For beginners, a useful startup option is
 \fB\-\-safe\-updates\fR
 (or
-\fB\-\-i\-am\-a\-dummy\fR, which has the same effect)\&. It is helpful for cases when you might have issued a
-DELETE FROM \fItbl_name\fR
+\fB\-\-i\-am\-a\-dummy\fR, which has the same effect)\&. Safe\-updates mode is helpful for cases when you might have issued an
+UPDATE
+or
+DELETE
 statement but forgotten the
 WHERE
-clause\&. Normally, such a statement deletes all rows from the table\&. With
-\fB\-\-safe\-updates\fR, you can delete rows only by specifying the key values that identify them\&. This helps prevent accidents\&.
+clause indicating which rows to modify\&. Normally, such statements update or delete all rows in the table\&. With
+\fB\-\-safe\-updates\fR, you can modify rows only by specifying the key values that identify them, or a
+LIMIT
+clause, or both\&. This helps prevent accidents\&. Safe\-updates mode also restricts
+SELECT
+statements that produce (or are estimated to produce) very large result sets\&.
 .PP
-When you use the
+The
 \fB\-\-safe\-updates\fR
-option,
+option causes
 \fBmysql\fR
-issues the following statement when it connects to the MySQL server:
+to execute the following statement when it connects to the MySQL server, to set the session values of the
+sql_safe_updates,
+sql_select_limit, and
+max_join_size
+system variables:
 .sp
 .if n \{\
 .RS 4
@@ -3283,12 +3339,9 @@ SET sql_safe_updates=1, sql_select_limit=1000, max_join_size=1000000;
 .RE
 .\}
 .PP
-See
-Section\ \&5.1.7, \(lqServer System Variables\(rq\&.
-.PP
 The
 SET
-statement has the following effects:
+statement affects statement processing as follows:
 .sp
 .RS 4
 .ie n \{\
@@ -3298,15 +3351,17 @@ statement has the following effects:
 .sp -1
 .IP \(bu 2.3
 .\}
-You are not permitted to execute an
+Enabling
+sql_safe_updates
+causes
 UPDATE
-or
+and
 DELETE
-statement unless you specify a key constraint in the
+statements to produce an error if they do not specify a key constraint in the
 WHERE
-clause or provide a
+clause, or provide a
 LIMIT
-clause (or both)\&. For example:
+clause, or both\&. For example:
 .sp
 .if n \{\
 .RS 4
@@ -3328,9 +3383,11 @@ UPDATE \fItbl_name\fR SET \fInot_key_column\fR=\fIval\fR LIMIT 1;
 .sp -1
 .IP \(bu 2.3
 .\}
-The server limits all large
+Setting
+sql_select_limit
+to 1,000 causes the server to limit all
 SELECT
-results to 1,000 rows unless the statement includes a
+result sets to 1,000 rows unless the statement includes a
 LIMIT
 clause\&.
 .RE
@@ -3343,26 +3400,42 @@ clause\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-The server aborts multiple\-table
+Setting
+max_join_size
+to 1,000,000 causes multiple\-table
 SELECT
-statements that probably need to examine more than 1,000,000 row combinations\&.
+statements to produce an error if the server estimates it must examine more than 1,000,000 row combinations\&.
 .RE
 .PP
-To specify limits different from 1,000 and 1,000,000, you can override the defaults by using the
+To specify result set limits different from 1,000 and 1,000,000, you can override the defaults by using the
 \fB\-\-select_limit\fR
 and
 \fB\-\-max_join_size\fR
-options:
+options when you invoke
+\fBmysql\fR:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-safe\-updates \-\-select_limit=500 \-\-max_join_size=10000\fR
+mysql \-\-safe\-updates \-\-select_limit=500 \-\-max_join_size=10000
 .fi
 .if n \{\
 .RE
 .\}
+.PP
+It is possible for
+UPDATE
+and
+DELETE
+statements to produce an error in safe\-updates mode even with a key specified in the
+WHERE
+clause, if the optimizer decides not to use the index on the key column\&. For example, if key comparisons require type conversion, the index may not be used (see
+Section\ \&8.3.1, \(lqHow MySQL Uses Indexes\(rq)\&. Suppose that an indexed string column
+c1
+is compared to a numeric value using
+WHERE c1 = 2222\&. For such comparisons, the string value is converted to a number and the operands are compared numerically (see
+Section\ \&12.2, \(lqType Conversion in Expression Evaluation\(rq), preventing use of the index\&. If safe\-updates mode is enabled, an error occurs\&.
 .SS "Disabling mysql Auto\-Reconnect"
 .PP
 If the

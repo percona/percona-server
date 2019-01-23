@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
   them in sorted order through SORT_INFO functions.
 */
 
+#include <algorithm>
+#include <functional>
+#include <my_global.h>
 #include "fulltext.h"
 #if defined(__WIN__)
 #include <fcntl.h>
@@ -36,6 +39,17 @@
 #define MYF_RW  MYF(MY_NABP | MY_WME | MY_WAIT_IF_FULL)
 #define DISK_BUFFER_SIZE (IO_SIZE*16)
 
+class Key_compare :
+  public std::binary_function<const uchar*, const uchar*, bool>
+{
+public:
+  Key_compare(MI_SORT_PARAM *param) : info(param) {}
+  bool operator()(const uchar *a, const uchar *b)
+  {
+    return info->key_cmp(info, &a, &b) < 0;
+  }
+  MI_SORT_PARAM *info;
+};
 
 /*
  Pointers of functions for store and read keys from temp file
@@ -569,7 +583,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
         length=param->sort_buffer_length;
         while (length >= MIN_SORT_BUFFER)
         {
-          if ((mergebuf= my_malloc(length, MYF(0))))
+          if ((mergebuf= (uchar *) my_malloc(length, MYF(0))))
               break;
           length=length*3/4;
         }
@@ -649,15 +663,15 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
 
         /* Write all keys in memory to file for later merge */
 
-static int write_keys(MI_SORT_PARAM *info, register uchar **sort_keys,
+static int write_keys(MI_SORT_PARAM *info, uchar **sort_keys,
                       ulong count, BUFFPEK *buffpek, IO_CACHE *tempfile)
 {
   uchar **end;
   uint sort_length=info->key_length;
   DBUG_ENTER("write_keys");
 
-  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*),(qsort2_cmp) info->key_cmp,
-            info);
+  std::sort(sort_keys, sort_keys + count, Key_compare(info));
+
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
                        DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
@@ -691,7 +705,7 @@ my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs)
 
 
 static int write_keys_varlen(MI_SORT_PARAM *info,
-                             register uchar **sort_keys,
+                             uchar **sort_keys,
                              ulong count, BUFFPEK *buffpek,
                              IO_CACHE *tempfile)
 {
@@ -699,8 +713,8 @@ static int write_keys_varlen(MI_SORT_PARAM *info,
   int err;
   DBUG_ENTER("write_keys_varlen");
 
-  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*),(qsort2_cmp) info->key_cmp,
-            info);
+  std::sort(sort_keys, sort_keys + count, Key_compare(info));
+
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
                        DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
@@ -736,13 +750,13 @@ static int write_key(MI_SORT_PARAM *info, uchar *key, IO_CACHE *tempfile)
 
 /* Write index */
 
-static int write_index(MI_SORT_PARAM *info, register uchar **sort_keys,
-                       register ulong count)
+static int write_index(MI_SORT_PARAM *info, uchar **sort_keys,
+                       ulong count)
 {
   DBUG_ENTER("write_index");
 
-  my_qsort2((uchar*) sort_keys,(size_t) count,sizeof(uchar*),
-           (qsort2_cmp) info->key_cmp,info);
+  std::sort(sort_keys, sort_keys + count, Key_compare(info));
+
   while (count--)
   {
     if ((*info->key_write)(info,*sort_keys++))
@@ -758,7 +772,7 @@ static int merge_many_buff(MI_SORT_PARAM *info, ulong keys,
                            uchar **sort_keys, BUFFPEK *buffpek,
                            long *maxbuffer, IO_CACHE *t_file)
 {
-  register long i;
+  long i;
   IO_CACHE t_file2, *from_file, *to_file, *temp;
   BUFFPEK *lastbuff;
   DBUG_ENTER("merge_many_buff");
@@ -820,7 +834,7 @@ cleanup:
 static ulong read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
                             uint sort_length)
 {
-  register ulong count;
+  ulong count;
   ulong length;
 
   if ((count=(ulong) MY_MIN((ha_rows) buffpek->max_keys,buffpek->count)))
@@ -840,7 +854,7 @@ static ulong read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 static ulong read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
                                   uint sort_length)
 {
-  register ulong count;
+  ulong count;
   uint16 length_of_key = 0;
   ulong idx;
   uchar *buffp;
@@ -1015,7 +1029,7 @@ merge_buffers(MI_SORT_PARAM *info, ulong keys, IO_CACHE *from_file,
     }
     else
     {
-      register uchar *end;
+      uchar *end;
       strpos= buffpek->key;
       for (end=strpos+buffpek->mem_count*sort_length;
            strpos != end ;

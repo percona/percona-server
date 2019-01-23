@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/07/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "09/07/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "12/20/2018" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -150,6 +150,12 @@ against a large binary log, be careful that the filesystem has enough space for 
 uses for temporary files, use the
 TMPDIR
 environment variable\&.
+.PP
+In MySQL 5\&.6\&.10 and later,
+\fBmysqlbinlog\fR
+sets the value of
+pseudo_slave_mode
+to true before executing any SQL statements\&.
 .PP
 \fBmysqlbinlog\fR
 supports the following options, which can be specified on the command line or in the
@@ -592,6 +598,9 @@ Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -607,6 +616,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
@@ -639,6 +651,9 @@ also reads the
 and
 [mysqlbinlog_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -806,6 +821,9 @@ is an option group containing options that specify which MySQL server to connect
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -831,6 +849,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -919,6 +940,9 @@ The TCP/IP port number to use for connecting to a remote server\&.
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1662,7 +1686,7 @@ The hex output consists of comment lines beginning with
 .RS 4
 .\}
 .nf
-/*!40019 SET @@session\&.max_insert_delayed_threads=0*/;
+/*!40019 SET @@SESSION\&.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 # at 4
 #051024 17:24:13 server id 1  end_log_pos 98
@@ -2582,7 +2606,7 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 MySQL Internals: The Binary Log
 .RS 4
-\%http://dev.mysql.com/doc/internals/en/binary-log.html
+\%https://dev.mysql.com/doc/internals/en/binary-log.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

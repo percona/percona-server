@@ -71,6 +71,8 @@ static char *audit_log_include_databases= NULL;
 static char *audit_log_exclude_commands= NULL;
 static char *audit_log_include_commands= NULL;
 
+ulong audit_buffer_size_too_small = 0;
+
 PSI_memory_key key_memory_audit_log_logger_handle;
 PSI_memory_key key_memory_audit_log_handler;
 PSI_memory_key key_memory_audit_log_buffer;
@@ -2063,7 +2065,9 @@ static struct st_mysql_audit audit_log_descriptor=
 
 static struct st_mysql_show_var audit_log_status_variables[]=
 {
-  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
+  {"Audit_buffer_size_too_small",
+   (char*) &audit_buffer_size_too_small,
+   SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 

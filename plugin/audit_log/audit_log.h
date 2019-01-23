@@ -27,6 +27,8 @@ extern PSI_memory_key key_memory_audit_log_accounts;
 extern PSI_memory_key key_memory_audit_log_databases;
 extern PSI_memory_key key_memory_audit_log_commands;
 
+extern ulong audit_buffer_size_too_small;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

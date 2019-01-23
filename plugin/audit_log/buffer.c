@@ -190,6 +190,7 @@ int audit_log_buffer_write(audit_log_buffer_t *log, const char *buf, size_t len)
       log->write_func(log->write_func_data, buf, len, LOG_RECORD_COMPLETE);
       audit_log_buffer_resume(log);
     }
+    audit_buffer_size_too_small++;
     return(0);
   }
 

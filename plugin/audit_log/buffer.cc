@@ -163,6 +163,7 @@ int audit_log_buffer_write(audit_log_buffer_t *log, const char *buf,
                       log_record_state_t::COMPLETE);
       audit_log_buffer_resume(log);
     }
+    audit_buffer_size_too_small++;
     return (0);
   }
 

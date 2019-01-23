@@ -19,6 +19,8 @@
 
 #include <m_ctype.h>
 
+extern ulong audit_buffer_size_too_small;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

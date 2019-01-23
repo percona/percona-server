@@ -68,6 +68,8 @@ static char *audit_log_include_accounts= NULL;
 static char *audit_log_exclude_commands= NULL;
 static char *audit_log_include_commands= NULL;
 
+ulong audit_buffer_size_too_small = 0;
+
 static int audit_log_syslog_facility_codes[]=
   { LOG_USER,   LOG_AUTHPRIV, LOG_CRON,   LOG_DAEMON, LOG_FTP,
     LOG_KERN,   LOG_LPR,      LOG_MAIL,   LOG_NEWS,
@@ -1746,7 +1748,9 @@ static struct st_mysql_audit audit_log_descriptor=
 
 static struct st_mysql_show_var audit_log_status_variables[]=
 {
-  { 0, 0, 0}
+  {"Audit_buffer_size_too_small",
+   (char*) &audit_buffer_size_too_small,
+   SHOW_LONG}
 };
 
 

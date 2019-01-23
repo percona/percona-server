@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_import\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/03/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_IMPORT\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_IMPORT\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -35,9 +35,13 @@ ndb_import \- Import CSV data into NDB
 .SH "DESCRIPTION"
 .PP
 \fBndb_import\fR
-imports CSV\-formatted data into
+imports CSV\-formatted data, such as that produced by
+\fBmysqldump\fR
+\fB\-\-tab\fR, directly into
 NDB
-using the NDB API, which requires a connection to an NDB management server\&. A connection to a MySQL Server is not required\&.
+using the NDB API\&.
+\fBndb_import\fR
+requires a connection to an NDB management server (\fBndb_mgmd\fR) to function; it does not require a connection to a MySQL Server\&.
 Usage
 .sp
 .if n \{\
@@ -53,13 +57,15 @@ ndb_import \fIdb_name\fR \fIfile_name\fR \fIoptions\fR
 \fBndb_import\fR
 requires two arguments\&.
 \fIdb_name\fR
-is the name of the database in which the database where the table into which to import the data is found;
+is the name of the database where the table into which to import the data is found;
 \fIfile_name\fR
-is the name of the CSV file from which to read the data, including the path to this file if it is not in the current directory\&. The name of the file must match the name of the table; the file\*(Aqs extention, if any, is not taken into consdieration\&. Additional arguments (described later in this section) are supported, including options for specifying field separators, escapes, and line terminators\&.
+is the name of the CSV file from which to read the data; this must include the path to this file if it is not in the current directory\&. The name of the file must match that of the table; the file\*(Aqs extension, if any, is not taken into consideration\&. Options supported by
+\fBndb_import\fR
+include those for specifying field separators, escapes, and line terminators, and are described later in this section\&.
 \fBndb_import\fR
 must be able to connect to an NDB Cluster management server; for this reason, there must be an unused
 [api]
-slot in the
+slot in the cluster
 config\&.ini
 file\&.
 .PP
@@ -194,6 +200,9 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+l l l
+l l l
+l l l
 l l l
 l l l
 l l l
@@ -401,12 +410,30 @@ ADDED: NDB 7.6.2
 T}
 T{
 .PP
+--keep-state
+T}:T{
+Preserve state files
+T}:T{
+.PP
+ADDED: NDB 7.6.4
+T}
+T{
+.PP
 --lines-terminated-by=name
 T}:T{
 Same as LINES TERMINATED BY option for LOAD DATA statements
 T}:T{
 .PP
 ADDED: NDB 7.6.2
+T}
+T{
+.PP
+--log-level=#
+T}:T{
+Set internal logging level; for debugging and development
+T}:T{
+.PP
+ADDED: NDB 7.6.4
 T}
 T{
 .PP
@@ -569,6 +596,17 @@ ADDED: NDB 7.6.2
 T}
 T{
 .PP
+--stats
+T}:T{
+Save performance and statistics information in
+              *.sto and *.stt
+              files
+T}:T{
+.PP
+ADDED: NDB 7.6.4
+T}
+T{
+.PP
 --tempdelay=#
 T}:T{
 Number of milliseconds to sleep between temporary errors
@@ -594,7 +632,7 @@ T{
 .PP
 -v
 T}:T{
-Verbosity level for debug messages (maximum is 4 for debug builds)
+Enable verbose output
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -961,6 +999,7 @@ l l
 l l
 l l
 l l
+l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -978,7 +1017,12 @@ T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+\fBDefault Value\fR (>= 5.7.20-ndb-7.6.4)
+T}:T{
+4
+T}
+T{
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2, <= 5.7.18-ndb-7.6.3)
 T}:T{
 1
 T}
@@ -1589,6 +1633,7 @@ l l
 l l
 l l
 l l
+l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -1606,7 +1651,12 @@ T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+\fBDefault Value\fR (>= 5.7.20-ndb-7.6.4)
+T}:T{
+4
+T}
+T{
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2, <= 5.7.18-ndb-7.6.3)
 T}:T{
 2
 T}
@@ -1623,6 +1673,55 @@ T}
 .TE
 .sp 1
 Set the number of threads processing input\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-keep\-state\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--keep-state
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+5.7.20-ndb-7.6.4
+T}
+T{
+\fBType\fR
+T}:T{
+Boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+false
+T}
+.TE
+.sp 1
+By default, ndb_import removes all state files (except non\-empty
+*\&.rej
+files) when it completes a job\&. Specify this option (nor argument is required) to force the program to retain all state files instead\&.
 .RE
 .sp
 .RS 4
@@ -1674,6 +1773,61 @@ LINES TERMINATED BY
 option does for the
 LOAD DATA
 statement, specifying a character to be interpeted as end\-of\-line\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-log\-level\fR=\fI#\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--log-level=#
+T}
+T{
+\fBType\fR
+T}:T{
+Integer
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+0
+T}
+T{
+\fBMinimum Value\fR
+T}:T{
+0
+T}
+T{
+\fBMaximum Value\fR
+T}:T{
+2
+T}
+.TE
+.sp 1
+Performs internal logging at the given level\&. This option is intended primarily for internal and development use\&.
+.sp
+In debug builds of NDB only, the logging level can be set using this option to a maximum of 4\&.
 .RE
 .sp
 .RS 4
@@ -2355,9 +2509,15 @@ T}:T{
 T}
 .TE
 .sp 1
-Limit the number of rejected rows (rows with permanent errors) in the data load\&. The default is 0, which means that any rejected row causes a fatal error\&. The row causing the limit to be exceeded is added to the
+Limit the number of rejected rows (rows with permanent errors) in the data load\&. The default is 0, which means that any rejected row causes a fatal error\&. Any rows causing the limit to be exceeded are added to the
 \&.rej
 file\&.
+.sp
+The limit imposed by this option is effective for the duration of the current run\&. A run restarted using
+\fB\-\-resume\fR
+is considered a
+\(lqnew\(rq
+run for this purpose\&.
 .RE
 .sp
 .RS 4
@@ -2523,6 +2683,58 @@ T}
 .TE
 .sp 1
 Set a limit on the number of bytes per row queue\&. Use 0 for no limit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-stats\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--stats
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+5.7.20-ndb-7.6.4
+T}
+T{
+\fBType\fR
+T}:T{
+Boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+false
+T}
+.TE
+.sp 1
+Save information about options related to performance and other internal statistics in files named
+*\&.sto
+and
+*\&.stt\&. These files are always kept on successful completion (even if
+\fB\-\-keep\-state\fR
+is not also specified)\&.
 .RE
 .sp
 .RS 4
@@ -2703,7 +2915,7 @@ file\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-verbose\fR=\fI#\fR,
+\fB\-\-verbose\fR,
 \fB\-v\fR
 .TS
 allbox tab(:);
@@ -2719,11 +2931,13 @@ l l
 l l
 l l
 l l
+l l
+l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
---verbose=#
+--verbose
 T}
 T{
 \fBIntroduced\fR
@@ -2731,12 +2945,22 @@ T}:T{
 5.7.18-ndb-7.6.2
 T}
 T{
-\fBType\fR
+\fBType\fR (>= 5.7.20-ndb-7.6.4)
+T}:T{
+Boolean
+T}
+T{
+\fBType\fR (>= 5.7.18-ndb-7.6.2, <= 5.7.18-ndb-7.6.3)
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+\fBDefault Value\fR (>= 5.7.20-ndb-7.6.4)
+T}:T{
+false
+T}
+T{
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2, <= 5.7.18-ndb-7.6.3)
 T}:T{
 0
 T}
@@ -2752,7 +2976,11 @@ T}:T{
 T}
 .TE
 .sp 1
-Verbosity level for debugging messages\&.
+NDB 7\&.6\&.4 and later: Enable verbose output\&.
+.sp
+Previously, this option controlled the internal logging level for debugging messages\&. In NDB 7\&.6\&.4 and later, use the
+\fB\-\-log\-level\fR
+option for this purpose instead\&.
 .RE
 .PP
 As with

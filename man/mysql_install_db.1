@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/03/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -689,10 +689,6 @@ passes unrecognized options to
 \fB\-?\fR
 .sp
 Display a help message and exit\&.
-.sp
-The
-\fB\-?\fR
-form of this option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -707,8 +703,6 @@ form of this option was added in MySQL 5\&.7\&.5\&.
 .sp
 The authentication plugin to use for the administrative account\&. The default is
 mysql_native_password\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -725,8 +719,6 @@ The host part to use for the adminstrative account name\&. The default is
 localhost\&. This option is ignored if
 \fB\-\-login\-path\fR
 is also specified\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -744,8 +736,6 @@ Whether to require SSL for the administrative account\&. The default is not to r
 uses to create the account includes a
 REQUIRE SSL
 clause\&. As a result, the administrative account must use secure connections when connecting to the server\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -762,8 +752,6 @@ The user part to use for the adminstrative account name\&. The default is
 root\&. This option is ignored if
 \fB\-\-login\-path\fR
 is also specified\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -864,10 +852,6 @@ passes
 \fB\-\-no\-defaults\fR
 to
 \fBmysqld\fR, to prevent option files from being read\&. This may help if program startup fails due to reading unknown options from an option file\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&. (Before 5\&.7\&.5, only the
-\fB\-\-no\-defaults\fR
-variant was supported\&.)
 .RE
 .sp
 .RS 4
@@ -888,6 +872,9 @@ This option is passed by
 \fBmysql_install_db\fR
 to
 \fBmysqld\fR\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -908,6 +895,9 @@ This option is passed by
 \fBmysql_install_db\fR
 to
 \fBmysqld\fR\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -924,8 +914,6 @@ to
 This option names a file containing additional SQL statements to be executed after the standard bootstrapping statements\&. Accepted statement syntax in the file is like that of the
 \fBmysql\fR
 command\-line client, including support for multiple\-line C\-style comments and delimiter handling to enable definition of stored programs\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1037,8 +1025,6 @@ en_US\&. The argument is converted to a language name and combined with the valu
 \fB\-\-lc\-messages\-dir\fR
 to produce the location for the error message file\&. See
 Section\ \&10.11, \(lqSetting the Error Message Language\(rq\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1055,8 +1041,6 @@ The directory where error messages are located\&. The value is used together wit
 \fB\-\-lc\-messages\fR
 to produce the location for the error message file\&. See
 Section\ \&10.11, \(lqSetting the Error Message Language\(rq\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1089,8 +1073,6 @@ The file from which to read the login path if the
 \fB\-\-login\-path=\fR\fB\fIfile_name\fR\fR
 option is specified\&. The default file is
 \&.mylogin\&.cnf\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1126,7 +1108,8 @@ and
 \fB\-\-admin\-user\fR
 options are ignored\&.
 .sp
-This option was added in MySQL 5\&.7\&.5\&.
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1225,8 +1208,6 @@ In
 /opt/local/bin,
 /opt/local/sbin\&.
 .RE
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1243,6 +1224,9 @@ Before MySQL 5\&.7\&.5, do not read any option files\&. If program startup fails
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&. For behavior of this option as of MySQL 5\&.7\&.5, see the description of
 \fB\-\-defaults\fR\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1257,8 +1241,6 @@ can be used to prevent them from being read\&. For behavior of this option as of
 .sp
 The path name of the file in which to write the randomly generated password for the administrative account\&. The option value must be an absolute path name or an error occurs\&. The default is
 $HOME/\&.mysql_secret\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1613,10 +1595,6 @@ root
 user to use this option\&. By default,
 \fBmysqld\fR
 runs using your current login name and files and directories that it creates will be owned by you\&.
-.sp
-The
-\fB\-u\fR
-form of this option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1635,10 +1613,6 @@ Verbose mode\&. Print more information about what the program does\&. You can us
 command that
 \fBmysql_install_db\fR
 invokes to start the server in bootstrap mode\&.
-.sp
-The
-\fB\-v\fR
-form of this option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4
@@ -1653,8 +1627,6 @@ form of this option was added in MySQL 5\&.7\&.5\&.
 \fB\-V\fR
 .sp
 Display version information and exit\&.
-.sp
-This option was added in MySQL 5\&.7\&.5\&.
 .RE
 .sp
 .RS 4

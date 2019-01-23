@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/03/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -842,6 +842,7 @@ Section\ \&21.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Bac
 When restoring cluster backups, you must be sure to restore all data nodes from backups having the same backup ID\&. Using files from different backups will at best result in restoring the cluster to an inconsistent state, and may fail altogether\&.
 .sp .5v
 .RE
+In NDB 7\&.5\&.13 and later, and in NDB 7\&.6\&.9 and later, this option is required\&.
 .RE
 .sp
 .RS 4
@@ -1980,6 +1981,8 @@ Specify the node ID of the data node on which the backup was taken\&.
 .sp
 When restoring to a cluster with different number of data nodes from that where the backup was taken, this information helps identify the correct set or sets of files to be restored to a given node\&. (In such cases, multiple files usually need to be restored to a single data node\&.) See
 the section called \(lqRestoring to a different number of data nodes\(rq, for additional information and examples\&.
+.sp
+In NDB 7\&.5\&.13 and later, and in NDB 7\&.6\&.9 and later, this option is required\&.
 .RE
 .sp
 .RS 4
@@ -2797,7 +2800,7 @@ to restore the privilege tables\&.
 This works only if the privilege tables were converted to
 NDB
 before the backup was taken\&. For more information, see
-Section\ \&21.5.15, \(lqDistributed MySQL Privileges for NDB Cluster\(rq\&.
+Section\ \&21.5.16, \(lqDistributed MySQL Privileges for NDB Cluster\(rq\&.
 .RE
 .sp
 .RS 4

@@ -186,14 +186,15 @@ diff -rup old/libmysql/libmysql.ver.in new/libmysql/libmysql.ver.in
 diff -rup old/plugin/percona-pam-for-mysql/CMakeLists.txt new/plugin/percona-pam-for-mysql/CMakeLists.txt
 --- old/plugin/percona-pam-for-mysql/CMakeLists.txt	2016-03-02 14:37:18.000000000 +0100
 +++ new/plugin/percona-pam-for-mysql/CMakeLists.txt	2016-03-03 14:07:22.629678083 +0100
-@@ -31,6 +31,6 @@ IF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE
+@@ -31,7 +31,7 @@
    SET(AUTH_PAM_COMPAT_SOURCES ${AUTH_PAM_COMMON_SOURCES} src/auth_pam_compat.c)
    MYSQL_ADD_PLUGIN(auth_pam ${AUTH_PAM_SOURCES} LINK_LIBRARIES pam MODULE_ONLY)
    MYSQL_ADD_PLUGIN(auth_pam_compat ${AUTH_PAM_COMPAT_SOURCES} LINK_LIBRARIES pam MODULE_ONLY)
 -  MYSQL_ADD_PLUGIN(dialog src/dialog.c LINK_LIBRARIES perconaserverclient MODULE_ONLY)
 +  MYSQL_ADD_PLUGIN(dialog src/dialog.c LINK_LIBRARIES mysqlclient MODULE_ONLY)
- ENDIF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R)
- ENDIF(WITH_PAM)
+ 
+   IF(UNIX)
+     IF(INSTALL_MYSQLTESTDIR)
 diff -rup old/scripts/CMakeLists.txt new/scripts/CMakeLists.txt
 --- old/scripts/CMakeLists.txt	2016-03-03 08:30:02.000000000 +0100
 +++ new/scripts/CMakeLists.txt	2016-03-03 14:07:22.629678083 +0100

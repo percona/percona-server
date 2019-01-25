@@ -1,0 +1,5 @@
+.. important::
+
+   It is important that you remove the packages without dependencies not to
+   break other packages that have the same dependencies (as they replace
+   ``mysql``) and will be removed if ``--nodeps`` option is omitted.

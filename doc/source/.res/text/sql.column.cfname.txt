@@ -1,0 +1,26 @@
+
+.. Application: PS-5.7 not PS 8.0
+
+The |sql.comment| clause can result in implicitly created column families. Although
+the following example does not specify a column family using the
+|cfname| attribute, column families ``my primary key`` and ``key ab`` are
+created nevertheless.
+
+.. code-block:: mysql
+
+   CREATE TABLE t1( a INT, b INT, c INT, d INT,
+   PRIMARY KEY(a) COMMENT 'my primary key',
+   KEY ab(a,b) COMMENT 'key ab')
+   ENGINE=ROCKSDB;
+
+The option |opt.no-create-column-family| set to `false` will not allow column
+families to be created using this implicit syntax of the ``COMMENT`` clause. In
+order to be successfully created, the column family must already exist.
+
+Alternatively, you can add a column family that you plan to use via the implicit
+``COMMENT`` clause to the |opt.override-cf-options| option.
+
+By default |opt.nccf| is set to `true`, which allows implicit column families.
+
+.. requires: include replace.opt
+.. requires: include replace.concept

@@ -1,0 +1,7 @@
+
+If you are running a supported version of :ref:`Debian or Ubuntu <apt_repo>` or
+:ref:`Red Hat Enterprise or CentOS <yum_repo>` with `systemd
+<http://freedesktop.org/wiki/Software/systemd/>`_, you can run
+:program:`systemctl` instead of :program:`service`. Currently, |Percona Server|
+supports both :program:`systemctl` and :program:`service` system and service
+managers.

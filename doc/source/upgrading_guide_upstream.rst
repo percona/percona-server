@@ -1,41 +1,30 @@
-.. _upgrading_guide:
+.. _upgrading_guide_upstream:
 
 ================================================================================
-|Percona Server| In-Place Upgrading Guide from 5.6 to 5.7
+|Percona Server| In-Place Upgrading Guide from |MySQL|
 ================================================================================
 
 In-place upgrades keep the existing data on the server. Generally speaking,
-in-place upgrades involve stopping the server, installing the new server, and
-starting it with the same data files.
+in-place upgrades involve stopping the server, removing the installed version of
+|MySQL|, installing the new server, and starting it with the same data files.
 
 While in-place upgrades may not be suitable for high-complexity environments,
 they may be appropriate for many simpler scenarios.
 
-The following is a summary of the more relevant changes in the 5.7 series of
-|Percona Server|: :ref:`changed_in_57`.
-
-.. segment 2
-It is strongly recommended that you read the following guides
-to be aware of the incompatible changes that could cause the in-place upgrade to
-fail:
+It is strongly recommended that you read the following guides to be aware of the
+incompatible changes that could cause the in-place upgrade to fail:
 
 * `Upgrading MySQL <http://dev.mysql.com/doc/refman/5.7/en/upgrading.html>`_
 * `Upgrading from MySQL 5.6 to 5.7 <http://dev.mysql.com/doc/refman/5.7/en/upgrading-from-previous-series.html>`_
 
 Use one of the following approaches to make the in-place upgrade to |Percona
-Server| 5.7.
+Server| 5.7 from |MySQL|.
 
 .. contents::
    :local:
    :depth: 1
 
-.. warning:: 
-
-   The upgrade of |Percona Server| from 5.6 to 5.7 on a crashed instance is not
-   recommended. If the server instance has crashed, run the crash recovery
-   before proceeding with the upgrade.
-
-.. _percona-server.in-place-upgrade.repository:
+.. _percona-server.in-place-upgrade.repository.upstream:
 
 In-place upgrade using |Percona| repositories
 ================================================================================
@@ -52,7 +41,7 @@ The in-place upgrade using |Percona| repositories requires the following steps:
    :local:
    :depth: 1
 
-.. _percona-server.in-place-upgrade.preliminary:
+.. _percona-server.in-place-upgrade.preliminary.upstream:
 
 Preliminary steps common to all distributions
 --------------------------------------------------------------------------------
@@ -67,22 +56,35 @@ Preliminary steps common to all distributions
 
       $ service mysql stop
 
-#. Modify :ref:`your configuration file as needed <changed_in_57>`.
-
 The following steps are different for DEB based and RPM based
-distributions. Depending on your operating system, complete either the
-:ref:`percona-server.in-place-upgrade.deb` or
-:ref:`percona-server.in-place-upgrade.rpm` procedure. Then, :ref:`run
-mysql_upgrade <percona-server.mysql-upgrade.run-manually>`.
+distributions. Depending on your operating system, follow the instructions in
+either :ref:`percona-server.mysql.in-place-upgrade.upstream.deb` or in
+:ref:`percona-server.in-place-upgrade.upstream.rpm`.  Then, :ref:`run mysql_upgrade
+<percona-server.mysql-upgrade.run-manually.upstream>`.
 
-.. _percona-server.in-place-upgrade.deb:
+.. _percona-server.in-place-upgrade.upstream.deb:
 
-Upgrading from |Percona Server| 5.6 for DEB based Linux distributions
+Upgrading from |MySQL| 5.7 for DEB based Linux distributions
 --------------------------------------------------------------------------------
 
-The following steps are relevant to upgrading |Percona Server| 5.6 installed on
-|debian| or |ubuntu|. 
+The following steps are relevant to upgrading |MySQL| 5.7 installed on |debian|
+or |ubuntu|.
 
+#. Check which |MySQL| packages are installed:
+
+   .. code-block:: bash
+
+      $ dpkg-query -l 'mysql-*'
+
+#. Remove |MySQL| server leaving data files intact. In the following
+   example, **MYSQL-PACKAGE-NAME** is a placeholder which represents
+   an installed |MySQL| package that you need to remove. For example,
+   if you have |MySQL| Server Community Edition you need to uninstall
+   `mysql-server` at least.
+
+   .. code-block:: bash
+
+      $ apt remove MYSQL-PACKAGE-NAME
 
 #. Install the new server
 
@@ -90,47 +92,36 @@ The following steps are relevant to upgrading |Percona Server| 5.6 installed on
 
       $ apt install percona-server-server-5.7
 
-   If you are upgrading from |Percona Server| 5.6 with |TokuDB|, specify the |TokuDB| package as well:
+   If you intend to use the |TokuDB| storage engine, specify the |TokuDB|
+   package as well:
 
    .. code-block:: bash
 
       $ apt install percona-server-server-5.7 percona-server-tokudb-5.7
 
-.. _percona-server.in-place-upgrade.rpm:
+.. _percona-server.mysql.in-place-upgrade.rpm:
 
-Upgrading from |Percona Server| 5.6 for RPM based Linux distributions
+Upgrading from |MySQL| 5.7 for RPM based Linux distributions
 --------------------------------------------------------------------------------
 
-The following steps are relevant to upgrading |Percona Server| 5.6 installed on
-|red-hat-enterprise| or |centos|. 
+The following steps are relevant to upgrading from |MySQL|
+5.7. |tip.run-all.root|.
 
-|tip.run-all.root|.
 
 .. rubric:: Removing packages
 
-#. Check your installed packages
+#. Check which |MySQL| related packages are installed:
 
    .. code-block:: bash
 
-      $ rpm -qa | grep Percona-Server
+      $ rpm -qa | grep '^mysql-'
 
-   .. admonition:: Output example
-		   
-      .. code-block:: guess
-
-	 Percona-Server-shared-56-5.6.28-rel76.1.el7.x86_64
-	 Percona-Server-server-56-5.6.28-rel76.1.el7.x86_64
-	 Percona-Server-devel-56-5.6.28-rel76.1.el7.x86_64
-	 Percona-Server-client-56-5.6.28-rel76.1.el7.x86_64
-	 Percona-Server-test-56-5.6.28-rel76.1.el7.x86_64
-	 Percona-Server-56-debuginfo-5.6.28-rel76.1.el7.x86_64
-
-#. If any *Percona-Server* packages are found, remove them without dependencies
+#. If any |MySQL| packages are found, remove them without dependencies.
 
    .. code-block:: bash
 
-      $ rpm -qa | grep Percona-Server | xargs rpm -e --nodeps
-
+      $ rpm -qa | grep '^mysql-' | xargs rpm -e --nodeps
+   
    .. include:: .res/text/important.package.removing-without-dependency.txt
 
 .. rubric:: Installing new packages
@@ -141,8 +132,9 @@ The following steps are relevant to upgrading |Percona Server| 5.6 installed on
 
       $ yum install Percona-Server-server-57 
 
-   If you used |Percona Server| 5.6 with |TokuDB|, run :program:`yum install`
-   specifying the |TokuDB| package along with ``percona-server-server-57``.
+   If you intend to use |Percona Server| 5.7 with |TokuDB|, run :program:`yum
+   install` specifying the |TokuDB| package along with
+   ``percona-server-server-57``.
 
    .. code-block:: bash
 
@@ -150,15 +142,7 @@ The following steps are relevant to upgrading |Percona Server| 5.6 installed on
 
 #. Modify your :file:`my.cnf` configuration file and reinstall the plugins if necessary.
 
-.. seealso::
-
-   Previous steps
-      :ref:`percona-server.in-place-upgrade.preliminary`
-   Next steps
-      - :ref:`percona-server.in-place-upgrade.starting`
-      - :ref:`percona-server.mysql-upgrade.run-manually`
-
-.. _percona-server.in-place-upgrade.starting:
+.. _percona-server.in-place-upgrade.starting.upstream:
 
 Starting the server
 --------------------------------------------------------------------------------
@@ -177,9 +161,9 @@ commented out.
 
 .. important::
 
-   If you use the |TokuDB| storage engine, comment out all variables
-   specific to |TokuDB| in your configuration files before starting the
-   server. Otherwise, the server will not be able to start.
+   If you use the |TokuDB| storage engine, comment out all variables specific to
+   |TokuDB| in your configuration files before starting the server. Otherwise,
+   the server will not be able to start.
 
 .. _percona-server.mysql-upgrade.run-manually:
 
@@ -340,96 +324,9 @@ you intend to use the |TokuDB| storage engine.
   <tokudb_intro>`. You can find more information on how to install and enable
   the |TokuDB| storage engine in the :ref:`tokudb_installation` guide.
 
-.. _percona-server.in-place-upgrade.standalone.rpm:
-
-Upgrading from |Percona Server| 5.6 using standalone packages RPM based distributions
-----------------------------------------------------------------------------------------------------
-
-#. Check the installed packages:
-
-   .. code-block:: bash
-
-      $ rpm -qa | grep Percona-Server
-  
-   .. admonition:: Output example
-
-      .. code-block:: guess
-
-	 Percona-Server-shared-56-5.6.28-rel76.1.el6.x86_64
-	 Percona-Server-server-56-5.6.28-rel76.1.el6.x86_64
-	 Percona-Server-client-56-5.6.28-rel76.1.el6.x86_64
-	 Percona-Server-tokudb-56-5.6.28-rel76.1.el6.x86_64
-
-   You may also have the ``Percona-Server-shared-compat-*`` package. This
-   package is used for compatibility purposes.
-
-#. Remove these packages without dependencies:
-
-   .. code-block:: bash
-
-      $ rpm -qa | grep Percona-Server | xargs rpm -e --nodeps
-
-   .. include:: .res/text/important.package.removing-without-dependency.txt
-
-#. Download the packages of the desired series for your architecture from the
-   `Percona Server download page
-   <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is
-   to download a bundle which contains all the packages.
-
-   .. admonition:: An example to download |Percona Server| 5.7.10-3 release packages for |centos| 7
-
-      .. code-block:: bash
-
-	 $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-3/binary/redhat/7/x86_64/Percona-Server-5.7.10-3-r63dafaf-el7-x86_64-bundle.tar
-
-#. Extract the packages from the bundle:
-
-   .. code-block:: bash
-
-      $ tar xvf Percona-Server-5.7.10-3-r63dafaf-el7-x86_64-bundle.tar
-
-   .. admonition:: Extracted RPM files
-
-      .. code-block:: guess
-
-	 Percona-Server-57-debuginfo-5.7.10-3.1.el7.x86_64.rpm
-	 Percona-Server-client-57-5.7.10-3.1.el7.x86_64.rpm
-	 Percona-Server-devel-57-5.7.10-3.1.el7.x86_64.rpm
-	 Percona-Server-server-57-5.7.10-3.1.el7.x86_64.rpm
-	 Percona-Server-shared-57-5.7.10-3.1.el7.x86_64.rpm
-	 Percona-Server-shared-compat-57-5.7.10-3.1.el7.x86_64.rpm
-	 Percona-Server-test-57-5.7.10-3.1.el7.x86_64.rpm
-	 Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm
-
-#. Install |Percona Server| 5.7.
-
-   .. code-block:: bash
-
-      $ rpm -ivh Percona-Server-server-57-5.7.10-3.1.el7.x86_64.rpm \
-      Percona-Server-client-57-5.7.10-3.1.el7.x86_64.rpm \
-      Percona-Server-shared-57-5.7.10-3.1.el7.x86_64.rpm
-
-   To install the :ref:`TokuDB <tokudb_intro>` storage engine, add the
-   ``Percona-Server-tokudb-57-5.7.10-3.1.el7.x86_64.rpm`` to the command
-   above.
-
-   .. admonition:: Cross-Reference
-
-      You can find more information on how to install and enable the
-      |TokuDB| storage in the :ref:`tokudb_installation` guide.
-
-   To install all the packages from the bundle (for debugging, testing, etc.),
-   run :program:`rpm` as follows (assuming that the current working directory
-   only contains the RPM files extracted from the
-   :file:`Percona-Server-5.7.10-3-r63dafaf-el7-x86_64-bundle.tar`)
-
-   .. code-block:: bash
-
-      $ rpm -ivh *.rpm
-
 .. _percona-server.mysql.in-place-upgrade.standalone.rpm:
 
-Upgrading from |MySQL| 5.6 or |MySQL| 5.7 using standalone packages RPM based distributions
+Upgrading from |MySQL| 5.7 using standalone packages RPM based distributions
 ----------------------------------------------------------------------------------------------------
 
 #. Check the installed packages:
@@ -501,6 +398,7 @@ Upgrading from |MySQL| 5.6 or |MySQL| 5.7 using standalone packages RPM based di
    .. code-block:: bash
 
       $ rpm -ivh *.rpm
+
 
 .. |tip.run-all.root|  replace:: Run the following commands as root or by using the :program:`sudo` command
 .. |red-hat-enterprise| replace:: Red Hat Enterprise

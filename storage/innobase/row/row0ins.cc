@@ -346,7 +346,7 @@ row_ins_clust_index_entry_by_modify(
 {
 	const rec_t*	rec;
 	upd_t*		update;
-	dberr_t		err;
+	dberr_t		err = DB_SUCCESS;
 	btr_cur_t*	cursor	= btr_pcur_get_btr_cur(pcur);
 	TABLE*		mysql_table = NULL;
 	ut_ad(dict_index_is_clust(cursor->index));
@@ -366,7 +366,17 @@ row_ins_clust_index_entry_by_modify(
 
 	update = row_upd_build_difference_binary(
 		cursor->index, entry, rec, NULL, true,
+<<<<<<< HEAD
 		thr_get_trx(thr), heap, mysql_table, thr->prebuilt);
+||||||| merged common ancestors
+		thr_get_trx(thr), heap, mysql_table);
+=======
+		thr_get_trx(thr), heap, mysql_table, &err);
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+>>>>>>> mysql-5.7.25
 	if (mode != BTR_MODIFY_TREE) {
 		ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
 
@@ -1269,6 +1279,11 @@ row_ins_foreign_check_on_constraint(
 						 clust_index, tmp_heap);
 	}
 
+	if (cascade->is_delete && foreign->v_cols != NULL
+	    && foreign->v_cols->size() > 0
+	    && table->vc_templ == NULL) {
+		innobase_init_vc_templ(table);
+	}
 	if (node->is_delete
 	    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
 	    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {

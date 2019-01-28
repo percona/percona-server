@@ -51,25 +51,22 @@ Installing |Percona Server| from Percona ``yum`` repository
 
    .. code-block:: bash
 
-     yum install http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-6.noarch.rpm
+		   
+      $ yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm 
 
-   You should see some output such as the following: 
+   .. admonition:: Output example
+
+      .. code-block:: guess
+
+	 Retrieving https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+	 Preparing...                ########################################### [100%]
+         1:percona-release        ########################################### [100%]
+
+   To install |Percona Server| with SELinux policies, you also need the :program:`Percona-Server-selinux-*.noarch.rpm` package:
 
    .. code-block:: bash
 
-     Retrieving http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-6.noarch.rpm
-     Preparing...                ########################################### [100%]
-        1:percona-release        ########################################### [100%]
-
-.. note:: 
-
-  *RHEL*/*Centos* 5 doesn't support installing the packages directly from the remote location so you'll need to download the package first and install it manually with :program:`rpm`:
-
-    .. code-block:: bash
-
-      wget http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-6.noarch.rpm
-      rpm -ivH percona-release-0.1-6.noarch.rpm
-
+      $ yum install http://repo.percona.com/centos/7/RPMS/x86_64/Percona-Server-selinux-56-5.6.42-rel84.2.el7.noarch.rpm
 
 2. Testing the repository
    
@@ -148,13 +145,13 @@ Installing |Percona Server| using downloaded rpm packages
 
 This will install only packages required to run the |Percona Server|. To install all the packages (for debugging, testing, etc.) you should run:
 
-   .. code-block:: bash
+.. code-block:: bash
 
-     rpm -ivh *.rpm
+   $ rpm -ivh *.rpm
 
 .. note::
 
-  When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself.
+   When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself.
 
 Running |Percona Server|
 ========================

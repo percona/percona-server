@@ -38,7 +38,6 @@ Other bugs fixed:
 :psbug:`3568`,
 :psbug:`3672`,
 :psbug:`3673`,
-:psbug:`4791`,
 :psbug:`4989`,
 :psbug:`5100`,
 :psbug:`5118`,

@@ -5,7 +5,25 @@ List of upstream |MySQL| bugs fixed in |Percona Server|    5.6
 ==============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
-|:Upstream Bug: :mysqlbug:`90351` - GLOBAL STATUS variables drift after rollback                              |
+|:Upstream bug: :mysqlbug:`93649` - STOP SLAVE SQL_THREAD deadlocks if done while holding LOCK INSTANCE   ... |
+|:JIRA bug: :psbug:`4758`                                                                                     |
+|:Upstream state: Open (checked on 2018-05-29)                                                                |
+|:Fix Released: :rn:`5.6.43-84.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`92809` - Inconsistent ResultSet for different Execution Plans                      |
+|:JIRA bug: :psbug:`4907`                                                                                     |
+|:Upstream state: Verified (checked on 2018-05-29)                                                            |
+|:Fix Released: :rn:`5.6.43-84.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`92227` - SQL injection on slave due to non-quoting in binlogged ROLLBACK TO ...    |
+|:JIRA bug: :psbug:`4791`                                                                                     |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.6.43-84.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`90351` - GLOBAL STATUS variables drift after rollback                              |
 |:JIRA bug: :psbug:`3951`                                                                                     |
 |:Upstream State: Verified (checked on 2018-11-28)                                                            |
 |:Fix Released: :rn:`5.6.40-84.0`                                                                             |

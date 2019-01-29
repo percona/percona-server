@@ -56,7 +56,7 @@ CVE-2018-0734.
 
 Find the release notes for |Percona Server| |release| in our `online
 documentation
-<https://www.percona.com/doc/percona-server/5.5/release-notes/Percona-Server-5.6.43-84.3.html>`_.
+<https://www.percona.com/doc/percona-server/5.6/release-notes/Percona-Server-5.6.43-84.3.html>`_.
 Report bugs in the `Jira bug tracker <https://jira.percona.com/projects/PS>`_.
 
 .. |release| replace:: 5.6.43-84.3

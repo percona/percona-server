@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2670,7 +2670,8 @@ err:
 
 void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
-  status_var_increment(table->in_use->status_var.*offset);
+  if (table && table->in_use)
+    status_var_increment(table->in_use->status_var.*offset);
 }
 
 void **handler::ha_data(THD *thd) const
@@ -8347,4 +8348,40 @@ void warn_fk_constraint_violation(THD *thd,TABLE *table, int error)
                  ER_NO_REFERENCED_ROW_2, str.c_ptr_safe());
     break;
   }
+}
+
+
+/**
+  Checks if the file name is reserved word used by SE by invoking
+  the handlerton method.
+
+  @param  unused1       thread handler which is unused.
+  @param  plugin        SE plugin.
+  @param  name          Database name.
+
+  @retval true          If the name is reserved word.
+  @retval false         If the name is not reserved word.
+*/
+static my_bool is_reserved_db_name_handlerton(THD *unused1, plugin_ref plugin,
+                                              void *name)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+  if (hton->state == SHOW_OPTION_YES && hton->is_reserved_db_name)
+    return (hton->is_reserved_db_name(hton, (const char *)name));
+  return false;
+}
+
+
+/**
+   Check if the file name is reserved word used by SE.
+
+   @param  name    Database name.
+
+   @retval true    If the name is a reserved word.
+   @retval false   If the name is not a reserved word.
+*/
+bool ha_check_reserved_db_name(const char* name)
+{
+  return (plugin_foreach(NULL, is_reserved_db_name_handlerton,
+                         MYSQL_STORAGE_ENGINE_PLUGIN, (char *)name));
 }

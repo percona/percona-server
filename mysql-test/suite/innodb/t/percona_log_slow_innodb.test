@@ -13,6 +13,8 @@ INSERT INTO t2 VALUE(1);
 
 --source include/count_sessions.inc
 
+--source include/log_prepare.inc
+
 SET SESSION long_query_time=0;
 SET SESSION log_slow_verbosity='microtime,innodb';
 

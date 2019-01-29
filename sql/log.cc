@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2013, Monty Program Ab
    Copyright (C) 2012 Percona Inc.
 
@@ -983,11 +983,14 @@ bool LOGGER::flush_logs(THD *thd)
 
 /**
   Close and reopen the slow log (with locks).
-  
-  @returns FALSE.
+
+  @return Error status code
+    @retval false Ok
+    @retval true  Error
 */
 bool LOGGER::flush_slow_log()
 {
+  bool result= false;
   /*
     Now we lock logger, as nobody should be able to use logging routines while
     log tables are closed
@@ -996,22 +999,25 @@ bool LOGGER::flush_slow_log()
 
   /* Reopen slow log file */
   if (opt_slow_log)
-    file_log_handler->get_mysql_slow_log()->reopen_file();
+    result= file_log_handler->get_mysql_slow_log()->reopen_file();
 
   /* End of log flush */
   logger.unlock();
 
-  return 0;
+  return result;
 }
 
 
 /**
   Close and reopen the general log (with locks).
 
-  @returns FALSE.
+  @return Error status code
+    @retval false Ok
+    @retval true  Error
 */
 bool LOGGER::flush_general_log()
 {
+  bool result= false;
   /*
     Now we lock logger, as nobody should be able to use logging routines while
     log tables are closed
@@ -1020,12 +1026,12 @@ bool LOGGER::flush_general_log()
 
   /* Reopen general log file */
   if (opt_log)
-    file_log_handler->get_mysql_log()->reopen_file();
+    result= file_log_handler->get_mysql_log()->reopen_file();
 
   /* End of log flush */
   logger.unlock();
 
-  return 0;
+  return result;
 }
 
 
@@ -1873,27 +1879,27 @@ int MYSQL_LOG::purge_up_to(ulong to_ext, const char *log_name)
   DBUG_RETURN(error);
 }
 
-/*
-  Reopen the log file
+/**
+  Reopen the log file.
 
-  SYNOPSIS
-    reopen_file()
-
-  DESCRIPTION
-    Reopen the log file. The method is used during FLUSH LOGS
+  @note  Reopen the log file. The method is used during FLUSH LOGS
     and locks LOCK_log mutex
+
+  @return Error status code
+    @retval false Ok
+    @retval true  Error
 */
 
-
-void MYSQL_QUERY_LOG::reopen_file()
+bool MYSQL_QUERY_LOG::reopen_file()
 {
   char *save_name;
+  bool result= false;
 
   DBUG_ENTER("MYSQL_LOG::reopen_file");
   if (!is_open())
   {
     DBUG_PRINT("info",("log is closed"));
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(result);
   }
 
   mysql_mutex_lock(&LOCK_log);
@@ -1906,16 +1912,16 @@ void MYSQL_QUERY_LOG::reopen_file()
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
   */
 
-  open(
+  result= open(
 #ifdef HAVE_PSI_INTERFACE
-       m_log_file_key,
+      m_log_file_key,
 #endif
-       save_name, log_type, 0, io_cache_type);
+      save_name, log_type, 0, io_cache_type);
   my_free(save_name);
 
   mysql_mutex_unlock(&LOCK_log);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(result);
 }
 
 

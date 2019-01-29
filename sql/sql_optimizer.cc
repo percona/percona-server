@@ -4443,7 +4443,14 @@ static bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
           if (!(keyuse->used_tables & sj_inner_tables) &&
               !(keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL))
           {
-            bound_parts|= (key_part_map)1 << keyuse->keypart;
+            /*
+              Consider only if the resulting condition does not pass a NULL
+              value through. Especially needed for a UNIQUE index on NULLable
+              columns where a duplicate row is possible with NULL values.
+            */
+            if (keyuse->null_rejecting || !keyuse->val->maybe_null ||
+                !keyinfo->key_part[keyuse->keypart].field->maybe_null())
+              bound_parts|= (key_part_map)1 << keyuse->keypart;
           }
           keyuse++;
         } while (keyuse->key == key && keyuse->table == table);
@@ -6704,6 +6711,20 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
           break;
         }
       }
+
+      /*
+        outer_tbl is replaced by wrap_nest.
+        For subselects, update embedding_join_nest to point to wrap_nest
+        instead of outer_tbl.
+      */
+      for (Item_exists_subselect **subquery= parent_join->sj_subselects.begin();
+           subquery < parent_join->sj_subselects.end();
+           subquery++)
+      {
+        if ((*subquery)->embedding_join_nest == outer_tbl)
+          (*subquery)->embedding_join_nest= wrap_nest;
+      }
+
       /*
         Ok now wrap_nest 'contains' outer_tbl and we're ready to add the 
         semi-join nest into it

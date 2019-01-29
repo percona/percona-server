@@ -70,7 +70,15 @@ Bugs Fixed
   NUMA development package was not installed, instead of exiting by error.
   Bug fixed :psbug:`4487`.
 
-* Variables :variable:`innodb_buffer_pool_populate` and :variable:`numa_interleave` mapped to the upstream `innodb_numa_interleave <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_numa_interleave>`_ variable in :rn:`5.6.27-75.0` were reverted to their original implementation due to upstream variant being less effective in memory allocation. Now buffer pool is allocated with MAP_POPULATE, forcing NUMA interleaved allocation at the buffer pool initialization time. Bug fixed :psbug:`3967`.
+* Variables :variable:`innodb_buffer_pool_populate` and
+  :variable:`numa_interleave` mapped to the upstream
+  `innodb_numa_interleave
+  <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_numa_interleave>`_
+  variable in :rn:`5.6.27-75.0` were reverted to their original
+  implementation due to upstream variant being less effective in
+  memory allocation. Now buffer pool is allocated with MAP_POPULATE,
+  forcing NUMA interleaved allocation at the buffer pool
+  initialization time. Bug fixed :psbug:`3967`.
 
 * :variable:`audit_log_include_accounts` variable did not take effect if
   placed in ``my.cnf`` configuration file, while still working as intended if
@@ -154,6 +162,6 @@ Other Bugs Fixed
   fails due to a locking conflict with the cachetable evictor"
 
 * :psbug:`1131` "User_var_log_event::User_var_log_event(const char*, uint,
-  const Format_description_log_event*): Assertion `(bytes_read == (data_written
+  const Format_description_log_event*): Assertion \`(bytes_read == (data_written
   - ((old_pre_checksum_fd || (description_event->checksum_alg ==
   BINLOG_CHECKSUM_ALG_OFF)) ? 0 : 4))) || ((".

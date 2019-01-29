@@ -3703,7 +3703,10 @@ end_with_restore_list:
     client thread has locked tables
   */
   if (thd->locked_tables_mode ||
-      thd->in_active_multi_stmt_transaction() || thd->global_read_lock.is_acquired())
+      thd->in_active_multi_stmt_transaction() ||
+      thd->global_read_lock.is_acquired() ||
+      thd->backup_tables_lock.is_acquired() ||
+      thd->backup_binlog_lock.is_acquired())
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));

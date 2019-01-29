@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5639,56 +5639,47 @@ opt_part_values:
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type == RANGE_PARTITION)
-              {
-                my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-                         "RANGE", "LESS THAN");
-                MYSQL_YYABORT;
-              }
-              if (part_info->part_type == LIST_PARTITION)
-              {
-                my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-                         "LIST", "IN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= HASH_PARTITION;
+            else if (part_info->part_type == RANGE_PARTITION)
+            {
+              my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                       "RANGE", "LESS THAN");
+              MYSQL_YYABORT;
+            }
+            else if (part_info->part_type == LIST_PARTITION)
+            {
+              my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                       "LIST", "IN");
+              MYSQL_YYABORT;
+            }
           }
         | VALUES LESS_SYM THAN_SYM
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type != RANGE_PARTITION)
-              {
-                my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                         "RANGE", "LESS THAN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= RANGE_PARTITION;
+            else if (part_info->part_type != RANGE_PARTITION)
+            {
+              my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                       "RANGE", "LESS THAN");
+              MYSQL_YYABORT;
+            }
           }
           part_func_max {}
         | VALUES IN_SYM
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type != LIST_PARTITION)
-              {
-                my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                               "LIST", "IN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= LIST_PARTITION;
+            else if (part_info->part_type != LIST_PARTITION)
+            {
+              my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                       "LIST", "IN");
+              MYSQL_YYABORT;
+            }
           }
           part_values_in {}
         ;
@@ -12860,35 +12851,35 @@ show_param:
         | CLIENT_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           Lex->sql_command= SQLCOM_SELECT;
+           Lex->sql_command= SQLCOM_SHOW_CLIENT_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_CLIENT_STATS))
              MYSQL_YYABORT;
           }
         | USER_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_USER_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_USER_STATS))
              MYSQL_YYABORT;
           }
         | THREAD_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           Lex->sql_command= SQLCOM_SELECT;
+           Lex->sql_command= SQLCOM_SHOW_THREAD_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_THREAD_STATS))
              MYSQL_YYABORT;
           }
         | TABLE_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_TABLE_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_STATS))
              MYSQL_YYABORT;
           }
         | INDEX_STATS_SYM wild_and_where
           {
            LEX *lex= Lex;
-           lex->sql_command= SQLCOM_SELECT;
+           lex->sql_command= SQLCOM_SHOW_INDEX_STATS;
            if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
              MYSQL_YYABORT;
           }
@@ -15044,7 +15035,15 @@ option_value_no_option_type:
               MYSQL_YYABORT;
             Lex->var_list.push_back(var);
           }
-        | '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
+        | '@' '@' opt_var_ident_type internal_variable_name
+          {
+            if ($4.var == trg_new_row_fake_var)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
+          equal set_expr_or_default
           {
             THD *thd= YYTHD;
             struct sys_var_with_base tmp= $4;
@@ -15054,7 +15053,7 @@ option_value_no_option_type:
               if (find_sys_var_null_base(thd, &tmp))
                 MYSQL_YYABORT;
             }
-            if (set_system_variable(thd, &tmp, $3, $6))
+            if (set_system_variable(thd, &tmp, $3, $7))
               MYSQL_YYABORT;
           }
         | charset old_or_new_charset_name_or_default
@@ -16256,19 +16255,21 @@ subselect_end:
             lex->current_select = lex->current_select->outer_select();
             lex->nest_level--;
             lex->current_select->n_child_sum_items += child->n_sum_items;
-            /*
-              A subselect can add fields to an outer select. Reserve space for
-              them.
-            */
-            lex->current_select->select_n_where_fields+=
-            child->select_n_where_fields;
 
             /*
-              Aggregate functions in having clause may add fields to an outer
-              select. Count them also.
+              A subquery (and all the subsequent query blocks in a UNION) can
+              add columns to an outer query block. Reserve space for them.
+              Aggregate functions in having clause can also add fields to an
+              outer select.
             */
-            lex->current_select->select_n_having_items+=
-            child->select_n_having_items;
+            for (SELECT_LEX *temp= child->master_unit()->first_select();
+                 temp != NULL; temp= temp->next_select())
+            {
+              lex->current_select->select_n_where_fields+=
+                temp->select_n_where_fields;
+              lex->current_select->select_n_having_items+=
+                temp->select_n_having_items;
+            }
           }
         ;
 

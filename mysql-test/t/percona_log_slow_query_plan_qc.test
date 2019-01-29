@@ -4,18 +4,17 @@
 --source include/have_innodb.inc
 --source include/have_query_cache.inc
 
+--source include/log_prepare.inc
+
 FLUSH STATUS;
 SET SESSION min_examined_row_limit=0;
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 
 INSERT INTO t1 VALUE(5);
 
 SET SESSION query_cache_type=1;
+SET @saved_query_cache_size=@@GLOBAL.query_cache_size;
 SET GLOBAL query_cache_size=1355776;
 
 SET SESSION long_query_time=0;
@@ -59,13 +58,7 @@ SELECT * FROM t1 WHERE a > 5;
 
 SHOW STATUS LIKE 'Qcache_hits';
 
-SET SESSION log_slow_filter=default;
-
-SET SESSION long_query_time=default;
-SET SESSION log_slow_verbosity=default;
-SET SESSION query_cache_type=default;
-SET GLOBAL query_cache_size=default;
-SET SESSION min_examined_row_limit=default;
+SET GLOBAL query_cache_size=@saved_query_cache_size;
 
 DROP TABLE t1;
 --source include/log_cleanup.inc

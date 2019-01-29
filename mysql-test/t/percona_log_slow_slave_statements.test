@@ -5,15 +5,16 @@
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t;
---enable_warnings
-
 CREATE TABLE t(id INT) ENGINE=InnoDB;
 sync_slave_with_master;
 
+--source include/log_prepare.inc
+
+SET @saved_min_examined_row_limit=@@GLOBAL.min_examined_row_limit;
 SET GLOBAL min_examined_row_limit=0;
+SET @saved_long_query_time=@@GLOBAL.long_query_time;
 SET GLOBAL long_query_time=0;
+SET @saved_log_slow_slave_statements=@@GLOBAL.log_slow_slave_statements;
 SET GLOBAL log_slow_slave_statements=OFF;
 --source include/restart_slave_sql.inc
 
@@ -61,8 +62,10 @@ connection master;
 DROP TABLE t;
 sync_slave_with_master;
 
-SET GLOBAL log_slow_slave_statements=default;
-SET GLOBAL long_query_time=default;
-SET GLOBAL min_examined_row_limit=default;
---source include/rpl_end.inc
+SET GLOBAL log_slow_slave_statements=@saved_log_slow_slave_statements;
+SET GLOBAL long_query_time=@saved_long_query_time;
+SET GLOBAL min_examined_row_limit=@saved_min_examined_row_limit;
+
 --source include/log_cleanup.inc
+
+--source include/rpl_end.inc

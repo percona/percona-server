@@ -18,7 +18,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/regex 
-  ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
 )
@@ -189,6 +188,7 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   unireg.cc
+  userstat.cc
   threadpool_common.cc
 )
 
@@ -223,6 +223,10 @@ SET(SQL_SOURCE
   mysqld.cc
   sql_client.cc
   )
+
+IF(WIN32)
+  LIST(APPEND SQL_SOURCE named_pipe.cc)
+ENDIF()
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
   SET_SOURCE_FILES_PROPERTIES(

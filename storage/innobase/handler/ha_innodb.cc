@@ -1409,6 +1409,17 @@ normalize_table_name_low(
 	ibool           set_lower_case); /* in: TRUE if we want to set
 					 name to lower case */
 
+/*****************************************************************//**
+Checks if the filename name is reserved in InnoDB.
+@return true if the name is reserved */
+static
+bool
+innobase_check_reserved_file_name(
+/*===================*/
+        handlerton*     hton,           /*!< in: handlerton of Innodb */
+        const char*     name);          /*!< in: Name of the database */
+
+
 /** Creates a new compression dictionary. */
 static
 handler_create_zip_dict_result
@@ -2322,6 +2333,11 @@ innobase_get_lower_case_table_names(void)
 {
 	return(lower_case_table_names);
 }
+/** return one of the tmpdir path
+@return tmpdir path*/
+UNIV_INTERN
+char*
+innobase_mysql_tmpdir(void) { return (mysql_tmpdir); }
 
 /** Create a temporary file in the location specified by the parameter
 path. If the path is null, then it will be created in tmpdir.
@@ -3481,6 +3497,7 @@ innobase_init(
 	innobase_hton->purge_archive_logs = innobase_purge_archive_logs;
 
 	innobase_hton->data = &innodb_api_cb;
+	innobase_hton->is_reserved_db_name= innobase_check_reserved_file_name;
 	innobase_hton->flush_changed_page_bitmaps
 		= innobase_flush_changed_page_bitmaps;
 	innobase_hton->purge_changed_page_bitmaps
@@ -11578,6 +11595,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 innobase_rename_table(
 /*==================*/
+	THD*            thd,    /*!< Connection thread handle */
 	trx_t*		trx,	/*!< in: transaction */
 	const char*	from,	/*!< in: old name of the table */
 	const char*	to)	/*!< in: new name of the table */
@@ -11602,6 +11620,37 @@ innobase_rename_table(
 	no deadlocks can occur then in these operations. */
 
 	row_mysql_lock_data_dictionary(trx);
+
+	dict_table_t*   table                   = NULL;
+        table = dict_table_open_on_name(norm_from, TRUE, FALSE,
+                                        DICT_ERR_IGNORE_NONE);
+
+        /* Since DICT_BG_YIELD has sleep for 250 milliseconds,
+	Convert lock_wait_timeout unit from second to 250 milliseconds */
+        long int lock_wait_timeout = thd_lock_wait_timeout(thd) * 4;
+        if (table != NULL) {
+                for (dict_index_t* index = dict_table_get_first_index(table);
+                     index != NULL;
+                     index = dict_table_get_next_index(index)) {
+
+                        if (index->type & DICT_FTS) {
+                                /* Found */
+                                while (index->index_fts_syncing
+                                        && !trx_is_interrupted(trx)
+                                        && (lock_wait_timeout--) > 0) {
+                                        DICT_BG_YIELD(trx);
+                                }
+                        }
+                }
+                dict_table_close(table, TRUE, FALSE);
+        }
+
+        /* FTS sync is in progress. We shall timeout this operation */
+        if (lock_wait_timeout < 0) {
+                error = DB_LOCK_WAIT_TIMEOUT;
+                row_mysql_unlock_data_dictionary(trx);
+                DBUG_RETURN(error);
+        }
 
 	/* Transaction must be flagged as a locking transaction or it hasn't
 	been started yet. */
@@ -11717,7 +11766,7 @@ ha_innobase::rename_table(
 	++trx->will_lock;
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-	error = innobase_rename_table(trx, from, to);
+	error = innobase_rename_table(thd, trx, from, to);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
 
@@ -11762,6 +11811,12 @@ ha_innobase::rename_table(
 
 		error = DB_ERROR;
 	}
+
+	else if (error == DB_LOCK_WAIT_TIMEOUT) {
+                my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0), to);
+
+                error = DB_LOCK_WAIT;
+        }
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
@@ -17184,8 +17239,10 @@ innodb_track_changed_pages_validate(
 		return 0;
 	}
 
-	if (intbuf == srv_track_changed_pages)
+	if (intbuf == srv_track_changed_pages) { // == 0
+		*reinterpret_cast<ulong*>(save) = srv_track_changed_pages;
 		return 0;
+	}
 
 	return 1;
 }
@@ -19545,4 +19602,31 @@ ib_warn_row_too_big(const dict_table_t*	table)
 		, prefix ? "or using ROW_FORMAT=DYNAMIC or"
 		" ROW_FORMAT=COMPRESSED ": ""
 		, prefix ? DICT_MAX_FIXED_COL_LEN : 0);
+}
+
+/*****************************************************************//**
+Checks if the file name is reserved in InnoDB. Currently
+redo log files(ib_logfile*) is reserved.
+@return true if the name is reserved */
+static
+bool
+innobase_check_reserved_file_name(
+/*===================*/
+	handlerton*     hton,		/*!< in: handlerton of Innodb */
+	const char*	name)		/*!< in: Name of the database */
+{
+	CHARSET_INFO *ci= system_charset_info;
+	size_t logname_size = strlen(ib_logfile_basename);
+
+	/* Name is smaller than reserved name */
+	if (strlen(name) < logname_size) {
+		return (false);
+	}
+	/* Do case insensitive comparison for name. */
+	for (uint i=0; i < logname_size; i++) {
+		if (my_tolower(ci, name[i]) != ib_logfile_basename[i]){
+			return (false);
+		}
+	}
+	return (true);
 }

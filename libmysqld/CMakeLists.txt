@@ -23,7 +23,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_BINARY_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/regex
-  ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/sql/backup
@@ -78,6 +77,7 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_record.cc
   ../sql/rpl_reporting.cc
   ../sql/rpl_utility.cc
+  ../sql/userstat.cc
   ../sql/uuid.cc
   ../sql/rpl_gtid_misc.cc
   ../sql/rpl_gtid_sid_map.cc

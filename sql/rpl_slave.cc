@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1715,6 +1715,10 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_ASSERT(rli->slave_running == 1);
   if (rli->sql_thread_kill_accepted)
     DBUG_RETURN(true);
+  DBUG_EXECUTE_IF("stop_when_mts_in_group", rli->abort_slave = 1;
+                  DBUG_SET("-d,stop_when_mts_in_group");
+                  DBUG_SET("-d,simulate_stop_when_mts_in_group");
+                  DBUG_RETURN(false););
   if (abort_loop || thd->killed || rli->abort_slave)
   {
     rli->sql_thread_kill_accepted= true;
@@ -2848,7 +2852,7 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
     if (rli->sql_force_rotate_relay)
     {
       mysql_mutex_lock(&mi->data_lock);
-      rotate_relay_log(mi);
+      rotate_relay_log(mi, false/*need_log_space_lock=false*/);
       mysql_mutex_unlock(&mi->data_lock);
       rli->sql_force_rotate_relay= false;
     }
@@ -2902,7 +2906,7 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    "failed to write a Rotate event"
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+      rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
       if (flush_master_info(mi, TRUE))
       {
         error= 1;
@@ -3996,6 +4000,10 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
       DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
 
     exec_res= ev->apply_event(rli);
+    DBUG_EXECUTE_IF("simulate_stop_when_mts_in_group",
+                    if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP
+                        && rli->curr_group_seen_begin)
+		    DBUG_SET("+d,stop_when_mts_in_group"););
 
     if (!exec_res && (ev->worker != rli))
     {
@@ -6252,6 +6260,7 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   Relay_log_info* rli = ((Master_info*)arg)->rli;
   const char *errmsg;
+  const char *error_string;
   bool mts_inited= false;
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
@@ -6262,6 +6271,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   mysql_mutex_lock(&rli->run_lock);
   DBUG_ASSERT(!rli->slave_running);
   errmsg= 0;
+  error_string= 0;
 #ifndef DBUG_OFF
   rli->events_until_exit = abort_slave_event_count;
 #endif
@@ -6532,31 +6542,31 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
           sql_print_warning("Slave: %s Error_code: %d", err->get_message_text(), err->get_sql_errno());
         }
         if (udf_error)
-          sql_print_error("Error loading user-defined library, slave SQL "
-            "thread aborted. Install the missing library, and restart the "
-            "slave SQL thread with \"SLAVE START\". We stopped at log '%s' "
-            "position %s", rli->get_rpl_log_name(),
-            llstr(rli->get_group_master_log_pos(), llbuff));
+          error_string= "Error loading user-defined library, slave SQL "
+            "thread aborted. Install the missing library, and restart the"
+            " slave SQL thread with \"SLAVE START\".";
         else
-          sql_print_error("\
-Error running query, slave SQL thread aborted. Fix the problem, and restart \
-the slave SQL thread with \"SLAVE START\". We stopped at log \
-'%s' position %s", rli->get_rpl_log_name(),
-llstr(rli->get_group_master_log_pos(), llbuff));
+          error_string= "Error running query, slave SQL thread aborted."
+            " Fix the problem, and restart the slave SQL thread with "
+            "\"SLAVE START\".";
       }
       goto err;
     }
   }
 
-  /* Thread stopped. Print the current replication position to the log */
-  sql_print_information("Slave SQL thread exiting, replication stopped in log "
-                        "'%s' at position %s",
-                        rli->get_rpl_log_name(),
-                        llstr(rli->get_group_master_log_pos(), llbuff));
-
  err:
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
+  /* Thread stopped. Print the current replication position to the log */
+  if (error_string)
+    sql_print_error("%s We stopped at log '%s' position %s.", error_string,
+                    rli->get_rpl_log_name(),
+                    llstr(rli->get_group_master_log_pos(), llbuff));
+  else
+    sql_print_information("Slave SQL thread exiting, replication stopped in log"
+                          " '%s' at position %s",
+                          rli->get_rpl_log_name(),
+                          llstr(rli->get_group_master_log_pos(), llbuff));
   rli->clear_mts_recovery_groups();
 
   /*
@@ -6702,7 +6712,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
                      "error writing Exec_load event to relay log");
           goto err;
         }
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
+        mi->rli->relay_log.harvest_bytes_written(mi->rli, true/*need_log_space_lock=true*/);
         break;
       }
       if (unlikely(cev_not_written))
@@ -6717,7 +6727,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
           goto err;
         }
         cev_not_written=0;
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
+        mi->rli->relay_log.harvest_bytes_written(mi->rli, true/*need_log_space_lock=true*/);
       }
       else
       {
@@ -6731,7 +6741,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
                      "error writing Append_block event to relay log");
           goto err;
         }
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
+        mi->rli->relay_log.harvest_bytes_written(mi->rli, true/*need_log_space_lock=true*/);
       }
     }
   }
@@ -6801,7 +6811,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
     Rotate the relay log makes binlog format detection easier (at next slave
     start or mysqlbinlog)
   */
-  int ret= rotate_relay_log(mi);
+  int ret= rotate_relay_log(mi, true/*need_log_space_lock=true*/);
   DBUG_RETURN(ret);
 }
 
@@ -6915,7 +6925,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
       delete ev;
       DBUG_RETURN(1);
     }
-    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+    rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
   }
   delete ev;
   mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
@@ -6973,7 +6983,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     delete ev;
     DBUG_RETURN(1);
   }
-  rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+  rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
   delete ev;
   mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
 err:
@@ -7507,7 +7517,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+      rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
     }
     else
     {
@@ -8387,7 +8397,7 @@ err:
   is void).
 */
 
-int rotate_relay_log(Master_info* mi)
+int rotate_relay_log(Master_info* mi, bool need_log_space_lock)
 {
   DBUG_ENTER("rotate_relay_log");
 
@@ -8425,7 +8435,7 @@ int rotate_relay_log(Master_info* mi)
     If the log is closed, then this will just harvest the last writes, probably
     0 as they probably have been harvested.
   */
-  rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+  rli->relay_log.harvest_bytes_written(rli, need_log_space_lock);
 end:
   DBUG_RETURN(error);
 }

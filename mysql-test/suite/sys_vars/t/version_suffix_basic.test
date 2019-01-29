@@ -94,3 +94,17 @@ SELECT version_suffix = @@SESSION.version_suffix;
 --echo Expected error 'Readonly variable'
 
 
+
+#####################################################################################
+# Bug PS-4785: Setting version_suffix to NULL leads to handle_fatal_signal (sig=11) #
+#####################################################################################
+
+SET GLOBAL version_suffix = NULL;
+SHOW GLOBAL VARIABLES LIKE 'a';
+SELECT @@GLOBAL.version_suffix;
+
+SELECT COUNT(@@GLOBAL.version_suffix);
+--echo 0 Expected
+
+# restore the start value
+SET GLOBAL version_suffix = @saved_version_suffix;

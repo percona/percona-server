@@ -1,14 +1,18 @@
 #
 # Test slow_query_log_timestamp_precision variable.
 #
+
+--source include/log_prepare.inc
+
 SET @old_slow_query_log_timestamp_always=@@slow_query_log_timestamp_always;
 SET SESSION min_examined_row_limit=0;
-SET long_query_time=0;
+SET SESSION long_query_time=0;
 SET GLOBAL slow_query_log_timestamp_always=TRUE;
 
 #
 # microsecond
 #
+SET @old_slow_query_log_timestamp_precision=@@slow_query_log_timestamp_precision;
 SET GLOBAL slow_query_log_timestamp_precision='microsecond';
 
 --let log_file=percona_slow_extended_1
@@ -30,8 +34,6 @@ SELECT 1;
 --let grep_pattern= ^# Time: \d{6} (\d| )\d:\d\d:\d\d\$
 --source include/log_grep.inc
 
-SET long_query_time=default;
-SET SESSION min_examined_row_limit=default;
 SET GLOBAL slow_query_log_timestamp_always=@old_slow_query_log_timestamp_always;
-SET GLOBAL slow_query_log_timestamp_precision=default;
+SET GLOBAL slow_query_log_timestamp_precision=@old_slow_query_log_timestamp_precision;
 --source include/log_cleanup.inc

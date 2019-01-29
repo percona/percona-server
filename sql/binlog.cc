@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -382,6 +382,36 @@ public:
     return flags.incident;
   }
 
+  /**
+    Sets the binlog_cache_data::Flags::flush_error flag if there
+    is an error while flushing cache to the file.
+
+    @param thd  The client thread that is executing the transaction.
+  */
+  void set_flush_error(THD *thd)
+  {
+    flags.flush_error= true;
+    if(is_trx_cache())
+    {
+      /*
+         If the cache is a transactional cache and if the write
+         has failed due to ENOSPC, then my_write() would have
+         set EE_WRITE error, so clear the error and create an
+         equivalent server error.
+      */
+      if (thd->is_error())
+        thd->clear_error();
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_ERROR_ON_WRITE, MYF(MY_WME), my_filename(cache_log.file),
+          errno, my_strerror(errbuf, sizeof(errbuf), errno));
+    }
+  }
+
+  bool get_flush_error(void) const
+  {
+    return flags.flush_error;
+  }
+
   bool has_xid() const {
     // There should only be an XID event if we are transactional
     DBUG_ASSERT((flags.transactional && flags.with_xid) || !flags.with_xid);
@@ -426,6 +456,7 @@ public:
     flags.with_xid= false;
     flags.immediate= false;
     flags.finalized= false;
+    flags.flush_error= false;
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -488,7 +519,13 @@ protected:
   {
     DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
     remove_pending_event();
-    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+    /*
+      Whenever there is an error while flushing cache to file,
+      the local cache will not be in a normal state and the same
+      cache cannot be used without facing an assert.
+      So, clear the cache if there is a flush error.
+    */
+    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, get_flush_error());
     cache_log.end_of_file= saved_max_binlog_cache_size;
   }
 
@@ -542,6 +579,12 @@ protected:
       This indicates that the cache contain an XID event.
      */
     bool with_xid:1;
+
+    /*
+      This flag is set to 'true' when there is an error while flushing the
+      I/O cache to file.
+     */
+    bool flush_error:1;
   } flags;
 
 private:
@@ -996,6 +1039,14 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
   {
     DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
                   {DBUG_SET("+d,simulate_file_write_error");});
+
+    DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                  {
+                  static int count= -1;
+                  count++;
+                  if(count % 4 == 3 && ev->get_type_code() == WRITE_ROWS_EVENT)
+                    DBUG_SET("+d,simulate_temp_file_write_error");
+                  });
     if (ev->write(&cache_log) != 0)
     {
       DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
@@ -1011,6 +1062,19 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
                         */
                         DBUG_SET("+d,simulate_do_write_cache_failure");
                       });
+
+      DBUG_EXECUTE_IF("simulate_temp_file_write_error",
+                      {
+                        DBUG_SET("-d,simulate_temp_file_write_error");
+                      });
+      /*
+        If the flush has failed due to ENOSPC error, set the
+        flush_error flag.
+      */
+      if (thd->is_error() && my_errno == ENOSPC)
+      {
+        set_flush_error(thd);
+      }
       DBUG_RETURN(1);
     }
     if (ev->get_type_code() == XID_EVENT)
@@ -1148,12 +1212,41 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
     Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(),
                            &cached_group->spec);
     bool using_file= cache_data->cache_log.pos_in_file > 0;
+
+    DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                  {
+                  DBUG_SET("+d,simulate_temp_file_write_error");
+                  });
+
     my_off_t saved_position= cache_data->reset_write_pos(0, using_file);
-    error= gtid_ev.write(&cache_data->cache_log);
-    cache_data->reset_write_pos(saved_position, using_file);
+
+    if (!cache_data->cache_log.error)
+    {
+      if (gtid_ev.write(&cache_data->cache_log))
+        goto err;
+      cache_data->reset_write_pos(saved_position, using_file);
+    }
+
+    if (cache_data->cache_log.error)
+      goto err;
   }
 
   DBUG_RETURN(error);
+
+err:
+  DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                {
+                DBUG_SET("-d,simulate_temp_file_write_error");
+                });
+  /*
+    If the reinit_io_cache has failed, set the flush_error flag.
+  */
+  if (cache_data->cache_log.error)
+  {
+    cache_data->set_flush_error(thd);
+  }
+  DBUG_RETURN(1);
+
 }
 
 /**
@@ -1903,11 +1996,19 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (trans_cannot_safely_rollback(thd))
   {
     String log_query;
-    if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
-        log_query.append("`") ||
-        log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
-        log_query.append("`"))
+    if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")))
       DBUG_RETURN(1);
+    else
+    {
+      /*
+        Before writing identifier to the binlog, make sure to
+        quote the identifier properly so as to prevent any SQL
+        injection on the slave.
+      */
+      append_identifier(thd, &log_query, thd->lex->ident.str,
+                        thd->lex->ident.length);
+    }
+
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
                           TRUE, FALSE, TRUE, errcode);
@@ -3563,6 +3664,9 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
   int error= 0;
   File fd= -1;
   DBUG_ENTER("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file");
+  int failure_trials= MYSQL_BIN_LOG::MAX_RETRIES_FOR_DELETE_RENAME_FAILURE;
+  bool file_rename_status= false, file_delete_status= false;
+  THD *thd= current_thd;
 
   if (need_lock_index)
     mysql_mutex_lock(&LOCK_index);
@@ -3586,8 +3690,41 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
 
       goto recoverable_err;
     }
-    if (DBUG_EVALUATE_IF("force_index_file_delete_failure", 1, 0) ||
-        mysql_file_delete(key_file_binlog_index, index_file_name, MYF(MY_WME)))
+
+    /*
+      Sometimes an outsider can lock index files for temporary viewing
+      purpose. For eg: MEB locks binlog.index/relaylog.index to view
+      the content of the file. During that small period of time, deletion
+      of the file is not possible on some platforms(Eg: Windows)
+      Server should retry the delete operation for few times instead of panicking
+      immediately.
+    */
+    while ((file_delete_status == false) && (failure_trials > 0))
+    {
+      if (DBUG_EVALUATE_IF("force_index_file_delete_failure", 1, 0)) break;
+
+      DBUG_EXECUTE_IF("simulate_index_file_delete_failure",
+                  {
+                    /* This simulation causes the delete to fail */
+                    static char first_char= index_file_name[0];
+                    index_file_name[0]= 0;
+                    sql_print_information("Retrying delete");
+                    if (failure_trials == 1)
+                      index_file_name[0]= first_char;
+                  };);
+      file_delete_status = !(mysql_file_delete(key_file_binlog_index,
+                                               index_file_name, MYF(MY_WME)));
+      --failure_trials;
+      if (!file_delete_status)
+      {
+        my_sleep(1000);
+        /* Clear the error before retrying. */
+        if (failure_trials > 0)
+          thd->clear_error();
+      }
+    }
+
+    if (!file_delete_status)
     {
       error= -1;
       sql_print_error("While rebuilding index file %s: "
@@ -3606,7 +3743,38 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
   }
 
   DBUG_EXECUTE_IF("crash_create_before_rename_index_file", DBUG_SUICIDE(););
-  if (my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME)))
+  /*
+    Sometimes an outsider can lock index files for temporary viewing
+    purpose. For eg: MEB locks binlog.index/relaylog.index to view
+    the content of the file. During that small period of time, rename
+    of the file is not possible on some platforms(Eg: Windows)
+    Server should retry the rename operation for few times instead of panicking
+    immediately.
+  */
+  failure_trials = MYSQL_BIN_LOG::MAX_RETRIES_FOR_DELETE_RENAME_FAILURE;
+  while ((file_rename_status == false) && (failure_trials > 0))
+  {
+    DBUG_EXECUTE_IF("simulate_crash_safe_index_file_rename_failure",
+                {
+                  /* This simulation causes the rename to fail */
+                  static char first_char= index_file_name[0];
+                  index_file_name[0]= 0;
+                  sql_print_information("Retrying rename");
+                  if (failure_trials == 1)
+                    index_file_name[0]= first_char;
+                };);
+    file_rename_status =
+        !(my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME)));
+    --failure_trials;
+    if (!file_rename_status)
+    {
+      my_sleep(1000);
+      /* Clear the error before retrying. */
+      if (failure_trials > 0)
+        thd->clear_error();
+    }
+  }
+  if (!file_rename_status)
   {
     error= -1;
     sql_print_error("While rebuilding index file %s: "
@@ -3735,23 +3903,33 @@ int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO* linfo)
   return 0;
 }
 
+static bool check_write_error_code(uint error_code)
+{
+  return error_code == ER_TRANS_CACHE_FULL ||
+         error_code == ER_STMT_CACHE_FULL  ||
+         error_code == ER_ERROR_ON_WRITE   ||
+         error_code == ER_BINLOG_LOGGING_IMPOSSIBLE;
+}
+
 bool MYSQL_BIN_LOG::check_write_error(THD *thd)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::check_write_error");
 
-  bool checked= FALSE;
-
   if (!thd->is_error())
-    DBUG_RETURN(checked);
+    DBUG_RETURN(false);
 
-  switch (thd->get_stmt_da()->sql_errno())
+  bool checked= check_write_error_code(thd->get_stmt_da()->sql_errno());
+
+  if (!checked)
   {
-    case ER_TRANS_CACHE_FULL:
-    case ER_STMT_CACHE_FULL:
-    case ER_ERROR_ON_WRITE:
-    case ER_BINLOG_LOGGING_IMPOSSIBLE:
-      checked= TRUE;
-    break;
+    /* Check all conditions for one that matches the expected error */
+    const Sql_condition *err;
+    Diagnostics_area::Sql_condition_iterator it=
+      thd->get_stmt_da()->sql_conditions();
+    while ((err= it++) != NULL && !checked)
+    {
+      checked= check_write_error_code(err->get_sql_errno());
+    }
   }
   DBUG_PRINT("return", ("checked: %s", YESNO(checked)));
   DBUG_RETURN(checked);
@@ -3877,7 +4055,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
     // if the log entry matches, null string matching anything
     if (!log_name ||
        (log_name_len == fname_len-1 && full_fname[log_name_len] == '\n' &&
-        !memcmp(full_fname, full_log_name, log_name_len)))
+        !strncmp(full_fname, full_log_name, log_name_len)))
     {
       DBUG_PRINT("info", ("Found log file entry"));
       full_fname[fname_len-1]= 0;                      // remove last \n
@@ -4811,6 +4989,13 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         DBUG_PRINT("info",("purging %s",log_info.log_file_name));
         if (!mysql_file_delete(key_file_binlog, log_info.log_file_name, MYF(0)))
         {
+          DBUG_EXECUTE_IF("wait_in_purge_index_entry",
+                          {
+                              const char action[] = "now SIGNAL in_purge_index_entry WAIT_FOR go_ahead_sql";
+                              DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));
+                              DBUG_SET("-d,wait_in_purge_index_entry");
+                          };);
+
           if (decrease_log_space)
             *decrease_log_space-= s.st_size;
         }
@@ -6289,6 +6474,14 @@ err:
     sql_print_error(ER(ER_ERROR_ON_WRITE), name,
                     errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
+
+  /*
+    If the flush has failed due to ENOSPC, set the flush_error flag.
+  */
+  if (cache->error && thd->is_error() && my_errno == ENOSPC)
+  {
+    cache_data->set_flush_error(thd);
+  }
   thd->commit_error= THD::CE_FLUSH_ERROR;
 
   DBUG_RETURN(1);
@@ -6463,6 +6656,24 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
   DBUG_VOID_RETURN;
 }
 
+void MYSQL_BIN_LOG::harvest_bytes_written(Relay_log_info* rli, bool need_log_space_lock)
+{
+#ifndef DBUG_OFF
+  char buf1[22],buf2[22];
+#endif
+  DBUG_ENTER("harvest_bytes_written");
+  if (need_log_space_lock)
+    mysql_mutex_lock(&rli->log_space_lock);
+  else
+    mysql_mutex_assert_owner(&rli->log_space_lock);
+  rli->log_space_total+= bytes_written;
+  DBUG_PRINT("info",("relay_log_space: %s  bytes_written: %s",
+        llstr(rli->log_space_total,buf1), llstr(bytes_written,buf2)));
+  bytes_written=0;
+  if (need_log_space_lock)
+    mysql_mutex_unlock(&rli->log_space_lock);
+  DBUG_VOID_RETURN;
+}
 
 void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
 {
@@ -7389,6 +7600,14 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
     }
     close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT, false/*need_lock_log=false*/,
           true/*need_lock_index=true*/);
+    /*
+      If there is a write error (flush/sync stage) and if
+      binlog_error_action=IGNORE_ERROR, clear the error
+      and allow the commit to happen in storage engine.
+    */
+    if (check_write_error(thd))
+      thd->clear_error();
+
     if (need_lock_log)
       mysql_mutex_unlock(&LOCK_log);
     DEBUG_SYNC(thd, "after_binlog_closed_due_to_error");

@@ -78,6 +78,7 @@ BEGIN {
 use lib "lib";
 
 use Cwd;
+use Cwd "abs_path";
 use Getopt::Long;
 use My::File::Path; # Patched version of File::Path
 use File::Basename;
@@ -170,7 +171,8 @@ my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,"
   ."innodb_zip,perfschema,funcs_1,funcs_2,opt_trace,parts,auth_sec,"
   ."connection_control,jp,stress,engines/iuds,engines/funcs,"
   ."query_response_time,innodb_stress,tokudb.add_index,tokudb.alter_table,"
-  ."tokudb,tokudb.bugs,tokudb.parts,tokudb.rpl,tokudb.perfschema";
+  ."tokudb,tokudb.bugs,tokudb.parts,tokudb.rpl,tokudb.perfschema,"
+  ."percona-pam-for-mysql";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -2447,14 +2449,14 @@ sub environment_setup {
   if (IS_WINDOWS)
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."\\std_data";
-    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
-                              $opt_tmpdir . "\\.mylogin.cnf";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}= $opt_tmpdir . "\\.mylogin.cnf";
+    $ENV{'MYSQLTEST_VARDIR_ABS'}= $opt_vardir;
   }
   else
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."/std_data";
-    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
-                              $opt_tmpdir . "/.mylogin.cnf";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}= $opt_tmpdir . "/.mylogin.cnf";
+    $ENV{'MYSQLTEST_VARDIR_ABS'}= abs_path("$opt_vardir");
   }
     
 

@@ -1530,6 +1530,10 @@ end:
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
     thd->transaction.cleanup();
+
+  if (!error)
+    thd->diff_commit_trans++;
+
   DBUG_RETURN(error);
 }
 

@@ -2776,6 +2776,7 @@ mysql_execute_command(THD *thd, bool first_level)
     */
     if (deny_updates_if_read_only_option(thd, all_tables))
     {
+      thd->diff_access_denied_errors++;
       err_readonly(thd);
       DBUG_RETURN(-1);
     }
@@ -2869,6 +2870,7 @@ mysql_execute_command(THD *thd, bool first_level)
   if (thd->tx_read_only &&
       (sql_command_flags[lex->sql_command] & CF_DISALLOW_IN_RO_TRANS))
   {
+    thd->diff_access_denied_errors++;
     my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
     goto error;
   }

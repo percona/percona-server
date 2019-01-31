@@ -115,6 +115,7 @@ Management Improvements
    management/start_transaction_with_consistent_snapshot
    management/extended_show_grants
    management/data_at_rest_encryption
+   management/ssl-improvement
 
 Diagnostics Improvements
 ================================================================================

@@ -287,7 +287,6 @@ extern ulonglong opt_mts_pending_jobs_size_max;
 extern ulong rpl_stop_slave_timeout;
 extern bool log_bin_use_v1_row_events;
 extern ulong what_to_log, flush_time;
-extern ulong extra_max_connections;
 extern ulonglong denied_connections;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong open_files_limit;
@@ -383,8 +382,6 @@ extern ulong opt_keyring_migration_port;
 extern bool migrate_connect_options;
 
 extern LEX_CSTRING sql_statement_names[(uint)SQLCOM_END + 1];
-
-extern uint mysqld_extra_port;
 
 extern char *enforce_storage_engine;
 

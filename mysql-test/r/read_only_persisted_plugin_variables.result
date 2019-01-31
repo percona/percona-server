@@ -113,11 +113,10 @@ set @@persist_only.encrypt_tmp_files=TRUE;
 set @@persist_only.enforce_storage_engine='MyISAM';
 set @@persist_only.binlog_space_limit=134217728;
 set @@persist_only.proxy_protocol_networks='*';
-set @@persist_only.extra_port=1111;
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-100
+99
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 100 rows.
@@ -132,7 +131,6 @@ disabled_storage_engines
 encrypt_binlog	0
 encrypt_tmp_files	1
 enforce_storage_engine	MyISAM
-extra_port	1111
 ft_max_word_len	84
 ft_min_word_len	4
 ft_query_expansion_limit	20
@@ -232,7 +230,6 @@ disabled_storage_engines
 encrypt_binlog
 encrypt_tmp_files
 enforce_storage_engine
-extra_port
 ft_max_word_len
 ft_min_word_len
 ft_query_expansion_limit

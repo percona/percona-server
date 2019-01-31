@@ -54,6 +54,8 @@ main.mysql_upgrade                    @solaris : Bug#28146052 2018-07-30 Erlend
 main.mysql_upgrade_slave_master_info  @solaris : Bug#28146052 2018-07-30 Erlend
 
 main.events_time_zone         : percona disabled because the test is fundamentally unstable https://jira.percona.com/browse/PS-2179
+main.pool_of_threads          : percona disabled for WIP PS-5044
+main.pool_of_threads_high_prio_tickets  : percona disabled for WIP PS-5044
 
 # max_parts suite tests
 max_parts.innodb-import-partition-1                         : BUG#27413612 Ashish Fails consistently on hudson jobs. Disabled until bug is fixed.

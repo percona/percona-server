@@ -168,8 +168,8 @@ class Channel_info_tcpip_socket : public Channel_info {
 
     @param connect_socket set connect socket descriptor.
   */
-  Channel_info_tcpip_socket(MYSQL_SOCKET connect_socket, bool on_extra_port)
-      : Channel_info(on_extra_port), m_connect_sock(connect_socket) {}
+  Channel_info_tcpip_socket(MYSQL_SOCKET connect_socket)
+      : m_connect_sock(connect_socket) {}
 
   virtual THD *create_thd() {
     THD *thd = Channel_info::create_thd();
@@ -184,10 +184,6 @@ class Channel_info_tcpip_socket : public Channel_info {
 
     mysql_socket_shutdown(m_connect_sock, SHUT_RDWR);
     mysql_socket_close(m_connect_sock);
-  }
-
-  virtual int get_socket_fd() const {
-    return mysql_socket_getfd(m_connect_sock);
   }
 };
 
@@ -720,13 +716,10 @@ bool Unix_socket::create_lockfile() {
 ///////////////////////////////////////////////////////////////////////////
 
 Mysqld_socket_listener::Mysqld_socket_listener(
-    const std::list<std::string> &bind_addresses, uint tcp_port,
-    uint extra_tcp_port, uint backlog, uint port_timeout,
-    std::string unix_sockname)
+    const std::list<std::string> &bind_addresses, uint tcp_port, uint backlog,
+    uint port_timeout, std::string unix_sockname)
     : m_bind_addresses(bind_addresses),
       m_tcp_port(tcp_port),
-      m_extra_tcp_port(extra_tcp_port),
-      m_extra_tcp_port_fds(),
       m_backlog(backlog),
       m_port_timeout(port_timeout),
       m_unix_sockname(unix_sockname),
@@ -750,19 +743,6 @@ bool Mysqld_socket_listener::setup_listener() {
       if (mysql_socket.fd == INVALID_SOCKET) return true;
 
       m_socket_map.insert(std::pair<MYSQL_SOCKET, bool>(mysql_socket, false));
-    }
-  }
-  if (m_extra_tcp_port) {
-    for (const auto &bind_address : m_bind_addresses) {
-      TCP_socket tcp_socket(bind_address, m_extra_tcp_port, m_backlog,
-                            m_port_timeout);
-
-      MYSQL_SOCKET mysql_socket = tcp_socket.get_listener_socket();
-      if (mysql_socket.fd == INVALID_SOCKET) return true;
-
-      m_socket_map.insert(std::pair<MYSQL_SOCKET, bool>(mysql_socket, false));
-
-      m_extra_tcp_port_fds.insert(mysql_socket.fd);
     }
   }
 #if defined(HAVE_SYS_UN_H)
@@ -923,8 +903,7 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
   if (is_unix_socket)
     channel_info = new (std::nothrow) Channel_info_local_socket(connect_sock);
   else
-    channel_info = new (std::nothrow) Channel_info_tcpip_socket(
-        connect_sock, is_extra_tcp_port_fd(mysql_socket_getfd(listen_sock)));
+    channel_info = new (std::nothrow) Channel_info_tcpip_socket(connect_sock);
   if (channel_info == NULL) {
     (void)mysql_socket_shutdown(connect_sock, SHUT_RDWR);
     (void)mysql_socket_close(connect_sock);

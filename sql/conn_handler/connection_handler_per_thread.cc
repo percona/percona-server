@@ -260,21 +260,18 @@ static void *handle_connection(void *arg) {
     connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
     handler_manager->inc_aborted_connects();
-    Connection_handler_manager ::dec_connection_count(
-        channel_info->is_on_extra_port());
+    Connection_handler_manager::dec_connection_count();
     delete channel_info;
     my_thread_exit(0);
     return NULL;
   }
 
   for (;;) {
-    // Save this here as init_new_thd destroys channel_info
-    const bool extra_port_connection = channel_info->is_on_extra_port();
     THD *thd = init_new_thd(channel_info);
     if (thd == NULL) {
       connection_errors_internal++;
       handler_manager->inc_aborted_connects();
-      Connection_handler_manager::dec_connection_count(extra_port_connection);
+      Connection_handler_manager::dec_connection_count();
       break;  // We are out of resources, no sense in continuing.
     }
 
@@ -310,7 +307,7 @@ static void *handle_connection(void *arg) {
 
     thd_manager->add_thd(thd);
 
-    if (thd_prepare_connection(thd, extra_port_connection))
+    if (thd_prepare_connection(thd))
       handler_manager->inc_aborted_connects();
     else {
       while (thd_connection_alive(thd)) {
@@ -330,7 +327,7 @@ static void *handle_connection(void *arg) {
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
     thd_manager->remove_thd(thd);
-    Connection_handler_manager::dec_connection_count(extra_port_connection);
+    Connection_handler_manager::dec_connection_count();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     /*
@@ -423,8 +420,7 @@ handle_error:
       LogErr(ERROR_LEVEL, ER_CONN_PER_THREAD_NO_THREAD, error);
     channel_info->send_error_and_close_channel(ER_CANT_CREATE_THREAD, error,
                                                true);
-    Connection_handler_manager::dec_connection_count(
-        channel_info->is_on_extra_port());
+    Connection_handler_manager::dec_connection_count();
     DBUG_RETURN(true);
   }
 

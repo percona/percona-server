@@ -1611,7 +1611,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       LEX_CSTRING save_db = thd->db();
       Security_context save_security_ctx(*(thd->security_context()));
 
-      auth_rc = acl_authenticate(thd, COM_CHANGE_USER, false);
+      auth_rc = acl_authenticate(thd, COM_CHANGE_USER);
       auth_rc |= mysql_audit_notify(
           thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CHANGE_USER));
       if (auth_rc) {

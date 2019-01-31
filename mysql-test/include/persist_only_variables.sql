@@ -122,4 +122,3 @@ set @@persist_only.encrypt_tmp_files=TRUE;
 set @@persist_only.enforce_storage_engine='MyISAM';
 set @@persist_only.binlog_space_limit=134217728;
 set @@persist_only.proxy_protocol_networks='*';
-set @@persist_only.extra_port=1111;

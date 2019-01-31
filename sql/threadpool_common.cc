@@ -154,7 +154,7 @@ int threadpool_add_connection(THD *thd) {
     goto end;
   }
 
-  if (thd_prepare_connection(thd, false)) {
+  if (thd_prepare_connection(thd)) {
     goto end;
   }
 
@@ -197,7 +197,7 @@ void threadpool_remove_connection(THD *thd) {
 #endif
 
   Global_THD_manager::get_instance()->remove_thd(thd);
-  Connection_handler_manager::dec_connection_count(false);
+  Connection_handler_manager::dec_connection_count();
   delete thd;
 }
 

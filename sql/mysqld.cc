@@ -1045,7 +1045,6 @@ volatile sig_atomic_t calling_initgroups = 0; /**< Used in SIGSEGV handler. */
 const char *timestamp_type_names[] = {"UTC", "SYSTEM", NullS};
 ulong opt_log_timestamps;
 uint mysqld_port, test_flags = 0, select_errors, ha_open_options;
-uint mysqld_extra_port;
 uint mysqld_port_timeout;
 ulong delay_key_write_options;
 uint protocol_version;
@@ -1099,7 +1098,6 @@ bool thread_cache_size_specified = false;
 bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
 ulong locked_account_connection_count = 0;
-ulong extra_max_connections;
 
 ulonglong denied_connections = 0;
 
@@ -2656,8 +2654,8 @@ static bool network_init(void) {
     }
 
     Mysqld_socket_listener *mysqld_socket_listener = new (std::nothrow)
-        Mysqld_socket_listener(bind_addresses, mysqld_port, mysqld_extra_port,
-                               back_log, mysqld_port_timeout, unix_sock_name);
+        Mysqld_socket_listener(bind_addresses, mysqld_port, back_log,
+                               mysqld_port_timeout, unix_sock_name);
     if (mysqld_socket_listener == NULL) return true;
 
     mysqld_socket_acceptor = new (std::nothrow)
@@ -7381,14 +7379,14 @@ static void adjust_open_files_limit(ulong *requested_open_files) {
   ulong effective_open_files;
 
   /* MyISAM requires two file handles per table. */
-  limit_1 = 10 + max_connections + extra_max_connections + table_cache_size * 2;
+  limit_1 = 10 + max_connections + table_cache_size * 2;
 
   /*
     We are trying to allocate no less than max_connections*5 file
     handles (i.e. we are trying to set the limit so that they will
     be available).
   */
-  limit_2 = (max_connections + extra_max_connections) * 5;
+  limit_2 = max_connections * 5;
 
   /* Try to allocate no less than 5000 by default. */
   limit_3 = open_files_limit ? open_files_limit : 5000;

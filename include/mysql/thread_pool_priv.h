@@ -149,7 +149,7 @@ bool do_command(THD *thd);
   executed.
 */
 /* Prepare connection as part of connection set-up */
-bool thd_prepare_connection(THD *thd, bool extra_port_connection);
+bool thd_prepare_connection(THD *thd);
 /* Release auditing before executing statement */
 void mysql_audit_release(THD *thd);
 /* Check if connection is still alive */

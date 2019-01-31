@@ -2496,19 +2496,6 @@ static Sys_var_ulong Sys_max_connect_errors(
     GLOBAL_VAR(max_connect_errors), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1, ULONG_MAX), DEFAULT(100), BLOCK_SIZE(1));
 
-static Sys_var_uint Sys_extra_port(
-    "extra_port",
-    "Extra port number to use for tcp connections in a "
-    "one-thread-per-connection manner. 0 means don't use another port",
-    READ_ONLY GLOBAL_VAR(mysqld_extra_port), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
-
-static Sys_var_ulong Sys_extra_max_connections(
-    "extra_max_connections", "The number of connections on extra-port",
-    GLOBAL_VAR(extra_max_connections), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1, MAX_CONNECTIONS), DEFAULT(1), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0));
-
 static Sys_var_long Sys_max_digest_length(
     "max_digest_length", "Maximum length considered for digest text.",
     READ_ONLY GLOBAL_VAR(max_digest_length), CMD_LINE(REQUIRED_ARG),

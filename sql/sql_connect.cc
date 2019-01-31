@@ -701,14 +701,13 @@ bool thd_init_client_charset(THD *thd, uint cs_number) {
   SYNOPSIS
     check_connection()
     thd  thread handle
-    extra_port_connection if true, the client is connecting on extra_port
 
   RETURN
      0  success, thd is updated.
      1  error
 */
 
-static int check_connection(THD *thd, bool extra_port_connection) {
+static int check_connection(THD *thd) {
   uint connect_errors = 0;
   int auth_rc;
   NET *net = thd->get_protocol_classic()->get_net();
@@ -880,7 +879,7 @@ static int check_connection(THD *thd, bool extra_port_connection) {
     return 1;
   }
 
-  auth_rc = acl_authenticate(thd, COM_CONNECT, extra_port_connection);
+  auth_rc = acl_authenticate(thd, COM_CONNECT);
 
   if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT))) {
     return 1;
@@ -916,7 +915,6 @@ static int check_connection(THD *thd, bool extra_port_connection) {
   SYNOPSIS
    login_connection()
    thd        Thread handler
-   extra_port_connection if true, the client is connecting on extra_port
 
   NOTES
     Connection is not closed in case of errors
@@ -926,7 +924,7 @@ static int check_connection(THD *thd, bool extra_port_connection) {
     1    error
 */
 
-static bool login_connection(THD *thd, bool extra_port_connection) {
+static bool login_connection(THD *thd) {
   int error;
   DBUG_ENTER("login_connection");
   DBUG_PRINT("info",
@@ -936,7 +934,7 @@ static bool login_connection(THD *thd, bool extra_port_connection) {
   thd->get_protocol_classic()->set_read_timeout(connect_timeout);
   thd->get_protocol_classic()->set_write_timeout(connect_timeout);
 
-  error = check_connection(thd, extra_port_connection);
+  error = check_connection(thd);
   thd->send_statement_status();
 
   if (error) {  // Wrong permissions
@@ -1087,10 +1085,10 @@ static void prepare_new_connection_state(THD *thd) {
   }
 }
 
-bool thd_prepare_connection(THD *thd, bool extra_port_connection) {
+bool thd_prepare_connection(THD *thd) {
   bool rc;
   lex_start(thd);
-  rc = login_connection(thd, extra_port_connection);
+  rc = login_connection(thd);
 
   if (rc) return rc;
 

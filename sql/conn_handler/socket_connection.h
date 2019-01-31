@@ -31,7 +31,6 @@
 #include <list>
 #include <map>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "my_psi_config.h"
@@ -82,8 +81,6 @@ typedef std::map<MYSQL_SOCKET, bool, Socket_lt_type>::iterator
 class Mysqld_socket_listener {
   std::list<std::string> m_bind_addresses;  // addresses to listen to
   uint m_tcp_port;                          // TCP port to bind to
-  uint m_extra_tcp_port;  // Extra TCP port to bind to if non-zero
-  std::unordered_set<int> m_extra_tcp_port_fds;
   uint m_backlog;       // backlog specifying length of pending connection queue
   uint m_port_timeout;  // port timeout value
   std::string m_unix_sockname;  // unix socket pathname to bind to
@@ -126,10 +123,6 @@ class Mysqld_socket_listener {
   /** Number of connection errors from TCP wrappers. */
   static ulong connection_errors_tcpwrap;
 
-  bool is_extra_tcp_port_fd(int fd) const noexcept {
-    return m_extra_tcp_port_fds.find(fd) != m_extra_tcp_port_fds.cend();
-  }
-
  public:
   static ulong get_connection_errors_select() {
     return connection_errors_select;
@@ -149,15 +142,14 @@ class Mysqld_socket_listener {
 
     @param   bind_addresses  list of addresses to listen to
     @param   tcp_port        TCP port to bind to
-    @param   extra_tcp_port extra TCP port to bind to (do not bind if 0)
     @param   backlog         backlog specifying length of pending
                              connection queue used in listen.
     @param   port_timeout    portname.
     @param   unix_sockname   pathname for unix socket to bind to
   */
   Mysqld_socket_listener(const std::list<std::string> &bind_addresses,
-                         uint tcp_port, uint extra_tcp_port, uint backlog,
-                         uint port_timeout, std::string unix_sockname);
+                         uint tcp_port, uint backlog, uint port_timeout,
+                         std::string unix_sockname);
 
   /**
     Set up a listener - set of sockets to listen for connection events

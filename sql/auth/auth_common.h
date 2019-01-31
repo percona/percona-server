@@ -638,8 +638,7 @@ std::string get_default_autnetication_plugin_name();
 void acl_log_connect(const char *user, const char *host, const char *auth_as,
                      const char *db, THD *thd,
                      enum enum_server_command command);
-int acl_authenticate(THD *thd, enum_server_command command,
-                     bool extra_port_connection);
+int acl_authenticate(THD *thd, enum_server_command command);
 bool acl_check_host(THD *thd, const char *host, const char *ip);
 
 /*

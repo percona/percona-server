@@ -160,26 +160,6 @@ bool ut_crc32_cpu_enabled = false;
 instruction set).
 @return true if CRC32 is available */
 static bool ut_crc32_check_cpu() {
-#ifdef UNIV_DEBUG_VALGRIND
-  /* Valgrind does not understand the CRC32 instructions:
-
-  vex amd64->IR: unhandled instruction bytes: 0xF2 0x48 0xF 0x38 0xF0 0xA
-  valgrind: Unrecognised instruction at address 0xad3db5.
-  Your program just tried to execute an instruction that Valgrind
-  did not recognise.  There are two possible reasons for this.
-  1. Your program has a bug and erroneously jumped to a non-code
-     location.  If you are running Memcheck and you just saw a
-     warning about a bad jump, it's probably your program's fault.
-  2. The instruction is legitimate but Valgrind doesn't handle it,
-     i.e. it's Valgrind's fault.  If you think this is the case or
-     you are not sure, please let us know and we'll try to fix it.
-  Either way, Valgrind will now raise a SIGILL signal which will
-  probably kill your program.
-
-  */
-  return false;
-#else
-
   uint32_t features_ecx;
 
 #if defined(gnuc64)
@@ -201,7 +181,6 @@ static bool ut_crc32_check_cpu() {
 #endif
 
   return features_ecx & (1 << 20);  // SSE4.2
-#endif /* UNIV_DEBUG_VALGRIND */
 }
 
 /** Calculate CRC32 over 8-bit data using a hardware/CPU instruction.

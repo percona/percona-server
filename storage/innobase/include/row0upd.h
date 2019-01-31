@@ -227,12 +227,8 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]	heap		memory heap from which allocated
 @param[in,out]	mysql_table	NULL, or mysql table object when
 				user thread invokes dml
-<<<<<<< HEAD
 @param[in]	prebuilt	compress_heap must be taken from here
-||||||| merged common ancestors
-=======
 @param[out]	error		error number in case of failure
->>>>>>> mysql-5.7.25
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 upd_t*
@@ -244,15 +240,9 @@ row_upd_build_difference_binary(
 	bool		no_sys,
 	trx_t*		trx,
 	mem_heap_t*	heap,
-<<<<<<< HEAD
 	TABLE*		mysql_table,
-	row_prebuilt_t*	prebuilt)
-||||||| merged common ancestors
-	TABLE*		mysql_table)
-=======
-	TABLE*		mysql_table,
+	row_prebuilt_t*	prebuilt,
 	dberr_t*	error)
->>>>>>> mysql-5.7.25
 	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry

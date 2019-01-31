@@ -872,16 +872,10 @@ extern mysql_mutex_t
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages,
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
-<<<<<<< HEAD
+       LOCK_slave_trans_dep_tracker,
        LOCK_offline_mode, LOCK_default_password_lifetime,
        LOCK_global_user_client_stats,
        LOCK_global_table_stats, LOCK_global_index_stats;
-||||||| merged common ancestors
-       LOCK_offline_mode, LOCK_default_password_lifetime;
-=======
-       LOCK_slave_trans_dep_tracker,
-       LOCK_offline_mode, LOCK_default_password_lifetime;
->>>>>>> mysql-5.7.25
 #ifdef HAVE_OPENSSL
 extern char* des_key_file;
 extern mysql_mutex_t LOCK_des_key_file;

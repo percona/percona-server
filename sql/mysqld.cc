@@ -9297,16 +9297,10 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_consistent_snapshot, "LOCK_consistent_snapshot", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
-<<<<<<< HEAD
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
-||||||| merged common ancestors
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
-=======
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
   { &key_rwlock_LOCK_named_pipe_full_access_group, "LOCK_named_pipe_full_access_group", PSI_FLAG_GLOBAL},
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
->>>>>>> mysql-5.7.25
 };
 
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;

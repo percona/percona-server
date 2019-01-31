@@ -3452,16 +3452,8 @@ static int write_ignored_events_info_to_relay_log(THD *thd,
                    "failed to write a Rotate event"
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
-<<<<<<< HEAD
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-      if (flush_master_info(mi, force_mi_flush))
-||||||| merged common ancestors
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-      if (flush_master_info(mi, TRUE))
-=======
       rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
-      if (flush_master_info(mi, TRUE))
->>>>>>> mysql-5.7.25
+      if (flush_master_info(mi, force_mi_flush))
       {
         error= 1;
         sql_print_error("Failed to flush master info file.");

@@ -356,7 +356,7 @@ extern "C" void *handle_connection(void *arg)
       channel_info->send_error_and_close_channel(ER_SERVER_SHUTDOWN, 0, false);
       delete channel_info;
       channel_info = NULL;
-      Connection_handler_manager::dec_connection_count();
+      Connection_handler_manager::dec_connection_count(extra_port_connection);
       break;
     }
   }

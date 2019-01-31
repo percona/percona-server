@@ -1662,7 +1662,17 @@ innobase_fts_store_docid(
 	dbug_tmp_restore_column_map(tbl->write_set, old_map);
 }
 
-<<<<<<< HEAD
+/*****************************************************************//**
+Checks if the filename name is reserved in InnoDB.
+@return true if the name is reserved */
+static
+bool
+innobase_check_reserved_file_name(
+/*===================*/
+        handlerton*     hton,           /*!< in: handlerton of Innodb */
+        const char*     name);          /*!< in: Name of the database */
+
+
 /** Sync innodb_kill_idle_transaction and kill_idle_transaction values.
 
 @param[in,out]	thd	thread handle
@@ -1680,20 +1690,6 @@ static void innodb_kill_idle_transaction_update(
 	srv_kill_idle_transaction= in_val;
 }
 
-||||||| merged common ancestors
-=======
-/*****************************************************************//**
-Checks if the filename name is reserved in InnoDB.
-@return true if the name is reserved */
-static
-bool
-innobase_check_reserved_file_name(
-/*===================*/
-        handlerton*     hton,           /*!< in: handlerton of Innodb */
-        const char*     name);          /*!< in: Name of the database */
-
-
->>>>>>> mysql-5.7.25
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
 @return 0 for valid innodb_commit_concurrency */
@@ -4153,16 +4149,12 @@ innobase_init(
         innobase_hton->replace_native_transaction_in_thd =
                 innodb_replace_trx_in_thd;
 	innobase_hton->data = &innodb_api_cb;
-<<<<<<< HEAD
+	innobase_hton->is_reserved_db_name= innobase_check_reserved_file_name;
 	innobase_hton->flush_changed_page_bitmaps
 		= innobase_flush_changed_page_bitmaps;
 	innobase_hton->purge_changed_page_bitmaps
 		= innobase_purge_changed_page_bitmaps;
 	innobase_hton->get_parent_fk_list = innobase_get_parent_fk_list;
-||||||| merged common ancestors
-=======
-	innobase_hton->is_reserved_db_name= innobase_check_reserved_file_name;
->>>>>>> mysql-5.7.25
 
 	innobase_hton->is_supported_system_table=
 		innobase_is_supported_system_table;
@@ -23874,7 +23866,33 @@ innodb_buffer_pool_size_validate(
 
 	return(0);
 }
-<<<<<<< HEAD
+
+/*****************************************************************//**
+Checks if the file name is reserved in InnoDB. Currently
+redo log files(ib_logfile*) is reserved.
+@return true if the name is reserved */
+static
+bool
+innobase_check_reserved_file_name(
+/*===================*/
+	handlerton*     hton,		/*!< in: handlerton of Innodb */
+	const char*	name)		/*!< in: Name of the database */
+{
+	CHARSET_INFO *ci= system_charset_info;
+	size_t logname_size = strlen(ib_logfile_basename);
+
+	/* Name is smaller than reserved name */
+	if (strlen(name) < logname_size) {
+		return (false);
+	}
+	/* Do case insensitive comparison for name. */
+	for (uint i=0; i < logname_size; i++) {
+		if (my_tolower(ci, name[i]) != ib_logfile_basename[i]){
+			return (false);
+		}
+	}
+	return (true);
+}
 
 static
 int
@@ -23915,33 +23933,3 @@ innodb_encrypt_tables_validate(
 
 	return 0;
 }
-||||||| merged common ancestors
-=======
-
-/*****************************************************************//**
-Checks if the file name is reserved in InnoDB. Currently
-redo log files(ib_logfile*) is reserved.
-@return true if the name is reserved */
-static
-bool
-innobase_check_reserved_file_name(
-/*===================*/
-	handlerton*     hton,		/*!< in: handlerton of Innodb */
-	const char*	name)		/*!< in: Name of the database */
-{
-	CHARSET_INFO *ci= system_charset_info;
-	size_t logname_size = strlen(ib_logfile_basename);
-
-	/* Name is smaller than reserved name */
-	if (strlen(name) < logname_size) {
-		return (false);
-	}
-	/* Do case insensitive comparison for name. */
-	for (uint i=0; i < logname_size; i++) {
-		if (my_tolower(ci, name[i]) != ib_logfile_basename[i]){
-			return (false);
-		}
-	}
-	return (true);
-}
->>>>>>> mysql-5.7.25

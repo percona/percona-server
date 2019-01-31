@@ -61,14 +61,10 @@
 #include "transaction.h"                 // trans_commit_stmt
 #include "rpl_write_set_handler.h"       // transaction_write_set_hashing_algorithms
 #include "rpl_group_replication.h"       // is_group_replication_running
-<<<<<<< HEAD
-#include "threadpool.h"
-||||||| merged common ancestors
-=======
 #ifdef _WIN32
 #include "named_pipe.h"
 #endif
->>>>>>> mysql-5.7.25
+#include "threadpool.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"

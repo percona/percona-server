@@ -877,12 +877,8 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]	heap		memory heap from which allocated
 @param[in]	mysql_table	NULL, or mysql table object when
 				user thread invokes dml
-<<<<<<< HEAD
 @param[in]	prebuilt	compress_heap must be taken from here
-||||||| merged common ancestors
-=======
 @param[out]	error		error number in case of failure
->>>>>>> mysql-5.7.25
 @return own: update vector of differing fields, excluding roll ptr and
 trx id,if error is not equal to DB_SUCCESS, return NULL */
 upd_t*
@@ -894,15 +890,9 @@ row_upd_build_difference_binary(
 	bool		no_sys,
 	trx_t*		trx,
 	mem_heap_t*	heap,
-<<<<<<< HEAD
 	TABLE*		mysql_table,
-	row_prebuilt_t*	prebuilt)
-||||||| merged common ancestors
-	TABLE*		mysql_table)
-=======
-	TABLE*		mysql_table,
+	row_prebuilt_t*	prebuilt,
 	dberr_t*	error)
->>>>>>> mysql-5.7.25
 {
 	upd_field_t*	upd_field;
 	dfield_t*	dfield;
@@ -1007,17 +997,11 @@ row_upd_build_difference_binary(
 			dfield_t*	vfield = innobase_get_computed_value(
 				update->old_vrow, col, index,
 				&v_heap, heap, NULL, thd, mysql_table,
-<<<<<<< HEAD
 				NULL, NULL, NULL, prebuilt);
-||||||| merged common ancestors
-				NULL, NULL, NULL);
-=======
-				NULL, NULL, NULL);
 			if (vfield == NULL) {
 				*error = DB_COMPUTE_VALUE_FAILED;
 				return(NULL);
 			}
->>>>>>> mysql-5.7.25
 
 			if (!dfield_data_is_binary_equal(
 				dfield, vfield->len,

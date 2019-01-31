@@ -366,17 +366,11 @@ row_ins_clust_index_entry_by_modify(
 
 	update = row_upd_build_difference_binary(
 		cursor->index, entry, rec, NULL, true,
-<<<<<<< HEAD
-		thr_get_trx(thr), heap, mysql_table, thr->prebuilt);
-||||||| merged common ancestors
-		thr_get_trx(thr), heap, mysql_table);
-=======
-		thr_get_trx(thr), heap, mysql_table, &err);
+		thr_get_trx(thr), heap, mysql_table, thr->prebuilt, &err);
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
 
->>>>>>> mysql-5.7.25
 	if (mode != BTR_MODIFY_TREE) {
 		ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
 

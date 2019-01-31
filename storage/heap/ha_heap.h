@@ -64,6 +64,7 @@ public:
   uint max_supported_key_part_length(HA_CREATE_INFO
                     *create_info MY_ATTRIBUTE((unused))) const
   { return HP_MAX_KEY_LENGTH; }
+
   double scan_time()
   { return (double) (stats.records+stats.deleted) / 20.0+10; }
   double read_time(uint index, uint ranges, ha_rows rows)

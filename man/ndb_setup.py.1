@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_setup.py\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2018
+.\"      Date: 10/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_SETUP\&.PY\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_SETUP\&.PY\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ or other administrative account\&.
 This section describes usage of and program options for the command\-line tool only\&. For information about using the Auto\-Installer GUI that is spawned when
 \fBndb_setup\&.py\fR
 is invoked, see
-Section\ \&21.2.1, \(lqThe NDB Cluster Auto-Installer\(rq\&.
+Section\ \&21.2.1, \(lqThe NDB Cluster Auto-Installer (NDB 7.5)\(rq\&.
 Usage.PP
 All platforms:
 .sp
@@ -92,7 +92,7 @@ The following table includes all options that are supported by the NDB Cluster i
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.335.\ \&Command\-line options for the ndb_setup\&.py program
+.B Table\ \&21.350.\ \&Command\-line options for the ndb_setup\&.py program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -104,6 +104,7 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+l l l
 l l l
 l l l
 l l l
@@ -230,6 +231,17 @@ All MySQL 5.7 based releases
 T}
 T{
 .PP
+--use-http,
+.PP
+-H
+T}:T{
+Use unencrypted (HTTP) client/server connection
+T}:T{
+.PP
+NDB 7.6 and later
+T}
+T{
+.PP
 --use-https,
 .PP
 -S
@@ -272,7 +284,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -315,7 +327,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
 \fBDefault Value\fR
@@ -357,7 +369,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
 \fBDefault Value\fR
@@ -366,7 +378,7 @@ cfg.pem
 T}
 .TE
 .sp 1
-Specify a file containing an X509 certificate which identifies the server\&. It is possible for the certificate to be self\-signed\&. The default is
+Specify a file containing an X\&.509 certificate which identifies the server\&. It is possible for the certificate to be self\-signed\&. The default is
 cfg\&.pem\&.
 .RE
 .sp
@@ -401,7 +413,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-enumeration
+Enumeration
 T}
 T{
 \fBDefault Value\fR
@@ -494,7 +506,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
 \fBDefault Value\fR
@@ -503,7 +515,7 @@ T}:T{
 T}
 .TE
 .sp 1
-Specify a file containing the private key if this is not included in the X509 certificate file (\fB\-\-cert\-file\fR)\&. The default is an empty string, which means that no such file is used\&.
+Specify a file containing the private key if this is not included in the X\&. 509 certificate file (\fB\-\-cert\-file\fR)\&. The default is an empty string, which means that no such file is used\&.
 .RE
 .sp
 .RS 4
@@ -568,7 +580,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -624,7 +636,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
 \fBDefault Value\fR
@@ -679,7 +691,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -690,6 +702,38 @@ T}
 .sp 1
 Specify the host name or IP address for the browser to use when connecting\&. The default is
 localhost\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-use\-http\fR,
+\fB\-H\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--use-http
+T}
+.TE
+.sp 1
+Make the browser use HTTP to connect with the server\&. This means that the connection is unencrypted and not secured in any way\&.
+.sp
+This option was added in NDB 7\&.6\&.
 .RE
 .sp
 .RS 4

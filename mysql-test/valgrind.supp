@@ -1800,5 +1800,5 @@
    fun:exit
    fun:*mysqld_exit*
    fun:*mysqld_main*
-   fun:main
+   fun:*main*
 }

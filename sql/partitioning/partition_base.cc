@@ -207,10 +207,10 @@ bool get_part_str_for_table(const char *name, std::string &result)
                                         table_name, sizeof(table_name));
 
   // Prepare the path to the .FRM file and open the file
+  // The 'name' is coming into this function already encoded in fscs.
   char    path[FN_REFLEN + 1];  //< Path to .FRM file
-  bool temp_table= (bool)is_prefix(table_name, tmp_file_prefix);
   build_table_filename(path, sizeof(path) - 1, db_name, table_name, reg_ext,
-                       temp_table ? FN_IS_TMP : 0);
+                       FN_IS_ENCODED);
 
   return get_part_str_for_path(path, result);
 }

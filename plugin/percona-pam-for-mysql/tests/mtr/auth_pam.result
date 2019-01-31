@@ -1,0 +1,4 @@
+INSTALL PLUGIN auth_pam SONAME 'auth_pam.so';
+CREATE USER 'pam_user'@'localhost' IDENTIFIED WITH auth_pam;
+DROP USER 'pam_user'@'localhost';
+UNINSTALL PLUGIN auth_pam;

@@ -2462,6 +2462,18 @@ SyncFileIO::execute(const IORequest& request)
 	return(n_bytes);
 }
 
+MY_ATTRIBUTE((warn_unused_result))
+static std::string
+os_file_find_path_for_fd(
+	os_file_t fd)
+{
+	char fdname[FN_REFLEN];
+	snprintf(fdname, sizeof fdname, "/proc/%d/fd/%d", getpid(), fd);
+	char filename[FN_REFLEN];
+	const int err_filename = my_readlink(filename, fdname, MYF(0));
+	return std::string((err_filename != -1) ? filename : "");
+}
+
 /** Free storage space associated with a section of the file.
 @param[in]	fh		Open file handle
 @param[in]	off		Starting offset (SEEK_SET)
@@ -2489,11 +2501,20 @@ os_file_punch_hole_posix(
 		return(DB_IO_NO_PUNCH_HOLE);
 	}
 
-	ib::warn()
-		<< "fallocate(" << fh
-		<<", FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, "
-		<< off << ", " << len << ") returned errno: "
-		<<  errno;
+	const std::string fd_path = os_file_find_path_for_fd(fh);
+	if (!fd_path.empty()) {
+		ib::warn()
+			<< "fallocate(" << fh << " ("
+			<< fd_path << "), FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, "
+			<< off << ", " << len << ") returned errno: "
+			<<  errno;
+	} else {
+		ib::warn()
+			<< "fallocate(" << fh
+			<<", FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, "
+			<< off << ", " << len << ") returned errno: "
+			<<  errno;
+	}
 
 	return(DB_IO_ERROR);
 
@@ -3490,11 +3511,17 @@ os_file_fsync_posix(
 			os_thread_sleep(200000);
 			break;
 
-		case EIO:
+		case EIO: {
 
-                        ib::fatal()
-				<< "fsync() returned EIO, aborting.";
+			const std::string fd_path
+				= os_file_find_path_for_fd(file);
+			if (!fd_path.empty())
+				ib::fatal() << "fsync(\"" << fd_path
+					    << "\") returned EIO, aborting.";
+			else
+				ib::fatal() << "fsync() returned EIO, aborting.";
 			break;
+		}
 
 		case EINTR:
 
@@ -6203,9 +6230,18 @@ os_file_read_page(
 			}
 		}
 
-		ib::error() << "Tried to read " << n
-			<< " bytes at offset " << offset
-			<< ", but was only able to read " << n_bytes;
+		const std::string fd_path = os_file_find_path_for_fd(file);
+		if (!fd_path.empty()) {
+			ib::error() << "Tried to read " << n
+				    << " bytes at offset " << offset
+				    << ", but was only able to read " << n_bytes
+				    << " of FD " << file
+				    << ", filename " << fd_path;
+		} else {
+			ib::error() << "Tried to read " << n
+				    << " bytes at offset " << offset
+				    << ", but was only able to read " << n_bytes;
+		}
 
 		if (exit_on_err) {
 

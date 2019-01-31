@@ -1882,6 +1882,9 @@ end:
       gtid_state->update_on_commit(thd);
   }
 
+  if(!error)
+    thd->diff_commit_trans++;
+
   DBUG_RETURN(error);
 }
 
@@ -2847,8 +2850,11 @@ err:
 
 void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
-  DBUG_ASSERT(!table->in_use->status_var_aggregated);
-  (table->in_use->status_var.*offset)++;
+  if (table && table->in_use)
+  {
+    DBUG_ASSERT(!table->in_use->status_var_aggregated);
+    (table->in_use->status_var.*offset)++;
+  }
 }
 
 

@@ -1048,7 +1048,8 @@ alter table t2 add index (a,b);
 
 # 500 rows, 1 row
 
-select 'In following EXPLAIN the access method should be ref or range, #rows~=500 (and not 2)' Z;
+--echo Access method can be range/ALL with #rows >= 500.
+--echo Or it can be ref with #rows = 2, only when there is memory limit.
 explain select * from t2 where a=1000 and b<11;
 
 drop table t1, t2;
@@ -2534,6 +2535,7 @@ UPDATE mysql.innodb_table_stats SET n_rows=3001 WHERE TABLE_name='transactions';
 FLUSH TABLE transactions;
 --enable_query_log
 
+--replace_column 10 # 11 #
 eval EXPLAIN $query1;
 
 SET optimizer_trace="enabled=on";

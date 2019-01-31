@@ -62,6 +62,8 @@ Created 12/9/1995 Heikki Tuuri
 
 #include "system_key.h"
 
+static redo_log_encrypt_enum found_log_encryption_mode = REDO_LOG_ENCRYPT_OFF;
+
 /*
 General philosophy of InnoDB redo-logs:
 
@@ -1123,6 +1125,7 @@ log_read_encryption()
 	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
 		   ENCRYPTION_KEY_MAGIC_RK, ENCRYPTION_MAGIC_SIZE) == 0) {
 		encryption_magic = true;
+		found_log_encryption_mode = REDO_LOG_ENCRYPT_RK;
 
 		/* Make sure the keyring is loaded. */
 		if (!Encryption::check_keyring()) {
@@ -1165,6 +1168,7 @@ log_read_encryption()
 	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
 		   ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0) {
 		encryption_magic = true;
+		found_log_encryption_mode = REDO_LOG_ENCRYPT_MK;
 
 		/* Make sure the keyring is loaded. */
 		if (!Encryption::check_keyring()) {
@@ -1298,7 +1302,8 @@ log_write_encryption(
 	}
 
 	log_write_mutex_enter();
-	if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK) {
+	if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK || 
+	    found_log_encryption_mode == REDO_LOG_ENCRYPT_MK) {
 		if (!log_file_header_fill_encryption(log_block_buf,
 						     key,
 						     iv)) {
@@ -1306,7 +1311,8 @@ log_write_encryption(
 			log_write_mutex_exit();
 			return(false);
 		}
-	} else if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
+	} else if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK ||
+		   found_log_encryption_mode == REDO_LOG_ENCRYPT_RK) {
 		if (!log_file_header_fill_encryption(log_block_buf,
 						     version,
 						     iv)) {
@@ -1429,8 +1435,10 @@ log_enable_encryption_if_set()
 				}
 			}
 
-			ut_ad(redo_key_type && strcmp(redo_key_type, "AES") == 0);
-			my_free(redo_key_type);
+			if (encryption_enabled) {
+				ut_ad(redo_key_type && strcmp(redo_key_type, "AES") == 0);
+				my_free(redo_key_type);
+			}
 
 #ifdef UNIV_ENCRYPT_DEBUG
 				fprintf(stderr, "Fetched redo key: %s.\n", key);

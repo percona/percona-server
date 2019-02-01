@@ -329,7 +329,7 @@ struct GenericPolicy
 /** Track aggregate metrics policy, used by the page mutex. There are just
 too many of them to count individually. */
 template <typename Mutex>
-class BlockMutexPolicy
+class AggregateMutexStatsPolicy
 #ifdef UNIV_DEBUG
     : public MutexDebug<Mutex>
 #endif /* UNIV_DEBUG */
@@ -339,7 +339,7 @@ class BlockMutexPolicy
   typedef typename latch_meta_t::CounterType::Count Count;
 
   /** Default constructor. */
-  BlockMutexPolicy()
+  AggregateMutexStatsPolicy()
       :
 #ifdef UNIV_DEBUG
         MutexDebug<MutexType>(),
@@ -350,7 +350,7 @@ class BlockMutexPolicy
   }
 
   /** Destructor */
-  ~BlockMutexPolicy() = default;
+  ~AggregateMutexStatsPolicy() = default;
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.

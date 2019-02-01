@@ -161,6 +161,10 @@ extern uint slave_rows_last_search_algorithm_used;
 extern ulong mts_parallel_option;
 extern my_bool opt_userstat, opt_thread_statistics;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
+#ifdef _WIN32
+extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
+extern char *named_pipe_full_access_group;
+#endif
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern char* opt_secure_backup_file_priv;
@@ -447,6 +451,7 @@ extern PSI_mutex_key
   key_LOCK_server_started, key_LOCK_status,
   key_LOCK_sql_slave_skip_counter,
   key_LOCK_slave_net_timeout,
+  key_LOCK_slave_trans_dep_tracker,
   key_LOCK_table_share, key_LOCK_thd_data, key_LOCK_thd_sysvar,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
@@ -867,6 +872,7 @@ extern mysql_mutex_t
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages,
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
+       LOCK_slave_trans_dep_tracker,
        LOCK_offline_mode, LOCK_default_password_lifetime,
        LOCK_global_user_client_stats,
        LOCK_global_table_stats, LOCK_global_index_stats;
@@ -970,7 +976,8 @@ enum options_mysqld
   OPT_KEYRING_MIGRATION_HOST,
   OPT_KEYRING_MIGRATION_PASSWORD,
   OPT_KEYRING_MIGRATION_SOCKET,
-  OPT_KEYRING_MIGRATION_PORT
+  OPT_KEYRING_MIGRATION_PORT,
+  OPT_NAMED_PIPE_FULL_ACCESS_GROUP
 };
 
 
@@ -1056,5 +1063,9 @@ static inline THD *_current_thd(void)
 #define current_thd _current_thd()
 
 #define ER(X)         ER_THD(current_thd,X)
+
+#ifdef _WIN32
+bool update_named_pipe_full_access_group(const char *new_group_name);
+#endif
 
 #endif /* MYSQLD_INCLUDED */

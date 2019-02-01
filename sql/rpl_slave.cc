@@ -320,6 +320,9 @@ void lock_slave_threads(Master_info* mi)
 {
   DBUG_ENTER("lock_slave_threads");
 
+  //protection against mixed locking order (see header)
+  mi->channel_assert_some_wrlock();
+
   //TODO: see if we can do this without dual mutex
   mysql_mutex_lock(&mi->run_lock);
   mysql_mutex_lock(&mi->rli->run_lock);
@@ -3390,7 +3393,7 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
     if (rli->sql_force_rotate_relay)
     {
       mysql_mutex_lock(&mi->data_lock);
-      rotate_relay_log(mi);
+      rotate_relay_log(mi, false/*need_log_space_lock=false*/);
       mysql_mutex_unlock(&mi->data_lock);
       rli->sql_force_rotate_relay= false;
     }
@@ -3449,7 +3452,7 @@ static int write_ignored_events_info_to_relay_log(THD *thd,
                    "failed to write a Rotate event"
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+      rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
       if (flush_master_info(mi, force_mi_flush))
       {
         error= 1;
@@ -6204,6 +6207,18 @@ extern "C" void *handle_slave_worker(void *arg)
                     rli->get_for_channel_str());
     goto err;
   }
+
+  if (channel_map.is_group_replication_channel_name(rli->get_channel())) {
+    if (channel_map.is_group_replication_channel_name(rli->get_channel(),
+                                                      true)) {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_APPLIER_CHANNEL);
+    } else {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_RECOVERY_CHANNEL);
+    }
+  } else {
+    thd->rpl_thd_ctx.set_rpl_channel_type(RPL_STANDARD_CHANNEL);
+  }
+
   mysql_mutex_lock(&w->info_thd_lock);
   w->info_thd= thd;
   mysql_mutex_unlock(&w->info_thd_lock);
@@ -7330,6 +7345,17 @@ extern "C" void *handle_slave_sql(void *arg)
 
   rli->set_commit_order_manager(commit_order_mngr);
 
+  if (channel_map.is_group_replication_channel_name(rli->get_channel())) {
+    if (channel_map.is_group_replication_channel_name(rli->get_channel(),
+                                                      true)) {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_APPLIER_CHANNEL);
+    } else {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_RECOVERY_CHANNEL);
+    }
+  } else {
+    thd->rpl_thd_ctx.set_rpl_channel_type(RPL_STANDARD_CHANNEL);
+  }
+
   mysql_mutex_unlock(&rli->info_thd_lock);
 
   /* Inform waiting threads that slave has started */
@@ -7828,7 +7854,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
                      "error writing Exec_load event to relay log");
           goto err;
         }
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
+        mi->rli->relay_log.harvest_bytes_written(mi->rli, true/*need_log_space_lock=true*/);
         break;
       }
       if (unlikely(cev_not_written))
@@ -7843,7 +7869,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
           goto err;
         }
         cev_not_written=0;
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
+        mi->rli->relay_log.harvest_bytes_written(mi->rli, true/*need_log_space_lock=true*/);
       }
       else
       {
@@ -7857,7 +7883,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
                      "error writing Append_block event to relay log");
           goto err;
         }
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
+        mi->rli->relay_log.harvest_bytes_written(mi->rli, true/*need_log_space_lock=true*/);
       }
     }
   }
@@ -7928,7 +7954,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
     Rotate the relay log makes binlog format detection easier (at next slave
     start or mysqlbinlog)
   */
-  int ret= rotate_relay_log(mi);
+  int ret= rotate_relay_log(mi, true/*need_log_space_lock=true*/);
   DBUG_RETURN(ret);
 }
 
@@ -8044,7 +8070,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
       delete ev;
       DBUG_RETURN(1);
     }
-    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+    rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
   }
   delete ev;
   mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
@@ -8102,7 +8128,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     delete ev;
     DBUG_RETURN(1);
   }
-  rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+  rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
   delete ev;
   mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
 err:
@@ -8772,7 +8798,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+      rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
 
       /*
         If this event is GTID_LOG_EVENT we store its GTID to add to the
@@ -9692,7 +9718,7 @@ err:
   is void).
 */
 
-int rotate_relay_log(Master_info* mi)
+int rotate_relay_log(Master_info* mi, bool need_log_space_lock)
 {
   DBUG_ENTER("rotate_relay_log");
 
@@ -9730,7 +9756,7 @@ int rotate_relay_log(Master_info* mi)
     If the log is closed, then this will just harvest the last writes, probably
     0 as they probably have been harvested.
   */
-  rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+  rli->relay_log.harvest_bytes_written(rli, need_log_space_lock);
 end:
   DBUG_RETURN(error);
 }
@@ -9753,7 +9779,7 @@ bool flush_relay_logs(Master_info *mi)
   if (mi)
   {
     mysql_mutex_lock(&mi->data_lock);
-    if (rotate_relay_log(mi))
+    if (rotate_relay_log(mi, true/*need_log_space_lock=true*/))
       error= true;
     mysql_mutex_unlock(&mi->data_lock);
   }

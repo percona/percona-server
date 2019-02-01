@@ -1312,22 +1312,19 @@ the error log if more than two seconds have been spent already.
 @param[out]	mon_value_was	previous srv_print_innodb_monitor value
 @param[out]	started_monitor	whether InnoDB monitor print has been requested
 */
-static
-void
-buf_LRU_handle_lack_of_free_blocks(ulint n_iterations, ulint started_ms,
-				   ulint flush_failures,
-				   ibool *mon_value_was,
-				   ibool *started_monitor)
-{
-	static ulint last_printout_ms = 0;
+static void
+buf_LRU_handle_lack_of_free_blocks(ulint	     n_iterations,
+				   ut_monotonic_time started_ms,
+				   ulint flush_failures, ibool *mon_value_was,
+				   ibool *started_monitor) {
+	static ut_monotonic_time last_printout_ms = {0};
 
 	/* Legacy algorithm started warning after at least 2 seconds, we
 	emulate	this. */
-	const ulint current_ms = ut_time_ms();
+	const ut_monotonic_time current_ms = ut_monotonic_time_ms();
 
-	if ((current_ms > started_ms + 2000)
-	    && (current_ms > last_printout_ms + 2000)) {
-
+	if ((current_ms.ms > started_ms.ms + 2000) &&
+	    (current_ms.ms > last_printout_ms.ms + 2000)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Warning: difficult to find free blocks in\n"
@@ -1413,7 +1410,7 @@ buf_LRU_get_free_block(
 	ulint		flush_failures	= 0;
 	ibool		mon_value_was	= FALSE;
 	ibool		started_monitor	= FALSE;
-	ulint		started_ms	= 0;
+	ut_monotonic_time started_ms = {0};
 
 	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
@@ -1454,8 +1451,8 @@ loop:
 		return(block);
 	}
 
-	if (!started_ms)
-		started_ms = ut_time_ms();
+	if (!started_ms.ms)
+		started_ms = ut_monotonic_time_ms();
 
 	if (srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_BACKOFF
 	    && buf_lru_manager_is_active

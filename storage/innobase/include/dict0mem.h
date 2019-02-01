@@ -1912,6 +1912,8 @@ temp table */
 typedef std::vector<row_prebuilt_t *> temp_prebuilt_vec;
 #endif /* !UNIV_HOTBACKUP */
 
+using AutoIncMutex = ib_bpmutex_t;
+
 #ifdef UNIV_DEBUG
 /** Value of 'magic_n'. */
 constexpr uint32_t DICT_TABLE_MAGIC_N = 76333786;
@@ -2340,7 +2342,7 @@ detect this and will eventually quit sooner. */
 #endif /* !UNIV_HOTBACKUP */
 
   /** Mutex protecting the autoincrement counter. */
-  ib_mutex_t *autoinc_mutex;
+  AutoIncMutex *autoinc_mutex;
 
   /** Autoinc counter value to give to the next inserted row. */
   uint64_t autoinc;

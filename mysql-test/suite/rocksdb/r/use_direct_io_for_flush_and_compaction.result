@@ -1,16 +1,14 @@
 Checking direct reads
-# restart: --rocksdb_use_direct_reads=1
+# restart: --rocksdb_use_direct_io_for_flush_and_compaction=1
 CREATE TABLE t1 (pk INT PRIMARY KEY DEFAULT '0', a INT(11), b CHAR(8)) ENGINE=rocksdb;
-Warnings:
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int NOT NULL DEFAULT '0',
-  `a` int DEFAULT NULL,
+  `pk` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) DEFAULT NULL,
   `b` char(8) DEFAULT NULL,
   PRIMARY KEY (`pk`)
-) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (1, 1,'a');
 INSERT INTO t1 (a,b) VALUES (2,'b');
 SET GLOBAL rocksdb_force_flush_memtable_now=1;

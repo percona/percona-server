@@ -58,6 +58,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/components/services/log_builtins.h"
 #include "sql/derror.h"
 
+static_assert(std::chrono::steady_clock::is_steady,
+              "Clock is not monotonically-increasing (steady).");
+
 #ifdef _WIN32
 using time_fn = VOID(WINAPI *)(_Out_ LPFILETIME);
 static time_fn ut_get_system_time_as_file_time = GetSystemTimeAsFileTime;

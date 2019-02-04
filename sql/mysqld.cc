@@ -446,6 +446,7 @@ const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
+my_bool opt_binlog_skip_flush_commands= 0;
 uint32 gtid_executed_compression_period= 0;
 my_bool opt_log_unsafe_statements;
 

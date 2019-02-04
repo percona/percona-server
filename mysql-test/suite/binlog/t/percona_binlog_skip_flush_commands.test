@@ -1,0 +1,205 @@
+--source include/have_log_bin.inc
+
+--echo #
+--echo # This is an MTR test case for the new 'binlog_skip_flush_commands' global
+--echo # system variable introduced as a fix for
+--echo # Bug #88720 "Inconsistent and unsafe FLUSH behavior in terms of replication"
+--echo # (https://bugs.mysql.com/bug.php?id=88720)
+--echo # PS-1827 "LP #1736921: Inconsistent and unsafe FLUSH behavior in terms of replication" 
+--echo # (https://jira.percona.com/browse/PS-1827)
+--echo #
+
+# creating a user without SUPER and RELOAD privileges
+CREATE USER 'wo_reload'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'wo_reload'@'localhost';
+REVOKE SUPER ON *.* FROM 'wo_reload'@'localhost';
+REVOKE RELOAD ON *.* FROM 'wo_reload'@'localhost';
+
+# creating a user without SUPER privilege
+CREATE USER 'wo_super'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'wo_super'@'localhost';
+REVOKE SUPER ON *.* FROM 'wo_super'@'localhost';
+
+--source include/count_sessions.inc
+
+--connect(wo_reload_con,localhost,wo_reload)
+--connect(wo_super_con,localhost,wo_super)
+
+--connection default
+
+SET @saved_read_only = @@global.read_only;
+SET @saved_super_read_only = @@global.super_read_only;
+SET @saved_binlog_skip_flush_commands = @@global.binlog_skip_flush_commands;
+
+CREATE TABLE t1(f1 int);
+INSERT INTO t1 VALUES(1);
+SELECT 1;
+
+--let $gtid_prefix_length = 40
+
+CREATE TEMPORARY TABLE flush_statement(
+  id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  value VARCHAR(64) NOT NULL
+);
+INSERT INTO flush_statement(value) VALUES
+  ('ERROR LOGS'),
+  ('ENGINE LOGS'),
+  ('GENERAL LOGS'),
+  ('SLOW LOGS'),
+  ('RELAY LOGS'),
+  ('QUERY CACHE'),
+  ('HOSTS'),
+  ('PRIVILEGES'),
+  ('STATUS'),
+  ('CLIENT_STATISTICS'),
+  ('USER_STATISTICS'),
+  ('THREAD_STATISTICS'),
+  ('TABLE_STATISTICS'),
+  ('INDEX_STATISTICS'),
+  ('DES_KEY_FILE'),
+  ('USER_RESOURCES'),
+  ('CHANGED_PAGE_BITMAPS')
+;
+
+--let $statement_idx = 1
+--let $number_of_statements = `SELECT COUNT(*) FROM flush_statement`
+
+while($statement_idx <= $number_of_statements)
+{
+  --connection default
+  --let $statement = `SELECT CONCAT('FLUSH ', value) FROM flush_statement WHERE id = $statement_idx`
+
+  --let $read_only_mode_idx = 0
+  while($read_only_mode_idx < 3)
+  {
+    --connection default
+    if($read_only_mode_idx == 0)
+    {
+      SET GLOBAL super_read_only = OFF;
+      SET GLOBAL read_only = OFF;
+      --let $read_only_mode_label = (read_only = OFF, super_read_only = OFF)
+    }
+    if($read_only_mode_idx == 1)
+    {
+      SET GLOBAL super_read_only = OFF;
+      SET GLOBAL read_only = ON;
+      --let $read_only_mode_label = (read_only = ON, super_read_only = OFF)
+    }
+    if($read_only_mode_idx == 2)
+    {
+      SET GLOBAL super_read_only = ON;
+      --let $read_only_mode_label = (super_read_only = ON)
+    }
+
+    --let $user_type_idx = 0
+    while($user_type_idx < 3)
+    {
+      if($user_type_idx == 0)
+      {
+        --let $custom_conection = wo_reload_con
+        --let $user_type_label = (user w/o RELOAD)
+        # users without RELOAD privilege should always get ER_SPECIFIC_ACCESS_DENIED_ERROR
+        --let $eval_should_fail = 1
+        # users without RELOAD privilege should never change gtid_executed
+        --let $eval_should_change_gtid_executed = 0
+      }
+      if($user_type_idx == 1)
+      {
+        --let $custom_conection = wo_super_con
+        --let $user_type_label = (user w/o SUPER)
+        # users with RELOAD privilege should succeed executing FLUSH XXX
+        --let $eval_should_fail = 0
+        # users with RELOAD privilege should change gtid_executed only when read_only = OFF and super_read_only = OFF
+        --let $eval_should_change_gtid_executed = 0
+        if($read_only_mode_idx == 0)
+        {
+          --let $eval_should_change_gtid_executed = 1
+        }
+        # FLUSH CHANGED_PAGE_BITMAPS is an exception - it requires SUPER privilege to be executed
+        if($statement == "FLUSH CHANGED_PAGE_BITMAPS")
+        {
+          --let $eval_should_fail = 1
+          --let $eval_should_change_gtid_executed = 0
+        }
+      }
+      if($user_type_idx == 2)
+      {
+        --let $custom_conection = default
+        --let $user_type_label = (SUPER user)
+        # users with SUPER privilege should succeed executing FLUSH XXX
+        --let $eval_should_fail = 0
+        # users with SUPER privilege should change gtid_executed only when super_read_only != OFF
+        --let $eval_should_change_gtid_executed = 1
+        if($read_only_mode_idx == 2)
+        {
+          --let $eval_should_change_gtid_executed = 0
+        }
+      }
+
+      --connection default
+      --let $previous_gtid = `SELECT SUBSTR(@@global.gtid_executed, $gtid_prefix_length)`
+
+      --connection $custom_conection
+      if($eval_should_fail)
+      {
+        --error ER_SPECIFIC_ACCESS_DENIED_ERROR
+        --eval $statement
+      }
+      if(!$eval_should_fail)
+      {
+        --eval $statement
+      }
+
+      --connection default
+      --let $current_gtid = `SELECT SUBSTR(@@global.gtid_executed, $gtid_prefix_length)`
+      if($eval_should_change_gtid_executed)
+      {
+        --let $assert_cond= $previous_gtid + 1 = $current_gtid
+        --let $assert_text= $statement with binlog_skip_flush_commands set to OFF must change gtid $read_only_mode_label $user_type_label
+      }
+      if(!$eval_should_change_gtid_executed)
+      {
+        --let $assert_cond= $previous_gtid = $current_gtid
+        --let $assert_text= $statement with binlog_skip_flush_commands set to OFF must not change gtid $read_only_mode_label $user_type_label
+      }
+      --source include/assert.inc
+      SET GLOBAL binlog_skip_flush_commands = ON;
+      --let $previous_gtid  = $current_gtid
+
+      --connection $custom_conection
+      if($eval_should_fail)
+      {
+        --error ER_SPECIFIC_ACCESS_DENIED_ERROR
+        --eval $statement
+      }
+      if(!$eval_should_fail)
+      {
+        --eval $statement
+      }
+      --connection default
+      --let $current_gtid = `SELECT SUBSTR(@@global.gtid_executed, $gtid_prefix_length)`
+      --let $assert_cond= $previous_gtid = $current_gtid
+      --let $assert_text= $statement with binlog_skip_flush_commands set to ON must not change gtid $read_only_mode_label $user_type_label
+      --source include/assert.inc
+      SET GLOBAL binlog_skip_flush_commands = OFF;
+
+      --inc $user_type_idx
+    }
+    --inc $read_only_mode_idx
+  }
+  --inc $statement_idx
+}
+
+SET GLOBAL binlog_skip_flush_commands = @saved_binlog_skip_flush_commands;
+SET GLOBAL super_read_only = @saved_super_read_only;
+SET GLOBAL read_only = @saved_read_only;
+
+DROP TABLE t1;
+
+--disconnect wo_reload_con
+--disconnect wo_super_con
+
+--source include/wait_until_count_sessions.inc
+
+DROP USER 'wo_super'@'localhost';
+DROP USER 'wo_reload'@'localhost';

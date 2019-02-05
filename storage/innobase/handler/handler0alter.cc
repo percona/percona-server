@@ -3807,7 +3807,16 @@ static void dd_commit_inplace_alter_table(
                                  FTS_DOC_ID_INDEX_NAME, col);
     }
 
-    dd_space_id = dd_first_index(old_dd_tab)->tablespace_id();
+    /* This can happen only with expanded fast index creation. On the
+    intermediate table during ALTER COPY, we drop secondary indexes using
+    inplace alter APIs. The old definition here is old copy of table. Hence we
+    should use new_dd_tab here for updating the dd::Indexes */
+    if (new_table->skip_alter_undo) {
+      dd_space_id = dd_first_index(new_dd_tab)->tablespace_id();
+    } else {
+      dd_space_id = dd_first_index(old_dd_tab)->tablespace_id();
+    }
+    ut_ad(dd_space_id != dd::INVALID_OBJECT_ID);
   }
 
   dd_set_table_options(new_dd_tab, new_table);
@@ -9918,7 +9927,13 @@ bool ha_innopart::prepare_inplace_alter_table(TABLE *altered_table,
     dd::Partition *new_part = *newp;
     ut_ad(old_part != nullptr);
     ut_ad(new_part != nullptr);
-    ut_ad(m_prebuilt->table->id == old_part->se_private_id());
+
+    /* We exempt this asserion when we do inplace during copy algorithm (ie.
+    during expanded fast index creation). This is OK because we are using an
+    intermediate table created during ALTER COPY algorithm. Hence
+    m_prebuilt->table->id is newer than the original id stored in DD */
+    ut_ad(m_prebuilt->table->id == old_part->se_private_id() ||
+          m_prebuilt->table->skip_alter_undo);
 
     ha_alter_info->handler_ctx = nullptr;
 

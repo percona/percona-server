@@ -246,6 +246,8 @@ enum enum_binlog_error_action
   ABORT_SERVER= 1
 };
 extern const char *binlog_error_action_list[];
+extern my_bool opt_binlog_skip_flush_commands;
+
 enum enum_gtid_mode
 {
   /// Support only anonymous groups, not GTIDs.

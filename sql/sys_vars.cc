@@ -1594,6 +1594,13 @@ static Sys_var_enum Sys_binlog_error_action(
        "continue, or abort.", GLOBAL_VAR(binlog_error_action),
        CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(IGNORE_ERROR));
 
+static Sys_var_mybool Sys_binlog_skip_flush_commands(
+       "binlog_skip_flush_commands",
+       "If set to TRUE, FLUSH <XXX> commands will not be be written "
+       "to the binary log",
+       GLOBAL_VAR(opt_binlog_skip_flush_commands),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static Sys_var_enum Sys_binlogging_impossible_mode(
        "binlogging_impossible_mode",
        "On a fatal error when statements cannot be binlogged the behaviour can "

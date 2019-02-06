@@ -1,0 +1,1163 @@
+#
+# This is an MTR test case for the new 'binlog_skip_flush_commands' global
+# system variable introduced as a fix for
+# Bug #88720 "Inconsistent and unsafe FLUSH behavior in terms of replication"
+# (https://bugs.mysql.com/bug.php?id=88720)
+# PS-1827 "LP #1736921: Inconsistent and unsafe FLUSH behavior in terms of replication" 
+# (https://jira.percona.com/browse/PS-1827)
+#
+CREATE USER 'wo_reload'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'wo_reload'@'localhost';
+REVOKE SUPER ON *.* FROM 'wo_reload'@'localhost';
+REVOKE RELOAD ON *.* FROM 'wo_reload'@'localhost';
+CREATE USER 'wo_super'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'wo_super'@'localhost';
+REVOKE SUPER ON *.* FROM 'wo_super'@'localhost';
+SET @saved_read_only = @@global.read_only;
+SET @saved_super_read_only = @@global.super_read_only;
+SET @saved_binlog_skip_flush_commands = @@global.binlog_skip_flush_commands;
+CREATE TABLE t1(f1 int);
+INSERT INTO t1 VALUES(1);
+SELECT 1;
+1
+1
+CREATE TEMPORARY TABLE flush_statement(
+id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+value VARCHAR(64) NOT NULL
+);
+INSERT INTO flush_statement(value) VALUES
+('ERROR LOGS'),
+('ENGINE LOGS'),
+('GENERAL LOGS'),
+('SLOW LOGS'),
+('RELAY LOGS'),
+('QUERY CACHE'),
+('HOSTS'),
+('PRIVILEGES'),
+('STATUS'),
+('CLIENT_STATISTICS'),
+('USER_STATISTICS'),
+('THREAD_STATISTICS'),
+('TABLE_STATISTICS'),
+('INDEX_STATISTICS'),
+('DES_KEY_FILE'),
+('USER_RESOURCES'),
+('CHANGED_PAGE_BITMAPS')
+;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH ERROR LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ERROR LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH ERROR LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ERROR LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH ERROR LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ERROR LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ERROR LOGS;
+include/assert.inc [FLUSH ERROR LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH ENGINE LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ENGINE LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH ENGINE LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ENGINE LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH ENGINE LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ENGINE LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH ENGINE LOGS;
+include/assert.inc [FLUSH ENGINE LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH GENERAL LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH GENERAL LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH GENERAL LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH GENERAL LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH GENERAL LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH GENERAL LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH GENERAL LOGS;
+include/assert.inc [FLUSH GENERAL LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH SLOW LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH SLOW LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH SLOW LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH SLOW LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH SLOW LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH SLOW LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH SLOW LOGS;
+include/assert.inc [FLUSH SLOW LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH RELAY LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH RELAY LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH RELAY LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH RELAY LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH RELAY LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH RELAY LOGS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH RELAY LOGS;
+include/assert.inc [FLUSH RELAY LOGS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH QUERY CACHE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH QUERY CACHE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH QUERY CACHE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH QUERY CACHE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH QUERY CACHE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH QUERY CACHE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH QUERY CACHE;
+include/assert.inc [FLUSH QUERY CACHE with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH HOSTS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH HOSTS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH HOSTS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH HOSTS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH HOSTS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH HOSTS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH HOSTS;
+include/assert.inc [FLUSH HOSTS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH PRIVILEGES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH PRIVILEGES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH PRIVILEGES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH PRIVILEGES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH PRIVILEGES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH PRIVILEGES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH PRIVILEGES;
+include/assert.inc [FLUSH PRIVILEGES with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH STATUS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH STATUS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH STATUS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH STATUS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH STATUS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH STATUS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH STATUS;
+include/assert.inc [FLUSH STATUS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH CLIENT_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CLIENT_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH CLIENT_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CLIENT_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH CLIENT_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CLIENT_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CLIENT_STATISTICS;
+include/assert.inc [FLUSH CLIENT_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH USER_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH USER_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH USER_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_STATISTICS;
+include/assert.inc [FLUSH USER_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH THREAD_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH THREAD_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH THREAD_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH THREAD_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH THREAD_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH THREAD_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH THREAD_STATISTICS;
+include/assert.inc [FLUSH THREAD_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH TABLE_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH TABLE_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH TABLE_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH TABLE_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH TABLE_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH TABLE_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH TABLE_STATISTICS;
+include/assert.inc [FLUSH TABLE_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH INDEX_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH INDEX_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH INDEX_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH INDEX_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH INDEX_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH INDEX_STATISTICS;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH INDEX_STATISTICS;
+include/assert.inc [FLUSH INDEX_STATISTICS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH DES_KEY_FILE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH DES_KEY_FILE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH DES_KEY_FILE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH DES_KEY_FILE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH DES_KEY_FILE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH DES_KEY_FILE;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH DES_KEY_FILE;
+include/assert.inc [FLUSH DES_KEY_FILE with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH USER_RESOURCES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_RESOURCES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH USER_RESOURCES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_RESOURCES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH USER_RESOURCES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_RESOURCES;
+ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH USER_RESOURCES;
+include/assert.inc [FLUSH USER_RESOURCES with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CHANGED_PAGE_BITMAPS;
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to OFF must change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to ON must not change gtid (read_only = OFF, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to OFF must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CHANGED_PAGE_BITMAPS;
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to OFF must change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to ON must not change gtid (read_only = ON, super_read_only = OFF) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL super_read_only = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o RELOAD)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (user w/o SUPER)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+FLUSH CHANGED_PAGE_BITMAPS;
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to OFF must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = ON;
+FLUSH CHANGED_PAGE_BITMAPS;
+include/assert.inc [FLUSH CHANGED_PAGE_BITMAPS with binlog_skip_flush_commands set to ON must not change gtid (super_read_only = ON) (SUPER user)]
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SET GLOBAL binlog_skip_flush_commands = @saved_binlog_skip_flush_commands;
+SET GLOBAL super_read_only = @saved_super_read_only;
+SET GLOBAL read_only = @saved_read_only;
+DROP TABLE t1;
+DROP USER 'wo_super'@'localhost';
+DROP USER 'wo_reload'@'localhost';

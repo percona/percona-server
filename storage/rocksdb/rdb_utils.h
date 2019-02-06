@@ -313,4 +313,17 @@ void warn_about_bad_patterns(const char *regex, const char *name);
 std::vector<std::string> split_into_vector(const std::string &input,
                                            char delimiter);
 
-}  // namespace myrocks
+/*
+  Helper class to make sure cleanup always happens. Helpful for complicated
+  logic where there can be multiple exits/returns requiring cleanup
+ */
+class Ensure_cleanup {
+ public:
+  explicit Ensure_cleanup(std::function<void()> cleanup) : m_cleanup(cleanup) {}
+
+  ~Ensure_cleanup() { m_cleanup(); }
+
+ private:
+  std::function<void()> m_cleanup;
+};
+} // namespace myrocks

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -299,7 +299,7 @@ shell> \fBmysqldump [options] > dump\&.sql\fR
 .\}
 .PP
 However, UTF\-16 is not permitted as a connection character set (see
-Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
+the section called \(lqImpermissible Client Character Sets\(rq), so the dump file will not load correctly\&. To work around this issue, use the
 \fB\-\-result\-file\fR
 option, which creates the output in ASCII format:
 .sp
@@ -531,6 +531,9 @@ is an option group containing options that specify which MySQL server to connect
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -807,6 +810,9 @@ These options are used to control which option files to read\&.
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -826,6 +832,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
 \&.mylogin\&.cnf\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -854,6 +863,9 @@ also reads the
 and
 [mysqldump_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -879,6 +891,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -892,6 +907,9 @@ utility\&. See
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 DDL Options.PP
 Usage scenarios for
@@ -1551,7 +1569,7 @@ and causes it to be ignored if both options are used\&.
 \fB\-\-set\-gtid\-purged=\fR\fB\fIvalue\fR\fR
 .sp
 This option enables control over global transaction ID (GTID) information written to the dump file, by indicating whether to add a
-SET @@global\&.gtid_purged
+SET @@GLOBAL\&.gtid_purged
 statement to the output\&. This option may also cause a statement to be written to the output that disables binary logging while the dump file is being reloaded\&.
 .sp
 The following table shows the permitted option values\&. The default value is
@@ -1993,7 +2011,7 @@ The output from the
 client when run using the
 \fB\-\-xml\fR
 option also follows the preceding rules\&. (See
-the section called \(lqMYSQL OPTIONS\(rq\&.)
+the section called \(lqMYSQL CLIENT OPTIONS\(rq\&.)
 .sp
 XML output from
 \fBmysqldump\fR
@@ -2088,7 +2106,7 @@ statements are included in the output before each new database\&.
 This option may be used to dump the
 INFORMATION_SCHEMA
 and
-performace_schema
+performance_schema
 databases, which normally are not dumped even with the
 \fB\-\-all\-databases\fR
 option\&. (Also use the
@@ -2247,7 +2265,7 @@ Multiple triggers are permitted\&.
 dumps triggers in activation order so that when the dump file is reloaded, triggers are created in the same activation order\&. However, if a
 \fBmysqldump\fR
 dump file contains multiple triggers for a table that have the same trigger event and action time, an error occurs for attempts to load the dump file into an older server that does not support multiple triggers\&. (For a workaround, see
-Section\ \&2.11.2.1, \(lqChanges Affecting Downgrades from MySQL 5.7\(rq; you can convert triggers to be compatible with older servers\&.)
+Section\ \&2.11.2.3, \(lqDowngrade Notes\(rq; you can convert triggers to be compatible with older servers\&.)
 .RE
 .sp
 .RS 4
@@ -2489,7 +2507,7 @@ database for proper restoration\&.
 .br
 For upgrades to MySQL 5\&.7 or higher from older versions, do not use
 \fB\-\-flush\-privileges\fR\&. For upgrade instructions in this case, see
-Section\ \&2.11.1.2, \(lqChanges Affecting Upgrades to MySQL 5.7\(rq\&.
+Section\ \&2.11.1.3, \(lqChanges in MySQL 5.7\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -2888,10 +2906,16 @@ does not dump the NDB Cluster
 ndbinfo
 information database\&.
 .PP
+\fBmysqldump\fR
+does not dump
+InnoDB
+CREATE TABLESPACE
+statements\&.
+.PP
 It is not recommended to restore from a dump made using
 \fBmysqldump\fR
 to a MySQL 5\&.6\&.9 or earlier server that has GTIDs enabled\&. See
-Section\ \&16.1.3.4, \(lqRestrictions on Replication with GTIDs\(rq\&.
+Section\ \&16.1.3.6, \(lqRestrictions on Replication with GTIDs\(rq\&.
 .PP
 \fBmysqldump\fR
 includes statements to recreate the

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,10 +125,12 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       result= 1;
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
-    query_logger.reopen_log_file(QUERY_LOG_SLOW);
+    if (query_logger.reopen_log_file(QUERY_LOG_SLOW))
+      result= 1;
 
   if ((options & REFRESH_GENERAL_LOG) && opt_general_log)
-    query_logger.reopen_log_file(QUERY_LOG_GENERAL);
+    if (query_logger.reopen_log_file(QUERY_LOG_GENERAL))
+      result= 1;
 
   if (options & REFRESH_ENGINE_LOG)
     if (ha_flush_logs(NULL))
@@ -394,7 +396,39 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
   }
  if (*write_to_binlog != -1)
-   *write_to_binlog= tmp_write_to_binlog;
+ {
+   if (thd == NULL || thd->security_context() == NULL)
+   {
+     *write_to_binlog=
+       opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+   else if (thd->security_context()->check_access(SUPER_ACL))
+   {
+     /*
+       For users with 'SUPER' privilege 'FLUSH XXX' statements must not be
+       binlogged if 'super_read_only' is set to 'ON'.
+     */
+     if (opt_super_readonly)
+       *write_to_binlog= 0;
+     else
+       *write_to_binlog=
+         opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+   else
+   {
+     /*
+       For users without 'SUPER' privilege 'FLUSH XXX' statements must not be
+       binlogged if 'read_only' or 'super_read_only' is set to 'ON'.
+       Checking only 'opt_readonly' here as in 'super_read_only' mode this
+       variable is implicitly set to 'true'.
+     */
+     if (opt_readonly)
+       *write_to_binlog= 0;
+     else
+       *write_to_binlog=
+         opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+ }
  /*
    If the query was killed then this function must fail.
  */

@@ -45,6 +45,7 @@ IF(LOCAL_GMOCK_ZIP
 ENDIF()
 
 IF (WITH_GMOCK)
+  FILE(TO_CMAKE_PATH "${WITH_GMOCK}" WITH_GMOCK)
   ## Did we get a full path name, including file name?
   IF (${WITH_GMOCK} MATCHES ".*\\.zip")
     GET_FILENAME_COMPONENT(GMOCK_DIR ${WITH_GMOCK} PATH)
@@ -204,7 +205,6 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${ZLIB_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth

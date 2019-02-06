@@ -1038,7 +1038,7 @@ row_log_table_low_redundant(
 
 		old_pk_size = rec_get_converted_size_temp(
 			new_index, old_pk->fields, old_pk->n_fields,
-			ventry, &old_pk_extra_size);
+			NULL, &old_pk_extra_size);
 		ut_ad(old_pk_extra_size < 0x100);
 		mrec_size += 1/*old_pk_extra_size*/ + old_pk_size;
 	}
@@ -1163,11 +1163,17 @@ row_log_table_low(
 		+ (extra_size >= 0x80) + rec_offs_size(offsets) - omit_size;
 
 	if (ventry && ventry->n_v_fields > 0) {
-		ulint	v_extra = 0;
-		mrec_size += rec_get_converted_size_temp(
+		ulint		v_extra = 0;
+		uint64_t	rec_size = rec_get_converted_size_temp(
 			new_index, NULL, 0, ventry, &v_extra);
 
-		if (o_ventry) {
+		mrec_size += rec_size;
+
+		/* If there is actually nothing to be logged for new entry,
+		then there must be also nothing to do with old entry.
+		In this case, make it same with the case below, by only keep
+		2 bytes length marker */
+		if (rec_size > 2 && o_ventry != NULL) {
 			mrec_size += rec_get_converted_size_temp(
 				new_index, NULL, 0, o_ventry, &v_extra);
 		}
@@ -1224,11 +1230,16 @@ row_log_table_low(
 		b += rec_offs_data_size(offsets);
 
 		if (ventry && ventry->n_v_fields > 0) {
+			uint64_t	new_v_size;
+
 			rec_convert_dtuple_to_temp(
 				b, new_index, NULL, 0, ventry);
-			b += mach_read_from_2(b);
+			new_v_size = mach_read_from_2(b);
+			b += new_v_size;
 
-			if (o_ventry) {
+			/* Nothing for new entry to be logged,
+			skip the old one too. */
+			if (new_v_size != 2 && o_ventry != NULL) {
 				rec_convert_dtuple_to_temp(
 					b, new_index, NULL, 0, o_ventry);
 				b += mach_read_from_2(b);
@@ -1860,6 +1871,7 @@ row_log_table_apply_insert_low(
 	}
 
 	do {
+		n_index++;
 		if (!(index = dict_table_get_next_index(index))) {
 			break;
 		}
@@ -2396,7 +2408,10 @@ func_exit_committed:
 		row, NULL, index, heap, ROW_BUILD_FOR_INSERT);
 	upd_t*		update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
-		false, NULL, heap, dup->table, thr->prebuilt);
+		false, NULL, heap, dup->table, thr->prebuilt, &error);
+	if (error != DB_SUCCESS) {
+			goto func_exit;
+	}
 
 	if (!update->n_fields) {
 		/* Nothing to do. */
@@ -2440,14 +2455,16 @@ func_exit_committed:
 	dtuple_t*	old_row;
 	row_ext_t*	old_ext;
 
-	if (dict_table_get_next_index(index)) {
+	if (dict_index_t* index_next = dict_table_get_next_index(index)) {
 		/* Construct the row corresponding to the old value of
 		the record. */
 		old_row = row_build(
-			ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
-			cur_offsets, NULL, NULL, NULL, &old_ext, heap);
+                        ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
+                        cur_offsets, NULL, NULL, NULL, &old_ext, heap);
+		if (dict_index_has_virtual(index_next)) {
+			dtuple_copy_v_fields(old_row, update->old_vrow);
+		}
 		ut_ad(old_row);
-
 		DBUG_PRINT("ib_alter_table",
 			   ("update table " IB_ID_FMT
 			    "(index " IB_ID_FMT "): %s to %s",
@@ -2480,6 +2497,8 @@ func_exit_committed:
 	}
 
 	while ((index = dict_table_get_next_index(index)) != NULL) {
+
+		n_index++;
 		if (error != DB_SUCCESS) {
 			break;
 		}

@@ -7,58 +7,205 @@ Data at Rest Encryption
 .. contents::
    :local:
 
+
+.. _data-at-rest-encryption.prerequisite:
+
+Prerequisites
+================================================================================
+
+Data at rest encryption requires that a keyring plugin, such as `keyring_file
+<https://dev.mysql.com/doc/refman/5.7/en/keyring-file-plugin.html>`_ or
+:ref:`keyring_vault_plugin` be installed and already loaded. To load the
+``keyring`` plugin when starting the server, use the ``--early-plugin-load``
+option:
+
+.. code-block:: bash
+
+   $ mysqld --early-plugin-load="keyring_file=keyring_file.so"
+
+Altermatively, you can add this option to your configuration file:
+
+.. code-block:: guess
+
+   [mysqld]
+   early-plugin-load=keyring_file.so
+
+.. warning::
+
+   Only one keyring plugin should be enabled at a time. Enabling multiple
+   keyring plugins is not supported and may result in data loss.
+
+.. seealso::
+
+   |MySQL| Documentation:
+      - `Installing a Keyring Plugin <https://dev.mysql.com/doc/refman/5.7/en/keyring-installation.html>`_
+      - `The --early-plugin-load Option <https://dev.mysql.com/doc/refman/5.7/en/server-options.html#option_mysqld_early-plugin-load>`_
+
+.. _data-at-rest-encryption.keyring.changing-default:
+
+Changing the Default Keyring Encryption
+================================================================================
+
+When encryption is enabled and the server is configured to use the KEYRING
+encryption, new tables use the default encryption key.
+
+You many change this default encryption via the
+:variable:`innodb_default_encryption_key_id` variable.
+
+.. seealso::
+
+   Configuring the way how tables are encrypted
+      :variable:`innodb_encrypt_tables`
+
+System Variables
+--------------------------------------------------------------------------------
+
+.. variable:: innodb_default_encryption_key_id
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-default-encryption-key-id``
+   :dyn: Yes
+   :scope: Session
+   :vartype: Numeric
+   :default: 0
+
+The ID of the default encryption key. By default, this variable contains **0**
+to encrypt new tables with the latest version of the key ``percona_innodb-0``.
+
+To change the default value use the following syntax:
+
+.. code-block:: guess
+
+   mysql> SET innodb_default_encryption_key_id = NEW_ID
+
+Here, **NEW_ID** is an unsigned 32-bit integer.
+
+.. _data-at-rest-encryption.innodb-system-tablespace:
+
+InnoDB System Tablespace Encryption
+================================================================================
+
+The InnoDB system tablespace is encrypted by using master key encryption. The
+server must be started with the ``--bootstrap`` option.
+
+If the variable :variable:`innodb_sys_tablespace_encrypt` is set to ON and the
+server has been started in the bootstrap mode, you may create an encrypted table
+as follows:
+
+.. code-block:: guess
+
+   mysql> CREATE TABLE ... TABLESPACE=innodb_system ENCRYPTION='Y'
+
+.. note::
+
+   You cannot encrypt existing tables in the System tablespace.
+
+It is not possible to convert the system tablespace from encrypted to
+unencrypted or vice versa. A new instance should be created and user tables must
+be transferred to the desired instance.
+
+You can encrypt the already encrypted InnoDB system tablespace (key rotation)
+with a new master key by running the following ``ALTER INSTANCE`` statement:
+
+.. code-block:: guess
+
+   mysql> ALTER INSTANCE ROTATE INNODB MASTER KEY
+
+.. rubric:: Doublewrite Buffers
+
+The two types of doublewrite buffers used in |Percona Server| are encrypted
+differently.
+
+When the InnoDB system tablespace is encrypted, the ``doublewrite buffer`` pages
+are encrypted as well. The key which was used to encrypt the InnoDB system
+tablespace is also used to encrypt the doublewrite buffer.
+
+|Percona Server| encrypts the ``parallel doublewrite buffer`` with the respective
+tablespace keys. Only encrypted tablespace pages are written as encrypted in the
+parallel doublewrite buffer. Unencrypted tablespace pages will be written as
+unencrypted.
+
+.. important::
+
+   A server instance bootstrapped with the encrypted InnoDB system tablespace
+   cannot be downgraded. It is not possible to parse encrypted InnoDB system
+   tablespace pages in a version of |Percona Server| lower than the version
+   where the InnoDB system tablespace has been encrypted.
+
+
+System variables
+--------------------------------------------------------------------------------
+
+.. variable:: innodb_sys_tablespace_encrypt
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-sys-tablespace-encrypt``
+   :dyn: No
+   :scope: Global
+   :vartype: Boolean
+   :default: ``OFF``
+
+Enables the encryption of the InnoDB System tablespace. It is essential that the
+server is started with the ``--bootstrap`` option.
+
+.. seealso::
+
+   |MySQL| Documentation: ``--bootstrap`` option
+      https://dev.mysql.com/doc/refman/5.7/en/server-options.html#option_mysqld_bootstrap
+
+.. variable:: innodb_parallel_dblwr_encrypt
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-sys-tablespace-encrypt``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``OFF``
+
+Enables the encryption of the parallel doublewrite buffer. For encryption, uses
+the key of the tablespace where the parallel doublewrite buffer is used.
+
+
 .. _innodb_general_tablespace_encryption:
 
-InnoDB general tablespace encryption
-====================================
+InnoDB General Tablespace Encryption
+================================================================================
 
-In |Percona Server| :rn:`5.7.20-18` existing tablespace encryption support
-has been extended to handle general tablespaces. A general tablespace is either
-fully encrypted, covering all the tables inside, either not encrypted at all.
-It is not possible to have only some of the tables in the general tablespace
-encrypted.
+In |Percona Server| :rn:`5.7.20-18` existing tablespace encryption support has
+been extended to handle general tablespaces. A general tablespace is either
+fully encrypted, covering all the tables inside, or not encrypted at all.
+It is not possible to have encrypted only some of the tables in a general
+tablespace.
 
 This feature extends the  `CREATE TABLESPACE
 <https://dev.mysql.com/doc/refman/5.7/en/create-tablespace.html>`_
 statement to accept the ``ENCRYPTION='Y/N'`` option.
-
-Prerequisites
--------------
-
-This feature requires a keyring plugin, for example `keyring_file
-<https://dev.mysql.com/doc/refman/5.7/en/keyring-file-plugin.html>`_ or
-:ref:`keyring_vault_plugin` to be loaded before it can be used.
-
-.. warning::
-
-  Only one keyring plugin should be enabled at a time. Enabling multiple
-  keyring plugins is unsupported and may result in data loss.
-
+  
 Usage
------
+--------------------------------------------------------------------------------
 
 General tablespace encryption is enabled by the following syntax extension:
 
 .. code-block:: mysql
 
-  mysql> CREATE TABLESPACE tablespace_name ... ENCRYPTION='Y'
+   mysql> CREATE TABLESPACE tablespace_name ... ENCRYPTION='Y'
 
 Attempts to create or to move tables, including partitioned ones, to a general
 tablespace with an incompatible encryption setting are diagnosed and aborted.
 
-As you cannot move tables between encrypted and unencrypted tablespaces,
-you will need to create another table, add it to a specific tablespace and run
+As you cannot move tables between encrypted and unencrypted tablespaces, you
+will need to create another table, add it to a specific tablespace and run
 ``INSERT INTO SELECT`` from the table you want to move from, and then you will
 get encrypted or decrypted table with your desired content.
 
 Example
--------
+--------------------------------------------------------------------------------
 
 To create an encrypted tablespace run:
 
 .. code-block:: mysql
 
-  mysql> CREATE TABLESPACE foo ADD DATAFILE 'foo.ibd' ENCRYPTION='Y';
+   mysql> CREATE TABLESPACE foo ADD DATAFILE 'foo.ibd' ENCRYPTION='Y';
 
 To add an encrypted table to that table space run:
 
@@ -75,8 +222,8 @@ Trying to add unencrypted table to this table space will result in an error:
 
 .. note::
 
-  |Percona XtraBackup| currently doesn't support backup of encrypted general
-  tablespaces.
+   |Percona XtraBackup| currently doesn't support backup of encrypted general
+   tablespaces.
 
 Checking
 --------
@@ -103,46 +250,16 @@ number 13 set if tablespace is encrypted. This bit can be ckecked with
 System Variables
 ----------------
 
-.. variable:: innodb_sys_tablespace_encrypt
-
-  :version 5.7.23-23: Implemented
-  :cli: ``--innodb-sys-tablespace-encrypt``
-  :dyn: Yes
-  :scope: Global
-  :vartype: Boolean
-  :default: ``Off``	      
-
-When this variable is enabled, all data in the InnoDB system tablespace are
-encrypted.
-
-This feature is considered **ALPHA** quality.
-
-.. variable:: innodb_parallel_dblwr_encrypt
-
-  :version 5.7.23-23: Implemented
-  :cli: ``--innodb_parallel_dblwr_encrypt``
-  :dyn: Yes
-  :scope: Global
-  :vartype: Boolean
-  :default: ``Off``	      
-
-When this variable is enabled, all data in the parallel double write buffer are
-encrypted.
-
-This feature is considered **ALPHA** quality.
-
 .. variable:: innodb_temp_tablespace_encrypt
 
-  :version 5.7.21-21: Implemented
-  :cli: ``--innodb-temp-tablespace-encrypt``
-  :dyn: Yes
-  :scope: Global
-  :vartype: Boolean
-  :default: ``Off``
+   :version 5.7.21-21: Implemented
+   :cli: ``--innodb-temp-tablespace-encrypt``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``Off``
 
-This feature is considered **BETA** quality.
-
-When this option is turned on, the server starts to encrypt temporary tablespace
+When this option is turned on, server starts to encrypt temporary tablespace
 and temporary |InnoDB| file-per-table tablespaces. The option does not force
 encryption of temporary tables which are currently opened, and it doesn't
 rebuild system temporary tablespace to encrypt data which are already written.
@@ -154,34 +271,163 @@ Turning this option off at runtime makes server to create all subsequent
 temporary file-per-table tablespaces unencrypted, but does not turn off
 encryption of system temporary tablespace.
 
-.. note:: To use this option, the keyring plugin must be loaded, otherwise
-   server will give an error message and refuse to create new temporary tables.
+This feature is considered **BETA** quality.
+
+.. note:: To use this option, keyring plugin must be loaded, otherwise server
+   will give error message and refuse to create new temporary tables.
 
 .. variable:: innodb_encrypt_tables
 
-  :version 5.7.21-21: Implemented
-  :cli: ``--innodb-encrypt-tables``
-  :dyn: Yes
-  :scope: Global
-  :vartype: Text
-  :default: ``OFF``
+   :version 5.7.21-21: Implemented
+   :cli: ``--innodb-encrypt-tables``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Text
+   :default: ``OFF``
 
-This feature is considered **BETA** quality.
+The implementation of the behavior controlled by this variable is considered
+**BETA** quality.
 
-This variable has 3 possible values. ``ON`` makes |InnoDB| tables encrypted by
-default. ``FORCE`` disables creation of unencrypted tables. ``OFF`` restores
-the like-before behavior.
+This variable was ported from MariaDB and then extended to support key rotation. This
+variable has the following possible values:
 
-.. note:: ``innodb_encrypt_tables=ON`` still allows to create unencrypted
-   table with ``ENCRYPTED=NO`` statement, and also allows to create unencrypted
-   general tablespace.
+.. rubric:: ON
 
-.. note:: ``ALTER TABLE`` statement used without explicit ``ENCRYPTION=XXX``
-   does not change current table encryption mode even if
-   :variable:`innodb_encrypt_tables` is set to ``ON`` or ``FORCE``.
+New tables are created encrypted. You can create an unencrypted table by using
+the ``ENCRYPTION=NO`` clause to the ``CREATE TABLE`` or ``ALTER TABLE``
+statement.
+
+.. rubric:: OFF
+
+By default, newly created tables are not encrypted. Add the ``ENCRYPTION=NO``
+clause in the ``CREATE TABLE`` or ``ALTER TABLE`` statement to create an
+encrypted table.
+
+.. rubric:: FORCE
+
+New tables are created encrypted with the master key. Passing ``ENCRYPTION=NO``
+to ``CREATE TABLE`` or ``ALTER TABLE`` will result in an error and the table
+will not be created or altered.
+
+If you alter a table which was created without encryption, note that it will not
+be encrypted unless you use the ``ENCRYPTION`` clause explicitly.
+
+.. rubric:: KEYRING_ON
+
+:Availability: This value is **Alpha** quality
+
+New tables are created encrypted with the keyring as the default encryption. You
+may specify a numeric key identifier and use a specific ``percona-innodb-`` key
+from the keyring instead of the default key:
+
+.. code-block:: guess
+
+   mysql> CREATE TABLE ... ENCRYPTION=’KEYRING’ ENCRYPTION_KEY_ID=NEW_ID
+
+**NEW_ID** is an unsigned 32-bit integer that refers to the numerical part of
+the ``percona_innodb-`` key.  When you assign a numerical identifer in the
+``ENCRYPTION_KEY_ID`` clause, the server uses the latest version of the
+corresponding key. For example, the clause ``ENCRYPTION_KEY_ID=2`` refers to the
+latest version of the ``percona_innodb-2`` key from the keyring.
+
+In case the ``percona-innodb-`` key with the requested ID does not exist in the
+keyring, |Percona Server| will create it with version 1. If a new
+``percona-innodb-`` key cannot be created with the requested ID, the whole
+``CREATE TABLE`` statement fails
+
+.. rubric:: FORCE_KEYRING
+	    
+:Availability: This value is **Alpha** quality
+
+New tables are created encrypted and keyring encryption is enforced.
+
+.. rubric:: ONLINE_TO_KEYRING
+
+:Availability: This value is **Alpha** quality
+
+All tables created or altered without the ``ENCRYPTION=NO`` clause 
+are encrypted with the latest version of the default encryption key. If a table
+being altered is already encrypted with the master key, the table is recreated
+encrypted with the latest version of the default encryption key.
+
+.. rubric:: ONLINE_TO_KEYRING_FORCE
+
+:Availability: This value is **Alpha** quality
+
+It is only possible to apply the keyring encryption when creating or altering
+tables.
+
+.. note::
+
+   The ``ALTER TABLE`` statement changes the current encryption mode only if you
+   use the ``ENCRYPTION`` clause.
+
+.. seealso::
+
+   |MariaDB| Documentation: ``innodb_encrypt_tables`` Option
+      https://mariadb.com/kb/en/library/xtradbinnodb-server-system-variables/#innodb_encrypt_tables
+
+.. variable:: innodb_online_encryption_threads
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-online-encryption-threads``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Numeric
+   :default: 1
+
+This variable works in combination with the :variable:`innodb_encrypt_tables`
+variable set to ``ONLINE_TO_KEYRING``. This variable configures the number of
+threads for background encryption. For the online encryption to work, this
+variable must contain a value greater than **zero**.
+
+.. variable:: innodb_online_encryption_rotate_key_age
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-online-encryption-rotate-key-age``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Numeric
+   :default: 1
+
+By using this variable, you can re-encrypt the table encrypted using
+KEYRING. The value of this variable determines how frequently the encrypted
+tables should be encrypted again. If it is set to **1**, the encrypted table is
+re-encrypted on each key rotation. If it is set to **2**, the table is encrypted
+on every other key rotation.
+      
+.. _data-at-rest-encryption.undo-tablespace:
+
+InnoDB Undo Tablespace Encryption
+================================================================================
+
+:Availability: This feature is **Alpha** quality
+
+The encryption of InnoDB Undo tablespaces is only available when using
+separate undo tablespaces. Otherwise, the InnoDB undo log is part of
+the InnoDB system tablespace.
+
+.. seealso::
+
+   More information about how the encryption of the system tablespace
+      :ref:`data-at-rest-encryption.innodb-system-tablespace`
+
+System variables
+--------------------------------------------------------------------------------
+
+.. variable:: innodb_undo_log_encrypt
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-undo-log-encrypt``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``Off``
+
+Enables the encryption of InnoDB Undo tablespaces
 
 Binary log encryption
-=====================
+================================================================================
 
 A new option, implemented since |Percona Server| :rn:`5.7.20-19`, is
 encryption of binary and relay logs, triggered by the
@@ -202,7 +448,9 @@ keyring plugins.
 Dumping of encrypted binary logs involves decryption, and can be done using
 ``mysqlbinlog`` with ``--read-from-remote-server`` option.
 
-.. note:: Taking into account that ``--read-from-remote-server`` option  is only
+.. note::
+
+   Taking into account that ``--read-from-remote-server`` option  is only
    relevant to binary logs, encrypted relay logs can not be dumped/decrypted
    in this way.
 
@@ -211,26 +459,98 @@ System Variables
 
 .. variable:: encrypt_binlog
 
-  :version 5.7.20-19: Implemented
-  :cli: ``--encrypt-binlog``
-  :dyn: No
-  :scope: Global
-  :vartype: Boolean
-  :default: ``OFF``
+   :version 5.7.20-19: Implemented
+   :cli: ``--encrypt-binlog``
+   :dyn: No
+   :scope: Global
+   :vartype: Boolean
+   :default: ``OFF``
 
 The variable turns on binary and relay logs encryption.
+
+.. _ps.data-at-rest-encryption.redo-log:
+
+Redo Log Encryption
+================================================================================
+
+:Availability: This feature is **Alpha** quality
+
+InnoDB redo log encryption is enabled by setting the variable
+:variable:`innodb_redo_log_encrypt`. This variable has three values:
+``MASTER_KEY``, ``KEYRING_KEY`` and ``OFF`` (set by default).
+
+``MASTER_KEY`` uses the InnoDB master key to encrypt with unique keys for each
+log file in the redo log header.
+
+``KEYRING_KEY`` uses the ``percona_redo`` versioned key from the keyring. When
+:variable:`innodb_redo_log_encrypt` is set to ``KEYRING_KEY``, each new redo log
+file is encrypted with the latest ``percona_redo`` key from the keyring.
+
+System variables
+--------------------------------------------------------------------------------
+
+.. variable:: innodb_redo_log_encrypt
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-redo-log-encrypt``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Text
+   :default: ``OFF``
+
+Enables the encryption of the redo log.
+
+.. .. variable:: innodb_key_rotation_interval
+.. 	      
+..    :version 5.7.23-24: Implemented
+..    :cli: ``--innodb-key-rotation_interval``
+..    :dyn: Yes
+..    :scope: Global
+..    :vartype: Text
+..    :default: ``0``
+.. 
+.. This variable stores the time (in seconds) that should pass between key
+.. rotations. It is only used if :variable:`innodb_redo_log_encrypt` is set to
+.. ``KEYRING_KEY``.
+.. 	     
+
+.. _data-at-rest-encryption.variable.innodb-scrub-log:
+
+.. variable:: innodb_scrub_log
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-scrub-log``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``OFF``
+
+Specifies if data scrubbing should be automatically applied to the redo log.
+
+
+.. variable:: innodb_scrub_log_speed
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-scrub-log-speed``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Text
+   :default: 
+ 
+Specifies the velocity of data scrubbing (writing dummy redo log records) in bytes per second.
+
 
 Temporary file encryption
 =========================
 
-A new feature, implemented since |Percona Server| :rn:`5.7.22-22`, is
+A new feature, implemented since |Percona Server| :rn:`5.7.22-22`, is the
 encryption of temporary files, triggered by the :variable:`encrypt-tmp-files`
 option.
 
-This feature is considered **BETA** quality.
-
 Temporary files are currently used in |Percona Server| for the following
 purposes:
+
+This feature is considered **ALPHA** quality.
 
 * filesort (for example, ``SELECT`` statements with ``SQL_BIG_RESULT`` hints),
 
@@ -246,14 +566,33 @@ System Variables
 
 .. variable:: encrypt-tmp-files
 
-  :version 5.7.22-22: Implemented
-  :cli: ``--encrypt-tmp-files``
-  :dyn: No
-  :scope: Global
-  :vartype: Boolean
-  :default: ``OFF``
+   :version 5.7.22-22: Implemented
+   :cli: ``--encrypt-tmp-files``
+   :dyn: No
+   :scope: Global
+   :vartype: Boolean
+   :default: ``OFF``
 
 The option turns on encryption of temporary files created by |Percona Server|.
+
+.. _data-at-rest-encryption.key-rotation:
+
+Key Rotation
+================================================================================
+
+The keyring management is enabled for each tablespace separately when you set
+the encryption in the ``ENCRYPTION`` clause, to `KEYRING` in the supported SQL
+statement:
+
+- CREATE TABLE .. ENCRYPTION='KEYRING`
+- ALTER TABLE ... ENCRYPTION='KEYRING'
+- CREATE TABLESPACE tablespace_name … ENCRYPTION=’KEYRING’
+
+.. note::
+
+   Running ``ALTER TABLE .. ENCRYPTION=’Y’`` on the tablespace created with
+   ``ENCRYPTION=’KEYRING’`` converts the table back to the existing MySQL
+   scheme.
 
 .. _keyring_vault_plugin:
 
@@ -268,24 +607,24 @@ Installation
 ------------
 
 The safest way to load the plugin is to do it on the server startup by
-using `--early-plugin-load variable
+using `--early-plugin-load option
 <https://dev.mysql.com/doc/refman/5.7/en/server-options.html#option_mysqld_early-plugin-load>`_
 option:
 
 .. code-block:: bash
 
-  --early-plugin-load="keyring_vault=keyring_vault.so" \
-  --loose-keyring_vault_config="/home/mysql/keyring_vault.conf"
+   $ mysqld --early-plugin-load="keyring_vault=keyring_vault.so" \
+   --loose-keyring_vault_config="/home/mysql/keyring_vault.conf"
 
 It should be loaded this way to be able to facilitate recovery for encrypted
 tables.
 
 .. warning::
 
-  If server should be started with several plugins loaded early,
-  ``--early-plugin-load`` should contain their list separated by semicolons. Also
-  it's a good practice to put this list in double quotes so that semicolons
-  do not create problems when executed in a script.
+   If server should be started with several plugins loaded early,
+   ``--early-plugin-load`` should contain their list separated by
+   semicolons. Also it's a good practice to put this list in double quotes so
+   that semicolons do not create problems when executed in a script.
 
 Apart from installing plugin you also need to set the
 :variable:`keyring_vault_config` variable. This variable should point to the
@@ -300,7 +639,7 @@ To enable the functions you'll need to install the ``keyring_udf`` plugin:
 
 .. code-block:: mysql
 
-  mysql> INSTALL PLUGIN keyring_udf SONAME 'keyring_udf.so';
+   mysql> INSTALL PLUGIN keyring_udf SONAME 'keyring_udf.so';
 
 Usage
 -----
@@ -363,33 +702,81 @@ System Variables
 
 .. variable:: keyring_vault_config
 
-  :version 5.7.20-18: Implemented
-  :cli: ``--keyring-vault-config``
-  :dyn: Yes
-  :scope: Global
-  :vartype: Text
-  :default:
+   :version 5.7.20-18: Implemented
+   :cli: ``--keyring-vault-config``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Text
+   :default:
 
 This variable is used to define the location of the
 :ref:`keyring_vault_plugin` configuration file.
 
 .. variable:: keyring_vault_timeout
 
-  :version 5.7.21-20: Implemented
-  :cli: ``--keyring-vault-timeout``
-  :dyn: Yes
-  :scope: Global
-  :vartype: Numeric
-  :default: ``15``
+   :version 5.7.21-20: Implemented
+   :cli: ``--keyring-vault-timeout``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Numeric
+   :default: ``15``
 
 This variable allows to set the duration in seconds for the Vault server
 connection timeout. Default value is ``15``. Allowed range is from ``1``
 second to ``86400`` seconds (24 hours). The timeout can be also completely
 disabled to wait infinite amount of time by setting this variable to ``0``.
 
-Other reading
--------------
+.. _data-at-rest-encryption.data-scrubbing:
 
-* `Vault Documentation <https://www.vaultproject.io/docs/index.html>`_
-* `General-Purpose Keyring Key-Management Functions
-  <https://dev.mysql.com/doc/refman/5.7/en/keyring-udfs-general-purpose.html>`_
+Data Scrubbing
+================================================================================
+
+While data encryption ensures that the existing data are not stored in plain
+form, the data scrubbing literally removes the data once the user decides they
+should be deleted. Compare this behavior with how the ``DELETE`` statement works
+which only marks the affected data as *deleted* - the space claimed by this data
+is overwritten with new data later.
+
+Once enabled, data scrubbing works automatically on each tablespace
+separately. To enable data scrubbing, you need to set the following variables:
+
+- :variable:`innodb-background-scrub-data-uncompressed`
+- :variable:`innodb-background-scrub-data-compressed`
+
+Uncompressed tables can also be scrubbed immediately, independently of key
+rotation or background threads. This can be enabled by setting the variable
+:variable:`innodb-immediate-scrub-data-uncompressed`. This option is not supported for
+compressed tables.
+
+Note that data scrubbing is made effective by setting the
+:variable:`innodb_online_encryption_threads` variable to a value greater than
+**zero**.
+
+System Variables
+--------------------------------------------------------------------------------
+
+.. variable:: innodb_background_scrub_data_compressed
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-background-scrub-data-compressed``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``OFF``
+
+.. variable:: innodb_background_scrub_data_uncompressed
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-background-scrub-data-uncompressed``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``OFF``
+
+
+.. seealso::
+
+   Vault Documentation
+      https://www.vaultproject.io/docs/index.html
+   |MySQL| Documentation: General-Purpose Keyring Key-Management Functions
+      https://dev.mysql.com/doc/refman/5.7/en/keyring-udfs-general-purpose.html

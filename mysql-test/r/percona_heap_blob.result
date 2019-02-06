@@ -905,6 +905,7 @@ SET @old_max_heap_table_size = @@global.max_heap_table_size;
 SET @old_max_allowed_packet = @@global.max_allowed_packet;
 SET GLOBAL max_heap_table_size = 18 * 1024 * 1024;
 SET GLOBAL max_allowed_packet = 24 * 1024 * 1024;
+SET sql_mode = 'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
 SET default_storage_engine=MEMORY;
 drop table if exists t1;
 CREATE TABLE t1 (data LONGBLOB);
@@ -925,6 +926,8 @@ select length(data) from t1;
 length(data)
 18874368
 alter table t1 modify data blob;
+Warnings:
+Warning	1265	Data truncated for column 'data' at row 1
 select length(data) from t1;
 length(data)
 0

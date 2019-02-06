@@ -6512,6 +6512,8 @@ ok_exit:
 	/* Read the clustered index of the table and build
 	indexes based on this information using temporary
 	files and merge sort. */
+	DEBUG_SYNC_C("alter_table_update_log");
+
 	DBUG_EXECUTE_IF("innodb_OOM_inplace_alter",
 			error = DB_OUT_OF_MEMORY; goto oom;);
 	error = row_merge_build_indexes(
@@ -6570,11 +6572,23 @@ oom:
 			table. Either way, we should be seeing and
 			reporting a bogus duplicate key error. */
 			dup_key = NULL;
-		} else {
-			DBUG_ASSERT(m_prebuilt->trx->error_key_num
-				    < ha_alter_info->key_count);
+		} else if (m_prebuilt->trx->error_key_num == 0) {
 			dup_key = &ha_alter_info->key_info_buffer[
 				m_prebuilt->trx->error_key_num];
+		} else {
+			/* Check if there is generated cluster index column */
+			if (ctx->num_to_add_index > ha_alter_info->key_count) {
+				DBUG_ASSERT(m_prebuilt->trx->error_key_num
+					    <= ha_alter_info->key_count);
+				dup_key = &ha_alter_info->key_info_buffer[
+					m_prebuilt->trx->error_key_num - 1];
+			}
+			else {
+				DBUG_ASSERT(m_prebuilt->trx->error_key_num
+					    < ha_alter_info->key_count);
+				dup_key = &ha_alter_info->key_info_buffer[
+					m_prebuilt->trx->error_key_num];
+			}
 		}
 		print_keydup_error(altered_table, dup_key, MYF(0));
 		break;
@@ -7785,10 +7799,19 @@ commit_try_rebuild(
 				FTS_DOC_ID. */
 				dup_key = NULL;
 			} else {
-				DBUG_ASSERT(err_key <
-					    ha_alter_info->key_count);
-				dup_key = &ha_alter_info
-					->key_info_buffer[err_key];
+				/* Check if there is generated cluster index column */
+				if (ctx->num_to_add_index > ha_alter_info->key_count) {
+					DBUG_ASSERT(err_key <=
+						    ha_alter_info->key_count);
+					dup_key = &ha_alter_info
+						->key_info_buffer[err_key - 1];
+				}
+				else {
+					DBUG_ASSERT(err_key <
+						    ha_alter_info->key_count);
+					dup_key = &ha_alter_info
+						->key_info_buffer[err_key];
+				}
 			}
 			print_keydup_error(altered_table, dup_key, MYF(0));
 			DBUG_RETURN(true);
@@ -9065,7 +9088,11 @@ foreign_fail:
 			bool update_own_prebuilt =
 				(m_prebuilt == ctx->prebuilt);
 			trx_t* const	user_trx = m_prebuilt->trx;
-
+			mem_heap_t* const	temp_blob_heap
+				= ctx->prebuilt->blob_heap;
+			if (dict_table_is_partition(ctx->new_table)) {
+				ctx->prebuilt->blob_heap = NULL;
+			}
 			row_prebuilt_free(ctx->prebuilt, TRUE);
 
 			/* Drop the copy of the old table, which was
@@ -9086,6 +9113,7 @@ foreign_fail:
 			trx_start_if_not_started(user_trx, true);
 			user_trx->will_lock++;
 			m_prebuilt->trx = user_trx;
+			m_prebuilt->blob_heap = temp_blob_heap;
 		}
 		DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 				  crash_inject_count++);
@@ -9319,6 +9347,12 @@ ha_innopart::prepare_inplace_alter_table(
 	DBUG_ASSERT(ha_alter_info->handler_ctx == NULL);
 
 	thd = ha_thd();
+
+	if (ha_alter_info->create_info->used_fields & HA_CREATE_USED_TABLESPACE
+	    && tablespace_is_shared_space(ha_alter_info->create_info)) {
+		push_deprecated_warn_no_replacement(
+			ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+	}
 
 	/* Clean up all ins/upd nodes. */
 	clear_ins_upd_nodes();

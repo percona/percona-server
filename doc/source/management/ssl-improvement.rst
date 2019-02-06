@@ -7,6 +7,7 @@ SSL Improvements
 |Percona Server| enables transmitting data in the encrypted form by using the
 TLSv1.2 protocol. 
 
+
 .. rubric:: Implemented Using |openssl|
 
 |Percona Server| binaries link with the |openssl| library to implement the
@@ -36,6 +37,7 @@ the required TLS version not enabled, and so on. For more information, see
       https://www.wolfssl.com/products/yassl/
    |MySQL| Documentation: OpenSSL Versus yaSSL
       https://dev.mysql.com/doc/refman/5.7/en/openssl-versus-yassl.html
+
    |MySQL| Bug System (solved for |Percona Server|): 
        `#75311 Error for SSL cipher is unhelpful <https://bugs.mysql.com/bug.php?id=75311>`_
 

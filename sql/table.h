@@ -1492,20 +1492,6 @@ public:
   */
   void update_compressed_columns_info(const List<Create_field>& fields);
 
-private:
-  bool should_binlog_drop_if_temp_flag;
-
-public:
-  void set_binlog_drop_if_temp(bool should_binlog)
-  {
-    should_binlog_drop_if_temp_flag= should_binlog;
-  }
-
-  bool should_binlog_drop_if_temp(void) const
-  {
-    return should_binlog_drop_if_temp_flag;
-  }
-
   /**
    Check if table contains any records.
 
@@ -1515,12 +1501,34 @@ public:
    @returns  false for success, true for error
  */
  bool contains_records(THD *thd, bool *retval);
+private:
 
+  /**
+    This flag decides whether or not we should log the drop temporary table
+    command.
+  */
+  bool should_binlog_drop_if_temp_flag;
+
+public:
   /**
     Virtual fields of type BLOB have a flag m_keep_old_value. This flag is set
     to false for all such fields in this table.
   */
   void blobs_need_not_keep_old_value();
+
+  /**
+    Set the variable should_binlog_drop_if_temp_flag, so that
+    the logging of temporary tables can be decided.
+
+    @param should_binlog  the value to set flag should_binlog_drop_if_temp_flag
+  */
+  void set_binlog_drop_if_temp(bool should_binlog);
+
+  /**
+    @return whether should_binlog_drop_if_temp_flag flag is
+            set or not
+  */
+  bool should_binlog_drop_if_temp(void) const;
 };
 
 
@@ -1700,11 +1708,21 @@ typedef struct st_lex_alter {
   bool account_locked;
 } LEX_ALTER;
 
+/*
+  This structure holds the specifications related to
+  mysql user and the associated auth details.
+*/
 typedef struct	st_lex_user {
   LEX_CSTRING user;
   LEX_CSTRING host;
   LEX_CSTRING plugin;
   LEX_CSTRING auth;
+/*
+  The following flags are indicators for the SQL syntax used while
+  parsing CREATE/ALTER user. While other members are self-explanatory,
+  'uses_authentication_string_clause' signifies if the password is in
+  hash form (if the var was set to true) or not.
+*/
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;

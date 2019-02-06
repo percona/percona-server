@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -120,7 +120,7 @@ If you upgrade to MySQL 5\&.7\&.2 or later from a version older than 5\&.7\&.2, 
 mysql\&.user
 table requires a special sequence of steps to perform an upgrade using
 \fBmysql_upgrade\fR\&. For details, see
-Section\ \&2.11.1.2, \(lqChanges Affecting Upgrades to MySQL 5.7\(rq\&.
+Section\ \&2.11.1.3, \(lqChanges in MySQL 5.7\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -136,7 +136,7 @@ Section\ \&2.11.1.2, \(lqChanges Affecting Upgrades to MySQL 5.7\(rq\&.
 .ps -1
 .br
 .PP
-On Windows Server 2008, Vista, and newer, you must run
+On Windows, you must run
 \fBmysql_upgrade\fR
 with administrator privileges\&. You can do this by running a Command Prompt as Administrator and running the command\&. Failure to do so may result in the upgrade failing to execute correctly\&.
 .sp .5v
@@ -200,6 +200,46 @@ shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3308 [\fR\fB\fIother_options\fR\fR\
 For local host connections on Unix, the
 \fB\-\-protocol=tcp\fR
 option forces a connection using TCP/IP rather than the Unix socket file\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+If you run the server with the
+disabled_storage_engines
+system variable set to disable certain storage engines (for example,
+MyISAM),
+\fBmysql_upgrade\fR
+might fail with an error like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql_upgrade: [ERROR] 3161: Storage engine MyISAM is disabled
+(Table creation is disallowed)\&.
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+To handle this, restart the server with
+disabled_storage_engines
+disabled\&. Then you should be able to run
+\fBmysql_upgrade\fR
+successfully\&. After that, restart the server with
+disabled_storage_engines
+set to its original value\&.
+.sp .5v
+.RE
 .PP
 \fBmysql_upgrade\fR
 processes all tables in all databases, which might take a long time to complete\&. Each table is locked and therefore unavailable to other sessions while it is being processed\&. Check and repair operations can be time\-consuming, particularly for large tables\&.
@@ -247,7 +287,7 @@ Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .PP
 \fBmysql_upgrade\fR
 does not upgrade the contents of the help tables\&. For upgrade instructions, see
-Section\ \&5.1.13, \(lqServer-Side Help\(rq\&.
+Section\ \&5.1.14, \(lqServer-Side Help\(rq\&.
 .PP
 As of MySQL 5\&.7\&.7, unless invoked with the
 \fB\-\-skip\-sys\-schema\fR
@@ -404,7 +444,7 @@ The path to the MySQL installation directory\&. This option was removed in MySQL
 .\}
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
 .sp
-On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&. This option was added in MySQL 5\&.7\&.5\&.
+On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
 .RE
 .sp
 .RS 4
@@ -432,9 +472,7 @@ Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 \fB\-\-compress\fR,
 \fB\-C\fR
 .sp
-Compress all information sent between the client and the server if both support compression\&. The
-\fB\-C\fR
-form of this option was added in MySQL 5\&.7\&.5\&.
+Compress all information sent between the client and the server if both support compression\&.
 .RE
 .sp
 .RS 4
@@ -538,6 +576,9 @@ Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -553,6 +594,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -581,6 +625,9 @@ also reads the
 and
 [mysql_upgrade_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -632,6 +679,9 @@ is an option group containing options that specify which MySQL server to connect
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -644,7 +694,7 @@ utility\&. See
 .\}
 \fB\-\-max\-allowed\-packet=\fR\fB\fIvalue\fR\fR
 .sp
-The maximum size of the buffer for client/server communication\&. The default value is 24MB\&. The minimum and maximum values are 4KB and 2GB\&. This option was added in MySQL 5\&.7\&.5\&.
+The maximum size of the buffer for client/server communication\&. The default value is 24MB\&. The minimum and maximum values are 4KB and 2GB\&.
 .RE
 .sp
 .RS 4
@@ -683,6 +733,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -813,13 +866,12 @@ option to enable shared\-memory connections\&.
 .\}
 \fB\-\-skip\-sys\-schema\fR
 .sp
-As of MySQL 5\&.7\&.7,
 \fBmysql_upgrade\fR
 installs the
 sys
 schema if it is not installed, and upgrades it to the current version otherwise\&. The
 \fB\-\-skip\-sys\-schema\fR
-option suppresses this behavior\&. This option was added in MySQL 5\&.7\&.7\&.
+option suppresses this behavior\&.
 .RE
 .sp
 .RS 4
@@ -943,7 +995,7 @@ is connecting to verify that it is the same as the version for which
 was built\&. If not,
 \fBmysql_upgrade\fR
 exits\&. This option is enabled by default; to disable the check, use
-\fB\-\-skip\-version\-check\fR\&. This option was added in MySQL 5\&.7\&.2\&.
+\fB\-\-skip\-version\-check\fR\&.
 .RE
 .sp
 .RS 4

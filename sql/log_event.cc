@@ -5031,6 +5031,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     }
 
 compare_errors:
+    /* Parser errors shall be ignored when (GTID) skipping statements */
+    if (thd->is_error() &&
+        thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR &&
+        gtid_pre_statement_checks(thd) == GTID_STATEMENT_SKIP)
+    {
+      thd->get_stmt_da()->reset_diagnostics_area();
+    }
     /*
       In the slave thread, we may sometimes execute some DROP / * 40005
       TEMPORARY * / TABLE that come from parts of binlogs (likely if we
@@ -7794,7 +7801,9 @@ bool XA_prepare_log_event::do_commit(THD *thd)
     thd->lex->m_sql_cmd= new Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
     error= thd->lex->m_sql_cmd->execute(thd);
   }
-  error|= mysql_bin_log.gtid_end_transaction(thd);
+
+  if (!error)
+    error = mysql_bin_log.gtid_end_transaction(thd);
 
   return error;
 }
@@ -10165,7 +10174,7 @@ Rows_log_event::row_operations_scan_and_key_setup()
       DBUG_ASSERT (m_key_index < MAX_KEY);
       // Allocate buffer for key searches
       m_key= (uchar*)my_malloc(key_memory_log_event,
-                               MAX_KEY_LENGTH, MYF(MY_WME));
+                               m_key_info->key_length, MYF(MY_WME));
       if (!m_key)
         error= HA_ERR_OUT_OF_MEM;
       goto err;
@@ -14650,19 +14659,23 @@ bool View_change_log_event::write_data_map(IO_CACHE* file,
 /*
   Updates the certification info map.
 */
-void
-View_change_log_event::set_certification_info(std::map<std::string, std::string> *info)
-{
+void View_change_log_event::set_certification_info(
+    std::map<std::string, std::string> *info, size_t *event_size) {
   DBUG_ENTER("View_change_log_event::set_certification_database_snapshot");
   certification_info.clear();
 
+  *event_size = Binary_log_event::VIEW_CHANGE_HEADER_LEN;
   std::map<std::string, std::string>::iterator it;
   for(it= info->begin(); it != info->end(); ++it)
   {
     std::string key= it->first;
     std::string value= it->second;
     certification_info[key]= value;
+    *event_size += it->first.length() + it->second.length();
   }
+  *event_size +=
+      (ENCODED_CERT_INFO_KEY_SIZE_LEN + ENCODED_CERT_INFO_VALUE_LEN) *
+      certification_info.size();
 
   DBUG_VOID_RETURN;
 }

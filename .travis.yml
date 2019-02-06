@@ -1,5 +1,5 @@
-# Ubuntu 14.04
-dist: trusty
+# Ubuntu 16.04
+dist: xenial
 sudo: required
 language: cpp
 
@@ -26,7 +26,7 @@ matrix:
     - env: COMMAND=clang-test
       script:
         - curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
-        - echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-5.0 main" | sudo tee -a /etc/apt/sources.list > /dev/null;
+        - echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-5.0 main" | sudo tee -a /etc/apt/sources.list > /dev/null;
         - sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
         - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install clang-format-5.0 || travis_terminate 1
         - wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py || travis_terminate 1
@@ -187,15 +187,19 @@ script:
       PARENT_COMMIT=$(git rev-list --first-parent --topo-order $TRAVIS_COMMIT ^master_repo_$PARENT_BRANCH | tail -1);
       TRAVIS_COMMIT_RANGE=$PARENT_COMMIT^..$TRAVIS_COMMIT;
     else
-      if [ -s "$CCACHE_DIR/last_commit.txt" ]; then TRAVIS_COMMIT_RANGE=$(cat $CCACHE_DIR/last_commit.txt)..$TRAVIS_COMMIT; fi;
+      if [ -s "$CCACHE_DIR/last_commit.txt" ]; then
+        TRAVIS_COMMIT_RANGE=$(cat $CCACHE_DIR/last_commit.txt)..$TRAVIS_COMMIT;
+      else
+        TRAVIS_COMMIT_RANGE="Force testing of this commit";
+      fi;
     fi;
     if MODIFIED_FILES=$(git diff --name-only $TRAVIS_COMMIT_RANGE 2>/dev/null); then
       echo -e "--- Modified files in $TRAVIS_COMMIT_RANGE:\n$MODIFIED_FILES";
-      if ! echo "$MODIFIED_FILES" | grep -qvE '^(doc|build-ps|mysql-test|packaging|policy|scripts|support-files)/'; then
+      if echo "$MODIFIED_FILES" | grep -qvE '^(doc|build-ps|mysql-test|packaging|policy|scripts|support-files)/'; then
+        echo "--- Code changes were found";
+      else
         echo "--- There are no code changes, stopping build process.";
         travis_terminate 0;
-      else
-        echo "--- Code changes were found";
       fi;
     else
       echo "--- Can't prepare MODIFIED_FILES for $TRAVIS_COMMIT_RANGE";
@@ -205,14 +209,10 @@ script:
     if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ "$CC" == "clang" ]]; then
        PACKAGES="llvm-$VERSION-dev $PACKAGES";
        curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
-       echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-$VERSION main" | sudo tee -a /etc/apt/sources.list > /dev/null;
-       sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test";
-    fi;
-    if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ "$CC" == "gcc" ]]; then
-       sudo -E apt-add-repository -y "ppa:jonathonf/gcc";
+       echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-$VERSION main" | sudo tee -a /etc/apt/sources.list > /dev/null;
     fi;
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-       sudo -E apt-add-repository -y "ppa:jonathonf/mysql";
+       sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test";
     fi;
 
   - echo --- Update list of packages and download dependencies;
@@ -294,6 +294,10 @@ script:
           -DWITH_INNODB_MEMCACHED=ON
         ";
       fi;
+      `# disable -DWITH_PROTOBUF=system for gcc-4.8 as it causes linking issues`;
+      if [[ "$CC" == "gcc-4.8" ]]; then
+        CMAKE_OPT=${CMAKE_OPT/WITH_PROTOBUF=system/WITH_PROTOBUF=bundled};
+      fi;
       `# disable RocksDB for gcc-8 until MyRocks is warning-free`;
       if [[ "$CC" == "gcc-8" ]]; then NOT_GCC_8=0; else NOT_GCC_8=1; fi;
       if [[ "$TRAVIS_REPO_SLUG" == "percona/percona-server" ]]; then
@@ -321,7 +325,7 @@ script:
     fi;
     echo --- Timeout $TIMEOUT_TIME seconds. CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds. Initialization time $INIT_TIME seconds.;
     $TIMEOUT_CMD $TIMEOUT_TIME make -j2;
-    if [[ "$?" == "0" ]]; then echo $TRAVIS_COMMIT > $CCACHE_DIR/last_commit.txt; fi;
+    if [[ "$?" == "0" ]]; then echo $TRAVIS_COMMIT > $CCACHE_DIR/last_commit.txt; else false; fi;
 
   - ccache --show-stats;
     BUILD_TIME=$(($SECONDS - $INIT_TIME - $UPDATE_TIME - $CMAKE_TIME));

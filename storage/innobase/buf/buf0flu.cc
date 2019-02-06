@@ -2751,22 +2751,17 @@ than a second
 @param next_loop_time	time when next loop iteration should start
 @param sig_count	zero or the value returned by previous call of
 			os_event_reset() */
-static
-ulint
-pc_sleep_if_needed(
-/*===============*/
-	ulint		next_loop_time,
-	int64_t		sig_count)
-{
-	ulint	cur_time = ut_time_ms();
+static ulint
+pc_sleep_if_needed(ut_monotonic_time next_loop_time, int64_t sig_count) {
+	const ut_monotonic_time cur_time = ut_monotonic_time_ms();
 
-	if (next_loop_time > cur_time) {
+	if (next_loop_time.ms > cur_time.ms) {
 		/* Get sleep interval in micro seconds. We use
 		ut_min() to avoid long sleep in case of wrap around. */
 		ulint	sleep_us;
 
 		sleep_us = ut_min(static_cast<ulint>(1000000),
-				  (next_loop_time - cur_time) * 1000);
+				  (next_loop_time.ms - cur_time.ms) * 1000);
 
 		return(os_event_wait_time_low(buf_flush_event,
 					      sleep_us, sig_count));
@@ -2890,7 +2885,7 @@ static
 ulint
 pc_flush_slot(void)
 {
-	ulint	list_tm = 0;
+	ut_monotonic_time list_tm = {0};
 	int	list_pass = 0;
 
 	mutex_enter(&page_cleaner->mutex);
@@ -2930,8 +2925,7 @@ pc_flush_slot(void)
 
 		/* Flush pages from flush_list if required */
 		if (page_cleaner->requested) {
-
-			list_tm = ut_time_ms();
+			list_tm = ut_monotonic_time_ms();
 
 			slot->succeeded_list = buf_flush_do_batch(
 				buf_pool, BUF_FLUSH_LIST,
@@ -2939,7 +2933,7 @@ pc_flush_slot(void)
 				page_cleaner->lsn_limit,
 				&slot->n_flushed_list);
 
-			list_tm = ut_time_ms() - list_tm;
+			list_tm.ms = ut_monotonic_time_ms().ms - list_tm.ms;
 			list_pass++;
 		} else {
 			slot->n_flushed_list = 0;
@@ -2951,7 +2945,7 @@ finish_mutex:
 		page_cleaner->n_slots_finished++;
 		slot->state = PAGE_CLEANER_STATE_FINISHED;
 
-		slot->flush_list_time += list_tm;
+		slot->flush_list_time += list_tm.ms;
 		slot->flush_list_pass += list_pass;
 
 		if (page_cleaner->n_slots_requested == 0
@@ -3158,7 +3152,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
-	ulint	next_loop_time = ut_time_ms() + 1000;
+	ut_monotonic_time next_loop_time = ut_monotonic_time_ms();
+	next_loop_time.ms += 1000;
 	ulint	n_flushed = 0;
 	ulint	last_activity = srv_get_activity_count();
 	ulint	last_pages = 0;
@@ -3237,7 +3232,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 				break;
 			}
-		} else if (ut_time_ms() > next_loop_time) {
+		} else if (ut_monotonic_time_ms().ms > next_loop_time.ms) {
 			ret_sleep = OS_SYNC_TIME_EXCEEDED;
 		} else {
 			ret_sleep = 0;
@@ -3246,18 +3241,19 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 		sig_count = os_event_reset(buf_flush_event);
 
 		if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
-			ulint	curr_time = ut_time_ms();
+			ut_monotonic_time curr_time = ut_monotonic_time_ms();
 
-			if (curr_time > next_loop_time + 3000) {
+			if (curr_time.ms > next_loop_time.ms + 3000) {
 				if (warn_count == 0) {
-					ib::info() << "page_cleaner: 1000ms"
-						" intended loop took "
-						<< 1000 + curr_time
-						   - next_loop_time
-						<< "ms. The settings might not"
-						" be optimal. (flushed="
-						<< n_flushed_last
-						<< ", during the time.)";
+					ib::info()
+					    << "page_cleaner: 1000ms "
+					       "intended loop took "
+					    << 1000 + curr_time.ms -
+						   next_loop_time.ms
+					    << "ms. The settings might not  "
+					       "be optimal. (flushed="
+					    << n_flushed_last
+					    << ", during the time.)";
 					if (warn_interval > 300) {
 						warn_interval = 600;
 					} else {
@@ -3274,7 +3270,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 				warn_count = 0;
 			}
 
-			next_loop_time = curr_time + 1000;
+			next_loop_time.ms = curr_time.ms + 1000;
 			n_flushed_last = 0;
 		}
 
@@ -3290,14 +3286,15 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			/* Request flushing for threads */
 			pc_request(ULINT_MAX, lsn_limit);
 
-			ulint tm = ut_time_ms();
+			const ut_monotonic_time tm = ut_monotonic_time_ms();
 
 			/* Coordinator also treats requests */
 			while (pc_flush_slot() > 0) {}
 
 			/* only coordinator is using these counters,
 			so no need to protect by lock. */
-			page_cleaner->flush_time += ut_time_ms() - tm;
+			page_cleaner->flush_time +=
+			    ut_monotonic_time_ms().ms - tm.ms;
 			page_cleaner->flush_pass++;
 
 			/* Wait for all slots to be finished */
@@ -3333,14 +3330,15 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			/* Request flushing for threads */
 			pc_request(n_to_flush, lsn_limit);
 
-			ulint tm = ut_time_ms();
+			const ut_monotonic_time tm = ut_monotonic_time_ms();
 
 			/* Coordinator also treats requests */
 			while (pc_flush_slot() > 0) {}
 
 			/* only coordinator is using these counters,
 			so no need to protect by lock. */
-			page_cleaner->flush_time += ut_time_ms() - tm;
+			page_cleaner->flush_time +=
+			    ut_monotonic_time_ms().ms - tm.ms;
 			page_cleaner->flush_pass++;
 
 			/* Wait for all slots to be finished */
@@ -3555,25 +3553,21 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 /** Make a LRU manager thread sleep until the passed target time, if it's not
 already in the past.
 @param[in]	next_loop_time	desired wake up time */
-static
-void
-buf_lru_manager_sleep_if_needed(
-	ulint	next_loop_time)
-{
+static void
+buf_lru_manager_sleep_if_needed(ut_monotonic_time next_loop_time) {
 	/* If this is the server shutdown buffer pool flushing phase, skip the
 	sleep to quit this thread faster */
 	if (srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE)
 		return;
 
-	ulint	cur_time	= ut_time_ms();
+	const ut_monotonic_time cur_time = ut_monotonic_time_ms();
 
-	if (next_loop_time > cur_time) {
+	if (next_loop_time.ms > cur_time.ms) {
 		/* Get sleep interval in micro seconds. We use
 		ut_min() to avoid long sleep in case of
 		wrap around. */
-		os_thread_sleep(std::min(1000000UL,
-					 (next_loop_time - cur_time)
-					 * 1000));
+		os_thread_sleep(std::min(
+		    1000000UL, (next_loop_time.ms - cur_time.ms) * 1000));
 	}
 }
 
@@ -3582,13 +3576,10 @@ the last flush result
 @param[in]	buf_pool	buffer pool whom we are flushing
 @param[in]	lru_n_flushed	last LRU flush page count
 @param[in,out]	lru_sleep_time	LRU manager thread sleep time */
-static
-void
-buf_lru_manager_adapt_sleep_time(
-	const buf_pool_t*	buf_pool,
-	ulint			lru_n_flushed,
-	ulint*			lru_sleep_time)
-{
+static void
+buf_lru_manager_adapt_sleep_time(const buf_pool_t * buf_pool,
+				 ulint		    lru_n_flushed,
+				 ut_monotonic_time *lru_sleep_time) {
 	const ulint free_len = UT_LIST_GET_LEN(buf_pool->free);
 	const ulint max_free_len = std::min(
 			UT_LIST_GET_LEN(buf_pool->LRU), srv_LRU_scan_depth);
@@ -3597,19 +3588,18 @@ buf_lru_manager_adapt_sleep_time(
 
 		/* Free list filled less than 1% and the last iteration was
 		able to flush, no sleep */
-		*lru_sleep_time = 0;
+		lru_sleep_time->ms = 0;
 	} else if (free_len > max_free_len / 5
 		   || (free_len < max_free_len / 100 && lru_n_flushed == 0)) {
 
 		/* Free list filled more than 20% or no pages flushed in the
 		previous batch, sleep a bit more */
-		*lru_sleep_time += 1;
-		if (*lru_sleep_time > srv_cleaner_max_lru_time)
-			*lru_sleep_time = srv_cleaner_max_lru_time;
-	} else if (free_len < max_free_len / 20 && *lru_sleep_time >= 50) {
-
+		lru_sleep_time->ms += 1;
+		if (lru_sleep_time->ms > srv_cleaner_max_lru_time)
+			lru_sleep_time->ms = srv_cleaner_max_lru_time;
+	} else if (free_len < max_free_len / 20 && lru_sleep_time->ms >= 50) {
 		/* Free list filled less than 5%, sleep a bit less */
-		*lru_sleep_time -= 50;
+		lru_sleep_time->ms -= 50;
 	} else {
 
 		/* Free lists filled between 5% and 20%, no change */
@@ -3654,8 +3644,9 @@ DECLARE_THREAD(buf_lru_manager)(
 
 	os_atomic_increment_ulint(&buf_lru_manager_running_threads, 1);
 
-	ulint	lru_sleep_time	= 1000;
-	ulint	next_loop_time	= ut_time_ms() + lru_sleep_time;
+	ut_monotonic_time lru_sleep_time = {1000};
+	ut_monotonic_time next_loop_time = ut_monotonic_time_ms();
+	next_loop_time.ms += lru_sleep_time.ms;
 	ulint	lru_n_flushed	= 1;
 
 	/* On server shutdown, the LRU manager thread runs through cleanup
@@ -3670,7 +3661,8 @@ DECLARE_THREAD(buf_lru_manager)(
 		buf_lru_manager_adapt_sleep_time(buf_pool, lru_n_flushed,
 						 &lru_sleep_time);
 
-		next_loop_time = ut_time_ms() + lru_sleep_time;
+		next_loop_time.ms =
+		    ut_monotonic_time_ms().ms + lru_sleep_time.ms;
 
 		lru_n_flushed = buf_flush_LRU_list(buf_pool);
 

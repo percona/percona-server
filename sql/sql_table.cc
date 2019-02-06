@@ -573,12 +573,16 @@ size_t build_table_filename(char *buff, size_t bufflen, const char *db,
   DBUG_PRINT("enter", ("db: '%s'  table_name: '%s'  ext: '%s'  flags: %x",
                        db, table_name, ext, flags));
 
-  if (flags & FN_IS_TMP) // FN_FROM_IS_TMP | FN_TO_IS_TMP
+  if ((flags & FN_IS_TMP) ||  // FN_FROM_IS_TMP | FN_TO_IS_TMP
+      (flags & FN_IS_ENCODED))
     tab_len= my_stpnmov(tbbuff, table_name, sizeof(tbbuff)) - tbbuff;
   else
     tab_len= tablename_to_filename(table_name, tbbuff, sizeof(tbbuff));
 
-  db_len= tablename_to_filename(db, dbbuff, sizeof(dbbuff));
+  if (flags & FN_IS_ENCODED)
+    db_len= my_stpnmov(dbbuff, db, sizeof(dbbuff)) - dbbuff;
+  else
+    db_len= tablename_to_filename(db, dbbuff, sizeof(dbbuff));
 
   char *end = buff + bufflen;
   /* Don't add FN_ROOTDIR if mysql_data_home already includes it */

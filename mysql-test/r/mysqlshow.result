@@ -135,7 +135,7 @@ Database: information_schema
 | INNODB_CMPMEM_RESET                   |
 | INNODB_SYS_FIELDS                     |
 | XTRADB_ZIP_DICT                       |
-| INNODB_CHANGED_PAGES                  |
+| INNODB_TABLESPACES_SCRUBBING          |
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_FT_INDEX_TABLE                 |
 | INNODB_CMPMEM                         |
@@ -154,6 +154,7 @@ Database: information_schema
 | XTRADB_ZIP_DICT_COLS                  |
 | INNODB_SYS_INDEXES                    |
 | INNODB_SYS_VIRTUAL                    |
+| INNODB_CHANGED_PAGES                  |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -215,7 +216,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_CMPMEM_RESET                   |
 | INNODB_SYS_FIELDS                     |
 | XTRADB_ZIP_DICT                       |
-| INNODB_CHANGED_PAGES                  |
+| INNODB_TABLESPACES_SCRUBBING          |
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_FT_INDEX_TABLE                 |
 | INNODB_CMPMEM                         |
@@ -234,6 +235,7 @@ Database: INFORMATION_SCHEMA
 | XTRADB_ZIP_DICT_COLS                  |
 | INNODB_SYS_INDEXES                    |
 | INNODB_SYS_VIRTUAL                    |
+| INNODB_CHANGED_PAGES                  |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

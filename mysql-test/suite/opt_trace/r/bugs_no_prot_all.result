@@ -3244,6 +3244,8 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                 {
                                   "reconsidering_access_paths_for_index_ordering": {
                                     "clause": "ORDER BY",
+                                    "steps": [
+                                    ] /* steps */,
                                     "index_order_summary": {
                                       "table": "`t1`",
                                       "index_provides_order": true,
@@ -3490,29 +3492,40 @@ DROP TABLE B,C,CC;
 CREATE TABLE t1 (
 a TINYTEXT NOT NULL,
 b TINYINT(3) UNSIGNED NOT NULL,
-PRIMARY KEY (a(32),b),
-KEY b_idx(b)
-) ENGINE=INNODB;
-INSERT INTO t1 VALUES ('a',1),('a',2),('a',3),('b',1),('c',1),('c',4),('e',2);
+PRIMARY KEY (a(32),b)
+) ENGINE=MyISAM, CHARSET utf8mb4;
+CREATE TABLE t2 (
+a TINYTEXT NOT NULL,
+b TINYINT(3) UNSIGNED NOT NULL,
+PRIMARY KEY (a(32),b)
+) ENGINE=INNODB, CHARSET utf8mb4;
+INSERT INTO t1 VALUES ('a',1),('a',2);
+INSERT INTO t2 VALUES ('a',1),('a',2),('a',3),('b',1),('c',1),('c',4),('e',2);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-SET @optimizer_switch_saved=@@session.optimizer_switch;
-SET @@session.optimizer_switch=default;
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-7
-EXPLAIN SELECT * FROM t1 WHERE a IN ('a', 'b') AND b = 2;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE a='a' AND b in (1,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,b_idx	b_idx	35	NULL	2	100.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	131	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` in ('a','b')))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 'a') and (`test`.`t1`.`b` in (1,2)))
 SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-SELECT @trace RLIKE "rerunning_range_optimizer_for_single_index";
-@trace RLIKE "rerunning_range_optimizer_for_single_index"
+SELECT @trace RLIKE "range_uses_more_keyparts";
+@trace RLIKE "range_uses_more_keyparts"
 1
-SET @@session.optimizer_switch=@optimizer_switch_saved;
-DROP TABLE t1;
+EXPLAIN SELECT * FROM t2 WHERE a='a' AND b in (1,2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	131	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`a` = 'a') and (`test`.`t2`.`b` in (1,2)))
+SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "range_uses_more_keyparts";
+@trace RLIKE "range_uses_more_keyparts"
+1
+DROP TABLE t1, t2;
 #
 # Bug #23227428: SQL PLAN IS NOT ACCORDING WITH OPTIMIZER_TRACE
 #
@@ -3623,6 +3636,8 @@ EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "ORDER BY",
+              "steps": [
+              ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",
                 "index_provides_order": true,

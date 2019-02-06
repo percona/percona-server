@@ -596,57 +596,62 @@ static void update_global_thread_stats_with_thread(THD* thd,
   thread_stats->empty_queries+=        thd->diff_empty_queries;
 }
 
-// Updates the global stats of a user or client
 void update_global_user_stats(THD* thd, bool create_user, time_t now)
 {
-  const char* user_string=
-    get_valid_user_string(thd->m_main_security_ctx.user().str);
-  const char* client_string= get_client_host(thd);
+	update_global_user_stats(thd, create_user, now, 
+                                 get_valid_user_string(thd->security_context()->user().str),
+                                 get_client_host(thd), thd->security_context()->ip().str);
+}
 
+// Updates the global stats of a user or client
+void update_global_user_stats(THD* thd, bool create_user, time_t now, const char* user_string, const char* client_string, const char* ip)
+{
   USER_STATS* user_stats;
   THREAD_STATS* thread_stats;
 
-  if (acl_is_utility_user(thd->security_context()->user().str,
-			  thd->security_context()->host().str,
-			  thd->security_context()->ip().str))
+  if (acl_is_utility_user(user_string, client_string, ip))
     return;
 
   mysql_mutex_lock(&LOCK_global_user_client_stats);
 
   // Update by user name
-  if ((user_stats = (USER_STATS *) my_hash_search(&global_user_stats,
-                                                  (uchar *) user_string,
-                                                  strlen(user_string))))
-  {
-    // Found user.
-    update_global_user_stats_with_user(thd, user_stats, now);
-  }
-  else
-  {
-    // Create the entry
-    if (create_user)
+  if (user_string != NULL) {
+    if ((user_stats = (USER_STATS *) my_hash_search(&global_user_stats,
+                                                    (uchar *) user_string,
+                                                    strlen(user_string))))
     {
-      increment_count_by_name(user_string, user_string,
-                              &global_user_stats, thd);
+      // Found user.
+      update_global_user_stats_with_user(thd, user_stats, now);
+    }
+    else
+    {
+      // Create the entry
+      if (create_user)
+      {
+        increment_count_by_name(user_string, user_string,
+                                &global_user_stats, thd);
+      }
     }
   }
 
   // Update by client IP
-  if ((user_stats = (USER_STATS *) my_hash_search(&global_client_stats,
-                                                  (uchar *) client_string,
-                                                  strlen(client_string))))
-  {
-    // Found by client IP
-    update_global_user_stats_with_user(thd, user_stats, now);
-  }
-  else
-  {
-    // Create the entry
-    if (create_user)
+  if (client_string != NULL) {
+    if ((user_stats = (USER_STATS *) my_hash_search(&global_client_stats,
+                                                    (uchar *) client_string,
+                                                    strlen(client_string))))
     {
-      increment_count_by_name(client_string,
-                              user_string,
-                              &global_client_stats, thd);
+      // Found by client IP
+      update_global_user_stats_with_user(thd, user_stats, now);
+    }
+    else
+    {
+      // Create the entry
+      if (create_user)
+      {
+        increment_count_by_name(client_string,
+                                user_string,
+                                &global_client_stats, thd);
+      }
     }
   }
 
@@ -1359,7 +1364,6 @@ static bool login_connection(THD *thd, bool extra_port_connection)
         VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);       /* must wait after eof() */
 #endif
-    thd->diff_denied_connections++;
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */

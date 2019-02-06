@@ -584,6 +584,7 @@ SET GLOBAL max_allowed_packet = 24 * 1024 * 1024;
 
 connect(con1, localhost, root,,);
 connection con1;
+SET sql_mode = 'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
 
 SET default_storage_engine=MEMORY;
 

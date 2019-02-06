@@ -5,8 +5,8 @@ SSL Improvements
 ================================================================================
 
 |Percona Server| enables transmitting data in the encrypted form by using the
-TLSv1.2 protocol. By default, |Percona Server| disables TLSv1.0 and deprecates
-TLSv1.1.
+TLSv1.2 protocol. 
+
 
 .. rubric:: Implemented Using |openssl|
 
@@ -36,7 +36,8 @@ the required TLS version not enabled, and so on. For more information, see
    More information about |yassl.def| 
       https://www.wolfssl.com/products/yassl/
    |MySQL| Documentation: OpenSSL Versus yaSSL
-      https://dev.mysql.com/doc/refman/5.6/en/openssl-versus-yassl.html
+      https://dev.mysql.com/doc/refman/5.7/en/openssl-versus-yassl.html
+
    |MySQL| Bug System (solved for |Percona Server|): 
        `#75311 Error for SSL cipher is unhelpful <https://bugs.mysql.com/bug.php?id=75311>`_
 
@@ -81,21 +82,6 @@ Validation of SSL certificate common name   Yes      Yes                 Yes
 Validation of |san.abbr|                    No       Yes                 Yes
 Support for wildcard names                  No       No                  Yes
 ==========================================  =======  ==================  ================
-
-.. _percona-server.management.ssl.mysqlbinlog:
-
-SSL Improvements in ``mysqlbinlog``
-================================================================================
-	    
-|Percona Server| extends :command:`mysqlbinlog` to accept the ``SSL`` connection
-options as all the other client programs.
-
-.. seealso::
-
-   How |Percona Server| extends the functionality of :command:`mysqlbinlog`
-      :ref:`extended_mysqlbinlog`
-   |MySQL| Bug System (solved for |Percona Server|):
-      `#41975 Support for SSL options not included in mysqlbinlog <https://bugs.mysql.com/bug.php?id=41975>`_
 
 .. |openssl| replace:: OpenSSL
 .. |yassl| replace:: yaSSL

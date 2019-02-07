@@ -1253,9 +1253,12 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
   }
 
 #ifdef UNIV_DEBUG
+  /* Inplace ALTERs for expanded fast index creation can only be about
+  DROP and ADD INDEX and never be instant operation */
   if (dd_table_has_instant_cols(*old_dd_tab) &&
       (ctx == nullptr || !ctx->need_rebuild())) {
-    ut_ad(dd_table_has_instant_cols(*new_dd_tab));
+    ut_ad(ctx->new_table->skip_alter_undo ||
+          dd_table_has_instant_cols(*new_dd_tab));
   }
 #endif /* UNIV_DEBUG */
 
@@ -3696,7 +3699,10 @@ static MY_ATTRIBUTE((warn_unused_result)) bool dd_prepare_inplace_alter_table(
 static void dd_commit_inplace_update_instant_meta(const dict_table_t *table,
                                                   const dd::Table *old_dd_tab,
                                                   dd::Table *new_dd_tab) {
-  if (!dd_table_has_instant_cols(*old_dd_tab)) {
+  /** If table->skip_alter_undo is true during inplace, it is expanded fast
+  index creation. The inplace ALTERs for that can only be about DROP INDEX
+  and ADD INDEX and can never be instant operations */
+  if (table->skip_alter_undo || !dd_table_has_instant_cols(*old_dd_tab)) {
     return;
   }
 

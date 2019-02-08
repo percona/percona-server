@@ -19,7 +19,7 @@
 
 #include <m_ctype.h>
 
-extern ulong audit_buffer_size_too_small;
+extern uint64 audit_log_buffer_size_overflow;
 
 #ifdef __cplusplus
 extern "C" {

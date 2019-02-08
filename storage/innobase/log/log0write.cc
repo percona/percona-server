@@ -2532,24 +2532,23 @@ bool log_read_encryption() {
     fprintf(stderr, "Using redo log encryption key version: %u\n", version);
 #endif
 
-    char *key_type = nullptr;
-    char *rkey = nullptr;
+    unique_ptr_my_free<char> key_type;
+    unique_ptr_my_free<unsigned char> rkey;
     std::ostringstream percona_redo_with_ver_ss;
     percona_redo_with_ver_ss << PERCONA_REDO_KEY_NAME << ':' << version;
     size_t klen;
-    if (my_key_fetch(percona_redo_with_ver_ss.str().c_str(), &key_type, nullptr,
-                     reinterpret_cast<void **>(&rkey), &klen) ||
+    if (my_key_fetch_safe(percona_redo_with_ver_ss.str().c_str(), key_type,
+                          nullptr, rkey, &klen) ||
         rkey == nullptr) {
       ib::error() << "Couldn't fetch redo log encryption key: "
                   << percona_redo_with_ver_ss.str() << ".";
-    } else if (key_type == nullptr || strncmp(key_type, "AES", 3) != 0) {
-      ib::error() << "Unknown redo log encryption type: " << key_type << ".";
+    } else if (key_type == nullptr || strncmp(key_type.get(), "AES", 3) != 0) {
+      ib::error() << "Unknown redo log encryption type: " << key_type.get()
+                  << ".";
     } else {
       encrypted_log = true;
-      memcpy(key, rkey, ENCRYPTION_KEY_LEN);
+      memcpy(key, rkey.get(), ENCRYPTION_KEY_LEN);
     }
-    my_free(key_type);
-    my_free(rkey);
   }
 
   if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END, ENCRYPTION_KEY_MAGIC_V3,
@@ -2727,43 +2726,45 @@ void log_enable_encryption_if_set() {
       }
     } else if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
       // load latest key & write version
-      char *redo_key_type = nullptr;
-      byte *rkey = nullptr;
+      unique_ptr_my_free<char> redo_key_type;
+      unique_ptr_my_free<unsigned char> rkey;
       size_t klen = 0;
 
       encryption_enabled = true;
 
-      if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, nullptr,
-                       reinterpret_cast<void **>(&rkey), &klen) ||
+      if (my_key_fetch_safe(PERCONA_REDO_KEY_NAME, redo_key_type, nullptr, rkey,
+                            &klen) ||
           rkey == nullptr) {
         if (my_key_generate(PERCONA_REDO_KEY_NAME, "AES", nullptr,
                             ENCRYPTION_KEY_LEN)) {
           ib::error() << "Redo log key generation failed.";
           encryption_enabled = false;
-        } else if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, nullptr,
-                                reinterpret_cast<void **>(&rkey), &klen)) {
+        } else if (my_key_fetch_safe(PERCONA_REDO_KEY_NAME, redo_key_type,
+                                     nullptr, rkey, &klen)) {
           ib::error() << "Couldn't fetch newly generated redo key.";
           encryption_enabled = false;
         } else {
           DBUG_ASSERT(rkey != nullptr);
-          byte *rkey2 = nullptr;
+          unique_ptr_my_free<unsigned char> rkey2;
           size_t klen2 = 0;
-          bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) ==
-                      reinterpret_cast<uchar *>(NullS));
+          bool err =
+              (parse_system_key(rkey.get(), klen, &version, rkey2, &klen2) ==
+               reinterpret_cast<uchar *>(NullS));
           ut_ad(klen2 == ENCRYPTION_KEY_LEN);
           if (err) {
             encryption_enabled = false;
           } else {
-            memcpy(key, rkey2, ENCRYPTION_KEY_LEN);
+            memcpy(key, rkey2.get(), ENCRYPTION_KEY_LEN);
           }
         }
         if (encryption_enabled) {
-          ut_ad(redo_key_type && strcmp(redo_key_type, "AES") == 0);
-          my_free(redo_key_type);
+          ut_ad(redo_key_type && strcmp(redo_key_type.get(), "AES") == 0);
 #ifdef UNIV_ENCRYPT_DEBUG
           fprintf(stderr, "Fetched redo key: %s.\n", key);
 #endif
         }
+      } else {
+        memcpy(key, rkey.get(), ENCRYPTION_KEY_LEN);
       }
     } else {
       ut_ad(0);
@@ -2818,16 +2819,17 @@ void log_enable_encryption_if_set() {
     uint version = 0;
     size_t klen = 0;
     size_t klen2 = 0;
-    char *redo_key_type = nullptr;
-    byte *rkey = nullptr;
-    unsigned char *rkey2 = nullptr;
-    if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, nullptr,
-                     reinterpret_cast<void **>(&rkey), &klen)) {
+    unique_ptr_my_free<char> redo_key_type;
+    unique_ptr_my_free<unsigned char> rkey;
+    unique_ptr_my_free<unsigned char> rkey2;
+    if (my_key_fetch_safe(PERCONA_REDO_KEY_NAME, redo_key_type, nullptr, rkey,
+                          &klen)) {
       srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
       ib::error() << "Can't fetch latest redo log encryption key.";
     }
-    const bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) ==
-                      reinterpret_cast<uchar *>(NullS));
+    const bool err =
+        (parse_system_key(rkey.get(), klen, &version, rkey2, &klen2) ==
+         reinterpret_cast<uchar *>(NullS));
     if (err) {
       srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
       ib::error() << "Can't parse latest redo log encryption key.";

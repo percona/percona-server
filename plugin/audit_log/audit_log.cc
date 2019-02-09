@@ -78,7 +78,7 @@ static char *audit_log_include_databases = nullptr;
 static char *audit_log_exclude_commands = nullptr;
 static char *audit_log_include_commands = nullptr;
 
-ulong audit_buffer_size_too_small = 0;
+std::atomic<uint64_t> audit_log_buffer_size_overflow(0);
 
 PSI_memory_key key_memory_audit_log_logger_handle;
 PSI_memory_key key_memory_audit_log_handler;
@@ -1712,10 +1712,21 @@ static st_mysql_audit audit_log_descriptor = {
   Plugin status variables for SHOW STATUS
 */
 
+static int show_audit_log_buffer_size_overflow(THD *, SHOW_VAR *var,
+                                               char *buff) {
+    var->type = SHOW_LONG;
+    var->value = buff;
+    uint64_t *value = reinterpret_cast<uint64_t *>(buff);
+    *value = static_cast<uint64_t>(audit_log_buffer_size_overflow.load(
+                                            std::memory_order_relaxed));
+    return 0;
+}
+
 static SHOW_VAR audit_log_status_variables[] = {
-    {"Audit_buffer_size_too_small",
-     (char*) &audit_buffer_size_too_small,
-      SHOW_LONG, SHOW_SCOPE_GLOBAL}
+    {"Audit_log_buffer_size_overflow",
+     (char*) &show_audit_log_buffer_size_overflow,
+      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+      {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 /*

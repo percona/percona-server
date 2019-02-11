@@ -1,3 +1,4 @@
+
 /* Copyright (c) 2018 Percona LLC and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
@@ -34,7 +35,7 @@ class IVault_curl : public Keyring_alloc {
   virtual bool delete_key(const Vault_key &key, Secure_string *response) = 0;
   virtual void set_timeout(uint timeout) noexcept = 0;
 
-  virtual ~IVault_curl(){};
+  virtual ~IVault_curl() {}
 };
 
 }  // namespace keyring

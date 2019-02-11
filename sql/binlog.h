@@ -48,7 +48,8 @@
 #include "sql/binlog_crypt_data.h"
 #include "sql/rpl_constants.h"
 #include "sql/rpl_trx_tracking.h"
-#include "sql/tc_log.h"  // TC_LOG
+#include "sql/tc_log.h"            // TC_LOG
+#include "sql/transaction_info.h"  // Transaction_ctx
 #include "thr_mutex.h"
 
 #include "sql/binlog_ostream.h"
@@ -305,12 +306,14 @@ struct LOG_INFO {
   my_off_t pos;
   bool fatal;       // if the purge happens to give us a negative offset
   int entry_index;  // used in purge_logs(), calculatd in find_log_pos().
+  int encrypted_header_size;
   LOG_INFO()
       : index_file_offset(0),
         index_file_start_offset(0),
         pos(0),
         fatal(0),
-        entry_index(0) {
+        entry_index(0),
+        encrypted_header_size(0) {
     memset(log_file_name, 0, FN_REFLEN);
   }
 };
@@ -321,70 +324,7 @@ struct LOG_INFO {
 */
 class MYSQL_BIN_LOG : public TC_LOG {
  public:
-  class Binlog_ofile : public Basic_ostream {
-   public:
-    ~Binlog_ofile() { close(); }
-
-    /**
-       Opens the binlog file. It opens the lower layer storage.
-
-       @param[in] log_file_key  The PSI_file_key for this stream
-       @param[in] binlog_name  The file to be opened
-       @param[in] flags  The flags used by IO_CACHE.
-
-       @retval false  Success
-       @retval true  Error
-    */
-    bool open(
-#ifdef HAVE_PSI_INTERFACE
-        PSI_file_key log_file_key,
-#endif
-        const char *binlog_name, myf flags);
-
-    void close();
-    /**
-       Writes data into storage and maintains binlog position.
-
-       @param[in] buffer  the data will be written
-       @param[in] length  the length of the data
-
-       @retval false  Success
-       @retval true  Error
-    */
-    bool write(const unsigned char *buffer, my_off_t length) override;
-    /**
-       Updates some bytes in the binlog file. If is only used for clearing
-       LOG_EVENT_BINLOG_IN_USE_F.
-
-       @param[in] buffer  the data will be written
-       @param[in] length  the length of the data
-       @param[in] offset  the offset of the bytes will be updated
-
-       @retval false  Success
-       @retval true  Error
-    */
-    bool update(const unsigned char *buffer, my_off_t length, my_off_t offset);
-    /**
-       Truncates some data at the end of the binlog file.
-
-       @param[in] offset  where the binlog file will be truncated to.
-
-       @retval false  Success
-       @retval true  Error
-    */
-    bool truncate(my_off_t offset);
-    bool flush() { return m_file_ostream.flush(); }
-    bool sync() { return m_file_ostream.sync(); }
-    bool flush_and_sync() { return flush() || sync(); }
-    my_off_t position() { return m_position; }
-    bool is_empty() { return position() == 0; }
-    bool is_open() { return m_pipeline_head != NULL; }
-
-   private:
-    my_off_t m_position = 0;
-    Truncatable_ostream *m_pipeline_head = NULL;
-    IO_CACHE_ostream m_file_ostream;
-  };
+  class Binlog_ofile;
 
  private:
   enum enum_log_state { LOG_OPENED, LOG_CLOSED, LOG_TO_BE_OPENED };
@@ -737,17 +677,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
 #endif /* defined(MYSQL_SERVER) */
   void add_bytes_written(ulonglong inc) { bytes_written += inc; }
   void reset_bytes_written() { bytes_written = 0; }
-  void harvest_bytes_written(ulonglong *counter) {
-#ifndef DBUG_OFF
-    char buf1[22], buf2[22];
-#endif
-    DBUG_ENTER("harvest_bytes_written");
-    (*counter) += bytes_written;
-    DBUG_PRINT("info", ("counter: %s  bytes_written: %s", llstr(*counter, buf1),
-                        llstr(bytes_written, buf2)));
-    bytes_written = 0;
-    DBUG_VOID_RETURN;
-  }
+  void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
 
 #ifdef MYSQL_SERVER
   void xlock(void);
@@ -760,6 +690,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void slock(void) {}
   void sunlock(void) {}
 #endif /* MYSQL_SERVER */
+
   void set_max_size(ulong max_size_arg);
   void signal_update() {
     DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
@@ -768,7 +699,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   }
 
   void update_binlog_end_pos(bool need_lock = true);
-  void update_binlog_end_pos(my_off_t pos);
+  void update_binlog_end_pos(const char *file, my_off_t pos);
 
   int wait_for_update(const struct timespec *timeout);
 
@@ -921,7 +852,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index); }
   inline IO_CACHE *get_index_file() { return &index_file; }
   inline uint32 get_open_count() { return open_count; }
-
+  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
   /*
     It is called by the threads (e.g. dump thread, applier thread) which want
     to read hot log without LOCK_log protection.
@@ -968,6 +899,26 @@ struct LOAD_FILE_INFO {
 };
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
+
+/**
+  Check if the the transaction is empty.
+
+  @param thd The client thread that executed the current statement.
+
+  @retval true No changes found in any storage engine
+  @retval false Otherwise.
+
+**/
+bool is_transaction_empty(THD *thd);
+/**
+  Check if the transaction has no rw flag set for any of the storage engines.
+
+  @param thd The client thread that executed the current statement.
+  @param trx_scope The transaction scope to look into.
+
+  @retval the number of engines which have actual changes.
+ */
+int check_trx_rw_engines(THD *thd, Transaction_ctx::enum_trx_scope trx_scope);
 
 /**
   Check if at least one of transacaction and statement binlog caches contains

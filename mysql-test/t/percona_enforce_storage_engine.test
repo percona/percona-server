@@ -2,7 +2,8 @@
 
 call mtr.add_suppression("is not the same as enforced storage engine");
 
-SET @old_sql_mode= @@session.sql_mode;
+--let $restart_parameters=restart:--enforce_storage_engine=myisam
+--source include/restart_mysqld.inc
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
@@ -20,4 +21,5 @@ DROP TABLE t1;
 --error ER_UNKNOWN_STORAGE_ENGINE
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 
-SET SESSION sql_mode=@old_sql_mode;
+--let $restart_parameters=
+--source include/restart_mysqld.inc

@@ -3694,8 +3694,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   fil_space_set_imported() to declare it a persistent tablespace. */
 
   ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
-  if (table->encryption_key != NULL || cfg.m_is_keyring_encrypted) {
-    fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
+  if (table->encryption_key != nullptr || cfg.m_is_keyring_encrypted) {
+    FSP_FLAGS_SET_ENCRYPTION(fsp_flags);
   }
 
   Keyring_encryption_info keyring_encryption_info;
@@ -3880,8 +3880,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     dict_sdi_remove_from_cache(table->space, NULL, true);
     btr_sdi_create_index(table->space, true);
     dict_mutex_exit_for_mysql();
-    /* Update server version number in the page 0 of tablespace */
-    if (upgrade_space_version(table->space)) {
+    /* Update server and space version number in the page 0 of tablespace */
+    if (upgrade_space_version(table->space, false)) {
       return (row_import_error(prebuilt, trx, DB_TABLESPACE_NOT_FOUND));
     }
   } else {

@@ -646,6 +646,8 @@ struct rw_lock_t
     is_block_lock = other.is_block_lock;
   }
 
+  rw_lock_t &operator=(const rw_lock_t &) = default;
+
   /** Destructor */
   virtual ~rw_lock_t() {
 #ifdef UNIV_DEBUG

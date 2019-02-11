@@ -1312,7 +1312,10 @@ loop:
                               recv_recovery_on, false)) {
     block = NULL;
 
-    if (srv_debug_monitor_printed) DBUG_SUICIDE();
+    if (srv_debug_monitor_printed) {
+      flush_error_log_messages();
+      DBUG_SUICIDE();
+    }
   } else {
     block = buf_LRU_get_free_only(buf_pool);
   }
@@ -2337,7 +2340,7 @@ static void buf_LRU_block_free_hashed_page(
   buf_pool_t *buf_pool = buf_pool_from_block(block);
 
   if (buf_pool->flush_rbt == NULL) {
-    block->page.id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
+    block->page.id.reset(UINT32_UNDEFINED, UINT32_UNDEFINED);
   }
 
   buf_block_set_state(block, BUF_BLOCK_MEMORY);

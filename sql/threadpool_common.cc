@@ -148,11 +148,7 @@ int threadpool_add_connection(THD *thd) {
   /* Login. */
   thread_attach(thd);
   thd->start_utime = my_micro_time();
-
-  if (thd->store_globals()) {
-    close_connection(thd, ER_OUT_OF_RESOURCES);
-    goto end;
-  }
+  thd->store_globals();
 
   if (thd_prepare_connection(thd)) {
     goto end;

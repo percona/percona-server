@@ -1,7 +1,6 @@
 --source include/big_test.inc
 
-call mtr.add_suppression("Cannot create keyring directory");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Plugin keyring_file reported: 'Could not create keyring directory");
+call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'Could not create keyring directory");
 
 --let $keyring_restart_param=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
 --source include/table_encrypt_kill.inc

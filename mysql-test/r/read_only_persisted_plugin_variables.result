@@ -10,6 +10,8 @@ VARIABLE_NAME	VARIABLE_VALUE
 SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
 VARIABLE_NAME
 call mtr.add_suppression("option 'thread_stack':");
+# Filtering out the warning as open_files_limit value is calculated at runtime
+CALL mtr.add_suppression("Could not increase number of max_open_files to more than *");
 # Allow SET PERSIST to set all the read only variables excluding plugin
 # variables.
 #
@@ -108,7 +110,6 @@ set @@persist_only.report_port=21000;
 set @@persist_only.report_password=NULL;
 set @@persist_only.report_user=NULL;
 call mtr.add_suppression('Default storage engine \\(InnoDB\\) is not the same as enforced storage engine \\(MyISAM\\)');
-set @@persist_only.encrypt_binlog=FALSE;
 set @@persist_only.encrypt_tmp_files=TRUE;
 set @@persist_only.enforce_storage_engine='MyISAM';
 set @@persist_only.binlog_space_limit=134217728;
@@ -116,7 +117,7 @@ set @@persist_only.proxy_protocol_networks='*';
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-99
+98
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 100 rows.
@@ -128,7 +129,6 @@ back_log	80
 binlog_gtid_simple_recovery	1
 binlog_space_limit	134217728
 disabled_storage_engines	
-encrypt_binlog	0
 encrypt_tmp_files	1
 enforce_storage_engine	MyISAM
 ft_max_word_len	84
@@ -227,7 +227,6 @@ back_log
 binlog_gtid_simple_recovery
 binlog_space_limit
 disabled_storage_engines
-encrypt_binlog
 encrypt_tmp_files
 enforce_storage_engine
 ft_max_word_len

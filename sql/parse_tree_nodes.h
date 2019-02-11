@@ -159,7 +159,7 @@ class Parse_tree_root {
   void operator=(const Parse_tree_root &) = delete;
 
  protected:
-  virtual ~Parse_tree_root(){};
+  virtual ~Parse_tree_root() {}
   Parse_tree_root() {}
 
  public:
@@ -331,6 +331,8 @@ class PT_common_table_expr : public Parse_tree_node {
     part. TABLE_LIST accesses this inferior object only.
   */
   Common_table_expr m_postparse;
+
+  friend bool SELECT_LEX_UNIT::clear_corr_ctes();
 };
 
 /**
@@ -405,6 +407,8 @@ class PT_with_clause : public Parse_tree_node {
     moment. Used to detect forward references, loops and recursiveness.
   */
   const TABLE_LIST *m_most_inner_in_parsing;
+
+  friend bool SELECT_LEX_UNIT::clear_corr_ctes();
 };
 
 class PT_select_item_list : public PT_item_list {
@@ -562,12 +566,14 @@ class PT_derived_table : public PT_table_reference {
   typedef PT_table_reference super;
 
  public:
-  PT_derived_table(PT_subquery *subquery, const LEX_CSTRING &table_alias,
+  PT_derived_table(bool lateral, PT_subquery *subquery,
+                   const LEX_CSTRING &table_alias,
                    Create_col_name_list *column_names);
 
   virtual bool contextualize(Parse_context *pc);
 
  private:
+  bool m_lateral;
   PT_subquery *m_subquery;
   const char *const m_table_alias;
   /// List of explicitely specified column names; if empty, no list.
@@ -934,7 +940,10 @@ class PT_internal_variable_name_1d : public PT_internal_variable_name {
 class PT_internal_variable_name_2d : public PT_internal_variable_name {
   typedef PT_internal_variable_name super;
 
-  POS pos;
+ public:
+  const POS pos;
+
+ private:
   LEX_STRING ident1;
   LEX_STRING ident2;
 
@@ -1072,6 +1081,10 @@ class PT_option_value_no_option_type_sys_var
 
     THD *thd = pc->thd;
     struct sys_var_with_base tmp = name->value;
+    if (tmp.var == trg_new_row_fake_var) {
+      error(pc, down_cast<PT_internal_variable_name_2d *>(name)->pos);
+      return true;
+    }
     /* Lookup if necessary: must be a system variable. */
     if (tmp.var == NULL) {
       if (find_sys_var_null_base(thd, &tmp)) return true;
@@ -1128,14 +1141,17 @@ class PT_option_value_no_option_type_password
 
   const char *password;
   const char *current_password;
+  bool retain_current_password;
   POS expr_pos;
 
  public:
   PT_option_value_no_option_type_password(const char *password_arg,
                                           const char *current_password_arg,
+                                          bool retain_current,
                                           const POS &expr_pos_arg)
       : password(password_arg),
         current_password(current_password_arg),
+        retain_current_password(retain_current),
         expr_pos(expr_pos_arg) {}
 
   virtual bool contextualize(Parse_context *pc);
@@ -1148,16 +1164,19 @@ class PT_option_value_no_option_type_password_for
   LEX_USER *user;
   const char *password;
   const char *current_password;
+  bool retain_current_password;
   POS expr_pos;
 
  public:
   PT_option_value_no_option_type_password_for(LEX_USER *user_arg,
                                               const char *password_arg,
                                               const char *current_password_arg,
+                                              bool retain_current,
                                               const POS &expr_pos_arg)
       : user(user_arg),
         password(password_arg),
         current_password(current_password_arg),
+        retain_current_password(retain_current),
         expr_pos(expr_pos_arg) {}
 
   virtual bool contextualize(Parse_context *pc);
@@ -1491,8 +1510,7 @@ class PT_into_destination_outfile final : public PT_into_destination {
 
     LEX *lex = pc->thd->lex;
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-    if (!(lex->result =
-              new (*THR_MALLOC) Query_result_export(pc->thd, &m_exchange)))
+    if (!(lex->result = new (*THR_MALLOC) Query_result_export(&m_exchange)))
       return true;
 
     return false;
@@ -1515,8 +1533,7 @@ class PT_into_destination_dumpfile final : public PT_into_destination {
     LEX *lex = pc->thd->lex;
     if (!lex->is_explain()) {
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-      if (!(lex->result =
-                new (*THR_MALLOC) Query_result_dump(pc->thd, &m_exchange)))
+      if (!(lex->result = new (*THR_MALLOC) Query_result_dump(&m_exchange)))
         return true;
     }
     return false;
@@ -1581,7 +1598,7 @@ class PT_select_var_list : public PT_into_destination {
     LEX *const lex = pc->thd->lex;
     if (lex->is_explain()) return false;
 
-    Query_dumpvar *dumpvar = new (pc->mem_root) Query_dumpvar(pc->thd);
+    Query_dumpvar *dumpvar = new (pc->mem_root) Query_dumpvar();
     if (dumpvar == NULL) return true;
 
     dumpvar->var_list = value;
@@ -1600,7 +1617,7 @@ class PT_select_var_list : public PT_into_destination {
 */
 class PT_border : public Parse_tree_node {
   friend class Window;
-  Item *m_value;  ///< only relevant iff m_border_type == WBT_VALUE_*
+  Item *m_value{nullptr};  ///< only relevant iff m_border_type == WBT_VALUE_*
  public:
   enum_window_border_type m_border_type;
   const bool m_date_time;
@@ -1694,7 +1711,7 @@ class PT_frame : public Parse_tree_node {
       : m_unit(unit),
         m_from(from_to->m_borders[0]),
         m_to(from_to->m_borders[1]),
-        m_exclusion(exclusion){};
+        m_exclusion(exclusion) {}
 };
 
 /**
@@ -1960,11 +1977,14 @@ class PT_subquery : public Parse_tree_node {
     pc->select->n_child_sum_items += child->n_sum_items;
 
     /*
-      A subquery can add columns to an outer query block. Reserve space for
-      them.
+      A subquery (and all the subsequent query blocks in a UNION) can add
+      columns to an outer query block. Reserve space for them.
     */
-    pc->select->select_n_where_fields += child->select_n_where_fields;
-    pc->select->select_n_having_items += child->select_n_having_items;
+    for (SELECT_LEX *temp = child; temp != nullptr;
+         temp = temp->next_select()) {
+      pc->select->select_n_where_fields += temp->select_n_where_fields;
+      pc->select->select_n_having_items += temp->select_n_having_items;
+    }
 
     return false;
   }
@@ -2813,7 +2833,7 @@ class PT_foreign_key_definition : public PT_table_constraint_def {
 */
 class PT_ddl_table_option : public Table_ddl_node {
  public:
-  virtual ~PT_ddl_table_option() = 0;  // Force abstract class declaration
+  ~PT_ddl_table_option() override = 0;  // Force abstract class declaration
 
   virtual bool is_rename_table() const { return false; }
 };
@@ -2829,7 +2849,7 @@ class PT_create_table_option : public PT_ddl_table_option {
   typedef PT_ddl_table_option super;
 
  public:
-  virtual ~PT_create_table_option() = 0;  // Force abstract class declaration
+  ~PT_create_table_option() override = 0;  // Force abstract class declaration
 
   bool contextualize(Table_ddl_parse_context *pc) override {
     if (super::contextualize(pc)) return true;
@@ -3145,7 +3165,7 @@ class PT_create_table_secondary_engine_option : public PT_create_table_option {
   using super = PT_create_table_option;
 
  public:
-  explicit PT_create_table_secondary_engine_option(){};
+  explicit PT_create_table_secondary_engine_option() {}
   explicit PT_create_table_secondary_engine_option(
       const LEX_STRING &secondary_engine)
       : m_secondary_engine(secondary_engine) {}
@@ -4023,21 +4043,6 @@ class PT_alter_table_remove_partitioning : public PT_alter_table_action {
       : super(Alter_info::ALTER_REMOVE_PARTITIONING) {}
 };
 
-class PT_alter_table_secondary_load : public PT_alter_table_action {
-  using super = PT_alter_table_action;
-
- public:
-  PT_alter_table_secondary_load() : super(Alter_info::ALTER_SECONDARY_LOAD) {}
-};
-
-class PT_alter_table_secondary_unload : public PT_alter_table_action {
-  using super = PT_alter_table_action;
-
- public:
-  PT_alter_table_secondary_unload()
-      : super(Alter_info::ALTER_SECONDARY_UNLOAD) {}
-};
-
 class PT_alter_table_standalone_action : public PT_alter_table_action {
   typedef PT_alter_table_action super;
 
@@ -4438,6 +4443,32 @@ class PT_alter_table_exchange_partition final
   const LEX_STRING m_partition_name;
   Table_ident *m_table_name;
   const Alter_info::enum_with_validation m_validation;
+};
+
+class PT_alter_table_secondary_load final
+    : public PT_alter_table_standalone_action {
+  using super = PT_alter_table_standalone_action;
+
+ public:
+  explicit PT_alter_table_secondary_load()
+      : super(Alter_info::ALTER_SECONDARY_LOAD) {}
+
+  Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
+    return new (pc->mem_root) Sql_cmd_secondary_load_unload(pc->alter_info);
+  }
+};
+
+class PT_alter_table_secondary_unload final
+    : public PT_alter_table_standalone_action {
+  using super = PT_alter_table_standalone_action;
+
+ public:
+  explicit PT_alter_table_secondary_unload()
+      : super(Alter_info::ALTER_SECONDARY_UNLOAD) {}
+
+  Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
+    return new (pc->mem_root) Sql_cmd_secondary_load_unload(pc->alter_info);
+  }
 };
 
 class PT_alter_table_discard_partition_tablespace final
@@ -4860,6 +4891,7 @@ class PT_json_table_column_with_path final : public PT_json_table_column {
 
  public:
   PT_json_table_column_with_path(const LEX_STRING &name, PT_type *type,
+                                 const CHARSET_INFO *collation,
                                  enum_jt_column col_type, LEX_STRING path,
                                  enum_jtc_on on_err,
                                  const LEX_STRING &error_def,
@@ -4867,7 +4899,8 @@ class PT_json_table_column_with_path final : public PT_json_table_column {
                                  const LEX_STRING &missing_def)
       : m_column(col_type, path, on_err, error_def, on_empty, missing_def),
         m_name(name.str),
-        m_type(type) {}
+        m_type(type),
+        m_collation(collation) {}
 
   bool contextualize(Parse_context *pc) override;
 
@@ -4877,6 +4910,7 @@ class PT_json_table_column_with_path final : public PT_json_table_column {
   Json_table_column m_column;
   const char *m_name;
   PT_type *m_type;
+  const CHARSET_INFO *m_collation;
 };
 
 class PT_json_table_column_with_nested_path final
@@ -5099,8 +5133,6 @@ class PT_create_resource_group final : public Parse_tree_root {
     thd->lex->sql_command = SQLCOM_CREATE_RESOURCE_GROUP;
     return &sql_cmd;
   }
-
-  virtual ~PT_create_resource_group() {}
 };
 
 /**
@@ -5132,8 +5164,6 @@ class PT_alter_resource_group final : public Parse_tree_root {
     thd->lex->sql_command = SQLCOM_ALTER_RESOURCE_GROUP;
     return &sql_cmd;
   }
-
-  virtual ~PT_alter_resource_group() {}
 };
 
 /**
@@ -5155,8 +5185,6 @@ class PT_drop_resource_group final : public Parse_tree_root {
     thd->lex->sql_command = SQLCOM_DROP_RESOURCE_GROUP;
     return &sql_cmd;
   }
-
-  virtual ~PT_drop_resource_group() {}
 };
 
 /**
@@ -5179,8 +5207,6 @@ class PT_set_resource_group final : public Parse_tree_root {
     thd->lex->sql_command = SQLCOM_SET_RESOURCE_GROUP;
     return &sql_cmd;
   }
-
-  virtual ~PT_set_resource_group() {}
 };
 
 class PT_explain_for_connection final : public Parse_tree_root {

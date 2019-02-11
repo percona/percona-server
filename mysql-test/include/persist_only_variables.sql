@@ -117,7 +117,6 @@ set @@persist_only.report_user=NULL;
 
 # Added by Percona
 call mtr.add_suppression('Default storage engine \\(InnoDB\\) is not the same as enforced storage engine \\(MyISAM\\)');
-set @@persist_only.encrypt_binlog=FALSE;
 set @@persist_only.encrypt_tmp_files=TRUE;
 set @@persist_only.enforce_storage_engine='MyISAM';
 set @@persist_only.binlog_space_limit=134217728;

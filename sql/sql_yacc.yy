@@ -98,6 +98,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_partition.h"                    /* mem_alloc_error */
 #include "sql/sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
 #include "sql/sql_plugin.h"                      // plugin_is_ready
+#include "sql/sql_profile.h"
 #include "sql/sql_select.h"                        // Sql_cmd_select...
 #include "sql/sql_servers.h"
 #include "sql/sql_show_status.h"                 // build_show_session_status, ...
@@ -640,7 +641,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> DIAGNOSTICS_SYM       /* SQL-2003-N */
 %token<keyword> DIRECTORY_SYM
 %token<keyword> DISABLE_SYM
-%token<keyword> DISCARD
+%token<keyword> DISCARD_SYM           /* MYSQL */
 %token<keyword> DISK_SYM
 %token  DISTINCT                      /* SQL-2003-R */
 %token  DIV_SYM
@@ -1181,7 +1182,7 @@ void warn_about_deprecated_national(THD *thd)
 %token  PERSIST_ONLY_SYM              /* MYSQL */
 %token<keyword> HISTOGRAM_SYM         /* MYSQL */
 %token<keyword> BUCKETS_SYM           /* MYSQL */
-%token<keyword> REMOTE_SYM            /* MYSQL */
+%token<keyword> OBSOLETE_TOKEN_930    /* was: REMOTE_SYM */
 %token<keyword> CLONE_SYM             /* MYSQL */
 %token  CUME_DIST_SYM                 /* SQL-2003-R */
 %token  DENSE_RANK_SYM                /* SQL-2003-R */
@@ -1224,10 +1225,15 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> DESCRIPTION_SYM               /* MYSQL */
 %token<keyword> ORGANIZATION_SYM              /* MYSQL */
 %token<keyword> REFERENCE_SYM                 /* MYSQL */
+%token<keyword> ACTIVE_SYM                    /* MYSQL */
+%token<keyword> INACTIVE_SYM                  /* MYSQL */
+%token          LATERAL_SYM                   /* SQL-1999-R */
 %token<keyword> OPTIONAL_SYM                  /* MYSQL */
 %token<keyword> SECONDARY_ENGINE_SYM          /* MYSQL */
 %token<keyword> SECONDARY_LOAD_SYM            /* MYSQL */
 %token<keyword> SECONDARY_UNLOAD_SYM          /* MYSQL */
+%token<keyword> RETAIN_SYM                    /* MYSQL */
+%token<keyword> OLD_SYM                       /* SQL-2003-R */
 
 /*
    Tokens from Percona Server 5.7 and older
@@ -1284,11 +1290,12 @@ void warn_about_deprecated_national(THD *thd)
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
         NCHAR_STRING opt_component key_cache_name
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
-        TEXT_STRING_sys_nonewline
+        TEXT_STRING_sys_nonewline TEXT_STRING_password TEXT_STRING_hash
         filter_wild_db_table_string
         opt_constraint
-        ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name
+        ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name opt_ts_datafile_name
         opt_describe_column
+        opt_datadir_ssl
 
 %type <lex_cstr>
         opt_table_alias
@@ -1454,7 +1461,7 @@ void warn_about_deprecated_national(THD *thd)
 %type <keyword> ident_keyword label_keyword role_keyword
         role_or_label_keyword role_or_ident_keyword
 
-%type <lex_user> user create_or_alter_user alter_user user_func role
+%type <lex_user> user create_user alter_user user_func role
 
 %type <charset>
         opt_collate
@@ -1501,10 +1508,11 @@ void warn_about_deprecated_national(THD *thd)
 %type <is_not_empty> opt_convert_xid opt_ignore opt_linear opt_bin_mod
         opt_if_not_exists opt_temporary
         opt_grant_option opt_with_admin_option
-        opt_for_replication
         opt_full opt_extended
         opt_ignore_leaves
         opt_local
+        opt_retain_current_password
+        opt_discard_old_password
 
 %type <show_cmd_type> opt_show_cmd_type
 
@@ -1856,6 +1864,7 @@ void warn_about_deprecated_national(THD *thd)
                    tablespace_option_list opt_tablespace_options
                    alter_tablespace_option_list opt_alter_tablespace_options
                    opt_drop_ts_options drop_ts_option_list
+                   undo_tablespace_option_list opt_undo_tablespace_options
 
 %type <alter_table_standalone_action> standalone_alter_commands
 
@@ -1881,6 +1890,7 @@ void warn_about_deprecated_national(THD *thd)
         drop_ts_option
         logfile_group_option
         tablespace_option
+        undo_tablespace_option
         ts_option_autoextend_size
         ts_option_comment
         ts_option_engine
@@ -1901,6 +1911,9 @@ void warn_about_deprecated_national(THD *thd)
 %type <load_set_list> load_data_set_list opt_load_data_set_spec
 
 %type <sql_cmd_srs_attributes> srs_attributes
+
+%type <alter_tablespace_type> undo_tablespace_state
+
 
 %%
 
@@ -2032,6 +2045,7 @@ simple_statement:
         | alter_resource_group_stmt
         | alter_server_stmt             { $$= nullptr; }
         | alter_tablespace_stmt         { $$= nullptr; }
+        | alter_undo_tablespace_stmt    { $$= nullptr; }
         | alter_table_stmt
         | alter_user_stmt               { $$= nullptr; }
         | alter_view_stmt               { $$= nullptr; }
@@ -2064,6 +2078,7 @@ simple_statement:
         | drop_server_stmt              { $$= nullptr; }
         | drop_srs_stmt
         | drop_tablespace_stmt          { $$= nullptr; }
+        | drop_undo_tablespace_stmt     { $$= nullptr; }
         | drop_table_stmt               { $$= nullptr; }
         | drop_trigger_stmt             { $$= nullptr; }
         | drop_user_stmt                { $$= nullptr; }
@@ -2767,12 +2782,31 @@ create:
 
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
           }
-        | CREATE TABLESPACE_SYM ident ADD ts_datafile
+        | CREATE TABLESPACE_SYM ident opt_ts_datafile_name
           opt_logfile_group_name opt_tablespace_options
           {
             auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
             if (pc == NULL)
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
+
+            if ($6 != NULL)
+            {
+              if (YYTHD->is_error() || contextualize_array(pc, $6))
+                MYSQL_YYABORT;
+            }
+
+            auto cmd= NEW_PTN Sql_cmd_create_tablespace{$3, $4, $5, pc};
+            if (!cmd)
+              MYSQL_YYABORT; /* purecov: inspected */ //OOM
+            Lex->m_sql_cmd= cmd;
+            Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
+          }
+        | CREATE UNDO_SYM TABLESPACE_SYM ident ADD ts_datafile
+          opt_undo_tablespace_options
+          {
+            auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
+            if (pc == NULL)
+              MYSQL_YYABORT; // OOM
 
             if ($7 != NULL)
             {
@@ -2780,9 +2814,10 @@ create:
                 MYSQL_YYABORT;
             }
 
-            auto cmd= NEW_PTN Sql_cmd_create_tablespace{$3, $5, $6, pc};
+            auto cmd= NEW_PTN Sql_cmd_create_undo_tablespace{
+              CREATE_UNDO_TABLESPACE, $4, $6, pc};
             if (!cmd)
-              MYSQL_YYABORT; /* purecov: inspected */ //OOM
+              MYSQL_YYABORT; //OOM
             Lex->m_sql_cmd= cmd;
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
           }
@@ -5189,6 +5224,14 @@ trg_event:
   DROP LOGFILE GROUP_SYM name
 */
 
+opt_ts_datafile_name:
+    /* empty */ { $$= { nullptr, 0}; }
+    | ADD ts_datafile
+      {
+        $$ = $2;
+      }
+    ;
+
 opt_logfile_group_name:
           /* empty */ { $$= { nullptr, 0}; }
         | USE_SYM LOGFILE_SYM GROUP_SYM ident
@@ -5259,6 +5302,30 @@ alter_tablespace_option:
 	| ts_option_encryption
         ;
 
+opt_undo_tablespace_options:
+          /* empty */ { $$= NULL; }
+        | undo_tablespace_option_list
+        ;
+
+undo_tablespace_option_list:
+          undo_tablespace_option
+          {
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | undo_tablespace_option_list opt_comma undo_tablespace_option
+          {
+            $$= $1;
+            if ($$->push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
+        ;
+
+undo_tablespace_option:
+          ts_option_engine
+        ;
+
 opt_logfile_group_options:
           /* empty */ { $$= NULL; }
         | logfile_group_option_list
@@ -5317,6 +5384,11 @@ alter_logfile_group_option:
 
 ts_datafile:
           DATAFILE_SYM TEXT_STRING_sys { $$= $2; }
+        ;
+
+undo_tablespace_state:
+          ACTIVE_SYM   { $$= ALTER_UNDO_TABLESPACE_SET_ACTIVE; }
+        | INACTIVE_SYM { $$= ALTER_UNDO_TABLESPACE_SET_INACTIVE; }
         ;
 
 lg_undofile:
@@ -7499,6 +7571,30 @@ alter_tablespace_stmt:
           }
         ;
 
+alter_undo_tablespace_stmt:
+          ALTER UNDO_SYM TABLESPACE_SYM ident SET_SYM undo_tablespace_state
+          opt_undo_tablespace_options
+          {
+            auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
+            if (pc == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($7 != NULL)
+            {
+              if (YYTHD->is_error() || contextualize_array(pc, $7))
+                MYSQL_YYABORT;
+            }
+
+            auto cmd= NEW_PTN Sql_cmd_alter_undo_tablespace{
+              ALTER_UNDO_TABLESPACE, $4,
+              {nullptr, 0}, pc, $6};
+            if (!cmd)
+              MYSQL_YYABORT; //OOM
+            Lex->m_sql_cmd= cmd;
+            Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
+          }
+        ;
+
 alter_server_stmt:
           ALTER SERVER_SYM ident_or_text OPTIONS_SYM '(' server_options_list ')'
           {
@@ -7514,7 +7610,7 @@ alter_user_stmt:
           alter_user_command alter_user_list require_clause
           connect_options opt_account_lock_password_expire_options
         | alter_user_command user_func IDENTIFIED_SYM BY TEXT_STRING
-          opt_replace_password
+          opt_replace_password opt_retain_current_password
           {
             $2->auth.str= $5.str;
             $2->auth.length= $5.length;
@@ -7524,6 +7620,14 @@ alter_user_stmt:
               $2->uses_replace_clause= true;
             }
             Lex->contains_plaintext_password= true;
+            $2->discard_old_password= false;
+            $2->retain_current_password= $7;
+          }
+        | alter_user_command user_func DISCARD_SYM OLD_SYM PASSWORD
+          {
+            $2->discard_old_password= true;
+            $2->retain_current_password= false;
+            $2->auth= NULL_CSTR;
           }
         | alter_user_command user DEFAULT_SYM ROLE_SYM ALL
           {
@@ -7563,8 +7667,8 @@ alter_user_stmt:
         ;
 
 opt_replace_password:
-          /* empty */                   { $$ = LEX_CSTRING{nullptr, 0}; }
-        | REPLACE_SYM TEXT_STRING       { $$ = to_lex_cstring($2); }
+          /* empty */                       { $$ = LEX_CSTRING{nullptr, 0}; }
+        | REPLACE_SYM TEXT_STRING_password  { $$ = to_lex_cstring($2); }
         ;
 
 alter_resource_group_stmt:
@@ -7838,7 +7942,7 @@ opt_alter_command_list:
         ;
 
 standalone_alter_commands:
-          DISCARD TABLESPACE_SYM
+          DISCARD_SYM TABLESPACE_SYM
           {
             $$= NEW_PTN PT_alter_table_discard_tablespace;
           }
@@ -7918,7 +8022,7 @@ standalone_alter_commands:
           {
             $$= NEW_PTN PT_alter_table_exchange_partition($3, $6, $7);
           }
-        | DISCARD PARTITION_SYM all_or_alt_part_name_list
+        | DISCARD_SYM PARTITION_SYM all_or_alt_part_name_list
           TABLESPACE_SYM
           {
             $$= NEW_PTN PT_alter_table_discard_partition_tablespace($3);
@@ -7927,6 +8031,14 @@ standalone_alter_commands:
           TABLESPACE_SYM
           {
             $$= NEW_PTN PT_alter_table_import_partition_tablespace($3);
+          }
+        | SECONDARY_LOAD_SYM
+          {
+            $$= NEW_PTN PT_alter_table_secondary_load;
+          }
+        | SECONDARY_UNLOAD_SYM
+          {
+            $$= NEW_PTN PT_alter_table_secondary_unload;
           }
         ;
 
@@ -8087,14 +8199,6 @@ alter_list_item:
         | ORDER_SYM BY alter_order_list
           {
             $$= NEW_PTN PT_alter_table_order($3);
-          }
-        | SECONDARY_LOAD_SYM
-          {
-            $$= NEW_PTN PT_alter_table_secondary_load;
-          }
-        | SECONDARY_UNLOAD_SYM
-          {
-            $$= NEW_PTN PT_alter_table_secondary_unload;
           }
         ;
 
@@ -10492,7 +10596,7 @@ gorder_list:
         | order_expr
           {
             $$= NEW_PTN PT_gorder_list();
-            if ($1 == NULL)
+            if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
           }
@@ -10916,7 +11020,15 @@ derived_table:
               my_message(ER_DERIVED_MUST_HAVE_ALIAS,
                          ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
 
-            $$= NEW_PTN PT_derived_table($1, $2, &$3);
+            $$= NEW_PTN PT_derived_table(false, $1, $2, &$3);
+          }
+        | LATERAL_SYM table_subquery opt_table_alias opt_derived_column_list
+          {
+            if ($3.str == nullptr)
+              my_message(ER_DERIVED_MUST_HAVE_ALIAS,
+                         ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
+
+            $$= NEW_PTN PT_derived_table(true, $2, $3, &$4);
           }
         ;
 
@@ -10963,14 +11075,14 @@ jt_column:
           {
             $$= NEW_PTN PT_json_table_column_for_ordinality($1);
           }
-        | ident type jt_column_type PATH_SYM TEXT_STRING_sys
+        | ident type opt_collate jt_column_type PATH_SYM TEXT_STRING_sys
           opt_on_empty_or_error
           {
-            $$= NEW_PTN PT_json_table_column_with_path($1, $2, $3, $5 ,
-                                                       $6.error.type,
-                                                       *$6.error.default_str,
-                                                       $6.empty.type,
-                                                       *$6.empty.default_str);
+            $$= NEW_PTN PT_json_table_column_with_path($1, $2, $3, $4, $6,
+                                                       $7.error.type,
+                                                       *$7.error.default_str,
+                                                       $7.empty.type,
+                                                       *$7.empty.default_str);
           }
         | NESTED_SYM PATH_SYM TEXT_STRING_sys columns_clause
           {
@@ -11377,7 +11489,7 @@ group_list:
         | grouping_expr
           {
             $$= NEW_PTN PT_order_list();
-            if ($1 == NULL)
+            if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
           }
@@ -11447,7 +11559,7 @@ order_list:
         | order_expr
           {
             $$= NEW_PTN PT_order_list();
-            if ($1 == NULL)
+            if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
           }
@@ -11817,6 +11929,28 @@ drop_tablespace_stmt:
             Lex->m_sql_cmd= cmd;
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
           }
+        
+drop_undo_tablespace_stmt:
+          DROP UNDO_SYM TABLESPACE_SYM ident opt_undo_tablespace_options
+          {
+            auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
+            if (pc == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($5 != NULL)
+            {
+              if (YYTHD->is_error() || contextualize_array(pc, $5))
+                MYSQL_YYABORT;
+            }
+
+            auto cmd= NEW_PTN Sql_cmd_drop_undo_tablespace{
+              DROP_UNDO_TABLESPACE, $4, {nullptr, 0},  pc};
+            if (!cmd)
+              MYSQL_YYABORT; // OOM
+            Lex->m_sql_cmd= cmd;
+            Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
+          }
+        ;
 
 drop_logfile_stmt:
           DROP LOGFILE_SYM GROUP_SYM ident opt_drop_ts_options
@@ -13840,6 +13974,14 @@ TEXT_STRING_filesystem:
           }
         ;
 
+TEXT_STRING_password:
+          TEXT_STRING
+        ;
+
+TEXT_STRING_hash:
+          TEXT_STRING_sys
+        ;
+
 ident:
           IDENT_sys    { $$=$1; }
         | ident_keyword
@@ -14033,6 +14175,7 @@ label_keyword:
 // These are the non-reserved keywords which may be used for roles or SP labels.
 role_or_label_keyword:
           ACTION
+        | ACTIVE_SYM
         | ADDDATE_SYM
         | ADMIN_SYM
         | AFTER_SYM
@@ -14082,8 +14225,6 @@ role_or_label_keyword:
         | CONSTRAINT_SCHEMA_SYM
         | CONTEXT_SYM
         | CPU_SYM
-        | ENCRYPTION_SYM
-        | ENCRYPTION_KEY_ID_SYM
         /*
           Although a reserved keyword in SQL:2003 (and :2008),
           not reserved in MySQL per WL#2111 specification.
@@ -14103,13 +14244,15 @@ role_or_label_keyword:
         | DIAGNOSTICS_SYM
         | DIRECTORY_SYM
         | DISABLE_SYM
-        | DISCARD
+        | DISCARD_SYM
         | DISK_SYM
         | DUMPFILE
         | DUPLICATE_SYM
         | DYNAMIC_SYM
         | EFFECTIVE_SYM
         | ENABLE_SYM
+        | ENCRYPTION_KEY_ID_SYM
+        | ENCRYPTION_SYM
         | ENDS_SYM
         | ENGINES_SYM
         | ENGINE_SYM
@@ -14154,6 +14297,7 @@ role_or_label_keyword:
         | INITIAL_SIZE_SYM
         | INSERT_METHOD
         | INSTANCE_SYM
+        | INACTIVE_SYM
         | INVOKER_SYM
         | IO_SYM
         | IPC_SYM
@@ -14233,6 +14377,7 @@ role_or_label_keyword:
         | NUMBER_SYM
         | NVARCHAR_SYM
         | OFFSET_SYM
+        | OLD_SYM
         | ONE_SYM
         | ONLY_SYM
         | OPTIONAL_SYM
@@ -14273,7 +14418,6 @@ role_or_label_keyword:
         | RELAY_LOG_POS_SYM
         | RELAYLOG_SYM
         | RELAY_THREAD
-        | REMOTE_SYM
         | REORGANIZE_SYM
         | REPEATABLE_SYM
         | REPLICATE_DO_DB
@@ -14286,6 +14430,7 @@ role_or_label_keyword:
         | RESOURCES
         | RESPECT_SYM
         | RESUME_SYM
+        | RETAIN_SYM
         | RETURNED_SQLSTATE_SYM
         | RETURNS_SYM
         | REUSE_SYM
@@ -14432,15 +14577,18 @@ start_option_value_list:
           {
             $$= NEW_PTN PT_start_option_value_list_type($1, $2);
           }
-        | PASSWORD equal TEXT_STRING opt_replace_password
+        | PASSWORD equal TEXT_STRING_password opt_replace_password opt_retain_current_password
           {
-            $$= NEW_PTN PT_option_value_no_option_type_password($3.str,
-                                                                $4.str, @4);
+            $$= NEW_PTN PT_option_value_no_option_type_password($3.str, $4.str,
+                                                                $5,
+                                                                @4);
           }
-        | PASSWORD FOR_SYM user equal TEXT_STRING opt_replace_password
+        | PASSWORD FOR_SYM user equal TEXT_STRING_password opt_replace_password opt_retain_current_password
           {
             $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5.str,
-                                                                    $6.str, @6);
+                                                                    $6.str,
+                                                                    $7,
+                                                                    @6);
           }
         ;
 
@@ -15291,13 +15439,24 @@ role_list:
           }
         ;
 
-create_or_alter_user:
-          user IDENTIFIED_SYM BY TEXT_STRING
+opt_retain_current_password:
+          /* empty */   { $$= false; }
+        | RETAIN_SYM CURRENT_SYM PASSWORD { $$= true; }
+        ;
+
+opt_discard_old_password:
+          /* empty */   { $$= false; }
+        | DISCARD_SYM OLD_SYM PASSWORD { $$= true; }
+
+create_user:
+          user IDENTIFIED_SYM BY TEXT_STRING_password
           {
             $$=$1;
             $1->auth.str= $4.str;
             $1->auth.length= $4.length;
             $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
             Lex->contains_plaintext_password= true;
           }
         | user IDENTIFIED_SYM WITH ident_or_text
@@ -15307,8 +15466,10 @@ create_or_alter_user:
             $1->plugin.length= $4.length;
             $1->auth= EMPTY_CSTR;
             $1->uses_identified_with_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
           }
-        | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_sys
+        | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_hash
           {
             $$= $1;
             $1->plugin.str= $4.str;
@@ -15317,8 +15478,10 @@ create_or_alter_user:
             $1->auth.length= $6.length;
             $1->uses_identified_with_clause= true;
             $1->uses_authentication_string_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
           }
-        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_sys
+        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_password
           {
             $$= $1;
             $1->plugin.str= $4.str;
@@ -15327,17 +15490,21 @@ create_or_alter_user:
             $1->auth.length= $6.length;
             $1->uses_identified_with_clause= true;
             $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
             Lex->contains_plaintext_password= true;
           }
         | user
           {
             $$= $1;
             $1->auth= NULL_CSTR;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
           }
         ;
 
 alter_user:
-         user IDENTIFIED_SYM BY TEXT_STRING REPLACE_SYM TEXT_STRING
+         user IDENTIFIED_SYM BY TEXT_STRING REPLACE_SYM TEXT_STRING_password opt_retain_current_password
           {
             $$=$1;
             $1->auth.str= $4.str;
@@ -15346,9 +15513,12 @@ alter_user:
             $1->current_auth.str= $6.str;
             $1->current_auth.length= $6.length;
             $1->uses_replace_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $7;
             Lex->contains_plaintext_password= true;
           }
-        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING REPLACE_SYM TEXT_STRING
+        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_password REPLACE_SYM TEXT_STRING_password
+          opt_retain_current_password
           {
             $$= $1;
             $1->plugin.str= $4.str;
@@ -15360,18 +15530,73 @@ alter_user:
             $1->uses_replace_clause= true;
             $1->uses_identified_with_clause= true;
             $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $9;
             Lex->contains_plaintext_password= true;
           }
-        | create_or_alter_user
+        | user IDENTIFIED_SYM BY TEXT_STRING_password opt_retain_current_password
+          {
+            $$=$1;
+            $1->auth.str= $4.str;
+            $1->auth.length= $4.length;
+            $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $5;
+            Lex->contains_plaintext_password= true;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->auth= EMPTY_CSTR;
+            $1->uses_identified_with_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_hash
+          opt_retain_current_password
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->auth.str= $6.str;
+            $1->auth.length= $6.length;
+            $1->uses_identified_with_clause= true;
+            $1->uses_authentication_string_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $7;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_password
+          opt_retain_current_password
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->auth.str= $6.str;
+            $1->auth.length= $6.length;
+            $1->uses_identified_with_clause= true;
+            $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $7;
+            Lex->contains_plaintext_password= true;
+          }
+        | user opt_discard_old_password
+          {
+            $$= $1;
+            $1->discard_old_password= $2;
+            $1->retain_current_password= false;
+            $1->auth= NULL_CSTR;
+          }
         ;
 
 create_user_list:
-          create_or_alter_user
+          create_user
           {
             if (Lex->users_list.push_back($1))
               MYSQL_YYABORT;
           }
-        | create_user_list ',' create_or_alter_user
+        | create_user_list ',' create_user
           {
             if (Lex->users_list.push_back($3))
               MYSQL_YYABORT;
@@ -16277,29 +16502,62 @@ import_stmt:
 Clone local/remote replica statements.
 
 **************************************************************************/
-
 clone_stmt:
           CLONE_SYM LOCAL_SYM
           DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_filesystem
           {
             Lex->sql_command= SQLCOM_CLONE;
-            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone_local($6.str);
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone(to_lex_cstring($6));
             if (Lex->m_sql_cmd == nullptr)
               MYSQL_YYABORT;
           }
-        | CLONE_SYM REMOTE_SYM opt_for_replication
-          DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_filesystem
+
+        | CLONE_SYM INSTANCE_SYM FROM user ':' ulong_num
+          IDENTIFIED_SYM BY TEXT_STRING_sys
+          opt_datadir_ssl
           {
             Lex->sql_command= SQLCOM_CLONE;
-            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone_remote($3, $7.str);
+            /* Reject space characters around ':' */
+            if (@6.raw.start - @4.raw.end != 1) {
+              YYTHD->syntax_error_at(@5);
+              MYSQL_YYABORT;
+            }
+            $4->auth.str= $9.str;
+            $4->auth.length= $9.length;
+            $4->uses_identified_by_clause= true;
+            Lex->contains_plaintext_password= true;
+
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone($4, $6, to_lex_cstring($10));
+
             if (Lex->m_sql_cmd == nullptr)
               MYSQL_YYABORT;
           }
         ;
 
-opt_for_replication:
-          /* empty */         { $$= false; }
-        | FOR_SYM REPLICATION { $$= true; }
+opt_datadir_ssl:
+          opt_ssl
+          {
+            $$= null_lex_str;
+          }
+        | DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_filesystem opt_ssl
+          {
+            $$= $4;
+          }
+        ;
+
+opt_ssl:
+          /* empty */
+          {
+            Lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+          }
+        | REQUIRE_SYM SSL_SYM
+          {
+            Lex->ssl_type= SSL_TYPE_SPECIFIED;
+          }
+        | REQUIRE_SYM NO_SYM SSL_SYM
+          {
+            Lex->ssl_type= SSL_TYPE_NONE;
+          }
         ;
 
 resource_group_types:

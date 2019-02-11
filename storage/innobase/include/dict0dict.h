@@ -896,7 +896,7 @@ rec_t *dict_index_copy_rec_order_prefix(
     ulint *n_fields,           /*!< out: number of fields copied */
     byte **buf,                /*!< in/out: memory buffer for the
                                copied prefix, or NULL */
-    ulint *buf_size)           /*!< in/out: buffer size */
+    size_t *buf_size)          /*!< in/out: buffer size */
     MY_ATTRIBUTE((warn_unused_result));
 /** Builds a typed data tuple out of a physical record.
  @return own: data tuple */
@@ -1196,9 +1196,12 @@ struct dict_sys_t {
   /** The innodb_temporary tablespace ID. */
   static constexpr space_id_t s_temp_space_id = 0xFFFFFFFD;
 
+  /** The number of space IDs dedicated to each undo tablespace */
+  static constexpr space_id_t undo_space_id_range = 512;
+
   /** The lowest undo tablespace ID. */
   static constexpr space_id_t s_min_undo_space_id =
-      s_log_space_first_id - TRX_SYS_N_RSEGS;
+      s_log_space_first_id - (FSP_MAX_UNDO_TABLESPACES * undo_space_id_range);
 
   /** The highest undo  tablespace ID. */
   static constexpr space_id_t s_max_undo_space_id = s_log_space_first_id - 1;
@@ -1240,6 +1243,10 @@ struct dict_sys_t {
 
   /** The hard-coded tablespace name innodb_file_per_table. */
   static const char *s_file_per_table_name;
+
+  /** These two undo tablespaces cannot be dropped. */
+  static const char *s_default_undo_space_name_1;
+  static const char *s_default_undo_space_name_2;
 
   /** The table ID of mysql.innodb_dynamic_metadata */
   static constexpr table_id_t s_dynamic_meta_table_id = 2;
@@ -1615,12 +1622,12 @@ UNIV_INLINE
 bool dict_table_have_virtual_index(dict_table_t *table);
 
 /** Retrieve in-memory index for SDI table.
-@param[in]	tablespace_id	innodb tablespace id
+@param[in]	tablespace_id	innodb tablespace ID
 @return dict_index_t structure or NULL*/
 dict_index_t *dict_sdi_get_index(space_id_t tablespace_id);
 
 /** Retrieve in-memory table object for SDI table.
-@param[in]	tablespace_id	innodb tablespace id
+@param[in]	tablespace_id	innodb tablespace ID
 @param[in]	dict_locked	true if dict_sys mutex is acquired
 @param[in]	is_create	true when creating SDI Index
 @return dict_table_t structure */
@@ -1628,7 +1635,7 @@ dict_table_t *dict_sdi_get_table(space_id_t tablespace_id, bool dict_locked,
                                  bool is_create);
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	space_id	InnoDB tablespace ID
 @param[in]	sdi_table	SDI table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void dict_sdi_remove_from_cache(space_id_t space_id, dict_table_t *sdi_table,
@@ -1663,7 +1670,7 @@ Acquistion order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl
-2. row_drop_table_from_cache()/innobase_drop_tablespace()
+2. row_drop_table_from_cache()/innodb_drop_tablespace()
    ->dd_sdi_remove_from_cache()->dd_table_open_on_id()
 
 In purge:
@@ -1687,7 +1694,7 @@ Acquistion order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl
-2. row_drop_table_from_cache()/innobase_drop_tablespace()
+2. row_drop_table_from_cache()/innodb_drop_tablespace()
    ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
 
 In purge:

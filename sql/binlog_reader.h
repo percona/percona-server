@@ -43,7 +43,7 @@
 Binlog_read_error::Error_type binlog_event_deserialize(
     const unsigned char *event_data, unsigned int event_data_len,
     const Format_description_event *fde, bool verify_checksum,
-    Log_event **event, bool force_opt = false);
+    Log_event **event);
 
 class Default_binlog_event_allocator {
  public:

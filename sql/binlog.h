@@ -47,7 +47,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // Item_result
-#include "sql/binlog_crypt_data.h"
 #include "sql/binlog_reader.h"  // Binlog_file_reader
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_trx_tracking.h"
@@ -245,9 +244,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   // current file sequence number for load data infile binary logging
   uint file_id;
-
-  /* binlog encryption data */
-  Binlog_crypt_data crypto;
 
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
@@ -1062,8 +1058,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
       @retval !=0    Error
   */
   int get_gtid_executed(Sid_map *sid_map, Gtid_set *gtid_set);
-
-  Binlog_crypt_data *get_crypto_data() { return &crypto; }
 
  public:
   /**

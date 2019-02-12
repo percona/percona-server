@@ -25,11 +25,21 @@ SHOW COLUMNS IN t1;
 # Valid values
 # (cannot get MAX for all columns due to max_allowed_packet limitations)
 
+# 8.0 now properly validates BLOB(0) and returns an error
+--error ER_DATA_TOO_LONG
 INSERT INTO t1 (t,t0,t1,t300,tm,t70k,t17m,tt,m,l) VALUES
 ('','','','','','','','','',''),
 ('a','b','c','d','e','f','g','h','i','j'),
 ('test1','test2','test3','test4','test5','test6','test7','test8','test9','test10'),
 ( REPEAT('a',65535), REPEAT('b',65535), REPEAT('c',255), REPEAT('d',65535), REPEAT('e',65535), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',255), REPEAT('i',1048576), REPEAT('j',1048576) );
+
+# now let's succeed in 8.0
+INSERT INTO t1 (t,t0,t1,t300,tm,t70k,t17m,tt,m,l) VALUES
+('','','','','','','','','',''),
+('a','b','c','d','e','f','g','h','i','j'),
+('test1','test2','test3','test4','test5','test6','test7','test8','test9','test10'),
+( REPEAT('a',65535), REPEAT('b',255), REPEAT('c',255), REPEAT('d',65535), REPEAT('e',65535), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',255), REPEAT('i',1048576), REPEAT('j',1048576) );
+
 
 --sorted_result
 SELECT LENGTH(t), LENGTH(t0), LENGTH(t1), LENGTH(t300), LENGTH(tm), LENGTH(t70k), LENGTH(t17m), LENGTH(tt), LENGTH(m), LENGTH(l) FROM t1;

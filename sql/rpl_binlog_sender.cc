@@ -1201,8 +1201,7 @@ int Binlog_sender::send_format_description_event(File_reader &reader,
   }
 
   binlog_read_error = binlog_event_deserialize(
-      event_ptr, event_len, &reader.format_description_event(), false, &ev,
-      reader.position());
+      event_ptr, event_len, &reader.format_description_event(), false, &ev);
 
   if (binlog_read_error.has_error()) {
     set_fatal_error(binlog_read_error.get_str());
@@ -1308,10 +1307,9 @@ inline int Binlog_sender::read_event(File_reader &reader, uchar **event_ptr,
 
   /*
     As we pre-allocate the buffer to store the event at reset_transmit_packet,
-    the buffer should not be changed while calling read_log_event (unless binlog
-    encryption is on), even knowing that it might call functions to replace the
-    buffer by one with the size to fit the event. When encryption is on - the
-    buffer will be replaced with memory allocated for storing decrypted data.
+    the buffer should not be changed while calling read_log_event, even knowing
+    that it might call functions to replace the buffer by one with the size to
+    fit the event.
   */
   assert(reinterpret_cast<char *>(*event_ptr) ==
          (m_packet.ptr() + event_offset));

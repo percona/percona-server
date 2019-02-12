@@ -45,7 +45,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // Item_result
-#include "sql/binlog_crypt_data.h"
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_trx_tracking.h"
 #include "sql/tc_log.h"            // TC_LOG
@@ -238,9 +237,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   // current file sequence number for load data infile binary logging
   uint file_id;
-
-  /* binlog encryption data */
-  Binlog_crypt_data crypto;
 
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
@@ -1018,8 +1014,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
     True while rotating binlog, which is caused by logging Incident_log_event.
   */
   bool is_rotating_caused_by_incident;
-
-  Binlog_crypt_data *get_crypto_data() { return &crypto; }
 
  private:
   void publish_coordinates_for_global_status(void) const;

@@ -37,6 +37,7 @@
 #include "myisampack.h"
 #include "my_bitmap.h"
 #include "my_stacktrace.h"
+#include "myisampack.h"
 #include "sql/field.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"

@@ -74,7 +74,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
-#include "my_rnd.h"
 #include "my_sqlcommand.h"
 #include "my_stacktrace.h"  // my_safe_print_system_time
 #include "my_thread_local.h"
@@ -4208,7 +4207,6 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
       case binary_log::ROTATE_EVENT:
-      case binary_log::START_5_7_ENCRYPTION_EVENT:
         // do nothing; just accept this event and go to next
         break;
       case binary_log::PREVIOUS_GTIDS_LOG_EVENT: {
@@ -4402,7 +4400,6 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
       case binary_log::ROTATE_EVENT:
-      case binary_log::START_5_7_ENCRYPTION_EVENT:
         // do nothing; just accept this event and go to next
         break;
       case binary_log::PREVIOUS_GTIDS_LOG_EVENT: {
@@ -5081,8 +5078,6 @@ bool MYSQL_BIN_LOG::open_binlog(
             static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
     }
   }
-
-  crypto.disable();
 
   if (!s.is_valid()) goto err;
   s.dont_set_created = null_created_arg;

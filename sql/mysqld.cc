@@ -7261,6 +7261,13 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  if (rpl_encryption.is_enabled() && !opt_bin_log) {
+    sql_print_information(
+        "binlog and relay log encryption enabled without binary logging being "
+        "enabled. "
+        "If relay logs are in use, they will be encrypted.");
+  }
+
   if (opt_bin_log) {
     /*
       Configures what object is used by the current log to store processed

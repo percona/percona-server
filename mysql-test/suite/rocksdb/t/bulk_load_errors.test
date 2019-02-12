@@ -1,6 +1,6 @@
 --source include/have_rocksdb.inc
 
-call mtr.add_suppression("Error 211");
+call mtr.add_suppression("Error 212");
 
 ### Bulk load ###
 CREATE TABLE t1(pk INT, PRIMARY KEY(pk)) ENGINE=ROCKSDB;

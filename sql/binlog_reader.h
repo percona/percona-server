@@ -42,7 +42,7 @@
 Binlog_read_error::Error_type binlog_event_deserialize(
     const unsigned char *event_data, unsigned int event_data_len,
     const Format_description_event *fde, bool verify_checksum,
-    Log_event **event, bool force_opt = false);
+    Log_event **event);
 
 class Default_binlog_event_allocator {
  public:
@@ -432,7 +432,8 @@ class Basic_binlog_file_reader {
                    binary_log::BINLOG_CHECKSUM_ALG_OFF ||
                m_fde.footer()->checksum_alg ==
                    binary_log::BINLOG_CHECKSUM_ALG_CRC32);
-      } else if (ev->get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT &&
+      } else if (ev->get_type_code() ==
+                     binary_log::START_5_7_ENCRYPTION_EVENT &&
                  m_data_istream.start_decryption(
                      down_cast<Start_encryption_log_event *>(ev))) {
         delete ev;

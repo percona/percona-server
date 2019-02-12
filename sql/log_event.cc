@@ -915,8 +915,8 @@ const char *Log_event::get_type_str(Log_event_type type) {
       return "XA_prepare";
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
       return "Update_rows_partial";
-    case binary_log::START_ENCRYPTION_EVENT:
-      return "Start_encryption";
+    case binary_log::START_5_7_ENCRYPTION_EVENT:
+      return "Start_5_7_encryption";
     default:
       return "Unknown"; /* impossible */
   }
@@ -1188,7 +1188,7 @@ bool Log_event::need_checksum() {
            which IO thread instantiates via queue_binlog_ver_3_event.
         */
         get_type_code() == binary_log::ROTATE_EVENT ||
-        get_type_code() == binary_log::START_ENCRYPTION_EVENT ||
+        get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT ||
         /*
            The previous event has its checksum option defined
            according to the format description event.
@@ -5337,7 +5337,9 @@ void Start_encryption_log_event::print(
   my_b_printf(head, "Encryption scheme: %d", crypto_scheme);
   my_b_printf(head, ", key_version: %d", key_version);
   my_b_printf(head, ", nonce: %s ", nonce_buf);
-  my_b_printf(head, "\n# The rest of the binlog is encrypted!\n");
+  my_b_printf(head,
+              "\n# The rest of the binlog is encrypted with Percona Server 5.7 "
+              "encryption!\n");
 }
 #endif
 
@@ -6708,11 +6710,12 @@ Log_event::enum_skip_reason User_var_log_event::do_shall_skip(
 void Unknown_log_event::print(FILE *,
                               PRINT_EVENT_INFO *print_event_info) const {
   if (print_event_info->short_form) return;
-  if (what != kind::ENCRYPTED) {
+  if (what != kind::ENCRYPTED_WITH_5_7) {
     print_header(&print_event_info->head_cache, print_event_info, false);
     my_b_printf(&print_event_info->head_cache, "\n# %s", "Unknown event\n");
   } else
-    my_b_printf(&print_event_info->head_cache, "\n# %s", "Encrypted event\n");
+    my_b_printf(&print_event_info->head_cache, "\n# %s",
+                "Event encrypted with 5.7 Percona Server binlog encryption\n");
 }
 
 /**************************************************************************

@@ -61,7 +61,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
-#include "my_rnd.h"
 #include "my_sqlcommand.h"
 #include "my_stacktrace.h"  // my_safe_print_system_time
 #include "my_thread_local.h"
@@ -3942,7 +3941,6 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
       case binary_log::ROTATE_EVENT:
-      case binary_log::START_ENCRYPTION_EVENT:
         // do nothing; just accept this event and go to next
         break;
       case binary_log::PREVIOUS_GTIDS_LOG_EVENT: {
@@ -4135,7 +4133,6 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
       case binary_log::ROTATE_EVENT:
-      case binary_log::START_ENCRYPTION_EVENT:
         // do nothing; just accept this event and go to next
         break;
       case binary_log::PREVIOUS_GTIDS_LOG_EVENT: {
@@ -4752,7 +4749,6 @@ bool MYSQL_BIN_LOG::open_binlog(
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
   DBUG_PRINT("enter", ("base filename: %s", log_name));
-  const char *const log_to_encrypt = is_relay_log ? "relay_log" : "binlog";
 
   mysql_mutex_assert_owner(get_log_lock());
 
@@ -4842,49 +4838,11 @@ bool MYSQL_BIN_LOG::open_binlog(
     }
   }
 
-  crypto.disable();
-
   if (!s.is_valid()) goto err;
   s.dont_set_created = null_created_arg;
   /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
   if (is_relay_log) s.set_relay_log_event();
   if (write_event_to_binlog(&s)) goto err;
-
-  if (encrypt_binlog) {
-    if (crypto.load_latest_binlog_key()) {
-      sql_print_error(
-          "Failed to fetch or create percona_binlog key from/in keyring and "
-          "thus "
-          "failed to initialize %s encryption. Have you enabled "
-          "keyring plugin?",
-          log_to_encrypt);
-      goto err;
-    }
-    DBUG_EXECUTE_IF("check_consecutive_binlog_key_versions", {
-      static uint next_key_version = 1;
-      DBUG_ASSERT(crypto.get_key_version() == next_key_version++);
-    });
-
-    uchar nonce[binary_log::Start_encryption_event::NONCE_LENGTH];
-    memset(nonce, 0, binary_log::Start_encryption_event::NONCE_LENGTH);
-    if (my_rand_buffer(nonce, sizeof(nonce))) goto err;
-
-    Start_encryption_log_event sele(1, crypto.get_key_version(), nonce);
-    sele.common_footer->checksum_alg = s.common_footer->checksum_alg;
-    if (write_event_to_binlog(&sele)) {
-      sql_print_error(
-          "Failed to write Start_encryption event to binary log and thus "
-          "failed to initialize %s encryption.",
-          log_to_encrypt);
-      goto err;
-    }
-    bytes_written += sele.common_header->data_written;
-
-    if (crypto.init_with_loaded_key(sele.crypto_scheme, nonce)) {
-      sql_print_error("Failed to initialize %s encryption.", log_to_encrypt);
-      goto err;
-    }
-  }
 
   /*
     We need to revisit this code and improve it.

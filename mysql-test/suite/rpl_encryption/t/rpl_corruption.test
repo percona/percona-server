@@ -1,2 +1,0 @@
---let $encryption_test=1
---source suite/rpl/t/rpl_corruption.test

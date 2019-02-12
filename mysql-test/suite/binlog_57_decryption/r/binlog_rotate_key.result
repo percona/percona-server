@@ -1,0 +1,2 @@
+# percona binlog encryption key is not supported in PS >= 8.0.14
+include/assert.inc [It is not possible to rotate percona binlog key]

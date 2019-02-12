@@ -1253,7 +1253,6 @@ const char *mysql_real_data_home_ptr = mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 char server_version_suffix[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
-bool encrypt_binlog;
 
 bool encrypt_tmp_files;
 
@@ -5795,22 +5794,6 @@ static int init_server_components() {
     }
   }
 
-  if (encrypt_binlog) {
-    if (!opt_master_verify_checksum ||
-        binlog_checksum_options == binary_log::BINLOG_CHECKSUM_ALG_OFF ||
-        binlog_checksum_options == binary_log::BINLOG_CHECKSUM_ALG_UNDEF) {
-      sql_print_error(
-          "BINLOG_ENCRYPTION requires MASTER_VERIFY_CHECKSUM = ON and "
-          "BINLOG_CHECKSUM to be turned ON.");
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    }
-    if (!opt_bin_log)
-      sql_print_information(
-          "binlog and relay log encryption enabled without binary logging "
-          "being enabled. "
-          "If relay logs are in use, they will be encrypted.");
-  }
-
   if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log)) {
     if (opt_bin_log)
       tc_log = &mysql_bin_log;
@@ -5872,6 +5855,13 @@ static int init_server_components() {
   if (rpl_encryption.initialize()) {
     LogErr(ERROR_LEVEL, ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_INITIALIZE);
     unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  if (rpl_encryption.is_enabled() && !opt_bin_log) {
+    sql_print_information(
+        "binlog and relay log encryption enabled without binary logging being "
+        "enabled. "
+        "If relay logs are in use, they will be encrypted.");
   }
 
   if (opt_bin_log) {

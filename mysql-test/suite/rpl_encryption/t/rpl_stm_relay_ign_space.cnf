@@ -1,9 +1,0 @@
-!include ../my.cnf
-
-[mysqld.1]
-binlog-format='STATEMENT'
-
-[mysqld.2]
-relay-log-space-limit=8192
-relay-log-purge=on
-max-relay-log-size=4096

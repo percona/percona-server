@@ -12,25 +12,26 @@ Temporary tables and mixed logging format
 =========================================
 
 Summary of the fix:
-*******************
+--------------------------------------------------------------------------------
 
-As soon as some statement involving temporary table was met when using mixed
-binlog format, |MySQL| was switching to row-based logging of all statements the
-end of the session or until all temporary tables used in this session are
-dropped. It is inconvenient in case of long lasting connections, including
-replication-related ones. |Percona Server| fixes the situation by switching
-between statement-based and row-based logging as and when necessary.
+As soon as some statement involving a temporary table was met when using the
+MIXED binlog format, |MySQL| was switching to the row-based logging of all
+statements till the end of the session or until all temporary tables used in
+this session were dropped. It is inconvenient in the case of long lasting
+connections, including replication-related ones. |Percona Server| fixes the
+situation by switching between statement-based and row-based logging as
+necessary.
 
 Version Specific Information
-****************************
+--------------------------------------------------------------------------------
 
   * :rn:`5.7.10-1`
     Fix ported from |Percona Server| 5.6
 
 Details:
-********
+--------------------------------------------------------------------------------
 
-Mixed binary logging format supported by |Percona Server| means that
+The *mixed* binary logging format supported by |Percona Server| means that
 server runs in statement-based logging by default, but switches to row-based
 logging when replication would be unpredictable - in the case of a
 nondeterministic SQL statement that may cause data divergence if reproduced on
@@ -58,7 +59,7 @@ Temporary table drops and binloging on GTID-enabled server
 ==========================================================
 
 Summary of the fix:
-*******************
+--------------------------------------------------------------------------------
 
 MySQL logs DROP statements for all temporary tables irrelative of the logging
 mode under which these tables were created. This produces binlog writes and
@@ -67,15 +68,15 @@ by tracking the binlog format at temporary table create time and using it to
 decide whether a DROP should be logged or not.
 
 Version Specific Information
-****************************
+--------------------------------------------------------------------------------
 
   * :rn:`5.7.17-11`
     Fix ported from |Percona Server| 5.6
 
 Details:
-********
+--------------------------------------------------------------------------------
 
-Even with read_only mode enabled, the server permits some operations, including
+Even with ``read_only`` mode enabled, the server permits some operations, including
 ones with temporary tables. With the previous fix, temporary table operations
 are not binlogged in row or mixed mode. But |MySQL| doesn’t track what was
 the logging mode when temporary table was created, and therefore
@@ -97,7 +98,7 @@ Safety of statements with a ``LIMIT`` clause
 ============================================
 
 Summary of the fix:
-*******************
+--------------------------------------------------------------------------------
 
 |MySQL| considers all ``UPDATE/DELETE/INSERT ... SELECT`` statements with
 ``LIMIT`` clause to be unsafe, no matter wether they are really producing
@@ -108,7 +109,7 @@ condition. This fix has been ported from the upstream bug report
 :mysqlbug:`42415` (:psbug:`44`).
 
 Version Specific Information
-****************************
+--------------------------------------------------------------------------------
 
   * :rn:`5.7.10.1`
     Fix ported from |Percona Server| 5.6
@@ -171,5 +172,56 @@ problem was fixed in |Percona Server|. Bug fixed :psbug:`1812` (upstream
 :mysqlbug:`85158`).
 
 
+.. _percona-server.binary-log.flush.writing:
+
+Writing ``FLUSH`` Commands to the Binary Log 
+================================================================================
+
+``FLUSH`` commands, such as ``FLUSH SLOW LOGS``, are not written to the
+binary log if the system variable :variable:`binlog_skip_flush_commands` is set
+to **ON**.
+
+In addition, the following changes were implemented in the behavior of
+``read_only`` and |super-read-only| modes:
+
+- When ``read_only`` is set to **ON**, any ``FLUSH ...`` command executed by a
+  normal user (without the ``SUPER`` privilege) are not written to the binary
+  log regardless of the value of the |bsfc| variable.
+- When |super-read-only| is set to **ON**, any ``FLUSH ...`` command executed by
+  any user (even by those with the ``SUPER`` privilege) are not written to the
+  binary log regardless of the value of the |bsfc| variable.
+
+An attempt to run a ``FLUSH`` command without either ``SUPER`` or ``RELOAD``
+privileges results in the ``ER_SPECIFIC_ACCESS_DENIED_ERROR`` exception
+regardless of the value of the |bsfc| variable.
+
+.. variable:: binlog_skip_flush_commands
+
+     :version 5.6.43-84.3: Introduced
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :default: OFF
+
+When |bsfc| is set to **ON**, ``FLUSH ...`` commands are not written to the binary
+log. See :ref:`percona-server.binary-log.flush.writing` for more information
+about what else affects the writing of ``FLUSH`` commands to the binary log.
+
+.. note::
+
+   ``FLUSH LOGS``, ``FLUSH BINARY LOGS``, ``FLUSH TABLES WITH READ LOCK``, and
+   ``FLUSH TABLES ... FOR EXPORT`` are not written to the binary log no matter
+   what value the |bsfc| variable contains. The ``FLUSH`` command is not
+   recorded to the binary log and the value of |bsfc| is ignored if the
+   ``FLUSH`` command is run with the ``NO_WRITE_TO_BINLOG`` keyword (or its
+   alias ``LOCAL``).
+
+   .. seealso::
+
+      |MySQL| Documentation: FLUSH Syntax
+         https://dev.mysql.com/doc/refman/5.6/en/flush.html
 
 
+.. |bsfc| replace:: :variable:`binlog_skip_flush_command`
+.. |super-read-only| replace:: :variable:`super_read_only`

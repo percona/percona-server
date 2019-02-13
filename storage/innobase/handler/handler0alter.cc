@@ -1257,8 +1257,8 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
   DROP and ADD INDEX and never be instant operation */
   if (dd_table_has_instant_cols(*old_dd_tab) &&
       (ctx == nullptr || !ctx->need_rebuild())) {
-    ut_ad(ctx->new_table->skip_alter_undo ||
-          dd_table_has_instant_cols(*new_dd_tab));
+    ut_ad(dd_table_has_instant_cols(*new_dd_tab) ||
+          (ctx == nullptr || ctx->new_table->skip_alter_undo));
   }
 #endif /* UNIV_DEBUG */
 

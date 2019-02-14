@@ -160,7 +160,7 @@ enum srv_start_state_t {
   SRV_START_STATE_PURGE = 16,     /*!< Started purge thread(s) */
   SRV_START_STATE_STAT = 32,      /*!< Started bufdump + dict stat
                                   and FTS optimize thread. */
-  SRV_START_STATE_FILE_PURGE = 6, /*!< Started file purge thread. */
+  SRV_START_STATE_FILE_PURGE = 64,/*!< Started file purge thread. */
 
 };
 

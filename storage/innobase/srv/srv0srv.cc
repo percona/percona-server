@@ -95,6 +95,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/handler.h"
 #include "ut0mem.h"
 
+#include "srv0file.h"
+
 #ifdef UNIV_HOTBACKUP
 #include "page0size.h"
 #else
@@ -1254,6 +1256,8 @@ void srv_free(void) {
   ut_free(srv_sys);
 
   srv_sys = 0;
+
+  srv_file_purge_destroy();
 }
 
 /** Initializes the synchronization primitives, memory system, and the thread
@@ -1266,6 +1270,7 @@ static void srv_general_init() {
   trx_pool_init();
   que_init();
   row_mysql_init();
+  srv_file_purge_init();
 }
 
 /** Boots the InnoDB server. */

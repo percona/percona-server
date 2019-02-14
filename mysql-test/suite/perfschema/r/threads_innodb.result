@@ -23,6 +23,7 @@ thread/innodb/log_write_notifier_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL
 thread/innodb/log_writer_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/page_flush_coordinator_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/srv_error_monitor_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
+thread/innodb/srv_file_purge_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/srv_lock_timeout_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/srv_master_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/srv_monitor_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES

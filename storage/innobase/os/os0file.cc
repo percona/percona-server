@@ -1942,7 +1942,7 @@ It is the caller's responsibility to free the returned string after it
 is no longer needed.
 @param[in]	path		Path name
 @return own: parent directory of the path */
-static char *os_file_get_parent_dir(const char *path) {
+char *os_file_get_parent_dir(const char *path) {
   bool has_trailing_slash = false;
 
   /* Find the offset of the last slash */

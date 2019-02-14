@@ -877,8 +877,10 @@ class Fil_shard {
   @param[in]	space_id	Tablespace ID
   @param[in]	buf_remove	Specify the action to take on the pages
                                   for this table in the buffer pool.
+  @param[in]  new_filepath  Rename the original datafile to new_filepath.
   @return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
-  dberr_t space_delete(space_id_t space_id, buf_remove_t buf_remove)
+  dberr_t space_delete(space_id_t space_id, buf_remove_t buf_remove,
+                       const char *new_filepath)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Truncate the tablespace to needed size.
@@ -4309,8 +4311,10 @@ datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
 @param[in]	space_id	Tablespace ID
 @param[in]	buf_remove	Specify the action to take on the pages
                                 for this table in the buffer pool.
+@param[in]  new_filepath  Rename the original datafile to new_filepath.
 @return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
-dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
+dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove,
+                                const char *new_filepath) {
   char *path = nullptr;
   fil_space_t *space = nullptr;
 
@@ -4421,14 +4425,20 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     space_free_low(space);
     ut_a(space == nullptr);
 
-    if (!os_file_delete(innodb_data_file_key, path) &&
-        !os_file_delete_if_exists(innodb_data_file_key, path, nullptr)) {
-      /* Note: This is because we have removed the
-      tablespace instance from the cache. */
+    if (new_filepath) {
+      os_file_type_t type;
+      bool exists;
+      os_file_status(path, &exists, &type);
+      if (exists) os_file_rename(innodb_data_file_key, path, new_filepath);
+    } else {
+      if (!os_file_delete(innodb_data_file_key, path) &&
+          !os_file_delete_if_exists(innodb_data_file_key, path, nullptr)) {
+        /* Note: This is because we have removed the
+        tablespace instance from the cache. */
 
-      err = DB_IO_ERROR;
+        err = DB_IO_ERROR;
+      }
     }
-
   } else {
     mutex_release();
 
@@ -4448,11 +4458,13 @@ datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
 @param[in]	space_id	Tablespace ID
 @param[in]	buf_remove	Specify the action to take on the pages
                                 for this table in the buffer pool.
+@param[in]  new_filepath  Rename the original datafile to new_filepath.
 @return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
-dberr_t fil_delete_tablespace(space_id_t space_id, buf_remove_t buf_remove) {
+dberr_t fil_delete_tablespace(space_id_t space_id, buf_remove_t buf_remove,
+                              const char *new_filepath) {
   auto shard = fil_system->shard_by_id(space_id);
 
-  return (shard->space_delete(space_id, buf_remove));
+  return (shard->space_delete(space_id, buf_remove, new_filepath));
 }
 
 /** Prepare for truncating a single-table tablespace.
@@ -4605,7 +4617,7 @@ memory cache. Discarding is like deleting a tablespace, but
 dberr_t fil_discard_tablespace(space_id_t space_id) {
   dberr_t err;
 
-  err = fil_delete_tablespace(space_id, BUF_REMOVE_ALL_NO_WRITE);
+  err = fil_delete_tablespace(space_id, BUF_REMOVE_ALL_NO_WRITE, NULL);
 
   switch (err) {
     case DB_SUCCESS:

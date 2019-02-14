@@ -69,10 +69,10 @@ You should also consider the following:
 
    .. warning::
 
-    If you are loading large data without enabling :variable:`rocksdb_bulk_load`
-    or :variable:`rocksdb_commit_in_the_middle`, please make sure transaction
-    size is small enough. All modifications of the ongoing transactions are
-    kept in memory.
+      If you are loading large data without enabling :variable:`rocksdb_bulk_load`
+      or :variable:`rocksdb_commit_in_the_middle`, please make sure transaction
+      size is small enough. All modifications of the ongoing transactions are
+      kept in memory.
 
 * The`XA protocol <https://dev.mysql.com/doc/refman/8.0/en/xa.html>`_ support,
   which allows distributed transactions combining multiple separate
@@ -88,3 +88,9 @@ You should also consider the following:
      |MySQL| Documentation: Preparing Your Installation for Upgrade
         https://dev.mysql.com/doc/refman/8.0/en/upgrade-prerequisites.html
 
+* The |MyRocks| storage engine does not support the |sql.no-wait| and
+  |sql.skip-locked| modifiers introduced in the |InnoDB| storage
+  engine with |MySQL| 8.0.
+
+
+.. include:: ../.res/replace.concept.txt

@@ -48,6 +48,12 @@ Additional features unique to |TokuDB| include:
   deletes, expands, or renames columns
 - On-line Backup 
 
+.. note::
+
+   The |TokuDB| storage engine does not support the |sql.no-wait| and
+   |sql.skip-locked| modifiers introduced in the |InnoDB| storage
+   engine with |MySQL| 8.0.
+  
 For more information on installing and using |TokuDB| click on the following
 links:
 

@@ -45,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0sea.h"
 #include "dict0mem.h"
 #include "dict0stats.h"
+#include "fil0purge.h"
 #include "ha_innodb.h"
 #include "log0ddl.h"
 #include "pars0pars.h"
@@ -153,7 +154,8 @@ DDL_Record::DDL_Record()
       m_old_file_path(nullptr),
       m_new_file_path(nullptr),
       m_heap(nullptr),
-      m_deletable(true) {}
+      m_deletable(true),
+      m_removable(true) {}
 
 DDL_Record::~DDL_Record() {
   if (m_heap != nullptr) {
@@ -789,7 +791,7 @@ dberr_t DDL_Log_Table::remove(const DDL_Records &records) {
   dberr_t error = DB_SUCCESS;
 
   for (auto record : records) {
-    if (record->get_deletable()) {
+    if (record->get_deletable() && record->get_removable()) {
       error = remove(record->get_id());
       ut_ad(error == DB_SUCCESS);
     }
@@ -1096,6 +1098,68 @@ dberr_t Log_DDL::insert_rename_space_log(uint64_t id, ulint thread_id,
   return (error);
 }
 
+dberr_t Log_DDL::write_purge_file_log(uint64_t *id, ulint thread_id,
+                                      const char *file_path) {
+  *id = next_id();
+
+  dberr_t err;
+  err = insert_purge_file_log(*id, thread_id, file_path);
+  ut_ad(err == DB_SUCCESS);
+
+  return (err);
+}
+
+void Log_DDL::replay_purge_file_log(uint64_t id, ulint thread_id,
+                                    const char *file_path) {
+  char *path = mem_strdup(file_path);
+  file_purge_sys->add_file(id, path);
+}
+
+dberr_t Log_DDL::insert_purge_file_log(uint64_t id, ulint thread_id,
+                                       const char *file_path) {
+  dberr_t error;
+  trx_t *trx = trx_allocate_for_background();
+  trx_start_internal(trx);
+  trx->ddl_operation = true;
+
+  DDL_Record record;
+  record.set_id(id);
+  record.set_thread_id(thread_id);
+  record.set_type(Log_Type::PURGE_FILE_LOG);
+  record.set_new_file_path(file_path);
+  {
+    DDL_Log_Table ddl_log(trx);
+    error = ddl_log.insert(record);
+    ut_ad(error == DB_SUCCESS);
+  }
+
+  trx_commit_for_mysql(trx);
+  trx_free_for_background(trx);
+
+  if (srv_print_ddl_logs) {
+    ib::info(ER_IB_MSG_649) << "DDL log insert : " << record;
+  }
+  return (error);
+}
+
+dberr_t Log_DDL::remove_by_id(uint64_t id) {
+  dberr_t error;
+  trx_t *trx = trx_allocate_for_background();
+  trx_start_internal(trx);
+  trx->ddl_operation = true;
+
+  {
+    DDL_Log_Table ddl_log(trx);
+    error = ddl_log.remove(id);
+    ut_ad(error == DB_SUCCESS);
+  }
+
+  trx_commit_for_mysql(trx);
+  trx_free_for_background(trx);
+
+  return (error);
+}
+
 dberr_t Log_DDL::write_alter_encrypt_space_log(space_id_t space_id) {
   /* Missing current_thd, it happens during crash recovery */
   if (!current_thd) {
@@ -1362,6 +1426,7 @@ dberr_t Log_DDL::replay_all() {
 
   DDL_Log_Table ddl_log;
   DDL_Records records;
+  DDL_Records purge_records;
 
   dberr_t error = ddl_log.search_all(records);
   ut_ad(error == DB_SUCCESS);
@@ -1374,6 +1439,10 @@ dberr_t Log_DDL::replay_all() {
     if (record->get_type() == Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG) {
       ts_encrypt_ddl_records.push_back(record);
       record->set_deletable(false);
+    }
+
+    if (record->get_type() == Log_Type::PURGE_FILE_LOG) {
+      record->set_removable(false);
     }
   }
 
@@ -1472,6 +1541,10 @@ dberr_t Log_DDL::replay(DDL_Record &record) {
     case Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG:
       replay_alter_encrypt_space_log(record.get_space_id());
       break;
+    case Log_Type::PURGE_FILE_LOG:
+      replay_purge_file_log(record.get_id(), record.get_thread_id(),
+                            record.get_new_file_path());
+      break;
 
     default:
       ut_error;
@@ -1534,7 +1607,7 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
     mutex_exit(&dict_sys->mutex);
   }
 
-  row_drop_single_table_tablespace(space_id, NULL, file_path);
+  row_drop_or_purge_single_table_tablespace(space_id, NULL, file_path);
 
   mutex_exit(&master_key_id_mutex);
 

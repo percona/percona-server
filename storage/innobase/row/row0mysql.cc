@@ -4207,7 +4207,7 @@ dberr_t row_drop_single_table_tablespace(space_id_t space_id,
     }
 
   } else {
-    err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
+    err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE, NULL);
 
     if (err != DB_SUCCESS && err != DB_TABLESPACE_NOT_FOUND) {
       ib::error(ER_IB_MSG_991)

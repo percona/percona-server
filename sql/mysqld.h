@@ -323,6 +323,7 @@ enum enum_binlog_error_action {
   ABORT_SERVER = 1
 };
 extern const char *binlog_error_action_list[];
+extern bool opt_binlog_skip_flush_commands;
 
 extern ulong stored_program_cache_size;
 extern ulong back_log;

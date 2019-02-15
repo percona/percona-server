@@ -73,6 +73,20 @@ class Partition_index_impl : public Weak_object_impl, public Partition_index {
 
   virtual bool store_attributes(Raw_record *r);
 
+  /////////////////////////////////////////////////////////////////////////
+  // is_disabled.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_disabled() const noexcept { return m_index->is_disabled(); }
+
+  virtual void set_disabled(bool disable) noexcept {
+    m_index->set_disabled(disable);
+  }
+
+  virtual Index::enum_index_type type() const noexcept {
+    return m_index->type();
+  }
+
   void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);

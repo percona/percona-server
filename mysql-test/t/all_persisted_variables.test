@@ -38,7 +38,7 @@
 --source include/have_binlog_format_row.inc
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-let $total_persistent_vars=417;
+let $total_persistent_vars=418;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
@@ -155,7 +155,7 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --enable_warnings
 --enable_query_log
 --echo
---let $buggy_global_vars = 12
+--let $buggy_global_vars = 11
 --expr $expected_total_persistent_vars = $total_persistent_vars - $buggy_global_vars
 --let $assert_text= Expect $total_persistent_vars persisted variables in the table. Due to open Bugs, we are checking for $expected_total_persistent_vars
 

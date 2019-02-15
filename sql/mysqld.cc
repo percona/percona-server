@@ -1078,6 +1078,7 @@ bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[] = {"IGNORE_ERROR", "ABORT_SERVER",
                                           NullS};
+bool opt_binlog_skip_flush_commands = false;
 uint32 gtid_executed_compression_period = 0;
 bool opt_log_unsafe_statements;
 
@@ -10034,10 +10035,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
   global_system_variables.long_query_time =
       (ulonglong)(global_system_variables.long_query_time_double * 1e6);
-
-  // Override any value specified on command line until the functionality
-  // is ported to 8.0.
-  global_system_variables.expand_fast_index_creation = false;
 
   init_log_slow_verbosity();
   init_slow_query_log_use_global_control();

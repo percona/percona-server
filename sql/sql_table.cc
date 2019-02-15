@@ -80,6 +80,7 @@
 #include "sql/dd/dd_schema.h"   // dd::schema_exists
 #include "sql/dd/dd_table.h"    // dd::drop_table, dd::update_keys...
 #include "sql/dd/dictionary.h"  // dd::Dictionary
+#include "sql/dd/impl/types/index_impl.h"
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
@@ -189,7 +190,8 @@ static const dd::Index *find_fk_parent_key(handlerton *hton,
 static int copy_data_between_tables(
     THD *thd, PSI_stage_progress *psi, TABLE *from, TABLE *to,
     List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
-    Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx);
+    Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx,
+    bool expand_fast_index_creation);
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field,
                                bool convert_character_set);
@@ -14320,10 +14322,10 @@ static bool simple_rename_or_index_change(
   Temporarily remove secondary keys previously stored in
   alter_info->delayed_key_info.
 */
-static bool remove_secondary_keys(THD *thd, HA_CREATE_INFO *create_info,
-                                  TABLE *table, Alter_info *alter_info,
-                                  const dd::Table *table_def,
-                                  dd::Table *altered_table_def) {
+static bool remove_secondary_keys(
+    THD *thd, HA_CREATE_INFO *create_info, TABLE *table, Alter_info *alter_info,
+    const dd::Table *table_def, dd::Table *altered_table_def,
+    std::vector<dd::Index *> *dd_disabled_sec_keys) {
   uint i;
   DBUG_ENTER("remove_secondary_keys");
   DBUG_ASSERT(alter_info->delayed_key_count > 0);
@@ -14379,6 +14381,17 @@ static bool remove_secondary_keys(THD *thd, HA_CREATE_INFO *create_info,
       HA_ALTER_INPLACE_NOT_SUPPORTED)
     DBUG_RETURN(true);
 
+  for (const auto index : *altered_table_def->indexes()) {
+    const char *dd_index_name = index->name().c_str();
+    for (i = 0; i < alter_info->delayed_key_count; i++) {
+      if (strcmp(alter_info->delayed_key_info[i].name, dd_index_name) == 0) {
+        dd_disabled_sec_keys->push_back(index);
+        DBUG_ASSERT(index->type() == dd::Index::IT_MULTIPLE);
+        index->set_disabled(true);
+      }
+    }
+  }
+
   if (table->file->ha_prepare_inplace_alter_table(
           table, &ha_alter_info, table_def, altered_table_def) ||
       table->file->ha_inplace_alter_table(table, &ha_alter_info, table_def,
@@ -14397,10 +14410,10 @@ static bool remove_secondary_keys(THD *thd, HA_CREATE_INFO *create_info,
   Restore secondary keys previously removed in remove_secondary_keys.
 */
 
-static bool restore_secondary_keys(THD *thd, HA_CREATE_INFO *create_info,
-                                   TABLE *table, Alter_info *alter_info,
-                                   const dd::Table *table_def,
-                                   dd::Table *altered_table_def) {
+static bool restore_secondary_keys(
+    THD *thd, HA_CREATE_INFO *create_info, TABLE *table, Alter_info *alter_info,
+    const dd::Table *table_def, dd::Table *altered_table_def,
+    std::vector<dd::Index *> *dd_disabled_sec_keys) {
   uint i;
   DBUG_ENTER("restore_secondary_keys");
   DBUG_ASSERT(alter_info->delayed_key_count > 0);
@@ -14428,6 +14441,10 @@ static bool restore_secondary_keys(THD *thd, HA_CREATE_INFO *create_info,
 
   ha_alter_info.index_add_buffer =
       (uint *)thd->alloc(sizeof(uint) * alter_info->delayed_key_count);
+
+  for (const auto index : *dd_disabled_sec_keys) {
+    index->set_disabled(false);
+  }
 
   /* Fill index_add_buffer with key indexes from key_info_buffer */
   for (i = 0; i < alter_info->delayed_key_count; i++)
@@ -16099,21 +16116,40 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_new_table_cleanup;
     });
 
+    /* List of dd::Indexes (secondary non-unique) in table_def that are marked
+    as hidden. These indexes are temporarily disabled */
+    std::vector<dd::Index *> dd_disabled_sec_keys;
+
+    new_table->file->extra(HA_EXTRA_BEGIN_ALTER_COPY);
     if (optimize_keys) {
       /* ignore the error */
-      remove_secondary_keys(thd, create_info, new_table, alter_info,
-                            old_table_def, table_def);
+      remove_secondary_keys(
+          thd, create_info, new_table, alter_info,
+          is_tmp_table ? table->s->tmp_table_def : old_table_def, table_def,
+          &dd_disabled_sec_keys);
     }
 
+    bool error = false;
     if (copy_data_between_tables(thd, thd->m_stage_progress_psi, table,
                                  new_table, alter_info->create_list, &copied,
-                                 &deleted, alter_info->keys_onoff, &alter_ctx))
-      goto err_new_table_cleanup;
+                                 &deleted, alter_info->keys_onoff, &alter_ctx,
+                                 optimize_keys)) {
+      error = true;
+    }
 
-    if (optimize_keys)
-      if (restore_secondary_keys(thd, create_info, new_table, alter_info,
-                                 old_table_def, table_def))
-        goto err_new_table_cleanup;
+    if (optimize_keys &&
+        restore_secondary_keys(
+            thd, create_info, new_table, alter_info,
+            is_tmp_table ? table->s->tmp_table_def : old_table_def, table_def,
+            &dd_disabled_sec_keys)) {
+      error = true;
+    }
+
+    new_table->file->extra(HA_EXTRA_END_ALTER_COPY);
+
+    if (error) {
+      goto err_new_table_cleanup;
+    }
 
     DEBUG_SYNC(thd, "alter_after_copy_table");
   } else {
@@ -16797,7 +16833,8 @@ bool mysql_trans_commit_alter_copy_data(THD *thd) {
 static int copy_data_between_tables(
     THD *thd, PSI_stage_progress *psi MY_ATTRIBUTE((unused)), TABLE *from,
     TABLE *to, List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
-    Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
+    Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx,
+    bool expand_fast_index_creation) {
   int error;
   Copy_field *copy, *copy_end;
   ulong found_count, delete_count;
@@ -16928,8 +16965,6 @@ static int copy_data_between_tables(
 
   set_column_defaults(to, create);
 
-  to->file->extra(HA_EXTRA_BEGIN_ALTER_COPY);
-
   while (!(error = info->Read())) {
     if (thd->killed) {
       thd->send_kill_message();
@@ -17042,11 +17077,23 @@ static int copy_data_between_tables(
     error = 1;
   }
 
-  to->file->extra(HA_EXTRA_END_ALTER_COPY);
-
   DBUG_EXECUTE_IF("crash_copy_before_commit", DBUG_SUICIDE(););
+
+  /* This code commits the entire transaction (both trans_commit_stmt()
+  and trans_commit_implicit()) for engines that don't support atomic DDL
+  and for all temporary tables(independent of engine type)
+
+  When expanded fast index creation is enabled, after copy data stage,
+  there are inplace alters to add removed secondary indexes. Thus we
+  need to commit the transaction again. A full commit here would make
+  all future trans_commit_stmt() and trans_commit_implicit() to be dummy
+  and we would leave transaction open.
+
+  With 8.0, this code looks irrevelant for temporary tables but we play
+  safe and disable intermediate commit only for temporary tables when
+  expanded fast index creation is enabled */
   if ((!(to->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) ||
-       from->s->tmp_table) &&
+       (from->s->tmp_table && !expand_fast_index_creation)) &&
       mysql_trans_commit_alter_copy_data(thd))
     error = 1;
 

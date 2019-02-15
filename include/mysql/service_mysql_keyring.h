@@ -106,4 +106,24 @@ int my_key_generate(const char *, const char *, const char *, size_t);
 
 #endif
 
+#ifndef MYSQL_ABI_CHECK
+
+#include "map_helpers.h"
+
+inline int my_key_fetch_safe(const char *key_id,
+                             unique_ptr_my_free<char> &key_type,
+                             const char *user_id,
+                             unique_ptr_my_free<unsigned char> &key,
+                             size_t *key_len) {
+  char *key_type_tmp = nullptr;
+  void *key_tmp = nullptr;
+  const int result =
+      my_key_fetch(key_id, &key_type_tmp, user_id, &key_tmp, key_len);
+  key_type.reset(key_type_tmp);
+  key.reset(static_cast<unsigned char *>(key_tmp));
+  return result;
+}
+
+#endif  // MYSQL_ABI_CHECK
+
 #endif  // MYSQL_SERVICE_MYSQL_PLUGIN_KEYRING_INCLUDED

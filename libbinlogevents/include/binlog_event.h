@@ -357,7 +357,7 @@ enum Log_event_type {
    * starting from MARIA_EVENTS_BEGIN, i.e. 159, 158 ..
    * till MYSQL_END_EVENT */
 
-  START_ENCRYPTION_EVENT = 159,
+  START_5_7_ENCRYPTION_EVENT = 159,
 
   MARIA_EVENTS_BEGIN = 160,
 
@@ -799,9 +799,9 @@ class Binary_log_event {
   /*
      The number of types we handle in Format_description_event (UNKNOWN_EVENT
      is not to be handled, it does not exist in binlogs, it does not have a
-     format - unless it's START_ENCRYPTION_EVENT - then Format_description_event
-     is not aware of it. That's OK as this event never leaves the server -
-     it's not sent to slave).
+     format - unless it's START_5_7_ENCRYPTION_EVENT - then
+     Format_description_event is not aware of it. That's OK as this event never
+     leaves the server - it's not sent to slave).
   */
   static constexpr int LOG_EVENT_TYPES = (MYSQL_END_EVENT - 1);
 
@@ -838,7 +838,7 @@ class Binary_log_event {
     TRANSACTION_CONTEXT_HEADER_LEN = 18,
     VIEW_CHANGE_HEADER_LEN = 52,
     XA_PREPARE_HEADER_LEN = 0,
-    START_ENCRYPTION_HEADER_LEN = 0
+    START_5_7_ENCRYPTION_HEADER_LEN = 0
   };  // end enum_post_header_length
  protected:
   /**

@@ -178,7 +178,7 @@ class Start_encryption_event : public Binary_log_event {
 
   Start_encryption_event(uint crypto_scheme_arg, uint key_version_arg,
                          const unsigned char *nonce_arg) noexcept
-      : Binary_log_event(binary_log::START_ENCRYPTION_EVENT),
+      : Binary_log_event(binary_log::START_5_7_ENCRYPTION_EVENT),
         crypto_scheme(crypto_scheme_arg),
         key_version(key_version_arg) {
     memcpy(nonce, nonce_arg, NONCE_LENGTH);
@@ -376,12 +376,6 @@ class Format_description_event : public Binary_log_event {
     return server_version_split[0] != 0 || server_version_split[1] != 0 ||
            server_version_split[2] != 0;
   }
-
-  virtual void copy_crypto_data(const Format_description_event &) noexcept {}
-
-  virtual bool start_decryption(Start_encryption_event *) { return false; }
-
-  virtual bool is_decrypting() const noexcept { return false; }
 };
 
 /**

@@ -957,7 +957,7 @@ class Log_event {
         (get_type_code() == binary_log::ROTATE_EVENT &&
          ((server_id == (uint32)::server_id) ||
           (common_header->log_pos == 0 && mts_in_group))) ||
-        (get_type_code() == binary_log::START_ENCRYPTION_EVENT))
+        (get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT))
       return EVENT_EXEC_ASYNC;
     else if (is_mts_sequential_exec())
       return EVENT_EXEC_SYNC;
@@ -1445,18 +1445,6 @@ class Start_encryption_log_event final
     common_header->set_is_valid(crypto_scheme == 1);
   }
 
-  bool write_data_body(Basic_ostream *ostream) override {
-    uchar scheme_buf = crypto_scheme;
-    uchar key_version_buf[KEY_VERSION_LENGTH];
-    int4store(key_version_buf, key_version);
-    return wrapper_my_b_safe_write(ostream, static_cast<uchar *>(&scheme_buf),
-                                   sizeof(scheme_buf)) ||
-           wrapper_my_b_safe_write(ostream,
-                                   static_cast<uchar *>(key_version_buf),
-                                   sizeof(key_version_buf)) ||
-           wrapper_my_b_safe_write(ostream, static_cast<uchar *>(nonce),
-                                   NONCE_LENGTH);
-  }
 #else
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
 #endif
@@ -1465,7 +1453,7 @@ class Start_encryption_log_event final
                              const Format_description_event *description_event);
 
   Log_event_type get_type_code() noexcept {
-    return binary_log::START_ENCRYPTION_EVENT;
+    return binary_log::START_5_7_ENCRYPTION_EVENT;
   }
 
   size_t get_data_size() noexcept override { return EVENT_DATA_LENGTH; }
@@ -2243,7 +2231,7 @@ class Load_query_generator {
 */
 class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
  public:
-  enum class kind { UNKNOWN, ENCRYPTED } what;
+  enum class kind { UNKNOWN, ENCRYPTED_WITH_5_7 } what;
   /**
     Even if this is an unknown event, we still pass description_event to
     Log_event's ctor, this way we can extract maximum information from the

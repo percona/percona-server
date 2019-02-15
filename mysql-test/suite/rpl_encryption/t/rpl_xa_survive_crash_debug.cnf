@@ -1,4 +1,0 @@
-!include ../my.cnf
-
-[mysqld.1]
-binlog-format='MIXED'

@@ -26,10 +26,6 @@ call mtr.add_suppression('event read from binlog did not pass crc check');
 call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
 call mtr.add_suppression("Slave SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117");
-if ($encryption_test)
-{
-  call mtr.add_suppression('Event decryption failure');
-}
 
 SET @old_master_verify_checksum = @@master_verify_checksum;
 

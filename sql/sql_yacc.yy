@@ -457,8 +457,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %}
 
-%yacc
-
 %parse-param { class THD *YYTHD }
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */

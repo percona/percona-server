@@ -129,7 +129,10 @@ t1	CREATE TABLE `t1` (
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
-  `INFO` longtext
+  `INFO` longtext,
+  `TIME_MS` bigint(21) NOT NULL DEFAULT '0',
+  `ROWS_SENT` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 DROP TABLE t1;
 #########################################################
@@ -154,14 +157,19 @@ WHERE table_schema LIKE 'information_schema'
 SELECT * FROM v1;
 table_name
 CHARACTER_SETS
+CLIENT_STATISTICS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
 COLUMN_PRIVILEGES
 COLUMN_STATISTICS
+COMPRESSION_DICTIONARY
+COMPRESSION_DICTIONARY_TABLES
 ENGINES
 EVENTS
 FILES
+GLOBAL_TEMPORARY_TABLES
+INDEX_STATISTICS
 KEYWORDS
 KEY_COLUMN_USAGE
 OPTIMIZER_TRACE
@@ -178,12 +186,17 @@ SCHEMA_PRIVILEGES
 STATISTICS
 ST_GEOMETRY_COLUMNS
 ST_SPATIAL_REFERENCE_SYSTEMS
+ST_UNITS_OF_MEASURE
 TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
+TEMPORARY_TABLES
+THREAD_STATISTICS
 TRIGGERS
 USER_PRIVILEGES
+USER_STATISTICS
 VIEWS
 VIEW_ROUTINE_USAGE
 VIEW_TABLE_USAGE
@@ -198,16 +211,16 @@ WHERE TABLE_NAME LIKE 'no_such_table';
 TABLE_NAME
 # 4. Names collate differently. On trunk, the queries below returns
 #    the same result set.
-SELECT count(*) = IF(@@lower_case_table_names = 0, 4, 9)
+SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 9)
 FROM information_schema.tables
 WHERE table_name LIKE 'TAB%';
-count(*) = IF(@@lower_case_table_names = 0, 4, 9)
-1
+count(*) = IF(@@lower_case_table_names = 0, 5, 9)
+0
 SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 9)
 FROM information_schema.tables
 WHERE table_name LIKE 'tab%';
 count(*) = IF(@@lower_case_table_names = 0, 5, 9)
-1
+0
 # This is because the collation of the column is different. On trunk,
 # it is utf8_general_ci. With the global DD, it is the collation of the
 # underlying column, which depends on l_c_t_n. For l_c_t_n == 0, this
@@ -254,9 +267,9 @@ SET @@session.max_join_size= @old_join_size;
 use test;
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
+call mtr.add_suppression('Skipped updating resource group metadata in InnoDB read only mode.');
 SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
-call mtr.add_suppression('Skipped updating resource group metadata in InnoDB read only mode.');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Warning	InnoDB: Running in read-only mode

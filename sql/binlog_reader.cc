@@ -1,19 +1,27 @@
 /* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/binlog_reader.h"
+#include "my_byteorder.h"
 #include "sql/event_crypt.h"
 #include "sql/log_event.h"
 
@@ -60,7 +68,7 @@ bool Binlog_event_data_istream::start_decryption(
       down_cast<Start_encryption_log_event *>(see);
   if (!sele->is_valid() ||
       crypto_data.init(see->crypto_scheme, see->key_version, see->nonce)) {
-    m_error->set_type(Binlog_read_error::DECRYPT_INIT_FAILURE);
+    m_error->set_type(Binlog_read_error::DECRYPT_PRE_8_0_14_INIT_FAILURE);
     return true;
   }
   return false;
@@ -142,7 +150,7 @@ bool Binlog_event_data_istream::fill_event_data(
             static_cast<uint32_t>((binlog_file->position() - m_event_length)),
             crypto_data, event_data, m_decryption_buffer.data(),
             m_event_length)) {
-      return m_error->set_type(Binlog_read_error::DECRYPT);
+      return m_error->set_type(Binlog_read_error::ERROR_DECRYPTING_FILE);
     }
 
     memcpy(event_data, m_decryption_buffer.data(), m_event_length);
@@ -161,7 +169,7 @@ bool Binlog_event_data_istream::fill_event_data(
                                               checksum_alg) &&
         !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
       return m_error->set_type(crypto_data.is_enabled()
-                                   ? Binlog_read_error::DECRYPT
+                                   ? Binlog_read_error::ERROR_DECRYPTING_FILE
                                    : Binlog_read_error::CHECKSUM_FAILURE);
     }
   }

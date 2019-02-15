@@ -5,6 +5,7 @@
 --source include/have_innodb_max_16k.inc
 
 --disable_query_log
+call mtr.add_suppression("Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Can't set redo log tablespace to be encrypted.");
 call mtr.add_suppression("Redo log key generation failed.");

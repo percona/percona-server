@@ -1,5 +1,5 @@
 call mtr.add_suppression("is not the same as enforced storage engine");
-SET @old_sql_mode= @@session.sql_mode;
+# restart:--enforce_storage_engine=myisam
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -33,4 +33,4 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 ERROR 42000: Unknown storage engine 'InnoDB'
-SET SESSION sql_mode=@old_sql_mode;
+# restart

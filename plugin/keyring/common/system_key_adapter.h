@@ -16,6 +16,8 @@
 
 #include "i_keyring_key.h"
 
+#include "my_dbug.h"
+
 namespace keyring {
 
 class System_key_adapter : public IKey {

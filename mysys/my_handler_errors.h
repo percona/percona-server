@@ -120,6 +120,7 @@ static const char *handler_error_messages[] = {
     "Do not wait for lock",
     "No more room in disk",
     "No session temporary tablespace available",
+    "Invalid table name",
     "Destination schema does not exist"};
 
 extern void my_handler_error_register(void);

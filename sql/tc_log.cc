@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2013, Monty Program Ab
    Copyright (C) 2012 Percona Inc.
 
@@ -403,8 +403,6 @@ done:
     @retval true    Failure
 */
 bool TC_LOG_MMAP::sync() {
-  DBUG_ASSERT(syncing != active);
-
   /*
     sit down and relax - this can take a while...
     note - no locks are held at this point
@@ -414,6 +412,8 @@ bool TC_LOG_MMAP::sync() {
                                syncing->size * sizeof(my_xid), MS_SYNC);
 
   mysql_mutex_lock(&LOCK_tc);
+  DBUG_ASSERT(syncing != active);
+
   /* Page is synced. Let's move it to the pool. */
   *pool_last_ptr = syncing;
   pool_last_ptr = &(syncing->next);
@@ -443,9 +443,9 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid MY_ATTRIBUTE((unused))) {
 
   DBUG_ASSERT(*x == xid);
   DBUG_ASSERT(x >= p->start && x < p->end);
-  *x = 0;
 
   mysql_mutex_lock(&LOCK_tc);
+  *x = 0;
   p->free++;
   DBUG_ASSERT(p->free <= p->size);
   set_if_smaller(p->ptr, x);

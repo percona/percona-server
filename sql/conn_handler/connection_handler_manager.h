@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,8 +63,6 @@ class Connection_handler_manager {
 
   // Pointer to current connection handler in use
   Connection_handler *m_connection_handler;
-  // Pointer to extra connection handler
-  Connection_handler *m_extra_connection_handler;
   // Pointer to saved connection handler
   Connection_handler *m_saved_connection_handler;
   // Saved scheduler_type
@@ -78,10 +76,8 @@ class Connection_handler_manager {
   /**
     Constructor to instantiate an instance of this class.
   */
-  Connection_handler_manager(Connection_handler *connection_handler,
-                             Connection_handler *extra_connection_handler)
+  Connection_handler_manager(Connection_handler *connection_handler)
       : m_connection_handler(connection_handler),
-        m_extra_connection_handler(extra_connection_handler),
         m_saved_connection_handler(NULL),
         m_saved_thread_handling(0),
         m_aborted_connects(0),
@@ -89,7 +85,6 @@ class Connection_handler_manager {
 
   ~Connection_handler_manager() {
     delete m_connection_handler;
-    delete m_extra_connection_handler;
     if (m_saved_connection_handler) delete m_saved_connection_handler;
   }
 
@@ -120,7 +115,6 @@ class Connection_handler_manager {
 
   // Status variables. Must be static as they are used by the signal handler.
   static uint connection_count;            // Protected by LOCK_connection_count
-  static uint extra_connection_count;      // Protected by LOCK_connection_count
   static ulong max_used_connections;       // Protected by LOCK_connection_count
   static ulong max_used_connections_time;  // Protected by LOCK_connection_count
 
@@ -163,24 +157,18 @@ class Connection_handler_manager {
     Check if the current number of connections are below or equal
     the value given by the max_connections server system variable.
 
-    @param extra_port_connection true if it is the extra port connections which
-    need to be validated
-
     @return true if a new connection can be accepted, false otherwise.
   */
-  bool valid_connection_count(bool extra_port_connection);
+  bool valid_connection_count();
 
   /**
     Increment connection count if max_connections is not exceeded.
-
-    @param    extra_port_connection true if it is the extra connection count
-    which needs to be checked and bumped
 
     @retval
       true   max_connections NOT exceeded
       false  max_connections reached
   */
-  bool check_and_incr_conn_count(bool extra_port_connection);
+  bool check_and_incr_conn_count(bool is_admin_connection);
 
   /**
     Reset the max_used_connections counter to the number of current
@@ -190,21 +178,14 @@ class Connection_handler_manager {
 
   /**
     Decrease the number of current connections.
-
-    @param extra_port_connection true if it is the extra connection count which
-    needs to be decreased
   */
-  static void dec_connection_count(bool extra_port_connection) {
+  static void dec_connection_count() {
     mysql_mutex_lock(&LOCK_connection_count);
-    if (extra_port_connection)
-      extra_connection_count--;
-    else
-      connection_count--;
+    connection_count--;
     /*
       Notify shutdown thread when last connection is done with its job
     */
-    if (connection_count == 0 && extra_connection_count == 0)
-      mysql_cond_signal(&COND_connection_count);
+    if (connection_count == 0) mysql_cond_signal(&COND_connection_count);
     mysql_mutex_unlock(&LOCK_connection_count);
   }
 

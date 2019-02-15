@@ -795,7 +795,7 @@ bool Srv_session::open() {
       err_protocol_ctx.handler(err_protocol_ctx.handler_context,
                                ER_OUT_OF_RESOURCES,
                                ER_DEFAULT(ER_OUT_OF_RESOURCES));
-    Connection_handler_manager::dec_connection_count(false);
+    Connection_handler_manager::dec_connection_count();
     DBUG_RETURN(true);
   }
 
@@ -825,7 +825,7 @@ bool Srv_session::open() {
 
   if (mysql_audit_notify(
           &thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE))) {
-    Connection_handler_manager::dec_connection_count(false);
+    Connection_handler_manager::dec_connection_count();
     DBUG_RETURN(true);
   }
 
@@ -875,18 +875,8 @@ bool Srv_session::attach() {
   set_attached(new_stack);
 
   // This will install our new THD object as current_thd
-  if (thd.store_globals()) {
-    DBUG_PRINT("error", ("Error while storing globals"));
+  thd.store_globals();
 
-    if (old_thd) old_thd->store_globals();
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    set_psi(old_thd);
-#endif
-
-    set_detached();
-    DBUG_RETURN(true);
-  }
   Srv_session *old_session = server_session_list.find(old_thd);
 
   /* Really detach only if we are sure everything went fine */
@@ -1027,7 +1017,7 @@ bool Srv_session::close() {
 
   Global_THD_manager::get_instance()->remove_thd(&thd);
 
-  Connection_handler_manager::dec_connection_count(false);
+  Connection_handler_manager::dec_connection_count();
 
   DBUG_RETURN(false);
 }

@@ -82,6 +82,7 @@ enum enum_server_command {
   COM_DAEMON,
   COM_BINLOG_DUMP_GTID,
   COM_RESET_CONNECTION,
+  COM_CLONE,
   COM_END
 };
 static const int PURGE_BITMAPS_TO_LSN = 1;

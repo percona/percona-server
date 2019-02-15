@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0btr.h"
 #include "btr0pcur.h"
 #include "dict0boot.h"
+#include "dict0dd.h"
 #include "dict0dict.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
@@ -285,7 +286,7 @@ dberr_t dict_build_tablespace_for_table(
 
     /* For file-per-table tablespace, set encryption flag */
     if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE)) {
-      fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
+      FSP_FLAGS_SET_ENCRYPTION(fsp_flags);
     }
 
     if (DICT_TF_HAS_DATA_DIR(table->flags)) {
@@ -853,7 +854,7 @@ dberr_t dict_create_get_zip_dict_id_by_reference(
   pars_info_t *info = pars_info_create();
 
   ib_uint32_t dict_id_buf;
-  mach_write_to_4(reinterpret_cast<byte *>(&dict_id_buf), ULINT32_UNDEFINED);
+  mach_write_to_4(reinterpret_cast<byte *>(&dict_id_buf), UINT32_UNDEFINED);
 
   pars_info_add_int4_literal(info, "table_id", table_id);
   pars_info_add_int4_literal(info, "column_pos", column_pos);
@@ -876,7 +877,7 @@ dberr_t dict_create_get_zip_dict_id_by_reference(
   if (error == DB_SUCCESS) {
     ib_uint32_t local_dict_id =
         mach_read_from_4(reinterpret_cast<const byte *>(&dict_id_buf));
-    if (local_dict_id == ULINT32_UNDEFINED)
+    if (local_dict_id == UINT32_UNDEFINED)
       error = DB_RECORD_NOT_FOUND;
     else
       *dict_id = local_dict_id;

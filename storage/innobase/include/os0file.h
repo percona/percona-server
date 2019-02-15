@@ -354,14 +354,14 @@ struct Encryption {
   };
 
   /** Default constructor */
-  Encryption()
+  Encryption() noexcept
       : m_type(NONE),
-        m_key(NULL),
+        m_key(nullptr),
         m_klen(0),
         m_key_allocated(false),
-        m_iv(NULL),
-        m_tablespace_iv(NULL),
-        m_tablespace_key(NULL),
+        m_iv(nullptr),
+        m_tablespace_iv(nullptr),
+        m_tablespace_key(nullptr),
         m_key_version(0),
         m_key_id(0),
         m_checksum(0),
@@ -393,7 +393,7 @@ struct Encryption {
   }
 
   /** Copy constructor */
-  Encryption(const Encryption &other);
+  Encryption(const Encryption &other) noexcept;
 
   Encryption &operator=(const Encryption &other) {
     Encryption tmp(other);
@@ -751,9 +751,6 @@ class IORequest {
       clear_punch_hole();
     }
   }
-
-  /** Destructor */
-  ~IORequest() {}
 
   /** @return true if ignore missing flag is set */
   static bool ignore_missing(ulint type) MY_ATTRIBUTE((warn_unused_result)) {

@@ -133,9 +133,9 @@ dberr_t Tablespace::open_or_create(bool is_temp) {
 
       /* Create the tablespace entry for the multi-file
       tablespace in the tablespace manager. */
-      space =
-          fil_space_create(m_name, m_space_id, flags,
-                           is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE, nullptr);
+      space = fil_space_create(
+          m_name, m_space_id, flags,
+          is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE, nullptr);
     }
 
     ut_ad(fil_validate());
@@ -196,7 +196,7 @@ dberr_t Tablespace::add_datafile(const char *datafile_added) {
   /* The path provided ends in ".ibd".  This was assured by
   validate_create_tablespace_info() */
   ut_d(const char *dot = strrchr(datafile_added, '.'));
-  ut_ad(dot != NULL && Fil_path::has_ibd_suffix(dot));
+  ut_ad(dot != NULL && Fil_path::has_suffix(IBD, dot));
 
   std::string filepath{datafile_added};
 

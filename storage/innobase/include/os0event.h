@@ -50,6 +50,8 @@ typedef OSMutex EventMutex;
 struct os_event {
   os_event(void) UNIV_NOTHROW;
 
+  os_event &operator=(const os_event &) = default;
+
   ~os_event() UNIV_NOTHROW;
 
   /**

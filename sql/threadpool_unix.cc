@@ -432,14 +432,7 @@ class Thd_timeout_checker : public Do_THD_Impl {
     if (thd_get_net_read_write(thd) != 1) return;
 
     connection_t *connection = (connection_t *)thd->event_scheduler.data;
-    if (!connection) {
-      /*
-        Connection does not have scheduler data. This happens for example
-        if THD belongs to a different scheduler, that is listening to
-        extra_port.
-      */
-      return;
-    }
+    if (!connection) return;
 
     if (connection->abs_wait_timeout <
         m_timer->current_microtime.load(std::memory_order_relaxed)) {
@@ -1558,8 +1551,8 @@ int tp_get_idle_thread_count() noexcept {
   "Threadpool could not create additional thread to handle queries, because the \
 number of allowed threads was reached. Increasing 'thread_pool_max_threads' \
 parameter can help in this situation.\n \
-If 'extra_port' parameter is set, you can still connect to the database with \
-superuser account (it must be TCP connection using extra_port as TCP port) \
+If 'admin_port' parameter is set, you can still connect to the database with \
+superuser account (it must be TCP connection using admin_port as TCP port) \
 and troubleshoot the situation. \
 A likely cause of pool blocks are clients that lock resources for long time. \
 'show processlist' or 'show engine innodb status' can give additional hints."

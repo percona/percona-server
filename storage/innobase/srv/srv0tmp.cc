@@ -194,7 +194,7 @@ void Tablespace::decrypt() {
 
   fil_space_t *space = fil_space_get(m_space_id);
 
-  space->flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+  FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
 
   /* There is no need to empty the encryption info in page 0
   here. This is because the file is just truncated and extended

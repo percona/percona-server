@@ -4,5 +4,5 @@ INSERT INTO t1 VALUES (1);
 CREATE TABLE t2(a INT) ENGINE=MyISAM;
 INSERT INTO t2 VALUES(2);
 LOCK TABLES FOR BACKUP;
-Pattern "\[InnoDB\] Last MySQL binlog file position 0 1130, file name binlog.000001" found
+Pattern "\[InnoDB\] Last MySQL binlog file position 0 1140, file name binlog.000001" found
 DROP TABLE t1;

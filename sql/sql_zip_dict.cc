@@ -793,7 +793,7 @@ bool cols_table_insert(THD *thd, const dd::Table &table) {
       continue;
     }
     uint64 zip_dict_id;
-    column_options.get_uint64("zip_dict_id", &zip_dict_id);
+    column_options.get("zip_dict_id", &zip_dict_id);
     DBUG_ASSERT(zip_dict_id != 0);
     uint64 table_id = table.id();
     uint64 column_id = col_obj->id();

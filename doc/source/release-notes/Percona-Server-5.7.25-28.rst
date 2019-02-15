@@ -80,5 +80,5 @@ CVE-2019-2529,
 CVE-2019-2482,
 CVE-2019-2434.
 
-.. |date| replace:: February 13, 2019
+.. |date| replace:: February 18, 2019
 .. |release| replace:: 5.7.25-28

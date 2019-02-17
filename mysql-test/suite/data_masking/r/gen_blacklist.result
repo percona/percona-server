@@ -1,0 +1,18 @@
+#
+# Plugin Data Masking: gen_blacklist
+#
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities')
+Dictionary load success
+SELECT gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities');
+gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities')
+Dictionary load success
+SELECT gen_blacklist('Moscow', 'DE_Cities', 'US_Cities');
+gen_blacklist('Moscow', 'DE_Cities', 'US_Cities')
+Moscow
+SELECT gen_dictionary_drop('de_cities');
+gen_dictionary_drop('de_cities')
+Dictionary removed
+SELECT gen_dictionary_drop('us_cities');
+gen_dictionary_drop('us_cities')
+Dictionary removed

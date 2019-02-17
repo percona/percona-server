@@ -1,0 +1,8 @@
+--echo #
+--echo # Plugin Data Masking: gen_blacklist
+--echo #
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+SELECT gen_dictionary_load('../../std_data/data_masking/us_cities.txt', 'us_cities');
+SELECT gen_blacklist('Moscow', 'DE_Cities', 'US_Cities');
+SELECT gen_dictionary_drop('de_cities');
+SELECT gen_dictionary_drop('us_cities');

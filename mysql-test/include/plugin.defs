@@ -51,6 +51,7 @@ mypluglib                               plugin_output_directory  no SIMPLE_PARSE
 libpluginmecab                          plugin_output_directory  no MECAB
 adt_null                                plugin_output_directory  no AUDIT_NULL
 keyring_udf                             plugin_output_directory  no KEYRING_UDF keyring_udf
+data_masking                            plugin_output_directory  no DATA_MASKING_PLUGIN data_masking
 keyring_file                            plugin_output_directory  no KEYRING_PLUGIN        keyring_file
 test_security_context                   plugin_output_directory  no TEST_SECURITY_CONTEXT  test_security_context
 libdaemon_example                       plugin_output_directory  no DAEMONEXAMPLE

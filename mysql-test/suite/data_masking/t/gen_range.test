@@ -1,0 +1,42 @@
+--echo #
+--echo # Plugin Data Masking: gen_range()
+--echo #
+#--let $var=`SELECT gen_range(10, 80)`
+#--echo value of var is $var
+#--expr $var = $var - $var2
+#--let $assert_cond = "[SELECT $var > 10]" = 1
+#--let $assert_text = random number should be > $var
+#--source include/assert.inc
+
+--echo # reversing min,max would be always NULL
+SELECT gen_range(-10, -80);
+SELECT gen_range(90, 10);
+
+--let $assert_cond = "[SELECT gen_range(-80, -10) < 0]" = 1
+--let $assert_text = random number should be < 0
+--source include/assert.inc
+
+--let $i = 0
+--let $min = 0
+--let $max = 0
+--disable_query_log
+--disable_result_log
+while ($i < 1000) {
+
+--eval SELECT gen_range($min, $max) INTO @res
+
+--let $assert_cond= [SELECT @res] >= $min AND <1> <= $max
+--let $assert_text = random number should be >= $min and <= $max
+--source include/assert.inc
+
+--dec $min
+--inc $max
+--inc $i
+}
+--enable_result_log
+--enable_query_log
+
+--echo # test max range
+--let $assert_cond= [SELECT gen_range(-9223372036854775808, 9223372036854775807)] >=  -9223372036854775808 AND <1> <= 9223372036854775807
+--let $assert_text = random number should be >= -9223372036854775808 AND <= 9223372036854775807
+--source include/assert.inc

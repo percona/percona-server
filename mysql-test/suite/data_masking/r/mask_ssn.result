@@ -1,0 +1,18 @@
+#
+# Plugin Data Masking: mask_ssn
+#
+select mask_ssn("123-45-6789");
+mask_ssn("123-45-6789")
+XXX-XX-6789
+select mask_ssn(NULL);
+mask_ssn(NULL)
+NULL
+select mask_ssn("");
+mask_ssn("")
+NULL
+select mask_ssn("123496798465498779");
+mask_ssn("123496798465498779")
+NULL
+select mask_ssn("this is not an ssn");
+mask_ssn("this is not an ssn")
+NULL

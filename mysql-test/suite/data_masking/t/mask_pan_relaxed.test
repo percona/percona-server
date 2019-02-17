@@ -1,0 +1,9 @@
+--echo #
+--echo # Plugin Data Masking: mask_pan_relaxed
+--echo #
+select mask_pan_relaxed("1234567890122461");
+select mask_pan_relaxed("123456789012246");
+select mask_pan_relaxed(NULL);
+select mask_pan_relaxed("");
+select mask_pan_relaxed("123496798465498779");
+select mask_pan_relaxed("this is not a pan");

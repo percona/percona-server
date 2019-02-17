@@ -1,0 +1,8 @@
+--echo #
+--echo # Plugin Data Masking: mask_ssn
+--echo #
+select mask_ssn("123-45-6789");
+select mask_ssn(NULL);
+select mask_ssn("");
+select mask_ssn("123496798465498779");
+select mask_ssn("this is not an ssn");

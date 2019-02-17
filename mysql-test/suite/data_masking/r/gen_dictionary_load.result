@@ -1,0 +1,12 @@
+#
+# Plugin Data Masking: gen_dictionary_load
+#
+SELECT gen_dictionary_load('de_cities.txt', 'de_cities');
+gen_dictionary_load('de_cities.txt', 'de_cities')
+Dictionary load error: dictionary file not readable
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities')
+Dictionary load success
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities')
+Dictionary load error: a dictionary with that name already exists

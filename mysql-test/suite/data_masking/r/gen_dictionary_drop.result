@@ -1,0 +1,15 @@
+#
+# Plugin Data Masking: gen_dictionary_drop
+#
+SELECT gen_dictionary_drop('de_cities');
+gen_dictionary_drop('de_cities')
+Dictionary removal error: dictionary not present in global list
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities')
+Dictionary load success
+SELECT gen_dictionary_drop('de_cities');
+gen_dictionary_drop('de_cities')
+Dictionary removed
+SELECT gen_dictionary_drop('de_cities');
+gen_dictionary_drop('de_cities')
+Dictionary removal error: dictionary not present in global list

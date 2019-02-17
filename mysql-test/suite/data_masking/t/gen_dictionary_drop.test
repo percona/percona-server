@@ -1,0 +1,7 @@
+--echo #
+--echo # Plugin Data Masking: gen_dictionary_drop
+--echo #
+SELECT gen_dictionary_drop('de_cities');
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+SELECT gen_dictionary_drop('de_cities');
+SELECT gen_dictionary_drop('de_cities');

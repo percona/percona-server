@@ -1,0 +1,19 @@
+--echo #
+--echo # Plugin Data Masking: gen_rnd_pan()
+--echo #
+
+--disable_query_log
+--disable_result_log
+
+--let $i = 0
+while ($i < 1000) {
+
+--let $assert_cond= [SELECT LENGTH(gen_rnd_pan())] >= 15 AND <1> <= 16
+--let $assert_text = credit card number should be either 15 or 16 digit
+--source include/assert.inc
+
+--inc $i
+}
+
+--enable_result_log
+--enable_query_log

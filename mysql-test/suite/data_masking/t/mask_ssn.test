@@ -1,0 +1,12 @@
+--echo #
+--echo # Plugin Data Masking: mask_ssn
+--echo #
+CREATE FUNCTION mask_ssn RETURNS STRING SONAME 'data_masking.so';
+
+SELECT mask_ssn("123-45-6789");
+SELECT mask_ssn(NULL);
+SELECT mask_ssn("");
+SELECT mask_ssn("123496798465498779");
+SELECT mask_ssn("this is not an ssn");
+
+DROP FUNCTION mask_ssn;

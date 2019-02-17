@@ -1,0 +1,10 @@
+--echo #
+--echo # Plugin Data Masking: gen_dictionary_load
+--echo #
+CREATE FUNCTION gen_dictionary_load RETURNS STRING SONAME 'data_masking.so';
+
+SELECT gen_dictionary_load('de_cities.txt', 'de_cities');
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+SELECT gen_dictionary_load('../../std_data/data_masking/de_cities.txt', 'de_cities');
+
+DROP FUNCTION gen_dictionary_load;

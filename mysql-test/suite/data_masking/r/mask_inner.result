@@ -1,0 +1,30 @@
+#
+# Plugin Data Masking: mask_inner
+#
+SELECT mask_inner('This is a string', 5, 1);
+mask_inner('This is a string', 5, 1)
+This XXXXXXXXXXg
+SELECT mask_inner('This is a string', 1, 5);
+mask_inner('This is a string', 1, 5)
+TXXXXXXXXXXtring
+SELECT mask_inner('This is a string', 5, 1, '#');
+mask_inner('This is a string', 5, 1, '#')
+This ##########g
+SELECT mask_inner(NULL, 1, 2);
+mask_inner(NULL, 1, 2)
+NULL
+SELECT mask_inner(NULL, 1, 2, '#');
+mask_inner(NULL, 1, 2, '#')
+NULL
+SELECT mask_inner('This is a string', -1, 5);
+mask_inner('This is a string', -1, 5)
+NULL
+SELECT mask_inner('This is a string', 1, -5);
+mask_inner('This is a string', 1, -5)
+NULL
+SELECT mask_inner('This is a string', 1, 25);
+mask_inner('This is a string', 1, 25)
+This is a string
+SELECT mask_inner('This is a string', 100, 500);
+mask_inner('This is a string', 100, 500)
+This is a string

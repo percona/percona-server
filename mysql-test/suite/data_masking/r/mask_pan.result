@@ -1,0 +1,21 @@
+#
+# Plugin Data Masking: mask_pan
+#
+select mask_pan("1234567890122461");
+mask_pan("1234567890122461")
+XXXXXXXXXXXX2461
+select mask_pan("123456789012246");
+mask_pan("123456789012246")
+XXXXXXXXXXX2246
+select mask_pan(NULL);
+mask_pan(NULL)
+NULL
+select mask_pan("");
+mask_pan("")
+NULL
+select mask_pan("123496798465498779");
+mask_pan("123496798465498779")
+123496798465498779
+select mask_pan("this is not a pan");
+mask_pan("this is not a pan")
+this is not a pan

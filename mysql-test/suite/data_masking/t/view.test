@@ -1,0 +1,9 @@
+--echo #
+--echo # Plugin Data Masking: view
+--echo #
+CREATE TABLE customer (id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, ssn VARCHAR(11), first_name VARCHAR(100), last_name VARCHAR(100));
+INSERT INTO customer (ssn, first_name, last_name) VALUES ('123-45-0007', 'Joanna', 'Bond');
+CREATE VIEW masked_customer AS SELECT id, first_name, last_name, mask_ssn(CONVERT(ssn USING binary)) AS ssn FROM customer;
+SELECT id, ssn FROM masked_customer WHERE first_name = 'Joanna' AND last_name = 'Bond';
+DROP VIEW masked_customer;
+DROP TABLE customer;

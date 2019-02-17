@@ -1,0 +1,12 @@
+--echo #
+--echo # Plugin Data Masking: mask_inner
+--echo #
+SELECT mask_inner('This is a string', 5, 1);
+SELECT mask_inner('This is a string', 1, 5);
+SELECT mask_inner('This is a string', 5, 1, '#');
+SELECT mask_inner(NULL, 1, 2);
+SELECT mask_inner(NULL, 1, 2, '#');
+SELECT mask_inner('This is a string', -1, 5);
+SELECT mask_inner('This is a string', 1, -5);
+SELECT mask_inner('This is a string', 1, 25);
+SELECT mask_inner('This is a string', 100, 500);

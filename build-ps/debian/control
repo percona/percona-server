@@ -175,7 +175,6 @@ Package: percona-server-server-5.7
 Architecture: any
 Pre-Depends: percona-server-common-5.7 (= ${binary:Version}),
              adduser,
-	     libcurl4-openssl-dev,
              debconf (>= 0.2.17)
 Depends: percona-server-client-5.7 (= ${binary:Version}),
          ${shlibs:Depends}, ${misc:Depends},

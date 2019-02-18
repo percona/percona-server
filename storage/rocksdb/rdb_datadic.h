@@ -308,8 +308,7 @@ class Rdb_key_def {
 
   void get_lookup_bitmap(const TABLE *table, MY_BITMAP *map) const;
 
-  bool covers_lookup(TABLE *const table,
-                     const rocksdb::Slice *const unpack_info,
+  bool covers_lookup(const rocksdb::Slice *const unpack_info,
                      const MY_BITMAP *const map) const;
 
   inline bool use_covered_bitmap_format() const {

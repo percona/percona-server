@@ -72,6 +72,10 @@ namespace dd {
 
 class Properties {
  public:
+  Properties() = default;
+
+  Properties(const Properties &) = default;
+
   Properties &operator=(const Properties &) = delete;
 
   /**

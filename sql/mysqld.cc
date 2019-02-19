@@ -3164,7 +3164,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
   */
   server_components_init_wait();
   for (;;) {
-    int sig;
+    int sig = 0;
     int rc;
     bool error;
 #ifdef __APPLE__

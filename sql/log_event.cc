@@ -11112,6 +11112,8 @@ class Table_map_log_event::Charset_iterator {
   static std::unique_ptr<Charset_iterator> create_charset_iterator(
       const Default_charset &default_charset,
       const std::vector<uint> &column_charset);
+
+  virtual ~Charset_iterator() = default;
 };
 
 /**

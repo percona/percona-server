@@ -32,6 +32,25 @@ Following guides describe the installation process for using the official Percon
    installation/apt_repo 
    installation/yum_repo 
 
+.. important::
+
+   When you install |Percona Server| from repositories, the installer creates a
+   backup of the :file:`/etc/mysql.cnf` file. Then, :file:`/etc/mysql.cnf`
+   becomes a soft link that ultimately (via :file:`/etc/alternatives/mysql.cnf`)
+   points to :file:`/etc/percona-server.cnf` on `RPM` based systems and to
+   :file:`/etc/mysql/percona-server.cnf` on `DEB` based systems.
+
+   In this case, the installer prints a message that explains how to back up the
+   :file:`/etc/my.cnf` file:
+
+   .. code-block:: text
+
+      * The suggested mysql options and settings are in /etc/mysql/percona-server.conf.d/mysqld.cnf
+      * If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf
+      * Once it is done please execute the following commands:
+      rm -rf /etc/mysql/my.cnf
+      update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
+
 .. _installing_from_binary_tarball:
 
 Installing |Percona Server| from a Binary Tarball

@@ -1579,8 +1579,8 @@ static byte *recv_parse_or_apply_log_rec_body(mlog_id_t type, byte *ptr,
                      ENCRYPTION_MAGIC_SIZE) == 0 ||
               memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V2,
                      ENCRYPTION_MAGIC_SIZE) == 0 ||
-              memcmp(ptr, ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE) ==
-                  0) {
+              memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V3,
+                     ENCRYPTION_MAGIC_SIZE) == 0) {
             if (fsp_is_system_or_temp_tablespace(space_id)) {
               break;
             }

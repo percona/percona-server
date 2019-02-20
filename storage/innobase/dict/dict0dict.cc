@@ -7458,8 +7458,9 @@ bool dict_detect_encryption(bool is_upgrade, space_id_t mysql_plugin_space) {
     }
 
     space_id_t space_id = fil_space_get_id_by_name("mysql/plugin");
-    ut_ad(space_id != SPACE_UNKNOWN);
-    ut_ad(space_id == mysql_plugin_space);
+    if (space_id == SPACE_UNKNOWN) {
+      return (false);
+    }
 
     fil_space_t *space = fil_space_get(space_id);
     ut_ad(space != nullptr);

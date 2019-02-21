@@ -969,11 +969,15 @@ private:
   int delete_partitioned_table(const char *const from,
                                const std::string &partition_info_str)
       MY_ATTRIBUTE((__warn_unused_result__));
+
+  int delete_table(Rdb_tbl_def *const tbl);
   int delete_table(const char *const from) override
       MY_ATTRIBUTE((__warn_unused_result__));
   int create(const char *const name, TABLE *const form,
              HA_CREATE_INFO *const create_info) override
       MY_ATTRIBUTE((__warn_unused_result__));
+  int create_table(const std::string &table_name, const TABLE *table_arg,
+                   ulonglong auto_increment_value);
   bool check_if_incompatible_data(HA_CREATE_INFO *const info,
                                   uint table_changes) override
       MY_ATTRIBUTE((__warn_unused_result__));

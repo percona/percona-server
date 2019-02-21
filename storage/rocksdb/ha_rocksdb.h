@@ -939,11 +939,20 @@ class ha_rocksdb : public my_core::handler {
   ha_rows records_in_range(uint inx, key_range *const min_key,
                            key_range *const max_key) override
       MY_ATTRIBUTE((__warn_unused_result__));
-  int delete_table(const char *const from, const dd::Table *table_def) override
+  int delete_non_partitioned_table(const char *const from)
+      MY_ATTRIBUTE((__warn_unused_result__));
+  int delete_partitioned_table(const char *const from,
+                               const std::string &partition_info_str)
+      MY_ATTRIBUTE((__warn_unused_result__));
+
+  int delete_table(Rdb_tbl_def *const tbl);
+  int delete_table(const char *const from) override
       MY_ATTRIBUTE((__warn_unused_result__));
   int create(const char *const name, TABLE *const form,
              HA_CREATE_INFO *const create_info, dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
+  int create_table(const std::string &table_name, const TABLE *table_arg,
+                   ulonglong auto_increment_value);
   bool check_if_incompatible_data(HA_CREATE_INFO *const info,
                                   uint table_changes) override
       MY_ATTRIBUTE((__warn_unused_result__));

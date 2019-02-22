@@ -345,28 +345,38 @@ static void update_global_thread_stats_with_thread(const THD &thd,
   thread_stats->empty_queries += thd.diff_empty_queries;
 }
 
-// Updates the global stats of a user or client
 void update_global_user_stats(THD *thd, bool create_user, ulonglong now) {
-  const char *user_string =
-      get_valid_user_string(thd->m_main_security_ctx.user().str);
-  const char *client_string = get_client_host(*thd);
+  update_global_user_stats(
+      thd, create_user, now,
+      get_valid_user_string(thd->security_context()->user().str),
+      get_client_host(*thd));
+}
 
+// Updates the global stats of a user or client
+void update_global_user_stats(THD *thd, bool create_user, ulonglong now,
+                              const char *user_string,
+                              const char *client_string) {
   mysql_mutex_lock(&LOCK_global_user_client_stats);
 
   // Update by user name
-  const auto &user_it = global_user_stats->find(user_string);
-  if (user_it != global_user_stats->cend())
-    update_global_user_stats_with_user(*thd, &user_it->second, now);
-  else if (create_user)
-    increment_count_by_name(user_string, user_string, global_user_stats, *thd);
+  if (user_string) {
+    const auto &user_it = global_user_stats->find(user_string);
+    if (user_it != global_user_stats->cend())
+      update_global_user_stats_with_user(*thd, &user_it->second, now);
+    else if (create_user)
+      increment_count_by_name(user_string, user_string, global_user_stats,
+                              *thd);
+  }
 
   // Update by client IP
-  const auto &client_it = global_client_stats->find(client_string);
-  if (client_it != global_client_stats->cend())
-    update_global_user_stats_with_user(*thd, &client_it->second, now);
-  else if (create_user)
-    increment_count_by_name(client_string, user_string, global_client_stats,
-                            *thd);
+  if (client_string) {
+    const auto &client_it = global_client_stats->find(client_string);
+    if (client_it != global_client_stats->cend())
+      update_global_user_stats_with_user(*thd, &client_it->second, now);
+    else if (create_user)
+      increment_count_by_name(client_string, user_string, global_client_stats,
+                              *thd);
+  }
 
   if (opt_thread_statistics) {
     // Update by thread ID
@@ -443,7 +453,8 @@ int check_for_max_user_connections(THD *thd, const USER_CONN *uc) {
   mysql_mutex_lock(&LOCK_user_conn);
   if (global_system_variables.max_user_connections &&
       !uc->user_resources.user_conn &&
-      global_system_variables.max_user_connections < (uint)uc->connections) {
+      global_system_variables.max_user_connections < (uint)uc->connections &&
+      !thd->is_admin_connection()) {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);
     error = 1;
     errors.m_max_user_connection = 1;
@@ -691,14 +702,13 @@ bool thd_init_client_charset(THD *thd, uint cs_number) {
   SYNOPSIS
     check_connection()
     thd  thread handle
-    extra_port_connection if true, the client is connecting on extra_port
 
   RETURN
      0  success, thd is updated.
      1  error
 */
 
-static int check_connection(THD *thd, bool extra_port_connection) {
+static int check_connection(THD *thd) {
   uint connect_errors = 0;
   int auth_rc;
   NET *net = thd->get_protocol_classic()->get_net();
@@ -870,7 +880,7 @@ static int check_connection(THD *thd, bool extra_port_connection) {
     return 1;
   }
 
-  auth_rc = acl_authenticate(thd, COM_CONNECT, extra_port_connection);
+  auth_rc = acl_authenticate(thd, COM_CONNECT);
 
   if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT))) {
     return 1;
@@ -906,7 +916,6 @@ static int check_connection(THD *thd, bool extra_port_connection) {
   SYNOPSIS
    login_connection()
    thd        Thread handler
-   extra_port_connection if true, the client is connecting on extra_port
 
   NOTES
     Connection is not closed in case of errors
@@ -916,7 +925,7 @@ static int check_connection(THD *thd, bool extra_port_connection) {
     1    error
 */
 
-static bool login_connection(THD *thd, bool extra_port_connection) {
+static bool login_connection(THD *thd) {
   int error;
   DBUG_ENTER("login_connection");
   DBUG_PRINT("info",
@@ -926,7 +935,7 @@ static bool login_connection(THD *thd, bool extra_port_connection) {
   thd->get_protocol_classic()->set_read_timeout(connect_timeout);
   thd->get_protocol_classic()->set_write_timeout(connect_timeout);
 
-  error = check_connection(thd, extra_port_connection);
+  error = check_connection(thd);
   thd->send_statement_status();
 
   if (error) {  // Wrong permissions
@@ -934,7 +943,6 @@ static bool login_connection(THD *thd, bool extra_port_connection) {
     if (vio_type(thd->get_protocol_classic()->get_vio()) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000); /* must wait after eof() */
 #endif
-    thd->diff_denied_connections++;
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
@@ -1078,10 +1086,10 @@ static void prepare_new_connection_state(THD *thd) {
   }
 }
 
-bool thd_prepare_connection(THD *thd, bool extra_port_connection) {
+bool thd_prepare_connection(THD *thd) {
   bool rc;
   lex_start(thd);
-  rc = login_connection(thd, extra_port_connection);
+  rc = login_connection(thd);
 
   if (rc) return rc;
 

@@ -1,0 +1,29 @@
+# PS-287: It is possible to enable encrypt_binlog with no binary logging
+#
+# It is possible to enable encrypt_binlog without binary logging. In this setup
+# server will only encrypt relay logs - if used. We print an information in server's log
+# file to notify user that although encrypt_binlog in on, there is no binlog file to
+# encrypt and only relay logs will get encrypted.
+
+--let $restart_hide_args=1
+--let $restart_parameters=restart:--log-error=$MYSQLTEST_VARDIR/tmp/binlog_encryption_on_while_binlog_off.err --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --binlog-encryption=1 --skip-log-bin --log-error-verbosity=3
+--source include/restart_mysqld.inc
+
+--let $assert_text= Binlog should be OFF
+--let $assert_cond= "[SELECT @@GLOBAL.log_bin = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= Binlog encryption should be ON
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_encryption = 1]" = 1
+--source include/assert.inc
+
+# Find a note in server's log
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/binlog_encryption_on_while_binlog_off.err
+--let SEARCH_PATTERN= binlog and relay log encryption enabled without binary logging being enabled. If relay logs are in use, they will be encrypted.
+--source include/search_pattern.inc
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_encryption_on_while_binlog_off.err
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring

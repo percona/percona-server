@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -221,7 +221,7 @@ class QUERY_PROFILE {
                   const char *file_arg, unsigned int line_arg);
 
  public:
-  PROFILING *get_profiling() const noexcept { return profiling; };
+  PROFILING *get_profiling() const noexcept { return profiling; }
 };
 
 /**
@@ -260,7 +260,7 @@ class PROFILING {
   void status_change(const char *status_arg, const char *function_arg,
                      const char *file_arg, unsigned int line_arg);
 
-  inline void set_thd(THD *thd_arg) { thd = thd_arg; };
+  inline void set_thd(THD *thd_arg) { thd = thd_arg; }
 
   /* SHOW PROFILES */
   bool show_profiles();

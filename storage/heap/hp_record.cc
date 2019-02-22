@@ -22,6 +22,8 @@
 
 #include <mysql_com.h>
 #include "heapdef.h"
+#include "my_byteorder.h"
+#include "mysql/service_mysql_alloc.h"
 
 /**
   Calculate size of the record for the purpose of storing in chunks

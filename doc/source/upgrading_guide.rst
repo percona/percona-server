@@ -16,23 +16,27 @@ of incompatible changes that could cause automatic upgrade to fail:
 - :ref:`changed_in_8.0`
 - `Upgrading MySQL <http://dev.mysql.com/doc/refman/8.0/en/upgrading.html>`_
 - `Upgrading from MySQL 5.7 to 8.0 <http://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html>`_
+- `Upgrade Paths <https://dev.mysql.com/doc/refman/8.0/en/upgrade-paths.html>`_
 - `Preparing your Installation for Upgrade <https://dev.mysql.com/doc/refman/8.0/en/upgrade-prerequisites.html>`_
-- `Partitioning Limitations Relating to Storage Engines
-  <https://dev.mysql.com/doc/refman/8.0/en/partitioning-limitations-storage-engines.html>`_
 
 .. warning:: 
 
    Do not upgrade from 5.7 to 8.0 on a crashed instance. If the server instance
    has crashed, crash recovery should be run before proceeding with the upgrade.
 
-   With partitioned tables that use the |TokuDB| or |MyRocks| storage engine, the
-   upgrade only works with native partitioning.
-
    Note that in |Percona Server| 8.0, the ``ROW FORMAT`` clause is not supported
    in ``CREATE TABLE`` and ``ALTER TABLE`` statements. Instead, use the
    :variable:`tokudb_row_format` variable to set the default compression
    algorithm.
 
+   With partitioned tables that use the TokuDB or MyRocks storage
+   engine, the upgrade only works with native partitioning.
+
+--------------------------------------------------------------------------------
+
+.. contents::
+   :local:
+   :depth: 1
 
 Upgrading using the Percona repositories
 ================================================================================
@@ -74,12 +78,21 @@ Enable the repository:
 
    $ apt-get install percona-server-server
 
-If you're using |Percona Server| 8.0 with |TokuDB| you'll need to
-specify the |TokuDB| package as well:
+If you used or |TokuDB| or |MyRocks| storage engines
+
+The |TokuDB| and |MyRocks| storage engines are installed separately. The ``percona-server-tokudb`` package installs both of them.
 
 .. code-block:: bash
 
-   $ apt-get install percona-server-server percona-server-tokudb
+   $ apt-get install percona-server-tokudb
+
+If you only used the |MyRocks| storage engine in |Percona Server| |version.prev|, install the
+``percona-server-rocksdb`` package.
+
+.. code-block:: bash
+
+   $ apt-get install percona-server-rocksdb
+
 
 The installation script will *NOT* run automatically :command:`mysql_upgrade` as
 it was the case in previous versions. You'll need to run the command manually
@@ -117,7 +130,6 @@ Having done the full backup (and dump if possible), stop the server:
    service manager you can invoke the above command with :program:`systemctl`
    instead of :program:`service`. Currently both are supported.
 
-
 .. admonition:: Output of :bash:`rpm -qa | grep Percona-Server`
 
    .. code-block:: guess
@@ -140,17 +152,39 @@ After checking, proceed to remove them without dependencies:
 It is important that you remove them without dependencies as many packages may
 depend on these (as they replace ``mysql``) and will be removed if omitted.
 
+.. important:: |etc.my-cnf| Backed Up in |centos| 7
+
+   In |centos| 7, the |etc.my-cnf| configuration file is backed up when you
+   uninstall the |Percona Server| packages with the |rpm.e.nodeps| command.
+
+   The backup file is stored in the same directory with the `_backup` suffix
+   followed by a timestamp: |etc.my-cnf-backup|.
+
 Substitute :bash:`grep '^mysql-'` for :bash:`grep 'Percona-Server'` in the previous command and
 remove the listed packages.
 
-You will have to install the ``percona-server-server`` package: :bash:`yum install percona-server-server`
-
-If you're using |Percona Server| 8.0 with |TokuDB| you'll need to specify the
-|TokuDB| package as well when doing the upgrade:
+You will have to install the ``percona-server-server`` package:
 
 .. code-block:: bash
 
-   $ yum install percona-server-server percona-server-tokudb
+   $ yum install percona-server-server
+
+The |TokuDB| and |MyRocks| storage engines are installed separately.
+
+If you used |TokuDB| in |Percona Server| |version.prev|, install the
+``percona-server-tokudb`` package when doing the upgrade. This command installs
+both
+
+.. code-block:: bash
+
+   $ yum install percona-server-tokudb
+
+If you used the |MyRocks| storage engine in |Percona Server| |version.prev|, install the
+``percona-server-rocksdb`` package:
+
+.. code-block:: bash
+
+   $ yum install percona-server-rocksdb
 
 Once installed, proceed to modify your configuration file - :file:`my.cnf` - and
 reinstall the plugins if necessary.
@@ -219,7 +253,7 @@ Then, download the following packages for your architecture:
 - ``libperconaserverclient21``
 
 The following example will download |Percona Server| :rn:`8.0.13-3` release
-packages for *Debian* 8.0:
+packages for *Debian* 9.0:
 
 .. code-block:: bash
 
@@ -377,5 +411,61 @@ rebuild the indexes needed and do the modifications needed:
 
 After this is done, just restart the server as usual: |service.mysql.restart|
 
+Upgrading from Systems that Use the |TokuDB| or |MyRocks| Storage Engine and Partitioned Tables
+====================================================================================================
+
+Due to the limitation imposed by |MySQL|, it is the storage engine that must
+provide support for partitioning.  |MySQL| 8.0 only provides support for
+partitioned table for the |InnoDB| storage engine.
+
+If you use partitioned tables with the |TokuDB| or |MyRocks| storage engine, the
+upgrade may fail if the native partitioning (i.e. provided by the storage engine
+itself) is not enabled.
+
+Before you attempt the upgrade, check whether or not you have any tables that do not use the native partitioning.
+
+.. code-block:: bash
+
+   $ mysqlcheck -u root --all-databases --check-upgrade
+
+If such tables are found |mysqlcheck| issues a warning:
+
+.. admonition:: Output of |mysqlcheck| detecting a table that do not use the native partitioning
+
+   .. code-block:: guess
+
+      | comp_test.t1_RocksDB_lz4     OK
+      | warning  : The partition engine, used by table 'comp_test.t1_RocksDB_lz4',
+      | is deprecated and will be removed in a future release. Please use native partitioning instead.
+
+In this case ``comp_test.t1_RocksDB_lz4`` is not using native partitions. To
+switch, enable either :variable:`rocksdb_enable_native_partition` or
+:variable:`tokudb_enable_native_partition` variable depending on the storage
+engine that you are using. Then restart the server. Your next step is to alter
+the tables that are not using the native partitioning with the
+|sql.upgrade-partitioning| clause:
+
+.. code-block:: mysql
+
+   ALTER TABLE comp_test.t1_RocksDB_lz4 UPGRADE PARTITIONING
+
+In this example, the table ``comp_test.t1_RocksDB_lz4`` to native
+partitioning. Unless you complete these steps for each table that |mysqlcheck|
+complained about, the upgrade to |MySQL| |version| will fail and your error log
+will contain messages like:
+
+.. code-block:: guess
+
+   2018-12-17T18:34:14.152660Z 2 [ERROR] [MY-013140] [Server] The 'partitioning' feature is not available; you need to remove '--skip-partition' or use MySQL built with '-DWITH_PARTITION_STORAGE_ENGINE=1'
+   2018-12-17T18:34:14.152679Z 2 [ERROR] [MY-013140] [Server] Can't find file: './comp_test/t1_RocksDB_lz4.frm' (errno: 0 - Success)
+   2018-12-17T18:34:14.152691Z 2 [ERROR] [MY-013137] [Server] Can't find file: './comp_test/t1_RocksDB_lz4.frm' (OS errno: 0 - Success)
+
+.. seealso::
+
+   |MySQL| Documentation: Partitioning Limitations Relating to Storage Engines
+      https://dev.mysql.com/doc/refman/8.0/en/partitioning-limitations-storage-engines.html
+
 .. include:: .res/replace.txt
 .. include:: .res/replace.program.txt
+.. include:: .res/replace.concept.txt
+.. include:: .res/replace.file.txt

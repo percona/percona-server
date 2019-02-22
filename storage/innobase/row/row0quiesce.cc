@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <errno.h>
 #include <my_aes.h>
 
+#include "dict0dd.h"
 #include "fil0crypt.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"

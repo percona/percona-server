@@ -490,8 +490,7 @@ void fts_ast_node_print(fts_ast_node_t *node) /*!< in: ast node to print */
 @param[in]	node	ast node to check
 @return true if the node contains only union else false. */
 bool fts_ast_node_check_union(fts_ast_node_t *node) {
-  if (node->type == FTS_AST_LIST || node->type == FTS_AST_SUBEXP_LIST ||
-      node->type == FTS_AST_PARSER_PHRASE_LIST) {
+  if (node->type == FTS_AST_LIST || node->type == FTS_AST_SUBEXP_LIST) {
     for (node = node->list.head; node; node = node->next) {
       if (!fts_ast_node_check_union(node)) {
         return (false);
@@ -501,7 +500,8 @@ bool fts_ast_node_check_union(fts_ast_node_t *node) {
   } else if (node->type == FTS_AST_OPER &&
              (node->oper == FTS_IGNORE || node->oper == FTS_EXIST)) {
     return (false);
-  } else if (node->type == FTS_AST_TEXT) {
+  } else if (node->type == FTS_AST_TEXT ||
+             node->type == FTS_AST_PARSER_PHRASE_LIST) {
     /* Distance or phrase search query. */
     return (false);
   }

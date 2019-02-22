@@ -1,19 +1,27 @@
 /* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/binlog_reader.h"
+#include "my_byteorder.h"
 #include "sql/event_crypt.h"
 #include "sql/log_event.h"
 
@@ -42,7 +50,7 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
       if (type != binary_log::FORMAT_DESCRIPTION_EVENT &&
           type != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
           type != binary_log::GTID_LOG_EVENT &&
-          type != binary_log::START_ENCRYPTION_EVENT) {
+          type != binary_log::START_5_7_ENCRYPTION_EVENT) {
         int cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN -
                                 LOG_EVENT_MINIMAL_HEADER_LEN) +
                       LOG_EVENT_MINIMAL_HEADER_LEN;
@@ -60,7 +68,7 @@ bool Binlog_event_data_istream::start_decryption(
       down_cast<Start_encryption_log_event *>(see);
   if (!sele->is_valid() ||
       crypto_data.init(see->crypto_scheme, see->key_version, see->nonce)) {
-    m_error->set_type(Binlog_read_error::DECRYPT_INIT_FAILURE);
+    m_error->set_type(Binlog_read_error::DECRYPT_PRE_8_0_14_INIT_FAILURE);
     return true;
   }
   return false;
@@ -106,14 +114,17 @@ bool Binlog_event_data_istream::Decryption_buffer::set_size(
   }
   DBUG_ASSERT(size_to_set < m_size);
 
-  if (size_to_set < (m_size / 2) &&
-      ++m_number_of_events_with_half_the_size == 100) {
-    // There were already 101 events which size was a half of currently
-    // allocated size. This is strong indication that we had occured an
-    // event which was unusually big. Shrink the buffer to half the size.
-    if (resize(m_size / 2)) {
-      return true;
+  if (size_to_set < (m_size / 2)) {
+    if (++m_number_of_events_with_half_the_size == 100) {
+      // There were already 101 events in a row, which size was a half of
+      // currently allocated size. This is strong indication that we had occured
+      // an event which was unusually big. Shrink the buffer to half the size.
+      if (resize(m_size / 2)) {
+        return true;
+      }
+      m_number_of_events_with_half_the_size = 0;
     }
+  } else {
     m_number_of_events_with_half_the_size = 0;
   }
   return false;
@@ -135,14 +146,14 @@ bool Binlog_event_data_istream::fill_event_data(
     Basic_binlog_ifile *binlog_file =
         down_cast<Basic_binlog_ifile *>(m_istream);
 
-    // if file position if larger than 4 bytes we still care only about
+    // if file position is larger than 4 bytes we still care only about
     // least significant 4 bytes
     if (m_decryption_buffer.set_size(m_event_length) ||
         decrypt_event(
             static_cast<uint32_t>((binlog_file->position() - m_event_length)),
             crypto_data, event_data, m_decryption_buffer.data(),
             m_event_length)) {
-      return m_error->set_type(Binlog_read_error::DECRYPT);
+      return m_error->set_type(Binlog_read_error::ERROR_DECRYPTING_FILE);
     }
 
     memcpy(event_data, m_decryption_buffer.data(), m_event_length);
@@ -161,8 +172,8 @@ bool Binlog_event_data_istream::fill_event_data(
                                               checksum_alg) &&
         !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
       return m_error->set_type(crypto_data.is_enabled()
-                                   ? Binlog_read_error::CHECKSUM_FAILURE
-                                   : Binlog_read_error::DECRYPT);
+                                   ? Binlog_read_error::ERROR_DECRYPTING_FILE
+                                   : Binlog_read_error::CHECKSUM_FAILURE);
     }
   }
   return false;
@@ -182,7 +193,7 @@ bool Binlog_event_data_istream::check_event_header() {
 Binlog_read_error::Error_type binlog_event_deserialize(
     const unsigned char *buffer, unsigned int event_len,
     const Format_description_event *fde, bool verify_checksum,
-    Log_event **event, bool force_opt MY_ATTRIBUTE((unused))) {
+    Log_event **event) {
   const char *buf = reinterpret_cast<const char *>(buffer);
   Log_event *ev = NULL;
   enum_binlog_checksum_alg alg;
@@ -250,7 +261,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
   }
 
   if (event_type > fde->number_of_event_types &&
-      event_type != binary_log::START_ENCRYPTION_EVENT &&
+      event_type != binary_log::START_5_7_ENCRYPTION_EVENT &&
       /*
         Skip the event type check when simulating an unknown ignorable event.
       */
@@ -363,7 +374,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
       ev = new Update_rows_log_event(buf, fde);
       break;
-    case binary_log::START_ENCRYPTION_EVENT:
+    case binary_log::START_5_7_ENCRYPTION_EVENT:
       ev = new Start_encryption_log_event(buf, fde);
       break;
     default:

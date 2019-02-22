@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,7 @@ uint thd_get_net_read_write(THD *thd);
 void thd_set_not_killable(THD *thd);
 ulong thd_get_net_wait_timeout(THD *thd);
 my_socket thd_get_fd(THD *thd);
-int thd_store_globals(THD *thd);
+void thd_store_globals(THD *thd);
 
 /* Store a table record */
 bool schema_table_store_record(THD *thd, TABLE *table);
@@ -149,7 +149,7 @@ bool do_command(THD *thd);
   executed.
 */
 /* Prepare connection as part of connection set-up */
-bool thd_prepare_connection(THD *thd, bool extra_port_connection);
+bool thd_prepare_connection(THD *thd);
 /* Release auditing before executing statement */
 void mysql_audit_release(THD *thd);
 /* Check if connection is still alive */

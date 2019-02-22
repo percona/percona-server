@@ -17,9 +17,16 @@
 #include "buffer.h"
 
 #include "audit_log.h"
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "my_systime.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "thr_mutex.h"
 
 struct audit_log_buffer_t {
   char *buf;

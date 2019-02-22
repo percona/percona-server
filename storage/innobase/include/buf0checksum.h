@@ -51,9 +51,8 @@ uint32_t buf_calc_page_crc32(const byte *page,
 
 /** In case of keyring encryption we need to take into accout the page_size-
 That can be different for compressed tables */
-uint32_t buf_calc_page_crc32_encrypted_with_keyring(const byte* page,
-                                                    uint page_size,
-                                                    bool use_legacy_big_endian = false);
+uint32_t buf_calc_page_crc32_encrypted_with_keyring(
+    const byte *page, uint page_size, bool use_legacy_big_endian = false);
 
 /** Calculates a page checksum which is stored to the page when it is written
  to a file. Note that we must be careful to calculate the same value on
@@ -94,6 +93,7 @@ class BlockReporter {
         m_skip_checksum(skip_checksum) {}
 
   virtual ~BlockReporter() {}
+  BlockReporter(const BlockReporter &) = default;
 
   /** Checks if a page is corrupt.
   @retval	true	if page is corrupt

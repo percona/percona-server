@@ -131,8 +131,8 @@ with required parameters:
 
 .. code-block:: bash
 
-   ps-admin --enable -uroot -pPassw0rd
-   
+   $ ps-admin --enable-tokudb -uroot -pPassw0rd   
+
 Following output will be displayed:
 
 .. code-block:: bash

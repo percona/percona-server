@@ -198,6 +198,7 @@ DROP TABLE t1, t2;
 
 call mtr.add_suppression("Failed to find tablespace for table");
 call mtr.add_suppression("Allocated tablespace [0-9]+, old maximum was");
+call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
 
 --echo 8th restart
 --let $restart_parameters= restart:--innodb-force-recovery=6
@@ -205,8 +206,6 @@ call mtr.add_suppression("Allocated tablespace [0-9]+, old maximum was");
 
 # innodb_force_recovery desyncs bitmap data and logs
 RESET CHANGED_PAGE_BITMAPS;
-
-call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
 
 # A restart to allow data files to sync with redo log after the forced recovery
 --echo 9th restart

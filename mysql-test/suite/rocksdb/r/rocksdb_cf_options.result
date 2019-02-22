@@ -7,6 +7,7 @@ primary key (a) comment 'cfname=z') engine=rocksdb;
 insert into t1 values (1);
 insert into t2 values (2);
 insert into t3 values (2);
+SET @@global.rocksdb_update_cf_options = 'cf5={prefix_extractor=capped:28};';
 # restart
 
 Default options for all column families:
@@ -24,6 +25,9 @@ cf1	WRITE_BUFFER_SIZE	12582912
 cf2	MAX_BYTES_FOR_LEVEL_MULTIPLIER	10.000000
 cf2	TARGET_FILE_SIZE_BASE	1048576
 cf2	WRITE_BUFFER_SIZE	12582912
+cf5	MAX_BYTES_FOR_LEVEL_MULTIPLIER	10.000000
+cf5	TARGET_FILE_SIZE_BASE	1048576
+cf5	WRITE_BUFFER_SIZE	12582912
 default	MAX_BYTES_FOR_LEVEL_MULTIPLIER	10.000000
 default	TARGET_FILE_SIZE_BASE	1048576
 default	WRITE_BUFFER_SIZE	12582912
@@ -50,6 +54,9 @@ cf1	WRITE_BUFFER_SIZE	8388608
 cf2	MAX_BYTES_FOR_LEVEL_MULTIPLIER	8.000000
 cf2	TARGET_FILE_SIZE_BASE	1048576
 cf2	WRITE_BUFFER_SIZE	16777216
+cf5	MAX_BYTES_FOR_LEVEL_MULTIPLIER	10.000000
+cf5	TARGET_FILE_SIZE_BASE	1048576
+cf5	WRITE_BUFFER_SIZE	12582912
 default	MAX_BYTES_FOR_LEVEL_MULTIPLIER	10.000000
 default	TARGET_FILE_SIZE_BASE	1048576
 default	WRITE_BUFFER_SIZE	12582912
@@ -66,8 +73,10 @@ primary key (a) comment 'cfname=cf3') engine=rocksdb;
 include/assert.inc ["Expected cf3 to exist"]
 create table t5 (a int,
 primary key (a) comment 'cfname=nobodyknows') engine=rocksdb;
-ERROR HY000: Incorrect arguments to CREATE | ALTER - can not find column family for storing index data and creation is not allowed.
+ERROR HY000: Incorrect arguments to CREATE | ALTER | SET rocksdb_update_cf_options - can not find column family for storing index data and creation is not allowed.
 include/assert.inc ["Expected cf4 to NOT exist"]
+SET @@global.rocksdb_update_cf_options = 'cf6={prefix_extractor=capped:28};';
+ERROR HY000: Incorrect arguments to CREATE | ALTER | SET rocksdb_update_cf_options - can not find column family for storing index data and creation is not allowed.
 # restart
 
 drop table t1,t2,t3,t4;

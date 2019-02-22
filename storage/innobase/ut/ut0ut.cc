@@ -58,6 +58,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/components/services/log_builtins.h"
 #include "sql/derror.h"
 
+static_assert(std::chrono::steady_clock::is_steady,
+              "Clock is not monotonically-increasing (steady).");
+
 #ifdef _WIN32
 using time_fn = VOID(WINAPI *)(_Out_ LPFILETIME);
 static time_fn ut_get_system_time_as_file_time = GetSystemTimeAsFileTime;
@@ -517,6 +520,8 @@ const char *ut_strerr(dberr_t num) {
       return ("Undo record too big");
     case DB_END_OF_INDEX:
       return ("End of index");
+    case DB_END_OF_BLOCK:
+      return ("End of block");
     case DB_IO_ERROR:
       return ("I/O error");
     case DB_TABLE_IN_FK_CHECK:
@@ -574,6 +579,9 @@ const char *ut_strerr(dberr_t num) {
 
     case DB_INVALID_ENCRYPTION_META:
       return ("Invalid encryption meta-data information");
+
+    case DB_ABORT_INCOMPLETE_CLONE:
+      return ("Incomplete cloned data directory");
 
     case DB_SERVER_VERSION_LOW:
       return (

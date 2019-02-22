@@ -13,6 +13,9 @@
 # audit_null
 audit_null.audit_plugin_bugs : BUG#28080637 2018-05-31 Anitha Test fails consistently
 
+# auth_sec
+auth_sec.openssl_without_fips: Bug #28812609 2018-11-23 Erlend Test fails all over
+
 # binlog suite tests
 binlog.binlog_xa_commit_failure : BUG#27588706 2018-02-23 Erlend Test has never worked correctly.
 
@@ -33,8 +36,6 @@ innodb.truncate                       : Mayank Enable again once shared tablespa
 innodb.subpartition                   : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
 innodb.ddl_crash_alter_table_partition_tablespace : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
 innodb.innodb_bug14676111             : Bug#18200831 2018-08-14 Erlend The test has never worked correctly
-innodb.bug64663                       : PS-4892 2018-12-11 Satya Disabled until expand fast creation is reimplemented
-innodb.percona_expand_fast_index_creation_innodb : PS-4892 2018-12-11 Satya Disabled until expand fast creation is reimplemented
 
 # innodb_fts suite test
 innodb_fts.sync_block : percona disabled because the test is fundamentally unstable https://jira.percona.com/browse/PS-2232
@@ -44,7 +45,9 @@ json.json_ddl_ndb : BUG#26616564 FAILURE OF JSON_DDL_NDB TEST, Bug#26609059 2017
 
 # main suite tests
 main.ds_mrr-big @solaris   : BUG#14168107 2012-04-03 Hemant disabled new test added by Olav Sandstå,since this leads to timeout on Solaris on slow sparc servers.
-main.percona_expand_fast_index_creation : PS-4892 2018-12-11 Satya Disabled until expand fast creation is reimplemented
+
+# Memcached tests
+memcached.memc242_set      : Bug#28834121 2018-10-24 MEMCACHED.MEMC242_SET IS FAILING
 
 # Disabled due to InnoDB issues
 main.internal_tmp_disk_storage_engine : BUG#26917416 2017-04-13 Allen Disabled it since it's failing on pb2.
@@ -52,8 +55,16 @@ main.internal_tmp_disk_storage_engine : BUG#26917416 2017-04-13 Allen Disabled i
 # Upgrade tests failing frequently on Solaris
 main.mysql_upgrade                    @solaris : Bug#28146052 2018-07-30 Erlend
 main.mysql_upgrade_slave_master_info  @solaris : Bug#28146052 2018-07-30 Erlend
+i_main.mysql_upgrade_gtid             @solaris : Bug#28146052 2018-07-30 Erlend
+main.dd_schema_definition_after_upgrade_debug @solaris : Bug#28146052 2018-10-05 Erlend
+main.dd_upgrade_test                          @solaris : Bug#28146052 2018-10-05 Erlend
+main.dd_upgrade_partition                     @solaris : Bug#28146052 2018-10-05 Erlend
+main.component-upgrade                        @solaris : Bug#28146052 2018-10-05 Erlend
+rpl.rpl_mysql_upgrade                         @solaris : Bug#28146052 2018-10-05 Erlend
 
 main.events_time_zone         : percona disabled because the test is fundamentally unstable https://jira.percona.com/browse/PS-2179
+main.pool_of_threads          : percona disabled for WIP PS-5044
+main.pool_of_threads_high_prio_tickets  : percona disabled for WIP PS-5044
 
 # max_parts suite tests
 max_parts.innodb-import-partition-1                         : BUG#27413612 Ashish Fails consistently on hudson jobs. Disabled until bug is fixed.
@@ -72,6 +83,7 @@ max_parts.innodb_partition_open_files_limit                 : Bug#27423163 2018-
 
 # perfschema suite test
 perfschema.innodb_is_data_locks : BUG#27491547 2018-02-08 Marc Alff PERFSCHEMA.INNODB_IS_DATA_LOCKS FAILS SPORADICALLY ON PB2.
+perfschema.threads_history      : Bug#27712231 2018-09-27 Erlend Dahl PB2 PERFSCHEMA.THREADS_HISTORY IS UNSTABLE
 
 # rpl_gtid suite tests
 rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040 2017-08-29 Ivo Roylev.
@@ -85,9 +97,7 @@ rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 2018-05-30 Dmit
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 2017-09-22 Deepthi Disabled until bug is fixed.
 rpl.rpl_semi_sync_group_commit_deadlock : percona disabled until http://bugs.mysql.com/bug.php?id=80581 is fixed
 rpl.rpl_semi_sync_non_group_commit_deadlock : percona disabled until http://bugs.mysql.com/bug.php?id=80581 is fixed
-
-# sys_vars tests
-sys_vars.expand_fast_index_creation_basic : PS-4892 2018-12-11 Satya Disabled until expand fast creation is reimplemented
+rpl.rpl_multi_source_corrupt_repository   : Bug#28765425 2018-11-23 Erlend Disabled until the bug is fixed
 
 # sysschema suite tests
 sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 2016-06-26 Erlend Test fails too often.

@@ -130,11 +130,13 @@ names, where the file name itself may also contain a path */
 
 char *srv_data_home = NULL;
 
-/** Rollback files directory, can be absolute. */
+/** Undo tablespace directories.  This can be multiple paths
+separated by ';' and can also be absolute paths. */
 char *srv_undo_dir = NULL;
 
-/** The number of tablespaces to use for rollback segments. */
-ulong srv_undo_tablespaces = FSP_MIN_UNDO_TABLESPACES;
+/** The number of implicit undo tablespaces to use for rollback
+segments. */
+ulong srv_undo_tablespaces = FSP_IMPLICIT_UNDO_TABLESPACES;
 
 #ifndef UNIV_HOTBACKUP
 /* The number of rollback segments per tablespace */
@@ -197,6 +199,9 @@ unsigned long long srv_online_max_size;
 is greater than SRV_FORCE_NO_TRX_UNDO. */
 bool high_level_read_only;
 
+/** Number of threads to use for parallel reads. */
+ulong srv_parallel_read_threads;
+
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
@@ -227,9 +232,6 @@ bool srv_master_thread_disabled_debug;
 /** Event used to inform that master thread is disabled. */
 static os_event_t srv_master_thread_disabled_event;
 #endif /* !UNIV_HOTBACKUP */
-/** Debug variable to find if any background threads are adding
-to purge during slow shutdown. */
-extern bool trx_commit_disallowed;
 #endif /* UNIV_DEBUG */
 
 /*------------------------- LOG FILES ------------------------ */
@@ -239,6 +241,10 @@ char *srv_log_group_home_dir = NULL;
 ulong srv_redo_log_encrypt = 0;
 
 ulong srv_n_log_files = SRV_N_LOG_FILES_MAX;
+
+#ifdef UNIV_DEBUG_DEDICATED
+ulong srv_debug_system_mem_size;
+#endif /* UNIV_DEBUG_DEDICATED */
 
 /** At startup, this is the current redo log file size.
 During startup, if this is different from srv_log_file_size_requested
@@ -836,12 +842,12 @@ bool srv_redo_log_thread_started = false;
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Performance schema stage event for monitoring ALTER TABLE progress
-everything after flush log_make_checkpoint_at(). */
+everything after flush log_make_latest_checkpoint(). */
 PSI_stage_info srv_stage_alter_table_end = {
     0, "alter table (end)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 
 /** Performance schema stage event for monitoring ALTER TABLE progress
-log_make_checkpoint_at(). */
+log_make_latest_checkpoint(). */
 PSI_stage_info srv_stage_alter_table_flush = {
     0, "alter table (flush)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 
@@ -882,6 +888,7 @@ PSI_stage_info srv_stage_alter_tablespace_encryption = {
 /** Performance schema stage event for monitoring buffer pool load progress. */
 PSI_stage_info srv_stage_buffer_pool_load = {
     0, "buffer pool load", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /** Performance schema stage event for monitoring clone file copy progress. */
 PSI_stage_info srv_stage_clone_file_copy = {
@@ -894,7 +901,6 @@ PSI_stage_info srv_stage_clone_redo_copy = {
 /** Performance schema stage event for monitoring clone page copy progress. */
 PSI_stage_info srv_stage_clone_page_copy = {
     0, "clone (page copy)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /** Prints counters for work done by srv_master_thread. */
 static void srv_print_master_thread_info(FILE *file) /* in: output stream */
@@ -1266,6 +1272,7 @@ static void srv_general_init() {
   trx_pool_init();
   que_init();
   row_mysql_init();
+  undo_spaces_init();
 }
 
 /** Boots the InnoDB server. */
@@ -1703,6 +1710,24 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
 
+  export_vars.innodb_undo_tablespaces_implicit = FSP_IMPLICIT_UNDO_TABLESPACES;
+
+  undo::spaces->s_lock();
+
+  export_vars.innodb_undo_tablespaces_total = undo::spaces->size();
+
+  export_vars.innodb_undo_tablespaces_explicit =
+      export_vars.innodb_undo_tablespaces_total - FSP_IMPLICIT_UNDO_TABLESPACES;
+
+  export_vars.innodb_undo_tablespaces_active = 0;
+
+  for (auto undo_space : undo::spaces->m_spaces) {
+    if (undo_space->is_active()) {
+      export_vars.innodb_undo_tablespaces_active++;
+    }
+  }
+  undo::spaces->s_unlock();
+
   export_vars.innodb_pages_decrypted = srv_stats.pages_decrypted;
   export_vars.innodb_pages_encrypted = srv_stats.pages_encrypted;
 
@@ -1892,7 +1917,7 @@ loop:
   new_lsn = log_get_lsn(*log_sys);
 
   if (new_lsn < old_lsn) {
-    ib::error(ER_IB_MSG_1046, old_lsn, new_lsn);
+    ib::error(ER_IB_MSG_1046, ulonglong{old_lsn}, ulonglong{new_lsn});
     ut_ad(0);
   }
 
@@ -1913,7 +1938,7 @@ loop:
       os_thread_eq(waiter, old_waiter)) {
     fatal_cnt++;
     if (fatal_cnt > 10) {
-      ib::fatal(ER_IB_MSG_1047, srv_fatal_semaphore_wait_threshold);
+      ib::fatal(ER_IB_MSG_1047, ulonglong{srv_fatal_semaphore_wait_threshold});
     }
   } else {
     fatal_cnt = 0;
@@ -2185,13 +2210,13 @@ static void srv_shutdown_print_master_pending(
     *last_print_time = ut_time();
 
     if (n_tables_to_drop) {
-      ib::info(ER_IB_MSG_1048, n_tables_to_drop);
+      ib::info(ER_IB_MSG_1048, ulonglong{n_tables_to_drop});
     }
 
     /* Check change buffer merge, we only wait for change buffer
     merge if it is a slow shutdown */
     if (!srv_fast_shutdown && n_bytes_merged) {
-      ib::info(ER_IB_MSG_1049, n_bytes_merged);
+      ib::info(ER_IB_MSG_1049, ulonglong{n_bytes_merged});
     }
   }
 }
@@ -2652,18 +2677,12 @@ dberr_t srv_temp_encryption_update(bool enable) {
   }
 }
 
-/** Enable the undo log encryption if it is set.
-It will try to enable the undo log encryption and write the metadata to
-undo log file header, if innodb_undo_log_encrypt is ON. */
-static void srv_enable_undo_encryption_if_set() {
+void srv_enable_undo_encryption_if_set() {
   fil_space_t *space;
 
   if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
     return;
   }
-
-  //"Can't set undo tablespace(s) to be encrypted since
-  //--innodb_undo_tablespaces=0."
 
   /* Check if encryption for undo log is enabled or not. If it's
   enabled, we will store the encryption metadata to the space header
@@ -2689,6 +2708,13 @@ static void srv_enable_undo_encryption_if_set() {
         continue;
       }
 
+      /* Only encrypt active undo tablespaces. */
+      if (!undo_space->is_active()) {
+        continue;
+      }
+
+      undo_space->rsegs()->s_lock();
+
       space = fil_space_get(undo_space->id());
       ut_ad(fsp_is_undo_tablespace(undo_space->id()));
 
@@ -2697,6 +2723,7 @@ static void srv_enable_undo_encryption_if_set() {
       /* We need the server_uuid initialized, otherwise,
       the keyname will not contains server uuid. */
       if (FSP_FLAGS_GET_ENCRYPTION(space->flags) || strlen(server_uuid) == 0) {
+        undo_space->rsegs()->s_unlock();
         continue;
       }
 
@@ -2722,9 +2749,10 @@ static void srv_enable_undo_encryption_if_set() {
       if (!Encryption::fill_encryption_info(key, iv, encrypt_info, false)) {
         srv_undo_log_encrypt = false;
 
-        ib::error(ER_IB_MSG_1052, undo_space->num());
+        ib::error(ER_IB_MSG_1052, undo_space->space_name());
 
         mtr_commit(&mtr);
+        undo_space->rsegs()->s_unlock();
         undo::spaces->s_unlock();
         return;
       } else {
@@ -2732,26 +2760,27 @@ static void srv_enable_undo_encryption_if_set() {
                                          true, false, &mtr)) {
           srv_undo_log_encrypt = false;
 
-          ib::error(ER_IB_MSG_1053);
+          ib::error(ER_IB_MSG_1053, undo_space->space_name());
 
           mtr_commit(&mtr);
+          undo_space->rsegs()->s_unlock();
           undo::spaces->s_unlock();
           return;
         }
-        space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+        FSP_FLAGS_SET_ENCRYPTION(space->flags);
         err = fil_set_encryption(space->id, Encryption::AES, key, iv);
         if (err != DB_SUCCESS) {
           srv_undo_log_encrypt = false;
 
-          ib::error(ER_IB_MSG_1054, err, ut_strerr(err));
+          ib::error(ER_IB_MSG_1054, undo_space->space_name(), int{err},
+                    ut_strerr(err));
 
           mtr_commit(&mtr);
+          undo_space->rsegs()->s_unlock();
           undo::spaces->s_unlock();
           return;
         } else {
-          auto id = undo::id2num(undo_space->id());
-
-          ib::info(ER_IB_MSG_1055, id);
+          ib::info(ER_IB_MSG_1055, undo_space->space_name());
 #ifdef UNIV_ENCRYPT_DEBUG
           ut_print_buf(stderr, key, 32);
           ut_print_buf(stderr, iv, 32);
@@ -2759,6 +2788,7 @@ static void srv_enable_undo_encryption_if_set() {
         }
       }
       mtr_commit(&mtr);
+      undo_space->rsegs()->s_unlock();
     }
     undo::spaces->s_unlock();
 
@@ -2778,9 +2808,8 @@ static void srv_enable_undo_encryption_if_set() {
     ut_ad(fsp_is_undo_tablespace(undo_space->id()));
 
     space = fil_space_get(undo_space->id());
-    ut_ad(space);
 
-    if (space->encryption_type != Encryption::AES) {
+    if (space == nullptr || space->encryption_type != Encryption::AES) {
       continue;
     }
 
@@ -2800,9 +2829,9 @@ static void srv_enable_undo_encryption_if_set() {
     memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
     if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
-      ib::error(ER_IB_MSG_1056, undo::id2num(space->id));
+      ib::error(ER_IB_MSG_1056, undo_space->space_name());
     } else {
-      ib::info(ER_IB_MSG_1057, undo::id2num(space->id));
+      ib::info(ER_IB_MSG_1057, undo_space->space_name());
     }
     mtr_commit(&mtr);
   }
@@ -3031,7 +3060,6 @@ void srv_worker_thread() {
 
   rw_lock_x_unlock(&purge_sys->latch);
 
-  thd_free_innodb_session(thd);
   destroy_thd(thd);
 
   my_thread_end();
@@ -3295,12 +3323,6 @@ void srv_purge_coordinator_thread() {
     n_pages_purged = trx_purge(1, srv_purge_batch_size, false);
   }
 
-#ifdef UNIV_DEBUG
-  if (srv_fast_shutdown == 0) {
-    trx_commit_disallowed = true;
-  }
-#endif /* UNIV_DEBUG */
-
   /* This trx_purge is called to remove any undo records (added by
   background threads) after completion of the above loop. When
   srv_fast_shutdown != 0, a large batch size can cause significant
@@ -3340,7 +3362,6 @@ void srv_purge_coordinator_thread() {
     srv_release_threads(SRV_WORKER, srv_n_purge_threads - 1);
   }
 
-  thd_free_innodb_session(thd);
   destroy_thd(thd);
 
   my_thread_end();

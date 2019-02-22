@@ -22,4 +22,6 @@
 .. |rhel| replace:: RHEL
 
 .. |mysql.last-version| replace:: MySQL 8.0
-		      
+.. |version.next| replace:: 9.0
+.. |version.prev| replace:: 5.7
+.. |version.previous| replace:: 5.7

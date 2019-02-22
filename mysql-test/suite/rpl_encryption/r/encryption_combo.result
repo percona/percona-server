@@ -28,7 +28,7 @@ Pattern "table1_no_encryption" found
 # Part 2: restart master, now with binlog encryption
 #####################################################
 UNINSTALL PLUGIN keyring_file;
-include/rpl_restart_server.inc [server_number=1 parameters: --encrypt-binlog=1]
+include/rpl_restart_server.inc [server_number=1 parameters: --binlog-encryption=1]
 connection server_1;
 connection server_1;
 connection server_1;
@@ -63,7 +63,7 @@ Pattern "table2_to_encrypt" not found
 # Part 3: restart master again without encryption
 #####################################################
 UNINSTALL PLUGIN keyring_file;
-include/rpl_restart_server.inc [server_number=1 parameters: --encrypt-binlog=0]
+include/rpl_restart_server.inc [server_number=1 parameters: --binlog-encryption=0]
 connection server_1;
 connection server_1;
 connection server_1;

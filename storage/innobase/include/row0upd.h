@@ -195,6 +195,7 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]	mysql_table	NULL, or mysql table object when
                                 user thread invokes dml
 @param[in]	prebuilt	compress_heap must be taken from here
+@param[out]	error		error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 upd_t *row_upd_build_difference_binary(dict_index_t *index,
@@ -202,7 +203,7 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
                                        const ulint *offsets, bool no_sys,
                                        trx_t *trx, mem_heap_t *heap,
                                        TABLE *mysql_table,
-                                       row_prebuilt_t *prebuilt)
+                                       row_prebuilt_t *prebuilt, dberr_t *error)
     MY_ATTRIBUTE((warn_unused_result));
 /** Replaces the new column values stored in the update vector to the index
  entry given. */
@@ -553,12 +554,7 @@ struct upd_t {
   /** Determine if the given field_no is modified.
   @return true if modified, false otherwise.  */
   bool is_modified(const ulint field_no) const {
-    for (ulint i = 0; i < n_fields; ++i) {
-      if (field_no == fields[i].field_no) {
-        return (true);
-      }
-    }
-    return (false);
+    return (get_field_by_field_no(field_no, table->first_index()) != nullptr);
   }
 
   /** Reset the update fields. */
@@ -567,11 +563,6 @@ struct upd_t {
       fields[i].reset();
     }
   }
-
-  /** Get field by field number.
-  @param[in]	field_no	the field number.
-  @return the updated field information. */
-  upd_field_t *get_upd_field(ulint field_no) const;
 
 #ifdef UNIV_DEBUG
   bool validate() const {

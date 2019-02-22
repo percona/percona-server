@@ -155,7 +155,7 @@ bool check_mqh(THD *thd, uint check_command);
 void decrease_user_connections(USER_CONN *uc);
 void release_user_connection(THD *thd);
 bool thd_init_client_charset(THD *thd, uint cs_number);
-bool thd_prepare_connection(THD *thd, bool extra_port_connection);
+bool thd_prepare_connection(THD *thd);
 void close_connection(THD *thd, uint sql_errno = 0,
                       bool server_shutdown = false, bool generate_event = true);
 bool thd_connection_alive(THD *thd);
@@ -165,5 +165,8 @@ int get_or_create_user_conn(THD *thd, const char *user, const char *host,
 int check_for_max_user_connections(THD *thd, const USER_CONN *uc);
 // Uses the THD to update the global stats by user name and client IP
 void update_global_user_stats(THD *thd, bool create_user, ulonglong now);
+void update_global_user_stats(THD *thd, bool create_user, ulonglong now,
+                              const char *user_string,
+                              const char *client_string);
 
 #endif /* SQL_CONNECT_INCLUDED */

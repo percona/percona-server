@@ -3,6 +3,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 
+call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Can't set redo log tablespace to be encrypted.");
 call mtr.add_suppression("Redo log key generation failed.");

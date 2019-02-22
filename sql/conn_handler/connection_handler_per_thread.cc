@@ -168,14 +168,16 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
       mysql_cond_wait(&COND_thread_cache, &LOCK_thread_cache);
     blocked_pthread_count--;
 
-    if (kill_blocked_pthreads_flag)
-      mysql_cond_signal(&COND_flush_thread_cache);
-    else if (!connection_events_loop_aborted() && wake_pthread) {
+    if (kill_blocked_pthreads_flag) mysql_cond_signal(&COND_flush_thread_cache);
+    if (wake_pthread) {
       wake_pthread--;
-      DBUG_ASSERT(!waiting_channel_info_list->empty());
-      new_conn = waiting_channel_info_list->front();
-      waiting_channel_info_list->pop_front();
-      DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
+      if (!waiting_channel_info_list->empty()) {
+        new_conn = waiting_channel_info_list->front();
+        waiting_channel_info_list->pop_front();
+        DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
+      } else {
+        DBUG_ASSERT(0);  // We should not get here.
+      }
     }
   }
   mysql_mutex_unlock(&LOCK_thread_cache);
@@ -224,12 +226,7 @@ static THD *init_new_thd(Channel_info *channel_info) {
     stack overruns.
   */
   thd_set_thread_stack(thd, (char *)&thd);
-  if (thd->store_globals()) {
-    close_connection(thd, ER_OUT_OF_RESOURCES);
-    thd->release_resources();
-    delete thd;
-    return NULL;
-  }
+  thd->store_globals();
 
   return thd;
 }
@@ -260,21 +257,18 @@ static void *handle_connection(void *arg) {
     connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
     handler_manager->inc_aborted_connects();
-    Connection_handler_manager ::dec_connection_count(
-        channel_info->is_on_extra_port());
+    Connection_handler_manager::dec_connection_count();
     delete channel_info;
     my_thread_exit(0);
     return NULL;
   }
 
   for (;;) {
-    // Save this here as init_new_thd destroys channel_info
-    const bool extra_port_connection = channel_info->is_on_extra_port();
     THD *thd = init_new_thd(channel_info);
     if (thd == NULL) {
       connection_errors_internal++;
       handler_manager->inc_aborted_connects();
-      Connection_handler_manager::dec_connection_count(extra_port_connection);
+      Connection_handler_manager::dec_connection_count();
       break;  // We are out of resources, no sense in continuing.
     }
 
@@ -310,7 +304,7 @@ static void *handle_connection(void *arg) {
 
     thd_manager->add_thd(thd);
 
-    if (thd_prepare_connection(thd, extra_port_connection))
+    if (thd_prepare_connection(thd))
       handler_manager->inc_aborted_connects();
     else {
       while (thd_connection_alive(thd)) {
@@ -330,7 +324,7 @@ static void *handle_connection(void *arg) {
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
     thd_manager->remove_thd(thd);
-    Connection_handler_manager::dec_connection_count(extra_port_connection);
+    Connection_handler_manager::dec_connection_count();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     /*
@@ -348,6 +342,14 @@ static void *handle_connection(void *arg) {
     channel_info = Per_thread_connection_handler::block_until_new_connection();
     if (channel_info == NULL) break;
     pthread_reused = true;
+    if (connection_events_loop_aborted()) {
+      // Close the channel and exit as server is undergoing shutdown.
+      channel_info->send_error_and_close_channel(ER_SERVER_SHUTDOWN, 0, false);
+      delete channel_info;
+      channel_info = nullptr;
+      Connection_handler_manager::dec_connection_count();
+      break;
+    }
   }
 
   my_thread_end();
@@ -364,15 +366,6 @@ void Per_thread_connection_handler::kill_blocked_pthreads() {
     mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_cache);
   }
   kill_blocked_pthreads_flag--;
-
-  // Drain off the channel info list.
-  while (!waiting_channel_info_list->empty()) {
-    Channel_info *channel_info = waiting_channel_info_list->front();
-    waiting_channel_info_list->pop_front();
-    // close the channel.
-    channel_info->send_error_and_close_channel(ER_SERVER_SHUTDOWN, 0, false);
-    delete channel_info;
-  }
   mysql_mutex_unlock(&LOCK_thread_cache);
 }
 
@@ -423,8 +416,7 @@ handle_error:
       LogErr(ERROR_LEVEL, ER_CONN_PER_THREAD_NO_THREAD, error);
     channel_info->send_error_and_close_channel(ER_CANT_CREATE_THREAD, error,
                                                true);
-    Connection_handler_manager::dec_connection_count(
-        channel_info->is_on_extra_port());
+    Connection_handler_manager::dec_connection_count();
     DBUG_RETURN(true);
   }
 

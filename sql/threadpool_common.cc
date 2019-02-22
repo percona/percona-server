@@ -148,13 +148,9 @@ int threadpool_add_connection(THD *thd) {
   /* Login. */
   thread_attach(thd);
   thd->start_utime = my_micro_time();
+  thd->store_globals();
 
-  if (thd->store_globals()) {
-    close_connection(thd, ER_OUT_OF_RESOURCES);
-    goto end;
-  }
-
-  if (thd_prepare_connection(thd, false)) {
+  if (thd_prepare_connection(thd)) {
     goto end;
   }
 
@@ -197,7 +193,7 @@ void threadpool_remove_connection(THD *thd) {
 #endif
 
   Global_THD_manager::get_instance()->remove_thd(thd);
-  Connection_handler_manager::dec_connection_count(false);
+  Connection_handler_manager::dec_connection_count();
   delete thd;
 }
 

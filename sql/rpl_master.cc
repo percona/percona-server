@@ -1282,6 +1282,7 @@ bool show_binlogs(THD *thd) {
   field_list.push_back(new Item_empty_string("Log_name", 255));
   field_list.push_back(
       new Item_return_int("File_size", 20, MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Encrypted", 12));
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(true);
@@ -1301,6 +1302,8 @@ bool show_binlogs(THD *thd) {
   /* The file ends with EOF or empty line */
   while ((length = my_b_gets(index_file, fname, sizeof(fname))) > 1) {
     size_t dir_len;
+    int encrypted_header_size = 0;
+    bool is_ps_encrypted = false;
     ulonglong file_length = 0;  // Length if open fails
     fname[--length] = '\0';     // remove the newline
 
@@ -1309,17 +1312,57 @@ bool show_binlogs(THD *thd) {
     length -= dir_len;
     protocol->store(fname + dir_len, length, &my_charset_bin);
 
-    if (!(strncmp(fname + dir_len, cur.log_file_name + cur_dir_len, length)))
+    if (!(strncmp(fname + dir_len, cur.log_file_name + cur_dir_len, length))) {
+      /* Encryption header size shall be accounted in the file_length */
+      encrypted_header_size = cur.encrypted_header_size;
       file_length = cur.pos; /* The active log, use the active position */
-    else {
+      file_length = file_length + encrypted_header_size;
+    } else {
       /* this is an old log, open it and find the size */
       if ((file = mysql_file_open(key_file_binlog, fname, O_RDONLY, MYF(0))) >=
           0) {
+        unsigned char magic[Rpl_encryption_header::ENCRYPTION_MAGIC_SIZE];
+        if (mysql_file_read(file, magic, BINLOG_MAGIC_SIZE, MYF(0)) == 4 &&
+            memcmp(magic, Rpl_encryption_header::ENCRYPTION_MAGIC,
+                   Rpl_encryption_header::ENCRYPTION_MAGIC_SIZE) == 0) {
+          /* Encryption header size is already accounted in the file_length */
+          encrypted_header_size = 1;
+        }
         file_length = (ulonglong)mysql_file_seek(file, 0L, MY_SEEK_END, MYF(0));
         mysql_file_close(file, MYF(0));
+        if (encrypted_header_size == 0) {
+          /* check for PS encrypted binlog */
+          Binlog_file_reader binlog_file_reader(opt_master_verify_checksum);
+          if (!binlog_file_reader.open(fname) &&
+              binlog_file_reader.get_error_type() ==
+                  Binlog_read_error::SUCCESS) {
+            // We need to check if binlog file contains
+            // START_5_7_ENCRYPTION_EVENT If it does - it has to be the second
+            // event
+            std::unique_ptr<Log_event> ev(
+                binlog_file_reader.read_event_object());
+            if (ev) {
+              // proceed to the second event
+              ev.reset(binlog_file_reader.read_event_object());
+              if (ev && ev->get_type_code() ==
+                            binary_log::START_5_7_ENCRYPTION_EVENT) {
+                is_ps_encrypted = true;
+              }
+            }
+          }
+        }
       }
     }
     protocol->store(file_length);
+    std::string encrypted;
+    if (encrypted_header_size != 0) {
+      encrypted = "Yes";
+    } else if (is_ps_encrypted) {
+      encrypted = "PS encrypted";
+    } else {
+      encrypted = "No";
+    }
+    protocol->store(encrypted.c_str(), &my_charset_bin);
     if (protocol->end_row()) {
       DBUG_PRINT(
           "info",

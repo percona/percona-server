@@ -1206,26 +1206,24 @@ static void buf_LRU_check_size_of_non_data_objects(
 the error log if more than two seconds have been spent already.
 @param[in]	n_iterations	how many buf_LRU_get_free_page iterations
 already completed
-@param[in]	started_ms	timestamp in ms of when the attempt to get the
+@param[in]	started_tm	timestamp of when the attempt to get the
 free page started
 @param[in]	flush_failures	how many times single-page flush, if allowed,
 has failed
 @param[out]	mon_value_was	previous srv_print_innodb_monitor value
 @param[out]	started_monitor	whether InnoDB monitor print has been requested
 */
-static void buf_LRU_handle_lack_of_free_blocks(ulint n_iterations,
-                                               ulint started_ms,
-                                               ulint flush_failures,
-                                               bool *mon_value_was,
-                                               bool *started_monitor) {
-  static ulint last_printout_ms = 0;
+static void buf_LRU_handle_lack_of_free_blocks(
+    ulint n_iterations, const std::chrono::steady_clock::time_point &started_tm,
+    ulint flush_failures, bool *mon_value_was, bool *started_monitor) {
+  static std::chrono::steady_clock::time_point last_printout_tm;
 
   /* Legacy algorithm started warning after at least 2 seconds, we
   emulate	this. */
-  const ulint current_ms = ut_time_ms();
+  const auto current_tm = std::chrono::steady_clock::now();
+  static const constexpr std::chrono::seconds s2(2);
 
-  if ((current_ms > started_ms + 2000) &&
-      (current_ms > last_printout_ms + 2000) &&
+  if ((current_tm - started_tm > s2) && (current_tm - last_printout_tm > s2) &&
       srv_buf_pool_old_size == srv_buf_pool_size) {
     ib::warn(ER_IB_MSG_134)
         << "Difficult to find free blocks in the buffer pool"
@@ -1246,7 +1244,7 @@ static void buf_LRU_handle_lack_of_free_blocks(ulint n_iterations,
         << " OS fsyncs. Starting InnoDB Monitor to print"
            " further diagnostics to the standard output.";
 
-    last_printout_ms = current_ms;
+    last_printout_tm = current_tm;
     *mon_value_was = srv_print_innodb_monitor;
     *started_monitor = true;
     srv_print_innodb_monitor = true;
@@ -1294,7 +1292,7 @@ buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool) {
   ulint flush_failures = 0;
   bool mon_value_was = false;
   bool started_monitor = false;
-  ulint started_ms = 0;
+  std::chrono::steady_clock::time_point started_tm;
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
@@ -1312,7 +1310,10 @@ loop:
                               recv_recovery_on, false)) {
     block = NULL;
 
-    if (srv_debug_monitor_printed) DBUG_SUICIDE();
+    if (srv_debug_monitor_printed) {
+      flush_error_log_messages();
+      DBUG_SUICIDE();
+    }
   } else {
     block = buf_LRU_get_free_only(buf_pool);
   }
@@ -1329,7 +1330,8 @@ loop:
     return (block);
   }
 
-  if (!started_ms) started_ms = ut_time_ms();
+  if (!started_tm.time_since_epoch().count())
+    started_tm = std::chrono::steady_clock::now();
 
   MONITOR_INC(MONITOR_LRU_GET_FREE_LOOPS);
 
@@ -1368,7 +1370,7 @@ loop:
                                     : FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER));
     }
 
-    buf_LRU_handle_lack_of_free_blocks(n_iterations, started_ms, flush_failures,
+    buf_LRU_handle_lack_of_free_blocks(n_iterations, started_tm, flush_failures,
                                        &mon_value_was, &started_monitor);
 
     n_iterations++;
@@ -1425,7 +1427,7 @@ loop:
     goto loop;
   }
 
-  buf_LRU_handle_lack_of_free_blocks(n_iterations, started_ms, flush_failures,
+  buf_LRU_handle_lack_of_free_blocks(n_iterations, started_tm, flush_failures,
                                      &mon_value_was, &started_monitor);
 
   /* If we have scanned the whole LRU and still are unable to
@@ -2337,7 +2339,7 @@ static void buf_LRU_block_free_hashed_page(
   buf_pool_t *buf_pool = buf_pool_from_block(block);
 
   if (buf_pool->flush_rbt == NULL) {
-    block->page.id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
+    block->page.id.reset(UINT32_UNDEFINED, UINT32_UNDEFINED);
   }
 
   buf_block_set_state(block, BUF_BLOCK_MEMORY);

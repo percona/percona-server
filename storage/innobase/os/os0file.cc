@@ -871,7 +871,7 @@ static bool os_file_handle_error_no_exit(const char *name,
 @return DB_SUCCESS or error code */
 static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
                                    byte *buf, byte *scratch, ulint src_len,
-                                   ulint offset, ulint len);
+                                   os_offset_t offset, ulint len);
 
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
@@ -1044,8 +1044,7 @@ class AIOHandler {
     ut_a(slot->offset > 0);
     ut_a(slot->type.is_read() || !slot->skip_punch_hole);
     return (os_file_io_complete(slot->type, slot->file.m_file, slot->buf, NULL,
-                                slot->original_len,
-                                static_cast<ulint>(slot->offset), slot->len));
+                                slot->original_len, slot->offset, slot->len));
   }
 
  private:
@@ -1820,12 +1819,13 @@ static bool load_key_needed_for_decryption(const IORequest &type,
 @param[in,out]	buf		Buffer to transform
 @param[in,out]	scratch		Scratch area for read decompression
 @param[in]	src_len		Length of the buffer before compression
+@param[in]	offset		file offset from the start where to read
 @param[in]	len		Used buffer length for write and output
                                 buf len for read
 @return DB_SUCCESS or error code */
 static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
                                    byte *buf, byte *scratch, ulint src_len,
-                                   ulint offset, ulint len) {
+                                   os_offset_t offset, ulint len) {
   dberr_t ret = DB_SUCCESS;
 
   /* We never compress/decompress the first page */
@@ -2246,6 +2246,15 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
   return (n_bytes);
 }
 
+MY_ATTRIBUTE((warn_unused_result))
+static std::string os_file_find_path_for_fd(os_file_t fd) {
+  char fdname[FN_REFLEN];
+  snprintf(fdname, sizeof fdname, "/proc/%d/fd/%d", getpid(), fd);
+  char filename[FN_REFLEN];
+  const auto err_filename = my_readlink(filename, fdname, MYF(0));
+  return std::string((err_filename != -1) ? filename : "");
+}
+
 /** Free storage space associated with a section of the file.
 @param[in]	fh		Open file handle
 @param[in]	off		Starting offset (SEEK_SET)
@@ -2268,10 +2277,18 @@ static dberr_t os_file_punch_hole_posix(os_file_t fh, os_offset_t off,
     return (DB_IO_NO_PUNCH_HOLE);
   }
 
-  ib::warn(ER_IB_MSG_754) << "fallocate(" << fh
-                          << ", FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, "
-                          << off << ", " << len
-                          << ") returned errno: " << errno;
+  const auto fd_path = os_file_find_path_for_fd(fh);
+  if (!fd_path.empty()) {
+    ib::warn(ER_IB_MSG_754)
+        << "fallocate(" << fh << " (" << fd_path
+        << "), FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, " << off << ", "
+        << len << ") returned errno: " << errno;
+  } else {
+    ib::warn(ER_IB_MSG_754)
+        << "fallocate(" << fh
+        << ", FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, " << off << ", "
+        << len << ") returned errno: " << errno;
+  }
 
   return (DB_IO_ERROR);
 
@@ -2390,16 +2407,16 @@ dberr_t LinuxAIOHandler::resubmit(Slot *slot) {
   slot->n_bytes = 0;
   slot->io_already_done = false;
 
+  /* make sure that slot->offset fits in off_t */
+  ut_ad(sizeof(off_t) >= sizeof(os_offset_t));
   struct iocb *iocb = &slot->control;
   if (slot->type.is_read()) {
-    io_prep_pread(iocb, slot->file.m_file, slot->ptr, slot->len,
-                  static_cast<off_t>(slot->offset));
+    io_prep_pread(iocb, slot->file.m_file, slot->ptr, slot->len, slot->offset);
 
   } else {
     ut_a(slot->type.is_write());
 
-    io_prep_pwrite(iocb, slot->file.m_file, slot->ptr, slot->len,
-                   static_cast<off_t>(slot->offset));
+    io_prep_pwrite(iocb, slot->file.m_file, slot->ptr, slot->len, slot->offset);
   }
   iocb->data = slot;
 
@@ -3123,10 +3140,14 @@ static int os_file_fsync_posix(os_file_t file) {
         os_thread_sleep(200000);
         break;
 
-      case EIO:
-
-        ib::fatal() << "fsync() returned EIO, aborting.";
+      case EIO: {
+        const auto fd_path = os_file_find_path_for_fd(file);
+        if (!fd_path.empty())
+          ib::fatal() << "fsync(\"" << fd_path << "\") returned EIO, aborting.";
+        else
+          ib::fatal() << "fsync() returned EIO, aborting.";
         break;
+      }
 
       case EINTR:
 
@@ -3550,6 +3571,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
 #ifdef USE_FILE_LOCK
   if (!read_only && *success && create_mode != OS_FILE_OPEN_RAW &&
+      /* Don't acquire file lock while cloning files. */
+      type != OS_CLONE_DATA_FILE && type != OS_CLONE_LOG_FILE &&
       os_file_lock(file.m_file, name)) {
     if (create_mode == OS_FILE_OPEN_RETRY) {
       ib::info(ER_IB_MSG_780) << "Retrying to lock the first data file";
@@ -4565,9 +4588,10 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
   if (!read_only) {
     access |= GENERIC_WRITE;
+  }
 
-  } else if (type == OS_CLONE_LOG_FILE || type == OS_CLONE_DATA_FILE) {
-    /* Clone must allow concurrent write to file. */
+  /* Clone must allow concurrent write to file. */
+  if (type == OS_CLONE_LOG_FILE || type == OS_CLONE_DATA_FILE) {
     share_mode |= FILE_SHARE_WRITE;
   }
 
@@ -5007,7 +5031,7 @@ static dberr_t os_file_get_status_win32(const char *path,
 
     stat_info->block_size = (stat_info->block_size <= 4096)
                                 ? stat_info->block_size * 16
-                                : ULINT32_UNDEFINED;
+                                : UINT32_UNDEFINED;
   } else {
     stat_info->type = OS_FILE_TYPE_UNKNOWN;
   }
@@ -5259,9 +5283,8 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
       bytes_returned += n_bytes;
 
       if (offset > 0 && (type.is_compressed() || type.is_read())) {
-        *err =
-            os_file_io_complete(type, file, reinterpret_cast<byte *>(buf), NULL,
-                                original_n, static_cast<ulint>(offset), n);
+        *err = os_file_io_complete(type, file, reinterpret_cast<byte *>(buf),
+                                   NULL, original_n, offset, n);
       } else {
         *err = DB_SUCCESS;
       }
@@ -5403,6 +5426,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 
   const ib_uint64_t start_time = trx_stats::start_io_read(trx, n);
 
+  (void)os_atomic_increment_ulint(&os_n_pending_reads, 1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 
   ssize_t n_bytes = os_file_io(type, file, buf, n, offset, err);
@@ -5465,9 +5489,17 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       }
     }
 
-    ib::error(ER_IB_MSG_817)
-        << "Tried to read " << n << " bytes at offset " << offset
-        << ", but was only able to read " << n_bytes;
+    const auto fd_path = os_file_find_path_for_fd(file);
+    if (!fd_path.empty()) {
+      ib::error(ER_IB_MSG_817)
+          << "Tried to read " << n << " bytes at offset " << offset
+          << ", but was only able to read " << n_bytes << " of FD " << file
+          << ", filename " << fd_path;
+    } else {
+      ib::error(ER_IB_MSG_817)
+          << "Tried to read " << n << " bytes at offset " << offset
+          << ", but was only able to read " << n_bytes;
+    }
 
     if (exit_on_err) {
       if (!os_file_handle_error(NULL, "read")) {
@@ -8213,7 +8245,7 @@ Set the file create umask
 @param[in]	umask		The umask to use for file creation. */
 void os_file_set_umask(ulint umask) { os_innodb_umask = umask; }
 
-Encryption::Encryption(const Encryption &other)
+Encryption::Encryption(const Encryption &other) noexcept
     : m_type(other.m_type),
       m_key(other.m_key),
       m_klen(other.m_klen),
@@ -8812,9 +8844,9 @@ bool Encryption::fill_encryption_info(uint key_version, byte *iv,
   ptr += ENCRYPTION_SERVER_UUID_LEN;
   /* Write tablespace iv. */
   memcpy(ptr, iv, ENCRYPTION_KEY_LEN);
-  ptr += ENCRYPTION_KEY_LEN * 2;
+  ptr += ENCRYPTION_KEY_LEN;
   /* Write checksum bytes. */
-  crc = ut_crc32(encrypt_info, ENCRYPTION_KEY_LEN * 2);
+  crc = ut_crc32(encrypt_info, ENCRYPTION_KEY_LEN);
   mach_write_to_4(ptr, crc);
 #ifdef UNIV_ENCRYPT_DEBUG
   fprintf(stderr, "Encrypting log with key version: %u\n", key_version);

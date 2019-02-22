@@ -78,26 +78,40 @@ Each of the |Percona Server| RPM packages have a particular purpose.
 Installing |Percona Server| from Percona ``yum`` repository
 ===========================================================
 
+lease add sudo to percona-release setup and yum install commands
+
+
+|tip.run-all.root|
+
 1. Install the Percona repository 
    
    You can install Percona yum repository by running the following command as a ``root`` user or with sudo:
 
    .. code-block:: bash
-
-     $ sudo yum install https://repo.percona.com/centos/7/RPMS/noarch/percona-release-0.1-8.noarch.rpm
+        
+      $ sudo yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
    You should see some output such as the following: 
 
    .. code-block:: bash
 
-      Retrieving http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-0.1-8.noarch.rpm
+      Retrieving http://www.percona.com/downloads/percona-release/redhat/0.1-6/percona-release-latest.noarch.rpm
       Preparing...                ########################################### [100%]
       1:percona-release        ########################################### [100%]
 
-#. Enable the repository: :bash:`percona-release enable ps-80 release`
+#. Enable the repository:
+
+   .. code-block:: bash
+
+      $ sudo percona-release setup ps80
+
 #. Install the packages
 
-   You can now install |Percona Server| by running: :bash:`yum install percona-server-server`
+   You can now install |Percona Server| by running:
+
+   .. code-block:: bash
+
+      $ sudo yum install percona-server-server
 
 .. note::
 
@@ -157,7 +171,7 @@ Installing |Percona Server| using downloaded rpm packages
 
    .. code-block:: bash
 
-      $ rpm -ivh percona-server-server-80-8.0.13-3.el7.x86_64.rpm \
+      $ sudo rpm -ivh percona-server-server-80-8.0.13-3.el7.x86_64.rpm \
       percona-server-client-80-8.0.13-3.el7.x86_64.rpm \
       percona-server-shared-80-8.0.13-3.el7.x86_64.rpm
 
@@ -171,7 +185,7 @@ To install all the packages (for debugging, testing, etc.) you should run:
 
    .. code-block:: bash
 
-      $ rpm -ivh *.rpm
+      $ sudo rpm -ivh *.rpm
 
 .. note::
 
@@ -192,7 +206,7 @@ Server| in :file:`/etc/my.cnf`.
 
    .. code-block:: bash
 
-      service mysql start
+      $ sudo service mysql start
 
 2. Confirming that service is running
 
@@ -200,7 +214,7 @@ Server| in :file:`/etc/my.cnf`.
 
    .. code-block:: bash
 
-      service mysql status
+      $ sudo service mysql status
 
 3. Stopping the service
 
@@ -208,7 +222,7 @@ Server| in :file:`/etc/my.cnf`.
 
    .. code-block:: bash
 
-      service mysql stop
+      $ sudo service mysql stop
 
 4. Restarting the service
 
@@ -216,7 +230,7 @@ Server| in :file:`/etc/my.cnf`.
 
    .. code-block:: bash
 
-      service mysql restart
+      $ sudo service mysql restart
 
 .. note::
 
@@ -236,7 +250,7 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 
    .. code-block:: bash
 
-      yum remove percona-server*
+      $ sudo yum remove percona-server*
 
 #. Remove the data and configuration files
 
@@ -256,3 +270,4 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 .. [#f1] 
 
 .. include:: ../.res/replace.program.txt
+.. include:: ../.res/replace.txt

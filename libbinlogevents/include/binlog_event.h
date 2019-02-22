@@ -144,6 +144,9 @@ const int64_t SEQ_UNINIT = 0;
 */
 const int64_t UNDEFINED_COMMIT_TIMESTAMP = MAX_COMMIT_TIMESTAMP_VALUE;
 
+const uint32_t UNDEFINED_SERVER_VERSION = 999999;
+const uint32_t UNKNOWN_SERVER_VERSION = 0;
+
 /** Setting this flag will mark an event as Ignorable */
 #define LOG_EVENT_IGNORABLE_F 0x80
 
@@ -188,6 +191,22 @@ inline void do_server_version_split(const char *version,
     p = r;
     if (*r == '.') p++;  // skip the dot
   }
+}
+
+/**
+   Transforms the server version from 'XX.YY.ZZ-suffix' into an integer in the
+   format XXYYZZ.
+
+   @param version        String representing server version
+   @return               The server version in the format XXYYZZ
+*/
+inline uint32_t do_server_version_int(const char *version) {
+  unsigned char version_split[3];
+  do_server_version_split(version, version_split);
+  uint32_t ret = static_cast<uint32_t>(version_split[0]) * 10000 +
+                 static_cast<uint32_t>(version_split[1]) * 100 +
+                 static_cast<uint32_t>(version_split[2]);
+  return ret;
 }
 
 /**
@@ -338,7 +357,7 @@ enum Log_event_type {
    * starting from MARIA_EVENTS_BEGIN, i.e. 159, 158 ..
    * till MYSQL_END_EVENT */
 
-  START_ENCRYPTION_EVENT = 159,
+  START_5_7_ENCRYPTION_EVENT = 159,
 
   MARIA_EVENTS_BEGIN = 160,
 
@@ -673,8 +692,6 @@ class Log_event_header {
   */
   Log_event_header(Event_reader &reader);
 
-  ~Log_event_header() {}
-
   /**
     The get_is_valid function is related to event specific sanity checks to
     determine that the object was initialized without errors.
@@ -782,9 +799,9 @@ class Binary_log_event {
   /*
      The number of types we handle in Format_description_event (UNKNOWN_EVENT
      is not to be handled, it does not exist in binlogs, it does not have a
-     format - unless it's START_ENCRYPTION_EVENT - then Format_description_event
-     is not aware of it. That's OK as this event never leaves the server -
-     it's not sent to slave).
+     format - unless it's START_5_7_ENCRYPTION_EVENT - then
+     Format_description_event is not aware of it. That's OK as this event never
+     leaves the server - it's not sent to slave).
   */
   static constexpr int LOG_EVENT_TYPES = (MYSQL_END_EVENT - 1);
 
@@ -821,7 +838,7 @@ class Binary_log_event {
     TRANSACTION_CONTEXT_HEADER_LEN = 18,
     VIEW_CHANGE_HEADER_LEN = 52,
     XA_PREPARE_HEADER_LEN = 0,
-    START_ENCRYPTION_HEADER_LEN = 0
+    START_5_7_ENCRYPTION_HEADER_LEN = 0
   };  // end enum_post_header_length
  protected:
   /**
@@ -865,6 +882,11 @@ class Binary_log_event {
   virtual void print_long_info(std::ostream &info) = 0;
 #endif
   virtual ~Binary_log_event() = 0;
+
+  Binary_log_event(const Binary_log_event &) = default;
+  Binary_log_event(Binary_log_event &&) = default;
+  Binary_log_event &operator=(const Binary_log_event &) = default;
+  Binary_log_event &operator=(Binary_log_event &&) = default;
 
   /**
    * Helper method

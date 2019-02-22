@@ -63,6 +63,7 @@
 #include "sql/system_variables.h"
 #include "sql_string.h"
 #include "typelib.h"
+#include "unsafe_string_append.h"
 
 #ifndef DBUG_OFF
 static uint binlog_dump_count = 0;
@@ -256,7 +257,7 @@ void Binlog_sender::run() {
 
   unsigned int max_event_size =
       std::max(m_thd->variables.max_allowed_packet,
-               opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER);
+               binlog_row_event_max_size + MAX_LOG_EVENT_HEADER);
   File_reader reader(opt_master_verify_checksum, max_event_size);
   my_off_t start_pos = m_start_pos;
   const char *log_file = m_linfo.log_file_name;
@@ -928,8 +929,8 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags,
                       event_len, m_packet.alloced_length()));
   DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
-  m_packet.length(0);        // size of the content
-  m_packet.qs_append('\0');  // Set this as an OK packet
+  m_packet.length(0);          // size of the content
+  qs_append('\0', &m_packet);  // Set this as an OK packet
 
   /* reserve and set default header */
   if (m_observe_transmission &&
@@ -1034,21 +1035,23 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
   if (send_packet()) DBUG_RETURN(1);
 
   // Let's check if next event is Start encryption event
+  // If we go outside the file read_event will also return an error
   const auto binlog_pos_after_fdle = reader->position();
   if (read_event(reader, &event_ptr, &event_len)) {
-    DBUG_RETURN(1);
+    reader->seek(binlog_pos_after_fdle);
+    set_last_pos(binlog_pos_after_fdle);
+    DBUG_RETURN(0);
   }
 
   binlog_read_error = binlog_event_deserialize(
-      event_ptr, event_len, reader->format_description_event(), false, &ev,
-      reader->position());
+      event_ptr, event_len, reader->format_description_event(), false, &ev);
 
   if (binlog_read_error.has_error()) {
     set_fatal_error(binlog_read_error.get_str());
     DBUG_RETURN(1);
   }
 
-  if (ev && ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT) {
+  if (ev && ev->get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT) {
     Start_encryption_log_event *sele =
         down_cast<Start_encryption_log_event *>(ev);
 
@@ -1112,8 +1115,6 @@ const char *Binlog_sender::log_read_error_msg(
              "space on master";
     case Binlog_read_error::CHECKSUM_FAILURE:
       return "event read from binlog did not pass crc check";
-    case Binlog_read_error::DECRYPT:
-      return "Event decryption failure";
     default:
       return Binlog_read_error(error).get_str();
   }
@@ -1148,13 +1149,12 @@ inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
 
   /*
     As we pre-allocate the buffer to store the event at reset_transmit_packet,
-    the buffer should not be changed while calling read_log_event (unless binlog
-    encryption is on), even knowing that it might call functions to replace the
-    buffer by one with the size to fit the event. When encryption is on - the
-    buffer will be replaced with memory allocated for storing decrypted data.
+    the buffer should not be changed while calling read_log_event, even knowing
+    that it might call functions to replace the buffer by one with the size to
+    fit the event.
   */
-  DBUG_ASSERT(encrypt_binlog || reinterpret_cast<char *>(*event_ptr) ==
-                                    (m_packet.ptr() + event_offset));
+  DBUG_ASSERT(reinterpret_cast<char *>(*event_ptr) ==
+              (m_packet.ptr() + event_offset));
 
   DBUG_PRINT("info", ("Read event %s", Log_event::get_type_str(Log_event_type(
                                            (*event_ptr)[EVENT_TYPE_OFFSET]))));

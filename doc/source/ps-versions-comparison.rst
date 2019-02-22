@@ -18,48 +18,24 @@ List of features available in |Percona Server| releases
    * - :ref:`Improved InnoDB I/O Scalability <ps56:innodb_io_page>`
      - :ref:`Improved InnoDB I/O Scalability <ps57:innodb_io_page>`
      - :ref:`Improved InnoDB I/O Scalability <ps80:innodb_io_page>`
-   * - |replaced| [#n-1]_
-     - |replaced| [#n-1]_
-     - |replaced| [#n-1]_
    * - :ref:`Multiple Adaptive Hash Search Partitions <ps56:innodb_adaptive_hash_index_partitions_page>`
      - :ref:`Multiple Adaptive Hash Search Partitions <ps57:innodb_adaptive_hash_index_partitions_page>`
      - :ref:`Multiple Adaptive Hash Search Partitions <ps80:innodb_adaptive_hash_index_partitions_page>`
-   * - |replaced|
-     - |replaced|
-     - |replaced|
-   * - Replaced by the upstream fix [#n-3]_
-     - Replaced by the upstream fix
-     - Replaced by the upstream fix
    * - :ref:`Atomic write support for Fusion-io devices <ps56:atomic_fio>`
      - :ref:`Atomic write support for Fusion-io devices <ps57:atomic_fio>`
      - :ref:`Atomic write support for Fusion-io devices <ps80:atomic_fio>`
    * - :ref:`Query Cache Enhancements <ps56:query_cache_enhance>`
      - :ref:`Query Cache Enhancements <ps57:query_cache_enhance>`
-     - :ref:`Query Cache Enhancements <ps80:query_cache_enhance>`
-   * - |replaced| [#n-4]_
-     - |replaced|
-     - |replaced|
-   * - |replaced| [#n-5]_
-     - |replaced|
-     - |replaced|
+     - |-implemented|
    * - :ref:`Improved NUMA support <ps56:innodb_numa_support>`
      - :ref:`Improved NUMA support <ps57:innodb_numa_support>`
      - |-implemented|
    * - :ref:`Thread Pool <ps56:threadpool>`
      - :ref:`Thread Pool <ps56:threadpool>`
      - :ref:`Thread Pool <ps56:threadpool>`
-   * - |replaced| [#n-7]_
-     - |replaced|
-     - |replaced|
-   * - |replaced| [#n-8]_
-     - |replaced|
-     - |replaced|
    * - :ref:`Suppress Warning Messages <ps56:log_warning_suppress>`
      - :ref:`Suppress Warning Messages <ps57:log_warning_suppress>`
      - :ref:`Suppress Warning Messages <ps80:log_warning_suppress>`
-   * - |replaced| [#n-9]_
-     - |replaced|
-     - |replaced|
    * - :ref:`Ability to change database for mysqlbinlog <ps56:mysqlbinlog_change_db>`
      - :ref:`Ability to change database for mysqlbinlog <ps57:mysqlbinlog_change_db>`
      - :ref:`Ability to change database for mysqlbinlog <ps80:mysqlbinlog_change_db>`
@@ -81,24 +57,9 @@ List of features available in |Percona Server| releases
    * - :ref:`Handle Corrupted Tables <ps56:innodb_corrupt_table_action_page>`
      - :ref:`Handle Corrupted Tables <ps57:innodb_corrupt_table_action_page>`
      - :ref:`Handle Corrupted Tables <ps80:innodb_corrupt_table_action_page>`
-   * - |replaced| [#n-10]_
-     - |replaced|
-     - |replaced|
    * - :ref:`Lock-Free SHOW SLAVE STATUS <ps56:show_slave_status_nolock>`
      - :ref:`Lock-Free SHOW SLAVE STATUS <ps57:show_slave_status_nolock>`
      - :ref:`Lock-Free SHOW SLAVE STATUS <ps80:show_slave_status_nolock>`
-   * - |replaced| [#n-11]_
-     - |replaced|
-     - |replaced|
-   * - |replaced| [#n-12]_
-     - |replaced|
-     - |replaced|
-   * - |replaced| [#n-13]_
-     - |replaced|
-     - |replaced|
-   * - |replaced| [#n-14]_
-     - |replaced|
-     - |replaced|
    * - :ref:`Expanded Fast Index Creation <ps56:expanded_innodb_fast_index_creation>`
      - :ref:`Expanded Fast Index Creation <ps56:expanded_innodb_fast_index_creation>`
      - :ref:`Expanded Fast Index Creation <ps56:expanded_innodb_fast_index_creation>`
@@ -119,22 +80,19 @@ List of features available in |Percona Server| releases
      - |replaced|
    * - :ref:`Utility user <ps56:psaas_utility_user>`
      - :ref:`Utility user <ps57:psaas_utility_user>`
-     - :ref:`Utility user <ps80:psaas_utility_user>`
+     - |-implemented|
    * - :ref:`Extending the secure-file-priv server option <ps56:secure_file_priv_extended>`
      - :ref:`Extending the secure-file-priv server option <ps57:secure_file_priv_extended>`
      - :ref:`Extending the secure-file-priv server option <ps80:secure_file_priv_extended>`
    * - :ref:`Expanded Program Option Modifiers <ps56:expanded_option_modifiers>`
      - :ref:`Expanded Program Option Modifiers <ps57:expanded_option_modifiers>`
-     - :ref:`Expanded Program Option Modifiers <ps80:expanded_option_modifiers>`
+     - |-implemented|
    * - :ref:`PAM Authentication Plugin <ps56:pam_plugin>`
      - :ref:`PAM Authentication Plugin <ps57:pam_plugin>`
      - :ref:`PAM Authentication Plugin <ps80:pam_plugin>`
    * - :ref:`Log Archiving for XtraDB <ps56:log_archiving>`
      - :ref:`Log Archiving for XtraDB <ps57:log_archiving>`
      - :ref:`Log Archiving for XtraDB <ps80:log_archiving>`
-   * - |replaced| [#n-15]_
-     - |replaced|
-     - |replaced|
    * - :ref:`User Statistics <ps56:user_stats>`
      - :ref:`User Statistics <ps57:user_stats>`
      - :ref:`User Statistics <ps80:user_stats>`
@@ -149,7 +107,7 @@ List of features available in |Percona Server| releases
      - :ref:`Log All Client Commands (syslog) <ps80:mysql_syslog>`
    * - :ref:`Response Time Distribution <ps56:response_time_distribution>`
      - :ref:`Response Time Distribution <ps57:response_time_distribution>`
-     - :ref:`Response Time Distribution <ps80:response_time_distribution>`
+     - |-implemented|
    * - :ref:`Show Storage Engines <ps56:show_engines>`
      - :ref:`Show Storage Engines <ps57:show_engines>`
      - :ref:`Show Storage Engines <ps80:show_engines>`
@@ -191,7 +149,7 @@ List of features available in |Percona Server| releases
      - :ref:`Slow Query Log Rotation and Expiration <ps80:slowlog_rotation>`
    * - :ref:`Metrics for scalability measurement <ps56:scalability_metrics_plugin>`
      - :ref:`Metrics for scalability measurement <ps57:scalability_metrics_plugin>`
-     - :ref:`Metrics for scalability measurement <ps80:scalability_metrics_plugin>`
+     - |-implemented|
    * - :ref:`Audit Log <ps56:audit_log_plugin>`
      - :ref:`Audit Log <ps57:audit_log_plugin>`
      - :ref:`Audit Log <ps80:audit_log_plugin>`
@@ -212,22 +170,6 @@ Other Reading
 * :ref:`upgrading_guide`
 * `What Is New in MySQL 5.5 <http://dev.mysql.com/doc/refman/5.5/en/mysql-nutshell.html>`_
 * `What Is New in MySQL 5.6 <http://dev.mysql.com/doc/refman/5.6/en/mysql-nutshell.html>`_
-
-.. [#n-1] Feature has been deprecated after |Percona Server| 5.5.11-20.2. It has been replaced with the upstream implementation of `innodb_undo_logs <https://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_undo_logs>`_ in |MySQL| 5.6.3.
-.. [#n-2] Feature has not been ported from |Percona Server| 5.1 version. It has been replaced by the upstream `Improved Purge Scheduling <https://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-improved-purge-scheduling>`_ implementation.
-.. [#n-3] Feature has been has been removed and its controlling variable ``innodb_lazy_drop_table`` has been deprecated from |Percona Server| 5.5.30-30.2. Feature has been removed because the upstream ``DROP TABLE`` implementation has been improved when bugs :mysqlbug:`56332` and :mysqlbug:`51325` were fixed.
-.. [#n-4] Feature has been deprecated after |Percona Server| 5.1.66-14.2 and |Percona Server| 5.5.28-29.2. It has been replaced by the upstream `innodb_checksum_algorithm <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_checksum_algorithm>`_ implementation released in |MySQL| 5.6.3.
-.. [#n-5] Feature has been replaced by the upstream implementation `innodb-performance-thread_concurrency <https://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-performance-thread_concurrency>`_ in |MySQL| 5.6
-.. [#n-6] Feature will be implemented in one of the future |Percona Server| 5.6 releases. 
-.. [#n-7] `Binary Log Group Commit <http://mysqlmusings.blogspot.se/2012/06/binary-log-group-commit-in-mysql-56.html>`_ feature has been replaced with the |MySQL| 5.6 implementation. 
-.. [#n-8] Feature has been deprecated in the |Percona Server| 5.1.68-14.6 and |Percona Server| 5.5.30-30.2. It has been replaced by the upstream `innodb_page_size <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_page_size>`_ version released in |MySQL| 5.6.4.
-.. [#n-9] Feature has been replaced by the |MySQL| 5.6 `binary-mode <http://dev.mysql.com/doc/refman/5.6/en/mysql-command-options.html#option_mysql_binary-mode>`_ configuration option.
-.. [#n-10] Feature has been replaced by the |MySQL| 5.6 `relay-log-recovery <http://dev.mysql.com/doc/refman/5.6/en/replication-options-slave.html#option_mysqld_relay-log-recovery>`_ implementation.
-.. [#n-11] Feature has been replaced by the |MySQL| 5.6 `table_definition_cache <https://dev.mysql.com/doc/refman/5.6/en/server-system-variables.html#sysvar_table_definition_cache>`_ implementation.
-.. [#n-12] Feature has been replaced by the |MySQL| 5.6 `Improved Tablespace Management <https://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-tablespace-management>`_ implementation.
-.. [#n-13] Feature has been replaced by the |MySQL| 5.6 `preloading the InnoDB buffer pool at startup <https://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-preload-buffer-pool>`_ implementation.
-.. [#n-14] Feature has been replaced by the 5.6' `ALGORITHM= option <http://dev.mysql.com/doc/refman/5.6/en/alter-table.html>`_ implementation. 
-.. [#n-15] Feature has been replaced by the |MySQL| 5.6 `Persistent Optimizer Statistics for InnoDB Tables <https://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-persistent-stats>`_ implementation.
 
 .. |replaced| replace:: Replaced with upstream implementation
 .. |-implemented| replace:: Feature not implemented

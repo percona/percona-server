@@ -24,8 +24,8 @@
 #define MOCK_CREATE_FIELD_H
 
 #include "my_dbug.h"
+#include "sql/create_field.h"
 #include "sql/dd/types/column.h"
-#include "sql/field.h"
 #include "sql/sql_lex.h"
 
 class Mock_create_field : public Create_field {

@@ -14,6 +14,7 @@ performance_schema.global_variables WHERE variable_name NOT IN
 'innodb_monitor_disable',
 'innodb_monitor_reset',
 'innodb_monitor_reset_all',
+'innodb_default_encryption_key_id',
 'rbr_exec_mode');
 ************************************************************
 * 1. Check that there are no persisted variable settings.
@@ -34,15 +35,16 @@ WHERE variable_name NOT IN
 'innodb_ft_user_stopword_table',
 'innodb_tmpdir',
 'innodb_ft_server_stopword_table',
+'innodb_default_encryption_key_id',
 'rbr_exec_mode')
 AND variable_name NOT LIKE 'ndb_%'
 ORDER BY variable_name;
 
-include/assert.inc ['Expect 554 variables in the table. Due to open Bugs, we are checking for 547']
+include/assert.inc ['Expect 625 variables in the table. Due to open Bugs, we are checking for 617']
 
 # Test SET PERSIST
 
-include/assert.inc ['Expect 358 persisted variables in the table. Due to open Bugs, we are checking for 353']
+include/assert.inc [Expect 418 persisted variables in the table. Due to open Bugs, we are checking for 407]
 
 ************************************************************
 * 3. Restart server, it must preserve the persisted variable
@@ -50,9 +52,9 @@ include/assert.inc ['Expect 358 persisted variables in the table. Due to open Bu
 ************************************************************
 # restart
 
-include/assert.inc ['Expect 353 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 353 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 353 persisted variables with matching peristed and global values.']
+include/assert.inc [Expect 407 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 407 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 407 persisted variables with matching peristed and global values.]
 
 ************************************************************
 * 4. Test RESET PERSIST IF EXISTS. Verify persisted variable

@@ -6,6 +6,8 @@ let $engine=tokudb;
 source include/have_binlog_format_row.inc;
 source include/master-slave.inc;
 
+call mtr.add_suppression("Skip re-populating collations and character sets tables in read-only mode.");
+
 # initialize
 connection master;
 disable_warnings;

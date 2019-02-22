@@ -1,0 +1,52 @@
+--echo # Check that only percona_innodb key can be rotated with rotate_system_key. This part of the test needs updating
+--echo # each time a new system key is added.
+
+--let $assert_text= It should not be possible to rotate key percona_key
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_key\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should not be possible to rotate key percona_123
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_123\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should not be possible to rotate key percona_bin
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_bin\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should not be possible to rotate key percona_b
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_b\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should not be possible to rotate key percona_
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should not be possible to rotate key percona
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should not be possible to rotate key system_key
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"system_key\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should not be possible to rotate key system_key
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"system_key\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should not be possible to rotate key system_key
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"123\\"\\) = 0]" = 1
+--source include/assert.inc
+
+--let $assert_text= It should be possible to rotate key percona_innodb
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb\\"\\) = 1]" = 1
+--source include/assert.inc
+
+UNINSTALL PLUGIN keyring_file;
+
+--let $assert_text= It should not be possible to rotate key percona_innodb without keyring_file installed
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb\\"\\) = 0]" = 1
+--source include/assert.inc
+
+# cleanup, restore keyring_file and keyring_file_data variable
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc

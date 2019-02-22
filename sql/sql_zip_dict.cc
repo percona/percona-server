@@ -310,11 +310,15 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
   DBUG_ENTER("mysql_create_zip_dict");
   handlerton *hton = ha_default_handlerton(thd);
 
+#ifndef DBUG_OFF
+  const std::string name_str(name, name_len);
+  const std::string data_str(data, data_len);
   DBUG_LOG("zip_dict",
-           "thd->query: " << thd->query().str << " dict_name: " << name
-                          << " dict_name_len: " << name_len << " data: " << data
-                          << " data_len: " << data_len
+           "thd->query: " << thd->query().str << " dict_name: " << name_str
+                          << " dict_name_len: " << name_len
+                          << " data: " << data_str << " data_len: " << data_len
                           << " if_not_exists: " << if_not_exists);
+#endif
   int error;
 
   /* thd is from bootstrap thread and the default storage engine
@@ -490,9 +494,13 @@ int drop_zip_dict(THD *thd, const char *name, ulong name_len, bool if_exists) {
   DBUG_ENTER("mysql_drop_zip_dict");
   handlerton *hton = ha_default_handlerton(thd);
 
-  DBUG_LOG("zip_dict", "thd->query: " << thd->query().str << " dict_name: "
-                                      << name << " dict_name_len: " << name_len
+#ifndef DBUG_OFF
+  const std::string name_str(name, name_len);
+  DBUG_LOG("zip_dict", "thd->query: " << thd->query().str
+                                      << " dict_name: " << name_str
+                                      << " dict_name_len: " << name_len
                                       << " if_exists: " << if_exists);
+#endif
 
   int error;
   if (!ha_check_storage_engine_flag(hton, HTON_SUPPORTS_COMPRESSED_COLUMNS)) {
@@ -785,7 +793,7 @@ bool cols_table_insert(THD *thd, const dd::Table &table) {
       continue;
     }
     uint64 zip_dict_id;
-    column_options.get_uint64("zip_dict_id", &zip_dict_id);
+    column_options.get("zip_dict_id", &zip_dict_id);
     DBUG_ASSERT(zip_dict_id != 0);
     uint64 table_id = table.id();
     uint64 column_id = col_obj->id();

@@ -1121,11 +1121,20 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
 
   /* Force the log to the disk before writing the modified block */
   if (!srv_read_only_mode) {
-    Wait_stats wait_stats;
+    const lsn_t flush_to_lsn = bpage->newest_modification;
 
-    wait_stats = log_write_up_to(*log_sys, bpage->newest_modification, true);
+    /* Do the check before calling log_write_up_to() because in most
+    cases it would allow to avoid call, and because of that we don't
+    want those calls because they would have bad impact on the counter
+    of calls, which is monitored to save CPU on spinning in log threads. */
 
-    MONITOR_INC_WAIT_STATS_EX(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
+    if (log_sys->flushed_to_disk_lsn.load() < flush_to_lsn) {
+      Wait_stats wait_stats;
+
+      wait_stats = log_write_up_to(*log_sys, flush_to_lsn, true);
+
+      MONITOR_INC_WAIT_STATS_EX(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
+    }
   }
 
   switch (buf_page_get_state(bpage)) {
@@ -2562,19 +2571,21 @@ static ulint page_cleaner_flush_pages_recommendation(lsn_t *lsn_limit,
  than a second
  @retval 0 wake up by event set,
  @retval OS_SYNC_TIME_EXCEEDED if timeout was exceeded
- @param next_loop_time	time when next loop iteration should start
+ @param next_loop_tm time when next loop iteration should start
  @param sig_count	zero or the value returned by previous call of
                          os_event_reset() */
-static ulint pc_sleep_if_needed(ulint next_loop_time, int64_t sig_count) {
-  ulint cur_time = ut_time_ms();
+static ulint pc_sleep_if_needed(
+    const std::chrono::steady_clock::time_point &next_loop_tm,
+    int64_t sig_count) {
+  const auto cur_tm = std::chrono::steady_clock::now();
 
-  if (next_loop_time > cur_time) {
+  if (next_loop_tm > cur_tm) {
     /* Get sleep interval in micro seconds. We use
     ut_min() to avoid long sleep in case of wrap around. */
-    ulint sleep_us;
-
-    sleep_us =
-        ut_min(static_cast<ulint>(1000000), (next_loop_time - cur_time) * 1000);
+    const auto sleep_tm = std::chrono::duration_cast<std::chrono::microseconds>(
+        next_loop_tm - cur_tm);
+    ulint sleep_us = std::min(static_cast<ulint>(1000000),
+                              static_cast<ulint>(sleep_tm.count()));
 
     return (os_event_wait_time_low(buf_flush_event, sleep_us, sig_count));
   }
@@ -2929,7 +2940,10 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
 As of now we'll have only one coordinator.
 @param[in]	n_page_cleaners	Number of page cleaner threads to create */
 static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
-  ulint next_loop_time = ut_time_ms() + 1000;
+  static const constexpr std::chrono::milliseconds ms1000(1000);
+  static const constexpr std::chrono::milliseconds ms3000(3000);
+
+  auto next_loop_tm = std::chrono::steady_clock::now() + ms1000;
   ulint n_flushed = 0;
   ulint last_activity = srv_get_activity_count();
   ulint last_pages = 0;
@@ -2995,12 +3009,12 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
     and there is work to do. */
     if (srv_check_activity(last_activity) || buf_get_n_pending_read_ios() ||
         n_flushed == 0) {
-      ret_sleep = pc_sleep_if_needed(next_loop_time, sig_count);
+      ret_sleep = pc_sleep_if_needed(next_loop_tm, sig_count);
 
       if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
         break;
       }
-    } else if (ut_time_ms() > next_loop_time) {
+    } else if (next_loop_tm <= std::chrono::steady_clock::now()) {
       ret_sleep = OS_SYNC_TIME_EXCEEDED;
     } else {
       ret_sleep = 0;
@@ -3009,13 +3023,13 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
     sig_count = os_event_reset(buf_flush_event);
 
     if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
-      ulint curr_time = ut_time_ms();
-
-      if (curr_time > next_loop_time + 3000) {
+      const auto curr_tm = std::chrono::steady_clock::now();
+      if (curr_tm - next_loop_tm >= ms3000) {
         if (warn_count == 0) {
-          ulint us;
-
-          us = 1000 + curr_time - next_loop_time;
+          ulint us =
+              1000 + std::chrono::duration_cast<std::chrono::milliseconds>(
+                         curr_tm - next_loop_tm)
+                         .count();
 
           ib::info(ER_IB_MSG_128)
               << "Page cleaner took " << us << "ms to flush " << n_flushed_last
@@ -3037,7 +3051,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
         warn_count = 0;
       }
 
-      next_loop_time = curr_time + 1000;
+      next_loop_tm = curr_tm + ms1000;
       n_flushed_last = 0;
     }
 
@@ -3304,19 +3318,20 @@ void buf_flush_sync_all_buf_pools(void) {
 
 /** Make a LRU manager thread sleep until the passed target time, if it's not
 already in the past.
-@param[in]	next_loop_time	desired wake up time */
-static void buf_lru_manager_sleep_if_needed(ulint next_loop_time) {
+@param[in]	next_loop_tm	desired wake up time */
+static void buf_lru_manager_sleep_if_needed(
+    const std::chrono::steady_clock::time_point &next_loop_tm) {
   /* If this is the server shutdown buffer pool flushing phase, skip the
   sleep to quit this thread faster */
   if (srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE) return;
 
-  const auto cur_time = ut_time_ms();
+  const auto cur_tm = std::chrono::steady_clock::now();
 
-  if (next_loop_time > cur_time) {
-    /* Get sleep interval in micro seconds. We use
-    ut_min() to avoid long sleep in case of
-    wrap around. */
-    os_thread_sleep(std::min(1000000UL, (next_loop_time - cur_time) * 1000));
+  if (next_loop_tm > cur_tm) {
+    static const constexpr std::chrono::microseconds us1000000(1000000);
+    const auto sleep_tm = std::chrono::duration_cast<std::chrono::microseconds>(
+        next_loop_tm - cur_tm);
+    os_thread_sleep(std::min(us1000000, sleep_tm));
   }
 }
 
@@ -3324,27 +3339,31 @@ static void buf_lru_manager_sleep_if_needed(ulint next_loop_time) {
 the last flush result
 @param[in]	buf_pool	buffer pool whom we are flushing
 @param[in]	lru_n_flushed	last LRU flush page count
-@param[in,out]	lru_sleep_time	LRU manager thread sleep time */
-static void buf_lru_manager_adapt_sleep_time(const buf_pool_t *buf_pool,
-                                             ulint lru_n_flushed,
-                                             ulint *lru_sleep_time) {
+@param[in,out]	lru_sleep_tm	LRU manager thread sleep time */
+static void buf_lru_manager_adapt_sleep_time(
+    const buf_pool_t *buf_pool, ulint lru_n_flushed,
+    std::chrono::milliseconds &lru_sleep_tm) {
   const auto free_len = UT_LIST_GET_LEN(buf_pool->free);
   const auto max_free_len =
       std::min(UT_LIST_GET_LEN(buf_pool->LRU), srv_LRU_scan_depth);
+  static const constexpr std::chrono::milliseconds ms0(0);
+  static const constexpr std::chrono::milliseconds ms1(1);
+  static const constexpr std::chrono::milliseconds ms50(50);
+  static const constexpr std::chrono::milliseconds ms1000(1000);
 
   if (free_len < max_free_len / 100 && lru_n_flushed) {
     /* Free list filled less than 1% and the last iteration was
     able to flush, no sleep */
-    *lru_sleep_time = 0;
+    lru_sleep_tm = ms0;
   } else if (free_len > max_free_len / 5 ||
              (free_len < max_free_len / 100 && lru_n_flushed == 0)) {
     /* Free list filled more than 20% or no pages flushed in the
     previous batch, sleep a bit more */
-    *lru_sleep_time += 1;
-    if (*lru_sleep_time > 1000) *lru_sleep_time = 1000;
-  } else if (free_len < max_free_len / 20 && *lru_sleep_time >= 50) {
+    lru_sleep_tm += ms1;
+    if (lru_sleep_tm > ms1000) lru_sleep_tm = ms1000;
+  } else if (free_len < max_free_len / 20 && lru_sleep_tm >= ms50) {
     /* Free list filled less than 5%, sleep a bit less */
-    *lru_sleep_time -= 50;
+    lru_sleep_tm -= ms50;
   } else {
     /* Free lists filled between 5% and 20%, no change */
   }
@@ -3370,8 +3389,8 @@ static void buf_lru_manager_thread() {
 
   buf_pool_t *const buf_pool = buf_pool_from_array(i);
 
-  ulint lru_sleep_time = 1000;
-  ulint next_loop_time = ut_time_ms() + lru_sleep_time;
+  std::chrono::milliseconds lru_sleep_tm(1000);
+  auto next_loop_tm = std::chrono::steady_clock::now() + lru_sleep_tm;
   ulint lru_n_flushed = 1;
 
   /* On server shutdown, the LRU manager thread runs through cleanup
@@ -3380,11 +3399,11 @@ static void buf_lru_manager_thread() {
          srv_shutdown_state == SRV_SHUTDOWN_CLEANUP) {
     ut_d(buf_flush_page_cleaner_disabled_loop());
 
-    buf_lru_manager_sleep_if_needed(next_loop_time);
+    buf_lru_manager_sleep_if_needed(next_loop_tm);
 
-    buf_lru_manager_adapt_sleep_time(buf_pool, lru_n_flushed, &lru_sleep_time);
+    buf_lru_manager_adapt_sleep_time(buf_pool, lru_n_flushed, lru_sleep_tm);
 
-    next_loop_time = ut_time_ms() + lru_sleep_time;
+    next_loop_tm = std::chrono::steady_clock::now() + lru_sleep_tm;
 
     lru_n_flushed = buf_flush_LRU_list(buf_pool);
 
@@ -3583,7 +3602,9 @@ FlushObserver::FlushObserver(space_id_t space_id, trx_t *trx,
   }
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info(ER_IB_MSG_130) << "FlushObserver constructor: " << m_trx->id;
+  ib::info(ER_IB_MSG_130) << "FlushObserver constructor: space_id=" << space_id
+                          << ", trx_id="
+                          << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
@@ -3595,14 +3616,16 @@ FlushObserver::~FlushObserver() {
   UT_DELETE(m_removed);
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info(ER_IB_MSG_131) << "FlushObserver deconstructor: " << m_trx->id;
+  ib::info(ER_IB_MSG_131) << "FlushObserver deconstructor: space_id="
+                          << space_id << ", trx_id="
+                          << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
 /** Check whether trx is interrupted
 @return true if trx is interrupted */
 bool FlushObserver::check_interrupted() {
-  if (trx_is_interrupted(m_trx)) {
+  if (m_trx != nullptr && trx_is_interrupted(m_trx)) {
     interrupted();
 
     return (true);

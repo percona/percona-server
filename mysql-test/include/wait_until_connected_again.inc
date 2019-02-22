@@ -19,6 +19,9 @@ if ($explicit_default_counter)
 if ($VALGRIND_TEST) {
   --let $wait_counter= 30000
 }
+if ($TSAN_OPTIONS) {
+  --let $wait_counter= 15000
+}
 if ($wait_counter) {
   --let $counter= $wait_counter
 }

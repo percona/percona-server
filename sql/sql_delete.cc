@@ -20,11 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  Delete of records tables.
-
-  Multi-table deletes were introduced by Monty and Sinisa
-*/
+// Handle DELETE queries (both single- and multi-table).
 
 #include "sql/sql_delete.h"
 
@@ -342,7 +338,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       QUICK_SELECT_I *qck;
       no_rows = test_quick_select(thd, keys_to_use, 0, limit, safe_update,
                                   ORDER_NOT_RELEVANT, &qep_tab, conds,
-                                  &needed_reg_dummy, &qck) < 0;
+                                  &needed_reg_dummy, &qck,
+                                  qep_tab.table()->force_index) < 0;
       qep_tab.set_quick(qck);
     }
     if (thd->is_error())  // test_quick_select() has improper error propagation
@@ -624,7 +621,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
       propagate_nullability(&select->top_join_list, false);
 
     Prepared_stmt_arena_holder ps_holder(thd);
-    result = new (*THR_MALLOC) Query_result_delete(thd);
+    result = new (thd->mem_root) Query_result_delete();
     if (result == NULL) DBUG_RETURN(true); /* purecov: inspected */
 
     select->set_query_result(result);
@@ -670,6 +667,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     // Skip tables that are only selected from
     if (!table_ref->updating) continue;
 
+    // Cannot delete from a non-updatable view or derived table.
     if (!table_ref->is_updatable()) {
       my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_ref->alias, "DELETE");
       DBUG_RETURN(true);
@@ -690,7 +688,14 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     // A view must be merged, and thus cannot have a TABLE
     DBUG_ASSERT(!table_ref->is_view() || table_ref->table == NULL);
 
-    for (TABLE_LIST *tr = table_ref->updatable_base_table(); tr;
+    // Cannot delete from a storage engine that does not support delete.
+    TABLE_LIST *base_table = table_ref->updatable_base_table();
+    if (base_table->table->file->ha_table_flags() & HA_DELETE_NOT_SUPPORTED) {
+      my_error(ER_ILLEGAL_HA, MYF(0), base_table->table_name);
+      DBUG_RETURN(true);
+    }
+
+    for (TABLE_LIST *tr = base_table; tr != nullptr;
          tr = tr->referencing_view) {
       tr->updating = true;
     }
@@ -764,7 +769,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     DBUG_RETURN(true); /* purecov: inspected */
 
   if (select->query_result() &&
-      select->query_result()->prepare(select->fields_list, lex->unit))
+      select->query_result()->prepare(thd, select->fields_list, lex->unit))
     DBUG_RETURN(true); /* purecov: inspected */
 
   opt_trace_print_expanded_query(thd, select, &trace_wrapper);
@@ -799,7 +804,7 @@ extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b) {
   return file->cmp_ref((const uchar *)a, (const uchar *)b);
 }
 
-bool Query_result_delete::prepare(List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_delete::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   DBUG_ENTER("Query_result_delete::prepare");
   unit = u;
 
@@ -832,6 +837,7 @@ bool Query_result_delete::optimize() {
   SELECT_LEX *const select = unit->first_select();
 
   JOIN *const join = select->join;
+  THD *thd = join->thd;
 
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
@@ -920,10 +926,10 @@ bool Query_result_delete::optimize() {
 
   if (select->has_ft_funcs() && init_ftfuncs(thd, select)) DBUG_RETURN(true);
 
-  DBUG_RETURN(thd->is_fatal_error != 0);
+  DBUG_RETURN(thd->is_fatal_error());
 }
 
-void Query_result_delete::cleanup() {
+void Query_result_delete::cleanup(THD *) {
   // Cleanup only needed if result object has been prepared
   if (delete_table_count == 0) return;
 
@@ -935,7 +941,7 @@ void Query_result_delete::cleanup() {
   tables = NULL;
 }
 
-bool Query_result_delete::send_data(List<Item> &) {
+bool Query_result_delete::send_data(THD *thd, List<Item> &) {
   DBUG_ENTER("Query_result_delete::send_data");
 
   JOIN *const join = unit->first_select()->join;
@@ -1016,7 +1022,7 @@ bool Query_result_delete::send_data(List<Item> &) {
   DBUG_RETURN(false);
 }
 
-void Query_result_delete::send_error(uint errcode, const char *err) {
+void Query_result_delete::send_error(THD *, uint errcode, const char *err) {
   DBUG_ENTER("Query_result_delete::send_error");
 
   /* First send error what ever it is ... */
@@ -1025,7 +1031,7 @@ void Query_result_delete::send_error(uint errcode, const char *err) {
   DBUG_VOID_RETURN;
 }
 
-void Query_result_delete::abort_result_set() {
+void Query_result_delete::abort_result_set(THD *thd) {
   DBUG_ENTER("Query_result_delete::abort_result_set");
 
   /* the error was handled or nothing deleted and no side effects return */
@@ -1046,7 +1052,7 @@ void Query_result_delete::abort_result_set() {
       error log
     */
     error = 1;
-    send_eof();
+    send_eof(thd);
     DBUG_ASSERT(error_handled);
     DBUG_VOID_RETURN;
   }
@@ -1073,7 +1079,7 @@ void Query_result_delete::abort_result_set() {
   @retval 1 error
 */
 
-int Query_result_delete::do_deletes() {
+int Query_result_delete::do_deletes(THD *thd) {
   DBUG_ENTER("Query_result_delete::do_deletes");
   DBUG_ASSERT(!delete_completed);
 
@@ -1087,7 +1093,7 @@ int Query_result_delete::do_deletes() {
 
     if (tempfiles[counter]->get(table)) DBUG_RETURN(1);
 
-    int local_error = do_table_deletes(table);
+    int local_error = do_table_deletes(thd, table);
 
     if (thd->killed && !local_error) DBUG_RETURN(1);
 
@@ -1103,6 +1109,7 @@ int Query_result_delete::do_deletes() {
    Implements the inner loop of nested-loops join within multi-DELETE
    execution.
 
+   @param thd   Thread handle.
    @param table The table from which to delete.
 
    @return Status code
@@ -1111,7 +1118,7 @@ int Query_result_delete::do_deletes() {
    @retval  1 Triggers or handler reported error.
    @retval -1 End of file from handler.
 */
-int Query_result_delete::do_table_deletes(TABLE *table) {
+int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
   myf error_flags = MYF(0); /**< Flag for fatal errors */
   int local_error = 0;
   READ_RECORD info;
@@ -1189,12 +1196,12 @@ int Query_result_delete::do_table_deletes(TABLE *table) {
   @return false if success, true if error
 */
 
-bool Query_result_delete::send_eof() {
+bool Query_result_delete::send_eof(THD *thd) {
   THD::killed_state killed_status = THD::NOT_KILLED;
   THD_STAGE_INFO(thd, stage_deleting_from_reference_tables);
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
-  int local_error = do_deletes();  // returns 0 if success
+  int local_error = do_deletes(thd);  // returns 0 if success
 
   /* compute a total error to know if something failed */
   local_error = local_error || error;

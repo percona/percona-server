@@ -9,4 +9,5 @@
 .. |service.mysql.restart| replace:: :bash:`service mysql restart`
 .. |service.mysql.stop| replace:: :bash:`service mysql stop`
 .. |percona-release| replace:: :program:`percona-release`
-
+.. |rpm.e.nodeps| replace:: :bash:`rpm -e --nodeps`
+.. |rpm.e| replace:: :bash:`rpm -e`

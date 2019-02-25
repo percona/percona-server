@@ -97,6 +97,7 @@ static st_io_stall_stats io_stall_stats;
 const std::string DEFAULT_CF_NAME("default");
 const std::string DEFAULT_SYSTEM_CF_NAME("__system__");
 const std::string PER_INDEX_CF_NAME("$per_index_cf");
+
 static std::vector<GL_INDEX_ID> rdb_indexes_to_recalc;
 
 /**

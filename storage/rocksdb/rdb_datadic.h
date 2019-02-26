@@ -835,7 +835,6 @@ class Rdb_key_def {
   std::string m_ttl_column;
 
  private:
-  friend class Rdb_tbl_def;  // for m_index_number above
 
   /* Number of key parts in the primary key*/
   uint m_pk_key_parts;

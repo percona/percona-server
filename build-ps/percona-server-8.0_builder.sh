@@ -345,7 +345,7 @@ install_deps() {
         apt-get -y install libeatmydata
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
-        apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
+        apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev 
         if [ x"${DIST}" = xcosmic ]; then
             apt-get -y install libssl1.0-dev libeatmydata1
         fi

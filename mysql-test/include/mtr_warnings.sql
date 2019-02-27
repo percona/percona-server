@@ -232,7 +232,7 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] Error on opening a connection to localhost:.* on local port: .*."),
  ("\\[GCS\\] Error pushing message into group communication engine."),
  ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
- ("\\[GCS\\] Automatically adding IPv4 localhost address to the whitelist. It is mandatory that it is added."),
+ ("\\[GCS\\] Automatically adding IPv. localhost address to the whitelist. It is mandatory that it is added."),
  ("Member with address .* has become unreachable."),
  ("This server is not able to reach a majority of members in the group.*"),
  ("Member with address .* is reachable again."),

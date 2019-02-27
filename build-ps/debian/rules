@@ -68,8 +68,6 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DSYSCONFDIR=/etc/mysql \
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
 		-DCMAKE_BUILD_TYPE=Debug \
-		-DWITH_ZLIB=system \
-		-DWITH_SSL=system \
 		-DCOMPILATION_COMMENT=$(COMPILATION_COMMENT_DEBUG) \
 		-DSYSTEM_TYPE="debian-linux-gnu" \
 		-DINSTALL_LAYOUT=DEB \
@@ -80,6 +78,14 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
 		-DWITH_PAM=ON \
 		-DWITH_ROCKSDB=ON \
+		-DFORCE_INSOURCE_BUILD=1 \
+		-DWITH_SYSTEM_LIBS=ON \
+                -DWITH_PROTOBUF=bundled \
+                -DWITH_RAPIDJSON=bundled \
+                -DWITH_ICU=bundled \
+                -DWITH_LZ4=bundled \
+                -DWITH_EDITLINE=bundled \
+                -DWITH_NUMA=ON \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_DEBUG) ..
 endif
 
@@ -102,18 +108,24 @@ endif
 		-DSYSCONFDIR=/etc/mysql \
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
 		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
-		-DWITH_ZLIB=system \
-		-DWITH_SSL=system \
 		-DCOMPILATION_COMMENT=$(COMPILATION_COMMENT_RELEASE) \
 		-DSYSTEM_TYPE="debian-linux-gnu" \
 		-DINSTALL_LAYOUT=DEB \
 		-DWITH_INNODB_MEMCACHED=ON \
+		-DFORCE_INSOURCE_BUILD=1 \
 		-DWITH_MECAB=system \
 		-DWITH_ARCHIVE_STORAGE_ENGINE=ON \
 		-DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
 		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
 		-DWITH_PAM=ON \
 		-DWITH_ROCKSDB=ON \
+		-DWITH_SYSTEM_LIBS=ON \
+                -DWITH_PROTOBUF=bundled \
+                -DWITH_RAPIDJSON=bundled \
+                -DWITH_ICU=bundled \
+                -DWITH_LZ4=bundled \
+                -DWITH_EDITLINE=bundled \
+                -DWITH_NUMA=ON \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_RELEASE) ..
 
 	touch $@

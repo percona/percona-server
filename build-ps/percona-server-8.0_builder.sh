@@ -310,7 +310,10 @@ install_deps() {
             yum -y install rpcgen-1.4-1.fc29.x86_64.rpm
         fi
         if [ "x$RHEL" = "x6" ]; then
-            yum -y install Percona-Server-shared-56  
+            yum -y install Percona-Server-shared-56
+	          yum -y install libevent2-devel
+	      else
+            yum -y install libevent-devel 
         fi
     else
         apt-get -y install dirmngr || true

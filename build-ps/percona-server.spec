@@ -483,7 +483,6 @@ mkdir debug
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
            -DWITH_INNODB_MEMCACHED=1 \
-           -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \
@@ -523,7 +522,6 @@ mkdir release
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
            -DWITH_INNODB_MEMCACHED=1 \
-           -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \

@@ -485,6 +485,7 @@ mkdir debug
            -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
            -DMYSQL_MAINTAINER_MODE=OFF \
+           -DFORCE_INSOURCE_BUILD=1 \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -523,6 +524,7 @@ mkdir release
            -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
            -DMYSQL_MAINTAINER_MODE=OFF \
+           -DFORCE_INSOURCE_BUILD=1 \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}

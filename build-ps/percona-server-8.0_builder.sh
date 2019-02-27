@@ -226,7 +226,7 @@ get_sources(){
     fi
     #
     git submodule update
-    cmake . -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost
+    cmake . -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost -DFORCE_INSOURCE_BUILD=1
     make dist
     #
     EXPORTED_TAR=$(basename $(find . -type f -name percona-server*.tar.gz | sort | tail -n 1))
@@ -340,7 +340,7 @@ install_deps() {
         apt-get -y install libsasl2-modules:amd64 || apt-get -y install libsasl2-modules
         apt-get -y install dh-systemd || true
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
-        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
+        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-gnutls-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl python-mysqldb libsasl2-dev
         apt-get -y install libeatmydata
         apt-get -y install libmecab2 mecab mecab-ipadic
@@ -433,7 +433,6 @@ build_srpm(){
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
     #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.bz2
-    wget https://dl.bintray.com/boostorg/release/1.67.0/source/boost_1_67_0.tar.gz
     wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
@@ -676,6 +675,7 @@ build_deb(){
     if [ ${DEBIAN_VERSION} = "cosmic" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules 
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
+	sed -i 's/libssl-dev/libssl1.0-dev/g' debian/control
     fi
 
     dpkg-buildpackage -rfakeroot -uc -us -b
@@ -782,7 +782,7 @@ MYSQL_VERSION_MINOR=0
 MYSQL_VERSION_PATCH=12
 MYSQL_VERSION_EXTRA=-1
 PRODUCT_FULL=Percona-Server-8.0.12.1
-BOOST_PACKAGE_NAME=boost_1_67_0
+BOOST_PACKAGE_NAME=boost_1_68_0
 PERCONAFT_BRANCH=Percona-Server-5.7.22-22
 TOKUBACKUP_BRANCH=Percona-Server-5.7.22-22
 parse_arguments PICK-ARGS-FROM-ARGV "$@"

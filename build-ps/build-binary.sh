@@ -247,7 +247,6 @@ fi
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
         $DEBUG_EXTRA \
         -DFEATURE_SET=community \
-        -DWITH_ZLIB=system \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
         -DCOMPILATION_COMMENT="$COMMENT" \
@@ -256,6 +255,13 @@ fi
         -DWITH_INNODB_MEMCACHED=ON \
         -DDOWNLOAD_BOOST=1 \
 	-DFORCE_INSOURCE_BUILD=1 \
+	-DWITH_SYSTEM_LIBS=ON \
+        -DWITH_PROTOBUF=bundled \
+        -DWITH_RAPIDJSON=bundled \
+        -DWITH_ICU=bundled \
+        -DWITH_LZ4=bundled \
+        -DWITH_EDITLINE=bundled \
+	-DWITH_NUMA=ON \
         -DWITH_BOOST="$WORKDIR_ABS/libboost" \
         $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 

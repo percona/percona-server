@@ -314,8 +314,14 @@ install_deps() {
         done
         yum -y install  gcc-c++ devtoolset-7-gcc-c++ devtoolset-7-binutils
         if [ "x$RHEL" = "x6" ]; then
-            yum -y install Percona-Server-shared-56  
+            yum -y install Percona-Server-shared-56
+	    yum -y install libevent2-devel
+	else
+            yum -y install libevent-devel 
         fi
+	yum -y install ccache devtoolset-7-libasan-devel devtoolset-7-libubsan-devel devtoolset-7-valgrind devtoolset-7-valgrind-devel
+	yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make
+	yum -y install re2-devel redhat-lsb-core
         source /opt/rh/devtoolset-7/enable
     else
         apt-get -y install dirmngr || true
@@ -345,11 +351,16 @@ install_deps() {
         apt-get -y install libeatmydata
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
-        apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev 
-        if [ x"${DIST}" = xcosmic ]; then
+        apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
+        apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
+        if [ x"${DIST}" = xcosmic -o x"${DIST}" = xbionic ]; then
             apt-get -y install libssl1.0-dev libeatmydata1
         fi
-
+	if [ x"${DIST}" = xcosmic -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch ]; then
+            apt-get -y install libzstd-dev
+	else
+	    apt-get -y install libzstd1-dev
+	fi
 
     fi
     if [ ! -d /usr/local/percona-subunit2junitxml ]; then
@@ -661,6 +672,9 @@ build_deb(){
     if [ ${DEBIAN_VERSION} = "xenial" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=date-time /' debian/rules 
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=date-time /' debian/rules
+    fi
+    if [ ${DEBIAN_VERSION} = "bionic" ]; then
+	sed -i 's/libssl-dev/libssl1.0-dev/g' debian/control
     fi
 
     if [ ${DEBIAN_VERSION} = "stretch" ]; then

@@ -482,9 +482,16 @@ mkdir debug
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
            -DWITH_INNODB_MEMCACHED=1 \
-           -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
            -DMYSQL_MAINTAINER_MODE=OFF \
+           -DFORCE_INSOURCE_BUILD=1 \
+           -DWITH_NUMA=ON \
+           -DWITH_SYSTEM_LIBS=ON \
+           -DWITH_PROTOBUF=bundled \
+           -DWITH_RAPIDJSON=bundled \
+           -DWITH_ICU=bundled \
+           -DWITH_LZ4=bundled \
+           -DWITH_EDITLINE=bundled \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -520,9 +527,16 @@ mkdir release
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
            -DWITH_INNODB_MEMCACHED=1 \
-           -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
            -DMYSQL_MAINTAINER_MODE=OFF \
+           -DFORCE_INSOURCE_BUILD=1 \
+           -DWITH_NUMA=ON \
+           -DWITH_SYSTEM_LIBS=ON \
+           -DWITH_PROTOBUF=bundled \
+           -DWITH_RAPIDJSON=bundled \
+           -DWITH_ICU=bundled \
+           -DWITH_LZ4=bundled \
+           -DWITH_EDITLINE=bundled \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -813,8 +827,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql.server.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %attr(644, root, root) %{_mandir}/man1/perror.1*
-%attr(644, root, root) %{_mandir}/man1/resolve_stack_dump.1*
-%attr(644, root, root) %{_mandir}/man1/resolveip.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
 %attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
 %attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
@@ -835,8 +847,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqldumpslow
 %attr(755, root, root) %{_bindir}/ps_mysqld_helper
 %attr(755, root, root) %{_bindir}/perror
-%attr(755, root, root) %{_bindir}/resolve_stack_dump
-%attr(755, root, root) %{_bindir}/resolveip
 %attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/lz4_decompress
 #%attr(755, root, root) %{_bindir}/zlib_decompress
@@ -875,6 +885,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_audit_api_message.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_host_application_signal.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_services_host_application_signal.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
@@ -900,6 +914,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_audit_api_message.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_host_application_signal.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so

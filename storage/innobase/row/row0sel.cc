@@ -3494,36 +3494,93 @@ row_sel_build_prev_vers_for_mysql(
 	return(err);
 }
 
-/*********************************************************************//**
-Retrieves the clustered index record corresponding to a record in a
+/** Helper class to cache clust_rec and old version of it */
+class Row_sel_get_clust_rec_for_mysql
+{
+	const rec_t*	cached_clust_rec;
+	rec_t*		cached_old_vers;
+public:
+
+	Row_sel_get_clust_rec_for_mysql() :
+		cached_clust_rec(NULL),
+		cached_old_vers(NULL) {}
+
+	/** Retrieves the clustered index record corresponding to a record in a
+	non-clustered index. Does the necessary locking. Used in the MySQL
+	interface.
+	@param[in]	prebuilt	prebuilt struct in the handle
+	@param[in]	sec_index	secondary index where rec resides
+	@param[in]	rec		record in a non-clustered index; if
+					this is a locking read, then rec is not
+					allowed to be delete-marked, and that would
+					not make sense either
+	@param[in]	thr		query thread
+	@param[out]	out_rec		clustered record or an old version of
+					it, NULL if the old version did not exist
+					in the read view, i.e., it was a fresh
+					inserted version
+	@param[in,out]	offsets		offsets returned by
+					rec_get_offsets(rec, sec_index);
+					out: offsets returned by
+					rec_get_offsets(out_rec, clust_index)
+					or offsets of old version of clust_rec
+	@param[in,out]	offset_heap	memory heap from which
+					the offsets are allocated
+	@param[out]	vrow		virtual column to fill
+	@param[in]	mtr		mtr used to get access to the
+					non-clustered record; the same mtr is used to
+					access the clustered index
+	@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
+	dberr_t operator()(
+	row_prebuilt_t*		prebuilt,
+	dict_index_t*		sec_index,
+	const rec_t*		rec,
+	que_thr_t*		thr,
+	const rec_t**		out_rec,
+	ulint**			offsets,
+	mem_heap_t**		offset_heap,
+	const dtuple_t**	vrow,
+	mtr_t*			mtr);
+};
+
+/** Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking. Used in the MySQL
 interface.
-@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-static MY_ATTRIBUTE((warn_unused_result))
-dberr_t
-row_sel_get_clust_rec_for_mysql(
-/*============================*/
-	row_prebuilt_t*	prebuilt,/*!< in: prebuilt struct in the handle */
-	dict_index_t*	sec_index,/*!< in: secondary index where rec resides */
-	const rec_t*	rec,	/*!< in: record in a non-clustered index; if
+@param[in]	prebuilt	prebuilt struct in the handle
+@param[in]	sec_index	secondary index where rec resides
+@param[in]	rec		record in a non-clustered index; if
 				this is a locking read, then rec is not
 				allowed to be delete-marked, and that would
-				not make sense either */
-	que_thr_t*	thr,	/*!< in: query thread */
-	const rec_t**	out_rec,/*!< out: clustered record or an old version of
+				not make sense either
+@param[in]	thr		query thread
+@param[out]	out_rec		clustered record or an old version of
 				it, NULL if the old version did not exist
 				in the read view, i.e., it was a fresh
-				inserted version */
-	ulint**		offsets,/*!< in: offsets returned by
+				inserted version
+@param[in,out]	offsets		offsets returned by
 				rec_get_offsets(rec, sec_index);
 				out: offsets returned by
-				rec_get_offsets(out_rec, clust_index) */
-	mem_heap_t**	offset_heap,/*!< in/out: memory heap from which
-				the offsets are allocated */
-	const dtuple_t**vrow,	/*!< out: virtual column to fill */
-	mtr_t*		mtr)	/*!< in: mtr used to get access to the
+				rec_get_offsets(out_rec, clust_index)
+				or offsets of old version of clust_rec
+@param[in,out]	offset_heap	memory heap from which
+				the offsets are allocated
+@param[out]	vrow		virtual column to fill
+@param[in]	mtr		mtr used to get access to the
 				non-clustered record; the same mtr is used to
-				access the clustered index */
+				access the clustered index
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
+MY_ATTRIBUTE((warn_unused_result))
+dberr_t
+Row_sel_get_clust_rec_for_mysql::operator()(
+	row_prebuilt_t*		prebuilt,
+	dict_index_t*		sec_index,
+	const rec_t*		rec,
+	que_thr_t*		thr,
+	const rec_t**		out_rec,
+	ulint**			offsets,
+	mem_heap_t**		offset_heap,
+	const dtuple_t**	vrow,
+	mtr_t*			mtr)
 {
 	dict_index_t*	clust_index;
 	const rec_t*	clust_rec;
@@ -3697,15 +3754,33 @@ row_sel_get_clust_rec_for_mysql(
 			    clust_rec, clust_index, *offsets,
 			    trx_get_read_view(trx))) {
 
-			/* The following call returns 'offsets' associated with
-			'old_vers' */
-			err = row_sel_build_prev_vers_for_mysql(
-				trx->read_view, clust_index, prebuilt,
-				clust_rec, offsets, offset_heap, &old_vers,
-				vrow, mtr);
+			if (clust_rec != cached_clust_rec) {
+				/* The following call returns 'offsets' associated with
+				'old_vers' */
+				err = row_sel_build_prev_vers_for_mysql(
+					trx->read_view, clust_index, prebuilt,
+					clust_rec, offsets, offset_heap, &old_vers,
+					vrow, mtr);
 
-			if (err != DB_SUCCESS || old_vers == NULL) {
+				if (err != DB_SUCCESS) {
 
+					goto err_exit;
+				}
+				cached_clust_rec = clust_rec;
+				cached_old_vers = old_vers;
+			} else {
+				err = DB_SUCCESS;
+				old_vers = cached_old_vers;
+				/* When returning old_version, we should return
+				the offsets of old version cluster index record.*/
+				if (old_vers != NULL) {
+					*offsets = rec_get_offsets(
+						old_vers, clust_index, *offsets,
+						ULINT_UNDEFINED, offset_heap);
+				}
+			}
+
+			if (old_vers == NULL) {
 				goto err_exit;
 			}
 
@@ -4331,6 +4406,7 @@ row_search_no_mvcc(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	Row_sel_get_clust_rec_for_mysql	row_sel_get_clust_rec_for_mysql;
 	rec_offs_init(offsets_);
 	ut_ad(index && pcur && search_tuple);
 
@@ -4706,6 +4782,7 @@ row_search_mvcc(
 	bool		spatial_search			= false;
 	bool		use_clustered_index		= false;
 	ulint		end_loop			= 0;
+	Row_sel_get_clust_rec_for_mysql	row_sel_get_clust_rec_for_mysql;
 
 	rec_offs_init(offsets_);
 

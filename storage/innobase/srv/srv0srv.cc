@@ -2051,7 +2051,7 @@ void srv_redo_log_follow_thread() {
 
     if (srv_track_changed_pages &&
         srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
-      if (!log_online_follow_redo_log()) {
+      if (!log_online_follow_redo_log_one_pass()) {
         /* TODO: sync with I_S log tracking status? */
         ib::error() << "Log tracking bitmap write "
                        "failed, stopping log tracking thread!";

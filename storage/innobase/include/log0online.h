@@ -52,6 +52,14 @@ void log_online_shutdown(void) noexcept;
 changed page bitmap which is then written to disk.
 
 @return true if log tracking succeeded, false if bitmap write I/O error */
+MY_NODISCARD
+bool log_online_follow_redo_log_one_pass(void);
+
+/** Read and parse redo log for thr FLUSH CHANGED_PAGE_BITMAPS command.
+Make sure that the checkpoint LSN measured at the beginning of the command
+is tracked.
+
+@return true if log tracking succeeded, false if bitmap write I/O error */
 bool log_online_follow_redo_log(void);
 
 /** Delete all the bitmap files for data less than the specified LSN.

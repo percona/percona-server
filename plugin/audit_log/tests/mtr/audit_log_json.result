@@ -86,6 +86,7 @@ EXECUTE stmt1;
 1
 SHOW STATUS LIKE 'audit_log%';
 Variable_name	Value
+Audit_log_buffer_size_overflow	0
 DEALLOCATE PREPARE stmt1;
 show variables like 'audit_log%';
 Variable_name	Value

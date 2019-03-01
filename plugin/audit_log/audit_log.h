@@ -18,6 +18,7 @@
 #ifndef AUDIT_LOG_H_INCLUDED
 #define AUDIT_LOG_H_INCLUDED
 
+#include <atomic>
 #include "mysql/psi/psi_memory.h"
 
 extern PSI_memory_key key_memory_audit_log_logger_handle;
@@ -26,6 +27,7 @@ extern PSI_memory_key key_memory_audit_log_buffer;
 extern PSI_memory_key key_memory_audit_log_accounts;
 extern PSI_memory_key key_memory_audit_log_databases;
 extern PSI_memory_key key_memory_audit_log_commands;
+extern std::atomic<uint64_t> audit_log_buffer_size_overflow;
 
 static const constexpr auto AUDIT_LOG_PSI_CATEGORY = "audit_log";
 

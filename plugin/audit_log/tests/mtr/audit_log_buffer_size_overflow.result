@@ -1,0 +1,14 @@
+# restart: --audit_log_buffer_size=4096
+SHOW GLOBAL STATUS LIKE 'Audit_log_buffer_size_overflow';
+Variable_name	Value
+Audit_log_buffer_size_overflow	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_buffer_size_overflow';
+Variable_name	Value
+Audit_log_buffer_size_overflow	1
+# restart: --audit_log_buffer_size=4096 --audit_log_strategy=PERFORMANCE
+SHOW GLOBAL STATUS LIKE 'Audit_log_buffer_size_overflow';
+Variable_name	Value
+Audit_log_buffer_size_overflow	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_buffer_size_overflow';
+Variable_name	Value
+Audit_log_buffer_size_overflow	1

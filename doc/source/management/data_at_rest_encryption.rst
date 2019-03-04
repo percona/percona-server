@@ -603,6 +603,15 @@ In |Percona Server| :rn:`5.7.20-18` a ``keyring_vault`` plugin has been
 implemented that can be used to store the encryption keys inside the
 `Hashicorp Vault server <https://www.vaultproject.io>`_.
 
+.. important::
+
+   ``keyring_vault`` plugin only works with kv secrets engine version 1.
+
+   .. seealso::
+
+      HashiCorp Documentation: More information about ``kv`` secrets engine
+         https://www.vaultproject.io/docs/secrets/kv/kv-v1.html
+
 Installation
 ------------
 

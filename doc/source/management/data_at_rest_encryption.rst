@@ -454,6 +454,29 @@ Dumping of encrypted binary logs involves decryption, and can be done using
    relevant to binary logs, encrypted relay logs can not be dumped/decrypted
    in this way.
 
+.. rubric:: Upgrading from |Percona Server| |changed-version| to any higher version
+
+The key format in the :ref:`keyring vault plugin
+<keyring_vault_plugin>` was changed for binlog encryption in |Percona
+Server| |changed-version| release. When you are upgrading from
+|Percona Server| 5.7.20-19 to a higher version in the |Percona Server|
+5.7 series or to a version prior to 8.0.15-5 in the |Percona Server|
+8.0 series, the binary log encryption will work after you complete the
+following steps:
+
+1. Upgrade to a version higher than |Percona Server| |changed-version|
+#. Start the server without enabling the binary log encryption: :bash:`--encrypt_binlog=OFF`
+#. Enforce the key rotation: :mysql:`SELECT rotate_system_key("percona_binlog")`
+#. Restart the server enabling the binary log encryption: :bash:`--encrypt_binlog=ON`
+
+.. seealso::
+
+   |Percona Server| Documentation: Important changes in |Percona Server| 8.0.15-5
+      - `Binary log encryption to use the upstream implementation
+	<https://www.percona.com/doc/percona-server/LATEST/management/data_at_rest_encryption.html#binary-log-encryption>`_
+
+.. |changed-version| replace:: 5.7.20-19
+
 System Variables
 ----------------
 

@@ -1070,8 +1070,15 @@ static void log_online_parse_redo_log(void) {
         log_bmp_sys->parse_buf.parse_next_record(&type, &space, &page_no);
     ut_ad(log_bmp_sys->parse_buf.get_current_lsn() <=
           log_bmp_sys->read_buf.get_current_lsn() + LOG_BLOCK_BOUNDARY_LSN_PAD);
-    if (rec_parsed && log_online_rec_has_page(type))
+    if (rec_parsed && log_online_rec_has_page(type)) {
       log_online_set_page_bit(space, page_no);
+      if (type == MLOG_INDEX_LOAD) {
+        const auto space_size = fil_space_get_size(space);
+        for (page_no_t i = 0; i < space_size; i++) {
+          log_online_set_page_bit(space, i);
+        }
+      }
+    }
   }
   ut_ad(log_bmp_sys->parse_buf.buffer_used_up());
 }

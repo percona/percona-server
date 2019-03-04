@@ -156,7 +156,7 @@ server is started with the ``--bootstrap`` option.
 .. variable:: innodb_parallel_dblwr_encrypt
 
    :version 5.7.23-24: Implemented
-   :cli: ``--innodb-sys-tablespace-encrypt``
+   :cli: ``--innodb-parallel-dblwr-encrypt``
    :dyn: Yes
    :scope: Global
    :vartype: Boolean

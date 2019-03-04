@@ -886,6 +886,14 @@ log_online_parse_redo_log(void)
 
 				ut_a(len >= 3);
 				log_online_set_page_bit(space, page_no);
+				if (type == MLOG_INDEX_LOAD) {
+					const ulint space_size =
+						fil_space_get_size(space);
+					for (ulint i = 0; i < space_size; i++) {
+						log_online_set_page_bit(
+							space, i);
+					}
+				}
 			}
 
 			ptr += len;

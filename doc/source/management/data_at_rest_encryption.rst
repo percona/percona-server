@@ -396,6 +396,19 @@ tables should be encrypted again. If it is set to **1**, the encrypted table is
 re-encrypted on each key rotation. If it is set to **2**, the table is encrypted
 on every other key rotation.
       
+.. variable:: innodb_encrypt_online_alter_logs
+
+   :version 5.7.21-21: Implemented
+   :cli: ``--innodb-encrypt-online-alter-logs``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: OFF
+
+This variable simultaneously turns on the encryption of files used by InnoDB for
+full text search using parallel sorting, building indexes using merge sort, and
+online DDL logs created by InnoDB for online DDL.
+
 .. _data-at-rest-encryption.undo-tablespace:
 
 InnoDB Undo Tablespace Encryption

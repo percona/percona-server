@@ -3300,7 +3300,8 @@ This function may release the hash_lock and reacquire it.
 @param[in]	page_id		page id
 @param[in,out]	hash_lock	hash_lock currently latched
 @return NULL if watch set, block if the page is in the buffer pool */
-buf_page_t*
+MY_ATTRIBUTE((warn_unused_result))
+static buf_page_t*
 buf_pool_watch_set(
 	const page_id_t&	page_id,
 	rw_lock_t**		hash_lock)
@@ -3308,6 +3309,8 @@ buf_pool_watch_set(
 	buf_page_t*	bpage;
 	ulint		i;
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
+
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
 	ut_ad(*hash_lock == buf_page_hash_lock_get(buf_pool, page_id));
 
@@ -4197,6 +4200,7 @@ loop:
 
 		if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 
+			mutex_enter(&buf_pool->LRU_list_mutex);
 			rw_lock_x_lock(hash_lock);
 
 			/* page_hash can be changed. */
@@ -4205,6 +4209,7 @@ loop:
 
 			block = (buf_block_t*) buf_pool_watch_set(
 				page_id, &hash_lock);
+			mutex_exit(&buf_pool->LRU_list_mutex);
 
 			if (block) {
 				/* We can release hash_lock after we

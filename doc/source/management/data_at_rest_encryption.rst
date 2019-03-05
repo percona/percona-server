@@ -395,15 +395,10 @@ on every other key rotation.
 Binary log encryption
 =====================
 
-The encryption of binary and relay logs is triggered by the
-:variable:`encrypt_binlog` variable.
-
-Besides turning :variable:`encrypt_binlog` ``ON``, this feature requires both
-`master_verify_checksum
-<https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html#sysvar_master_verify_checksum>`_
-and `binlog_checksum
-<https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html#sysvar_binlog_checksum>`_
-variables to be turned ``ON``.
+As described in the |MySQL| documentation, the encryption of binary and relay
+logs is triggered by the `binlog_encryption
+<https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html#sysvar_binlog_encryption>`_
+variable.
 
 While replicating, master sends the stream of decrypted binary log events to a
 slave (SSL connections can be set up to encrypt them in transport). That said,
@@ -417,34 +412,28 @@ Dumping of encrypted binary logs involves decryption, and can be done using
    relevant to binary logs, encrypted relay logs can not be dumped/decrypted
    in this way.
 
+
 .. rubric:: Upgrading from |Percona Server| |changed-version| to any higher version
 
-The key format in the :ref:`keyring vault plugin
-<keyring_vault_plugin>` was changed for binlog encryption in
-|Percona Server| |changed-version| release. When you are upgrading from
-|Percona Server| 5.7.20-19 to any version in |Percona Server| 5.7
-or 8.0 series, the binary log encryption will work after you complete the following steps:
-
-- Upgrade to a version higher than |Percona Server| |changed-version|
-- Start the server without enabling the binary log encryption: :bash:`--encrypt_binlog=OFF`
-- Enforce the the key rotation: :mysql:`SELECT rotate_system_key("percona_binlog")`
-- Restart the server enabling the binary log encryption: :bash:`--encrypt_binlog=OFF`
+.. include:: ../.res/text/encrypt_binlog.removing.txt
 
 .. |changed-version| replace:: 5.7.20-19
-
 
 System Variables
 ----------------
 
 .. variable:: encrypt_binlog
 
-  :cli: ``--encrypt-binlog``
-  :dyn: No
-  :scope: Global
-  :vartype: Boolean
-  :default: ``OFF``
+   :version-info: removed in :rn:`8.0.15-5`
+   :cli: ``--encrypt-binlog``
+   :dyn: No
+   :scope: Global
+   :vartype: Boolean
+   :default: ``OFF``
 
 The variable turns on binary and relay logs encryption.
+
+
 
 Temporary file encryption
 ================================================================================

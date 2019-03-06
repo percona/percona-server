@@ -1369,7 +1369,7 @@ void Query_logger::cleanup() {
 bool Query_logger::slow_log_write(
     THD *thd, const char *query, size_t query_length,
     struct System_status_var *query_start_status) {
-  DBUG_ASSERT(thd->enable_slow_log && opt_slow_log);
+  DBUG_ASSERT(thd->enable_slow_log);
 
   if (!(*slow_log_handler_list)) return false;
 

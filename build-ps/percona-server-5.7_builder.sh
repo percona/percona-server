@@ -321,15 +321,23 @@ install_deps() {
         apt-get -y purge eatmydata || true
         apt-get update
         apt-get -y install psmisc
-        apt-get -y install libsasl2-modules:amd64 || apt-get -y install libsasl2-modules
+        apt-get -y install libsasl2-dev libsasl2-modules:amd64 libsasl2-modules-ldap || apt-get -y install libsasl2-modules libsasl2-modules-ldap libsasl2-dev
         apt-get -y install dh-systemd || true
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
-        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
+        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libeatmydata libc6-dbg valgrind libjson-perl python-mysqldb libsasl2-dev
 
         apt-get -y install libmecab2 mecab mecab-ipadic
-        apt-get -y install build-essential devscripts
+        apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
+        if [ x"${DIST}" = xcosmic ]; then
+            apt-get -y install libssl1.0-dev libeatmydata1
+        fi
+	if [ x"${DIST}" = xcosmic ]; then
+            apt-get -y install libcurl4-gnutls-dev
+	else
+            apt-get -y libcurl4-openssl-dev
+	fi
     fi
     return;
 }
@@ -621,7 +629,7 @@ build_deb(){
 
     cd ${DIRNAME}
     #
-    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty ]; then
+    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic ]; then
         rm -rf debian
         cp -r build-ps/ubuntu debian
     fi
@@ -633,7 +641,7 @@ build_deb(){
         mv debian/rules.notokudb debian/rules
         mv debian/control.notokudb debian/control
     else
-        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic ]; then
+        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic ]; then
             gcc47=$(which gcc-4.7 2>/dev/null || true)
             if [ -x "${gcc47}" ]; then
                 export CC=gcc-4.7
@@ -657,11 +665,15 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" ]; then
+    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules 
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
 
+    if [ ${DEBIAN_VERSION} = "cosmic" ]; then
+        sed -i 's:libssl-dev:libssl1.0-dev:' debian/control
+        sed -i 's:libcurl4-openssl-dev:libcurl4-gnutls-dev:' debian/control
+    fi
     dpkg-buildpackage -rfakeroot -uc -us -b
 
     cd ${WORKDIR}
@@ -731,12 +743,8 @@ build_tarball(){
         CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-jemalloc=../jemalloc/ --with-yassl --with-mecab="${MECAB_INSTALL_DIR}/usr" ../TARGET
     else
         CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
-
         DIRNAME="tarball"
     fi
-
-
-    
     mkdir -p ${WORKDIR}/${DIRNAME}
     mkdir -p ${CURDIR}/${DIRNAME}
     cp ../TARGET/*.tar.gz ${WORKDIR}/${DIRNAME}

@@ -66,8 +66,8 @@ DROP COMPRESSION_DICTIONARY dummy_dict;
 --error ER_READ_ONLY_MODE
 DROP COMPRESSION_DICTIONARY numbers;
 
---echo # Check if 'information_schema' queries for 'xtradb_zip_dict'
---echo # and 'xtradb_zip_dict_cols' work in read-only mode.
+--echo # Check if 'information_schema' queries for 'compression_dictionary'
+--echo # and 'compression_dictionary_tables' work in read-only mode.
 eval SET @dictionary_data = '$permanent_dictionary_data';
 SELECT dict_name INTO @dict_name FROM information_schema.compression_dictionary WHERE dict_name = 'numbers';
 SELECT dict_data = @dictionary_data AS dictionary_data_match FROM information_schema.compression_dictionary WHERE dict_name = 'numbers';

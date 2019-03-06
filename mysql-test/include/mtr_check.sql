@@ -141,9 +141,8 @@ BEGIN
   -- INSTALL/UNINSTALL command
   SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
 
-  -- Percona disabled until zip dictionary reimplementation in the new DD
-  -- -- Dump all created compression dictionaries
-  -- SELECT * FROM information_schema.xtradb_zip_dict ORDER BY name;
+  -- Dump all created compression dictionaries
+  SELECT * FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY ORDER BY DICT_NAME;
 
   SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 

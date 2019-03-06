@@ -145,7 +145,7 @@ static char *make_timestamp(char *buf, size_t buf_len, time_t t) noexcept {
   tm tm;
 
   memset(&tm, 0, sizeof(tm));
-  strftime(buf, buf_len, "%FT%T UTC", gmtime_r(&t, &tm));
+  strftime(buf, buf_len, "%FT%TZ", gmtime_r(&t, &tm));
 
   return buf;
 }

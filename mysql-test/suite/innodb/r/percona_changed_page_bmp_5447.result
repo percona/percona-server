@@ -1,0 +1,10 @@
+select @@innodb_track_changed_pages;
+@@innodb_track_changed_pages
+1
+CREATE TABLE t (a INT);
+# restart
+RESET CHANGED_PAGE_BITMAPS;
+ALTER TABLE t ADD INDEX (a);
+FLUSH CHANGED_PAGE_BITMAPS;
+# restart
+DROP TABLE t;

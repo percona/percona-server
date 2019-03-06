@@ -220,11 +220,6 @@ Trying to add unencrypted table to this table space will result in an error:
   mysql> CREATE TABLE t3 (a INT, b TEXT) TABLESPACE foo ENCRYPTION="N";
   ERROR 1478 (HY000): InnoDB: Tablespace `foo` can contain only an ENCRYPTED tables.
 
-.. note::
-
-   |Percona XtraBackup| currently doesn't support backup of encrypted general
-   tablespaces.
-
 Checking
 --------
 

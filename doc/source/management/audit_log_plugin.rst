@@ -463,7 +463,6 @@ When this variable is set to ``ON`` log file will be closed and reopened. This c
 
 .. variable:: audit_log_buffer_size
 
-     :version 5.6.17-65.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: No

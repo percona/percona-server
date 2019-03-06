@@ -761,7 +761,7 @@ static void log_online_track_missing_on_startup(
     ib::info() << "Reading the log to advance the last tracked LSN.";
 
     log_bmp_sys->start_at(std::max(last_tracked_lsn, MIN_TRACKED_LSN));
-    if (!log_online_follow_redo_log()) {
+    if (!log_online_follow_redo_log_one_pass()) {
       exit(1);
     }
     ut_ad(log_bmp_sys->end_lsn == tracking_start_lsn);
@@ -1324,12 +1324,10 @@ static void log_online_parse_complete_recs_past_previous_checkpoint() noexcept {
 page bitmap which is then written to disk.
 
 @return true if log tracking succeeded, false if bitmap write I/O error */
-bool log_online_follow_redo_log(void) {
+bool log_online_follow_redo_log_one_pass(void) {
   ut_ad(!srv_read_only_mode);
 
   if (!srv_track_changed_pages) return true;
-
-  DEBUG_SYNC_C("log_online_follow_redo_log");
 
   mutex_enter(&log_bmp_sys_mutex);
 
@@ -1357,10 +1355,31 @@ bool log_online_follow_redo_log(void) {
   if (result) {
     result = log_online_write_bitmap();
     log_bmp_sys->start_lsn = log_bmp_sys->end_lsn;
-    log_sys->tracked_lsn.store(log_bmp_sys->start_lsn);
+    log_sys->tracked_lsn.store(log_bmp_sys->parse_buf.get_current_lsn());
   }
 
   mutex_exit(&log_bmp_sys_mutex);
+  return result;
+}
+
+/** Read and parse redo log for thr FLUSH CHANGED_PAGE_BITMAPS command.
+Make sure that the checkpoint LSN measured at the beginning of the command
+is tracked.
+
+@return true if log tracking succeeded, false if bitmap write I/O error */
+bool log_online_follow_redo_log(void) {
+  ut_ad(!srv_read_only_mode);
+
+  const auto last_checkpoint_lsn = log_get_checkpoint_lsn(*log_sys);
+  bool result = true;
+
+  DEBUG_SYNC_C("log_online_follow_redo_log");
+
+  while (result && srv_track_changed_pages &&
+         last_checkpoint_lsn > log_sys->tracked_lsn.load()) {
+    result = log_online_follow_redo_log_one_pass();
+  }
+
   return result;
 }
 

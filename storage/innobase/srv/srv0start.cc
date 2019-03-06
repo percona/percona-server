@@ -2676,7 +2676,7 @@ files_checked:
         const lsn_t checkpoint_lsn = log_sys->last_checkpoint_lsn;
         ib::info() << "Tracking redo log synchronously until "
                    << checkpoint_lsn;
-        if (!log_online_follow_redo_log()) {
+        if (!log_online_follow_redo_log_one_pass()) {
           return (srv_init_abort(DB_ERROR));
         }
       }

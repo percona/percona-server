@@ -1,0 +1,8 @@
+call mtr.add_suppression("Log writer is waiting for tracker to to catch up lag");
+SET GLOBAL innodb_monitor_enable = module_log;
+FLUSH CHANGED_PAGE_BITMAPS;
+CREATE TABLE t (a INT, b TEXT);
+FLUSH CHANGED_PAGE_BITMAPS;
+FLUSH CHANGED_PAGE_BITMAPS;
+DROP TABLE t;
+SET GLOBAL innodb_monitor_enable = default;

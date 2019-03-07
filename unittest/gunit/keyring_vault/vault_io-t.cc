@@ -13,12 +13,9 @@
 #include "vault_io.h"
 #include "vault_mount.h"
 
-std::unique_ptr<keyring::IKeys_container> keys(nullptr);
-
-#if defined(HAVE_PSI_INTERFACE)
-namespace keyring {
-PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
-}
+extern std::string uuid;
+#ifndef MERGE_UNITTESTS
+std::string uuid = generate_uuid();
 #endif
 
 namespace keyring__vault_io_unittest {
@@ -29,24 +26,27 @@ using ::testing::SetArgPointee;
 using ::testing::StrEq;
 using ::testing::_;
 
-static std::string uuid = generate_uuid();
-static std::string key_1 = (uuid + "key1");
-static std::string key_2 = (uuid + "key2");
-static const char *key_1_id = key_1.c_str();
-static const char *key_2_id = key_2.c_str();
 std::string credential_file_url = "./keyring_vault.conf";
-ILogger *logger;
 
 class Vault_io_test : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  virtual void SetUp() override {
+    logger = new Mock_logger();
     vault_curl = new Vault_curl(logger, 0);
     vault_parser = new Vault_parser(logger);
   }
 
+  virtual void TearDown() override { delete logger; }
+
  protected:
+  std::string key_1 = (uuid + "key1");
+  std::string key_2 = (uuid + "key2");
+  const char *key_1_id = key_1.c_str();
+  const char *key_2_id = key_2.c_str();
+
   IVault_curl *vault_curl;
   IVault_parser *vault_parser;
+  ILogger *logger;
 };
 
 TEST_F(Vault_io_test, InitWithNotExisitingCredentialFile) {
@@ -55,8 +55,9 @@ TEST_F(Vault_io_test, InitWithNotExisitingCredentialFile) {
   remove(credential_file_name.c_str());
   EXPECT_CALL(
       *(reinterpret_cast<Mock_logger *>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("File './some_funny_name' not found (Errcode: "
-                                "2 - No such file or directory)")));
+      log(MY_WARNING_LEVEL, StrEq("File './some_funny_name' not found (OS "
+                                  "errno 2 - No such file or directory)")));
+
   EXPECT_CALL(
       *(reinterpret_cast<Mock_logger *>(logger)),
       log(MY_ERROR_LEVEL, StrEq("Could not open file with credentials.")));
@@ -314,6 +315,9 @@ TEST_F(Vault_io_test, FlushKeyRetrieveDeleteInit) {
   ASSERT_TRUE(serialized_keys == nullptr);  // no keys
 }
 
+#define MOCK_NOEXCEPT_METHOD1(m, ...) \
+  GMOCK_METHOD1_(, noexcept, , m, __VA_ARGS__)
+
 class Mock_vault_curl : public IVault_curl {
  public:
   MOCK_METHOD1(init, bool(const Vault_credentials &vault_credentials));
@@ -321,7 +325,7 @@ class Mock_vault_curl : public IVault_curl {
   MOCK_METHOD2(write_key, bool(const Vault_key &key, Secure_string *response));
   MOCK_METHOD2(read_key, bool(const Vault_key &key, Secure_string *response));
   MOCK_METHOD2(delete_key, bool(const Vault_key &key, Secure_string *response));
-  MOCK_METHOD1(set_timeout, void(uint timeout));
+  MOCK_NOEXCEPT_METHOD1(set_timeout, void(uint timeout));
 };
 
 TEST_F(Vault_io_test, ErrorFromVaultCurlOnVaultIOInit) {
@@ -350,7 +354,7 @@ TEST_F(Vault_io_test, ErrorFromVaultCurlOnListKeys) {
                   StrEq("Could not retrieve list of keys from Vault.")));
 
   EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
-  EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object *>(nullptr));
+  EXPECT_EQ(serialized_object, nullptr);
 }
 
 TEST_F(Vault_io_test, ErrorsFromVaultInVaultsResponseOnListKeys) {
@@ -374,7 +378,7 @@ TEST_F(Vault_io_test, ErrorsFromVaultInVaultsResponseOnListKeys) {
                 "returned the following error(s): [\"list is broken\"]")));
 
   EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
-  EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object *>(nullptr));
+  EXPECT_EQ(serialized_object, nullptr);
 
   vault_response = "{errors: [\"list is broken\", \"and some other error\"]}";
 
@@ -388,7 +392,7 @@ TEST_F(Vault_io_test, ErrorsFromVaultInVaultsResponseOnListKeys) {
                         "\"and some other error\"]")));
 
   EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
-  EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object *>(nullptr));
+  EXPECT_EQ(serialized_object, nullptr);
 
   vault_response =
       "{ errors: [\"list is broken\",\n\"and some other error\"\n] }";
@@ -403,7 +407,7 @@ TEST_F(Vault_io_test, ErrorsFromVaultInVaultsResponseOnListKeys) {
                         "broken\",\"and some other error\"]")));
 
   EXPECT_TRUE(vault_io.get_serialized_object(&serialized_object));
-  EXPECT_EQ(serialized_object, reinterpret_cast<ISerialized_object *>(nullptr));
+  EXPECT_EQ(serialized_object, nullptr);
 }
 
 TEST_F(Vault_io_test, ErrorsFromVaultCurlOnReadKey) {
@@ -619,6 +623,7 @@ TEST_F(Vault_io_test,
 }
 }  // namespace keyring__vault_io_unittest
 
+#ifndef MERGE_UNITTESTS
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   MY_INIT(argv[0]);
@@ -638,15 +643,16 @@ int main(int argc, char **argv) {
   }
   BOOST_SCOPE_EXIT_END
 
-  keyring__vault_io_unittest::logger = new keyring::Mock_logger();
-  keyring::Vault_mount vault_mount(curl, keyring__vault_io_unittest::logger);
+  keyring::ILogger *logger = new keyring::Mock_logger();
+  keyring::Vault_mount vault_mount(curl, logger);
+  std::string mount_point_path = "cicd/" + uuid;
   if (generate_credential_file(keyring__vault_io_unittest::credential_file_url,
-                               CORRECT, keyring__vault_io_unittest::uuid)) {
+                               CORRECT, mount_point_path)) {
     std::cout << "Could not generate credential file" << std::endl;
     return 2;
   }
   if (vault_mount.init(&keyring__vault_io_unittest::credential_file_url,
-                       &keyring__vault_io_unittest::uuid)) {
+                       &mount_point_path)) {
     std::cout << "Could not initialized Vault_mount" << std::endl;
     return 3;
   }
@@ -660,8 +666,9 @@ int main(int argc, char **argv) {
   if (vault_mount.unmount_secret_backend()) {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
-  delete keyring__vault_io_unittest::logger;
+  delete logger;
   my_testing::teardown_server_for_unit_tests();
 
   return ret;
 }
+#endif  // MERGE_UNITTESTS

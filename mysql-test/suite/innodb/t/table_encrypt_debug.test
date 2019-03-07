@@ -3,5 +3,6 @@ call mtr.add_suppression("\\[Warning\\] .* Plugin keyring_file reported: 'Error 
 --enable_query_log
 
 --let $keyring_restart_param=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--let $keyring_file_test=1
 --source include/table_encrypt_debug.inc
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring

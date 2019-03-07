@@ -1,6 +1,7 @@
-call mtr.add_suppression("\\[ERROR\\] Function 'keyring_vault' already exists");
-call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.*'.");
+call mtr.add_suppression("Function 'keyring_vault' already exists");
+call mtr.add_suppression("Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.*'.");
 call mtr.add_suppression("Plugin keyring_vault reported");
+call mtr.add_suppression("keyring_vault initialization failure");
 SET @@global.keyring_vault_config="MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf";
 # restart:<hidden args>
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='y';
@@ -51,7 +52,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`id`),
   KEY `a` (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -61,7 +62,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`id`),
   KEY `a` (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -70,7 +71,7 @@ t3	CREATE TABLE `t3` (
   `c` int(11) DEFAULT '5',
   KEY `a` (`a`),
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
@@ -79,7 +80,7 @@ t4	CREATE TABLE `t4` (
   `c` int(11) DEFAULT '5',
   KEY `a` (`a`),
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
@@ -89,7 +90,7 @@ t5	CREATE TABLE `t5` (
   PRIMARY KEY (`id`),
   FULLTEXT KEY `b` (`b`),
   FULLTEXT KEY `a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
@@ -98,7 +99,7 @@ t6	CREATE TABLE `t6` (
   `b` varchar(255) DEFAULT NULL,
   FULLTEXT KEY `b` (`b`),
   FULLTEXT KEY `a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
@@ -108,7 +109,7 @@ t7	CREATE TABLE `t7` (
   PRIMARY KEY (`id`),
   KEY `a` (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED ENCRYPTION='y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='y'
 # Restarting server
 SELECT COUNT(1) FROM t2;
 COUNT(1)

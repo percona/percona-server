@@ -485,12 +485,13 @@ int main(int argc, char **argv)
   keyring__api_unittest::keyring_filename= new char[strlen("./keyring_vault.conf")+1];
   strcpy(keyring__api_unittest::keyring_filename, "./keyring_vault.conf");
   std::string keyring_conf(keyring__api_unittest::keyring_filename);
-  if (generate_credential_file(keyring_conf, CORRECT, keyring__api_unittest::uuid))
+  std::string mount_point_path= "cicd/" + keyring__api_unittest::uuid;
+  if (generate_credential_file(keyring_conf, CORRECT, mount_point_path))
   {
     std::cout << "Could not generate credential file" << std::endl;
     return 2; 
   }
-  if (vault_mount.init(&keyring_conf, &keyring__api_unittest::uuid))
+  if (vault_mount.init(&keyring_conf, &mount_point_path))
   {
     std::cout << "Could not initialize Vault_mount" << std::endl;
     return 3; 

@@ -78,17 +78,17 @@ Once the |TokuDB| server package has been installed following output will be sho
   * This release of Percona Server is distributed with TokuDB storage engine.
      * Run the following script to enable the TokuDB storage engine in Percona Server:
 
-      ps_tokudb_admin --enable -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]
+      ps-admin --enable-tokudb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]
 
      * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_installation.html for more installation details
 
      * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_intro.html for an introduction to TokuDB
 
-|Percona Server| has implemented ``ps_tokudb_admin`` script to make the enabling the |TokuDB| storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install and enable the |TokuDB| storage engine with all the required plugins. You need to run this script as root or with :program:`sudo`. After you run the script with required parameters:
+|Percona Server| has implemented ``ps-admin`` script to make the enabling the |TokuDB| storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install and enable the |TokuDB| storage engine with all the required plugins. You need to run this script as root or with :program:`sudo`. After you run the script with required parameters:
 
 .. code-block:: bash
 
-   ps_tokudb_admin --enable -uroot -pPassw0rd
+   ps-admin --enable-tokudb -uroot -pPassw0rd
    
 Following output will be displayed:
 
@@ -125,7 +125,7 @@ If the script returns no errors, |TokuDB| storage engine should be successfully 
 Enabling the TokuDB Storage Engine Manually
 ===========================================
 
-If you don't want to use ``ps_tokudb_admin`` script you'll need to manually install the storage engine ad required plugins. 
+If you don't want to use ``ps-admin`` script you'll need to manually install the storage engine ad required plugins. 
 
 .. code-block:: mysql
 

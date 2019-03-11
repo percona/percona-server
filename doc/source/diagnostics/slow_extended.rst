@@ -283,6 +283,25 @@ Another example (:variable:`log_slow_verbosity` ``=profiling``): ::
   SET timestamp=1370073800;
   SELECT id,title,production_year FROM title WHERE title = 'Bambi';
 
+Notice that the ``Killed: `` keyword is followed by zero when the
+query successfully completes. If the query was killed, the ``Killed:``
+keyword is followed by a number other than zero:
+
+====================  =================================================
+Killed Numeric Code   Exception
+====================  =================================================
+0                     NOT_KILLED 
+1                     KILL_BAD_DATA
+1053                  ER_SERVER_SHUTDOWN (see |MySQL| Documentation)
+1317                  ER_QUERY_INTERRUPTED (see |MySQL| Documentation)
+3024                  ER_QUERY_TIMEOUT (see |MySQL| Documentation)
+Any other number      KILLED_NO_VALUE (Catches all other cases)
+====================  =================================================
+  
+.. seealso::
+
+   |MySQL| Documentation: |MySQL| Server Error Codes
+      https://dev.mysql.com/doc/refman/5.7/en/server-error-reference.html
 
 Connection and Schema Identifier
 --------------------------------

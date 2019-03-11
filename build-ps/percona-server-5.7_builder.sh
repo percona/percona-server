@@ -93,15 +93,16 @@ check_workdir(){
 add_percona_yum_repo(){
     if [ ! -f /etc/yum.repos.d/percona-dev.repo ]
     then
-        curl -o /etc/yum.repos.d/ https://jenkins.percona.com/yum-repo/percona-dev.repo
+        curl -o /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
+	sed -i 's:$basearch:x86_64:g' /etc/yum.repos.d/percona-dev.repo
+
     fi
     return
 }
 
 add_percona_apt_repo(){
   if [ ! -f /etc/apt/sources.list.d/percona-dev.list ]; then
-    curl -o /etc/apt/sources.list.d/ https://jenkins.percona.com/apt-repo/percona-dev.list.template
-    mv /etc/apt/sources.list.d/percona-dev.list.template /etc/apt/sources.list.d/percona-dev.list
+    curl -o /etc/apt/sources.list.d/percona-dev.list https://jenkins.percona.com/apt-repo/percona-dev.list.template
     sed -i "s:@@DIST@@:$OS_NAME:g" /etc/apt/sources.list.d/percona-dev.list
   fi
  
@@ -293,15 +294,24 @@ install_deps() {
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         add_percona_yum_repo
-        yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
-        percona-release enable origin release
-        yum -y install epel-release
-        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
-        yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
-        yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
-        yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
-        if [ ${RHEL} -lt 7 -a $(uname -m) = x86_64 ]; then
-            yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils 
+        if [ "x${RHEL}" = 8 ]; then
+            yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
+            percona-release enable origin release
+            yum -y install epel-release
+            yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
+            yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
+            yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
+            yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
+            if [ ${RHEL} -lt 7 -a $(uname -m) = x86_64 ]; then
+                yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils 
+            fi
+        else
+            yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
+            yum -y install automake autoconf cmake jemalloc jemalloc-devel
+	    yum -y install libcurl-devel openldap-devel selinux-policy-devel
+	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
+            wget https://rpmfind.net/linux/fedora/linux/releases/29/Everything/x86_64/os/Packages/r/rpcgen-1.4-1.fc29.x86_64.rpm
+            yum -y install rpcgen-1.4-1.fc29.x86_64.rpm
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56  
@@ -319,6 +329,10 @@ install_deps() {
             echo "waiting"
         done
         apt-get -y purge eatmydata || true
+        echo "deb http://jenkins.percona.com/apt-repo/ ${DIST} main" > percona-dev.list
+        mv -f percona-dev.list /etc/apt/sources.list.d/
+        wget -q -O - http://jenkins.percona.com/apt-repo/8507EFA5.pub | sudo apt-key add -
+        wget -q -O - http://jenkins.percona.com/apt-repo/CD2EFD2A.pub | sudo apt-key add -
         apt-get update
         apt-get -y install psmisc
         apt-get -y install libsasl2-dev libsasl2-modules:amd64 libsasl2-modules-ldap || apt-get -y install libsasl2-modules libsasl2-modules-ldap libsasl2-dev
@@ -520,7 +534,7 @@ build_rpm(){
     mv *.src.rpm rpmbuild/SRPMS
     #
     if [ ${ARCH} = x86_64 ]; then
-        if [ ${RHEL} != 7 ]; then
+        if [ ${RHEL} = 6 ]; then
             source /opt/percona-devtoolset/enable
         fi
     fi

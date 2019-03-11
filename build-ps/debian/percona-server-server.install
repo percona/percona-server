@@ -12,8 +12,6 @@ usr/bin/mysqld_multi
 usr/bin/mysqld_safe
 usr/bin/ps_mysqld_helper
 usr/bin/perror
-usr/bin/resolveip
-usr/bin/resolve_stack_dump
 usr/sbin/mysqld
 usr/bin/ps-admin
 
@@ -38,8 +36,6 @@ usr/share/man/man1/mysqld_multi.1
 usr/share/man/man1/mysqld_safe.1
 usr/share/man/man1/mysql.server.1
 usr/share/man/man1/perror.1
-usr/share/man/man1/resolveip.1
-usr/share/man/man1/resolve_stack_dump.1
 usr/share/man/man8/mysqld.8
 # SQL files
 usr/share/mysql/*.sql

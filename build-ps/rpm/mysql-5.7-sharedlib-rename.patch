@@ -131,10 +131,10 @@
    
 -# Merge several convenience libraries into one big perconaserverclient
 -MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS_TO_MERGE} COMPONENT Development)
--TARGET_LINK_LIBRARIES(perconaserverclient ${LIBS_TO_LINK})
+-TARGET_LINK_LIBRARIES(perconaserverclient PRIVATE ${LIBS_TO_LINK})
 +# Merge several convenience libraries into one big mysqlclient
 +MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
-+TARGET_LINK_LIBRARIES(mysqlclient ${LIBS_TO_LINK})
++TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})
  
  # Visual Studio users need debug  static library for debug projects
  IF(MSVC)

@@ -91,21 +91,8 @@ check_workdir(){
 add_percona_yum_repo(){
     if [ ! -f /etc/yum.repos.d/percona-dev.repo ]
     then
-        cat >/etc/yum.repos.d/percona-dev.repo <<EOL
-[percona-dev-$basearch]
-name=Percona internal YUM repository for build slaves \$releasever - \$basearch
-baseurl=http://jenkins.percona.com/yum-repo/\$releasever/RPMS/\$basearch
-gpgkey=http://jenkins.percona.com/yum-repo/PERCONA-PACKAGING-KEY
-gpgcheck=0
-enabled=1
-
-[percona-dev-noarch]
-name=Percona internal YUM repository for build slaves \$releasever - noarch
-baseurl=http://jenkins.percona.com/yum-repo/\$releasever/RPMS/noarch
-gpgkey=http://jenkins.percona.com/yum-repo/PERCONA-PACKAGING-KEY
-gpgcheck=0
-enabled=1
-EOL
+        curl -o /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
+	sed -i 's:$basearch:x86_64:g' /etc/yum.repos.d/percona-dev.repo
     fi
     return
 }
@@ -226,7 +213,7 @@ get_sources(){
     fi
     #
     git submodule update
-    cmake . -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost
+    cmake .  -DWITH_SSL=bundled -DFORCE_INSOURCE_BUILD=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost
     make dist
     #
     EXPORTED_TAR=$(basename $(find . -type f -name percona-server*.tar.gz | sort | tail -n 1))
@@ -308,15 +295,26 @@ install_deps() {
         #    yum -y install epel-release centos-release-scl
         #    yum -y install devtoolset-6-gcc-c++ devtoolset-6-binutils
         #fi
-        until yum -y install centos-release-scl; do
-            echo "waiting"
-            sleep 1
-        done
-        yum -y install  gcc-c++ devtoolset-7-gcc-c++ devtoolset-7-binutils
+        if [ "x${RHEL}" -lt 8 ]; then
+            until yum -y install centos-release-scl; do
+                echo "waiting"
+                sleep 1
+            done
+            yum -y install  gcc-c++ devtoolset-7-gcc-c++ devtoolset-7-binutils
+            yum -y install ccache devtoolset-7-libasan-devel devtoolset-7-libubsan-devel devtoolset-7-valgrind devtoolset-7-valgrind-devel
+            yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make
+            yum -y install re2-devel redhat-lsb-core
+            source /opt/rh/devtoolset-7/enable
+        else
+            yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
+            yum -y install automake autoconf cmake jemalloc jemalloc-devel
+	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
+            wget https://rpmfind.net/linux/fedora/linux/releases/29/Everything/x86_64/os/Packages/r/rpcgen-1.4-1.fc29.x86_64.rpm
+            yum -y install rpcgen-1.4-1.fc29.x86_64.rpm
+        fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56  
         fi
-        source /opt/rh/devtoolset-7/enable
     else
         apt-get -y install dirmngr || true
         add_percona_apt_repo
@@ -340,16 +338,21 @@ install_deps() {
         apt-get -y install libsasl2-modules:amd64 || apt-get -y install libsasl2-modules
         apt-get -y install dh-systemd || true
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
-        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
+        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-gnutls-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl python-mysqldb libsasl2-dev
         apt-get -y install libeatmydata
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
-        apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
-        if [ x"${DIST}" = xcosmic ]; then
+        apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
+        apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
+        if [ x"${DIST}" = xcosmic -o x"${DIST}" = xbionic ]; then
             apt-get -y install libssl1.0-dev libeatmydata1
         fi
-
+        if [ x"${DIST}" = xcosmic -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch ]; then
+            apt-get -y install libzstd-dev
+        else
+            apt-get -y install libzstd1-dev
+        fi
 
     fi
     if [ ! -d /usr/local/percona-subunit2junitxml ]; then
@@ -433,7 +436,6 @@ build_srpm(){
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
     #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.bz2
-    wget https://dl.bintray.com/boostorg/release/1.67.0/source/boost_1_67_0.tar.gz
     wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
@@ -663,6 +665,9 @@ build_deb(){
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=date-time /' debian/rules 
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=date-time /' debian/rules
     fi
+    if [ ${DEBIAN_VERSION} = "bionic" ]; then
+        sed -i 's/libssl-dev/libssl1.0-dev/g' debian/control
+    fi
 
     if [ ${DEBIAN_VERSION} = "stretch" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules 
@@ -676,6 +681,7 @@ build_deb(){
     if [ ${DEBIAN_VERSION} = "cosmic" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules 
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
+        sed -i 's/libssl-dev/libssl1.0-dev/g' debian/control
     fi
 
     dpkg-buildpackage -rfakeroot -uc -us -b
@@ -782,7 +788,7 @@ MYSQL_VERSION_MINOR=0
 MYSQL_VERSION_PATCH=12
 MYSQL_VERSION_EXTRA=-1
 PRODUCT_FULL=Percona-Server-8.0.12.1
-BOOST_PACKAGE_NAME=boost_1_67_0
+BOOST_PACKAGE_NAME=boost_1_68_0
 PERCONAFT_BRANCH=Percona-Server-5.7.22-22
 TOKUBACKUP_BRANCH=Percona-Server-5.7.22-22
 parse_arguments PICK-ARGS-FROM-ARGV "$@"

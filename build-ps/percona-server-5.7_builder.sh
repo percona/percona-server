@@ -294,7 +294,7 @@ install_deps() {
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         add_percona_yum_repo
-        if [ "x${RHEL}" -lt 8 ]; then
+        if [ ${RHEL} -lt 8 ]; then
             yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
             percona-release enable origin release
             yum -y install epel-release

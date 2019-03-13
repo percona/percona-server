@@ -91,7 +91,7 @@ struct Worker_thread_context
 #ifndef DBUG_OFF
     set_my_thread_var_id(thread_id);
 #endif
-    pthread_setspecific(THR_THD, 0);
+    /* pthread_setspecific(THR_THD, 0); not needed as 8.0 version */
     pthread_setspecific(THR_MALLOC, 0);
   }
 };

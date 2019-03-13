@@ -119,6 +119,10 @@ EOF
 
 SELECT @@innodb_sys_tablespace_encrypt;
 
+--let $assert_text = System tablespace should be encrypted
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE = 0]" = "Y"
+--source include/assert.inc
+
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 
 --error ER_ILLEGAL_HA_CREATE_OPTION

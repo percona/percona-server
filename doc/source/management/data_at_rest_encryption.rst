@@ -180,6 +180,14 @@ This feature extends the  `CREATE TABLESPACE
 <https://dev.mysql.com/doc/refman/8.0/en/create-tablespace.html>`_
 statement to accept the ``ENCRYPTION='Y/N'`` option.
 
+.. note::
+
+   Prior to |Percona Server| 8.0.13, the ``ENCRYPTION`` option was specific to
+   the ``CREATE TABLE`` or ``SHOW CREATE TABLE`` statement.  In |Percona Server|
+   8.0.13, this option becomes a tablespace attribute and is not allowed with
+   the ``CREATE TABLE`` or ``SHOW CREATE TABLE`` statement except for
+   file-per-table tablespaces.
+
 
 Usage
 ================================================================================

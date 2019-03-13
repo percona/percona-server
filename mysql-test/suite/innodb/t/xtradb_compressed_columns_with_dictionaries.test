@@ -135,7 +135,7 @@ DROP COMPRESSION_DICTIONARY d100;
 --error ER_COMPRESSION_DICTIONARY_IS_REFERENCED
 --eval DROP COMPRESSION_DICTIONARY $dict_name
 
-# dropping existing compression dictionary must be reflected in "xtradb_zip_dict"
+# dropping existing compression dictionary must be reflected in "compression_dictionary"
 DROP COMPRESSION_DICTIONARY d13;
 
 SELECT COUNT(*) = 0 AS dict_must_be_deleted
@@ -156,7 +156,7 @@ DROP COMPRESSION_DICTIONARY d11;
 DROP COMPRESSION_DICTIONARY d12;
 --eval DROP COMPRESSION_DICTIONARY $long_dictionary_name
 
-# check if the changes are reflected properly in "xtradb_zip_dict"
+# check if the changes are reflected properly in "compression_dictionary"
 SELECT dict_name, dict_data, LENGTH(dict_data)
 FROM information_schema.compression_dictionary;
 

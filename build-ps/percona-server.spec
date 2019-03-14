@@ -347,7 +347,7 @@ and applications need to dynamically load and use Percona Server.
 
 %if 0%{?compatlib}
 %package -n percona-server-shared-compat
-Summary:        Shared compat libraries for Percona Server %{compatver}--%{percona_compatver} database client applications
+Summary:        Shared compat libraries for Percona Server %{compatver}-%{percona_compatver} database client applications
 Group:          Applications/Databases
 Provides:       mysql-libs-compat = %{version}-%{release}
 Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}

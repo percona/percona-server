@@ -1,0 +1,26 @@
+# InnoDB transparent tablespace data encryption
+# This test case will test basic encryption support features.
+
+--source include/no_valgrind_without_big.inc
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+
+--let $keyring1_restart_param=restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--let $keyring2_restart_param=restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT
+
+--disable_query_log
+call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] Function 'keyring_file' already exists");
+call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
+call mtr.add_suppression("Plugin keyring_file reported");
+--enable_query_log
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/keyring";
+
+--let $encryption_type=KEYRING
+--source include/table_encrypt_2.inc
+
+#Cleanup
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring2

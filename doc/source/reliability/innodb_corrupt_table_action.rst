@@ -49,7 +49,8 @@ System Variables
      :scope: Global
      :dyn: Yes
      :vartype: ULONG
-     :range: ``assert``, ``warn``, ``salvage``
+     :default value: ``assert``
+     :valid values: ``assert``, ``warn``, ``salvage``
 
 * With the default value |XtraDB| will intentionally crash the server with an assertion failure as it would normally do when detecting corrupted data in a single-table tablespace.
 

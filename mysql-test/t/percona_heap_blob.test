@@ -386,7 +386,7 @@ alter table t1 modify a varbinary(5);
 select hex(a) from t1 order by a;
 select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
 alter table t1 modify a char(5);
-select hex(a) from t1 order by a;
+select hex(a) from t1 order by a collate utf8mb4_bin;
 select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
 alter table t1 modify a binary(5);
 select hex(a) from t1 order by a;

@@ -746,7 +746,7 @@ NULL
 616100
 6200
 alter table t1 modify a char(5);
-select hex(a) from t1 order by a;
+select hex(a) from t1 order by a collate utf8mb4_bin;
 hex(a)
 NULL
 6100

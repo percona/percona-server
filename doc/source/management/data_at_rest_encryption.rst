@@ -516,7 +516,7 @@ tables.
   it's a good practice to put this list in double quotes so that semicolons
   do not create problems when executed in a script.
 
-Apart from installing plugin you also need to set the
+Apart from installing the plugin you also need to set the
 :variable:`keyring_vault_config` variable. This variable should point to the
 keyring_vault configuration file, whose contents are discussed below.
 

@@ -11,6 +11,12 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  8.0
 |:Fix Released: 8.0.13-4                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`93708` -   Page Cleaner will sleep for long time if clock changes                  |
+|:JIRA bug: :psbug:`5221`                                                                                     |
+|:Upstream State: Verified (checked on 2019-03-11)                                                            |
+|:Fix Released: 8.0.15-5                                                                                      |
+|:Upstream Fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`93703` - EXPLAIN SELECT returns inconsistent number of ROWS in main.group_by       |
 |:JIRA bug: :psbug:`5306`                                                                                     |
 |:Upstream State: Need Feedback (checked on 2019-01-16)                                                       |
@@ -57,6 +63,12 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  8.0
 |:JIRA bug: :psbug:`314`                                                                                      |
 |:Upstream State: N/A                                                                                         |
 |:Fix Released: 8.0.12-2rc1                                                                                   |
+|:Upstream Fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`88720` - Inconsistent and unsafe FLUSH behavior in terms of replication            |
+|:JIRA bug: :psbug:`1827`                                                                                     |
+|:Upstream State: Verified (checked on 2019-03-11)                                                            |
+|:Fix Released: 8.0.15-5                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`88057` - Intermediary slave does not log master changes with ...                   |
@@ -129,6 +141,12 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  8.0
 |:JIRA bug: :psbug:`1697`                                                                                     |
 |:Upstream State: Verified (checked on 2018-11-20)                                                            |
 |:Fix Released: 8.0.12-2rc1                                                                                   |
+|:Upstream Fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`76020` - InnoDB does not report filename in I/O error message for reads            |
+|:JIRA bug: :psbug:`2455`                                                                                     |
+|:Upstream State: Verified (checked on 2019-03-11)                                                            |
+|:Fix Released: 8.0.15-5                                                                                      |
 |:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`75480` - Selecting wrong pos with SHOW BINLOG EVENTS causes a potentially ...      |

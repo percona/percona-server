@@ -1,10 +1,11 @@
 --source include/have_keyring_vault_plugin.inc
+--source include/not_repeat.inc
 
-call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_vault initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '' not found");
+call mtr.add_suppression("Plugin keyring_vault reported: 'keyring_vault initialization failure.");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not open file with credentials.'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'File '' not found");
 
---source generate_default_conf_files.inc
+--source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -20,4 +21,3 @@ eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
 UNINSTALL PLUGIN keyring_vault;
---remove_file $KEYRING_INVALID_TOKEN_CONF_FILE

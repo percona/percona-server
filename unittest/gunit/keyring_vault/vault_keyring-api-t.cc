@@ -27,12 +27,13 @@
 #include "vault_keyring.cc"
 #include "vault_mount.h"
 
+std::string uuid = generate_uuid();
+
 namespace keyring__api_unittest {
 using ::testing::StrEq;
 using namespace keyring;
 
-static std::string uuid = generate_uuid();
-static char *keyring_filename;
+std::string credential_file_url = "./keyring_vault.conf";
 
 class Keyring_vault_api_test : public ::testing::Test {
  public:
@@ -48,7 +49,9 @@ class Keyring_vault_api_test : public ::testing::Test {
 
     plugin_info.name.str = plugin_name;
     plugin_info.name.length = strlen(plugin_name);
-    keyring_vault_config_file = keyring_filename;
+
+    keyring_vault_config_file = new char[credential_file_url.length() + 1];
+    strcpy(keyring_vault_config_file, credential_file_url.c_str());
 
     keyring_init_with_mock_logger();
 
@@ -56,7 +59,10 @@ class Keyring_vault_api_test : public ::testing::Test {
     key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
     sample_key_data = "Robi";
   }
-  virtual void TearDown() { keyring_deinit_with_mock_logger(); }
+  virtual void TearDown() {
+    keyring_deinit_with_mock_logger();
+    delete[] keyring_vault_config_file;
+  }
 
  protected:
   void keyring_init_with_mock_logger();
@@ -206,9 +212,9 @@ TEST_F(Keyring_vault_api_test, StoreValidTypes) {
 }
 
 TEST_F(Keyring_vault_api_test, StoreInvalidType) {
-  EXPECT_CALL(
-      *(reinterpret_cast<Mock_logger *>(logger.get())),
-      log(MY_ERROR_LEVEL, StrEq("Error while storing key: invalid key_type")));
+  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
+              log(MY_WARNING_LEVEL,
+                  StrEq("Error while storing key: invalid key_type")));
   EXPECT_TRUE(mysql_key_store((uuid + "Robert_key").c_str(), "YYY", "Robert",
                               sample_key_data.c_str(),
                               sample_key_data.length()));
@@ -312,22 +318,22 @@ TEST_F(Keyring_vault_api_test, NullUser) {
 
 TEST_F(Keyring_vault_api_test, NullKeyId) {
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while storing key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_store(nullptr, "AES", "Robert", sample_key_data.c_str(),
                               sample_key_data.length() + 1));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while storing key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_store(nullptr, "AES", nullptr, sample_key_data.c_str(),
                               sample_key_data.length() + 1));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while storing key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_store("", "AES", "Robert", sample_key_data.c_str(),
                               sample_key_data.length() + 1));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while storing key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_store("", "AES", nullptr, sample_key_data.c_str(),
                               sample_key_data.length() + 1));
@@ -335,61 +341,61 @@ TEST_F(Keyring_vault_api_test, NullKeyId) {
   size_t key_len;
   void *key;
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while fetching key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_fetch(nullptr, &key_type, "Robert", &key, &key_len));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while fetching key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_fetch(nullptr, &key_type, nullptr, &key, &key_len));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while fetching key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_fetch("", &key_type, "Robert", &key, &key_len));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while fetching key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_fetch("", &key_type, nullptr, &key, &key_len));
 
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while removing key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_remove(nullptr, "Robert"));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while removing key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_remove(nullptr, nullptr));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while removing key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_remove("", "Robert"));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while removing key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_remove("", nullptr));
 
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while generating key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_generate(nullptr, "AES", "Robert", 128));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while generating key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_generate(nullptr, "AES", nullptr, 128));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while generating key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_generate("", "AES", "Robert", 128));
   EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger.get())),
-              log(MY_ERROR_LEVEL,
+              log(MY_WARNING_LEVEL,
                   StrEq("Error while generating key: key_id cannot be empty")));
   EXPECT_TRUE(mysql_key_generate("", "AES", nullptr, 128));
 }
 
-TEST_F(Keyring_vault_api_test, StorePBStoreSKFetchPBRemovePB) {
+TEST_F(Keyring_vault_api_test, StoreIKStoreIKFetchIKRemovePerconaInnodb) {
   EXPECT_EQ(
-      mysql_key_store("percona_binlog", "AES", nullptr, sample_key_data.c_str(),
-                      sample_key_data.length() + 1),
+      mysql_key_store("percona_innodb_1", "AES", nullptr,
+                      sample_key_data.c_str(), sample_key_data.length() + 1),
       0);
   EXPECT_EQ(mysql_key_store("percona_RGRGRG_1", "AES", nullptr, "1234_",
                             strlen("1234_") + 1),
@@ -398,7 +404,8 @@ TEST_F(Keyring_vault_api_test, StorePBStoreSKFetchPBRemovePB) {
   size_t key_len;
   void *key;
   EXPECT_EQ(
-      mysql_key_fetch("percona_binlog", &key_type, nullptr, &key, &key_len), 0);
+      mysql_key_fetch("percona_innodb_1", &key_type, nullptr, &key, &key_len),
+      0);
   EXPECT_STREQ("AES", key_type);
   std::string key_data_with_version = "1:" + sample_key_data;
   EXPECT_EQ(key_len, key_data_with_version.length() + 1);
@@ -407,10 +414,11 @@ TEST_F(Keyring_vault_api_test, StorePBStoreSKFetchPBRemovePB) {
   key_type = nullptr;
   my_free(key);
   key = nullptr;
-  EXPECT_EQ(mysql_key_remove("percona_binlog", nullptr), 1);
+  EXPECT_EQ(mysql_key_remove("percona_innodb_1", nullptr), 1);
   // make sure the key was not removed - fetch it
   EXPECT_EQ(
-      mysql_key_fetch("percona_binlog", &key_type, nullptr, &key, &key_len), 0);
+      mysql_key_fetch("percona_innodb_1", &key_type, nullptr, &key, &key_len),
+      0);
   EXPECT_STREQ("AES", key_type);
   EXPECT_EQ(key_len, key_data_with_version.length() + 1);
   ASSERT_TRUE(memcmp((char *)key, key_data_with_version.c_str(), key_len) == 0);
@@ -418,17 +426,18 @@ TEST_F(Keyring_vault_api_test, StorePBStoreSKFetchPBRemovePB) {
   my_free(key);
 }
 
-TEST_F(Keyring_vault_api_test,
-       RotatePBStoreSKFetchPBRotatePBFetchPBRotatePBRotateSKFetchPBFetchSK) {
+TEST_F(
+    Keyring_vault_api_test,
+    RotateIKStoreSKFetchIKRotateIKFetchIKRotateIKRotateSKFetchPerconaInnodbFetchSK) {
   std::string percona_binlog_key_data_1("key1");
-  EXPECT_EQ(mysql_key_store("percona_binlog", "AES", nullptr,
+  EXPECT_EQ(mysql_key_store("percona_innodb_2", "AES", nullptr,
                             percona_binlog_key_data_1.c_str(),
                             percona_binlog_key_data_1.length() + 1),
             0);
 
   std::string percona_sk_data_1("system_key1");
   EXPECT_EQ(
-      mysql_key_store("percona_sk", "AES", nullptr, percona_sk_data_1.c_str(),
+      mysql_key_store("percona_sk_2", "AES", nullptr, percona_sk_data_1.c_str(),
                       percona_sk_data_1.length() + 1),
       0);
 
@@ -436,9 +445,10 @@ TEST_F(Keyring_vault_api_test,
   size_t key_len;
   void *key;
   EXPECT_EQ(
-      mysql_key_fetch("percona_binlog", &key_type, nullptr, &key, &key_len), 0);
+      mysql_key_fetch("percona_innodb_2", &key_type, nullptr, &key, &key_len),
+      0);
   EXPECT_STREQ("AES", key_type);
-  std::string key_data_with_version = "2:" + percona_binlog_key_data_1;
+  std::string key_data_with_version = "1:" + percona_binlog_key_data_1;
   EXPECT_EQ(key_len, key_data_with_version.length() + 1);
   ASSERT_TRUE(memcmp((char *)key, key_data_with_version.c_str(), key_len) == 0);
   my_free(key_type);
@@ -447,15 +457,16 @@ TEST_F(Keyring_vault_api_test,
   key = nullptr;
 
   std::string percona_binlog_key_data_2("key2");
-  EXPECT_EQ(mysql_key_store("percona_binlog", "AES", nullptr,
+  EXPECT_EQ(mysql_key_store("percona_innodb_2", "AES", nullptr,
                             percona_binlog_key_data_2.c_str(),
                             percona_binlog_key_data_2.length() + 1),
             0);
 
   EXPECT_EQ(
-      mysql_key_fetch("percona_binlog", &key_type, nullptr, &key, &key_len), 0);
+      mysql_key_fetch("percona_innodb_2", &key_type, nullptr, &key, &key_len),
+      0);
   EXPECT_STREQ("AES", key_type);
-  key_data_with_version = "3:" + percona_binlog_key_data_2;
+  key_data_with_version = "2:" + percona_binlog_key_data_2;
   EXPECT_EQ(key_len, key_data_with_version.length() + 1);
   ASSERT_TRUE(memcmp((char *)key, key_data_with_version.c_str(), key_len) == 0);
   my_free(key_type);
@@ -464,20 +475,21 @@ TEST_F(Keyring_vault_api_test,
   key = nullptr;
 
   std::string percona_binlog_key_data_3("key3___");
-  EXPECT_EQ(mysql_key_store("percona_binlog", "AES", nullptr,
+  EXPECT_EQ(mysql_key_store("percona_innodb_2", "AES", nullptr,
                             percona_binlog_key_data_3.c_str(),
                             percona_binlog_key_data_3.length() + 1),
             0);
 
   std::string percona_sk_data_2("percona_sk_data2");
   EXPECT_EQ(
-      mysql_key_store("percona_sk", "AES", nullptr, percona_sk_data_2.c_str(),
+      mysql_key_store("percona_sk_2", "AES", nullptr, percona_sk_data_2.c_str(),
                       percona_sk_data_2.length() + 1),
       0);
   EXPECT_EQ(
-      mysql_key_fetch("percona_binlog", &key_type, nullptr, &key, &key_len), 0);
+      mysql_key_fetch("percona_innodb_2", &key_type, nullptr, &key, &key_len),
+      0);
   EXPECT_STREQ("AES", key_type);
-  key_data_with_version = "4:" + percona_binlog_key_data_3;
+  key_data_with_version = "3:" + percona_binlog_key_data_3;
   EXPECT_EQ(key_len, key_data_with_version.length() + 1);
   ASSERT_TRUE(memcmp((char *)key, key_data_with_version.c_str(), key_len) == 0);
   my_free(key_type);
@@ -485,7 +497,7 @@ TEST_F(Keyring_vault_api_test,
   my_free(key);
   key = nullptr;
 
-  EXPECT_EQ(mysql_key_fetch("percona_sk", &key_type, nullptr, &key, &key_len),
+  EXPECT_EQ(mysql_key_fetch("percona_sk_2", &key_type, nullptr, &key, &key_len),
             0);
   EXPECT_STREQ("AES", key_type);
   key_data_with_version = "2:" + percona_sk_data_2;
@@ -521,16 +533,14 @@ int main(int argc, char **argv) {
   // create unique secret mount point for this test suite
   keyring::Vault_mount vault_mount(curl, logger);
 
-  keyring__api_unittest::keyring_filename =
-      new char[strlen("./keyring_vault.conf") + 1];
-  strcpy(keyring__api_unittest::keyring_filename, "./keyring_vault.conf");
-  std::string keyring_conf(keyring__api_unittest::keyring_filename);
-  if (generate_credential_file(keyring_conf, CORRECT,
-                               keyring__api_unittest::uuid)) {
+  std::string mount_point_path = "cicd/" + uuid;
+  if (generate_credential_file(keyring__api_unittest::credential_file_url,
+                               CORRECT, mount_point_path)) {
     std::cout << "Could not generate credential file" << std::endl;
     return 2;
   }
-  if (vault_mount.init(&keyring_conf, &keyring__api_unittest::uuid)) {
+  if (vault_mount.init(&keyring__api_unittest::credential_file_url,
+                       &mount_point_path)) {
     std::cout << "Could not initialize Vault_mount" << std::endl;
     return 3;
   }
@@ -546,7 +556,6 @@ int main(int argc, char **argv) {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
   delete logger;
-  delete[] keyring__api_unittest::keyring_filename;
 
   my_testing::teardown_server_for_unit_tests();
   return ret;

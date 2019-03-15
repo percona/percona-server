@@ -54,6 +54,7 @@
 
 %{!?with_systemd:                %global systemd 0}
 %{?el7:                          %global systemd 1}
+%{?el8:                          %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -80}
 %{!?feature_set:                 %global feature_set community}
@@ -89,7 +90,7 @@
 %endif
 
 # Version for compat libs
-%if 0%{?rhel} == 7
+%if 0%{?rhel} > 6
 %global compat_prefix         56
 %global compatver             5.6.28
 %global percona_compatver     76.1
@@ -346,7 +347,7 @@ and applications need to dynamically load and use Percona Server.
 
 %if 0%{?compatlib}
 %package -n percona-server-shared-compat
-Summary:        Shared compat libraries for Percona Server %{compatver}--%{percona_compatver} database client applications
+Summary:        Shared compat libraries for Percona Server %{compatver}-%{percona_compatver} database client applications
 Group:          Applications/Databases
 Provides:       mysql-libs-compat = %{version}-%{release}
 Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
@@ -486,12 +487,6 @@ mkdir debug
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \
            -DWITH_NUMA=ON \
-           -DWITH_SYSTEM_LIBS=ON \
-           -DWITH_PROTOBUF=bundled \
-           -DWITH_RAPIDJSON=bundled \
-           -DWITH_ICU=bundled \
-           -DWITH_LZ4=bundled \
-           -DWITH_EDITLINE=bundled \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -531,12 +526,6 @@ mkdir release
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \
            -DWITH_NUMA=ON \
-           -DWITH_SYSTEM_LIBS=ON \
-           -DWITH_PROTOBUF=bundled \
-           -DWITH_RAPIDJSON=bundled \
-           -DWITH_ICU=bundled \
-           -DWITH_LZ4=bundled \
-           -DWITH_EDITLINE=bundled \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
@@ -849,7 +838,7 @@ fi
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/lz4_decompress
-#%attr(755, root, root) %{_bindir}/zlib_decompress
+%attr(755, root, root) %{_bindir}/zlib_decompress
 %attr(755, root, root) %{_bindir}/ps-admin
 %if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysqld_pre_systemd
@@ -2171,3 +2160,4 @@ lenz@mysql.com>
 - A developers changelog for MySQL is available in the source RPM. And
   there is a history of major user visible changed in the Reference
   Manual.  Only RPM specific changes will be documented here.
+

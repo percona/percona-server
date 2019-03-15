@@ -187,7 +187,7 @@ call tde_db.populate_t_encrypt();
 # In connection con2 - Running select on encrypt table
 call tde_db.read_t_encrypt();
 # kill and restart the server
-# Kill and restart:--early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# Kill and restart:<hidden args>
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 INSERT INTO tde_db.t_encrypt(c2,c3,c4,c7) VALUES(10000,CONCAT(REPEAT('a',200),LPAD(CAST(1 AS CHAR),4,'0')),'{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt LIMIT 10;

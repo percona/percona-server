@@ -29,15 +29,7 @@
 #include "vault_keys_container.h"
 #include "vault_mount.h"
 
-std::unique_ptr<keyring::IKeys_container> keys(nullptr);
-
-#ifdef HAVE_PSI_INTERFACE
-namespace keyring {
-PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
-PSI_memory_key key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
-}  // namespace keyring
-#endif
-mysql_rwlock_t LOCK_keyring;
+extern std::string uuid;
 
 namespace keyring__vault_keys_container_unittest {
 using namespace keyring;
@@ -50,9 +42,7 @@ using ::testing::StrEq;
 using ::testing::WithArgs;
 using ::testing::_;
 
-static std::string uuid = generate_uuid();
 static std::string credential_file_url = "./keyring_vault.conf";
-ILogger *logger;
 
 class Vault_keys_container_test : public ::testing::Test {
  public:
@@ -65,11 +55,15 @@ class Vault_keys_container_test : public ::testing::Test {
         new Vault_key((uuid + "Roberts_key").c_str(), "AES", "Robert",
                       sample_key_data.c_str(), sample_key_data.length());
 
+    logger = new keyring::Mock_logger();
     vault_keys_container = new Vault_keys_container(logger);
     vault_curl = new Vault_curl(logger, 0);
     vault_parser = new Vault_parser(logger);
   }
-  virtual void TearDown() { delete vault_keys_container; }
+  virtual void TearDown() {
+    delete vault_keys_container;
+    delete logger;
+  }
 
  protected:
   Vault_keys_container *vault_keys_container;
@@ -79,6 +73,7 @@ class Vault_keys_container_test : public ::testing::Test {
   bool credential_file_was_created;
   Vault_key *sample_key;
   std::string sample_key_data;
+  ILogger *logger;
 };
 
 TEST_F(Vault_keys_container_test, InitWithCorrectCredential) {
@@ -99,9 +94,10 @@ TEST_F(Vault_keys_container_test, InitWithFileWithInvalidToken) {
       log(MY_ERROR_LEVEL, StrEq("Could not retrieve list of keys from Vault. "
                                 "Vault has returned the following error(s): "
                                 "[\"permission denied\"]")));
-  EXPECT_CALL(*(reinterpret_cast<Mock_logger *>(logger)),
-              log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. "
-                                        "The keyring might be malformed")));
+  EXPECT_CALL(
+      *(reinterpret_cast<Mock_logger *>(logger)),
+      log(MY_WARNING_LEVEL, StrEq("Error while loading keyring content. "
+                                  "The keyring might be malformed")));
   EXPECT_TRUE(vault_keys_container->init(vault_io, "invalid_token.conf"));
   delete sample_key;  // unused in this test
 
@@ -771,9 +767,9 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
   EXPECT_CALL(*vault_io, init(Pointee(StrEq(credential_file_url))))
       .WillOnce(Return(false));  // init successfull
   EXPECT_CALL(*vault_io, get_serialized_object(_)).WillOnce(Return(true));
-  EXPECT_CALL(*logger,
-              log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. "
-                                        "The keyring might be malformed")));
+  EXPECT_CALL(*logger, log(MY_WARNING_LEVEL,
+                           StrEq("Error while loading keyring content. "
+                                 "The keyring might be malformed")));
 
   EXPECT_TRUE(vault_keys_container->init(vault_io, credential_file_url));
   EXPECT_EQ(vault_keys_container->get_number_of_keys(), (unsigned int)0);
@@ -807,7 +803,7 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
     EXPECT_CALL(*mock_serialized_object, get_next_key(_))
         .WillOnce(DoAll(SetArgPointee<0>(invalid_key), Return(false)));
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(MY_WARNING_LEVEL,
                              StrEq("Error while loading keyring content. The "
                                    "keyring might be malformed")));
   }
@@ -836,7 +832,7 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
     InSequence dummy;
     EXPECT_CALL(*vault_io, get_serialized_object(_))
         .WillOnce(DoAll(SetArgPointee<0>(keys_list), Return(false)));
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(MY_WARNING_LEVEL,
                              StrEq("Error while loading keyring content. The "
                                    "keyring might be malformed")));
   }
@@ -863,8 +859,8 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
     EXPECT_CALL(*vault_io, get_serializer()).WillOnce(Return(mock_serializer));
     EXPECT_CALL(*mock_serializer, serialize(_, sample_key, STORE_KEY))
         .WillOnce(Return(null_serialized_object));
-    EXPECT_CALL(*logger,
-                log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
+    EXPECT_CALL(*logger, log(MY_WARNING_LEVEL,
+                             StrEq("Could not flush keys to keyring")));
   }
   EXPECT_TRUE(vault_keys_container->store_key(sample_key));
   ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 0);
@@ -904,8 +900,8 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
     EXPECT_CALL(*vault_io, get_serializer()).WillOnce(Return(mock_serializer));
     EXPECT_CALL(*mock_serializer, serialize(_, sample_key, REMOVE_KEY))
         .WillOnce(Return(null_serialized_object));
-    EXPECT_CALL(*logger,
-                log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
+    EXPECT_CALL(*logger, log(MY_WARNING_LEVEL,
+                             StrEq("Could not flush keys to keyring")));
   }
 
   EXPECT_TRUE(vault_keys_container->remove_key(sample_key));
@@ -1006,8 +1002,8 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
     EXPECT_CALL(*vault_io, get_serializer()).WillOnce(Return(mock_serializer));
     EXPECT_CALL(*mock_serializer, serialize(_, sample_key, REMOVE_KEY))
         .WillOnce(Return(null_serialized_object));
-    EXPECT_CALL(*logger,
-                log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
+    EXPECT_CALL(*logger, log(MY_WARNING_LEVEL,
+                             StrEq("Could not flush keys to keyring")));
   }
 
   EXPECT_TRUE(vault_keys_container->remove_key(sample_key));
@@ -1192,6 +1188,10 @@ TEST_F(Vault_keys_container_with_mocked_io_test,
 }
 }  // namespace keyring__vault_keys_container_unittest
 
+#ifndef MERGE_UNITTESTS
+std::string uuid = generate_uuid();
+mysql_rwlock_t LOCK_keyring;
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::InitGoogleMock(&argc, argv);
@@ -1212,19 +1212,19 @@ int main(int argc, char **argv) {
   }
   BOOST_SCOPE_EXIT_END
 
-  keyring__vault_keys_container_unittest::logger = new keyring::Mock_logger();
-  keyring::Vault_mount vault_mount(
-      curl, keyring__vault_keys_container_unittest::logger);
+  keyring::ILogger *logger = new keyring::Mock_logger();
+  keyring::Vault_mount vault_mount(curl, logger);
+  std::string mount_point_path = "cicd/" + uuid;
 
   if (generate_credential_file(
           keyring__vault_keys_container_unittest::credential_file_url, CORRECT,
-          keyring__vault_keys_container_unittest::uuid)) {
+          mount_point_path)) {
     std::cout << "Could not generate credential file" << std::endl;
     return 2;
   }
   if (vault_mount.init(
           &keyring__vault_keys_container_unittest::credential_file_url,
-          &keyring__vault_keys_container_unittest::uuid)) {
+          &mount_point_path)) {
     std::cout << "Could not initialize Vault_mount" << std::endl;
     return 3;
   }
@@ -1239,8 +1239,9 @@ int main(int argc, char **argv) {
   if (vault_mount.unmount_secret_backend()) {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
-  delete keyring__vault_keys_container_unittest::logger;
+  delete logger;
 
   my_testing::teardown_server_for_unit_tests();
   return ret;
 }
+#endif  // MERGE_UNITTESTS

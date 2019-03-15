@@ -7,14 +7,6 @@
 #include "vault_key.h"
 #include "vault_parser.h"
 
-std::unique_ptr<keyring::IKeys_container> keys(nullptr);
-
-#if defined(HAVE_PSI_INTERFACE)
-namespace keyring {
-PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
-}
-#endif
-
 namespace keyring__vault_parser_unittest {
 using namespace keyring;
 
@@ -34,9 +26,9 @@ class Vault_parser_test : public ::testing::Test {
 TEST_F(Vault_parser_test, ParseKeySignature) {
   std::string key_signature("4_key13_rob");
   Secure_string encoded_key_signature;
-  EXPECT_FALSE(
-      Vault_base64::encode(key_signature.c_str(), key_signature.length(),
-                           &encoded_key_signature, Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(Vault_base64::encode(
+      key_signature.c_str(), key_signature.length(), &encoded_key_signature,
+      Vault_base64::Format::SINGLE_LINE));
   Vault_parser vault_parser(logger);
   KeyParameters key_parameters;
   EXPECT_FALSE(
@@ -48,9 +40,9 @@ TEST_F(Vault_parser_test, ParseKeySignature) {
 TEST_F(Vault_parser_test, ParseKeySignature2) {
   std::string key_signature("4_key16_Robert");
   Secure_string encoded_key_signature;
-  EXPECT_FALSE(
-      Vault_base64::encode(key_signature.c_str(), key_signature.length(),
-                           &encoded_key_signature, Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(Vault_base64::encode(
+      key_signature.c_str(), key_signature.length(), &encoded_key_signature,
+      Vault_base64::Format::SINGLE_LINE));
   Vault_parser vault_parser(logger);
   KeyParameters key_parameters;
   EXPECT_FALSE(
@@ -62,9 +54,9 @@ TEST_F(Vault_parser_test, ParseKeySignature2) {
 TEST_F(Vault_parser_test, ParseKeySignature3) {
   std::string key_signature("7__key1238_Robert33");
   Secure_string encoded_key_signature;
-  EXPECT_FALSE(
-      Vault_base64::encode(key_signature.c_str(), key_signature.length(),
-                           &encoded_key_signature, Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(Vault_base64::encode(
+      key_signature.c_str(), key_signature.length(), &encoded_key_signature,
+      Vault_base64::Format::SINGLE_LINE));
   Vault_parser vault_parser(logger);
   KeyParameters key_parameters;
   EXPECT_FALSE(
@@ -76,9 +68,9 @@ TEST_F(Vault_parser_test, ParseKeySignature3) {
 TEST_F(Vault_parser_test, ParseKeySignature4) {
   std::string key_signature("9_123key12310_12Robert33");
   Secure_string encoded_key_signature;
-  EXPECT_FALSE(
-      Vault_base64::encode(key_signature.c_str(), key_signature.length(),
-                           &encoded_key_signature, Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(Vault_base64::encode(
+      key_signature.c_str(), key_signature.length(), &encoded_key_signature,
+      Vault_base64::Format::SINGLE_LINE));
   Vault_parser vault_parser(logger);
   KeyParameters key_parameters;
   EXPECT_FALSE(
@@ -91,9 +83,9 @@ TEST_F(Vault_parser_test, ParseKeySignature5) {
   std::string key_signature(
       "48_INNODBKey-3c40d1ab-1475-11e7-ae1c-9cb6d0d5dc99-10_");
   Secure_string encoded_key_signature;
-  EXPECT_FALSE(
-      Vault_base64::encode(key_signature.c_str(), key_signature.length(),
-                           &encoded_key_signature, Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(Vault_base64::encode(
+      key_signature.c_str(), key_signature.length(), &encoded_key_signature,
+      Vault_base64::Format::SINGLE_LINE));
 
   Vault_parser vault_parser(logger);
   KeyParameters key_parameters;
@@ -108,13 +100,13 @@ TEST_F(Vault_parser_test, ParseVaultPayload) {
   std::string key1_signature("4_key13_rob");
   std::string key2_signature("4_key23_rob");
   Secure_string encoded_key1_signature;
-  EXPECT_FALSE(
-      Vault_base64::encode(key1_signature.c_str(), key1_signature.length(),
-                           &encoded_key1_signature, Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(Vault_base64::encode(
+      key1_signature.c_str(), key1_signature.length(), &encoded_key1_signature,
+      Vault_base64::Format::SINGLE_LINE));
   Secure_string encoded_key2_signature;
-  EXPECT_FALSE(
-      Vault_base64::encode(key2_signature.c_str(), key2_signature.length(),
-                           &encoded_key2_signature, Vault_base64::SINGLE_LINE));
+  EXPECT_FALSE(Vault_base64::encode(
+      key2_signature.c_str(), key2_signature.length(), &encoded_key2_signature,
+      Vault_base64::Format::SINGLE_LINE));
 
   Secure_string payload(
       "{\"request_id\":\"724a5ad6-7ee3-7950-879a-488a261a03ec\","
@@ -232,8 +224,10 @@ TEST_F(Vault_parser_test, ParsePayloadThatsGarbage) {
 
 }  // namespace keyring__vault_parser_unittest
 
+#ifndef MERGE_UNITTESTS
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   int ret = RUN_ALL_TESTS();
   return ret;
 }
+#endif  // MERGE_UNITTESTS

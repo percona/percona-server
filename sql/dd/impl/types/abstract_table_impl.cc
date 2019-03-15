@@ -86,7 +86,8 @@ static const std::set<String_type> default_valid_option_keys = {
     "storage",
     "tablespace",
     "timestamp",
-    "view_valid"};
+    "view_valid",
+    "encryption_key_id"};  // Added by Percona InnoDB rotated key encryption
 
 ///////////////////////////////////////////////////////////////////////////
 // Abstract_table_impl implementation.

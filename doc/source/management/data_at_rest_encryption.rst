@@ -299,7 +299,7 @@ statement.
 
 .. rubric:: OFF
 
-By default, newly created tables are not encrypted. Add the ``ENCRYPTION=NO``
+By default, newly created tables are not encrypted. Add the ``ENCRYPTION=YES``
 clause in the ``CREATE TABLE`` or ``ALTER TABLE`` statement to create an
 encrypted table.
 

@@ -4673,6 +4673,11 @@ a new master key and do key rotation. These tablespaces if encrypted
 during startup, will be encrypted with tablespace key which has empty UUID
 @return false on success, true on failure */
 bool innobase_fix_tablespaces_empty_uuid() {
+#ifdef UNIV_DEBUG
+  /* This API is called only after uuid is ready */
+  srv_is_uuid_ready = true;
+#endif /* UNIV_DEBUG */
+
   /* If we are in read only mode, we cannot do rotation but it
   is OK */
   if (srv_read_only_mode) {
@@ -4712,6 +4717,19 @@ bool innobase_fix_tablespaces_empty_uuid() {
   space_ids.push_back(srv_sys_space.space_id());
   space_ids.push_back(srv_tmp_space.space_id());
   space_ids.push_back(dict_sys_t::s_dict_space_id);
+
+#ifdef UNIV_DEBUG
+  /* Currently all session temp tablespaces that use empty uuid
+  are destroyed. So if there is encrypted sesion temp tablespace
+  we assert here */
+  const auto find_encrypted = [&](const ibt::Tablespace *ts) {
+    if (ts->is_encrypted()) {
+      ut_ad(0);
+    }
+  };
+
+  ibt::tbsp_pool->iterate_active_tbsp(find_encrypted);
+#endif /* UNIV_DEBUG */
 
   undo::spaces->s_lock();
   for (auto undo_space : undo::spaces->m_spaces) {

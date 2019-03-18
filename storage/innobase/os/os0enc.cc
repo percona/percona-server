@@ -494,6 +494,12 @@ bool Encryption::fill_encryption_info(
   memcpy(reinterpret_cast<char *>(ptr), s_uuid, sizeof(s_uuid));
   ptr += sizeof(s_uuid) - 1;
 
+  /* We should never write empty UUID. Only exemption is for
+  tablespaces when InnoDB is initializing (like system, temp, etc).
+  These tablespaces UUID will be fixed by handlerton API after server
+  generates uuid */
+  ut_ad(!srv_is_uuid_ready || strlen(s_uuid) != 0);
+
   /* Write (and encrypt if needed) key and iv */
   byte key_info[KEY_LEN * 2];
   memset(key_info, 0x0, sizeof(key_info));

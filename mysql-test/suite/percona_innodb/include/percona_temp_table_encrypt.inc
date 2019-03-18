@@ -53,7 +53,7 @@ INSERT INTO t03 VALUES ('Curabitur laoreet, velit non interdum venenatis');
 CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB;
 INSERT INTO t05 VALUES (1), (2), (3);
 
---error ER_CANNOT_USE_ENCRYPTION_CLAUSE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ENCRYPTION='n';
 
 # test that we can turn encryption OFF and ON

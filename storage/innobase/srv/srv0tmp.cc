@@ -65,25 +65,6 @@ Tablespace_pool *tbsp_pool = nullptr;
 /* Directory to store session temporary tablespaces, provided by user */
 char *srv_temp_dir = nullptr;
 
-/** @return true for encrypted purpose, else false */
-static bool is_encrypt(enum tbsp_purpose purpose) {
-  switch (purpose) {
-    case TBSP_USER:
-    case TBSP_INTRINSIC:
-    case TBSP_SLAVE:
-      return (false);
-    case TBSP_ENC_USER:
-    case TBSP_ENC_INTRINSIC:
-    case TBSP_ENC_SLAVE:
-      return (true);
-    default:
-      ut_ad(0);
-  }
-  /* Make compilers happy */
-  ut_ad(0);
-  return (false);
-}
-
 /** Session Temporary tablespace */
 Tablespace::Tablespace()
     : m_space_id(++m_last_used_space_id), m_inited(), m_thread_id() {
@@ -187,7 +168,7 @@ bool Tablespace::encrypt() {
 }
 
 void Tablespace::decrypt() {
-  if (!is_encrypt(m_purpose)) {
+  if (!is_encrypted()) {
     return;
   }
   byte encryption_info[Encryption::INFO_SIZE];
@@ -275,7 +256,7 @@ Tablespace *Tablespace_pool::get(my_thread_id id, enum tbsp_purpose purpose) {
   }
 
   ts = m_free->back();
-  if (is_encrypt(purpose)) {
+  if (Tablespace::is_encrypted(purpose)) {
     if (!ts->encrypt()) {
       release();
       ib::error() << "Unable to encrypt a session temp tablespace. Probably due"

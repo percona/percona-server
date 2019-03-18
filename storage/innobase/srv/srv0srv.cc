@@ -122,6 +122,10 @@ bool srv_upgrade_old_undo_found = false;
 /* Revert to old partition file name if upgrade fails. */
 bool srv_downgrade_partition_files = false;
 
+#ifdef UNIV_DEBUG
+bool srv_is_uuid_ready = false;
+#endif /* UNIV_DEBUG */
+
 /* The following is the maximum allowed duration of a lock wait. */
 ulong srv_fatal_semaphore_wait_threshold = 600;
 std::atomic<int> srv_fatal_semaphore_wait_extend{0};

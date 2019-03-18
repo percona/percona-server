@@ -322,6 +322,10 @@ extern bool srv_downgrade_logs;
 
 extern bool srv_downgrade_partition_files;
 
+#ifdef UNIV_DEBUG
+extern bool srv_is_uuid_ready;
+#endif /* UNIV_DEBUG */
+
 extern const char *srv_main_thread_op_info;
 
 /* The monitor thread waits on this event. */

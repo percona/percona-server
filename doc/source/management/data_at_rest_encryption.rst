@@ -88,6 +88,8 @@ InnoDB System Tablespace Encryption
 The InnoDB system tablespace is encrypted by using master key encryption. The
 server must be started with the ``--bootstrap`` option.
 
+This feature is considered **ALPHA** quality.
+
 If the variable :variable:`innodb_sys_tablespace_encrypt` is set to ON and the
 server has been started in the bootstrap mode, you may create an encrypted table
 as follows:
@@ -162,8 +164,9 @@ server is started with the ``--bootstrap`` option.
    :vartype: Boolean
    :default: ``OFF``
 
-Enables the encryption of the parallel doublewrite buffer. For encryption, uses
-the key of the tablespace where the parallel doublewrite buffer is used.
+This variable enables the encryption of the parallel doublewrite buffer. For
+encryption, it uses the key of the tablespace where the parallel doublewrite
+buffer is used.
 
 
 .. _innodb_general_tablespace_encryption:
@@ -291,71 +294,62 @@ The implementation of the behavior controlled by this variable is considered
 This variable was ported from MariaDB and then extended to support key rotation. This
 variable has the following possible values:
 
-.. rubric:: ON
+.. list-table::
+   :header-rows: 1
+   :widths: 20 80
 
-New tables are created encrypted. You can create an unencrypted table by using
-the ``ENCRYPTION=NO`` clause to the ``CREATE TABLE`` or ``ALTER TABLE``
-statement.
+   * - Value
+     - Description
+   * - ON
+     - New tables are created encrypted. You can create an unencrypted table by using
+       the ``ENCRYPTION=NO`` clause to the ``CREATE TABLE`` or ``ALTER TABLE``
+       statement.
+   * - OFF
+     - By default, newly created tables are not encrypted. Add the ``ENCRYPTION=YES``
+       clause in the ``CREATE TABLE`` or ``ALTER TABLE`` statement to create an
+       encrypted table.
+   * - FORCE
+     - New tables are created encrypted with the master key. Passing
+       ``ENCRYPTION=NO`` to ``CREATE TABLE`` or ``ALTER TABLE`` will result in
+       an error and the table will not be created or altered. If you alter a
+       table which was created without encryption, note that it will not be
+       encrypted unless you use the ``ENCRYPTION`` clause explicitly.
+   * - KEYRING_ON (This value is **Alpha** quality)
+     - New tables are created encrypted with the keyring as the default encryption. 
+   * - FORCE_KEYRING (This value is **Alpha** quality)
+     - New tables are created encrypted and keyring encryption is enforced.
+   * - ONLINE_TO_KEYRING (This value is **Alpha** quality)
+     - All tables created or altered without the ``ENCRYPTION=NO``
+       clause are encrypted with the keyring encryption. If a table
+       being altered is already encrypted with the master key, the
+       table is recreated encrypted with the latest version of the
+       default encryption key (the value of
+       :variable:`innodb_default_encryption_key_id` variable).
+   * - ONLINE_TO_KEYRING_FORCE (This value is **Alpha** quality)
+     - It is only possible to apply the keyring encryption when creating or altering
+       tables.
 
-.. rubric:: OFF
+With the ``KEYRING_ON`` value, **NEW_ID** in ``ENCRYPTION_KEY_ID=NEW_ID`` is an
+unsigned 32-bit integer that refers to the numerical part of the
+``percona_innodb-`` key.
 
-By default, newly created tables are not encrypted. Add the ``ENCRYPTION=NO``
-clause in the ``CREATE TABLE`` or ``ALTER TABLE`` statement to create an
-encrypted table.
-
-.. rubric:: FORCE
-
-New tables are created encrypted with the master key. Passing ``ENCRYPTION=NO``
-to ``CREATE TABLE`` or ``ALTER TABLE`` will result in an error and the table
-will not be created or altered.
-
-If you alter a table which was created without encryption, note that it will not
-be encrypted unless you use the ``ENCRYPTION`` clause explicitly.
-
-.. rubric:: KEYRING_ON
-
-:Availability: This value is **Alpha** quality
-
-New tables are created encrypted with the keyring as the default encryption. You
-may specify a numeric key identifier and use a specific ``percona-innodb-`` key
-from the keyring instead of the default key:
+You may specify a numeric key identifier with ``CREATE TABLE`` or ``ALTER
+TABLE`` statements and use a specific ``percona-innodb-`` key from the keyring
+instead of the default key:
 
 .. code-block:: guess
 
    mysql> CREATE TABLE ... ENCRYPTION=’KEYRING’ ENCRYPTION_KEY_ID=NEW_ID
 
-**NEW_ID** is an unsigned 32-bit integer that refers to the numerical part of
-the ``percona_innodb-`` key.  When you assign a numerical identifer in the
-``ENCRYPTION_KEY_ID`` clause, the server uses the latest version of the
-corresponding key. For example, the clause ``ENCRYPTION_KEY_ID=2`` refers to the
-latest version of the ``percona_innodb-2`` key from the keyring.
+When you assign a numerical identifer in the ``ENCRYPTION_KEY_ID`` clause, the
+server uses the latest version of the corresponding key. For example, the clause
+``ENCRYPTION_KEY_ID=2`` refers to the latest version of the ``percona_innodb-2``
+key from the keyring.
 
 In case the ``percona-innodb-`` key with the requested ID does not exist in the
 keyring, |Percona Server| will create it with version 1. If a new
 ``percona-innodb-`` key cannot be created with the requested ID, the whole
 ``CREATE TABLE`` statement fails
-
-.. rubric:: FORCE_KEYRING
-	    
-:Availability: This value is **Alpha** quality
-
-New tables are created encrypted and keyring encryption is enforced.
-
-.. rubric:: ONLINE_TO_KEYRING
-
-:Availability: This value is **Alpha** quality
-
-All tables created or altered without the ``ENCRYPTION=NO`` clause 
-are encrypted with the latest version of the default encryption key. If a table
-being altered is already encrypted with the master key, the table is recreated
-encrypted with the latest version of the default encryption key.
-
-.. rubric:: ONLINE_TO_KEYRING_FORCE
-
-:Availability: This value is **Alpha** quality
-
-It is only possible to apply the keyring encryption when creating or altering
-tables.
 
 .. note::
 
@@ -550,7 +544,7 @@ option.
 Temporary files are currently used in |Percona Server| for the following
 purposes:
 
-This feature is considered **ALPHA** quality.
+This feature is considered **BETA** quality.
 
 * filesort (for example, ``SELECT`` statements with ``SQL_BIG_RESULT`` hints),
 

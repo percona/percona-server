@@ -112,6 +112,10 @@ bool srv_downgrade_logs = false;
 bool srv_upgrade_old_undo_found = false;
 #endif /* INNODB_DD_TABLE */
 
+#ifdef UNIV_DEBUG
+bool srv_is_uuid_ready = false;
+#endif /* UNIV_DEBUG */
+
 /* The following is the maximum allowed duration of a lock wait. */
 ulint srv_fatal_semaphore_wait_threshold = 600;
 

@@ -298,32 +298,12 @@ Partition_base::Partition_base(handlerton *hton, TABLE_SHARE *share)
   DBUG_VOID_RETURN;
 }
 
-/**
-  Partition_base constructor method used by Partition_base::clone()
-
-  @param hton               Handlerton (partition_hton)
-  @param share              Table share object
-  @param part_info_arg      partition_info to use
-  @param clone_arg          Partition_base to clone
-  @param clme_mem_root_arg  MEM_ROOT to use
-
-  @return New partition handler
-*/
-
 Partition_base::Partition_base(handlerton *hton, TABLE_SHARE *share,
-                               partition_info *part_info_arg,
-                               Partition_base *clone_arg,
-                               MEM_ROOT *clone_mem_root_arg)
+                               Handler_share **ha_share)
     : handler(hton, share), Partition_helper(this) {
-  DBUG_ENTER("Partition_base::Partition_base(clone)");
+  DBUG_ENTER("Partition_base::Partition_base(table, ha_share)");
   init_handler_variables();
-  m_part_info = part_info_arg;
-  m_is_sub_partitioned = m_part_info->is_sub_partitioned();
-  m_is_clone_of = clone_arg;
-  m_clone_mem_root = clone_mem_root_arg;
-  part_share = clone_arg->part_share;
-  m_tot_parts = clone_arg->m_tot_parts;
-  m_pkey_is_clustered = clone_arg->primary_key_is_clustered();
+  set_ha_share_ref(ha_share);
   DBUG_VOID_RETURN;
 }
 
@@ -349,8 +329,6 @@ void Partition_base::init_handler_variables() {
   /*
     this allows blackhole to work properly
   */
-  m_is_clone_of = nullptr;
-  m_clone_mem_root = nullptr;
   part_share = nullptr;
   m_new_partitions_share_refs.clear();
   m_part_ids_sorted_by_num_of_records = nullptr;
@@ -1410,7 +1388,6 @@ bool Partition_base::set_ha_share_ref(Handler_share **ha_share_arg) {
   DBUG_ENTER("Partition_base::set_ha_share_ref");
   DBUG_ASSERT(!part_share);
   DBUG_ASSERT(table_share);
-  DBUG_ASSERT(!m_is_clone_of);
 
   if (handler::set_ha_share_ref(ha_share_arg)) DBUG_RETURN(true);
   DBUG_RETURN(false);
@@ -1428,7 +1405,6 @@ bool Partition_base::init_part_share() {
   DBUG_ENTER("Partition_base::init_part_share");
   DBUG_ASSERT(!part_share);
   DBUG_ASSERT(table_share);
-  DBUG_ASSERT(!m_is_clone_of);
   DBUG_ASSERT(m_tot_parts);
 
   if (!(part_share = get_share())) DBUG_RETURN(true);
@@ -1522,13 +1498,11 @@ bool Partition_base::init_partition_bitmaps() {
   bitmap_clear_all(&m_partitions_to_reset);
 
   /* Initialize the bitmap for read/lock_partitions */
-  if (!m_is_clone_of) {
-    DBUG_ASSERT(!m_clone_mem_root);
-    if (m_part_info->set_partition_bitmaps(nullptr)) {
-      free_partition_bitmaps();
-      DBUG_RETURN(true);
-    }
+  if (m_part_info->set_partition_bitmaps(nullptr)) {
+    free_partition_bitmaps();
+    DBUG_RETURN(true);
   }
+
   DBUG_RETURN(false);
 }
 
@@ -1607,66 +1581,21 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
 
   DBUG_ASSERT(m_part_info);
 
-  if (m_is_clone_of) {
-    uint alloc_len;
-    DBUG_ASSERT(m_clone_mem_root);
-    /* Allocate an array of handler pointers for the partitions handlers. */
-    alloc_len = (m_tot_parts + 1) * sizeof(handler *);
-    if (!(m_file = (handler **)alloc_root(m_clone_mem_root, alloc_len))) {
-      error = HA_ERR_INITIALIZATION;
-      goto err_alloc;
-    }
-    memset(m_file, 0, alloc_len);
-    /*
-      Populate them by cloning the original partitions. This also opens them.
-      Note that file->ref is allocated too.
-    */
-    file = m_is_clone_of->m_file;
+  file = m_file;
 
-    /*
-      The following code can be refactored. The same pattern of iteration
-      through partition elements is used in several places, so there can be
-      something like new kind of iterator or "for each" with functor.
-    */
-    handler **this_file = m_file;
-    handler **cloned_file = m_is_clone_of->m_file;
-
-    if (!foreach_partition([&](const partition_element *parent_part_elem,
-                               const partition_element *part_elem) -> bool {
-          char name_buff[FN_REFLEN];
-          part_name(
-              name_buff, name,
-              parent_part_elem ? parent_part_elem->partition_name : nullptr,
-              part_elem->partition_name);
-          if (!(*this_file =
-                    (*cloned_file)->clone(name_buff, m_clone_mem_root))) {
-            error = HA_ERR_INITIALIZATION;
-            file = this_file;
-            return false;
-          }
-          ++this_file;
-          ++cloned_file;
-          return true;
-        }))
-      goto err_handler;
-  } else {
-    file = m_file;
-
-    if (!foreach_partition([&](const partition_element *parent_part_elem,
-                               const partition_element *part_elem) -> bool {
-          char name_buff[FN_REFLEN];
-          part_name(
-              name_buff, name,
-              parent_part_elem ? parent_part_elem->partition_name : nullptr,
-              part_elem->partition_name);
-          if ((error = (*file)->ha_open(table, name_buff, mode, test_if_locked,
-                                        table_def)))
-            return false;
-          ++file;
-          return true;
-        }))
-      goto err_handler;
-  }
+  if (!foreach_partition([&](const partition_element *parent_part_elem,
+                             const partition_element *part_elem) -> bool {
+        char name_buff[FN_REFLEN];
+        part_name(name_buff, name,
+                  parent_part_elem ? parent_part_elem->partition_name : nullptr,
+                  part_elem->partition_name);
+        if ((error = (*file)->ha_open(table, name_buff, mode, test_if_locked,
+                                      table_def)))
+          return false;
+        ++file;
+        return true;
+      }))
+    goto err_handler;
 
   file = m_file;
   ref_length = (*file)->ref_length;
@@ -1715,7 +1644,6 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
 err_handler:
   DEBUG_SYNC(ha_thd(), "partition_open_error");
   while (file-- != m_file) (*file)->ha_close();
-err_alloc:
   free_partition_bitmaps();
 err:
   close_partitioning();

@@ -73,7 +73,7 @@ Rdb_converter::~Rdb_converter() {
   my_free(m_encoder_arr);
   m_encoder_arr = nullptr;
   // These are needed to suppress valgrind errors in rocksdb.partition
-  m_storage_record.free();
+  m_storage_record.mem_free();
 }
 
 /*

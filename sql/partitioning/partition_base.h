@@ -83,12 +83,6 @@ class Partition_base : public handler,
   bool m_new_parts_open_only;
   /** cached value of indexes_are_disabled(). */
   int m_indexes_are_disabled;
-  /*
-    If set, this object was created with Partition_base::clone and doesn't
-    "own" the m_part_info structure.
-  */
-  Partition_base *m_is_clone_of;
-  MEM_ROOT *m_clone_mem_root;
 
   void init_handler_variables();
   /*
@@ -130,9 +124,10 @@ class Partition_base : public handler,
     -------------------------------------------------------------------------
   */
   Partition_base(handlerton *hton, TABLE_SHARE *table);
-  Partition_base(handlerton *hton, TABLE_SHARE *share,
-                 partition_info *part_info_arg, Partition_base *clone_arg,
-                 MEM_ROOT *clone_mem_root_arg);
+
+  Partition_base(handlerton *hton, TABLE_SHARE *table,
+                 Handler_share **ha_share);
+
   ~Partition_base() override;
   bool init_with_fields() override;
   /*

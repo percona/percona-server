@@ -1,0 +1,5 @@
+--sync_binlog=0
+--binlog_format=row
+--loose-rocksdb_read_free_rpl=PK_SK
+--slave-exec-mode=strict
+--loose-rocksdb_perf_context_level=3

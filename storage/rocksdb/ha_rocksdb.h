@@ -80,6 +80,12 @@ class Rdb_transaction_impl;
 class Rdb_writebatch_impl;
 class Rdb_field_encoder;
 
+extern char *rocksdb_read_free_rpl_tables;
+#if defined(HAVE_PSI_INTERFACE)
+extern PSI_rwlock_key key_rwlock_read_free_rpl_tables;
+#endif
+extern Regex rdb_read_free_regex_handler;
+
 /**
   @brief
   Rdb_table_handler is a reference-counted structure storing information for
@@ -250,9 +256,6 @@ class ha_rocksdb : public my_core::handler {
 
   /* true means we are accessing the first row after a snapshot was created */
   bool m_rnd_scan_is_new_snapshot;
-
-  /* true means the replication slave will use Read Free Replication */
-  bool m_use_read_free_rpl;
 
   /**
     @brief
@@ -802,14 +805,14 @@ class ha_rocksdb : public my_core::handler {
   int get_pk_for_update(struct update_row_info *const row_info);
   int check_and_lock_unique_pk(const uint key_id,
                                const struct update_row_info &row_info,
-                               bool *const found, bool *const pk_changed)
+                               bool *const found)
       MY_ATTRIBUTE((__warn_unused_result__));
   int check_and_lock_sk(const uint key_id,
                         const struct update_row_info &row_info,
                         bool *const found)
       MY_ATTRIBUTE((__warn_unused_result__));
   int check_uniqueness_and_lock(const struct update_row_info &row_info,
-                                bool *const pk_changed)
+                                bool pk_changed)
       MY_ATTRIBUTE((__warn_unused_result__));
   bool over_bulk_load_threshold(int *err)
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -996,7 +999,7 @@ class ha_rocksdb : public my_core::handler {
                              bool commit, const dd::Table *old_table_def,
                              dd::Table *new_table_def) override;
 
-  void set_use_read_free_rpl(const char *const whitelist);
+  bool is_read_free_rpl_table() const;
 
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
  public:
@@ -1006,7 +1009,7 @@ class ha_rocksdb : public my_core::handler {
   virtual void rpl_after_update_rows() override;
   virtual bool rpl_lookup_rows() override;
 
-  virtual bool use_read_free_rpl();  // MyRocks only
+  virtual bool use_read_free_rpl() const; // MyRocks only
 
  private:
   /* Flags tracking if we are inside different replication operation */

@@ -99,13 +99,14 @@ SELECT count(*) FROM t1;
 --source include/rpl_connection_slave.inc
 call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t1.*Error_code.*");
 call mtr.add_suppression("Slave: Can't find record in 't1'.*");
+call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
 # wait until we have the expected error
 --let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
 --source include/wait_for_slave_sql_error.inc
 
 --source include/rpl_connection_slave.inc
-set @save_rocksdb_read_free_rpl_tables=@@global.rocksdb_read_free_rpl_tables;
-set global rocksdb_read_free_rpl_tables="t.*";
+set @save_rocksdb_read_free_rpl=@@global.rocksdb_read_free_rpl;
+set global rocksdb_read_free_rpl=PK_SK;
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
@@ -116,7 +117,7 @@ SELECT count(*) FROM t1;
 
 # cleanup
 --source include/rpl_connection_slave.inc
-set global rocksdb_read_free_rpl_tables=@save_rocksdb_read_free_rpl_tables;
+set global rocksdb_read_free_rpl=@save_rocksdb_read_free_rpl;
 --source include/rpl_connection_master.inc
 SET session rocksdb_blind_delete_primary_key=@save_rocksdb_blind_delete_primary_key;
 SET session rocksdb_master_skip_tx_api=@save_rocksdb_master_skip_tx_api;

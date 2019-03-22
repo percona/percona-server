@@ -1,0 +1,6 @@
+--sync_binlog=0
+--binlog_format=row
+--loose-rocksdb_read_free_rpl=PK_SK
+--slave-exec-mode=strict
+--loose-rocksdb_default_cf_options=write_buffer_size=16k;target_file_size_base=16k
+--loose-rocksdb_perf_context_level=3

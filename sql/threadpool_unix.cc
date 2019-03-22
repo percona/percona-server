@@ -919,11 +919,7 @@ static int wake_thread(thread_group_t *thread_group) noexcept {
 }
 
 /**
-  Initiate shutdown for thread group.
-
-  The shutdown is asynchronous, we only care to  wake all threads in here, so
-  they can finish. We do not wait here until threads terminate. Final cleanup
-  of the group (thread_group_destroy) will be done by the last exiting threads.
+  Shutdown for thread group
 */
 
 static void thread_group_close(thread_group_t *thread_group) noexcept {
@@ -961,6 +957,16 @@ static void thread_group_close(thread_group_t *thread_group) noexcept {
   }
 
   mysql_mutex_unlock(&thread_group->mutex);
+
+  mysql_mutex_lock(&thread_group->mutex);
+  while (thread_group->thread_count > 0) {
+    mysql_mutex_unlock(&thread_group->mutex);
+    my_sleep(10000);
+    mysql_mutex_lock(&thread_group->mutex);
+  }
+  mysql_mutex_unlock(&thread_group->mutex);
+
+  thread_group_destroy(thread_group);
 
   DBUG_VOID_RETURN;
 }
@@ -1452,13 +1458,7 @@ static void *worker_main(void *param) {
 
   mysql_mutex_lock(&thread_group->mutex);
   add_thread_count(thread_group, -1);
-  /* last thread in group exits */
-  const bool last_thread =
-      ((thread_group->thread_count == 0) && thread_group->shutdown);
   mysql_mutex_unlock(&thread_group->mutex);
-
-  /* Last thread in group exits and pool is terminating, destroy group.*/
-  if (last_thread) thread_group_destroy(thread_group);
 
   my_thread_end();
   return nullptr;

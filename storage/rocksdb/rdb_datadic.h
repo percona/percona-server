@@ -1115,6 +1115,8 @@ class Rdb_tbl_def {
 
   ~Rdb_tbl_def();
 
+  void check_and_set_read_free_rpl_table();
+
   /* Number of indexes */
   uint m_key_count;
 
@@ -1126,6 +1128,9 @@ class Rdb_tbl_def {
 
   /* Is this a system table */
   bool m_is_mysql_system_table;
+
+  /* Is this table read free repl enabled */
+  std::atomic_bool m_is_read_free_rpl_table{false};
 
   bool put_dict(Rdb_dict_manager *const dict, rocksdb::WriteBatch *const batch,
                 const rocksdb::Slice &key);

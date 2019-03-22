@@ -78,10 +78,11 @@ count(*)
 [connection slave]
 call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t1.*Error_code.*");
 call mtr.add_suppression("Slave: Can't find record in 't1'.*");
+call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
 include/wait_for_slave_sql_error.inc [errno=1032]
 [connection slave]
-set @save_rocksdb_read_free_rpl_tables=@@global.rocksdb_read_free_rpl_tables;
-set global rocksdb_read_free_rpl_tables="t.*";
+set @save_rocksdb_read_free_rpl=@@global.rocksdb_read_free_rpl;
+set global rocksdb_read_free_rpl=PK_SK;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -91,7 +92,7 @@ count(*)
 7000
 [connection master]
 [connection slave]
-set global rocksdb_read_free_rpl_tables=@save_rocksdb_read_free_rpl_tables;
+set global rocksdb_read_free_rpl=@save_rocksdb_read_free_rpl;
 [connection master]
 SET session rocksdb_blind_delete_primary_key=@save_rocksdb_blind_delete_primary_key;
 SET session rocksdb_master_skip_tx_api=@save_rocksdb_master_skip_tx_api;

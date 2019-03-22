@@ -987,7 +987,8 @@ rocksdb_persistent_cache_size_mb	0
 rocksdb_pin_l0_filter_and_index_blocks_in_cache	ON
 rocksdb_print_snapshot_conflict_queries	OFF
 rocksdb_rate_limiter_bytes_per_sec	0
-rocksdb_read_free_rpl_tables	
+rocksdb_read_free_rpl	OFF
+rocksdb_read_free_rpl_tables	.*
 rocksdb_records_in_range	50
 rocksdb_reset_stats	OFF
 rocksdb_rollback_on_timeout	OFF
@@ -1521,8 +1522,9 @@ set autocommit=1;
 drop table t0, t1;
 #
 # Check status variables
+# NOTE: We exclude rocksdb_num_get_for_update_calls because it's a debug only status var
 #
-show status like 'rocksdb%';
+show status where variable_name like 'rocksdb%' and variable_name not like '%num_get_for_update%';
 Variable_name	Value
 rocksdb_rows_deleted	#
 rocksdb_rows_deleted_blind	#
@@ -1633,7 +1635,7 @@ rocksdb_write_other	#
 rocksdb_write_self	#
 rocksdb_write_timedout	#
 rocksdb_write_wal	#
-select VARIABLE_NAME from performance_schema.global_status where VARIABLE_NAME LIKE 'rocksdb%';
+select VARIABLE_NAME from performance_schema.global_status where VARIABLE_NAME LIKE 'rocksdb%' and VARIABLE_NAME NOT LIKE '%num_get_for_update%';
 VARIABLE_NAME
 rocksdb_rows_deleted
 rocksdb_rows_deleted_blind
@@ -1746,7 +1748,7 @@ rocksdb_write_timedout
 rocksdb_write_wal
 # RocksDB-SE's status variables are global internally 
 #  but they are shown as both session and global, like InnoDB's status vars.
-select VARIABLE_NAME from performance_schema.session_status where VARIABLE_NAME LIKE 'rocksdb%';
+select VARIABLE_NAME from performance_schema.session_status where VARIABLE_NAME LIKE 'rocksdb%' and VARIABLE_NAME NOT LIKE '%num_get_for_update%';
 VARIABLE_NAME
 rocksdb_rows_deleted
 rocksdb_rows_deleted_blind

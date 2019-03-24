@@ -648,11 +648,12 @@ int Rdb_key_def::read_memcmp_key_part(const TABLE *table_arg,
   bool is_hidden_pk_part = (part_num + 1 == m_key_parts) &&
                            (table_arg->s->primary_key == MAX_INDEXES);
   Field *field = nullptr;
-  if (!is_hidden_pk_part)
+  if (!is_hidden_pk_part) {
     field = fpi->get_field_in_table(table_arg);
-  if ((this->*fpi->m_skip_func)(fpi, field, reader))
+  }
+  if ((fpi->m_skip_func)(fpi, field, reader)) {
     return 1;
-
+  }
   return 0;
 }
 
@@ -1025,13 +1026,12 @@ uchar *Rdb_key_def::pack_field(Field *const field, Rdb_field_packing *pack_info,
   DBUG_ASSERT(
       is_storage_available(tuple - packed_tuple, pack_info->m_max_image_len));
 
-  (this->*pack_info->m_pack_func)(pack_info, field, pack_buffer, &tuple,
-                                  &pack_ctx);
+  (pack_info->m_pack_func)(pack_info, field, pack_buffer, &tuple, &pack_ctx);
 
   /* Make "unpack info" to be stored in the value */
   if (create_unpack_info) {
-    (this->*pack_info->m_make_unpack_info_func)(pack_info->m_charset_codec,
-                                                field, &pack_ctx);
+    (pack_info->m_make_unpack_info_func)(pack_info->m_charset_codec, field,
+                                         &pack_ctx);
   }
 
   return tuple;
@@ -1385,7 +1385,7 @@ void copy_integer(uchar *to, size_t to_length, const uchar *from,
 void Rdb_key_def::pack_tiny(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1410,7 +1410,7 @@ void Rdb_key_def::pack_tiny(
 void Rdb_key_def::pack_short(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1447,7 +1447,7 @@ void Rdb_key_def::pack_short(
 void Rdb_key_def::pack_medium(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1474,7 +1474,7 @@ void Rdb_key_def::pack_medium(
 void Rdb_key_def::pack_long(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1515,7 +1515,7 @@ void Rdb_key_def::pack_long(
 void Rdb_key_def::pack_longlong(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1544,7 +1544,7 @@ void Rdb_key_def::pack_longlong(
 void Rdb_key_def::pack_double(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1579,7 +1579,7 @@ void Rdb_key_def::pack_double(
 void Rdb_key_def::pack_float(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1633,7 +1633,7 @@ void Rdb_key_def::pack_float(
 void Rdb_key_def::pack_new_decimal(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1653,7 +1653,7 @@ void Rdb_key_def::pack_new_decimal(
 void Rdb_key_def::pack_datetime2(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1672,7 +1672,7 @@ void Rdb_key_def::pack_datetime2(
 void Rdb_key_def::pack_timestamp2(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1691,7 +1691,7 @@ void Rdb_key_def::pack_timestamp2(
 void Rdb_key_def::pack_time2(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1710,7 +1710,7 @@ void Rdb_key_def::pack_time2(
 void Rdb_key_def::pack_year(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1735,7 +1735,7 @@ void Rdb_key_def::pack_year(
 void Rdb_key_def::pack_newdate(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1757,7 +1757,7 @@ void Rdb_key_def::pack_newdate(
 void Rdb_key_def::pack_blob(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1823,7 +1823,7 @@ void Rdb_key_def::pack_blob(
 void Rdb_key_def::pack_with_make_sort_key(
     Rdb_field_packing *const fpi, Field *const field,
     uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1888,10 +1888,12 @@ int Rdb_key_def::compare_keys(const rocksdb::Slice *key1,
     const auto before_skip1 = reader1.get_current_ptr();
     const auto before_skip2 = reader2.get_current_ptr();
     DBUG_ASSERT(fpi->m_skip_func);
-    if ((this->*fpi->m_skip_func)(fpi, nullptr, &reader1))
+    if ((fpi->m_skip_func)(fpi, nullptr, &reader1)) {
       return HA_EXIT_FAILURE;
-    if ((this->*fpi->m_skip_func)(fpi, nullptr, &reader2))
+    }
+    if ((fpi->m_skip_func)(fpi, nullptr, &reader2)) {
       return HA_EXIT_FAILURE;
+    }
     const auto size1 = reader1.get_current_ptr() - before_skip1;
     const auto size2 = reader2.get_current_ptr() - before_skip2;
     if (size1 != size2) {
@@ -1923,16 +1925,18 @@ size_t Rdb_key_def::key_length(const TABLE *const table,
 
   Rdb_string_reader reader(&key);
 
-  if ((!reader.read(INDEX_NUMBER_SIZE)))
+  if ((!reader.read(INDEX_NUMBER_SIZE))) {
     return size_t(-1);
-
+  }
   for (uint i = 0; i < m_key_parts; i++) {
     const Rdb_field_packing *fpi = &m_pack_info[i];
     const Field *field = nullptr;
-    if (m_index_type != INDEX_TYPE_HIDDEN_PRIMARY)
+    if (m_index_type != INDEX_TYPE_HIDDEN_PRIMARY) {
       field = fpi->get_field_in_table(table);
-    if ((this->*fpi->m_skip_func)(fpi, field, &reader))
+    }
+    if ((fpi->m_skip_func)(fpi, field, &reader)) {
       return size_t(-1);
+    }
   }
   return key.size() - reader.remaining_bytes();
 }
@@ -1960,8 +1964,7 @@ int Rdb_key_def::unpack_field(Rdb_field_packing *const fpi, Field *const field,
     }
   }
 
-  return (this->*fpi->m_unpack_func)(fpi, field, field->ptr, reader,
-                                     unp_reader);
+  return (fpi->m_unpack_func)(fpi, field, field->ptr, reader, unp_reader);
 }
 
 /*
@@ -2039,7 +2042,7 @@ int Rdb_key_def::unpack_record(TABLE *const table, uchar *const buf,
     if ((secondary_key && hidden_pk_exists && i + 1 == m_key_parts) ||
         is_hidden_pk) {
       DBUG_ASSERT(fpi->m_unpack_func);
-      if ((this->*fpi->m_skip_func)(fpi, nullptr, &reader)) {
+      if ((fpi->m_skip_func)(fpi, nullptr, &reader)) {
         return HA_ERR_ROCKSDB_CORRUPT_DATA;
       }
       continue;
@@ -2085,19 +2088,21 @@ int Rdb_key_def::unpack_record(TABLE *const table, uchar *const buf,
       /* It is impossible to unpack the column. Skip it. */
       if (fpi->m_maybe_null) {
         const char *nullp;
-        if (!(nullp = reader.read(1)))
+        if (!(nullp = reader.read(1))) {
           return HA_ERR_ROCKSDB_CORRUPT_DATA;
+        }
         if (*nullp == 0) {
           /* This is a NULL value */
           continue;
         }
         /* If NULL marker is not '0', it can be only '1'  */
-        if (*nullp != 1)
+        if (*nullp != 1) {
           return HA_ERR_ROCKSDB_CORRUPT_DATA;
+        }
       }
-      if ((this->*fpi->m_skip_func)(fpi, field, &reader))
+      if ((fpi->m_skip_func)(fpi, field, &reader)) {
         return HA_ERR_ROCKSDB_CORRUPT_DATA;
-
+      }
       // If this is a space padded varchar, we need to skip the indicator
       // bytes for trailing bytes. They're useless since we can't restore the
       // field anyway.
@@ -2105,7 +2110,7 @@ int Rdb_key_def::unpack_record(TABLE *const table, uchar *const buf,
       // There is a special case for prefixed varchars where we do not
       // generate unpack info, because we know prefixed varchars cannot be
       // unpacked. In this case, it is not necessary to skip.
-      if (fpi->m_skip_func == &Rdb_key_def::skip_variable_space_pad &&
+      if (fpi->m_skip_func == skip_variable_space_pad &&
           !fpi->m_unpack_info_stores_value) {
         unp_reader.read(fpi->m_unpack_info_uses_two_bytes ? 2 : 1);
       }
@@ -2197,7 +2202,7 @@ bool Rdb_key_def::index_format_min_check(const int pk_min,
 int Rdb_key_def::skip_max_length(const Rdb_field_packing *const fpi,
                                  const Field *const field
                                      MY_ATTRIBUTE((__unused__)),
-                                 Rdb_string_reader *const reader) const {
+                                 Rdb_string_reader *const reader) {
   if (!reader->read(fpi->m_max_image_len))
     return HA_EXIT_FAILURE;
   return HA_EXIT_SUCCESS;
@@ -2226,9 +2231,9 @@ static_assert((RDB_ESCAPE_LENGTH - 1) % 2 == 0,
   Function of type rdb_index_field_skip_t
 */
 
-int Rdb_key_def::skip_variable_length(
-    const Rdb_field_packing *const fpi MY_ATTRIBUTE((__unused__)),
-    const Field *const field, Rdb_string_reader *const reader) const {
+int Rdb_key_def::skip_variable_length(const Rdb_field_packing *const fpi,
+                                      const Field *const field,
+                                      Rdb_string_reader *const reader) {
   const uchar *ptr;
   bool finished = false;
 
@@ -2241,7 +2246,7 @@ int Rdb_key_def::skip_variable_length(
     dst_len = UINT_MAX;
   }
 
-  bool use_legacy_format = use_legacy_varbinary_format();
+  bool use_legacy_format = fpi->m_use_legacy_varbinary_format;
 
   /* Decode the length-emitted encoding here */
   while ((ptr = (const uchar *)reader->read(RDB_ESCAPE_LENGTH))) {
@@ -2282,9 +2287,9 @@ const int VARCHAR_CMP_GREATER_THAN_SPACES = 3;
   Skip a keypart that uses Variable-Length Space-Padded encoding
 */
 
-int Rdb_key_def::skip_variable_space_pad(
-    const Rdb_field_packing *const fpi, const Field *const field,
-    Rdb_string_reader *const reader) const {
+int Rdb_key_def::skip_variable_space_pad(const Rdb_field_packing *const fpi,
+                                         const Field *const field,
+                                         Rdb_string_reader *const reader) {
   const uchar *ptr;
   bool finished = false;
 
@@ -2329,7 +2334,7 @@ int Rdb_key_def::skip_variable_space_pad(
 int Rdb_key_def::unpack_integer(
     Rdb_field_packing *const fpi, Field *const field, uchar *const to,
     Rdb_string_reader *const reader,
-    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) const {
+    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
   const int length = fpi->m_max_image_len;
 
   const uchar *from;
@@ -2397,8 +2402,7 @@ static void rdb_swap_float_bytes(uchar *const dst, const uchar *const src) {
 int Rdb_key_def::unpack_floating_point(
     uchar *const dst, Rdb_string_reader *const reader, const size_t size,
     const int exp_digit, const uchar *const zero_pattern,
-    const uchar *const zero_val,
-    void (*swap_func)(uchar *, const uchar *)) const {
+    const uchar *const zero_val, void (*swap_func)(uchar *, const uchar *)) {
   const uchar *const from = (const uchar *)reader->read(size);
   if (from == nullptr)
     return UNPACK_FAILURE; /* Mem-comparable image doesn't have enough bytes */
@@ -2456,7 +2460,7 @@ int Rdb_key_def::unpack_double(
     Rdb_field_packing *const fpi MY_ATTRIBUTE((__unused__)),
     Field *const field MY_ATTRIBUTE((__unused__)), uchar *const field_ptr,
     Rdb_string_reader *const reader,
-    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) const {
+    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
   static double zero_val = 0.0;
   static const uchar zero_pattern[8] = {128, 0, 0, 0, 0, 0, 0, 0};
 
@@ -2476,7 +2480,7 @@ int Rdb_key_def::unpack_double(
 int Rdb_key_def::unpack_float(
     Rdb_field_packing *const fpi, Field *const field MY_ATTRIBUTE((__unused__)),
     uchar *const field_ptr, Rdb_string_reader *const reader,
-    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) const {
+    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
   static float zero_val = 0.0;
   static const uchar zero_pattern[4] = {128, 0, 0, 0};
 
@@ -2493,7 +2497,7 @@ int Rdb_key_def::unpack_float(
 int Rdb_key_def::unpack_newdate(
     Rdb_field_packing *const fpi, Field *const field MY_ATTRIBUTE((__unused__)),
     uchar *const field_ptr, Rdb_string_reader *const reader,
-    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) const {
+    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
   const char *from;
   DBUG_ASSERT(fpi->m_max_image_len == 3);
 
@@ -2515,7 +2519,7 @@ int Rdb_key_def::unpack_newdate(
 int Rdb_key_def::unpack_binary_str(
     Rdb_field_packing *const fpi, Field *const field, uchar *const to,
     Rdb_string_reader *const reader,
-    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) const {
+    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
   const char *from;
   if (!(from = reader->read(fpi->m_max_image_len)))
     return UNPACK_FAILURE; /* Mem-comparable image doesn't have enough bytes */
@@ -2533,7 +2537,7 @@ int Rdb_key_def::unpack_binary_str(
 int Rdb_key_def::unpack_utf8_str(
     Rdb_field_packing *const fpi, Field *const field, uchar *dst,
     Rdb_string_reader *const reader,
-    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) const {
+    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
   my_core::CHARSET_INFO *const cset = (my_core::CHARSET_INFO *)field->charset();
   const uchar *src;
   if (!(src = (const uchar *)reader->read(fpi->m_max_image_len)))
@@ -2577,9 +2581,9 @@ int Rdb_key_def::unpack_utf8_str(
   See pack_variable_format for the newer algorithm.
 */
 void Rdb_key_def::pack_legacy_variable_format(
-    const uchar *src,   // The data to encode
-    size_t src_len,     // The length of the data to encode
-    uchar **dst) const  // The location to encode the data
+    const uchar *src,  // The data to encode
+    size_t src_len,    // The length of the data to encode
+    uchar **dst)       // The location to encode the data
 {
   size_t copy_len;
   size_t padding_bytes;
@@ -2629,9 +2633,9 @@ void Rdb_key_def::pack_legacy_variable_format(
   - 10 bytes is encoded as X X X X X X X X 9 X X 0 0 0 0 0 0 2
 */
 void Rdb_key_def::pack_variable_format(
-    const uchar *src,   // The data to encode
-    size_t src_len,     // The length of the data to encode
-    uchar **dst) const  // The location to encode the data
+    const uchar *src,  // The data to encode
+    size_t src_len,    // The length of the data to encode
+    uchar **dst)       // The location to encode the data
 {
   uchar *ptr = *dst;
 
@@ -2670,7 +2674,7 @@ void Rdb_key_def::pack_variable_format(
 
 void Rdb_key_def::pack_with_varchar_encoding(
     Rdb_field_packing *const fpi, Field *const field, uchar *buf, uchar **dst,
-    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   const CHARSET_INFO *const charset = field->charset();
   Field_varstring *const field_var = (Field_varstring *)field;
 
@@ -2683,7 +2687,7 @@ void Rdb_key_def::pack_with_varchar_encoding(
       MY_STRXFRM_NOPAD_WITH_SPACE);
 
   /* Got a mem-comparable image in 'buf'. Now, produce varlength encoding */
-  if (use_legacy_varbinary_format()) {
+  if (fpi->m_use_legacy_varbinary_format) {
     pack_legacy_variable_format(buf, xfrm_len, dst);
   } else {
     pack_variable_format(buf, xfrm_len, dst);
@@ -2782,7 +2786,7 @@ static const int RDB_TRIMMED_CHARS_OFFSET = 8;
 
 void Rdb_key_def::pack_with_varchar_space_pad(
     Rdb_field_packing *const fpi, Field *const field, uchar *buf, uchar **dst,
-    Rdb_pack_field_context *const pack_ctx) const {
+    Rdb_pack_field_context *const pack_ctx) {
   Rdb_string_writer *const unpack_info = pack_ctx->writer;
   const CHARSET_INFO *const charset = field->charset();
   const auto field_var = static_cast<Field_varstring *>(field);
@@ -2875,8 +2879,7 @@ void Rdb_key_def::pack_with_varchar_space_pad(
   last chunk in the input.  This is based on the old legacy format - see
   pack_legacy_variable_format.
  */
-uint Rdb_key_def::calc_unpack_legacy_variable_format(uchar flag,
-                                                     bool *done) const {
+uint Rdb_key_def::calc_unpack_legacy_variable_format(uchar flag, bool *done) {
   uint pad = 255 - flag;
   uint used_bytes = RDB_LEGACY_ESCAPE_LENGTH - 1 - pad;
   if (used_bytes > RDB_LEGACY_ESCAPE_LENGTH - 1) {
@@ -2892,7 +2895,7 @@ uint Rdb_key_def::calc_unpack_legacy_variable_format(uchar flag,
   last chunk in the input.  This is based on the new format - see
   pack_variable_format.
  */
-uint Rdb_key_def::calc_unpack_variable_format(uchar flag, bool *done) const {
+uint Rdb_key_def::calc_unpack_variable_format(uchar flag, bool *done) {
   // Check for invalid flag values
   if (flag > RDB_ESCAPE_LENGTH) {
     return (uint)-1;
@@ -2957,7 +2960,7 @@ unpack_charset(const CHARSET_INFO *cset,  // character set information
 int Rdb_key_def::unpack_binary_or_utf8_varchar(
     Rdb_field_packing *const fpi, Field *const field, uchar *dst,
     Rdb_string_reader *const reader,
-    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) const {
+    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
   const uchar *ptr;
   size_t len = 0;
   bool finished = false;
@@ -2967,7 +2970,7 @@ int Rdb_key_def::unpack_binary_or_utf8_varchar(
   // How much we can unpack
   size_t dst_len = field_var->pack_length() - field_var->length_bytes;
 
-  bool use_legacy_format = use_legacy_varbinary_format();
+  bool use_legacy_format = fpi->m_use_legacy_varbinary_format;
 
   /* Decode the length-emitted encoding here */
   while ((ptr = (const uchar *)reader->read(RDB_ESCAPE_LENGTH))) {
@@ -3031,8 +3034,7 @@ int Rdb_key_def::unpack_binary_or_utf8_varchar(
 */
 int Rdb_key_def::unpack_binary_or_utf8_varchar_space_pad(
     Rdb_field_packing *const fpi, Field *const field, uchar *dst,
-    Rdb_string_reader *const reader,
-    Rdb_string_reader *const unp_reader) const {
+    Rdb_string_reader *const reader, Rdb_string_reader *const unp_reader) {
   const uchar *ptr;
   size_t len = 0;
   bool finished = false;
@@ -3141,7 +3143,7 @@ int Rdb_key_def::unpack_binary_or_utf8_varchar_space_pad(
 
 void Rdb_key_def::make_unpack_unknown(
     const Rdb_collation_codec *codec MY_ATTRIBUTE((__unused__)),
-    const Field *const field, Rdb_pack_field_context *const pack_ctx) const {
+    const Field *const field, Rdb_pack_field_context *const pack_ctx) {
   pack_ctx->writer->write(field->ptr, field->pack_length());
 }
 
@@ -3156,7 +3158,7 @@ void Rdb_key_def::make_unpack_unknown(
 void Rdb_key_def::dummy_make_unpack_info(
     const Rdb_collation_codec *codec MY_ATTRIBUTE((__unused__)),
     const Field *field MY_ATTRIBUTE((__unused__)),
-    Rdb_pack_field_context *pack_ctx MY_ATTRIBUTE((__unused__))) const {
+    Rdb_pack_field_context *pack_ctx MY_ATTRIBUTE((__unused__))) {
   // Do nothing
 }
 
@@ -3167,7 +3169,7 @@ void Rdb_key_def::dummy_make_unpack_info(
 int Rdb_key_def::unpack_unknown(Rdb_field_packing *const fpi,
                                 Field *const field, uchar *const dst,
                                 Rdb_string_reader *const reader,
-                                Rdb_string_reader *const unp_reader) const {
+                                Rdb_string_reader *const unp_reader) {
   const uchar *ptr;
   const uint len = fpi->m_unpack_data_len;
   // We don't use anything from the key, so skip over it.
@@ -3190,7 +3192,7 @@ int Rdb_key_def::unpack_unknown(Rdb_field_packing *const fpi,
 
 void Rdb_key_def::make_unpack_unknown_varchar(
     const Rdb_collation_codec *const codec MY_ATTRIBUTE((__unused__)),
-    const Field *const field, Rdb_pack_field_context *const pack_ctx) const {
+    const Field *const field, Rdb_pack_field_context *const pack_ctx) {
   const auto f = static_cast<const Field_varstring *>(field);
   uint len = f->length_bytes == 1 ? (uint)*f->ptr : uint2korr(f->ptr);
   len += f->length_bytes;
@@ -3211,17 +3213,17 @@ void Rdb_key_def::make_unpack_unknown_varchar(
     make_unpack_unknown, unpack_unknown
 */
 
-int Rdb_key_def::unpack_unknown_varchar(
-    Rdb_field_packing *const fpi, Field *const field, uchar *dst,
-    Rdb_string_reader *const reader,
-    Rdb_string_reader *const unp_reader) const {
+int Rdb_key_def::unpack_unknown_varchar(Rdb_field_packing *const fpi,
+                                        Field *const field, uchar *dst,
+                                        Rdb_string_reader *const reader,
+                                        Rdb_string_reader *const unp_reader) {
   const uchar *ptr;
   uchar *const d0 = dst;
   const auto f = static_cast<Field_varstring *>(field);
   dst += f->length_bytes;
   const uint len_bytes = f->length_bytes;
   // We don't use anything from the key, so skip over it.
-  if ((this->*fpi->m_skip_func)(fpi, field, reader)) {
+  if ((fpi->m_skip_func)(fpi, field, reader)) {
     return UNPACK_FAILURE;
   }
 
@@ -3281,7 +3283,7 @@ static uint rdb_read_unpack_simple(Rdb_bit_reader *const reader,
 
 void Rdb_key_def::make_unpack_simple_varchar(
     const Rdb_collation_codec *const codec, const Field *const field,
-    Rdb_pack_field_context *const pack_ctx) const {
+    Rdb_pack_field_context *const pack_ctx) {
   const auto f = static_cast<const Field_varstring *>(field);
   uchar *const src = f->ptr + f->length_bytes;
   const size_t src_len =
@@ -3303,8 +3305,7 @@ void Rdb_key_def::make_unpack_simple_varchar(
 
 int Rdb_key_def::unpack_simple_varchar_space_pad(
     Rdb_field_packing *const fpi, Field *const field, uchar *dst,
-    Rdb_string_reader *const reader,
-    Rdb_string_reader *const unp_reader) const {
+    Rdb_string_reader *const reader, Rdb_string_reader *const unp_reader) {
   const uchar *ptr;
   size_t len = 0;
   bool finished = false;
@@ -3405,9 +3406,9 @@ int Rdb_key_def::unpack_simple_varchar_space_pad(
     The VARCHAR variant is in make_unpack_simple_varchar
 */
 
-void Rdb_key_def::make_unpack_simple(
-    const Rdb_collation_codec *const codec, const Field *const field,
-    Rdb_pack_field_context *const pack_ctx) const {
+void Rdb_key_def::make_unpack_simple(const Rdb_collation_codec *const codec,
+                                     const Field *const field,
+                                     Rdb_pack_field_context *const pack_ctx) {
   const uchar *const src = field->ptr;
   Rdb_bit_writer bit_writer(pack_ctx->writer);
   rdb_write_unpack_simple(&bit_writer, codec, src, field->pack_length());
@@ -3421,7 +3422,7 @@ int Rdb_key_def::unpack_simple(Rdb_field_packing *const fpi,
                                Field *const field MY_ATTRIBUTE((__unused__)),
                                uchar *const dst,
                                Rdb_string_reader *const reader,
-                               Rdb_string_reader *const unp_reader) const {
+                               Rdb_string_reader *const unp_reader) {
   const uchar *ptr;
   const uint len = fpi->m_max_image_len;
   Rdb_bit_reader bit_reader(unp_reader);
@@ -3567,11 +3568,10 @@ rdb_init_collation_mapping(const my_core::CHARSET_INFO *const cs) {
           }
         }
 
-        cur->m_make_unpack_info_func = {
-            {&Rdb_key_def::make_unpack_simple_varchar,
-             &Rdb_key_def::make_unpack_simple}};
-        cur->m_unpack_func = {{&Rdb_key_def::unpack_simple_varchar_space_pad,
-                               &Rdb_key_def::unpack_simple}};
+        cur->m_make_unpack_info_func = {{Rdb_key_def::make_unpack_simple_varchar,
+                                        Rdb_key_def::make_unpack_simple}};
+        cur->m_unpack_func = {{Rdb_key_def::unpack_simple_varchar_space_pad,
+                              Rdb_key_def::unpack_simple}};
       } else {
         // Out of luck for now.
       }
@@ -3679,91 +3679,99 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
   m_make_unpack_info_func = nullptr;
   m_unpack_data_len = 0;
   space_xfrm = nullptr;  // safety
-
+  // whether to use legacy format for varchar
+  m_use_legacy_varbinary_format = false;
+  // ha_rocksdb::index_flags() will pass key_descr == null to
+  // see whether field(column) can be read-only reads through return value,
+  // but the legacy vs. new varchar format doesn't affect return value.
+  // Just change m_use_legacy_varbinary_format to true if key_descr isn't given.
+  if (!key_descr || key_descr->use_legacy_varbinary_format()) {
+    m_use_legacy_varbinary_format = true;
+  }
   /* Calculate image length. By default, is is pack_length() */
   m_max_image_len =
       field ? field->pack_length() : ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN;
-  m_skip_func = &Rdb_key_def::skip_max_length;
-  m_pack_func = &Rdb_key_def::pack_with_make_sort_key;
+  m_skip_func = Rdb_key_def::skip_max_length;
+  m_pack_func = Rdb_key_def::pack_with_make_sort_key;
 
   m_covered = false;
 
   switch (type) {
   case MYSQL_TYPE_LONGLONG:
-    m_pack_func = &Rdb_key_def::pack_longlong;
-    m_unpack_func = &Rdb_key_def::unpack_integer;
+    m_pack_func = Rdb_key_def::pack_longlong;
+    m_unpack_func = Rdb_key_def::unpack_integer;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_LONG:
-    m_pack_func = &Rdb_key_def::pack_long;
-    m_unpack_func = &Rdb_key_def::unpack_integer;
+    m_pack_func = Rdb_key_def::pack_long;
+    m_unpack_func = Rdb_key_def::unpack_integer;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_INT24:
-    m_pack_func = &Rdb_key_def::pack_medium;
-    m_unpack_func = &Rdb_key_def::unpack_integer;
+    m_pack_func = Rdb_key_def::pack_medium;
+    m_unpack_func = Rdb_key_def::unpack_integer;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_SHORT:
-    m_pack_func = &Rdb_key_def::pack_short;
-    m_unpack_func = &Rdb_key_def::unpack_integer;
+    m_pack_func = Rdb_key_def::pack_short;
+    m_unpack_func = Rdb_key_def::unpack_integer;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_TINY:
-    m_pack_func = &Rdb_key_def::pack_tiny;
-    m_unpack_func = &Rdb_key_def::unpack_integer;
+    m_pack_func = Rdb_key_def::pack_tiny;
+    m_unpack_func = Rdb_key_def::unpack_integer;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_DOUBLE:
-    m_pack_func = &Rdb_key_def::pack_double;
-    m_unpack_func = &Rdb_key_def::unpack_double;
+    m_pack_func = Rdb_key_def::pack_double;
+    m_unpack_func = Rdb_key_def::unpack_double;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_FLOAT:
-    m_pack_func = &Rdb_key_def::pack_float;
-    m_unpack_func = &Rdb_key_def::unpack_float;
+    m_pack_func = Rdb_key_def::pack_float;
+    m_unpack_func = Rdb_key_def::unpack_float;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_NEWDECIMAL:
-    m_pack_func = &Rdb_key_def::pack_new_decimal;
-    m_unpack_func = &Rdb_key_def::unpack_binary_str;
+    m_pack_func = Rdb_key_def::pack_new_decimal;
+    m_unpack_func = Rdb_key_def::unpack_binary_str;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_DATETIME2:
-    m_pack_func = &Rdb_key_def::pack_datetime2;
-    m_unpack_func = &Rdb_key_def::unpack_binary_str;
+    m_pack_func = Rdb_key_def::pack_datetime2;
+    m_unpack_func = Rdb_key_def::unpack_binary_str;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_TIMESTAMP2:
-    m_pack_func = &Rdb_key_def::pack_timestamp2;
-    m_unpack_func = &Rdb_key_def::unpack_binary_str;
+    m_pack_func = Rdb_key_def::pack_timestamp2;
+    m_unpack_func = Rdb_key_def::unpack_binary_str;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_TIME2:
-    m_pack_func = &Rdb_key_def::pack_time2;
-    m_unpack_func = &Rdb_key_def::unpack_binary_str;
+    m_pack_func = Rdb_key_def::pack_time2;
+    m_unpack_func = Rdb_key_def::unpack_binary_str;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_YEAR:
-    m_pack_func = &Rdb_key_def::pack_year;
-    m_unpack_func = &Rdb_key_def::unpack_binary_str;
+    m_pack_func = Rdb_key_def::pack_year;
+    m_unpack_func = Rdb_key_def::unpack_binary_str;
     m_covered = true;
     return true;
 
   case MYSQL_TYPE_NEWDATE:
-    m_pack_func = &Rdb_key_def::pack_newdate;
-    m_unpack_func = &Rdb_key_def::unpack_newdate;
+    m_pack_func = Rdb_key_def::pack_newdate;
+    m_unpack_func = Rdb_key_def::unpack_newdate;
     m_covered = true;
     return true;
 
@@ -3772,7 +3780,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_JSON: {
-    m_pack_func = &Rdb_key_def::pack_blob;
+    m_pack_func = Rdb_key_def::pack_blob;
     if (key_descr) {
       // The my_charset_bin collation is special in that it will consider
       // shorter strings sorting as less than longer strings.
@@ -3820,8 +3828,8 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
     // The default for varchar is variable-length, without space-padding for
     // comparisons
     m_varchar_charset = cs;
-    m_skip_func = &Rdb_key_def::skip_variable_length;
-    m_pack_func = &Rdb_key_def::pack_with_varchar_encoding;
+    m_skip_func = Rdb_key_def::skip_variable_length;
+    m_pack_func = Rdb_key_def::pack_with_varchar_encoding;
     if (!key_descr || key_descr->use_legacy_varbinary_format()) {
       m_max_image_len = RDB_LEGACY_ENCODED_SIZE(m_max_image_len);
     } else {
@@ -3846,8 +3854,8 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
       // - For VARBINARY(N), values may have different lengths, so we're using
       //   variable-length encoding. This is also the only charset where the
       //   values are not space-padded for comparison.
-      m_unpack_func = is_varchar ? &Rdb_key_def::unpack_binary_or_utf8_varchar
-                                 : &Rdb_key_def::unpack_binary_str;
+      m_unpack_func = is_varchar ? Rdb_key_def::unpack_binary_or_utf8_varchar
+                                 : Rdb_key_def::unpack_binary_str;
       res = true;
     } else if (cs == &my_charset_latin1_bin || cs == &my_charset_utf8_bin) {
       // For _bin collations, mem-comparable form of the string is the string
@@ -3857,10 +3865,10 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         // VARCHARs - are compared as if they were space-padded - but are
         // not actually space-padded (reading the value back produces the
         // original value, without the padding)
-        m_unpack_func = &Rdb_key_def::unpack_binary_or_utf8_varchar_space_pad;
-        m_skip_func = &Rdb_key_def::skip_variable_space_pad;
-        m_pack_func = &Rdb_key_def::pack_with_varchar_space_pad;
-        m_make_unpack_info_func = &Rdb_key_def::dummy_make_unpack_info;
+        m_unpack_func = Rdb_key_def::unpack_binary_or_utf8_varchar_space_pad;
+        m_skip_func = Rdb_key_def::skip_variable_space_pad;
+        m_pack_func = Rdb_key_def::pack_with_varchar_space_pad;
+        m_make_unpack_info_func = Rdb_key_def::dummy_make_unpack_info;
         m_segment_size = get_segment_size_from_collation(cs);
         m_max_image_len =
             (max_image_len_before_chunks / (m_segment_size - 1) + 1) *
@@ -3871,8 +3879,8 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         // SQL layer pads CHAR(N) values to their maximum length.
         // We just store that and restore it back.
         m_unpack_func = (cs == &my_charset_latin1_bin)
-                            ? &Rdb_key_def::unpack_binary_str
-                            : &Rdb_key_def::unpack_utf8_str;
+                            ? Rdb_key_def::unpack_binary_str
+                            : Rdb_key_def::unpack_utf8_str;
       }
       res = true;
     } else {
@@ -3897,8 +3905,8 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         // seems to be identical in value and extremely similar in
         // purpose/indication for our needs here.
         if (cs->levels_for_compare == 1) {
-          m_pack_func = &Rdb_key_def::pack_with_varchar_space_pad;
-          m_skip_func = &Rdb_key_def::skip_variable_space_pad;
+          m_pack_func = Rdb_key_def::pack_with_varchar_space_pad;
+          m_skip_func = Rdb_key_def::skip_variable_space_pad;
           m_segment_size = get_segment_size_from_collation(cs);
           m_max_image_len =
               (max_image_len_before_chunks / (m_segment_size - 1) +
@@ -3914,8 +3922,8 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
           LogPluginErrMsg(WARNING_LEVEL, 0,
                           "Will handle this collation internally as if it had "
                           "a NO_PAD attribute.");
-          m_pack_func = &Rdb_key_def::pack_with_varchar_encoding;
-          m_skip_func = &Rdb_key_def::skip_variable_length;
+          m_pack_func = Rdb_key_def::pack_with_varchar_encoding;
+          m_skip_func = Rdb_key_def::skip_variable_length;
         }
       }
 
@@ -3931,11 +3939,11 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         // form. Our way of restoring the original value is to keep a copy of
         // the original value in unpack_info.
         m_unpack_info_stores_value = true;
-        m_make_unpack_info_func =
-            is_varchar ? &Rdb_key_def::make_unpack_unknown_varchar
-                       : &Rdb_key_def::make_unpack_unknown;
-        m_unpack_func = is_varchar ? &Rdb_key_def::unpack_unknown_varchar
-                                   : &Rdb_key_def::unpack_unknown;
+        m_make_unpack_info_func = is_varchar
+                                      ? Rdb_key_def::make_unpack_unknown_varchar
+                                      : Rdb_key_def::make_unpack_unknown;
+        m_unpack_func = is_varchar ? Rdb_key_def::unpack_unknown_varchar
+                                   : Rdb_key_def::unpack_unknown;
       } else {
         // Same as above: we don't know how to restore the value from its
         // mem-comparable form.

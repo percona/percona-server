@@ -3,6 +3,8 @@
 --echo # WL#12138 -- Add Admin Port
 --echo #
 
+CALL mtr.add_suppression("Too many connections");
+
 --echo # Create the user u1
 CREATE USER u1;
 --echo # Grant the user u1 the privilege SERVICE_CONNECTION_ADMIN

@@ -154,8 +154,8 @@ innodb_system	System	DEFAULT	0	Any	ibdata1
 mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_ !@#$%^&*()_+-={}[]|\?<>,. 	General	DEFAULT	0	Any	s_utf8.ibd
-s_cöĿǖmň	General	DEFAULT	0	Any	s_utf8_b.ibd
 s_Cöŀumň	General	DEFAULT	0	Any	s_utf8_a.ibd
+s_cöĿǖmň	General	DEFAULT	0	Any	s_utf8_b.ibd
 s_வணக்கம்	General	DEFAULT	0	Any	ஆவணம்.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -164,8 +164,8 @@ innodb_system	TABLESPACE	InnoDB	NORMAL	innodb_system	MYSQLD_DATADIR/ibdata1
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s_ !@#$%^&*()_+-={}[]|\?<>,. 	TABLESPACE	InnoDB	NORMAL	s_ !@#$%^&*()_+-={}[]|\?<>,. 	MYSQLD_DATADIR/s_utf8.ibd
-s_cöĿǖmň	TABLESPACE	InnoDB	NORMAL	s_cöĿǖmň	MYSQLD_DATADIR/s_utf8_b.ibd
 s_Cöŀumň	TABLESPACE	InnoDB	NORMAL	s_Cöŀumň	MYSQLD_DATADIR/s_utf8_a.ibd
+s_cöĿǖmň	TABLESPACE	InnoDB	NORMAL	s_cöĿǖmň	MYSQLD_DATADIR/s_utf8_b.ibd
 s_வணக்கம்	TABLESPACE	InnoDB	NORMAL	s_வணக்கம்	MYSQLD_DATADIR/ஆவணம்.ibd
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type

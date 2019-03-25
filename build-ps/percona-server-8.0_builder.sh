@@ -15,6 +15,7 @@ Usage: $0 [OPTIONS]
         --build_rpm         If it is 1 rpm will be built
         --build_deb         If it is 1 deb will be built
         --build_tarball     If it is 1 tarball will be built
+        --with_ssl          If it is 1 tarball will also include ssl libs
         --install_deps      Install build dependencies(root previlages are required)
         --branch            Branch for build
         --repo              Repo for build
@@ -53,6 +54,7 @@ parse_arguments() {
             --build_deb=*) DEB="$val" ;;
             --get_sources=*) SOURCE="$val" ;;
             --build_tarball=*) TARBALL="$val" ;;
+            --with_ssl=*) WITH_SSL="$val" ;;
             --branch=*) BRANCH="$val" ;;
             --repo=*) REPO="$val" ;;
             --install_deps=*) INSTALL="$val" ;;
@@ -728,7 +730,7 @@ build_tarball(){
     export CFLAGS=$(rpm --eval %{optflags} | sed -e "s|march=i386|march=i686|g")
     export CXXFLAGS="${CFLAGS}"
     if [ -f /etc/redhat-release ]; then
-        SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//')
+        SSL_VER_TMP=$(yum list installed|grep -i openssl|head -n1|awk '{print $2}'|awk -F "-" '{print $1}'|sed 's/\.//g'|sed 's/[a-z]$//' | awk -F':' '{print $2}')
         export SSL_VER=".ssl${SSL_VER_TMP}"
     else
         SSL_VER_TMP=$(dpkg -l|grep -i libssl|grep -v "libssl\-"|head -n1|awk '{print $2}'|awk -F ":" '{print $1}'|sed 's/libssl/ssl/g'|sed 's/\.//g')
@@ -750,9 +752,13 @@ build_tarball(){
     rm -fr ${TARFILE%.tar.gz}
     tar xzf ${TARFILE}
     cd ${TARFILE%.tar.gz}
-    CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
-    DIRNAME="tarball"
-
+    if [ $WITH_SSL = 1 ]; then
+        CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=/usr/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+        DIRNAME="yassl"
+    else
+        CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+        DIRNAME="tarball"
+    fi
     mkdir -p ${WORKDIR}/${DIRNAME}
     mkdir -p ${CURDIR}/${DIRNAME}
     cp ../TARGET/*.tar.gz ${WORKDIR}/${DIRNAME}
@@ -771,6 +777,7 @@ RPM=0
 DEB=0
 SOURCE=0
 TARBALL=0
+WITH_SSL=0
 OS_NAME=
 ARCH=
 OS=

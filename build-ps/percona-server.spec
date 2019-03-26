@@ -243,6 +243,10 @@ Requires(preun):  /sbin/chkconfig
 Requires(preun):  /sbin/service
 %endif
 
+%if 0%{?rhel} == 8
+Obsoletes:      mariadb-connector-c-config
+%endif
+
 %description -n percona-server-server
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. Percona Server

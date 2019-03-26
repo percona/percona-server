@@ -516,7 +516,7 @@ static inline int my_b_inited(const IO_CACHE *info)
 MY_NODISCARD
 static inline int my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count)
 {
-  if (info->read_pos + Count <= info->read_end)
+  if ((size_t)(info->read_end - info->read_pos) >= Count)
   {
     memcpy(Buffer, info->read_pos, Count);
     info->read_pos+= Count;
@@ -529,7 +529,7 @@ MY_NODISCARD
 static inline int my_b_write(IO_CACHE *info, const uchar *Buffer,
                              size_t Count)
 {
-  if (info->write_pos + Count <= info->write_end)
+  if ((size_t)(info->write_end - info->write_pos) >= Count)
   {
     memcpy(info->write_pos, Buffer, Count);
     info->write_pos+= Count;

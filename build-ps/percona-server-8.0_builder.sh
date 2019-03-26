@@ -93,6 +93,13 @@ check_workdir(){
 add_percona_yum_repo(){
     if [ ! -f /etc/yum.repos.d/percona-dev.repo ]
     then
+	if [ "x$RHEL" = "x8" ]; then
+            echo -e '[main]\nenabled=0\n' > /etc/yum/pluginconf.d/subscription-manager.conf
+	    echo 'strict=0' >> /etc/dnf/dnf.conf
+            echo 'strict=0' >> /etc/yum/yum.conf
+	    wget -O /etc/yum.repos.d/rhel8-beta.repo https://jenkins.percona.com/yum-repo/rhel8/rhel8-beta.repo
+	    wget -O /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
+        fi
         curl -o /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
 	sed -i 's:$basearch:x86_64:g' /etc/yum.repos.d/percona-dev.repo
     fi
@@ -293,11 +300,7 @@ install_deps() {
         yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
         yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
-        #if [ ${RHEL} -lt 7 -a $(uname -m) = x86_64 ]; then
-        #    yum -y install epel-release centos-release-scl
-        #    yum -y install devtoolset-6-gcc-c++ devtoolset-6-binutils
-        #fi
-        if [ "x${RHEL}" -lt 8 ]; then
+        if [ "${RHEL}" -lt 8 ]; then
             until yum -y install centos-release-scl; do
                 echo "waiting"
                 sleep 1
@@ -308,11 +311,11 @@ install_deps() {
             yum -y install re2-devel redhat-lsb-core
             source /opt/rh/devtoolset-7/enable
         else
+	    yum -y install perl.x86_64
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
             yum -y install automake autoconf cmake jemalloc jemalloc-devel
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
-            wget https://rpmfind.net/linux/fedora/linux/releases/29/Everything/x86_64/os/Packages/r/rpcgen-1.4-1.fc29.x86_64.rpm
-            yum -y install rpcgen-1.4-1.fc29.x86_64.rpm
+	    yum -y install rpcgen libtirpc-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56
@@ -478,6 +481,11 @@ build_mecab_lib(){
     make
     make check
     make DESTDIR=${MECAB_INSTALL_DIR} install
+    cd ../${MECAB_INSTALL_DIR}
+    if [ -d usr/lib64 ]; then
+	mkdir -p usr/lib
+        mv usr/lib64/* usr/lib
+    fi
     cd ${WORKDIR}
 }
 
@@ -752,7 +760,7 @@ build_tarball(){
     rm -fr ${TARFILE%.tar.gz}
     tar xzf ${TARFILE}
     cd ${TARFILE%.tar.gz}
-    if [ $WITH_SSL = 1 ]; then
+    if [ "x$WITH_SSL" = "x1" ]; then
         CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=/usr/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
     else

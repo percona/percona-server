@@ -308,14 +308,14 @@ install_deps() {
             yum -y install  gcc-c++ devtoolset-7-gcc-c++ devtoolset-7-binutils
             yum -y install ccache devtoolset-7-libasan-devel devtoolset-7-libubsan-devel devtoolset-7-valgrind devtoolset-7-valgrind-devel
             yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make
-            yum -y install re2-devel redhat-lsb-core
+            yum -y install re2-devel redhat-lsb-core lz4-static
             source /opt/rh/devtoolset-7/enable
         else
 	    yum -y install perl.x86_64
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
             yum -y install automake autoconf cmake jemalloc jemalloc-devel
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
-	    yum -y install rpcgen libtirpc-devel
+	    yum -y install rpcgen libtirpc-devel re2-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56
@@ -559,6 +559,7 @@ build_rpm(){
     build_mecab_dict
 
     cd ${WORKDIR}
+    source /opt/rh/devtoolset-7/enable
     #
     if [ ${ARCH} = x86_64 ]; then
         rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
@@ -761,7 +762,7 @@ build_tarball(){
     tar xzf ${TARFILE}
     mkdir -p ${WORKDIR}/ssl/lib
     if [ "x$OS" = "xdeb" ]; then
-        cp -av /usr/lib/x86_64-linux-gnu/libssl.so* ${WORKDIR}/ssl/lib
+        cp -av /usr/lib/x86_64-linux-gnu/libssl* ${WORKDIR}/ssl/lib
 	cp -av /usr/lib/x86_64-linux-gnu/libcrypto* ${WORKDIR}/ssl/lib
         cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
     else

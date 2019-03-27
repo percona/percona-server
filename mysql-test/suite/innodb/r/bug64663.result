@@ -38,3 +38,5 @@ mysql/server_cost	161
 mysql/engine_cost	161
 mysql/proxies_priv	161
 sys/sys_config	33
+mtr/test_suppressions	33
+mtr/global_suppressions	33

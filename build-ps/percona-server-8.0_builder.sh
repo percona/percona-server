@@ -759,9 +759,20 @@ build_tarball(){
     #
     rm -fr ${TARFILE%.tar.gz}
     tar xzf ${TARFILE}
+    mkdir -p ${WORKDIR}/ssl/lib
+    if [ "x$OS" = "xdeb" ]; then
+        cp -av /usr/lib/x86_64-linux-gnu/libssl.so* ${WORKDIR}/ssl/lib
+	cp -av /usr/lib/x86_64-linux-gnu/libcrypto* ${WORKDIR}/ssl/lib
+        cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
+    else
+        cp -av /usr/lib*/libssl.so* ${WORKDIR}/ssl/lib
+	cp -av /usr/lib*/libcrypto* ${WORKDIR}/ssl/lib
+        cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
+    fi
+    
     cd ${TARFILE%.tar.gz}
     if [ "x$WITH_SSL" = "x1" ]; then
-        CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=/usr/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
+        CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
     else
         CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET

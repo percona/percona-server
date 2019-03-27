@@ -290,12 +290,14 @@ class Binlog_sender : Gtid_mode_copy {
      @param[in] reader        File_reader of the binlog file.
      @param[out] event_ptr    The buffer used to store the event.
      @param[out] event_len    Length of the event.
+     @param[in] readahead     Whether this read is to peek but not process the
+                              next event in the stream
 
      @retval 0 Succeed
      @retval 1 Fail
   */
   inline int read_event(File_reader *reader, uchar **event_ptr,
-                        uint32 *event_len);
+                        uint32 *event_len, bool readahead = false);
   /**
     Check if it is allowed to send this event type.
 

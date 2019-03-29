@@ -102,6 +102,13 @@ add_percona_yum_repo(){
 
 add_percona_apt_repo(){
   if [ ! -f /etc/apt/sources.list.d/percona-dev.list ]; then
+    if [ "x$RHEL" = "x8" ]; then
+      echo -e '[main]\nenabled=0\n' > /etc/yum/pluginconf.d/subscription-manager.conf
+      echo 'strict=0' >> /etc/dnf/dnf.conf
+      echo 'strict=0' >> /etc/yum/yum.conf
+      wget -O /etc/yum.repos.d/rhel8-beta.repo https://jenkins.percona.com/yum-repo/rhel8/rhel8-beta.repo
+      wget -O /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
+    fi
     curl -o /etc/apt/sources.list.d/percona-dev.list https://jenkins.percona.com/apt-repo/percona-dev.list.template
     sed -i "s:@@DIST@@:$OS_NAME:g" /etc/apt/sources.list.d/percona-dev.list
   fi
@@ -306,12 +313,12 @@ install_deps() {
                 yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils
 	    fi
         else
+            yum -y install perl.x86_64
             yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
             yum -y install automake autoconf cmake jemalloc jemalloc-devel
 	    yum -y install libcurl-devel openldap-devel selinux-policy-devel
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
-            wget https://rpmfind.net/linux/fedora/linux/releases/29/Everything/x86_64/os/Packages/r/rpcgen-1.4-1.fc29.x86_64.rpm
-            yum -y install rpcgen-1.4-1.fc29.x86_64.rpm
+	    yum -y install rpcgen libtirpc-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56  
@@ -464,6 +471,11 @@ build_mecab_lib(){
     make
     make check
     make DESTDIR=${MECAB_INSTALL_DIR} install
+    cd ../${MECAB_INSTALL_DIR}
+    if [ -d usr/lib64 ]; then
+        mkdir -p usr/lib
+        mv usr/lib64/* usr/lib
+    fi
     cd ${WORKDIR}
 }
 

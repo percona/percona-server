@@ -490,6 +490,9 @@ mkdir debug
            -DWITH_RAPIDJSON=bundled \
            -DWITH_ICU=bundled \
            -DWITH_LZ4=bundled \
+%if 0%{?rhel} < 8
+           -DWITH_ZLIB=bundled \
+%endif
            -DWITH_READLINE=system \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
@@ -528,6 +531,9 @@ mkdir release
            -DWITH_NUMA=ON \
            -DWITH_SYSTEM_LIBS=ON \
            -DWITH_LZ4=bundled \
+%if 0%{?rhel} < 8
+           -DWITH_ZLIB=bundled \
+%endif
            -DWITH_PROTOBUF=bundled \
            -DWITH_RAPIDJSON=bundled \
            -DWITH_ICU=bundled \

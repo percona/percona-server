@@ -210,6 +210,10 @@ Requires(preun):  /sbin/chkconfig
 Requires(preun):  /sbin/service
 %endif
 
+%if 0%{?rhel} == 8
+Obsoletes:      mariadb-connector-c-config
+%endif
+
 %description -n Percona-Server-server%{product_suffix}
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. Percona Server
@@ -543,6 +547,13 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "Percona Server" -u 27 mysql >/dev/null 2>&1 || :
+if [ "$1" = 1 ]; then
+  if [ -f %{_sysconfdir}/my.cnf ]; then
+    timestamp=$(date '+%Y%m%d-%H%M')
+    cp %{_sysconfdir}/my.cnf \
+    %{_sysconfdir}/my.cnf.rpmsave-${timestamp}
+  fi
+fi
 
 %post -n Percona-Server-server%{product_suffix}
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)

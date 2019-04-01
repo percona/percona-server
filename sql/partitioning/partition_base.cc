@@ -590,7 +590,7 @@ int Partition_base::create(const char *name, TABLE *table_arg,
     To initialize partitioning and part_share we need to have m_part_info
     filled in.
   */
-  if (initialize_partition(&table_share->mem_root) || init_part_share())
+  if (initialize_partition(&table_arg->mem_root) || init_part_share())
     DBUG_RETURN(true);
   file = m_file;
   /*
@@ -1541,7 +1541,7 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
   m_mode = mode;
 
   /* The following functions must be called only after m_part_info set */
-  if (initialize_partition(&table_share->mem_root) || init_part_share() ||
+  if (initialize_partition(&table->mem_root) || init_part_share() ||
       init_with_fields())
     DBUG_RETURN(true);
 

@@ -13,7 +13,7 @@ create table t3_on_default (a int) engine=innodb;
 create table t4_on_explicit_off (a int) engine=innodb encryption="N";
 create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE="InnoDB";
 ERROR HY000: InnoDB: Tablespace `ts_unencrypted1` cannot contain an ENCRYPTED table.
-set global innodb_encrypt_tables='FORCE';
+set global innodb_encrypt_tables=FORCE;
 create table t5_force_explicit_off (a int) engine=innodb encryption="N";
 ERROR HY000: InnoDB: Only Master Key encrypted tables (ENCRYPTION='Y') can be created with innodb_encrypt_tables=FORCE.
 create table t6_force_default (a int) engine=innodb;
@@ -36,7 +36,7 @@ partition by range (a) partitions 2 (
 partition p1 values less than (20),
 partition p2 values less than (40) tablespace ts_encrypted2);
 ERROR HY000: InnoDB: Tablespace `ts_encrypted1` can contain only an ENCRYPTED tables.
-set global innodb_encrypt_tables='FORCE';
+set global innodb_encrypt_tables=FORCE;
 insert into t1_default_explicit_on values (42);
 insert into t2_default_explicit_off values (42);
 insert into t3_on_default values (42);
@@ -115,7 +115,7 @@ alter table t4_on_explicit_off encryption="N";
 alter table t6_force_default encryption="N", ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
 alter table t4_on_explicit_off change a b int;
-set global innodb_encrypt_tables='FORCE';
+set global innodb_encrypt_tables=FORCE;
 alter table t4_on_explicit_off change b a int;
 show create table t1_default_explicit_on;
 Table	Create Table

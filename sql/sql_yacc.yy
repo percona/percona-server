@@ -16345,6 +16345,10 @@ set_expr_or_default:
           {
             $$= NEW_PTN Item_string(@$, "SYSTEM", 6, system_charset_info);
           }
+        | FORCE_SYM
+          {
+            $$= NEW_PTN Item_string(@$, "FORCE", 5, system_charset_info);
+          }
         ;
 
 /* Lock function */

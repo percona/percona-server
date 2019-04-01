@@ -32,7 +32,7 @@ ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, 
 CREATE TABLE t8(a TEXT) TABLESPACE = innodb_system;
 ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain an ENCRYPTED table.
 # System is unencrypted, test with innodb_encrypt_tables=FORCE
-SET GLOBAL innodb_encrypt_tables="FORCE";
+SET GLOBAL innodb_encrypt_tables=FORCE;
 SELECT @@innodb_encrypt_tables;
 @@innodb_encrypt_tables
 FORCE
@@ -86,7 +86,7 @@ ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, 
 CREATE TABLE t5_2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 # System is encrypted, test with innodb_encrypt_tables=FORCE
-SET GLOBAL innodb_encrypt_tables="FORCE";
+SET GLOBAL innodb_encrypt_tables=FORCE;
 SELECT @@innodb_encrypt_tables;
 @@innodb_encrypt_tables
 FORCE

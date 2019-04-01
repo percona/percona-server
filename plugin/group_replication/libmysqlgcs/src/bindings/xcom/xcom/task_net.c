@@ -84,8 +84,8 @@ int checked_getaddrinfo(const char *nodename, const char *servname,
   _hints.ai_family = AF_UNSPEC;
   _hints.ai_socktype = SOCK_STREAM;  // TCP stream sockets
   if (hints == NULL) hints = &_hints;
-  for (int attempt_nr = 0;
-       errval == EAI_AGAIN && attempt_nr < NR_GETADDRINFO_ATTEMPTS;
+  int attempt_nr = 0;
+  for (; errval == EAI_AGAIN && attempt_nr < NR_GETADDRINFO_ATTEMPTS;
        attempt_nr++) {
     if (*res) {
       freeaddrinfo(*res);

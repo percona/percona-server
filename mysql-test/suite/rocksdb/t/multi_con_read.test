@@ -1,0 +1,8 @@
+--source include/have_rocksdb.inc
+--echo #
+--echo # PS-5508: native_part::Partition_base::<...> -> handler::ha_open -> __cxa_pure_virtual () -> ABORT
+--echo # PS-5525: TokuDB and MyRocks native partitioning never releases memory
+--echo #
+
+let $engine= 'ROCKSDB';
+--source suite/parts/inc/multi_con_read.inc

@@ -42,7 +42,7 @@ parse_arguments() {
         pick_args=1
         shift
     fi
-  
+
     for arg do
         val=$(echo "$arg" | sed -e 's;^--[^=]*=;;')
         case "$arg" in
@@ -64,7 +64,7 @@ parse_arguments() {
             --tokubackup_repo=*) TOKUBACKUP_REPO="$val" ;;
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
-            --help) usage ;;      
+            --help) usage ;;
             *)
               if test -n "$pick_args"
               then
@@ -168,7 +168,7 @@ get_sources(){
     if [ -z "${DESTINATION:-}" ]; then
         export DESTINATION=experimental
     fi
-    TIMESTAMP=$(date "+%Y%m%d-%H%M%S") 
+    TIMESTAMP=$(date "+%Y%m%d-%H%M%S")
     echo "DESTINATION=${DESTINATION}" >> ../percona-server-8.0.properties
     echo "UPLOAD=UPLOAD/${DESTINATION}/BUILDS/${PRODUCT}/${PRODUCT_FULL}/${BRANCH_NAME}/${REVISION}/${TIMESTAMP}" >> ../percona-server-8.0.properties
 
@@ -250,13 +250,13 @@ get_sources(){
     sed -i "s:@@RPM_RELEASE@@:${RPM_RELEASE}:g" build-ps/percona-server.spec
     cd ${WORKDIR}/percona-server
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
-    
+
     mkdir $WORKDIR/source_tarball
     mkdir $CURDIR/source_tarball
     cp ${PSDIR}.tar.gz $WORKDIR/source_tarball
     cp ${PSDIR}.tar.gz $CURDIR/source_tarball
     cd $CURDIR
-    rm -rf percona-server  
+    rm -rf percona-server
     return
 }
 
@@ -286,16 +286,16 @@ install_deps() {
         exit 1
     fi
     CURPLACE=$(pwd)
-    
+
     if [ "x$OS" = "xrpm" ]; then
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         add_percona_yum_repo
         yum -y install http://www.percona.com/downloads/percona-release/redhat/0.1-4/percona-release-0.1-4.noarch.rpm || true
         yum -y install epel-release
-        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
+        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc
         yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
-        yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
+        yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel
         yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
         if [ "${RHEL}" -lt 8 ]; then
             until yum -y install centos-release-scl; do
@@ -309,7 +309,7 @@ install_deps() {
             source /opt/rh/devtoolset-7/enable
         else
 	    yum -y install perl.x86_64
-            yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
+            yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize
             yum -y install automake autoconf cmake jemalloc jemalloc-devel
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
 	    yum -y install rpcgen libtirpc-devel re2-devel
@@ -318,7 +318,7 @@ install_deps() {
             yum -y install Percona-Server-shared-56
 	          yum -y install libevent2-devel
 	      else
-            yum -y install libevent-devel 
+            yum -y install libevent-devel
         fi
     else
         apt-get -y install dirmngr || true
@@ -569,7 +569,7 @@ build_rpm(){
     mkdir -p ${CURDIR}/rpm
     cp rpmbuild/RPMS/*/*.rpm ${WORKDIR}/rpm
     cp rpmbuild/RPMS/*/*.rpm ${CURDIR}/rpm
-    
+
 }
 
 build_source_deb(){
@@ -670,8 +670,14 @@ build_deb(){
         fi
     fi
 
+    if [[ ${DEBIAN_VERSION} = "buster" ]] || [[ ${DEBIAN_VERSION} = disco ]]; then
+        unset USE_THIS_GCC_VERSION
+        export CC=gcc
+        export CXX=g++
+    fi
+
     if [ ${DEBIAN_VERSION} = "xenial" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=date-time /' debian/rules 
+        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=date-time /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=date-time /' debian/rules
     fi
     if [ ${DEBIAN_VERSION} = "bionic" ]; then
@@ -679,16 +685,16 @@ build_deb(){
     fi
 
     if [ ${DEBIAN_VERSION} = "stretch" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules 
+        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
 
     if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules 
+        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
     if [ ${DEBIAN_VERSION} = "cosmic" ]; then
-        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules 
+        sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
         sed -i 's/libssl-dev/libssl1.0-dev/g' debian/control
     fi
@@ -745,7 +751,7 @@ build_tarball(){
     build_mecab_dict
     MECAB_INSTALL_DIR="${WORKDIR}/mecab-install"
     rm -fr TARGET && mkdir TARGET
-    rm -rf jemalloc 
+    rm -rf jemalloc
     git clone https://github.com/jemalloc/jemalloc
     (
     cd jemalloc
@@ -765,7 +771,7 @@ build_tarball(){
 	cp -av /usr/lib*/libcrypto* ${WORKDIR}/ssl/lib
         cp -av /usr/include/openssl ${WORKDIR}/ssl/include/
     fi
-    
+
     cd ${TARFILE%.tar.gz}
     if [ "x$WITH_SSL" = "x1" ]; then
         CMAKE_OPTS="-DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET

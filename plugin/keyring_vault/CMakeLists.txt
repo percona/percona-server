@@ -1,3 +1,14 @@
+
+# keyring_vault mtr suite is a default suite and must be installed always,
+# regardless if the keyring_vault plugin is built and installed or not.
+IF(WITH_KEYRING_VAULT_TEST)
+  ADD_SUBDIRECTORY(keyring_vault-test)
+ENDIF()
+
+IF(INSTALL_MYSQLTESTDIR)
+  INSTALL(DIRECTORY tests/mtr/ DESTINATION ${INSTALL_MYSQLTESTDIR}/suite/keyring_vault COMPONENT Test)
+ENDIF()
+
 IF (NOT DEFINED WITH_KEYRING_VAULT)
   SET (WITH_KEYRING_VAULT 1)
 ENDIF()
@@ -58,12 +69,4 @@ MYSQL_ADD_PLUGIN(keyring_vault
 IF(LINK_FLAG_NO_UNDEFINED)
   GET_PROPERTY(keyring_vault_link_flags TARGET keyring_vault PROPERTY LINK_FLAGS)
   SET_PROPERTY(TARGET keyring_vault PROPERTY LINK_FLAGS "${keyring_vault_link_flags} -Wl,--version-script=${CMAKE_SOURCE_DIR}/plugin/keyring_vault/keyring_vault.version")
-ENDIF()
-
-IF(WITH_KEYRING_VAULT_TEST)
-  ADD_SUBDIRECTORY(keyring_vault-test)
-ENDIF()
-
-IF(INSTALL_MYSQLTESTDIR)
-  INSTALL(DIRECTORY tests/mtr/ DESTINATION ${INSTALL_MYSQLTESTDIR}/suite/keyring_vault COMPONENT Test)
 ENDIF()

@@ -1062,6 +1062,16 @@ struct handlerton
              true on failure
   */
   bool (*rotate_encryption_master_key)(void);
+  /**
+    Check if the given database name is reserved.
+
+    @param  hton          Handlerton for SE.
+    @param  name          Database name.
+
+    @retval true          Database name is reserved by SE.
+    @retval false         Database name is not reserved.
+  */
+  bool (*is_reserved_db_name)(handlerton *hton, const char *name);
 
  /**
     @brief
@@ -4524,5 +4534,6 @@ int commit_owned_gtid_by_partial_command(THD *thd);
 bool set_tx_isolation(THD *thd,
                       enum_tx_isolation tx_isolation,
                       bool one_shot);
+bool ha_check_reserved_db_name(const char *name);
 
 #endif /* HANDLER_INCLUDED */

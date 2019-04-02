@@ -960,6 +960,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
              (db ? db : (thd->db().str ?
                          thd->db().str :
                          "unknown")));
+  thd->diff_access_denied_errors++;
   DBUG_RETURN(TRUE);
 
 }

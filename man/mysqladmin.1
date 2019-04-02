@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/03/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -124,7 +124,8 @@ Display the server status variables and their values\&.
 .\}
 flush\-hosts
 .sp
-Flush all information in the host cache\&.
+Flush all information in the host cache\&. See
+Section\ \&8.12.5.2, \(lqDNS Lookup Optimization and the Host Cache\(rq\&.
 .RE
 .sp
 .RS 4
@@ -763,6 +764,9 @@ Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -782,6 +786,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
 \&.mylogin\&.cnf\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -810,6 +817,9 @@ also reads the
 and
 [mysqladmin_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -905,6 +915,9 @@ is an option group containing options that specify which MySQL server to connect
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -944,6 +957,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1030,6 +1046,9 @@ The TCP/IP port number to use for the connection\&.
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4

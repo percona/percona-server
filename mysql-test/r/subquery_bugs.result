@@ -34,14 +34,14 @@ EXPLAIN SELECT p.Id FROM (p) WHERE p.Id IN (
 SELECT s1.Id FROM s1 WHERE Id=1 AND u IS NOT NULL) ORDER BY Id DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	p	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
-1	SIMPLE	s1	NULL	ref	o	o	5	const	2	50.00	Using where; Using index; FirstMatch(p)
+1	SIMPLE	s1	NULL	index	o	o	10	NULL	2	100.00	Using where; Using index; FirstMatch(p)
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `Id` from `test`.`p` semi join (`test`.`s1`) where ((`test`.`s1`.`Id` = 1) and (`test`.`s1`.`u` is not null)) order by '1' desc
 EXPLAIN SELECT p.Id FROM (p) WHERE p.Id IN (
 SELECT s1.Id FROM s1 WHERE Id=1 AND u != 1) ORDER BY Id DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	p	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
-1	SIMPLE	s1	NULL	ref	o	o	5	const	3	50.00	Using where; Using index; FirstMatch(p)
+1	SIMPLE	s1	NULL	index	o	o	10	NULL	2	100.00	Using where; Using index; FirstMatch(p)
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `Id` from `test`.`p` semi join (`test`.`s1`) where ((`test`.`s1`.`Id` = 1) and (`test`.`s1`.`u` <> 1)) order by '1' desc
 SELECT p.Id FROM (p) WHERE p.Id IN (

@@ -461,6 +461,13 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
 {
   THD *thd= current_thd;
 
+#ifndef EMBEDDED_LIBRARY
+  thd->diff_denied_connections++;
+  update_global_user_stats(thd, false, time(NULL), mpvio->auth_info.user_name,
+                           mpvio->auth_info.host_or_ip, 
+                           mpvio->auth_info.host_or_ip);
+#endif /* EMBEDDED_LIBRARY */
+
   if (thd->is_error())
     sql_print_information("%s", thd->get_stmt_da()->message_text());
 

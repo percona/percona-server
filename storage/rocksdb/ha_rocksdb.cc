@@ -25,6 +25,7 @@
 
 /* C++ standard header files */
 #include <algorithm>
+#include <inttypes.h>
 #include <limits>
 #include <map>
 #include <queue>
@@ -60,6 +61,7 @@
 #include "rocksdb/utilities/convenience.h"
 #include "rocksdb/utilities/memory_util.h"
 #include "rocksdb/utilities/sim_cache.h"
+#include "rocksdb/utilities/write_batch_with_index.h"
 #include "util/stop_watch.h"
 
 /* MyRocks includes */
@@ -122,11 +124,15 @@ static handler *rocksdb_create_handler(my_core::handlerton *hton,
                                        my_core::TABLE_SHARE *table_arg,
                                        my_core::MEM_ROOT *mem_root);
 
-static rocksdb::CompactRangeOptions getCompactRangeOptions() {
+static rocksdb::CompactRangeOptions
+getCompactRangeOptions(int concurrency = 0) {
   rocksdb::CompactRangeOptions compact_range_options;
   compact_range_options.bottommost_level_compaction =
       rocksdb::BottommostLevelCompaction::kForce;
   compact_range_options.exclusive_manual_compaction = false;
+  if (concurrency > 0) {
+    compact_range_options.max_subcompactions = concurrency;
+  }
   return compact_range_options;
 }
 
@@ -161,6 +167,8 @@ Rdb_hton_init_state hton_init_state;
 
 static Rdb_background_thread rdb_bg_thread;
 
+static Rdb_manual_compaction_thread rdb_mc_thread;
+
 // List of table names (using regex) that are exceptions to the strict
 // collation check requirement.
 Regex *rdb_collation_exceptions;
@@ -172,30 +180,6 @@ static void rocksdb_flush_all_memtables() {
   for (const auto &cf_handle : cf_manager.get_all_cf()) {
     rdb->Flush(rocksdb::FlushOptions(), cf_handle);
   }
-}
-
-static void rocksdb_compact_column_family_stub(
-    THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
-    const void *const save) {}
-
-static int rocksdb_compact_column_family(THD *const thd,
-                                         struct st_mysql_sys_var *const var,
-                                         void *const var_ptr,
-                                         struct st_mysql_value *const value) {
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  int len = sizeof(buff);
-
-  DBUG_ASSERT(value != nullptr);
-
-  if (const char *const cf = value->val_str(value, buff, &len)) {
-    auto cfh = cf_manager.get_cf(cf);
-    if (cfh != nullptr && rdb != nullptr) {
-      sql_print_information("RocksDB: Manual compaction of column family: %s\n",
-                            cf);
-      rdb->CompactRange(getCompactRangeOptions(), cfh, nullptr, nullptr);
-    }
-  }
-  return HA_EXIT_SUCCESS;
 }
 
 ///////////////////////////////////////////////////////////
@@ -302,29 +286,47 @@ static int rocksdb_force_flush_memtable_and_lzero_now(
   rocksdb::ColumnFamilyMetaData metadata;
   rocksdb::ColumnFamilyDescriptor cf_descr;
 
+  static constexpr int max_attempts = 3;
+  int i, num_errors = 0;
+
   for (const auto &cf_handle : cf_manager.get_all_cf()) {
-    rdb->GetColumnFamilyMetaData(cf_handle, &metadata);
-    cf_handle->GetDescriptor(&cf_descr);
-    c_options.output_file_size_limit = cf_descr.options.target_file_size_base;
+    for (i = 0; i < max_attempts; i++) {
+      rdb->GetColumnFamilyMetaData(cf_handle, &metadata);
+      cf_handle->GetDescriptor(&cf_descr);
+      c_options.output_file_size_limit = cf_descr.options.target_file_size_base;
 
-    DBUG_ASSERT(metadata.levels[0].level == 0);
-    std::vector<std::string> file_names;
-    for (auto &file : metadata.levels[0].files) {
-      file_names.emplace_back(file.db_path + file.name);
-    }
+      DBUG_ASSERT(metadata.levels[0].level == 0);
+      std::vector<std::string> file_names;
+      for (const auto &file : metadata.levels[0].files) {
+        file_names.emplace_back(file.db_path + file.name);
+      }
 
-    if (!file_names.empty()) {
+      if (file_names.empty()) {
+        break;
+      }
+
       rocksdb::Status s;
       s = rdb->CompactFiles(c_options, cf_handle, file_names, 1);
+
+      // Due to a race, it's possible for CompactFiles to collide
+      // with auto compaction, causing an error to return
+      // regarding file not found. In that case, retry.
+      if (s.IsInvalidArgument()) {
+        continue;
+      }
 
       if (!s.ok() && !s.IsAborted()) {
         rdb_handle_io_error(s, RDB_IO_ERROR_GENERAL);
         return HA_EXIT_FAILURE;
       }
+      break;
+    }
+    if (i == max_attempts) {
+      num_errors++;
     }
   }
 
-  return HA_EXIT_SUCCESS;
+  return num_errors == 0 ? HA_EXIT_SUCCESS : HA_EXIT_FAILURE;
 }
 
 static void rocksdb_drop_index_wakeup_thread(
@@ -423,25 +425,26 @@ static int rocksdb_validate_set_block_cache_size(
 //////////////////////////////////////////////////////////////////////////////
 // Options definitions
 //////////////////////////////////////////////////////////////////////////////
-static constexpr ulong RDB_MAX_LOCK_WAIT_SECONDS = 1024 * 1024 * 1024;
-static constexpr ulong RDB_MAX_ROW_LOCKS = 1024 * 1024 * 1024;
-static constexpr ulong RDB_DEFAULT_ROW_LOCKS = 1024 * 1024;
-static constexpr ulong RDB_DEFAULT_BULK_LOAD_SIZE = 1000;
-static constexpr ulong RDB_MAX_BULK_LOAD_SIZE = 1024 * 1024 * 1024;
-static constexpr size_t RDB_DEFAULT_MERGE_BUF_SIZE = 64 * 1024 * 1024;
-static constexpr size_t RDB_MIN_MERGE_BUF_SIZE = 100;
-static constexpr size_t RDB_DEFAULT_MERGE_COMBINE_READ_SIZE = 1024 * 1024 * 1024;
-static constexpr size_t RDB_MIN_MERGE_COMBINE_READ_SIZE = 100;
-static constexpr size_t RDB_DEFAULT_MERGE_TMP_FILE_REMOVAL_DELAY = 0;
-static constexpr size_t RDB_MIN_MERGE_TMP_FILE_REMOVAL_DELAY = 0;
-static constexpr int64 RDB_DEFAULT_BLOCK_CACHE_SIZE = 512 * 1024 * 1024;
-static constexpr int64 RDB_MIN_BLOCK_CACHE_SIZE = 1024;
-static constexpr int RDB_MAX_CHECKSUMS_PCT = 100;
-static constexpr uint32_t RDB_DEFAULT_FORCE_COMPUTE_MEMTABLE_STATS_CACHETIME = 60 * 1000 * 1000;
-static constexpr ulong RDB_DEADLOCK_DETECT_DEPTH = 50;
+static const constexpr ulong RDB_MAX_LOCK_WAIT_SECONDS = 1024 * 1024 * 1024;
+static const constexpr ulong RDB_MAX_ROW_LOCKS = 1024 * 1024 * 1024;
+static const constexpr ulong RDB_DEFAULT_ROW_LOCKS = 1024 * 1024;
+static const constexpr ulong RDB_DEFAULT_BULK_LOAD_SIZE = 1000;
+static const constexpr ulong RDB_MAX_BULK_LOAD_SIZE = 1024 * 1024 * 1024;
+static const constexpr size_t RDB_DEFAULT_MERGE_BUF_SIZE = 64 * 1024 * 1024;
+static const constexpr size_t RDB_MIN_MERGE_BUF_SIZE = 100;
+static const constexpr size_t RDB_DEFAULT_MERGE_COMBINE_READ_SIZE = 1024 * 1024 * 1024;
+static const constexpr size_t RDB_MIN_MERGE_COMBINE_READ_SIZE = 100;
+static const constexpr size_t RDB_DEFAULT_MERGE_TMP_FILE_REMOVAL_DELAY = 0;
+static const constexpr size_t RDB_MIN_MERGE_TMP_FILE_REMOVAL_DELAY = 0;
+static const constexpr int64 RDB_DEFAULT_BLOCK_CACHE_SIZE = 512 * 1024 * 1024;
+static const constexpr int64 RDB_MIN_BLOCK_CACHE_SIZE = 1024;
+static const constexpr int RDB_MAX_CHECKSUMS_PCT = 100;
+static const constexpr uint32_t RDB_DEFAULT_FORCE_COMPUTE_MEMTABLE_STATS_CACHETIME = 60 * 1000 * 1000;
+static const constexpr ulong RDB_DEADLOCK_DETECT_DEPTH = 50;
 
 static long long rocksdb_block_cache_size = RDB_DEFAULT_BLOCK_CACHE_SIZE;
 static long long rocksdb_sim_cache_size = 0;
+static double rocksdb_cache_high_pri_pool_ratio = 0.0;
 /* Use unsigned long long instead of uint64_t because of MySQL compatibility */
 static unsigned long long  // NOLINT(runtime/int)
     rocksdb_rate_limiter_bytes_per_sec = 0;
@@ -503,11 +506,15 @@ static uint64_t rocksdb_write_policy =
 static my_bool rocksdb_error_on_suboptimal_collation = FALSE;
 static uint32_t rocksdb_stats_recalc_rate = 0;
 static my_bool rocksdb_no_create_column_family = FALSE;
+static uint32_t rocksdb_debug_manual_compaction_delay = 0;
+static uint32_t rocksdb_max_manual_compactions = 0;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
 std::atomic<uint64_t> rocksdb_snapshot_conflict_errors(0);
 std::atomic<uint64_t> rocksdb_wal_group_syncs(0);
+std::atomic<uint64_t> rocksdb_manual_compactions_processed(0);
+std::atomic<uint64_t> rocksdb_manual_compactions_running(0);
 
 static std::unique_ptr<rocksdb::DBOptions> rdb_init_rocksdb_db_options(void) {
   auto o = std::unique_ptr<rocksdb::DBOptions>(new rocksdb::DBOptions());
@@ -613,6 +620,14 @@ static int rocksdb_validate_flush_log_at_trx_commit(
   *static_cast<uint32_t *>(var_ptr) = static_cast<uint32_t>(new_value);
   return HA_EXIT_SUCCESS;
 }
+static void rocksdb_compact_column_family_stub(
+    THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
+    const void *const save) {}
+
+static int rocksdb_compact_column_family(THD *const thd,
+                                         struct st_mysql_sys_var *const var,
+                                         void *const var_ptr,
+                                         struct st_mysql_value *const value);
 
 static const char *index_type_names[] = {"kBinarySearch", "kHashSearch", NullS};
 
@@ -682,11 +697,12 @@ static MYSQL_THDVAR_BOOL(
     nullptr, nullptr, false);
 
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
+#define DEFAULT_READ_FREE_RPL_TABLES ""
 static MYSQL_THDVAR_STR(
     read_free_rpl_tables, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
     "Regex that describes set of tables that will use read-free replication "
     "on the slave (i.e. not lookup a row during replication)",
-    nullptr, nullptr, "");
+    nullptr, nullptr, DEFAULT_READ_FREE_RPL_TABLES);
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
 static MYSQL_SYSVAR_BOOL(
@@ -752,6 +768,12 @@ static MYSQL_THDVAR_ULONGLONG(
     /* default (0ms) */ RDB_DEFAULT_MERGE_TMP_FILE_REMOVAL_DELAY,
     /* min (0ms) */ RDB_MIN_MERGE_TMP_FILE_REMOVAL_DELAY,
     /* max */ SIZE_T_MAX, 1);
+
+static MYSQL_THDVAR_INT(
+    manual_compaction_threads, PLUGIN_VAR_RQCMDARG,
+    "How many rocksdb threads to run for manual compactions", nullptr, nullptr,
+    /* default rocksdb.dboption max_subcompactions */ 0,
+    /* min */ 0, /* max */ 128, 0);
 
 static MYSQL_SYSVAR_BOOL(
     create_if_missing,
@@ -1132,6 +1154,13 @@ static MYSQL_SYSVAR_LONGLONG(sim_cache_size, rocksdb_sim_cache_size,
                              /* max */ LLONG_MAX,
                              /* Block size */ 0);
 
+static MYSQL_SYSVAR_DOUBLE(cache_high_pri_pool_ratio,
+                           rocksdb_cache_high_pri_pool_ratio,
+                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                           "Specify the size of block cache high-pri pool",
+                           nullptr, nullptr, /* default */ 0.0, /* min */ 0.0,
+                           /* max */ 1.0, 0);
+
 static MYSQL_SYSVAR_BOOL(
     cache_index_and_filter_blocks,
     *reinterpret_cast<my_bool *>(
@@ -1139,6 +1168,14 @@ static MYSQL_SYSVAR_BOOL(
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "BlockBasedTableOptions::cache_index_and_filter_blocks for RocksDB",
     nullptr, nullptr, true);
+
+static MYSQL_SYSVAR_BOOL(
+    cache_index_and_filter_with_high_priority,
+    *reinterpret_cast<my_bool *>(
+        &rocksdb_tbl_options->cache_index_and_filter_blocks_with_high_priority),
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "cache_index_and_filter_blocks_with_high_priority for RocksDB", nullptr,
+    nullptr, true);
 
 // When pin_l0_filter_and_index_blocks_in_cache is true, RocksDB will  use the
 // LRU cache, but will always keep the filter & idndex block's handle checked
@@ -1359,6 +1396,18 @@ static MYSQL_SYSVAR_BOOL(
     "For debugging purposes only. If true, compaction filtering will not occur "
     "on PK TTL data. This variable is a no-op in non-debug builds.",
     nullptr, nullptr, false);
+
+static MYSQL_SYSVAR_UINT(
+    max_manual_compactions, rocksdb_max_manual_compactions, PLUGIN_VAR_RQCMDARG,
+    "Maximum number of pending + ongoing number of manual compactions.",
+    nullptr, nullptr, /* default */ 10, /* min */ 0, /* max */ UINT_MAX, 0);
+
+static MYSQL_SYSVAR_UINT(
+    debug_manual_compaction_delay, rocksdb_debug_manual_compaction_delay,
+    PLUGIN_VAR_RQCMDARG,
+    "For debugging purposes only. Sleeping specified seconds "
+    "for simulating long running compactions.",
+    nullptr, nullptr, 0, /* min */ 0, /* max */ UINT_MAX, 0);
 
 static MYSQL_SYSVAR_BOOL(
     reset_stats, rocksdb_reset_stats, PLUGIN_VAR_RQCMDARG,
@@ -1613,7 +1662,9 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
 
     MYSQL_SYSVAR(block_cache_size),
     MYSQL_SYSVAR(sim_cache_size),
+    MYSQL_SYSVAR(cache_high_pri_pool_ratio),
     MYSQL_SYSVAR(cache_index_and_filter_blocks),
+    MYSQL_SYSVAR(cache_index_and_filter_with_high_priority),
     MYSQL_SYSVAR(pin_l0_filter_and_index_blocks_in_cache),
     MYSQL_SYSVAR(index_type),
     MYSQL_SYSVAR(hash_index_allow_collision),
@@ -1684,6 +1735,9 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(error_on_suboptimal_collation),
     MYSQL_SYSVAR(no_create_column_family),
     MYSQL_SYSVAR(stats_recalc_rate),
+    MYSQL_SYSVAR(debug_manual_compaction_delay),
+    MYSQL_SYSVAR(max_manual_compactions),
+    MYSQL_SYSVAR(manual_compaction_threads),
     nullptr};
 
 static rocksdb::WriteOptions
@@ -1696,6 +1750,50 @@ rdb_get_rocksdb_write_options(my_core::THD *const thd) {
       THDVAR(thd, write_ignore_missing_column_families);
 
   return opt;
+}
+
+static int rocksdb_compact_column_family(THD *const thd,
+                                         struct st_mysql_sys_var *const var,
+                                         void *const var_ptr,
+                                         struct st_mysql_value *const value) {
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  int len = sizeof(buff);
+
+  DBUG_ASSERT(value != nullptr);
+
+  if (const char *const cf = value->val_str(value, buff, &len)) {
+    auto cfh = cf_manager.get_cf(cf);
+    if (cfh != nullptr && rdb != nullptr) {
+      int mc_id = rdb_mc_thread.request_manual_compaction(
+          cfh, nullptr, nullptr, THDVAR(thd, manual_compaction_threads));
+      if (mc_id == -1) {
+        my_error(ER_INTERNAL_ERROR, MYF(0),
+                 "Can't schedule more manual compactions. "
+                 "Increase rocksdb_max_manual_compactions or stop issuing "
+                 "more manual compactions.");
+        return HA_EXIT_FAILURE;
+      } else if (mc_id < 0) {
+        return HA_EXIT_FAILURE;
+      }
+      // NO_LINT_DEBUG
+      sql_print_information("RocksDB: Manual compaction of column family: %s\n",
+                            cf);
+      // Checking thd state every short cycle (100ms). This is for allowing to
+      // exiting this function without waiting for CompactRange to finish.
+      do {
+        my_sleep(100000);
+      } while (!thd->killed &&
+               !rdb_mc_thread.is_manual_compaction_finished(mc_id));
+
+      if (thd->killed) {
+        // This cancels if requested compaction state is INITED.
+        // TODO(yoshinorim): Cancel running compaction as well once
+        // it is supported in RocksDB.
+        rdb_mc_thread.clear_manual_compaction_request(mc_id, true);
+      }
+    }
+  }
+  return HA_EXIT_SUCCESS;
 }
 
 /*
@@ -1777,8 +1875,6 @@ class Rdb_transaction {
   bool m_is_delayed_snapshot = false;
 
  private:
-  /* Number of RockDB savepoints taken */
-  int m_n_savepoints;
   /*
     Number of write operations this transaction had when we took the last
     savepoint (the idea is not to take another savepoint if we haven't made
@@ -1809,6 +1905,7 @@ class Rdb_transaction {
   std::shared_ptr<Rdb_snapshot_notifier> m_notifier;
 
   // This should be used only when updating binlog information.
+  virtual rocksdb::WriteBatchBase *get_write_batch() = 0;
   virtual bool commit_no_binlog() = 0;
   virtual rocksdb::Iterator *
   get_iterator(const rocksdb::ReadOptions &options,
@@ -2300,7 +2397,6 @@ public:
       entire transaction.
     */
     do_set_savepoint();
-    m_n_savepoints = 1;
     m_writes_at_last_savepoint = m_write_count;
   }
 
@@ -2308,16 +2404,26 @@ public:
     Called when a "top-level" statement inside a transaction completes
     successfully and its changes become part of the transaction's changes.
   */
-  void make_stmt_savepoint_permanent() {
+  int make_stmt_savepoint_permanent() {
 
     // Take another RocksDB savepoint only if we had changes since the last
     // one. This is very important for long transactions doing lots of
     // SELECTs.
     if (m_writes_at_last_savepoint != m_write_count) {
+      rocksdb::WriteBatchBase *batch = get_write_batch();
+      rocksdb::Status status = rocksdb::Status::NotFound();
+      while ((status = batch->PopSavePoint()) == rocksdb::Status::OK()) {
+      }
+
+      if (status != rocksdb::Status::NotFound()) {
+        return HA_EXIT_FAILURE;
+      }
+
       do_set_savepoint();
       m_writes_at_last_savepoint = m_write_count;
-      m_n_savepoints++;
     }
+
+    return HA_EXIT_SUCCESS;
   }
 
   /*
@@ -2326,10 +2432,14 @@ public:
   void rollback_to_stmt_savepoint() {
     if (m_writes_at_last_savepoint != m_write_count) {
       do_rollback_to_savepoint();
-      if (!--m_n_savepoints) {
-        do_set_savepoint();
-        m_n_savepoints = 1;
-      }
+      /*
+        RollbackToSavePoint "removes the most recent SetSavePoint()", so
+        we need to set it again so that next statement can roll back to this
+        stage.
+        It's ok to do it here at statement end (instead of doing it at next
+        statement start) because setting a savepoint is cheap.
+      */
+      do_set_savepoint();
       m_writes_at_last_savepoint = m_write_count;
     }
   }
@@ -2558,6 +2668,10 @@ public:
     return m_rocksdb_tx->GetWriteBatch() &&
            m_rocksdb_tx->GetWriteBatch()->GetWriteBatch() &&
            m_rocksdb_tx->GetWriteBatch()->GetWriteBatch()->Count() > 0;
+  }
+
+  rocksdb::WriteBatchBase *get_write_batch() override {
+    return m_rocksdb_tx->GetCommitTimeWriteBatch();
   }
 
   /*
@@ -2824,6 +2938,8 @@ error:
   bool has_modifications() const override {
     return m_batch->GetWriteBatch()->Count() > 0;
   }
+
+  rocksdb::WriteBatchBase *get_write_batch() override { return m_batch; }
 
   rocksdb::WriteBatchBase *get_indexed_write_batch() override {
     ++m_write_count;
@@ -3429,6 +3545,7 @@ private:
     if (!path_entry.path.empty() && !path_entry.limit_exceeded) {
       const auto& deadlocking_txn = *(path_entry.path.end() - 1);
       deadlock_info.victim_trx_id = deadlocking_txn.m_txn_id;
+      deadlock_info.deadlock_time = path_entry.deadlock_time;
     }
     return deadlock_info;
   }
@@ -3913,9 +4030,11 @@ static int rocksdb_init_func(void *const p) {
   rdb_bg_thread.init(rdb_signal_bg_psi_mutex_key, rdb_signal_bg_psi_cond_key);
   rdb_drop_idx_thread.init(rdb_signal_drop_idx_psi_mutex_key,
                            rdb_signal_drop_idx_psi_cond_key);
+  rdb_mc_thread.init(rdb_signal_mc_psi_mutex_key, rdb_signal_mc_psi_cond_key);
 #else
   rdb_bg_thread.init();
   rdb_drop_idx_thread.init();
+  rdb_mc_thread.init();
 #endif
   mysql_mutex_init(rdb_collation_data_mutex_key, &rdb_collation_data_mutex,
                    MY_MUTEX_INIT_FAST);
@@ -4092,8 +4211,9 @@ static int rocksdb_init_func(void *const p) {
       (rocksdb::BlockBasedTableOptions::IndexType)rocksdb_index_type;
 
   if (!rocksdb_tbl_options->no_block_cache) {
-    std::shared_ptr<rocksdb::Cache> block_cache =
-        rocksdb::NewLRUCache(rocksdb_block_cache_size);
+    std::shared_ptr<rocksdb::Cache> block_cache = rocksdb::NewLRUCache(
+        rocksdb_block_cache_size, -1 /*num_shard_bits*/,
+        false /*strict_capcity_limit*/, rocksdb_cache_high_pri_pool_ratio);
     if (rocksdb_sim_cache_size > 0) {
       // Simulated cache enabled
       // Wrap block cache inside a simulated cache and pass it to RocksDB
@@ -4186,7 +4306,7 @@ static int rocksdb_init_func(void *const p) {
                              cf_options_map->get_defaults());
 
   rocksdb::TransactionDBOptions tx_db_options;
-  tx_db_options.transaction_lock_timeout = 2; // 2 seconds
+  tx_db_options.transaction_lock_timeout = 2000;  // 2 seconds
   tx_db_options.custom_mutex_factory = std::make_shared<Rdb_mutex_factory>();
   tx_db_options.write_policy =
       static_cast<rocksdb::TxnDBWritePolicy>(rocksdb_write_policy);
@@ -4282,6 +4402,20 @@ static int rocksdb_init_func(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
+  err = rdb_mc_thread.create_thread(MANUAL_COMPACTION_THREAD_NAME
+#ifdef HAVE_PSI_INTERFACE
+                                    ,
+                                    rdb_mc_psi_thread_key
+#endif
+  );
+  if (err != 0) {
+    // NO_LINT_DEBUG
+    sql_print_error(
+        "RocksDB: Couldn't start the manual compaction thread: (errno=%d)",
+        err);
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  }
+
   rdb_set_collation_exception_list(rocksdb_strict_collation_exceptions);
 
   if (rocksdb_pause_background_work) {
@@ -4353,6 +4487,16 @@ static int rocksdb_done_func(void *const p) {
   if (err != 0) {
     // NO_LINT_DEBUG
     sql_print_error("RocksDB: Couldn't stop the index thread: (errno=%d)", err);
+  }
+
+  // signal the manual compaction thread to stop
+  rdb_mc_thread.signal(true);
+  // Wait for the manual compaction thread to finish.
+  err = rdb_mc_thread.join();
+  if (err != 0) {
+    // NO_LINT_DEBUG
+    sql_print_error(
+        "RocksDB: Couldn't stop the manual compaction thread: (errno=%d)", err);
   }
 
   if (rdb_open_tables.m_hash.size()) {
@@ -5808,7 +5952,7 @@ void ha_rocksdb::free_key_buffers() {
 
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 void ha_rocksdb::set_use_read_free_rpl(const char *const whitelist) {
-  DBUG_ASSERT(whitelist != nullptr);
+  const char *const wl = whitelist ? whitelist : DEFAULT_READ_FREE_RPL_TABLES;
 
 #if defined(HAVE_PSI_INTERFACE)
   Regex regex_handler(key_rwlock_read_free_rpl_tables);
@@ -5820,10 +5964,8 @@ void ha_rocksdb::set_use_read_free_rpl(const char *const whitelist) {
   if (lower_case_table_names)
     flags |= MY_REG_ICASE;
 
-  if (!regex_handler.compile(whitelist,
-                             flags,
-                             table_alias_charset)) {
-      warn_about_bad_patterns(regex_handler, "read_free_rpl_tables");
+  if (!regex_handler.compile(wl, flags, table_alias_charset)) {
+    warn_about_bad_patterns(regex_handler, "read_free_rpl_tables");
   }
 
   m_use_read_free_rpl = regex_handler.match(m_tbl_def->base_tablename());
@@ -8226,11 +8368,7 @@ int ha_rocksdb::index_last_intern(uchar *const buf) {
   DBUG_ASSERT(key != nullptr);
 
   const Rdb_key_def &kd = *m_key_descr_arr[active_index];
-  if (kd.m_is_reverse_cf) {
-    kd.get_infimum_key(key, &key_size);
-  } else {
-    kd.get_supremum_key(key, &key_size);
-  }
+  int key_end_matching_bytes = kd.get_last_key(key, &key_size);
 
   rocksdb::Slice index_key((const char *)key, key_size);
 
@@ -8241,7 +8379,7 @@ int ha_rocksdb::index_last_intern(uchar *const buf) {
   // Loop as long as we get a deadlock error AND we end up creating the
   // snapshot here (i.e. it did not exist prior to this)
   for (;;) {
-    setup_scan_iterator(kd, &index_key, false, Rdb_key_def::INDEX_NUMBER_SIZE);
+    setup_scan_iterator(kd, &index_key, false, key_end_matching_bytes);
     m_scan_it->SeekForPrev(index_key);
     m_skip_scan_it_next_call = false;
 
@@ -8872,7 +9010,7 @@ int ha_rocksdb::update_pk(const Rdb_key_def &kd,
     }
   }
 
-  if (table->next_number_field) {
+  if (table->found_next_number_field) {
     update_auto_incr_val_from_field();
   }
 
@@ -9115,18 +9253,29 @@ void ha_rocksdb::setup_iterator_bounds(
     const Rdb_key_def &kd, const rocksdb::Slice &eq_cond, size_t bound_len,
     uchar *const lower_bound, uchar *const upper_bound,
     rocksdb::Slice *lower_bound_slice, rocksdb::Slice *upper_bound_slice) {
-  uint min_len = std::min(eq_cond.size(), bound_len);
-  memcpy(upper_bound, eq_cond.data(), min_len);
-  kd.successor(upper_bound, min_len);
-  memcpy(lower_bound, eq_cond.data(), min_len);
-  kd.predecessor(lower_bound, min_len);
+  // If eq_cond is shorter than Rdb_key_def::INDEX_NUMBER_SIZE, we should be
+  // able to get better bounds just by using index id directly.
+  if (eq_cond.size() <= Rdb_key_def::INDEX_NUMBER_SIZE) {
+    DBUG_ASSERT(bound_len == Rdb_key_def::INDEX_NUMBER_SIZE);
+    uint size;
+    kd.get_infimum_key(lower_bound, &size);
+    DBUG_ASSERT(size == Rdb_key_def::INDEX_NUMBER_SIZE);
+    kd.get_supremum_key(upper_bound, &size);
+    DBUG_ASSERT(size == Rdb_key_def::INDEX_NUMBER_SIZE);
+  } else {
+    DBUG_ASSERT(bound_len <= eq_cond.size());
+    memcpy(upper_bound, eq_cond.data(), bound_len);
+    kd.successor(upper_bound, bound_len);
+    memcpy(lower_bound, eq_cond.data(), bound_len);
+    kd.predecessor(lower_bound, bound_len);
+  }
 
   if (kd.m_is_reverse_cf) {
-    *upper_bound_slice = rocksdb::Slice((const char *)lower_bound, min_len);
-    *lower_bound_slice = rocksdb::Slice((const char *)upper_bound, min_len);
+    *upper_bound_slice = rocksdb::Slice((const char *)lower_bound, bound_len);
+    *lower_bound_slice = rocksdb::Slice((const char *)upper_bound, bound_len);
   } else {
-    *upper_bound_slice = rocksdb::Slice((const char *)upper_bound, min_len);
-    *lower_bound_slice = rocksdb::Slice((const char *)lower_bound, min_len);
+    *upper_bound_slice = rocksdb::Slice((const char *)upper_bound, bound_len);
+    *lower_bound_slice = rocksdb::Slice((const char *)lower_bound, bound_len);
   }
 }
 
@@ -9146,8 +9295,17 @@ void ha_rocksdb::setup_scan_iterator(const Rdb_key_def &kd,
   bool skip_bloom = true;
 
   const rocksdb::Slice eq_cond(slice->data(), eq_cond_len);
+  // The size of m_scan_it_lower_bound (and upper) is technically
+  // max_packed_sk_len as calculated in ha_rocksdb::alloc_key_buffers.  Rather
+  // than recalculating that number, we pass in the max of eq_cond_len and
+  // Rdb_key_def::INDEX_NUMBER_SIZE which is guaranteed to be smaller than
+  // max_packed_sk_len, hence ensuring no buffer overrun.
+  //
+  // See ha_rocksdb::setup_iterator_bounds on how the bound_len parameter is
+  // used.
   if (check_bloom_and_set_bounds(
-          ha_thd(), kd, eq_cond, use_all_keys, eq_cond_len,
+          ha_thd(), kd, eq_cond, use_all_keys,
+          std::max(eq_cond_len, (uint)Rdb_key_def::INDEX_NUMBER_SIZE),
           m_scan_it_lower_bound, m_scan_it_upper_bound,
           &m_scan_it_lower_bound_slice, &m_scan_it_upper_bound_slice)) {
     skip_bloom = false;
@@ -9831,7 +9989,7 @@ THR_LOCK_DATA **ha_rocksdb::store_lock(THD *const thd, THR_LOCK_DATA **to,
     m_lock_rows = RDB_LOCK_WRITE;
   } else if (lock_type == TL_READ_WITH_SHARED_LOCKS) {
     m_lock_rows = RDB_LOCK_READ;
-  } else {
+  } else if (lock_type != TL_IGNORE) {
     m_lock_rows = RDB_LOCK_NONE;
     if (THDVAR(thd, lock_scanned_rows)) {
       /*
@@ -10828,73 +10986,77 @@ void ha_rocksdb::get_auto_increment(ulonglong off, ulonglong inc,
     // The next value can be more complicated if either 'inc' or 'off' is not 1
     ulonglong last_val = auto_incr;
 
-    // Loop until we can correctly update the atomic value
-    do {
-      DBUG_ASSERT(last_val > 0);
-      // Calculate the next value in the auto increment series: offset
-      // + N * increment where N is 0, 1, 2, ...
-      //
-      // For further information please visit:
-      // http://dev.mysql.com/doc/refman/5.7/en/replication-options-master.html
-      //
-      // The following is confusing so here is an explanation:
-      // To get the next number in the sequence above you subtract out the
-      // offset, calculate the next sequence (N * increment) and then add the
-      // offset back in.
-      //
-      // The additions are rearranged to avoid overflow.  The following is
-      // equivalent to (last_val - 1 + inc - off) / inc. This uses the fact
-      // that (a+b)/c = a/c + b/c + (a%c + b%c)/c. To show why:
-      //
-      // (a+b)/c
-      // = (a - a%c + a%c + b - b%c + b%c) / c
-      // = (a - a%c) / c + (b - b%c) / c + (a%c + b%c) / c
-      // = a/c + b/c + (a%c + b%c) / c
-      //
-      // Now, substitute a = last_val - 1, b = inc - off, c = inc to get the
-      // following statement.
-      ulonglong n =
-          (last_val - 1) / inc + ((last_val - 1) % inc + inc - off) / inc;
-
-      // Check if n * inc + off will overflow. This can only happen if we have
-      // an UNSIGNED BIGINT field.
-      if (n > (std::numeric_limits<ulonglong>::max() - off) / inc) {
-        DBUG_ASSERT(max_val == std::numeric_limits<ulonglong>::max());
-        // The 'last_val' value is already equal to or larger than the largest
-        // value in the sequence.  Continuing would wrap around (technically
-        // the behavior would be undefined).  What should we do?
-        // We could:
-        //   1) set the new value to the last possible number in our sequence
-        //      as described above.  The problem with this is that this
-        //      number could be smaller than a value in an existing row.
-        //   2) set the new value to the largest possible number.  This number
-        //      may not be in our sequence, but it is guaranteed to be equal
-        //      to or larger than any other value already inserted.
+    if (last_val > max_val) {
+      new_val = std::numeric_limits<ulonglong>::max();
+    } else {
+      // Loop until we can correctly update the atomic value
+      do {
+        DBUG_ASSERT(last_val > 0);
+        // Calculate the next value in the auto increment series: offset
+        // + N * increment where N is 0, 1, 2, ...
         //
-        //  For now I'm going to take option 2.
+        // For further information please visit:
+        // http://dev.mysql.com/doc/refman/5.7/en/replication-options-master.html
         //
-        //  Returning ULLONG_MAX from get_auto_increment will cause the SQL
-        //  layer to fail with ER_AUTOINC_READ_FAILED. This means that due to
-        //  the SE API for get_auto_increment, inserts will fail with
-        //  ER_AUTOINC_READ_FAILED if the column is UNSIGNED BIGINT, but
-        //  inserts will fail with ER_DUP_ENTRY for other types (or no failure
-        //  if the column is in a non-unique SK).
-        new_val = std::numeric_limits<ulonglong>::max();
-        auto_incr = new_val;  // Store the largest value into auto_incr
-        break;
-      }
+        // The following is confusing so here is an explanation:
+        // To get the next number in the sequence above you subtract out the
+        // offset, calculate the next sequence (N * increment) and then add the
+        // offset back in.
+        //
+        // The additions are rearranged to avoid overflow.  The following is
+        // equivalent to (last_val - 1 + inc - off) / inc. This uses the fact
+        // that (a+b)/c = a/c + b/c + (a%c + b%c)/c. To show why:
+        //
+        // (a+b)/c
+        // = (a - a%c + a%c + b - b%c + b%c) / c
+        // = (a - a%c) / c + (b - b%c) / c + (a%c + b%c) / c
+        // = a/c + b/c + (a%c + b%c) / c
+        //
+        // Now, substitute a = last_val - 1, b = inc - off, c = inc to get the
+        // following statement.
+        ulonglong n =
+            (last_val - 1) / inc + ((last_val - 1) % inc + inc - off) / inc;
 
-      new_val = n * inc + off;
+        // Check if n * inc + off will overflow. This can only happen if we have
+        // an UNSIGNED BIGINT field.
+        if (n > (std::numeric_limits<ulonglong>::max() - off) / inc) {
+          DBUG_ASSERT(max_val == std::numeric_limits<ulonglong>::max());
+          // The 'last_val' value is already equal to or larger than the largest
+          // value in the sequence.  Continuing would wrap around (technically
+          // the behavior would be undefined).  What should we do?
+          // We could:
+          //   1) set the new value to the last possible number in our sequence
+          //      as described above.  The problem with this is that this
+          //      number could be smaller than a value in an existing row.
+          //   2) set the new value to the largest possible number.  This number
+          //      may not be in our sequence, but it is guaranteed to be equal
+          //      to or larger than any other value already inserted.
+          //
+          //  For now I'm going to take option 2.
+          //
+          //  Returning ULLONG_MAX from get_auto_increment will cause the SQL
+          //  layer to fail with ER_AUTOINC_READ_FAILED. This means that due to
+          //  the SE API for get_auto_increment, inserts will fail with
+          //  ER_AUTOINC_READ_FAILED if the column is UNSIGNED BIGINT, but
+          //  inserts will fail with ER_DUP_ENTRY for other types (or no failure
+          //  if the column is in a non-unique SK).
+          new_val = std::numeric_limits<ulonglong>::max();
+          auto_incr = new_val;  // Store the largest value into auto_incr
+          break;
+        }
 
-      // Attempt to store the new value (plus 1 since m_auto_incr_val contains
-      // the next available value) into the atomic value.  If the current
-      // value no longer matches what we have in 'last_val' this will fail and
-      // we will repeat the loop (`last_val` will automatically get updated
-      // with the current value).
-      //
-      // See above explanation for inc == 1 for why we use std::min.
-    } while (!auto_incr.compare_exchange_weak(last_val,
-                                              std::min(new_val + 1, max_val)));
+        new_val = n * inc + off;
+
+        // Attempt to store the new value (plus 1 since m_auto_incr_val contains
+        // the next available value) into the atomic value.  If the current
+        // value no longer matches what we have in 'last_val' this will fail and
+        // we will repeat the loop (`last_val` will automatically get updated
+        // with the current value).
+        //
+        // See above explanation for inc == 1 for why we use std::min.
+      } while (!auto_incr.compare_exchange_weak(
+          last_val, std::min(new_val + 1, max_val)));
+    }
   }
 
   *first_value = new_val;
@@ -11410,7 +11572,7 @@ int ha_rocksdb::inplace_populate_sk(
             the duplicate record.
           */
           if (index->unpack_record(new_table_arg, new_table_arg->record[0],
-                                   &merge_key, nullptr,
+                                   &merge_key, &merge_val,
                                    m_verify_row_debug_checksums)) {
             /* Should never reach here */
             DBUG_ASSERT(0);
@@ -12059,6 +12221,10 @@ static SHOW_VAR rocksdb_status_vars[] = {
                        &rocksdb_snapshot_conflict_errors, SHOW_LONGLONG),
     DEF_STATUS_VAR_PTR("wal_group_syncs", &rocksdb_wal_group_syncs,
                        SHOW_LONGLONG),
+    DEF_STATUS_VAR_PTR("manual_compactions_processed",
+                       &rocksdb_manual_compactions_processed, SHOW_LONGLONG),
+    DEF_STATUS_VAR_PTR("manual_compactions_running",
+                       &rocksdb_manual_compactions_running, SHOW_LONGLONG),
     DEF_STATUS_VAR_PTR("number_sst_entry_put", &rocksdb_num_sst_entry_put,
                        SHOW_LONGLONG),
     DEF_STATUS_VAR_PTR("number_sst_entry_delete", &rocksdb_num_sst_entry_delete,
@@ -12177,6 +12343,159 @@ void Rdb_background_thread::run() {
 
   // save remaining stats which might've left unsaved
   ddl_manager.persist_stats();
+}
+
+/*
+  A background thread to handle manual compactions,
+  except for dropping indexes/tables. Every second, it checks
+  pending manual compactions, and it calls CompactRange if there is.
+*/
+void Rdb_manual_compaction_thread::run() {
+  mysql_mutex_init(0, &m_mc_mutex, MY_MUTEX_INIT_FAST);
+  RDB_MUTEX_LOCK_CHECK(m_signal_mutex);
+  for (;;) {
+    if (m_stop) {
+      break;
+    }
+    timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 1;
+
+    const auto ret MY_ATTRIBUTE((__unused__)) =
+        mysql_cond_timedwait(&m_signal_cond, &m_signal_mutex, &ts);
+    if (m_stop) {
+      break;
+    }
+    // make sure, no program error is returned
+    DBUG_ASSERT(ret == 0 || ret == ETIMEDOUT);
+    RDB_MUTEX_UNLOCK_CHECK(m_signal_mutex);
+
+    RDB_MUTEX_LOCK_CHECK(m_mc_mutex);
+    // Grab the first item and proceed, if not empty.
+    if (m_requests.empty()) {
+      RDB_MUTEX_UNLOCK_CHECK(m_mc_mutex);
+      RDB_MUTEX_LOCK_CHECK(m_signal_mutex);
+      continue;
+    }
+    Manual_compaction_request &mcr = m_requests.begin()->second;
+    DBUG_ASSERT(mcr.cf != nullptr);
+    DBUG_ASSERT(mcr.state == Manual_compaction_request::INITED);
+    mcr.state = Manual_compaction_request::RUNNING;
+    RDB_MUTEX_UNLOCK_CHECK(m_mc_mutex);
+
+    DBUG_ASSERT(mcr.state == Manual_compaction_request::RUNNING);
+    // NO_LINT_DEBUG
+    sql_print_information("Manual Compaction id %d cf %s started.", mcr.mc_id,
+                          mcr.cf->GetName().c_str());
+    rocksdb_manual_compactions_running++;
+    if (rocksdb_debug_manual_compaction_delay > 0) {
+      // In Facebook MySQL 5.6.35, my_sleep breaks the sleep when the server
+      // gets a shutdown signal and this code depended on that behavior.
+      // In 5.7, for whatever reason, this is not the case.  my_sleep will
+      // continue to sleep until the sleep time has elapsed.  For the purpose
+      // of this variable and the accompanying test case, we need to break this
+      // down into a loop that sleeps and checks to see if the thread was
+      // signalled with the stop flag.  It is ugly, but without having DBUG_SYNC
+      // available in background threads, it is good enough for the test.
+      for (uint32_t sleeps = 0; sleeps < rocksdb_debug_manual_compaction_delay;
+           sleeps++) {
+        RDB_MUTEX_LOCK_CHECK(m_signal_mutex);
+        const bool local_stop = m_stop;
+        RDB_MUTEX_UNLOCK_CHECK(m_signal_mutex);
+        if (local_stop)
+          break;
+        my_sleep(1000000);
+      }
+    }
+    // CompactRange may take a very long time. On clean shutdown,
+    // it is cancelled by CancelAllBackgroundWork, then status is
+    // set to shutdownInProgress.
+    const rocksdb::Status s = rdb->CompactRange(
+        getCompactRangeOptions(mcr.concurrency), mcr.cf, mcr.start, mcr.limit);
+    rocksdb_manual_compactions_running--;
+    if (s.ok()) {
+      // NO_LINT_DEBUG
+      sql_print_information("Manual Compaction id %d cf %s ended.", mcr.mc_id,
+                            mcr.cf->GetName().c_str());
+    } else {
+      // NO_LINT_DEBUG
+      sql_print_information("Manual Compaction id %d cf %s aborted. %s",
+                            mcr.mc_id, mcr.cf->GetName().c_str(), s.getState());
+      if (!s.IsShutdownInProgress()) {
+        rdb_handle_io_error(s, RDB_IO_ERROR_BG_THREAD);
+      } else {
+        DBUG_ASSERT(m_requests.size() == 1);
+      }
+    }
+    rocksdb_manual_compactions_processed++;
+    clear_manual_compaction_request(mcr.mc_id, false);
+    RDB_MUTEX_LOCK_CHECK(m_signal_mutex);
+  }
+  clear_all_manual_compaction_requests();
+  DBUG_ASSERT(m_requests.empty());
+  RDB_MUTEX_UNLOCK_CHECK(m_signal_mutex);
+  mysql_mutex_destroy(&m_mc_mutex);
+}
+
+void Rdb_manual_compaction_thread::clear_all_manual_compaction_requests() {
+  RDB_MUTEX_LOCK_CHECK(m_mc_mutex);
+  m_requests.clear();
+  RDB_MUTEX_UNLOCK_CHECK(m_mc_mutex);
+}
+
+void Rdb_manual_compaction_thread::clear_manual_compaction_request(
+    int mc_id, bool init_only) {
+  bool erase = true;
+  RDB_MUTEX_LOCK_CHECK(m_mc_mutex);
+  auto it = m_requests.find(mc_id);
+  if (it != m_requests.end()) {
+    if (init_only) {
+      Manual_compaction_request mcr = it->second;
+      if (mcr.state != Manual_compaction_request::INITED) {
+        erase = false;
+      }
+    }
+    if (erase) {
+      m_requests.erase(it);
+    }
+  } else {
+    // Current code path guarantees that erasing by the same mc_id happens
+    // at most once. INITED state may be erased by a thread that requested
+    // the compaction. RUNNING state is erased by mc thread only.
+    DBUG_ASSERT(0);
+  }
+  RDB_MUTEX_UNLOCK_CHECK(m_mc_mutex);
+}
+
+int Rdb_manual_compaction_thread::request_manual_compaction(
+    rocksdb::ColumnFamilyHandle *cf, rocksdb::Slice *start,
+    rocksdb::Slice *limit, int concurrency) {
+  int mc_id = -1;
+  RDB_MUTEX_LOCK_CHECK(m_mc_mutex);
+  if (m_requests.size() >= rocksdb_max_manual_compactions) {
+    RDB_MUTEX_UNLOCK_CHECK(m_mc_mutex);
+    return mc_id;
+  }
+  Manual_compaction_request mcr;
+  mc_id = mcr.mc_id = ++m_latest_mc_id;
+  mcr.state = Manual_compaction_request::INITED;
+  mcr.cf = cf;
+  mcr.start = start;
+  mcr.limit = limit;
+  mcr.concurrency = concurrency;
+  m_requests.insert(std::make_pair(mcr.mc_id, mcr));
+  RDB_MUTEX_UNLOCK_CHECK(m_mc_mutex);
+  return mc_id;
+}
+
+bool Rdb_manual_compaction_thread::is_manual_compaction_finished(int mc_id) {
+  bool finished = false;
+  RDB_MUTEX_LOCK_CHECK(m_mc_mutex);
+  if (m_requests.count(mc_id) == 0) {
+    finished = true;
+  }
+  RDB_MUTEX_UNLOCK_CHECK(m_mc_mutex);
+  return finished;
 }
 
 bool ha_rocksdb::check_bloom_and_set_bounds(
@@ -12762,6 +13081,14 @@ static int rocksdb_validate_update_cf_options(
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "rocksdb_update_cf_options", str);
     return HA_EXIT_FAILURE;
   }
+  // Loop through option_map and create missing column families
+  for (Rdb_cf_options::Name_to_config_t::iterator it = option_map.begin();
+       it != option_map.end(); ++it) {
+    if (!cf_manager.get_or_create_cf(rdb, it->first,
+                                     !rocksdb_no_create_column_family)) {
+      return HA_EXIT_FAILURE;
+    }
+  }
   return HA_EXIT_SUCCESS;
 }
 
@@ -12960,5 +13287,6 @@ mysql_declare_plugin(rocksdb_se){
     myrocks::rdb_i_s_perf_context, myrocks::rdb_i_s_perf_context_global,
     myrocks::rdb_i_s_cfoptions, myrocks::rdb_i_s_compact_stats,
     myrocks::rdb_i_s_global_info, myrocks::rdb_i_s_ddl,
-    myrocks::rdb_i_s_index_file_map, myrocks::rdb_i_s_lock_info,
-    myrocks::rdb_i_s_trx_info, myrocks::rdb_i_s_deadlock_info mysql_declare_plugin_end;
+    myrocks::rdb_i_s_sst_props, myrocks::rdb_i_s_index_file_map,
+    myrocks::rdb_i_s_lock_info, myrocks::rdb_i_s_trx_info,
+    myrocks::rdb_i_s_deadlock_info mysql_declare_plugin_end;

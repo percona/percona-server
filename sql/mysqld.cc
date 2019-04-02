@@ -264,6 +264,7 @@ static PSI_thread_key key_thread_handle_con_sockets;
 static PSI_mutex_key key_LOCK_handler_count;
 static PSI_cond_key key_COND_handler_count;
 static PSI_thread_key key_thread_handle_shutdown;
+static PSI_rwlock_key key_rwlock_LOCK_named_pipe_full_access_group;
 #else
 static PSI_mutex_key key_LOCK_socket_listener_active;
 static PSI_cond_key key_COND_socket_listener_active;
@@ -445,6 +446,7 @@ const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
+my_bool opt_binlog_skip_flush_commands= 0;
 uint32 gtid_executed_compression_period= 0;
 my_bool opt_log_unsafe_statements;
 
@@ -711,6 +713,7 @@ mysql_mutex_t LOCK_prepared_stmt_count;
 */
 mysql_mutex_t LOCK_sql_slave_skip_counter;
 mysql_mutex_t LOCK_slave_net_timeout;
+mysql_mutex_t LOCK_slave_trans_dep_tracker;
 mysql_mutex_t LOCK_log_throttle_qni;
 mysql_mutex_t LOCK_offline_mode;
 #ifdef HAVE_OPENSSL
@@ -790,8 +793,11 @@ int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 
 Connection_acceptor<Mysqld_socket_listener> *mysqld_socket_acceptor= NULL;
 #ifdef _WIN32
+static Named_pipe_listener *named_pipe_listener= NULL;
 Connection_acceptor<Named_pipe_listener> *named_pipe_acceptor= NULL;
 Connection_acceptor<Shared_mem_listener> *shared_mem_acceptor= NULL;
+mysql_rwlock_t LOCK_named_pipe_full_access_group;
+char *named_pipe_full_access_group;
 #endif
 
 Checkable_rwlock *global_sid_lock= NULL;
@@ -1482,6 +1488,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
   mysql_mutex_destroy(&LOCK_sql_slave_skip_counter);
   mysql_mutex_destroy(&LOCK_slave_net_timeout);
+  mysql_mutex_destroy(&LOCK_slave_trans_dep_tracker);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
@@ -1489,6 +1496,7 @@ static void clean_up_mutexes()
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
   mysql_mutex_destroy(&LOCK_handler_count);
+  mysql_rwlock_destroy(&LOCK_named_pipe_full_access_group);
 #endif
 #ifndef _WIN32
   mysql_cond_destroy(&COND_socket_listener_active);
@@ -1906,8 +1914,7 @@ static bool network_init(void)
   {
     std::string pipe_name= mysqld_unix_port ? mysqld_unix_port : "";
 
-    Named_pipe_listener *named_pipe_listener=
-      new (std::nothrow) Named_pipe_listener(&pipe_name);
+    named_pipe_listener= new (std::nothrow) Named_pipe_listener(&pipe_name);
     if (named_pipe_listener == NULL)
       return true;
 
@@ -3460,6 +3467,8 @@ static int init_thread_environment()
                    &LOCK_sql_slave_skip_counter, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_slave_net_timeout,
                    &LOCK_slave_net_timeout, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_slave_trans_dep_tracker,
+                   &LOCK_slave_trans_dep_tracker, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_error_messages,
                    &LOCK_error_messages, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_uuid_generator,
@@ -3504,6 +3513,8 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_handler_count,
                    &LOCK_handler_count, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_handler_count, &COND_handler_count);
+  mysql_rwlock_init(key_rwlock_LOCK_named_pipe_full_access_group,
+                    &LOCK_named_pipe_full_access_group);
 #else
   mysql_mutex_init(key_LOCK_socket_listener_active,
                    &LOCK_socket_listener_active, MY_MUTEX_INIT_FAST);
@@ -8153,6 +8164,15 @@ pfs_error:
     global_system_variables.transaction_isolation=
                             global_system_variables.tx_isolation;
     break;
+  case OPT_NAMED_PIPE_FULL_ACCESS_GROUP:
+#if defined(_WIN32)  && !defined(EMBEDDED_LIBRARY)
+    if (!is_valid_named_pipe_full_access_group(argument))
+    {
+      sql_print_error("Invalid value for named_pipe_full_access_group.");
+      return 1;
+    }
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
+    break;
   }
   return 0;
 }
@@ -9103,6 +9123,7 @@ PSI_mutex_key
   key_LOCK_server_started, key_LOCK_status,
   key_LOCK_sql_slave_skip_counter,
   key_LOCK_slave_net_timeout,
+  key_LOCK_slave_trans_dep_tracker,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_thd_sysvar,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
@@ -9189,6 +9210,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},
   { &key_LOCK_sql_slave_skip_counter, "LOCK_sql_slave_skip_counter", PSI_FLAG_GLOBAL},
   { &key_LOCK_slave_net_timeout, "LOCK_slave_net_timeout", PSI_FLAG_GLOBAL},
+  { &key_LOCK_slave_trans_dep_tracker, "LOCK_slave_trans_dep_tracker", PSI_FLAG_GLOBAL},
   { &key_LOCK_server_started, "LOCK_server_started", PSI_FLAG_GLOBAL},
   { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_GLOBAL},
 #if !defined(EMBEDDED_LIBRARY) && !defined(_WIN32)
@@ -9277,6 +9299,9 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_consistent_snapshot, "LOCK_consistent_snapshot", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+  { &key_rwlock_LOCK_named_pipe_full_access_group, "LOCK_named_pipe_full_access_group", PSI_FLAG_GLOBAL},
+#endif /* _WIN32 && !EMBEDDED_LIBRARY */
 };
 
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
@@ -10044,4 +10069,18 @@ void init_server_psi_keys(void)
 }
 
 #endif /* HAVE_PSI_INTERFACE */
+
+#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+// update_named_pipe_full_access_group returns false on success, true on failure
+bool update_named_pipe_full_access_group(const char *new_group_name)
+{
+  if (named_pipe_acceptor) {
+    return named_pipe_listener->update_named_pipe_full_access_group(
+      new_group_name);
+  }
+  return true;
+}
+
+#endif  /* _WIN32 && !EMBEDDED_LIBRARY */
+
 

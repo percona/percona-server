@@ -2,12 +2,12 @@
 .\"     Title: Options Common to NDB Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/03/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -350,6 +350,10 @@ T}
 .TE
 .sp 1
 Tells the program where to find character set information\&.
+.sp
+This option is supported by
+\fBndb_import\fR
+in NDB 7\&.6\&.7 and later\&.
 .RE
 .sp
 .RS 4
@@ -618,6 +622,9 @@ T}
 .TE
 .sp 1
 Read this file after global option files are read\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -659,6 +666,9 @@ T}
 .TE
 .sp 1
 Read default options from this file\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -700,6 +710,9 @@ T}
 .TE
 .sp 1
 Also read groups with names ending in this suffix\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -775,6 +788,9 @@ T}
 .TE
 .sp 1
 Read this path from the login file\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -919,7 +935,7 @@ T}
 .sp 1
 Sets this node\*(Aqs NDB Cluster node ID\&.
 \fIThe range of permitted values depends on the node\*(Aqs type (data, management, or API) and the NDB Cluster software version\fR\&. See
-Section\ \&21.1.6.2, \(lqLimits and Differences of NDB Cluster from Standard MySQL Limits\(rq, for more information\&.
+Section\ \&21.1.7.2, \(lqLimits and Differences of NDB Cluster from Standard MySQL Limits\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -961,6 +977,9 @@ T}
 .TE
 .sp 1
 Do not read default options from any option file other than login file\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1043,6 +1062,9 @@ T}
 .TE
 .sp 1
 Print the program argument list and exit\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4

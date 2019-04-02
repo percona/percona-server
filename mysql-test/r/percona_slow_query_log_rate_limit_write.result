@@ -34,7 +34,6 @@ this-should-not-be-logged
 [log_stop.inc] percona.slow_extended.percona_slow_query_log_rate_limit_write_2
 [log_grep.inc] file: percona.slow_extended.percona_slow_query_log_rate_limit_write_2 pattern: ^# Log_slow_rate_type:
 [log_grep.inc] lines:   1
-SET GLOBAL long_query_time=0;
 SET GLOBAL debug=@old_debug;
 SET GLOBAL log_slow_rate_type=@old_log_slow_rate_type;
 SET GLOBAL log_slow_rate_limit=@old_log_slow_rate_limit;

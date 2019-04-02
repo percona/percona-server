@@ -35,7 +35,7 @@ EOF
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
 
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=$redo_log_encrypt_mode --innodb_undo_tablespaces=2 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/my_key_redo4 $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap1.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=$redo_log_encrypt_mode --innodb_undo_tablespaces=2 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/my_key_redo4 $KEYRING_PLUGIN_OPT </dev/null>>$MYSQL_TMP_DIR/bootstrap1.log 2>&1;
 
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD

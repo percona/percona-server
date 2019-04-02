@@ -2776,6 +2776,7 @@ mysql_execute_command(THD *thd, bool first_level)
     */
     if (deny_updates_if_read_only_option(thd, all_tables))
     {
+      thd->diff_access_denied_errors++;
       err_readonly(thd);
       DBUG_RETURN(-1);
     }
@@ -2869,6 +2870,7 @@ mysql_execute_command(THD *thd, bool first_level)
   if (thd->tx_read_only &&
       (sql_command_flags[lex->sql_command] & CF_DISALLOW_IN_RO_TRANS))
   {
+    thd->diff_access_denied_errors++;
     my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
     goto error;
   }
@@ -3667,7 +3669,10 @@ end_with_restore_list:
     client thread has locked tables
   */
   if (thd->locked_tables_mode ||
-      thd->in_active_multi_stmt_transaction() || thd->global_read_lock.is_acquired())
+      thd->in_active_multi_stmt_transaction() ||
+      thd->global_read_lock.is_acquired() ||
+      thd->backup_tables_lock.is_acquired() ||
+      thd->backup_binlog_lock.is_acquired())
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));

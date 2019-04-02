@@ -2,12 +2,12 @@
 .\"     Title: \fBresolveip\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/03/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBRESOLVEIP\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBRESOLVEIP\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -37,6 +37,27 @@ resolveip \- resolve host name to IP address or vice versa
 The
 \fBresolveip\fR
 utility resolves host names to IP addresses and vice versa\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+\fBresolveip\fR
+is deprecated and is removed in MySQL 8\&.0\&.
+\fBnslookup\fR,
+\fBhost\fR, or
+\fBdig\fR
+can be used instead\&.
+.sp .5v
+.RE
 .PP
 Invoke
 \fBresolveip\fR

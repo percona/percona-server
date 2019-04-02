@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/03/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-mysql \- the MySQL command\-line tool
+mysql \- the MySQL command\-line client
 .SH "SYNOPSIS"
 .HP \w'\fBmysql\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIdb_name\fR\fR\ 'u
 \fBmysql [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR
@@ -115,8 +115,8 @@ shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIscript\&.sql\fR\fR\fB > \fR
 On Unix, the
 \fBmysql\fR
 client logs statements executed interactively to a history file\&. See
-the section called \(lqMYSQL LOGGING\(rq\&.
-.SH "MYSQL OPTIONS"
+the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
+.SH "MYSQL CLIENT OPTIONS"
 .PP
 \fBmysql\fR
 supports the following options, which can be specified on the command line or in the
@@ -514,6 +514,9 @@ Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -533,6 +536,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
 \&.mylogin\&.cnf\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -561,6 +567,9 @@ also reads the
 and
 [mysql_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -593,7 +602,7 @@ form only, or use named commands only at the beginning of a line ending with a s
 starts with this option
 \fIenabled\fR
 by default\&. However, even with this option, long\-format commands still work from the first line\&. See
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -688,7 +697,7 @@ syslog
 if the
 \fB\-\-syslog\fR
 option is given\&. For more information, see
-the section called \(lqMYSQL LOGGING\(rq\&.
+the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
 .RE
 .sp
 .RS 4
@@ -805,6 +814,9 @@ is an option group containing options that specify which MySQL server to connect
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -827,7 +839,7 @@ and
 both are recognized\&. Use
 \fB\-\-skip\-named\-commands\fR
 to disable named commands\&. See
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -883,6 +895,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1004,7 +1019,7 @@ environment variable\&. Valid pagers are
 \fBmore\fR,
 \fBcat [> filename]\fR, and so forth\&. This option works only on Unix and only in interactive mode\&. To disable paging, use
 \fB\-\-skip\-pager\fR\&.
-the section called \(lqMYSQL COMMANDS\(rq, discusses output paging further\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses output paging further\&.
 .RE
 .sp
 .RS 4
@@ -1091,6 +1106,9 @@ The TCP/IP port number to use for the connection\&.
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1105,7 +1123,7 @@ Print the program name and all options that it gets from option files\&.
 .sp
 Set the prompt to the specified format\&. The default is
 mysql>\&. The special sequences that the prompt can contain are described in
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1451,7 +1469,7 @@ Mar  7 12:39:28 myhost MysqlClient[20824]:
 .\}
 .sp
 For more information, see
-the section called \(lqMYSQL LOGGING\(rq\&.
+the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
 .sp
 The
 \fB\-\-syslog\fR
@@ -1483,7 +1501,7 @@ Display output in table format\&. This is the default for interactive use, but c
 \fB\-\-tee=\fR\fB\fIfile_name\fR\fR
 .sp
 Append a copy of output to the given file\&. This option works only in interactive mode\&.
-the section called \(lqMYSQL COMMANDS\(rq, discusses tee files further\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses tee files further\&.
 .RE
 .sp
 .RS 4
@@ -1727,7 +1745,7 @@ SELECT
 statements when using
 \fB\-\-safe\-updates\fR\&. (Default value is 1,000\&.)
 .RE
-.SH "MYSQL COMMANDS"
+.SH "MYSQL CLIENT COMMANDS"
 .PP
 \fBmysql\fR
 sends each SQL statement that you issue to the server to be executed\&. There is also a set of commands that
@@ -1824,7 +1842,7 @@ help
 command,
 \fBmysql\fR
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. For more information, see
-the section called \(lqMYSQL SERVER\-SIDE HELP\(rq\&.
+the section called \(lqMYSQL CLIENT SERVER\-SIDE HELP\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2792,7 +2810,7 @@ mysql>
 .RE
 .\}
 .RE
-.SH "MYSQL LOGGING"
+.SH "MYSQL CLIENT LOGGING"
 .PP
 The
 \fBmysql\fR
@@ -3200,7 +3218,7 @@ Mar  7 12:39:28 myhost MysqlClient[20824]:
 .if n \{\
 .RE
 .\}
-.SH "MYSQL SERVER\-SIDE HELP"
+.SH "MYSQL CLIENT SERVER\-SIDE HELP"
 .sp
 .if n \{\
 .RS 4
@@ -3440,7 +3458,7 @@ with an option such as
 .PP
 For more information about batch mode, see
 Section\ \&3.5, \(lqUsing mysql in Batch Mode\(rq\&.
-.SH "MYSQL TIPS"
+.SH "MYSQL CLIENT TIPS"
 .PP
 This section describes some techniques that can help you use
 \fBmysql\fR

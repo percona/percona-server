@@ -52,22 +52,6 @@ static btr_scrub_stat_t scrub_stat;
 static ib_mutex_t scrub_stat_mutex;
 mysql_pfs_key_t scrub_stat_mutex_key;
 
-#ifdef UNIV_DEBUG
-/**
-* srv_scrub_force_testing
-*
-* - force scrubbing using background threads even for uncompressed tables
-* - force pessimistic scrubbing (page split) even if not needed
-*   (see test_pessimistic_scrub_pct)
-*/
-my_bool srv_scrub_force_testing = true;
-
-/**
-* Force pessimistic scrubbing in 50% of the cases (UNIV_DEBUG only)
-*/
-static int test_pessimistic_scrub_pct = 50;
-
-#endif
 static uint scrub_compression_level = page_zip_level;
 
 /**************************************************************//**
@@ -360,16 +344,6 @@ btr_optimistic_scrub(
 	dict_index_t* index,     /*!< in: index */
 	mtr_t* mtr)              /*!< in: mtr */
 {
-#ifdef UNIV_DEBUG
-	if (srv_scrub_force_testing &&
-	    page_get_n_recs(buf_block_get_frame(block)) > 2 &&
-	    (rand() % 100) < test_pessimistic_scrub_pct) {
-
-		log_scrub_failure(index, scrub_data, block, DB_OVERFLOW);
-		return DB_OVERFLOW;
-	}
-#endif
-
 	page_cur_t cur;
 	page_cur_set_before_first(block, &cur);
 	bool recovery = false;

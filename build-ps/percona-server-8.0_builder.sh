@@ -675,7 +675,7 @@ build_deb(){
         fi
     fi
 
-    if [[ ${DEBIAN_VERSION} = "buster" ]] || [[ ${DEBIAN_VERSOIN} = disco ]]; then
+    if [[ ${DEBIAN_VERSION} = "buster" ]] || [[ ${DEBIAN_VERSION} = disco ]]; then
         unset USE_THIS_GCC_VERSION
         export CC=gcc
         export CXX=g++

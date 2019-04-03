@@ -5,6 +5,12 @@
 --source include/not_embedded.inc
 --source include/have_innodb_max_16k.inc
 
+--disable_query_log
+call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't set redo log tablespace to be encrypted.");
+call mtr.add_suppression("Redo log key generation failed.");
+--enable_query_log
+
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
 CREATE DATABASE tde_db;

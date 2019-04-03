@@ -1,0 +1,2 @@
+# PS-5189: startup crash when both temporary table encryption and log encryption enabled
+SELECT 1;

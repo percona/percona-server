@@ -878,8 +878,9 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]	mysql_table	NULL, or mysql table object when
 				user thread invokes dml
 @param[in]	prebuilt	compress_heap must be taken from here
+@param[out]	error		error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
-trx id */
+trx id,if error is not equal to DB_SUCCESS, return NULL */
 upd_t*
 row_upd_build_difference_binary(
 	dict_index_t*	index,
@@ -890,7 +891,8 @@ row_upd_build_difference_binary(
 	trx_t*		trx,
 	mem_heap_t*	heap,
 	TABLE*		mysql_table,
-	row_prebuilt_t*	prebuilt)
+	row_prebuilt_t*	prebuilt,
+	dberr_t*	error)
 {
 	upd_field_t*	upd_field;
 	dfield_t*	dfield;
@@ -996,6 +998,10 @@ row_upd_build_difference_binary(
 				update->old_vrow, col, index,
 				&v_heap, heap, NULL, thd, mysql_table,
 				NULL, NULL, NULL, prebuilt);
+			if (vfield == NULL) {
+				*error = DB_COMPUTE_VALUE_FAILED;
+				return(NULL);
+			}
 
 			if (!dfield_data_is_binary_equal(
 				dfield, vfield->len,

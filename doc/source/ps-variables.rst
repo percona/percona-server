@@ -87,6 +87,16 @@ System Variables
      - Yes
      - Both
      - Yes
+   * - :variable:`encrypt_binlog`
+     - Yes
+     - Yes
+     - Global
+     - No
+   * - :variable:`encrypt-tmp-files`
+     - Yes
+     - Yes
+     - Global
+     - No
    * - :variable:`enforce_storage_engine`
      - Yes
      - Yes
@@ -127,6 +137,16 @@ System Variables
      - No
      - Global
      - No
+   * - :variable:`innodb_background_scrub_data_compressed`
+     - Yes
+     - Yes
+     - Global
+     - Yes
+   * - :variable:`innodb_background_scrub_data_uncompressed`
+     - Yes
+     - Yes
+     - Global
+     - Yes
    * - :variable:`innodb_cleaner_lsn_age_factor`
      - Yes
      - Yes
@@ -136,6 +156,11 @@ System Variables
      - Yes
      - Yes
      - Global
+     - Yes
+   * - :variable:`innodb_default_encryption_key_id`
+     - Yes
+     - Yes
+     - Session
      - Yes
    * - :variable:`innodb_empty_free_list_algorithm`
      - Yes
@@ -167,7 +192,37 @@ System Variables
      - Yes
      - Global
      - Yes
+   * - :variable:`innodb_online_encryption_rotate_key_age`
+     - Yes
+     - Yes
+     - Global
+     - Yes
+   * - :variable:`innodb_online_encryption_threads`
+     - Yes
+     - Yes
+     - Global
+     - Yes
+   * - :variable:`innodb_parallel_dblwr_encrypt`
+     - Yes
+     - Yes
+     - Global
+     - Yes
    * - :variable:`innodb_print_lock_wait_timeout_info`
+     - Yes
+     - Yes
+     - Global
+     - Yes
+   * - :variable:`innodb_redo_log_encrypt`
+     - Yes
+     - Yes
+     - Global
+     - Yes
+   * - :variable:`innodb_scrub_log`
+     - Yes
+     - Yes
+     - Global
+     - Yes
+   * - :variable:`innodb_scrub_log_speed`
      - Yes
      - Yes
      - Global
@@ -182,6 +237,11 @@ System Variables
      - Yes
      - Global
      - Yes
+   * - :variable:`innodb_sys_tablespace_encrypt`
+     - Yes
+     - Yes
+     - Global
+     - No
    * - :variable:`innodb_temp_tablespace_encrypt`
      - Yes
      - Yes
@@ -192,6 +252,11 @@ System Variables
      - Yes
      - Global
      - No
+   * - :variable:`innodb_undo_log_encrypt`
+     - Yes
+     - Yes
+     - Global
+     - Yes
    * - :variable:`innodb_use_global_flush_log_at_trx_commit`
      - Yes
      - Yes

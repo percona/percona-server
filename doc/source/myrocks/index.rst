@@ -29,4 +29,4 @@ if your workload uses fast storage, such as SSD:
    limitations
    differences
    variables
-
+   information-schema-tables

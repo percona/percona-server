@@ -1977,31 +1977,28 @@ bool close_temporary_tables(THD *thd)
            table= next)
       {
         /* Separate transactional from non-transactional temp tables */
-        if (!table->should_binlog_drop_if_temp())
-        {
-          /* Nothing, do not binlog this one */
-        }
-        else if (table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
-        {
-          found_trans_table= true;
-          /*
-            We are going to add ` around the table names and possible more
-            due to special characters
-          */
-          append_identifier(thd, &s_query_trans, table->s->table_name.str,
-                            strlen(table->s->table_name.str));
-          s_query_trans.append(',');
-        }
-        else if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
-        {
-          found_non_trans_table= true;
-          /*
-            We are going to add ` around the table names and possible more
-            due to special characters
-          */
-          append_identifier(thd, &s_query_non_trans, table->s->table_name.str,
-                            strlen(table->s->table_name.str));
-          s_query_non_trans.append(',');
+        if (table->should_binlog_drop_if_temp()) {
+          if (table->s->tmp_table == TRANSACTIONAL_TMP_TABLE) {
+            found_trans_table= true;
+            /*
+              We are going to add ` around the table names and possible more
+              due to special characters
+            */
+            append_identifier(thd, &s_query_trans, table->s->table_name.str,
+                              strlen(table->s->table_name.str));
+            s_query_trans.append(',');
+          }
+          else if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
+          {
+            found_non_trans_table= true;
+            /*
+              We are going to add ` around the table names and possible more
+              due to special characters
+            */
+            append_identifier(thd, &s_query_non_trans, table->s->table_name.str,
+                              strlen(table->s->table_name.str));
+            s_query_non_trans.append(',');
+          }
         }
 
         next= table->next;

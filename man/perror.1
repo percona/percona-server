@@ -2,12 +2,12 @@
 .\"     Title: \fBperror\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/03/2018
+.\"      Date: 12/20/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBPERROR\FR" "1" "10/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBPERROR\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-perror \- explain error codes
+perror \- display MySQL error message information
 .SH "SYNOPSIS"
 .HP \w'\fBperror\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIerrorcode\fR\fR\fB\ \&.\&.\&.\fR\ 'u
 \fBperror [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIerrorcode\fR\fR\fB \&.\&.\&.\fR
@@ -68,7 +68,19 @@ shell> \fBperror [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIerrorcode\fR\fR\fB \&.\&.\
 .RE
 .\}
 .PP
-Example:
+Examples:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBperror 1231\fR
+MySQL error code 1231 (ER_WRONG_VALUE_FOR_VAR): Variable \*(Aq%\-\&.64s\*(Aq can\*(Aqt
+be set to the value of \*(Aq%\-\&.200s\*(Aq
+.fi
+.if n \{\
+.RE
+.\}
 .sp
 .if n \{\
 .RS 4
@@ -81,6 +93,10 @@ OS error code  64:  Machine is not on the network
 .if n \{\
 .RE
 .\}
+.PP
+To obtain the error message for a MySQL Cluster error code, use the
+\fBndb_perror\fR
+utility\&.
 .PP
 The meaning of system error messages may be dependent on your operating system\&. A given error code may mean different things on different operating systems\&.
 .PP
@@ -117,7 +133,7 @@ Print the error message for an NDB Cluster error code\&.
 .sp
 This option is deprecated in NDB 7\&.6\&.4 and later, where
 \fBperror\fR
-prints a warning if it is used, and subject to removal in a future NDB Cluster release series\&. Use the
+prints a warning if it is used, and is removed in NDB Cluster 8\&.0\&. Use the
 \fBndb_perror\fR
 utility instead\&.
 .RE

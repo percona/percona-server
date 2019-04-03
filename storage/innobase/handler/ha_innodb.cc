@@ -206,9 +206,6 @@ extern my_bool srv_background_scrub_data_uncompressed;
 extern my_bool srv_background_scrub_data_compressed;
 extern uint srv_background_scrub_data_interval;
 extern uint srv_background_scrub_data_check_interval;
-#ifdef UNIV_DEBUG
-extern my_bool srv_scrub_force_testing;
-#endif
 
 extern mysql_pfs_key_t scrub_stat_mutex_key;
 
@@ -1661,6 +1658,17 @@ innobase_fts_store_docid(
 
 	dbug_tmp_restore_column_map(tbl->write_set, old_map);
 }
+
+/*****************************************************************//**
+Checks if the filename name is reserved in InnoDB.
+@return true if the name is reserved */
+static
+bool
+innobase_check_reserved_file_name(
+/*===================*/
+        handlerton*     hton,           /*!< in: handlerton of Innodb */
+        const char*     name);          /*!< in: Name of the database */
+
 
 /** Sync innodb_kill_idle_transaction and kill_idle_transaction values.
 
@@ -3915,6 +3923,16 @@ innobase_fix_tablespaces_empty_uuid()
 		return(false);
 	}
 
+	if (Encryption::master_key_id == 0 && srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
+		/* redo log can be encrypted with keyring_key, which has to be 
+		   initialized even when nothing's encrypted with master_key - in
+		   which case, master_key_id == 0, so this condition succeeds. 
+		   We call this function here, because otherwise, if the redo log
+		   is encrypted with master_key, log encryption has to be initialized
+		   after Encryption::create_master_key. */
+		log_enable_encryption_if_set();
+	}
+
 	/* We only need to handle the case when an encrypted tablespace
 	is created at startup. If it is 0, there is no encrypted tablespace,
 	If it is > 1, it means we already have fixed the UUID */
@@ -3945,6 +3963,8 @@ innobase_fix_tablespaces_empty_uuid()
 		return(true);
 	}
 
+	log_enable_encryption_if_set();
+
 	/** Check if sys, temp need rotation to fix the empty uuid */
 	/* Also, in future, it is possible to fix empty uuid for redo & undo
 	here. Just add the space_id into vector */
@@ -3953,7 +3973,7 @@ innobase_fix_tablespaces_empty_uuid()
 	space_ids.push_back(srv_sys_space.space_id());
 	space_ids.push_back(srv_tmp_space.space_id());
 
-	bool	ret = !fil_encryption_rotate_global(space_ids);
+	bool	ret = !fil_encryption_rotate_global(space_ids) || !log_rotate_encryption();
 
 	my_free(master_key);
 
@@ -4010,7 +4030,7 @@ innobase_encryption_key_rotation()
                 return(true);
         }
 
-	ret = !fil_encryption_rotate();
+	ret = !fil_encryption_rotate() || !log_rotate_encryption();
 
 	my_free(master_key);
 
@@ -4126,6 +4146,7 @@ innobase_init(
         innobase_hton->replace_native_transaction_in_thd =
                 innodb_replace_trx_in_thd;
 	innobase_hton->data = &innodb_api_cb;
+	innobase_hton->is_reserved_db_name= innobase_check_reserved_file_name;
 	innobase_hton->flush_changed_page_bitmaps
 		= innobase_flush_changed_page_bitmaps;
 	innobase_hton->purge_changed_page_bitmaps
@@ -20668,8 +20689,10 @@ innodb_track_changed_pages_validate(
 		return 0;
 	}
 
-	if (intbuf == srv_track_changed_pages)
+	if (intbuf == srv_track_changed_pages) { // == 0
+		*reinterpret_cast<ulong*>(save) = srv_track_changed_pages;
 		return 0;
+	}
 
 	return 1;
 }
@@ -21405,6 +21428,34 @@ innodb_temp_tablespace_encryption_update(
 		*static_cast<my_bool*>(var_ptr) =
 			*static_cast<const my_bool*>(save);
 	}
+}
+
+/** Enable or disable encryption of redo logs
+@param[in]	thd	thread handle
+@param[in]	var	system variable
+@param[out]	var_ptr	current value
+@param[in]	save	immediate result from check function */
+static
+void
+innodb_redo_encryption_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	if (srv_read_only_mode) {
+		push_warning_printf(
+			thd, Sql_condition::SL_WARNING,
+			ER_WRONG_ARGUMENTS,
+			" Redo log cannot be"
+			" encrypted in innodb_read_only mode");
+		return;
+	}
+
+	*static_cast<ulong*>(var_ptr) =
+		*static_cast<const ulong*>(save);
+
+	log_enable_encryption_if_set();
 }
 
 static SHOW_VAR innodb_status_variables_export[]= {
@@ -22470,7 +22521,7 @@ static MYSQL_SYSVAR_ENUM(default_row_format, innodb_default_row_format,
 static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
   PLUGIN_VAR_OPCMDARG,
   "Enable or disable Encryption of REDO tablespace. Possible values: OFF, MASTER_KEY, KEYRING_KEY.",
-  NULL, NULL, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+  NULL, innodb_redo_encryption_update, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
@@ -22654,14 +22705,6 @@ static MYSQL_SYSVAR_UINT(background_scrub_data_interval,
                          srv_background_scrub_data_interval,
                          1,
                          UINT_MAX32, 0);
-
-#ifdef UNIV_DEBUG
-static MYSQL_SYSVAR_BOOL(debug_force_scrubbing,
-                         srv_scrub_force_testing,
-                         0,
-                         "Perform extra scrubbing to increase test exposure",
-                         NULL, NULL, FALSE);
-#endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),
@@ -22880,9 +22923,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(background_scrub_data_compressed),
   MYSQL_SYSVAR(background_scrub_data_interval),
   MYSQL_SYSVAR(background_scrub_data_check_interval),
-#ifdef UNIV_DEBUG
-  MYSQL_SYSVAR(debug_force_scrubbing),
-#endif
   NULL
 };
 
@@ -23811,6 +23851,33 @@ innodb_buffer_pool_size_validate(
 	}
 
 	return(0);
+}
+
+/*****************************************************************//**
+Checks if the file name is reserved in InnoDB. Currently
+redo log files(ib_logfile*) is reserved.
+@return true if the name is reserved */
+static
+bool
+innobase_check_reserved_file_name(
+/*===================*/
+	handlerton*     hton,		/*!< in: handlerton of Innodb */
+	const char*	name)		/*!< in: Name of the database */
+{
+	CHARSET_INFO *ci= system_charset_info;
+	size_t logname_size = strlen(ib_logfile_basename);
+
+	/* Name is smaller than reserved name */
+	if (strlen(name) < logname_size) {
+		return (false);
+	}
+	/* Do case insensitive comparison for name. */
+	for (uint i=0; i < logname_size; i++) {
+		if (my_tolower(ci, name[i]) != ib_logfile_basename[i]){
+			return (false);
+		}
+	}
+	return (true);
 }
 
 static

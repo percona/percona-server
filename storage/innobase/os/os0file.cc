@@ -863,7 +863,7 @@ os_file_io_complete(
 	byte*		buf,
 	byte*		scratch,
 	ulint		src_len,
-	ulint		offset,
+	os_offset_t	offset,
 	ulint		len);
 
 /** Does simulated AIO. This function should be called by an i/o-handler
@@ -1007,8 +1007,7 @@ public:
 		return(os_file_io_complete(
 				slot->type, slot->file.m_file, slot->buf,
 				NULL, slot->original_len,
-				static_cast<ulint>(slot->offset),
-				slot->len));
+				slot->offset, slot->len));
 	}
 
 private:
@@ -1881,7 +1880,7 @@ os_file_io_complete(
 	byte*		buf,
 	byte*		scratch,
 	ulint		src_len,
-	ulint		offset,
+	os_offset_t	offset,
 	ulint		len)
 {
 	dberr_t		ret = DB_SUCCESS;
@@ -2462,6 +2461,18 @@ SyncFileIO::execute(const IORequest& request)
 	return(n_bytes);
 }
 
+MY_ATTRIBUTE((warn_unused_result))
+static std::string
+os_file_find_path_for_fd(
+	os_file_t fd)
+{
+	char fdname[FN_REFLEN];
+	snprintf(fdname, sizeof fdname, "/proc/%d/fd/%d", getpid(), fd);
+	char filename[FN_REFLEN];
+	const int err_filename = my_readlink(filename, fdname, MYF(0));
+	return std::string((err_filename != -1) ? filename : "");
+}
+
 /** Free storage space associated with a section of the file.
 @param[in]	fh		Open file handle
 @param[in]	off		Starting offset (SEEK_SET)
@@ -2489,11 +2500,20 @@ os_file_punch_hole_posix(
 		return(DB_IO_NO_PUNCH_HOLE);
 	}
 
-	ib::warn()
-		<< "fallocate(" << fh
-		<<", FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, "
-		<< off << ", " << len << ") returned errno: "
-		<<  errno;
+	const std::string fd_path = os_file_find_path_for_fd(fh);
+	if (!fd_path.empty()) {
+		ib::warn()
+			<< "fallocate(" << fh << " ("
+			<< fd_path << "), FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, "
+			<< off << ", " << len << ") returned errno: "
+			<<  errno;
+	} else {
+		ib::warn()
+			<< "fallocate(" << fh
+			<<", FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, "
+			<< off << ", " << len << ") returned errno: "
+			<<  errno;
+	}
 
 	return(DB_IO_ERROR);
 
@@ -2620,6 +2640,9 @@ LinuxAIOHandler::resubmit(Slot* slot)
 	slot->n_bytes = 0;
 	slot->io_already_done = false;
 
+	/* make sure that slot->offset fits in off_t */
+	ut_ad(sizeof(off_t) >= sizeof(os_offset_t));
+
 	struct iocb*	iocb = &slot->control;
 	if (slot->type.is_read()) {
 		io_prep_pread(
@@ -2627,7 +2650,7 @@ LinuxAIOHandler::resubmit(Slot* slot)
 			slot->file.m_file,
 			slot->ptr,
 			slot->len,
-			static_cast<off_t>(slot->offset));
+			slot->offset);
 
 	} else {
 
@@ -2638,7 +2661,7 @@ LinuxAIOHandler::resubmit(Slot* slot)
 			slot->file.m_file,
 			slot->ptr,
 			slot->len,
-			static_cast<off_t>(slot->offset));
+			slot->offset);
 	}
 
 	iocb->data = slot;
@@ -3490,11 +3513,17 @@ os_file_fsync_posix(
 			os_thread_sleep(200000);
 			break;
 
-		case EIO:
+		case EIO: {
 
-                        ib::fatal()
-				<< "fsync() returned EIO, aborting.";
+			const std::string fd_path
+				= os_file_find_path_for_fd(file);
+			if (!fd_path.empty())
+				ib::fatal() << "fsync(\"" << fd_path
+					    << "\") returned EIO, aborting.";
+			else
+				ib::fatal() << "fsync() returned EIO, aborting.";
 			break;
+		}
 
 		case EINTR:
 
@@ -5949,8 +5978,7 @@ os_file_io(
 				*err = os_file_io_complete(
 					type, file,
 					reinterpret_cast<byte*>(buf),
-					NULL, original_n,
-					static_cast<ulint>(offset), n);
+					NULL, original_n, offset, n);
 			} else {
 
 				*err = DB_SUCCESS;
@@ -6203,9 +6231,18 @@ os_file_read_page(
 			}
 		}
 
-		ib::error() << "Tried to read " << n
-			<< " bytes at offset " << offset
-			<< ", but was only able to read " << n_bytes;
+		const std::string fd_path = os_file_find_path_for_fd(file);
+		if (!fd_path.empty()) {
+			ib::error() << "Tried to read " << n
+				    << " bytes at offset " << offset
+				    << ", but was only able to read " << n_bytes
+				    << " of FD " << file
+				    << ", filename " << fd_path;
+		} else {
+			ib::error() << "Tried to read " << n
+				    << " bytes at offset " << offset
+				    << ", but was only able to read " << n_bytes;
+		}
 
 		if (exit_on_err) {
 

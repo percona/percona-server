@@ -179,7 +179,7 @@ my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_encryption,rpl_encryption,encry
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl,tokudb.perfschema,"
   ."rocksdb,rocksdb.rpl,rocksdb.sys_vars,"
-  ."keyring_vault,audit_null";
+  ."keyring_vault,audit_null,percona-pam-for-mysql";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -2936,7 +2936,9 @@ sub environment_setup {
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
 
   # Make sure LeakSanitizer exits if leaks are found
-  $ENV{'LSAN_OPTIONS'}= "exitcode=42";
+  $ENV{'LSAN_OPTIONS'} = "exitcode=42,suppressions=${glob_mysql_test_dir}/lsan.supp";
+
+  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp";
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);

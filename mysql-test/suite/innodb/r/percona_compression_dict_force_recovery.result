@@ -1,0 +1,92 @@
+CREATE COMPRESSION_DICTIONARY d1('blah');
+CREATE TABLE `t1` (`a` text COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1`) ENGINE=InnoDB;
+INSERT INTO t1 VALUES('satya');
+#########################################################
+# restart: --innodb_force_recovery=6
+#########################################################
+# drop existing compression dictionary with references by tables
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Running in read-only mode
+# drop existing table
+DROP TABLE t1;
+ERROR HY000: Storage engine can't drop table 'test.t1'
+# drop existing compression dictionary with no references
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Running in read-only mode
+# create new compression dictionary
+CREATE COMPRESSION_DICTIONARY d1('blah');
+ERROR HY000: Running in read-only mode
+#########################################################
+# restart: --innodb_force_recovery=5
+#########################################################
+# drop existing compression dictionary with references by tables
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Table 'compression_dictionary' is read only
+# drop existing table
+DROP TABLE t1;
+ERROR HY000: Storage engine can't drop table 'test.t1'
+# drop existing compression dictionary with no references
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Table 'compression_dictionary' is read only
+# create new compression dictionary
+CREATE COMPRESSION_DICTIONARY d1('blah');
+ERROR HY000: Table 'compression_dictionary' is read only
+#########################################################
+# restart: --innodb_force_recovery=4
+#########################################################
+# drop existing compression dictionary with references by tables
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Table 'compression_dictionary' is read only
+# drop existing table
+DROP TABLE t1;
+ERROR HY000: Table 'tablespace_files' is read only
+# drop existing compression dictionary with no references
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Table 'compression_dictionary' is read only
+# create new compression dictionary
+CREATE COMPRESSION_DICTIONARY d1('blah');
+ERROR HY000: Table 'compression_dictionary' is read only
+#########################################################
+# restart: --innodb_force_recovery=3
+#########################################################
+# drop existing compression dictionary with references by tables
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
+# drop existing table
+DROP TABLE t1;
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
+# drop existing compression dictionary with no references
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
+# create new compression dictionary
+CREATE COMPRESSION_DICTIONARY d2('blah');
+#########################################################
+# restart: --innodb_force_recovery=2
+#########################################################
+# drop existing compression dictionary with references by tables
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Compression dictionary 'd1' is in use
+# drop existing table
+DROP TABLE t1;
+# drop existing compression dictionary with no references
+DROP COMPRESSION_DICTIONARY d1;
+# create new compression dictionary
+CREATE COMPRESSION_DICTIONARY d1('blah');
+CREATE TABLE `t1` (`a` text COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1`) ENGINE=InnoDB;
+#########################################################
+# restart: --innodb_force_recovery=1
+#########################################################
+# drop existing compression dictionary with references by tables
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Compression dictionary 'd1' is in use
+# drop existing table
+DROP TABLE t1;
+# drop existing compression dictionary with no references
+DROP COMPRESSION_DICTIONARY d1;
+# create new compression dictionary
+CREATE COMPRESSION_DICTIONARY d1('blah');
+CREATE TABLE `t1` (`a` text COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1`) ENGINE=InnoDB;
+# restart
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY d1;
+DROP COMPRESSION_DICTIONARY d2;

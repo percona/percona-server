@@ -85,6 +85,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "current_thd.h"
 #include "my_dbug.h"
 #include "my_io.h"
+#include "sql/sql_zip_dict.h"
 
 static const char *MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
     "innodb_force_recovery is on. We do not allow database modifications"
@@ -2004,7 +2005,9 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
 
   } else if (srv_force_recovery &&
              !(srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN &&
-               dict_sys_t::is_dd_table_id(prebuilt->table->id))) {
+               (dict_sys_t::is_dd_table_id(prebuilt->table->id) ||
+                compression_dict::is_hardcoded(
+                    prebuilt->table->name.m_name)))) {
     /* Allow to modify hardcoded DD tables in some scenario to
     make DDL work */
 
@@ -2767,7 +2770,19 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
   make DDL work */
   if (srv_force_recovery > 0 &&
       !(srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN &&
-        dict_sys_t::is_dd_table_id(prebuilt->table->id))) {
+        (dict_sys_t::is_dd_table_id(prebuilt->table->id) ||
+         compression_dict::is_hardcoded(prebuilt->table->name.m_name)))) {
+    ib::error(ER_IB_MSG_985) << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
+    return DB_READ_ONLY;
+  }
+
+  /* For compression dictionary delete, trx is already active because of the
+  search before delete. With the trx active, we cannot assign rseg with
+  srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO. See trx_set_rw_mode().
+  For srv_force_recovery > SRV_FORCE_NO_TRX_UNDO, DB is readonly mode.
+  So we disallow compression dictionary operation in SRV_FORCE_NO_TRX_UNDO.*/
+  if (srv_force_recovery == SRV_FORCE_NO_TRX_UNDO &&
+      compression_dict::is_hardcoded(prebuilt->table->name.m_name)) {
     ib::error(ER_IB_MSG_985) << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
     return DB_READ_ONLY;
   }

@@ -42,13 +42,20 @@ extern bool skip_bootstrap;
 @return false on success, true on failure */
 bool bootstrap(THD *thd);
 
-/** @return true if the table is hardcoded compression dictionary tables
+/** @return true if the table is a hardcoded compression dictionary table
 @param[in] schema     schema name
 @param[in] table_name table name */
 inline bool is_hardcoded(const dd::String_type &schema,
                          const dd::String_type &table_name) {
   return (schema == "mysql" && (table_name == "compression_dictionary" ||
                                 table_name == "compression_dictionary_cols"));
+}
+
+/** @return true if the table is a hardcoded compression dictionary table
+@param[in]  name  name in "db/table" format */
+inline bool is_hardcoded(const char *name) {
+  return (strcmp(name, "mysql/compression_dictionary") == 0 ||
+          strcmp(name, "mysql/compression_dictionary_cols") == 0);
 }
 
 /**

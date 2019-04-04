@@ -67,12 +67,6 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_zip_dict;
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --source include/start_mysqld.inc
 
---echo # Execute mysql_upgrade
-
---source include/mysql_upgrade_preparation.inc
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---source include/mysql_upgrade_cleanup.inc
-
 SET SESSION DEBUG = '+d,skip_dd_table_access_check';
 
 --let $view_table_usage_table_id = `select se_private_id from mysql.tables where name = 'view_table_usage'`

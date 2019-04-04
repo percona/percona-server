@@ -24,6 +24,7 @@ Warning	1210	 Temporary tablespace couldn't be encrypted. Check if keyring plugi
 SELECT @@innodb_temp_tablespace_encrypt;
 @@innodb_temp_tablespace_encrypt
 0
+include/assert.inc [Temporary tablespace should be unencrypted]
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='N';
@@ -40,6 +41,7 @@ Warning	1210	 Temporary tablespace cannot be encrypted in innodb_read_only mode
 SELECT @@innodb_temp_tablespace_encrypt;
 @@innodb_temp_tablespace_encrypt
 0
+include/assert.inc [Temporary tablespace should be unencrypted]
 # startup failure when innodb_temp_tablespace =ON and no keyring plugin
 Pattern found.
 # restart:<hidden args>
@@ -56,6 +58,7 @@ INSERT INTO t01 VALUES (1), (2), (3);
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 SHOW WARNINGS;
 Level	Code	Message
+include/assert.inc [Temporary tablespace should be encrypted]
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 DROP TABLE t01;
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
@@ -67,3 +70,4 @@ INSERT INTO t01 VALUES (1), (2), (3);
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
+include/assert.inc [Temporary tablespace should be encrypted. Once encrypted, it cannot be unencrypted]

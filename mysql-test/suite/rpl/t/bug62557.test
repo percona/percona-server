@@ -36,3 +36,7 @@ DROP TABLE t1;
 
 # Cleanup
 --source include/rpl_end.inc
+
+# Due to server 1 being a slave to server 2, we need to force server restart
+# to clear its in-memory slave status, to avoid breaking further tests.
+--source include/force_restart.inc

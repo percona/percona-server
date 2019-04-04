@@ -1,9 +1,9 @@
---source include/not_windows.inc
+# This test contains keyring file created on 64bit which is not
+# portable
 --source include/no_valgrind_without_big.inc
 --source include/have_util_unzip.inc
 
 --disable_query_log
-call mtr.add_suppression("Error in renaming mysql_index_stats.ibd");
 call mtr.add_suppression("Resizing redo log from");
 call mtr.add_suppression("Upgrading redo log");
 call mtr.add_suppression("Starting to delete and rewrite log files");
@@ -47,36 +47,89 @@ call mtr.add_suppression("Skipped updating resource group metadata in InnoDB rea
 --enable_query_log
 
 --echo # Set different paths for --datadir
-let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_sys;
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/undo57_encrypted/datadir/data;
 
---copy_file $MYSQLTEST_VARDIR/std_data/data57_sys.zip $MYSQL_TMP_DIR/data57_sys.zip
+--echo # Set path for undo* files.
+let $MYSQLD_UNDO_DATADIR = $MYSQL_TMP_DIR/undo57_encrypted/innodb_undo_data_dir;
 
---echo # Check that the file exists in the working folder.
---file_exists $MYSQL_TMP_DIR/data57_sys.zip
+--echo # Set path for ibdata* files.
+let $MYSQLD_HOME_DATA_DIR = $MYSQL_TMP_DIR/undo57_encrypted/innodb_data_home_dir;
 
---echo # Unzip the zip file.
---exec unzip -qo $MYSQL_TMP_DIR/data57_sys.zip -d $MYSQL_TMP_DIR
+--copy_file $MYSQLTEST_VARDIR/std_data/undo57_encrypted.zip $MYSQL_TMP_DIR/undo57_encrypted.zip
 
---let $MYSQLD_DATADIR=`SELECT @@datadir`
+--exec unzip -qo $MYSQL_TMP_DIR/undo57_encrypted.zip -d $MYSQL_TMP_DIR
 
---echo # Stop DB server which was created by MTR default
+--echo # Stop DB server which was created by MTR default, empty undo logs
+SET GLOBAL innodb_fast_shutdown=0;
 --source include/shutdown_mysqld.inc
 
---echo # Start the 8.0 server on 5.7 datadir
---let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1"
---replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
---source include/start_mysqld.inc
+--echo # Start the 8.0 server on 5.7 datadir with correct keyring_file
+--let $restart_parameters="restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/undo57_encrypted/my_key_undo5 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR1"
+--replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $MYSQLD_HOME_DATA_DIR HOME_DIR $MYSQLD_UNDO_DATADIR UNDO_DATADIR $MYSQLD_DATADIR1 DATADIR
+--source include/start_mysqld_no_echo.inc
 
-SHOW CREATE TABLE test.t1;
-SELECT * FROM t1;
+SHOW CREATE TABLE test.tab1;
+SELECT * FROM tab1;
 
---echo # Stop the server
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
 --source include/shutdown_mysqld.inc
 
---echo # Remove copied files
---remove_file $MYSQL_TMP_DIR/data57_sys.zip
+--echo # Now let's test what happens when encryption key is missing and we try to start 8.0 server on 5.7 directory
+--echo # with encrypted undo tablespaces
+--echo # Recreate the directories
+--force-rmdir $MYSQL_TMP_DIR/undo57_encrypted
 
---force-rmdir $MYSQL_TMP_DIR/data57_sys
+--exec unzip -qo $MYSQL_TMP_DIR/undo57_encrypted.zip -d $MYSQL_TMP_DIR
+
+--let $error_log=$MYSQLTEST_VARDIR/tmp/my_restart.err
+
+--error 1
+--exec $MYSQLD_CMD --log-error=$error_log --early-plugin-load="keyring_file=$KEYRING_PLUGIN" $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/my_empty_keyring --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR1
+
+--echo # Check for errors in error log
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$error_log
+--let SEARCH_PATTERN=Error reading encryption for innodb_undo001
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN= Unable to open undo tablespace number 1
+--source include/search_pattern_in_file.inc
+
+--echo # Corrupt undo encryption keys
+
+perl;
+open(FILE, "+<", "$ENV{MYSQL_TMP_DIR}/undo57_encrypted/my_key_undo5") or die "open";
+binmode FILE;
+seek(FILE, 77, SEEK_SET) or die "seek";
+print FILE pack("H*", "c00l");
+seek(FILE, 206, SEEK_SET) or die "seek";
+print FILE pack("H*", "c00l");
+close FILE or die "close";
+EOF
+
+--echo # Now we check how the server behaves when undo encryption keys are corrupted
+
+--let $error_log2=$MYSQLTEST_VARDIR/tmp/my_restart2.err
+
+--error 1
+--exec $MYSQLD_CMD --log-error=$error_log2 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/undo57_encrypted/my_key_undo5 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR1
+
+--echo # Check for errors in error log
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$error_log2
+--let SEARCH_PATTERN=Error reading encryption for innodb_undo001
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN= Unable to open undo tablespace number 1
+--source include/search_pattern_in_file.inc
+
+--echo # Cleanup
+--remove_file $error_log
+--remove_file $error_log2
+--remove_file $MYSQL_TMP_DIR/my_empty_keyring
+--remove_file $MYSQL_TMP_DIR/undo57_encrypted.zip
+--force-rmdir $MYSQL_TMP_DIR/undo57_encrypted
 
 --echo # Restart the server with default options.
 --let $restart_parameters=

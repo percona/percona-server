@@ -169,6 +169,7 @@ extern mysql_pfs_key_t zip_pad_mutex_key;
 extern mysql_pfs_key_t row_drop_list_mutex_key;
 extern mysql_pfs_key_t file_open_mutex_key;
 extern mysql_pfs_key_t master_key_id_mutex_key;
+extern mysql_pfs_key_t scrub_stat_mutex_key;
 extern mysql_pfs_key_t clone_sys_mutex_key;
 extern mysql_pfs_key_t clone_task_mutex_key;
 extern mysql_pfs_key_t clone_snapshot_mutex_key;

@@ -35,7 +35,7 @@ EOF
 write_file $bugdir/data/mysql/plugin.frm;
 EOF
 
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args
 let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
 --source include/search_pattern.inc
@@ -52,7 +52,7 @@ let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS erro
 --force-cpdir $bugdir/data $bugdir/data_backup
 
 --echo # 1. Start mysqld with non existent innodb_log_group_home_dir
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb_log_group_home_dir=/path/to/non-existent/ --innodb-unknown-parameter-1
 let SEARCH_PATTERN=File .path.to.non-existent.*ib_logfile101: 'create' returned OS error \d+;
 --source include/search_pattern.inc
@@ -61,7 +61,7 @@ let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
 
 --echo # 2. Start mysqld without ibdata1
 --remove_file $bugdir/data/ibdata1
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-unknown-parameter-2
 let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
 --source include/search_pattern.inc
@@ -69,7 +69,7 @@ let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS erro
 
 --echo # 3. Start mysqld without ibdata2
 --remove_file $bugdir/data/ibdata2
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-unknown-parameter-3
 let SEARCH_PATTERN=Tablespace size stored in header is \d+ pages, but;
 --source include/search_pattern.inc
@@ -80,7 +80,7 @@ let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
 --echo # 4. Start mysqld without ibdata1 & ibdata2
 --remove_file $bugdir/data/ibdata1
 --remove_file $bugdir/data/ibdata2
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-unknown-parameter-4
 let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
 --source include/search_pattern.inc
@@ -90,7 +90,7 @@ let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS erro
 --remove_files_wildcard $bugdir/data ibdata*
 --remove_files_wildcard $bugdir/data ib_logfile*
 --remove_files_wildcard $bugdir/data undo_00*
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-unknown-parameter-5
 let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation;
 --source include/search_pattern.inc
@@ -98,7 +98,7 @@ let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS erro
 
 --echo # 6. Start mysqld without undo_002
 --remove_file $bugdir/data/undo_002
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-unknown-parameter-6
 let SEARCH_PATTERN=Creating UNDO Tablespace .*undo_002;
 --source include/search_pattern.inc
@@ -107,7 +107,7 @@ let SEARCH_PATTERN=Creating UNDO Tablespace .*undo_002;
 --echo # 7. Start mysqld without undo_001, undo_002
 --remove_file $bugdir/data/undo_001
 --remove_file $bugdir/data/undo_002
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-unknown-parameter-7
 let SEARCH_PATTERN=Creating UNDO Tablespace .*undo_001;
 --source include/search_pattern.inc
@@ -117,14 +117,14 @@ let SEARCH_PATTERN=Creating UNDO Tablespace .*undo_002;
 
 --echo # 8. Start mysqld without ib_logfile0
 --remove_file $bugdir/data/ib_logfile0
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-unknown-parameter-8
 let SEARCH_PATTERN=Cannot create log files because data files are corrupt or the database was not shut down cleanly after creating the data files;
 --source ../include/bootstrap_cleanup.inc
 
 --echo # 9. Start mysqld without ib_logfile1
 --remove_file $bugdir/data/ib_logfile1
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-unknown-parameter-9
 let SEARCH_PATTERN=Only one log file found;
 --source include/search_pattern.inc
@@ -134,20 +134,20 @@ let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
 
 --echo # 10. Start mysqld without ib_logfile2
 --remove_file $bugdir/data/ib_logfile2
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-unknown-parameter-10
 let SEARCH_PATTERN=Resizing redo log from \d+\*\d+ to \d+\*\d+ bytes, LSN=\d+;
 --source include/search_pattern.inc
 --source ../include/bootstrap_cleanup.inc
 
 --echo # 11. Add new datafile at the end
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-data_file_path="ibdata1:16M;ibdata2:16M;ibdata3:20M:autoextend" --innodb-unknown-parameter-11
 let SEARCH_PATTERN=\[Note\] .*MY-\\d+.* File.*ibdata3. size is now 20 MB;
 --source include/search_pattern.inc
 
 --echo # 12. Show that --innodb-undo-directory cannot be an ancestor of the datadir
---error 1,3,42
+--error 1,3
 --exec $MYSQLD $args --innodb-undo-directory=.. --innodb-unknown-parameter-12
 let SEARCH_PATTERN=The innodb_undo_directory is not allowed to be an ancestor of the datadir;
 --source include/search_pattern.inc

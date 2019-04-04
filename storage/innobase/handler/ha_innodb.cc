@@ -273,11 +273,6 @@ extern bool srv_background_scrub_data_uncompressed;
 extern bool srv_background_scrub_data_compressed;
 extern uint srv_background_scrub_data_interval;
 extern uint srv_background_scrub_data_check_interval;
-#ifdef UNIV_DEBUG
-extern bool srv_scrub_force_testing;
-#endif
-
-extern mysql_pfs_key_t scrub_stat_mutex_key;
 
 static Innodb_data_lock_inspector innodb_data_lock_inspector;
 
@@ -23209,11 +23204,6 @@ static MYSQL_SYSVAR_UINT(background_scrub_data_interval,
                          " innodb_background_scrub_data_interval seconds ago",
                          NULL, NULL, srv_background_scrub_data_interval, 1,
                          UINT_MAX32, 0);
-#ifdef UNIV_DEBUG
-static MYSQL_SYSVAR_BOOL(debug_force_scrubbing, srv_scrub_force_testing, 0,
-                         "Perform extra scrubbing to increase test exposure",
-                         NULL, NULL, FALSE);
-#endif /* UNIV_DEBUG */
 
 static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(api_trx_level),
@@ -23455,9 +23445,6 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(background_scrub_data_compressed),
     MYSQL_SYSVAR(background_scrub_data_interval),
     MYSQL_SYSVAR(background_scrub_data_check_interval),
-#ifdef UNIV_DEBUG
-    MYSQL_SYSVAR(debug_force_scrubbing),
-#endif
     MYSQL_SYSVAR(scrub_log),
     MYSQL_SYSVAR(scrub_log_speed),
     NULL};

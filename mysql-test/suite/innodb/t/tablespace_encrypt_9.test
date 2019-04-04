@@ -79,7 +79,7 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 --error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --echo # Restart after crash without Keyring plugin loaded
---error 1,42
+--error 1
 --exec $MYSQLD_CMD --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
 
 # Search the failure pattern in error log

@@ -1497,8 +1497,7 @@ class THD : public MDL_context_owner,
   ulong innodb_page_access;
 
   void mark_innodb_used(ulonglong trx_id) noexcept {
-    DBUG_ASSERT(innodb_trx_id == 0 || innodb_trx_id == trx_id ||
-                is_attachable_transaction_active());
+    DBUG_ASSERT(innodb_slow_log_enabled());
     if (trx_id && !is_attachable_transaction_active()) innodb_trx_id = trx_id;
     innodb_was_used = true;
   }
@@ -1512,10 +1511,7 @@ class THD : public MDL_context_owner,
     return variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB);
   }
 
-  bool innodb_slow_log_data_logged() const noexcept {
-    DBUG_ASSERT(!innodb_was_used || innodb_slow_log_enabled());
-    return innodb_was_used;
-  }
+  bool innodb_slow_log_data_logged() const noexcept { return innodb_was_used; }
 
   /*
     Variable query_plan_flags collects information about query plan entites

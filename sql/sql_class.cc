@@ -1596,7 +1596,6 @@ void THD::cleanup_after_query() {
     lex->mi.repl_ignore_server_ids.clear();
   }
   if (rli_slave) rli_slave->cleanup_after_query();
-  approx_distinct_pages.clear();
   // Set the default "cute" mode for the execution environment:
   check_for_truncated_fields = CHECK_FIELD_IGNORE;
 }
@@ -2119,7 +2118,7 @@ void THD::clear_slow_extended() noexcept {
   tmp_tables_disk_used = 0;
   tmp_tables_size = 0;
   innodb_was_used = false;
-  if (!(server_status & SERVER_STATUS_IN_TRANS)) innodb_trx_id = 0;
+  innodb_trx_id = 0;
   innodb_io_reads = 0;
   innodb_io_read = 0;
   innodb_io_reads_wait_timer = 0;

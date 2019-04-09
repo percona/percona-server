@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#include <atomic>
 #include "i_keyring_key.h"
-
 #include "my_dbug.h"
 
 namespace keyring {
@@ -60,16 +60,16 @@ class System_key_adapter : public IKey {
   uchar *get_key_data() override {
     assert(keyring_key != nullptr);
 
-    if (system_key_data.get_key_data() == nullptr) construct_system_key_data();
+    if (system_key_data.key_data.load() == nullptr) construct_system_key_data();
 
-    return system_key_data.get_key_data();
+    return system_key_data.key_data.load();
   }
   size_t get_key_data_size() override {
     assert(keyring_key != nullptr);
 
-    if (system_key_data.get_key_data() == nullptr) construct_system_key_data();
+    if (system_key_data.key_data.load() == nullptr) construct_system_key_data();
 
-    return system_key_data.get_key_data_size();
+    return system_key_data.key_data_size;
   }
   size_t get_key_pod_size() const noexcept override {
     assert(false);
@@ -130,17 +130,13 @@ class System_key_adapter : public IKey {
     System_key_data();
     ~System_key_data();
 
-    bool allocate(size_t key_data_size);
     void free();
-    uchar *get_key_data();
-    size_t get_key_data_size();
 
-   private:
-    uchar *key_data;
+    std::atomic<uchar *> key_data;
     size_t key_data_size;
   };
 
-  void construct_system_key_data();
+  void construct_system_key_data() noexcept;
 
   System_key_data system_key_data;
   uint key_version;

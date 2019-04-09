@@ -703,3 +703,5 @@ DROP TABLE members_3;
 DROP TABLE clients;
 DROP TABLE clients_lk;
 DROP TABLE trb1;
+let $engine= ROCKSDB;
+--source include/percona_partition_with_compressed_columns.inc

@@ -205,3 +205,6 @@ DROP TABLE t4;
 --disconnect con1
 --connection default
 # End of Test #3
+# Test 4
+--source include/percona_partition_with_compressed_columns.inc
+# End of Test #4

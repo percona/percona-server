@@ -266,6 +266,14 @@ DELETE a1 FROM t1 AS a1, t1 AS a2 WHERE a1.a=a2.a;
 DROP TABLE t1;
 --echo End of 5.0 tests
 
+--echo #
+--echo # Bug#27799513: POTENTIAL DOUBLE FREE OR CORRUPTION OF HEAP INFO (HP_INFO)
+--echo #
+ CREATE TABLE t1 (id INT, a VARCHAR(300) NOT NULL, KEY USING BTREE(a)) ENGINE=Heap;
+INSERT t1 VALUES (1, REPEAT('a', 300));
+DROP TABLE t1;
+--echo End of 5.5 tests
+
 --echo # Bug#24364448: Check that btree indexes may be used to provide ordering
 
 CREATE TABLE t1(

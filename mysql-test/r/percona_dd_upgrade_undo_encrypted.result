@@ -1,0 +1,65 @@
+# Set different paths for --datadir
+# Set path for undo* files.
+# Set path for ibdata* files.
+# Stop DB server which was created by MTR default, empty undo logs
+SET GLOBAL innodb_fast_shutdown=0;
+# Start the 8.0 server on 5.7 datadir with correct keyring_file
+# Execute mysql_upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+sys.sys_config                                     OK
+test.tab1                                          OK
+SHOW CREATE TABLE test.tab1;
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(30) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM tab1;
+c1	c2
+100	aaaaa
+200	bbbbb
+300	aaaaa
+400	bbbbb
+# Now let's test what happens when encryption key is missing and we try to start 8.0 server on 5.7 directory
+# with encrypted undo tablespaces
+# Recreate the directories
+# Check for errors in error log
+# Corrupt undo encryption keys
+# Now we check how the server behaves when undo encryption keys are corrupted
+# Check for errors in error log
+# Cleanup
+# Restart the server with default options.
+# restart

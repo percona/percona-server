@@ -689,7 +689,11 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
 
   /* Return if the encryption metadata is empty. */
   if (memcmp(first_page + offset, ENCRYPTION_KEY_MAGIC_V3,
-             ENCRYPTION_MAGIC_SIZE) != 0) {
+             ENCRYPTION_MAGIC_SIZE) != 0 &&
+      /* PS 5.7 undo encryption upgrade */
+      !(srv_is_upgrade_mode &&
+        memcmp(first_page + offset, ENCRYPTION_KEY_MAGIC_V2,
+               ENCRYPTION_MAGIC_SIZE) == 0)) {
     ut_free(first_page_buf);
     return (DB_SUCCESS);
   }

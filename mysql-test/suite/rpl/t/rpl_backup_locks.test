@@ -1,0 +1,2 @@
+--let $engine= innodb
+--source common/rpl/rpl_backup_locks.inc

@@ -2227,8 +2227,9 @@ public:
 
   void mark_innodb_used(ulonglong trx_id)
   {
-    DBUG_ASSERT(innodb_trx_id == 0 || innodb_trx_id == trx_id);
-    innodb_trx_id= trx_id;
+    DBUG_ASSERT(innodb_slow_log_enabled());
+    DBUG_ASSERT(innodb_trx_id == 0 || innodb_trx_id == trx_id || trx_id == 0);
+    if (trx_id) innodb_trx_id= trx_id;
     innodb_was_used= true;
   }
 
@@ -2245,7 +2246,6 @@ public:
 
   bool innodb_slow_log_data_logged() const
   {
-    DBUG_ASSERT(!innodb_was_used || innodb_slow_log_enabled());
     return innodb_was_used;
   }
 

@@ -1493,7 +1493,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     the slow log only if opt_log_slow_admin_statements is set.
   */
   thd->enable_slow_log = true;
-  thd->clear_slow_extended();
   thd->lex->sql_command = SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   if (IS_TIME_T_VALID_FOR_TIMESTAMP(thd->query_start_in_secs()) == false) {

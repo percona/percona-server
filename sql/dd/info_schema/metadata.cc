@@ -527,7 +527,8 @@ bool update_server_I_S_metadata(THD *thd) {
     3) Update the target IS version in DD.
   */
   error = error || dd::info_schema::store_server_I_S_metadata(thd) ||
-          dd::info_schema::create_system_views(thd);
+          dd::info_schema::create_system_views(thd) ||
+          dd::info_schema::create_non_dd_views(thd, true);
 
   return dd::end_transaction(thd, error);
 }

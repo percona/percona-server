@@ -4,6 +4,9 @@
 --echo # The aim of test is to ensure that compression dictionary tables have
 --echo # correct table_ids(ie se_private_id).
 --echo #
+--disable_query_log
+call mtr.add_suppression("Column count of mysql.user is wrong. Expected 51, found 50. Created with MySQL 80013, now running \\d+. Please use mysql_upgrade to fix this error");
+--enable_query_log
 
 --source include/have_debug.inc
 

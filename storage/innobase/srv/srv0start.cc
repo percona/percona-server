@@ -2533,6 +2533,8 @@ files_checked:
       return (srv_init_abort(err));
     }
 
+    bool mysql_ibd_page_0_present_in_redo = is_mysql_ibd_page_0_in_redo();
+
     /* We need to start log threads before asking to flush
     all dirty pages. That's because some dirty pages could
     be dirty because of ibuf merges. The ibuf merges could
@@ -2693,6 +2695,23 @@ files_checked:
       RECOVERY_CRASH(5);
 
       log_sys_close();
+
+      // We have set mysql's dd flags based on what we read from page 0. This
+      // was before redo log was applied. Now we have applied changes from redo
+      // log. If there were changes in redo for page 0 of mysql.ibd we check if
+      // encryption flag has changed. If it did we amend mysql's dd encryption
+      // flags accordingly.
+      if (mysql_ibd_page_0_present_in_redo) {
+        fil_space_t *mysql_space = fil_space_get(dict_sys_t::s_space_id);
+        ut_ad(mysql_space !=
+              nullptr);  // if mysql.ibd was in redo it should have been
+                         // loaded
+        if (mysql_space == nullptr ||
+            dd_fix_mysql_ibd_encryption_flag_if_needed(current_thd,
+                                                       mysql_space->flags)) {
+          return (srv_init_abort(DB_ERROR));
+        }
+      }
 
       ib::info(ER_IB_MSG_1143);
 

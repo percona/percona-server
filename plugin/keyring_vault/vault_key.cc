@@ -18,6 +18,13 @@ bool Vault_key::has_next_key() { return !was_key_retrieved; }
 void Vault_key::xor_data() { /* We do not xor data in keyring_vault */
 }
 
+void Vault_key::xor_data(uchar *,
+                         size_t) { /* We do not xor data in keyring_vault */
+}
+
+void xor_data(uchar *, size_t) { /* We do not xor data in keyring_vault */
+}
+
 uchar *Vault_key::get_key_data() const { return key.get(); }
 
 size_t Vault_key::get_key_data_size() const { return key_len; }

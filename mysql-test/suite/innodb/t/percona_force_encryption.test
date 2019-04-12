@@ -21,7 +21,7 @@ create table t3_on_default (a int) engine=innodb;
 create table t4_on_explicit_off (a int) engine=innodb encryption="N";
 --error ER_ILLEGAL_HA_CREATE_OPTION
 create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE="InnoDB";
-set global innodb_encrypt_tables='FORCE';
+set global innodb_encrypt_tables=FORCE;
 --error ER_INVALID_ENCRYPTION_OPTION
 create table t5_force_explicit_off (a int) engine=innodb encryption="N";
 create table t6_force_default (a int) engine=innodb;
@@ -42,7 +42,7 @@ create table t7_partitioned_fail (a int, primary key(a))
 	partition by range (a) partitions 2 (
 		partition p1 values less than (20),
 		partition p2 values less than (40) tablespace ts_encrypted2);
-set global innodb_encrypt_tables='FORCE';
+set global innodb_encrypt_tables=FORCE;
 
 insert into t1_default_explicit_on values (42);
 insert into t2_default_explicit_off values (42);
@@ -88,7 +88,7 @@ alter table t6_force_default encryption="N", ALGORITHM=INPLACE;
 # Even when it's ON or FORCE, non encrypted tables can be altered,
 # without changing their encryption settings
 alter table t4_on_explicit_off change a b int;
-set global innodb_encrypt_tables='FORCE';
+set global innodb_encrypt_tables=FORCE;
 alter table t4_on_explicit_off change b a int;
 
 show create table t1_default_explicit_on;

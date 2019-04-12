@@ -48,7 +48,7 @@ CREATE TABLE t8(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
 DROP TABLE t8;
 
 --echo # System is unencrypted, test with innodb_encrypt_tables=FORCE
-SET GLOBAL innodb_encrypt_tables="FORCE";
+SET GLOBAL innodb_encrypt_tables=FORCE;
 SELECT @@innodb_encrypt_tables;
 
 --error ER_ILLEGAL_HA_CREATE_OPTION
@@ -154,7 +154,7 @@ CREATE TABLE t5_2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 DROP TABLE t5_2;
 
 --echo # System is encrypted, test with innodb_encrypt_tables=FORCE
-SET GLOBAL innodb_encrypt_tables="FORCE";
+SET GLOBAL innodb_encrypt_tables=FORCE;
 SELECT @@innodb_encrypt_tables;
 CREATE TABLE t5_3(a TEXT) TABLESPACE = innodb_system;
 

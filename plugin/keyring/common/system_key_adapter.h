@@ -65,24 +65,10 @@ public:
     DBUG_ASSERT(keyring_key != NULL);
     return keyring_key->get_user_id();
   }
-  virtual uchar* get_key_data()
-  {
-    DBUG_ASSERT(keyring_key != NULL);
+  virtual uchar* get_key_data();
 
-    if (system_key_data.get_key_data() == NULL)
-      construct_system_key_data();
+  virtual size_t get_key_data_size();
 
-    return system_key_data.get_key_data();
-  }
-  virtual size_t get_key_data_size()
-  {
-    DBUG_ASSERT(keyring_key != NULL);
-
-    if (system_key_data.get_key_data() == NULL)
-      construct_system_key_data();
-
-    return system_key_data.get_key_data_size();
-  }
   virtual size_t get_key_pod_size() const
   {
     DBUG_ASSERT(FALSE);
@@ -92,6 +78,10 @@ public:
   {
     DBUG_ASSERT(FALSE);
     return NULL;
+  }
+  virtual void xor_data(uchar*, size_t)
+  {
+    DBUG_ASSERT(FALSE);
   }
   virtual void xor_data()
   {
@@ -144,11 +134,7 @@ private:
     System_key_data();
     ~System_key_data();
 
-    bool allocate(size_t key_data_size);
     void free();
-    uchar *get_key_data();
-    size_t get_key_data_size();
-  private:
     uchar *key_data;
     size_t key_data_size;
   };

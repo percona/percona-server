@@ -32,6 +32,7 @@ struct IKey : public Keyring_alloc
   virtual size_t get_key_data_size()= 0;
   virtual size_t get_key_pod_size() const = 0;
   virtual uchar* release_key_data()= 0;
+  virtual void xor_data(uchar *data, size_t data_len) = 0;
   virtual void xor_data()= 0;
   virtual void set_key_data(uchar *key_data, size_t key_data_size)= 0;
   virtual void set_key_type(const std::string *key_type)= 0;

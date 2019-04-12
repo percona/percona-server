@@ -185,13 +185,18 @@ size_t Key::get_key_pod_size() const
   return key_pod_size_aligned;
 }
 
+void Key::xor_data(uchar *data, size_t data_len) {
+  static const char *obfuscate_str = "*305=Ljt0*!@$Hnm(*-9-w;:";
+  for (uint i = 0, l = 0; i < data_len;
+       ++i, l = ((l + 1) % strlen(obfuscate_str)))
+    data[i] ^= obfuscate_str[l];
+}
+
 void Key::xor_data()
 {
   if (key == NULL)
     return;
-  static const char *obfuscate_str="*305=Ljt0*!@$Hnm(*-9-w;:";
-  for(uint i=0, l=0; i < key_len; ++i, l=((l+1) % strlen(obfuscate_str)))
-    key.get()[i]^= obfuscate_str[l];
+  xor_data(key.get(), key_len);
 }
 
 my_bool Key::is_key_id_valid()

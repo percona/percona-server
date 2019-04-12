@@ -44,6 +44,7 @@ struct Key : IKey
   size_t get_key_data_size();
   size_t get_key_pod_size() const;
   uchar* release_key_data();
+  void xor_data(uchar *data, size_t data_len);
   void xor_data();
   void set_key_data(uchar *key_data, size_t key_data_size);
   void set_key_type(const std::string *key_type);

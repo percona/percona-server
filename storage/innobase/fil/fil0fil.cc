@@ -5926,9 +5926,12 @@ fil_io_set_encryption(
 		return;
 	}
 
-	/* Don't encrypt the log, page 0 of all tablespaces, all pages
+	/* Don't encrypt the page 0 of all tablespaces,
 	   don't encrypt TRX_SYS_SPACE.TRX_SYS_PAGE_NO as it contains address to dblwr buffer */
-	if (!req_type.is_log() && page_id.page_no() > 0 && (TRX_SYS_SPACE != page_id.space() || TRX_SYS_PAGE_NO != page_id.page_no())
+	if ((req_type.is_log()
+	     || (page_id.page_no() > 0
+		 && (TRX_SYS_SPACE != page_id.space()
+		     || TRX_SYS_PAGE_NO != page_id.page_no())))
 	    && space->encryption_type != Encryption::NONE) {
 		if (space->encryption_type == Encryption::KEYRING)  {
 			ut_ad(space->crypt_data != NULL);

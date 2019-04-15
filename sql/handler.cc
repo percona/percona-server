@@ -2875,7 +2875,8 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root) {
     the same table instance. The ha_open call is not cacheable for clone.
   */
   if (new_handler->ha_open(table, name, table->db_stat,
-                           HA_OPEN_IGNORE_IF_LOCKED, nullptr))
+                           HA_OPEN_IGNORE_IF_LOCKED,
+                           table->get_tmp_dd_table_ptr()))
     goto err;
 
   return new_handler;

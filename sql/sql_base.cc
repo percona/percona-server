@@ -7499,6 +7499,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                                            : NON_TRANSACTIONAL_TMP_TABLE);
 
   if (add_to_temporary_tables_list) {
+    tmp_table->set_tmp_dd_table_ptr(&table_def);
     tmp_table->set_binlog_drop_if_temp(
         !thd->is_current_stmt_binlog_disabled() &&
         !thd->is_current_stmt_binlog_format_row());

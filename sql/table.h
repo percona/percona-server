@@ -2448,6 +2448,24 @@ struct TABLE {
             set or not
   */
   bool should_binlog_drop_if_temp(void) const;
+
+  void set_tmp_dd_table_ptr(const dd::Table *tmp_dd_table_ptr_) noexcept {
+    assert(tmp_dd_table_ptr_ != nullptr);
+    tmp_dd_table_ptr = tmp_dd_table_ptr_;
+  }
+
+  const dd::Table *get_tmp_dd_table_ptr() const noexcept {
+    return tmp_dd_table_ptr;
+  }
+
+ private:
+  /**
+     A DD object reference for temporary tables, which is otherwise present in
+     the owner thread callstack only and nowhere in the global DD data
+     structures. It is used to support
+     INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES queries.
+  */
+  const dd::Table *tmp_dd_table_ptr{nullptr};
 };
 
 static inline void empty_record(TABLE *table) {

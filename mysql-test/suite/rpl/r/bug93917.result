@@ -1,0 +1,172 @@
+#
+# Bug #93917 "Wrong binlog entry for BLOB on a blackhole intermediary master"
+# (https://bugs.mysql.com/bug.php?id=93917)
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+[connection master]
+********************************************************************************
+Testing 'TINYBLOB' data type
+********************************************************************************
+
+CREATE TABLE t1(id BIGINT, col TINYBLOB) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=Blackhole;
+[connection master]
+INSERT INTO t1 VALUES(1, 'testblob_1');
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET col = 'blb' where ID = 1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: TINYBLOB)]
+DROP TABLE t1;
+********************************************************************************
+Testing 'BLOB' data type
+********************************************************************************
+
+CREATE TABLE t1(id BIGINT, col BLOB) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=Blackhole;
+[connection master]
+INSERT INTO t1 VALUES(1, 'testblob_1');
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET col = 'blb' where ID = 1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: BLOB)]
+DROP TABLE t1;
+********************************************************************************
+Testing 'MEDIUMBLOB' data type
+********************************************************************************
+
+CREATE TABLE t1(id BIGINT, col MEDIUMBLOB) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=Blackhole;
+[connection master]
+INSERT INTO t1 VALUES(1, 'testblob_1');
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET col = 'blb' where ID = 1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: MEDIUMBLOB)]
+DROP TABLE t1;
+********************************************************************************
+Testing 'LONGBLOB' data type
+********************************************************************************
+
+CREATE TABLE t1(id BIGINT, col LONGBLOB) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=Blackhole;
+[connection master]
+INSERT INTO t1 VALUES(1, 'testblob_1');
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET col = 'blb' where ID = 1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: LONGBLOB)]
+DROP TABLE t1;
+********************************************************************************
+Testing 'TINYTEXT' data type
+********************************************************************************
+
+CREATE TABLE t1(id BIGINT, col TINYTEXT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=Blackhole;
+[connection master]
+INSERT INTO t1 VALUES(1, 'testblob_1');
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET col = 'blb' where ID = 1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: TINYTEXT)]
+DROP TABLE t1;
+********************************************************************************
+Testing 'TEXT' data type
+********************************************************************************
+
+CREATE TABLE t1(id BIGINT, col TEXT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=Blackhole;
+[connection master]
+INSERT INTO t1 VALUES(1, 'testblob_1');
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET col = 'blb' where ID = 1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: TEXT)]
+DROP TABLE t1;
+********************************************************************************
+Testing 'MEDIUMTEXT' data type
+********************************************************************************
+
+CREATE TABLE t1(id BIGINT, col MEDIUMTEXT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=Blackhole;
+[connection master]
+INSERT INTO t1 VALUES(1, 'testblob_1');
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET col = 'blb' where ID = 1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: MEDIUMTEXT)]
+DROP TABLE t1;
+********************************************************************************
+Testing 'LONGTEXT' data type
+********************************************************************************
+
+CREATE TABLE t1(id BIGINT, col LONGTEXT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=Blackhole;
+[connection master]
+INSERT INTO t1 VALUES(1, 'testblob_1');
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET col = 'blb' where ID = 1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: LONGTEXT)]
+DROP TABLE t1;
+********************************************************************************
+Testing 'VARCHAR(64)' data type
+********************************************************************************
+
+CREATE TABLE t1(id BIGINT, col VARCHAR(64)) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=Blackhole;
+[connection master]
+INSERT INTO t1 VALUES(1, 'testblob_1');
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET col = 'blb' where ID = 1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: VARCHAR(64))]
+DROP TABLE t1;
+********************************************************************************
+Testing 'VARBINARY(64)' data type
+********************************************************************************
+
+CREATE TABLE t1(id BIGINT, col VARBINARY(64)) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+ALTER TABLE t1 ENGINE=Blackhole;
+[connection master]
+INSERT INTO t1 VALUES(1, 'testblob_1');
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE t1 SET col = 'blb' where ID = 1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/assert.inc [Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: VARBINARY(64))]
+DROP TABLE t1;
+include/rpl_end.inc

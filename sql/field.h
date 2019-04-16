@@ -3610,7 +3610,8 @@ class Field_blob : public Field_longstr {
 
  private:
   /**
-    In order to support update of virtual generated columns of blob type,
+    In order to support update of virtual generated columns and columns in
+    a Blackhole table of BLOB type,
     we need to allocate the space blob needs on server for old_row and
     new_row respectively. This variable is used to record the
     allocated blob space for old_row.
@@ -3835,21 +3836,16 @@ class Field_blob : public Field_longstr {
   /**
     Mark that the BLOB stored in value should be copied before updating it.
 
-    When updating virtual generated columns we need to keep the old
-    'value' for BLOBs since this can be needed when the storage engine
-    does the update. During read of the record the old 'value' for the
+    When updating virtual generated columns or columns in a Blackhole table
+    we need to keep the old 'value' for BLOBs since this can be needed when
+    the storage engine does the update.
+    During read of the record the old 'value' for the
     BLOB is evaluated and stored in 'value'. This function is to be used
     to specify that we need to copy this BLOB 'value' into 'old_value'
     before we compute the new BLOB 'value'. For more information @see
     Field_blob::keep_old_value().
   */
   void set_keep_old_value(bool old_value_flag) {
-    /*
-      We should only need to keep a copy of the blob 'value' in the case
-      where this is a virtual generated column (that is indexed).
-    */
-    assert(is_virtual_gcol());
-
     /*
       If set to true, ensure that 'value' is copied to 'old_value' when
       keep_old_value() is called.
@@ -3860,8 +3856,9 @@ class Field_blob : public Field_longstr {
   /**
     Save the current BLOB value to avoid that it gets overwritten.
 
-    This is used when updating virtual generated columns that are
-    BLOBs. Some storage engines require that we have both the old and
+    This is used when updating virtual generated columns or columns in a
+    Blackhole table that are BLOBs.
+    Some storage engines require that we have both the old and
     new BLOB value for virtual generated columns that are indexed in
     order for the storage engine to be able to maintain the index. This
     function will transfer the buffer storing the current BLOB value
@@ -3886,16 +3883,15 @@ class Field_blob : public Field_longstr {
     old value for the BLOB and use table->record[0] to read the new
     value.
 
+    Similarly, in case of Blackhole "old" BLOB values are not read by
+    the storage engine and therefore 'Field_blob' is not made to point to the
+    engine's internal buffer. Therefore, in order to avoid "old" BLOB data
+    corruption, it also needs to be saved in 'old_value'.
+
     This function must be called before we store the new BLOB value in
     this field object.
   */
   void keep_old_value() {
-    /*
-      We should only need to keep a copy of the blob value in the case
-      where this is a virtual generated column (that is indexed).
-    */
-    assert(is_virtual_gcol());
-
     // Transfer ownership of the current BLOB value to old_value
     if (m_keep_old_value) {
       old_value.takeover(value);

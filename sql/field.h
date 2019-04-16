@@ -3359,6 +3359,8 @@ protected:
   */
   String value;
 
+  String old_value;
+
   /**
     Store ptr and length.
   */
@@ -3447,6 +3449,7 @@ public:
   void reset_fields()
   {
     memset(static_cast<void*>(&value), 0, sizeof(value));
+    memset(static_cast<void*>(&old_value), 0, sizeof(value));
   }
   uint32 get_field_buffer_size(void) { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
@@ -3520,7 +3523,11 @@ public:
                               uint param_data, bool low_byte_first);
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
-  void free() { value.free(); }
+  void free()
+  {
+    value.free();
+    old_value.free();
+  }
   inline void clear_temporary() {
     memset(static_cast<void*>(&value), 0, sizeof(value));
   }
@@ -3532,6 +3539,12 @@ public:
   uint is_equal(Create_field *new_field);
   inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
   inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }
+  void keep_old_value()
+  {
+    // Transfer ownership of the current BLOB value to old_value
+    old_value.takeover(value);
+  }
+
 private:
   int do_save_field_metadata(uchar *first_byte);
 };

@@ -7485,12 +7485,16 @@ static bool dict_should_be_keyring_encrypted() {
          srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE;
 }
 
-/** Reads mysql.ibd's page0 from buffer
-@return page0 or nullptr */
-static buf_frame_t *get_mysql_ibd_page_0_from_buffer() {
+/** Reads mysql.ibd's page0 from buffer if the tablespace is already loaded
+into Fil_system cache
+@return tuple <0> success - true if no error
+              <1> true if encryption flag is set, false otherwise */
+static std::tuple<bool, bool> get_mysql_ibd_page_0_from_buffer() {
+  auto result = std::make_tuple(false, false);
+
   fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
   if (space == nullptr) {
-    return nullptr;
+    return (result);
   }
 
   const page_size_t page_size(space->flags);
@@ -7498,17 +7502,32 @@ static buf_frame_t *get_mysql_ibd_page_0_from_buffer() {
   mtr_start(&mtr);
   buf_block_t *block = buf_page_get(page_id_t(dict_sys_t::s_space_id, 0),
                                     univ_page_size, RW_X_LATCH, &mtr);
+
+  if (block == nullptr) {
+    mtr_commit(&mtr);
+    fil_space_release(space);
+    return (result);
+  }
+
+  const ulint flags = fsp_header_get_flags(buf_block_get_frame(block));
+  std::get<0>(result) = true;
+  std::get<1>(result) = FSP_FLAGS_GET_ENCRYPTION(flags);
+
   mtr_commit(&mtr);
-
   fil_space_release(space);
-
-  return !block ? nullptr : buf_block_get_frame(block);
+  return (result);
 }
 
 /** Reads mysql.ibd's page0 directly from disk
 @param[in] buf - buffer for reading page0 into
-@return page0 or nullptr */
-static buf_frame_t *get_mysql_ibd_page_0_io(byte *buf) {
+@return tuple <0> success - true if no error
+              <1> true if encryption flag is set, false otherwise */
+static std::tuple<bool, bool> get_mysql_ibd_page_0_io() {
+  auto result = std::make_tuple(false, false);
+
+  /* page0 of mysql.ibd is not in the buffer, try direct io */
+  auto buf = ut_make_unique_ptr_nokey(2 * UNIV_PAGE_SIZE);
+
   bool successful_read = false;
 
   pfs_os_file_t file = os_file_create_simple_no_error_handling(
@@ -7516,10 +7535,11 @@ static buf_frame_t *get_mysql_ibd_page_0_io(byte *buf) {
       OS_FILE_READ_ONLY, srv_read_only_mode, &successful_read);
 
   if (!successful_read) {
-    return nullptr;
+    return (result);
   }
 
-  buf_frame_t *page = static_cast<buf_frame_t *>(ut_align(buf, UNIV_PAGE_SIZE));
+  buf_frame_t *page =
+      static_cast<buf_frame_t *>(ut_align(buf.get(), UNIV_PAGE_SIZE));
 
   ut_ad(page == page_align(page));
 
@@ -7528,32 +7548,31 @@ static buf_frame_t *get_mysql_ibd_page_0_io(byte *buf) {
 
   os_file_close(file);
 
-  return DB_SUCCESS == err ? page : nullptr;
+  if (err != DB_SUCCESS) {
+    return (result);
+  }
+
+  const ulint flags = fsp_header_get_flags(page);
+  std::get<0>(result) = true;
+  std::get<1>(result) = FSP_FLAGS_GET_ENCRYPTION(flags);
+
+  return (result);
 }
 
 /** Detect if mysql.ibd's page0 has encryption flag set.
- *  The page 0 either read from buffer (if available) or
- *  directly from disk.
+The page 0 either read from buffer (if available) or
+directly from disk.
 @return tuple <0> success - true if no error
               <1> true if encryption flag is set, false otherwise */
 static std::tuple<bool, bool> dict_mysql_ibd_page_0_has_encryption_flag_set() {
   //<0> element - success, <1> element - encryption flag
   auto result = std::make_tuple(false, false);
-  auto buf = ut_make_unique_ptr_null();
 
   /* read from buffer */
-  buf_frame_t *page0 = get_mysql_ibd_page_0_from_buffer();
-  if (!page0) {
-    /* page0 of mysql.ibd is not in the buffer, try direct io */
-    buf = ut_make_unique_ptr_nokey(2 * UNIV_PAGE_SIZE);
-    if (buf == nullptr || !(page0 = get_mysql_ibd_page_0_io(buf.get()))) {
-      return result;
-    }
+  result = get_mysql_ibd_page_0_from_buffer();
+  if (!std::get<0>(result)) {
+    result = get_mysql_ibd_page_0_io();
   }
-
-  const ulint flags = fsp_header_get_flags(page0);
-  std::get<0>(result) = true;
-  std::get<1>(result) = FSP_FLAGS_GET_ENCRYPTION(flags);
   return (result);
 }
 

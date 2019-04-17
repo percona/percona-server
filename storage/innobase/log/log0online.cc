@@ -636,7 +636,8 @@ static bool log_online_read_bitmap_page(
   ut_a(bitmap_file->offset <= bitmap_file->size - MODIFIED_PAGE_BLOCK_SIZE);
   ut_a(bitmap_file->offset % MODIFIED_PAGE_BLOCK_SIZE == 0);
 
-  IORequest io_request(IORequest::LOG | IORequest::READ);
+  IORequest io_request(IORequest::LOG | IORequest::READ |
+                       IORequest::NO_ENCRYPTION);
   const bool success =
       os_file_read(io_request, bitmap_file->file, page, bitmap_file->offset,
                    MODIFIED_PAGE_BLOCK_SIZE);

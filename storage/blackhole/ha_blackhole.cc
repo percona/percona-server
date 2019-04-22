@@ -157,7 +157,53 @@ int ha_blackhole::rnd_next(uchar *buf)
                        TRUE);
   THD *thd= ha_thd();
   if (pretend_for_slave(*thd))
+  {
+    /*
+      Unlike a normal storage engine (e.g. 'InnoDB') in which
+      'rnd_next()' overload actually reads all data in BLOB fields
+      from real storage into internal SE memory (like 'mem_heap' in InnoDB)
+      and updates packed representation ('table->record[0]') of the BLOB
+      field values with pointers to this internal SE memory, 'Blackhole'
+      engine does not do this.
+
+      In case when a database with Blackhole tables serves just as an
+      intermediate binlog server in a replication chain, this may cause
+      data corruption.
+
+      In particular, when 'Update_rows_log_event' is processed on a
+      Blackhole table, calling 'Update_rows_log_event::do_exec_row()' will
+      first copy Before Image (BI) found in 'record[0]' into 'record[1]' and
+      then unpack After Image (AI) into 'record[0]'. The problem is that this
+      record copying is shallow (just 'memcpy()') and for packed BLOB fields
+      it just copies pointer values. In other words, before calling
+      'unpack_current_row()' we end up in a situation when packed BLOB field
+      values in 'record[0]' (AI) and 'record[1]' (BI) point to exactly the
+      same memory location and calling 'unpack_current_row()' for AI
+      overwrites BLOB data in BI.
+
+      To prevent this we do the same trick as for virtual generated columns
+      in 5.7 - keeping old BLOB value inside 'old_value' field in
+      'Field_blob' class by calling 'keep_old_value()' for all BLOB fields
+      currently marked for update in 'table->write_set'..
+    */
+
+    if (table_share->blob_fields != 0)
+      for (Field **field_ptr= table->field; *field_ptr != NULL; ++field_ptr)
+      {
+        Field *current_field= *field_ptr;
+        if ((current_field->flags & BLOB_FLAG) != 0)
+        {
+          Field_blob* bfield= down_cast<Field_blob*>(current_field);
+          if (bfield->in_write_set())
+          {
+            bfield->set_keep_old_value(true);
+            bfield->keep_old_value();
+          }
+        }
+      }
+
     rc= 0;
+  }
   else
     rc= HA_ERR_END_OF_FILE;
   MYSQL_READ_ROW_DONE(rc);

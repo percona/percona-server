@@ -1,0 +1,71 @@
+--echo #
+--echo # Bug #93917 "Wrong binlog entry for BLOB on a blackhole intermediary master"
+--echo # (https://bugs.mysql.com/bug.php?id=93917)
+--echo #
+
+--source include/have_innodb.inc
+--source include/have_blackhole.inc
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+
+--let $safe_load_data_dir = `SELECT @@global.secure_file_priv`
+--let $server_1_binlog_record_file = $safe_load_data_dir/bug93917_server_1.txt
+--let $server_2_binlog_record_file = $safe_load_data_dir/bug93917_server_2.txt
+
+--let $data_type_list = 'TINYBLOB', 'BLOB', 'MEDIUMBLOB', 'LONGBLOB', 'TINYTEXT', 'TEXT', 'MEDIUMTEXT', 'LONGTEXT', 'VARCHAR(64)', 'VARBINARY(64)'
+--let $list_sentinel = 'ABCDEF'
+--let $number_of_data_types = `SELECT FIND_IN_SET($list_sentinel, CONCAT_WS(',', $data_type_list, $list_sentinel)) - 1`
+--let $data_type_index = 1
+
+--let $server_1_log_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--source include/rpl_connection_slave.inc
+--let $server_2_log_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--source include/rpl_connection_master.inc
+
+while($data_type_index <= $number_of_data_types)
+{
+  --let $data_type = `SELECT ELT($data_type_index, $data_type_list)`
+  --echo ********************************************************************************
+  --echo Testing '$data_type' data type
+  --echo ********************************************************************************
+  --echo
+
+  --eval CREATE TABLE t1(id BIGINT, col $data_type) ENGINE=InnoDB
+
+  --source include/sync_slave_sql_with_master.inc
+  ALTER TABLE t1 ENGINE=Blackhole;
+
+  --source include/rpl_connection_master.inc
+  INSERT INTO t1 VALUES(1, 'testblob_1');
+  --let $server_1_start_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+
+  --source include/sync_slave_sql_with_master.inc
+  --let $server_2_start_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+
+  --source include/rpl_connection_master.inc
+  UPDATE t1 SET col = 'blb' where ID = 1;
+  --let $server_1_stop_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+
+  --source include/sync_slave_sql_with_master.inc
+  --let $server_2_stop_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+
+  --source include/rpl_connection_master.inc
+
+  # there should be no overwritten "blbtblob_1" value in the Blackhole update rows binlog record
+  --exec $MYSQL_BINLOG -vv --base64-output=decode-rows $server_1_datadir/$server_1_log_file --start-position=$server_1_start_pos --stop-position=$server_1_stop_pos | grep ^### > $server_1_binlog_record_file
+  --exec $MYSQL_BINLOG -vv --base64-output=decode-rows $server_2_datadir/$server_2_log_file --start-position=$server_2_start_pos --stop-position=$server_2_stop_pos | grep ^### > $server_2_binlog_record_file
+
+  --let $assert_text = Rows Update event records for both InnoDB (on server_1) and Blackhole (on server_2) should be identical (column type: $data_type)
+  --let $assert_cond = LOAD_FILE("$server_1_binlog_record_file") = LOAD_FILE("$server_2_binlog_record_file")
+  --source include/assert.inc
+
+  --remove_file $server_1_binlog_record_file
+  --remove_file $server_2_binlog_record_file
+
+  DROP TABLE t1;
+
+  --inc $data_type_index
+}
+
+--source include/rpl_end.inc

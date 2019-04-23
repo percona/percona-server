@@ -8106,6 +8106,14 @@ static bool create_table_impl(
       }
       create_info->db_type = engine_type;
     }
+    if (alter_info->has_compressed_columns() &&
+        !ha_check_storage_engine_flag(part_info->default_engine_type,
+                                      HTON_SUPPORTS_COMPRESSED_COLUMNS)) {
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+               ha_resolve_storage_engine_name(part_info->default_engine_type),
+               "COMPRESSED COLUMNS");
+      DBUG_RETURN(true);
+    }
   }
 
   /* Suppress key length errors if this is a white listed table. */

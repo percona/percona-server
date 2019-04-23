@@ -290,3 +290,18 @@ t4
 SELECT * FROM t3;
 ERROR 42S02: Table 'test.t3' doesn't exist
 DROP TABLE t4;
+#
+# PS-5174: Check COMPRESSED COLUMNS support on partitioned tables
+#
+SET @dictionary_data = 'one' 'two' 'three' 'four';
+CREATE COMPRESSION_DICTIONARY numbers (@dictionary_data);
+CREATE TABLE comp1(
+id BIGINT UNSIGNED NOT NULL,
+a VARCHAR(250) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers DEFAULT NULL
+) ENGINE = 'TokuDB'
+PARTITION BY RANGE (id) (
+PARTITION p1 VALUES LESS THAN (100),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+ERROR HY000: Table storage engine 'TokuDB' does not support the create option 'COMPRESSED COLUMNS'
+DROP COMPRESSION_DICTIONARY numbers;

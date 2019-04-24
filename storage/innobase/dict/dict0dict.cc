@@ -7528,13 +7528,13 @@ static std::tuple<bool, bool> get_mysql_ibd_page_0_io() {
   /* page0 of mysql.ibd is not in the buffer, try direct io */
   auto buf = ut_make_unique_ptr_nokey(2 * UNIV_PAGE_SIZE);
 
-  bool successful_read = false;
+  bool successfully_opened = false;
 
   pfs_os_file_t file = os_file_create_simple_no_error_handling(
       innodb_data_file_key, dict_sys_t::s_dd_space_file_name, OS_FILE_OPEN,
-      OS_FILE_READ_ONLY, srv_read_only_mode, &successful_read);
+      OS_FILE_READ_ONLY, srv_read_only_mode, &successfully_opened);
 
-  if (!successful_read) {
+  if (!successfully_opened) {
     return (result);
   }
 
@@ -7544,7 +7544,8 @@ static std::tuple<bool, bool> get_mysql_ibd_page_0_io() {
   ut_ad(page == page_align(page));
 
   IORequest request(IORequest::READ);
-  dberr_t err = os_file_read_first_page(request, file, page, UNIV_PAGE_SIZE);
+  dberr_t err =
+      os_file_read_first_page_noexit(request, file, page, UNIV_PAGE_SIZE);
 
   os_file_close(file);
 

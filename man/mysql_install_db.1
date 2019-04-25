@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/20/2018
+.\"      Date: 03/14/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\FR" "1" "12/20/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\FR" "1" "03/14/2019" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -412,7 +412,7 @@ If
 already exists, the new password information is appended to it\&. Each password entry includes a timestamp so that in the event of multiple install operations it is possible to determine the password associated with each one\&.
 .sp
 \&.mysql_secret
-is created with mode 600 to be accessible only to the system user for whom it is created\&.
+is created with mode 600 to be accessible only to the operating system user for whom it is created\&.
 .RE
 .sp
 .RS 4
@@ -465,8 +465,6 @@ distribution or a source distribution, you can invoke
 with the
 \fB\-\-random\-passwords\fR
 option manually to make your MySQL installation more secure\&. This is recommended, particularly for sites with sensitive data\&.
-.sp
-This option was added in MySQL 5\&.6\&.8\&.
 .RE
 .sp
 .RS 4
@@ -558,7 +556,7 @@ For internal use\&. This option is used for creating Windows distributions\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

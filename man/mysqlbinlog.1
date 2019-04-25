@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/20/2018
+.\"      Date: 03/14/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "12/20/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "03/14/2019" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -782,7 +782,7 @@ Display only the groups listed in the
 \fB\-l \fR\fB\fIdir_name\fR\fR
 .sp
 Prepare local temporary files for
-LOAD DATA INFILE
+LOAD DATA
 in the specified directory\&.
 .if n \{\
 .sp
@@ -1620,11 +1620,11 @@ shell> \fBmysql \-u root \-p \-e "source /tmp/statements\&.sql"\fR
 .PP
 \fBmysqlbinlog\fR
 can produce output that reproduces a
-LOAD DATA INFILE
+LOAD DATA
 operation without the original data file\&.
 \fBmysqlbinlog\fR
 copies the data to a temporary file and writes a
-LOAD DATA LOCAL INFILE
+LOAD DATA LOCAL
 statement that refers to the file\&. The default location of the directory where these files are written is system\-specific\&. To specify a directory explicitly, use the
 \fB\-\-local\-load\fR
 option\&.
@@ -1632,9 +1632,9 @@ option\&.
 Because
 \fBmysqlbinlog\fR
 converts
-LOAD DATA INFILE
+LOAD DATA
 statements to
-LOAD DATA LOCAL INFILE
+LOAD DATA LOCAL
 statements (that is, it adds
 LOCAL), both the client and the server that you use to process the statements must be configured with the
 LOCAL
@@ -2594,7 +2594,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/20/2018
+.\"      Date: 03/14/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "12/20/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "03/14/2019" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -34,20 +34,49 @@ mysql_upgrade \- check and upgrade MySQL tables
 \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
 .PP
-\fBmysql_upgrade\fR
-examines all tables in all databases for incompatibilities with the current version of MySQL Server\&.
-\fBmysql_upgrade\fR
-also upgrades the system tables so that you can take advantage of new privileges or capabilities that might have been added\&.
+Each time you upgrade MySQL, you should execute
+\fBmysql_upgrade\fR, which looks for incompatibilities with the upgraded MySQL server:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+It upgrades the system tables in the
+mysql
+schema so that you can take advantage of new privileges or capabilities that might have been added\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+It upgrades the Performance Schema\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+It examines user schemas\&.
+.RE
 .PP
 If
 \fBmysql_upgrade\fR
 finds that a table has a possible incompatibility, it performs a table check and, if problems are found, attempts a table repair\&. If the table cannot be repaired, see
-Section\ \&2.11.3, \(lqRebuilding or Repairing Tables or Indexes\(rq
+Section\ \&2.11.10, \(lqRebuilding or Repairing Tables or Indexes\(rq
 for manual table repair strategies\&.
-.PP
-You should execute
-\fBmysql_upgrade\fR
-each time you upgrade MySQL\&.
 .PP
 If you install MySQL from RPM packages on Linux, you must install the server and client RPMs\&.
 \fBmysql_upgrade\fR
@@ -90,14 +119,42 @@ You should always back up your current MySQL installation
 performing an upgrade\&. See
 Section\ \&7.2, \(lqDatabase Backup Methods\(rq\&.
 .PP
-Some upgrade incompatibilities may require special handling before you upgrade your MySQL installation and run
+Some upgrade incompatibilities may require special handling
+\fIbefore\fR
+upgrading your MySQL installation and running
 \fBmysql_upgrade\fR\&. See
-Section\ \&2.11.1, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
+Section\ \&2.11, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
 .sp .5v
 .RE
 .PP
-To use
-\fBmysql_upgrade\fR, make sure that the server is running\&. Then invoke it like this:
+Use
+\fBmysql_upgrade\fR
+like this:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+Ensure that the server is running\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+Invoke
+\fBmysql_upgrade\fR
+to upgrade the system tables in the
+mysql
+schema and check and repair tables in other schemas:
 .sp
 .if n \{\
 .RS 4
@@ -108,13 +165,22 @@ shell> \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
 .if n \{\
 .RE
 .\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+Stop the server and restart it so that any system table changes take effect\&.
+.RE
 .PP
-After running
-\fBmysql_upgrade\fR, stop the server and restart it so that any changes made to the system tables take effect\&.
-.PP
-If you have multiple MySQL server instances running, invoke
+If you have multiple MySQL server instances to upgrade, invoke
 \fBmysql_upgrade\fR
-with connection parameters appropriate for connecting to the desired server\&. For example, with servers running on the local host on parts 3306 through 3308, upgrade each of them by connecting to the appropriate port:
+with connection parameters appropriate for connecting to each of the desired servers\&. For example, with servers running on the local host on parts 3306 through 3308, upgrade each of them by connecting to the appropriate port:
 .sp
 .if n \{\
 .RS 4
@@ -131,6 +197,35 @@ shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3308 [\fR\fB\fIother_options\fR\fR\
 For local host connections on Unix, the
 \fB\-\-protocol=tcp\fR
 option forces a connection using TCP/IP rather than the Unix socket file\&.
+.PP
+By default,
+\fBmysql_upgrade\fR
+runs as the MySQL
+root
+user\&. If the
+root
+password is expired when you run
+\fBmysql_upgrade\fR, you will see a message that your password is expired and that
+\fBmysql_upgrade\fR
+failed as a result\&. To correct this, reset the
+root
+password to unexpire it and run
+\fBmysql_upgrade\fR
+again:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql \-u root \-p\fR
+Enter password: \fB****\fR  <\- enter root password here
+mysql> \fBSET PASSWORD = PASSWORD(\*(Aqroot\-password\*(Aq);\fR
+mysql> \fBquit\fR
+shell> \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
 .PP
 \fBmysql_upgrade\fR
 executes the following commands to check and repair tables and to upgrade the system tables:
@@ -185,31 +280,24 @@ command\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-Because
+Unless invoked with the
+\fB\-\-upgrade\-system\-tables\fR
+option,
 \fBmysql_upgrade\fR
-invokes
+processes all tables in all user schemas as necessary\&. Table checking might take a long time to complete\&. Each table is locked and therefore unavailable to other sessions while it is being processed\&. Check and repair operations can be time\-consuming, particularly for large tables\&. Table checking uses
 \fBmysqlcheck\fR
 with the
 \fB\-\-all\-databases\fR
-option, it processes all tables in all databases, which might take a long time to complete\&. Each table is locked and therefore unavailable to other sessions while it is being processed\&. Check and repair operations can be time\-consuming, particularly for large tables\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-For details about what checks the
+and
 \fB\-\-check\-upgrade\fR
-option entails, see the description of the
+option\&. For details about what
+\fB\-\-check\-upgrade\fR
+entails, see the description of the
 FOR UPGRADE
 option of the
 CHECK TABLE
-statement (see
-Section\ \&13.7.2.2, \(lqCHECK TABLE Syntax\(rq)\&.
+statement in
+Section\ \&13.7.2.2, \(lqCHECK TABLE Syntax\(rq\&.
 .RE
 .sp
 .RS 4
@@ -228,49 +316,22 @@ mysql
 database\&.
 .RE
 .PP
-All checked and repaired tables are marked with the current MySQL version number\&. This ensures that next time you run
 \fBmysql_upgrade\fR
-with the same version of the server, it can tell whether there is any need to check or repair the table again\&.
+marks all checked and repaired tables with the current MySQL version number\&. This ensures that the next time you run
+\fBmysql_upgrade\fR
+with the same version of the server, it can be determined whether there is any need to check or repair a given table again\&.
 .PP
 \fBmysql_upgrade\fR
-also saves the MySQL version number in a file named
+saves the MySQL version number in a file named
 mysql_upgrade_info
 in the data directory\&. This is used to quickly check whether all tables have been checked for this release so that table\-checking can be skipped\&. To ignore this file and perform the check regardless, use the
 \fB\-\-force\fR
 option\&.
 .PP
 \fBmysql_upgrade\fR
-does not upgrade the contents of the help tables\&. For upgrade instructions, see
-Section\ \&5.1.13, \(lqServer-Side Help\(rq\&.
-.PP
-By default,
-\fBmysql_upgrade\fR
-runs as the MySQL
-root
-user\&. If the
-root
-password is expired when you run
-\fBmysql_upgrade\fR, you will see a message that your password is expired and that
-\fBmysql_upgrade\fR
-failed as a result\&. To correct this, reset the
-root
-password to unexpire it and run
-\fBmysql_upgrade\fR
-again:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBmysql \-u root \-p\fR
-Enter password: \fB****\fR  <\- enter root password here
-mysql> \fBSET PASSWORD = PASSWORD(\*(Aqroot\-password\*(Aq);\fR
-mysql> \fBquit\fR
-shell> \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
-.fi
-.if n \{\
-.RE
-.\}
+does not upgrade the contents of the time zone tables or help tables\&. For upgrade instructions, see
+Section\ \&5.1.12, \(lqMySQL Server Time Zone Support\(rq, and
+Section\ \&5.1.13, \(lqServer-Side Help Support\(rq\&.
 .PP
 \fBmysql_upgrade\fR
 supports the following options, which can be specified on the command line or in the
@@ -404,8 +465,6 @@ Print debugging information and memory and CPU usage statistics when the program
 .sp
 A hint about the client\-side authentication plugin to use\&. See
 Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
-.sp
-This option was added in MySQL 5\&.6\&.2\&.
 .RE
 .sp
 .RS 4
@@ -630,8 +689,6 @@ option is used to specify an authentication plugin but
 \fBmysql_upgrade\fR
 does not find it\&. See
 Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
-.sp
-This option was added in MySQL 5\&.6\&.2\&.
 .RE
 .sp
 .RS 4
@@ -752,7 +809,9 @@ The path name of the directory to use for creating temporary files\&.
 \fB\-\-upgrade\-system\-tables\fR,
 \fB\-s\fR
 .sp
-Upgrade only the system tables, do not upgrade data\&.
+Upgrade only the system tables in the
+mysql
+schema, do not upgrade user schemas\&.
 .RE
 .sp
 .RS 4
@@ -831,7 +890,7 @@ When the server is running with global transaction identifiers (GTIDs) enabled (
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

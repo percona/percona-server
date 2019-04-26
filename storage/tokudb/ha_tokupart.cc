@@ -46,7 +46,8 @@ handler *ha_tokupart::clone(const char *name, MEM_ROOT *mem_root) {
   not opened. Prohibit cloning such handler. */
   if (!table) DBUG_RETURN(nullptr);
 
-  new_handler = new (mem_root) ha_tokupart(ht, table_share, m_part_info);
+  new_handler =
+      new (mem_root) ha_tokupart(ht, table_share, m_part_info, this, mem_root);
 
   if (!new_handler) DBUG_RETURN(nullptr);
 

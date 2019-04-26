@@ -24,8 +24,11 @@ class ha_rockspart : public native_part::Partition_base {
       : Partition_base(hton, table_arg){};
 
   ha_rockspart(handlerton *hton, TABLE_SHARE *table_arg,
-               partition_info *part_info)
-      : native_part::Partition_base(hton, table_arg, &table_arg->ha_share) {
+               partition_info *part_info,
+               native_part::Partition_base *clone_base,
+               MEM_ROOT *clone_mem_root)
+      : native_part::Partition_base(hton, table_arg, clone_base,
+                                    clone_mem_root) {
     this->get_partition_handler()->set_part_info(part_info, true);
   }
 

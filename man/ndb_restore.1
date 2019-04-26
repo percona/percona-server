@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/20/2018
+.\"      Date: 04/12/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "04/12/2019" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -72,7 +72,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.345.\ \&Command\-line options for the ndb_restore program
+.B Table\ \&21.346.\ \&Command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -768,9 +768,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.13 to a cluster running NDB Cluster 7\&.4\&.23, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.14 to a cluster running NDB Cluster 7\&.4\&.24, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.13 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.14 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1176,7 +1176,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.346.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
+.B Table\ \&21.347.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1594,7 +1594,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.347.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
+.B Table\ \&21.348.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -2348,7 +2348,7 @@ l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
-print-sql-log
+--print-sql-log
 T}
 T{
 \fBIntroduced\fR
@@ -3355,7 +3355,7 @@ or the equivalent, so that the new (target) cluster starts with clean data node 
 .sp -1
 .IP "  5." 4.2
 .\}
-Copy two different sets of two backup files to each of the target data nodes\&. For this example, copy the backup files from nodes 2 and 6 from the original cluster to node 3 in the target cluster\&. These files are listed here:
+Copy two different sets of two backup files to each of the target data nodes\&. For this example, copy the backup files from nodes 2 and 4 from the original cluster to node 3 in the target cluster\&. These files are listed here:
 .sp
 .RS 4
 .ie n \{\
@@ -3423,7 +3423,7 @@ BACKUP\-1\&.6\&.ctl
 BACKUP\-1\&.6\&.log
 .RE
 .sp
-Then copy the backup files from nodes 4 and 8 to node 5; these files are shown in the following list:
+Then copy the backup files from nodes 6 and 8 to node 5; these files are shown in the following list:
 .sp
 .RS 4
 .ie n \{\
@@ -3504,7 +3504,7 @@ on each of nodes 3 and 5\&.
 .sp -1
 .IP "  6." 4.2
 .\}
-On each of the two target data nodes, you must restore from both sets of backups\&. First, restore the backups from nodes 2 and 6 to node 3 by invoking
+On each of the two target data nodes, you must restore from both sets of backups\&. First, restore the backups from nodes 2 and 4 to node 3 by invoking
 \fBndb_restore\fR
 on
 host3
@@ -3521,7 +3521,7 @@ shell> \fBndb_restore \-c host20 \-\-nodeid=4 \-\-backupid=1 \-\-restore_data \-
 .RE
 .\}
 .sp
-Then restore the backups from nodes 4 and 8 to node 5 by invoking
+Then restore the backups from nodes 6 and 8 to node 5 by invoking
 \fBndb_restore\fR
 on
 host5, like this:
@@ -3830,7 +3830,7 @@ can contact the management server\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

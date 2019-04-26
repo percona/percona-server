@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/20/2018
+.\"      Date: 04/12/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\FR" "1" "04/12/2019" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -55,7 +55,7 @@ with the
 or
 \fB\-\-initialize\-insecure\fR
 option\&. For more information, see
-Section\ \&2.10.1.1, \(lqInitializing the Data Directory Manually Using mysqld\(rq\&.
+Section\ \&2.10.1, \(lqInitializing the Data Directory\(rq\&.
 \fBmysql_install_db\fR
 will be removed in a future MySQL release\&.
 .sp .5v
@@ -333,7 +333,7 @@ generates a random administative password, it writes the password to a file and 
 \&.mysql_secret
 in the home directory of the effective user running the script\&.
 \&.mysql_secret
-is created with mode 600 to be accessible only to the system user for whom it is created\&.
+is created with mode 600 to be accessible only to the operating system user for whom it is created\&.
 .if n \{\
 .sp
 .\}
@@ -610,8 +610,8 @@ For more information, see the descriptions of those options\&.
 .PP
 \fBmysql_install_db\fR
 assigns
-user
-table rows a nonempty
+mysql\&.user
+system table rows a nonempty
 plugin
 column value to set the authentication plugin\&. The default value is
 mysql_native_password\&. The value can be changed using the
@@ -1310,7 +1310,7 @@ to refer to the home directory of the
 root
 system user\&.
 \&.mysql_secret
-is created with mode 600 to be accessible only to the system user for whom it is created\&.
+is created with mode 600 to be accessible only to the operating system user for whom it is created\&.
 .sp
 If
 \&.mysql_secret
@@ -1462,7 +1462,7 @@ password is written to the
 \&.mysql_secret
 file in the home directory of the effective user running the script\&.
 \&.mysql_secret
-is created with mode 600 to be accessible only to the system user for whom it is created\&.
+is created with mode 600 to be accessible only to the operating system user for whom it is created\&.
 .sp
 If
 \&.mysql_secret
@@ -1647,7 +1647,7 @@ This option was removed in MySQL 5\&.7\&.5\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

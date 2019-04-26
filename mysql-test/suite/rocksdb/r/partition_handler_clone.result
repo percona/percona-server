@@ -7,3 +7,35 @@ INSERT INTO t1  VALUES (5,'Bozo', NULL),(6,'Ronald', NULL),(7,'Kinko', NULL),(8,
 SELECT * FROM t1 WHERE b IS NULL or a IS NULL;
 a	b	c
 DROP TABLE t1;
+#
+# PS-5562 - index_merge + partitioning + MyRocks crashes the server
+#
+CREATE TABLE `t1` (
+`id` bigint(20) NOT NULL AUTO_INCREMENT,
+`e` varchar(150) NOT NULL DEFAULT '',
+`l` int(12) unsigned NOT NULL,
+`dd` int(6) unsigned NOT NULL DEFAULT '0',
+`p` int(10) unsigned NOT NULL DEFAULT '0',
+`f1` varchar(150) DEFAULT NULL,
+`f2` varchar(150) DEFAULT NULL,
+`f3` varchar(150) DEFAULT NULL,
+`f4` varchar(150) DEFAULT NULL,
+`f5` varchar(150) DEFAULT NULL,
+`f6` varchar(150) DEFAULT NULL,
+`f7` varchar(150) DEFAULT NULL,
+`f8` varchar(150) DEFAULT NULL,
+`f9` varchar(150) DEFAULT NULL,
+`f0` varchar(150) DEFAULT NULL,
+PRIMARY KEY (`id`,`p`,`l`),
+KEY `e` (`e`),
+KEY `dd` (`dd`)
+) ENGINE=ROCKSDB AUTO_INCREMENT=1950201 DEFAULT CHARSET=utf8mb4
+PARTITION BY LIST (`p`)
+SUBPARTITION BY HASH (`l`)
+SUBPARTITIONS 5
+(PARTITION p0 VALUES IN (0) ENGINE = ROCKSDB,
+PARTITION p1 VALUES IN (1) ENGINE = ROCKSDB,
+PARTITION p2 VALUES IN (2) ENGINE = ROCKSDB);
+SELECT /*+ INDEX_MERGE(t1) */ id  FROM `t1` WHERE `l` = 281523560 AND `dd` = 0 AND `e` = '';
+id
+DROP TABLE t1;

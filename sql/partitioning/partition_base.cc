@@ -294,18 +294,25 @@ const uint32 Partition_base::NO_CURRENT_PART_ID = NOT_A_PARTITION_ID;
 */
 
 Partition_base::Partition_base(handlerton *hton, TABLE_SHARE *share)
-    : handler(hton, share), Partition_helper(this) {
+    : handler(hton, share),
+      Partition_helper(this),
+      m_clone_base(nullptr),
+      m_clone_mem_root(nullptr) {
   DBUG_ENTER("Partition_base::Partition_base(table)");
   init_handler_variables();
   DBUG_VOID_RETURN;
 }
 
 Partition_base::Partition_base(handlerton *hton, TABLE_SHARE *share,
-                               Handler_share **ha_share)
-    : handler(hton, share), Partition_helper(this) {
+                               Partition_base *clone_base,
+                               MEM_ROOT *clone_mem_root)
+    : handler(hton, share),
+      Partition_helper(this),
+      m_clone_base(clone_base),
+      m_clone_mem_root(clone_mem_root) {
   DBUG_ENTER("Partition_base::Partition_base(table, ha_share)");
   init_handler_variables();
-  set_ha_share_ref(ha_share);
+  set_ha_share_ref(&share->ha_share);
   DBUG_VOID_RETURN;
 }
 
@@ -1497,10 +1504,15 @@ bool Partition_base::init_partition_bitmaps() {
   }
   bitmap_clear_all(&m_partitions_to_reset);
 
-  /* Initialize the bitmap for read/lock_partitions */
-  if (m_part_info->set_partition_bitmaps(nullptr)) {
-    free_partition_bitmaps();
-    DBUG_RETURN(true);
+  /* When Partition_base is cloned, both the clone and the original object
+  share partition_info object (m_part_info). Do not reset the partition
+  bitmaps. */
+  if (!m_clone_base) {
+    /* Initialize the bitmap for read/lock_partitions */
+    if (m_part_info->set_partition_bitmaps(nullptr)) {
+      free_partition_bitmaps();
+      DBUG_RETURN(true);
+    }
   }
 
   DBUG_RETURN(false);
@@ -1532,6 +1544,7 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
                          const dd::Table *table_def) {
   int error = HA_ERR_INITIALIZATION;
   handler **file;
+  handler **clone_base_file = nullptr;
   ulonglong check_table_flags;
   DBUG_ENTER("Partition_base::open");
 
@@ -1540,9 +1553,11 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
   ref_length = 0;
   m_mode = mode;
 
+  MEM_ROOT *mem_root =
+      m_clone_mem_root != nullptr ? m_clone_mem_root : &table->mem_root;
+
   /* The following functions must be called only after m_part_info set */
-  if (initialize_partition(&table->mem_root) || init_part_share() ||
-      init_with_fields())
+  if (initialize_partition(mem_root) || init_part_share() || init_with_fields())
     DBUG_RETURN(true);
 
   /* Check/update the partition share. */
@@ -1582,6 +1597,9 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
   DBUG_ASSERT(m_part_info);
 
   file = m_file;
+  if (m_clone_base != nullptr) {
+    clone_base_file = m_clone_base->m_file;
+  }
 
   if (!foreach_partition([&](const partition_element *parent_part_elem,
                              const partition_element *part_elem) -> bool {
@@ -1589,10 +1607,22 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
         part_name(name_buff, name,
                   parent_part_elem ? parent_part_elem->partition_name : nullptr,
                   part_elem->partition_name);
+
+        if (m_clone_base != nullptr) {
+          uint ref_length = (*clone_base_file)->ref_length;
+          (*file)->ref =
+              (uchar *)alloc_root(m_clone_mem_root, ALIGN_SIZE(ref_length) * 2);
+        }
+
         if ((error = (*file)->ha_open(table, name_buff, mode, test_if_locked,
                                       table_def)))
           return false;
+
         ++file;
+        if (m_clone_base != nullptr) {
+          ++clone_base_file;
+        }
+
         return true;
       }))
     goto err_handler;

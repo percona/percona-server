@@ -74,7 +74,9 @@ handler *ha_rockspart::clone(const char *name, MEM_ROOT *mem_root) {
   if (!table)
     DBUG_RETURN(nullptr);
 
-  new_handler = new (mem_root) ha_rockspart(ht, table_share, m_part_info);
+  new_handler =
+      new (mem_root) ha_rockspart(ht, table_share, m_part_info, this, mem_root);
+
   if (!new_handler)
     DBUG_RETURN(nullptr);
 

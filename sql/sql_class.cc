@@ -1798,20 +1798,12 @@ void THD::release_resources()
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
 
-<<<<<<< HEAD
-  mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
-  mysql_mutex_unlock(&LOCK_status);
-  memset(&status_var, 0, sizeof(status_var));
-||||||| merged common ancestors
-=======
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
   memset(&status_var, 0, sizeof(status_var));
   status_var_aggregated= true;
   mysql_mutex_unlock(&LOCK_status);
 
->>>>>>> mysql-5.6.44
   m_release_resources_done= true;
 }
 
@@ -1825,14 +1817,6 @@ THD::~THD()
 
   if (!m_release_resources_done)
     release_resources();
-
-#ifndef DBUG_OFF
-  {
-    const char* empty_status[sizeof(status_var)] = {};
-    DBUG_ASSERT(memcmp(reinterpret_cast<void*>(&status_var),
-                empty_status, sizeof(status_var))==0);
-  }
-#endif // DBUG_OFF
 
   clear_next_event_pos();
 

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlcheck\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/20/2018
+.\"      Date: 03/14/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLCHECK\FR" "1" "12/20/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "03/14/2019" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -51,11 +51,7 @@ or
 \fB\-\-all\-databases\fR
 option to process all tables in one or more databases, an invocation of
 \fBmysqlcheck\fR
-might take a long time\&. (This is also true for
-\fBmysql_upgrade\fR
-because that program invokes
-\fBmysqlcheck\fR
-to check all tables and repair them if necessary\&.)
+might take a long time\&. (This is also true for the MySQL upgrade procedure if it determines that table checking is needed because it processes tables the same way\&.)
 .PP
 \fBmysqlcheck\fR
 is similar in function to
@@ -105,7 +101,7 @@ note     : The storage engine for the table doesn\*(Aqt support check
 If
 \fBmysqlcheck\fR
 is unable to repair a table, see
-Section\ \&2.11.3, \(lqRebuilding or Repairing Tables or Indexes\(rq
+Section\ \&2.11.10, \(lqRebuilding or Repairing Tables or Indexes\(rq
 for manual table repair strategies\&. This will be the case, for example, for
 InnoDB
 tables, which can be checked with
@@ -1080,7 +1076,7 @@ when these statements should not be sent to replication slaves or run when using
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

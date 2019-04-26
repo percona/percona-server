@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/20/2018
+.\"      Date: 03/14/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "12/20/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "03/14/2019" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -631,7 +631,7 @@ Continue even if an SQL error occurs\&.
 .\}
 \fB\-\-histignore\fR
 .sp
-A colon\-separated list of one or more patterns specifying statements to ignore for logging purposes\&. These patterns are added to the default pattern list ("*IDENTIFIED*:*PASSWORD*")\&. The value specified for this option affects logging of statements written to the history file\&. For more information, see
+A list of one or more colon\-separated patterns specifying statements to ignore for logging purposes\&. These patterns are added to the default pattern list ("*IDENTIFIED*:*PASSWORD*")\&. The value specified for this option affects logging of statements written to the history file\&. For more information, see
 the section called \(lqMYSQL CLIENT LOGGING\(rq\&. This option was added in MySQL 5\&.6\&.8\&.
 .RE
 .sp
@@ -720,7 +720,7 @@ Write line numbers for errors\&. Disable this with
 Enable or disable
 LOCAL
 capability for
-LOAD DATA INFILE\&. For
+LOAD DATA\&. For
 \fBmysql\fR, this capability is disabled by default\&. With no value, the option enables
 LOCAL\&. The option may be given as
 \fB\-\-local\-infile=0\fR
@@ -2803,7 +2803,7 @@ To specify additional patterns, use the
 \fB\-\-histignore\fR
 option or set the
 MYSQL_HISTIGNORE
-environment variable\&. (If both are specified, the option value takes precedence\&.) The value should be a colon\-separated list of one or more patterns, which are appended to the default pattern list\&.
+environment variable\&. (If both are specified, the option value takes precedence\&.) The value should be a list of one or more colon\-separated patterns, which are appended to the default pattern list\&.
 .PP
 Patterns specified on the command line might need to be quoted or escaped to prevent your command interpreter from treating them specially\&. For example, to suppress logging for
 UPDATE
@@ -2889,7 +2889,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.13, \(lqServer-Side Help\(rq)\&.
+Section\ \&5.1.13, \(lqServer-Side Help Support\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -3483,7 +3483,7 @@ Section\ \&23.8.20, \(lqC API Automatic Reconnection Control\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

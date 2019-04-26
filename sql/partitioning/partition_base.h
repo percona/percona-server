@@ -109,6 +109,14 @@ class Partition_base : public handler,
   /** keep track of partitions to call ha_reset */
   MY_BITMAP m_partitions_to_reset;
 
+  /** Used when Partiton_base is cloned. Specifically it is used to retrieve
+  each handler ref_length */
+  Partition_base *m_clone_base;
+  /** For clone operation, memory will be allocated from this mem_root instead
+  of TABLE->mem_root. The clone can be destroyed by optimizer immediately. So
+  this allows to release the memory used by cloned object quickly */
+  MEM_ROOT *m_clone_mem_root;
+
  public:
   handler *clone(const char *name, MEM_ROOT *mem_root) override = 0;
 
@@ -126,7 +134,7 @@ class Partition_base : public handler,
   Partition_base(handlerton *hton, TABLE_SHARE *table);
 
   Partition_base(handlerton *hton, TABLE_SHARE *table,
-                 Handler_share **ha_share);
+                 Partition_base *clone_base, MEM_ROOT *clone_mem_root);
 
   ~Partition_base() override;
   bool init_with_fields() override;

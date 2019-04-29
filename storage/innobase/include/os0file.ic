@@ -300,11 +300,13 @@ os_file_read() which requests a synchronous read operation.
 @param[in]	n		number of bytes to read
 @param[in]	src_file	file name where func invoked
 @param[in]	src_line	line where the func invoked
+@param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS if request was successful */
 UNIV_INLINE
 dberr_t pfs_os_file_read_first_page_func(IORequest &type, pfs_os_file_t file,
                                          void *buf, ulint n,
-                                         const char *src_file, uint src_line) {
+                                         const char *src_file, uint src_line,
+                                         bool exit_on_err) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = NULL;
 
@@ -315,7 +317,7 @@ dberr_t pfs_os_file_read_first_page_func(IORequest &type, pfs_os_file_t file,
 
   dberr_t result;
 
-  result = os_file_read_first_page_func(type, file.m_file, buf, n);
+  result = os_file_read_first_page_func(type, file.m_file, buf, n, exit_on_err);
 
   register_pfs_file_io_end(locker, n);
 

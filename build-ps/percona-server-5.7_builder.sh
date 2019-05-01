@@ -309,8 +309,14 @@ install_deps() {
             yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
             yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
             yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
-            if [ ${RHEL} -lt 7 -a $(uname -m) = x86_64 ]; then
-                yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils
+            if [ ${RHEL} -lt 7 ]; then
+		if [ $(uname -m) = x86_64 ]; then
+                    yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils
+		else
+                    wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
+                    wget -O /etc/pki/rpm-gpg/RPM-GPG-KEY-cern https://raw.githubusercontent.com/cms-sw/cms-docker/master/slc6-vanilla/RPM-GPG-KEY-cern
+                    yum -y install  devtoolset-2-gcc-c++ devtoolset-2-binutils libevent2-devel
+	        fi
 	    fi
         else
             yum -y install perl.x86_64
@@ -541,9 +547,11 @@ build_rpm(){
     #
     mv *.src.rpm rpmbuild/SRPMS
     #
-    if [ ${ARCH} = x86_64 ]; then
-        if [ ${RHEL} = 6 ]; then
+    if [ ${RHEL} = 6 ]; then
+        if [ ${ARCH} = x86_64 ]; then
             source /opt/percona-devtoolset/enable
+	else
+	    source /opt/rh/devtoolset-2/enable
         fi
     fi
 

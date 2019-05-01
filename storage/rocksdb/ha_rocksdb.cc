@@ -743,7 +743,7 @@ static MYSQL_THDVAR_BOOL(
     " Blind delete is disabled if the table has secondary key",
     nullptr, nullptr, FALSE);
 
-#define DEFAULT_READ_FREE_RPL_TABLES ".*"
+static const char *DEFAULT_READ_FREE_RPL_TABLES = ".*";
 
 static int get_regex_flags()
 {
@@ -760,6 +760,7 @@ static int rocksdb_validate_read_free_rpl_tables(
   char buff[STRING_BUFFER_USUAL_SIZE];
   int length = sizeof(buff);
   const char *wlist_buf = value->val_str(value, buff, &length);
+  if (wlist_buf) wlist_buf= thd->strmake(wlist_buf, length); // make a temp copy
   const auto wlist = wlist_buf ? wlist_buf : DEFAULT_READ_FREE_RPL_TABLES;
 
 #if defined(HAVE_PSI_INTERFACE)
@@ -773,7 +774,7 @@ static int rocksdb_validate_read_free_rpl_tables(
     return HA_EXIT_FAILURE;
   }
 
-  *static_cast<const char **>(save) = my_strdup(PSI_NOT_INSTRUMENTED, wlist, MYF(MY_WME));
+  *static_cast<const char **>(save) = wlist;
   return HA_EXIT_SUCCESS;
 }
 
@@ -797,7 +798,7 @@ static void rocksdb_update_read_free_rpl_tables(
   } updater;
   ddl_manager.scan_for_tables(&updater);
 
-  *static_cast<const char **>(var_ptr) = my_strdup(PSI_NOT_INSTRUMENTED, wlist, MYF(MY_WME));
+  *static_cast<const char **>(var_ptr) = *static_cast<char *const *>(save);
 }
 
 static MYSQL_SYSVAR_STR(
@@ -13208,7 +13209,8 @@ static void rocksdb_set_update_cf_options(
   // Reset the pointers regardless of how much success we had with updating
   // the CF options. This will results in consistent behavior and avoids
   // dealing with cases when only a subset of CF-s was successfully updated.
-  *reinterpret_cast<char **>(var_ptr) = my_strdup(0, val, MYF(0));
+  *static_cast<const char **>(var_ptr) =
+      *static_cast<const char *const *>(save);
 
   // Do the real work of applying the changes.
   Rdb_cf_options::Name_to_config_t option_map;

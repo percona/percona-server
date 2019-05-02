@@ -17,6 +17,8 @@ IF(NOT GMOCK_FOUND)
   RETURN()
 ENDIF()
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
 IF(SSL_DEFINES)
   ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
@@ -72,7 +74,7 @@ INCLUDE_DIRECTORIES(SYSTEM
     ${BOOST_INCLUDE_DIR}
     ${PROTOBUF_INCLUDE_DIRS}
     ${SSL_INCLUDE_DIRS}
-    ${LIBEVENT_INCLUDE_DIR}
+    ${LIBEVENT_INCLUDE_DIRS}
     ${GMOCK_INCLUDE_DIRS}
     ${GTEST_INCLUDE_DIR}
     ${CMAKE_BINARY_DIR}/rapid/plugin/x/generated/protobuf
@@ -149,8 +151,16 @@ TARGET_LINK_LIBRARIES(
   regex
   gmock
   mysqlservices
+<<<<<<< HEAD
   perconaserverclient
   ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
+||||||| merged common ancestors
+  mysqlclient
+  ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
+=======
+  mysqlclient
+  ${LIBEVENT_LIBRARIES}
+>>>>>>> mysql-5.7.26
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARY}
   ${GCOV_LDFLAGS}

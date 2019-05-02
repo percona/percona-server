@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -274,11 +274,21 @@ void PFS_host::aggregate_memory(bool alive)
 
 void PFS_host::aggregate_status()
 {
+<<<<<<< HEAD
   /*
     Aggregate STATUS_BY_HOST to:
     - GLOBAL_STATUS
   */
   m_status_stats.aggregate_to(& global_status_var, false);
+||||||| merged common ancestors
+  /*
+    Aggregate STATUS_BY_HOST to:
+    - GLOBAL_STATUS
+  */
+  m_status_stats.aggregate_to(& global_status_var);
+=======
+  /* No parent to aggregate to, clean the stats */
+>>>>>>> mysql-5.7.26
   m_status_stats.reset();
 }
 

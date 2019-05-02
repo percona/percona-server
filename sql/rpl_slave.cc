@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3414,13 +3414,28 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
 
   @param thd pointer to I/O Thread's Thd.
   @param mi  point to I/O Thread metadata class.
+<<<<<<< HEAD
   @param force_mi_flush force mi flush independent of sync_master_info setting
+||||||| merged common ancestors
+=======
+  @param force_flush_mi_info when true, do not respect sync period and flush
+                             information.
+                             when false, flush will only happen if it is time to
+                             flush.
+>>>>>>> mysql-5.7.26
 
   @return 0 if everything went fine, 1 otherwise.
 */
+<<<<<<< HEAD
 static int write_ignored_events_info_to_relay_log(THD *thd,
                                                   Master_info *mi,
                                                   bool force_mi_flush)
+||||||| merged common ancestors
+static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
+=======
+static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi,
+                                                  bool force_flush_mi_info)
+>>>>>>> mysql-5.7.26
 {
   Relay_log_info *rli= mi->rli;
   mysql_mutex_t *log_lock= rli->relay_log.get_log_lock();
@@ -3453,7 +3468,13 @@ static int write_ignored_events_info_to_relay_log(THD *thd,
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
+<<<<<<< HEAD
       if (flush_master_info(mi, force_mi_flush))
+||||||| merged common ancestors
+      if (flush_master_info(mi, TRUE))
+=======
+      if (flush_master_info(mi, force_flush_mi_info))
+>>>>>>> mysql-5.7.26
       {
         error= 1;
         sql_print_error("Failed to flush master info file.");
@@ -6063,7 +6084,13 @@ err:
     mi->mysql=0;
   }
   mysql_mutex_lock(&mi->data_lock);
+<<<<<<< HEAD
   write_ignored_events_info_to_relay_log(thd, mi, true);
+||||||| merged common ancestors
+  write_ignored_events_info_to_relay_log(thd, mi);
+=======
+  write_ignored_events_info_to_relay_log(thd, mi, false/* force_flush_mi_info */);
+>>>>>>> mysql-5.7.26
   mysql_mutex_unlock(&mi->data_lock);
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&mi->run_lock);
@@ -8562,6 +8589,11 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       DBUG_ASSERT(memcmp(const_cast<char*>(mi->get_master_log_name()),
                          hb.get_log_ident(), hb.get_ident_len()) == 0);
 
+      DBUG_EXECUTE_IF("reached_heart_beat_queue_event", {
+                      const char act[] = "now SIGNAL check_slave_master_info WAIT_FOR proceed_write_rotate";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                      };);
+
       mi->set_master_log_pos(hb.common_header->log_pos);
 
       /*
@@ -8572,7 +8604,14 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
              FN_REFLEN);
       rli->ign_master_log_pos_end = mi->get_master_log_pos();
 
+<<<<<<< HEAD
       if (write_ignored_events_info_to_relay_log(mi->info_thd, mi, false))
+||||||| merged common ancestors
+      if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+=======
+      if (write_ignored_events_info_to_relay_log(mi->info_thd, mi,
+                                                 false/* force_flush_mi_info */))
+>>>>>>> mysql-5.7.26
         goto end;
     }
 
@@ -8621,7 +8660,14 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(), FN_REFLEN);
     rli->ign_master_log_pos_end= mi->get_master_log_pos();
 
+<<<<<<< HEAD
     if (write_ignored_events_info_to_relay_log(mi->info_thd, mi, true))
+||||||| merged common ancestors
+    if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+=======
+    if (write_ignored_events_info_to_relay_log(mi->info_thd, mi,
+                                               true/* force_flush_mi_info */))
+>>>>>>> mysql-5.7.26
       goto err;
 
     goto end;

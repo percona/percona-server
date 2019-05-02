@@ -9,21 +9,21 @@ CREATE TABLE t_memory(a INT NOT NULL, KEY (a)) ENGINE=MEMORY;
 CREATE TABLE t_csv(a INT NOT NULL) ENGINE=CSV;
 CREATE TABLE t_blackhole(a INT NOT NULL, KEY (a)) ENGINE=BLACKHOLE;
 CREATE TABLE t_archive(a INT NOT NULL) ENGINE=ARCHIVE;
-CREATE TABLE t_innodb(a INT NOT NULL, KEY(a)) ENGINE=innodb;
+CREATE TABLE t_rocksdb(a INT NOT NULL, KEY(a)) ENGINE=rocksdb;
 CREATE VIEW v_myisam AS SELECT * FROM t_myisam;
 CREATE VIEW v_memory AS SELECT * FROM t_memory;
 CREATE VIEW v_csv AS SELECT * FROM t_csv;
 CREATE VIEW v_blackhole AS SELECT * FROM t_blackhole;
 CREATE VIEW v_archive AS SELECT * FROM t_archive;
-CREATE VIEW v_innodb AS SELECT * FROM t_innodb;
+CREATE VIEW v_rocksdb AS SELECT * FROM t_rocksdb;
 #-----------------------------------------------------------------------
 # Basic syntax checks
 #-----------------------------------------------------------------------
-LOCK TABLES t_innodb FOR BACKUP;
+LOCK TABLES t_rocksdb FOR BACKUP;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FOR BACKUP' at line 1
-LOCK TABLES t_innodb READ FOR BACKUP;
+LOCK TABLES t_rocksdb READ FOR BACKUP;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FOR BACKUP' at line 1
-LOCK TABLES t_innodb FOR BACKUP READ;
+LOCK TABLES t_rocksdb FOR BACKUP READ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FOR BACKUP READ' at line 1
 LOCK TABLES FOR BACKUP;
 UNLOCK TABLES;
@@ -115,20 +115,15 @@ REPLACE INTO t_archive VALUES(1);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 SELECT * FROM t_archive;
 a
-innodb
-DELETE FROM t_innodb;
-INSERT INTO t_innodb VALUES(0);
-UPDATE t_innodb SET a = 1;
-REPLACE INTO t_innodb VALUES(1);
-SELECT * FROM t_innodb;
+rocksdb
+DELETE FROM t_rocksdb;
+INSERT INTO t_rocksdb VALUES(0);
+UPDATE t_rocksdb SET a = 1;
+REPLACE INTO t_rocksdb VALUES(1);
+SELECT * FROM t_rocksdb;
 a
 1
 1
-HANDLER t_innodb OPEN;
-HANDLER t_innodb READ a FIRST;
-a
-1
-HANDLER t_innodb CLOSE;
 CREATE TABLE tt_myisam(a INT NOT NULL) ENGINE=MyISAM;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE TABLE tt_memory(a INT NOT NULL) ENGINE=MEMORY;
@@ -139,7 +134,7 @@ CREATE TABLE tt_blackhole(a INT NOT NULL) ENGINE=BLACKHOLE;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE TABLE tt_archive(a INT NOT NULL) ENGINE=ARCHIVE;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-CREATE TABLE tt_innodb(a INT NOT NULL) ENGINE=innodb;
+CREATE TABLE tt_rocksdb(a INT NOT NULL) ENGINE=rocksdb;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE t_myisam;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -151,7 +146,7 @@ DROP TABLE t_blackhole;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE t_archive;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-DROP TABLE t_innodb;
+DROP TABLE t_rocksdb;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE non_existing;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -165,7 +160,7 @@ TRUNCATE TABLE t_blackhole;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 TRUNCATE TABLE t_archive;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-TRUNCATE TABLE t_innodb;
+TRUNCATE TABLE t_rocksdb;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 RENAME TABLE t_myisam TO tmp;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -177,7 +172,7 @@ RENAME TABLE t_blackhole TO tmp;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 RENAME TABLE t_archive TO tmp;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-RENAME TABLE t_innodb TO tmp;
+RENAME TABLE t_rocksdb TO tmp;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_myisam ADD COLUMN b CHAR(10);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -189,7 +184,7 @@ ALTER TABLE t_blackhole ADD COLUMN b CHAR(10);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_archive ADD COLUMN b CHAR(10);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-ALTER TABLE t_innodb ADD COLUMN b CHAR(10);
+ALTER TABLE t_rocksdb ADD COLUMN b CHAR(10);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_myisam ADD KEY (a);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -201,13 +196,13 @@ ALTER TABLE t_blackhole ADD KEY (a);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_archive ADD KEY (a);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-ALTER TABLE t_innodb ADD KEY (a);
+ALTER TABLE t_rocksdb ADD KEY (a);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP DATABASE test;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE DATABASE test1;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-CREATE VIEW v1 AS SELECT * FROM t_innodb;
+CREATE VIEW v1 AS SELECT * FROM t_rocksdb;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO v_myisam VALUES(1);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
@@ -218,7 +213,7 @@ ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO v_blackhole VALUES(1);
 INSERT INTO v_archive VALUES(1);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-INSERT INTO v_innodb VALUES(1);
+INSERT INTO v_rocksdb VALUES(1);
 UNLOCK TABLES;
 SELECT @@delay_key_write;
 @@delay_key_write
@@ -232,14 +227,14 @@ SELECT @@delay_key_write;
 ON
 SET GLOBAL read_only=1;
 INSERT INTO t_myisam VALUES(0);
-INSERT INTO t_innodb VALUES(0);
+INSERT INTO t_rocksdb VALUES(0);
 LOCK TABLES FOR BACKUP;
 INSERT INTO t_myisam VALUES(0);
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
-INSERT INTO t_innodb VALUES(0);
+INSERT INTO t_rocksdb VALUES(0);
 UNLOCK TABLES;
 INSERT INTO t_myisam VALUES(0);
-INSERT INTO t_innodb VALUES(0);
+INSERT INTO t_rocksdb VALUES(0);
 SET GLOBAL read_only=0;
 LOCK TABLES FOR BACKUP;
 CREATE TEMPORARY TABLE tt_myisam(a INT NOT NULL) ENGINE=MyISAM;
@@ -247,13 +242,11 @@ CREATE TEMPORARY TABLE tt_memory(a INT NOT NULL) ENGINE=MEMORY;
 CREATE TEMPORARY TABLE tt_csv(a INT NOT NULL) ENGINE=CSV;
 CREATE TEMPORARY TABLE tt_blackhole(a INT NOT NULL) ENGINE=BLACKHOLE;
 CREATE TEMPORARY TABLE tt_archive(a INT NOT NULL) ENGINE=ARCHIVE;
-CREATE TEMPORARY TABLE tt_innodb(a INT NOT NULL) ENGINE=innodb;
 INSERT INTO tt_myisam VALUES(5);
 INSERT INTO tt_memory VALUES(5);
 INSERT INTO tt_csv VALUES(5);
 INSERT INTO tt_blackhole VALUES(5);
 INSERT INTO tt_archive VALUES(5);
-INSERT INTO tt_innodb VALUES(5);
 UNLOCK TABLES;
 SET @old_general_log = @@general_log;
 SET @old_slow_query_log = @@slow_query_log;
@@ -288,40 +281,40 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 UNLOCK TABLES;
 # connection con2
 START TRANSACTION;
-INSERT INTO t_innodb VALUES(0);
+INSERT INTO t_rocksdb VALUES(0);
 # connection default
 SET GLOBAL read_only=1;
 # connection con2
 COMMIT;
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
-INSERT INTO t_innodb VALUES(0);
+INSERT INTO t_rocksdb VALUES(0);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 INSERT INTO t_myisam VALUES(0);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 # connection con1
 LOCK TABLES FOR BACKUP;
 # connection con2
-INSERT INTO t_innodb VALUES(0);
+INSERT INTO t_rocksdb VALUES(0);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 INSERT INTO t_myisam VALUES(0);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 # connection default
 SET GLOBAL read_only=0;
 # connection con2
-INSERT INTO t_innodb VALUES(0);
+INSERT INTO t_rocksdb VALUES(0);
 INSERT INTO t_myisam VALUES(0);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # connection default
 SET GLOBAL read_only=1;
 # connection con2
-INSERT INTO t_innodb VALUES(0);
+INSERT INTO t_rocksdb VALUES(0);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 INSERT INTO t_myisam VALUES(0);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 # connection con1
 UNLOCK TABLES;
 # connection con2
-INSERT INTO t_innodb VALUES(0);
+INSERT INTO t_rocksdb VALUES(0);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 INSERT INTO t_myisam VALUES(0);
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
@@ -335,13 +328,11 @@ CREATE TEMPORARY TABLE tt_memory(a INT NOT NULL) ENGINE=MEMORY;
 CREATE TEMPORARY TABLE tt_csv(a INT NOT NULL) ENGINE=CSV;
 CREATE TEMPORARY TABLE tt_blackhole(a INT NOT NULL) ENGINE=BLACKHOLE;
 CREATE TEMPORARY TABLE tt_archive(a INT NOT NULL) ENGINE=ARCHIVE;
-CREATE TEMPORARY TABLE tt_innodb(a INT NOT NULL) ENGINE=innodb;
 INSERT INTO tt_myisam VALUES(5);
 INSERT INTO tt_memory VALUES(5);
 INSERT INTO tt_csv VALUES(5);
 INSERT INTO tt_blackhole VALUES(5);
 INSERT INTO tt_archive VALUES(5);
-INSERT INTO tt_innodb VALUES(5);
 # connection default
 UNLOCK TABLES;
 # connection default
@@ -385,33 +376,28 @@ INSERT INTO t_archive VALUES(0);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t_archive;
 a
-innodb
-DELETE FROM t_innodb;
-INSERT INTO t_innodb VALUES(0);
-UPDATE t_innodb SET a = 1;
-REPLACE INTO t_innodb VALUES(1);
-SELECT * from t_innodb;
+rocksdb
+DELETE FROM t_rocksdb;
+INSERT INTO t_rocksdb VALUES(0);
+UPDATE t_rocksdb SET a = 1;
+REPLACE INTO t_rocksdb VALUES(1);
+SELECT * from t_rocksdb;
 a
 1
 1
-HANDLER t_innodb OPEN;
-HANDLER t_innodb READ a FIRST;
-a
-1
-HANDLER t_innodb CLOSE;
-CREATE TABLE tt_innodb(a INT NOT NULL) ENGINE=innodb;
+CREATE TABLE tt_rocksdb(a INT NOT NULL) ENGINE=rocksdb;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-DROP TABLE t_innodb;
+DROP TABLE t_rocksdb;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 DROP TABLE non_existing;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-TRUNCATE TABLE t_innodb;
+TRUNCATE TABLE t_rocksdb;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-RENAME TABLE t_innodb TO tmp;
+RENAME TABLE t_rocksdb TO tmp;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-ALTER TABLE t_innodb ADD COLUMN b CHAR(10);
+ALTER TABLE t_rocksdb ADD COLUMN b CHAR(10);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-ALTER TABLE t_innodb ADD KEY (a);
+ALTER TABLE t_rocksdb ADD KEY (a);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 DROP DATABASE test;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -421,9 +407,9 @@ INSERT INTO t_myisam VALUES(0);
 # connection default
 # connection con1
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-CREATE VIEW v1 AS SELECT * FROM t_innodb;
+CREATE VIEW v1 AS SELECT * FROM t_rocksdb;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-INSERT INTO v_innodb VALUES(1);
+INSERT INTO v_rocksdb VALUES(1);
 INSERT INTO v_blackhole VALUES(1);
 INSERT INTO v_myisam VALUES(1);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -452,16 +438,12 @@ SET GLOBAL general_log = @old_general_log;
 #               TABLES, FLUSH TABLES ... WITH READ LOCK and FLUSH TABLES
 #               ... FOR EXPORT in the same connection
 ########################################################################
-CREATE TABLE t1(a INT) ENGINE=innodb;
+CREATE TABLE t1(a INT) ENGINE=rocksdb;
 LOCK TABLES t1 READ;
 LOCK TABLES FOR BACKUP;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 UNLOCK TABLES;
 LOCK TABLES t1 WRITE;
-LOCK TABLES FOR BACKUP;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
-UNLOCK TABLES;
-FLUSH TABLES t1 FOR EXPORT;
 LOCK TABLES FOR BACKUP;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 UNLOCK TABLES;
@@ -502,5 +484,5 @@ GRANT BACKUP_ADMIN ON *.* TO u1@localhost;
 LOCK TABLES FOR BACKUP;
 UNLOCK TABLES;
 DROP USER u1@localhost;
-DROP VIEW v_innodb, v_myisam, v_memory, v_csv, v_blackhole, v_archive;
-DROP TABLE t_innodb, t_myisam, t_memory, t_csv, t_blackhole, t_archive;
+DROP VIEW v_rocksdb, v_myisam, v_memory, v_csv, v_blackhole, v_archive;
+DROP TABLE t_rocksdb, t_myisam, t_memory, t_csv, t_blackhole, t_archive;

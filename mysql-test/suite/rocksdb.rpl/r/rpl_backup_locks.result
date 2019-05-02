@@ -3,12 +3,12 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-CREATE TABLE t_innodb (a INT) ENGINE=innodb;
+CREATE TABLE t_rocksdb (a INT) ENGINE=rocksdb;
 CREATE TABLE t_myisam (a INT) ENGINE=MyISAM;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 # connection master
-INSERT INTO t_innodb VALUES (0);
+INSERT INTO t_rocksdb VALUES (0);
 # connection slave
 LOCK TABLES FOR BACKUP;
 include/start_slave.inc
@@ -42,6 +42,6 @@ ERROR HY000: Can't execute the given command because you have active locked tabl
 UNLOCK INSTANCE;
 # connection master
 DROP TABLE t;
-DROP TABLE t_innodb, t_myisam;
+DROP TABLE t_rocksdb, t_myisam;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -26,11 +26,11 @@ matrix:
         - curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
         - echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-5.0 main" | sudo tee -a /etc/apt/sources.list > /dev/null;
         - sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
-        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install clang-format-5.0 || travis_terminate 1
+        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install diffstat clang-format-5.0 || travis_terminate 1
         - wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py || travis_terminate 1
         - chmod a+x clang-format-diff.py
         - git diff -U0 --no-color HEAD^1 *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | ./clang-format-diff.py -binary=clang-format-5.0 -style=file -p1 >_GIT_DIFF
-        - '[ ! -s _GIT_DIFF ] && { echo The last git commit is clang-formatted; travis_terminate 0; } || { cat _GIT_DIFF; travis_terminate 1; }'
+        - '[ ! -s _GIT_DIFF ] && { echo The last git commit is clang-formatted; travis_terminate 0; } || { diffstat _GIT_DIFF; echo; cat _GIT_DIFF; travis_terminate 1; }'
 
 
     # Configurations for developers' forks and after merging a pull request for percona/percona-server
@@ -70,10 +70,6 @@ matrix:
     # 9
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=5    BUILD=Debug
-      compiler: gcc
-    # 10
-    - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=4.8  BUILD=Debug
       compiler: gcc
 
 
@@ -115,10 +111,6 @@ matrix:
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
       env: VERSION=5    BUILD=RelWithDebInfo
       compiler: gcc
-    # 10
-    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=4.8  BUILD=RelWithDebInfo
-      compiler: gcc
 
 
     # Configurations to be run after merging a pull request for percona/percona-server
@@ -153,10 +145,6 @@ matrix:
     # 8
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=5    BUILD=RelWithDebInfo  INVERTED=ON
-      compiler: gcc
-    # 9
-    - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=4.8  BUILD=RelWithDebInfo  INVERTED=ON
       compiler: gcc
 
 

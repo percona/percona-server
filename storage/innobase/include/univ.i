@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define INNODB_VERSION_BUGFIX MYSQL_VERSION_PATCH
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 5
+#define PERCONA_INNODB_VERSION 6
 #endif
 
 /* The following is the InnoDB version as shown in

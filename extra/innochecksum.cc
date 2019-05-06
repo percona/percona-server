@@ -1475,7 +1475,7 @@ int main(
 
 			if (display_format) {
 				/* for -f, analyze only the first page and exit */
-				display_format_info(buf);
+				display_format_info(buf.begin());
 				break;
 			}
 

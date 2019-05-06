@@ -151,16 +151,8 @@ TARGET_LINK_LIBRARIES(
   regex
   gmock
   mysqlservices
-<<<<<<< HEAD
   perconaserverclient
-  ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
-||||||| merged common ancestors
-  mysqlclient
-  ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
-=======
-  mysqlclient
   ${LIBEVENT_LIBRARIES}
->>>>>>> mysql-5.7.26
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARY}
   ${GCOV_LDFLAGS}

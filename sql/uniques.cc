@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2010, 2015, MariaDB
-||||||| merged common ancestors
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
-=======
-/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-5.7.26
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -692,6 +686,8 @@ bool Unique::get(TABLE *table)
   if (!outfile || (! my_b_inited(outfile) &&
       open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
 		       MYF(MY_WME))))
+    return 1;
+  if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0) != 0)
     return 1;
 
   Sort_param sort_param;

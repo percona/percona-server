@@ -73,9 +73,9 @@ Status Rdb_cond_var::Wait(const std::shared_ptr<TransactionDBMutex> mutex_arg) {
                          thd_killed() to determine which occurred)
 */
 
-Status
-Rdb_cond_var::WaitFor(const std::shared_ptr<TransactionDBMutex> mutex_arg,
-                      int64_t timeout_micros) {
+Status Rdb_cond_var::WaitFor(
+    const std::shared_ptr<TransactionDBMutex> mutex_arg,
+    int64_t timeout_micros) {
   auto *mutex_obj = reinterpret_cast<Rdb_mutex *>(mutex_arg.get());
   assert(mutex_obj != nullptr);
 
@@ -84,8 +84,7 @@ Rdb_cond_var::WaitFor(const std::shared_ptr<TransactionDBMutex> mutex_arg,
   int res = 0;
   struct timespec wait_timeout;
 
-  if (timeout_micros < 0)
-    timeout_micros = ONE_YEAR_IN_MICROSECS;
+  if (timeout_micros < 0) timeout_micros = ONE_YEAR_IN_MICROSECS;
   set_timespec_nsec(&wait_timeout, timeout_micros * 1000);
 
 #ifndef STANDALONE_UNITTEST
@@ -114,8 +113,7 @@ Rdb_cond_var::WaitFor(const std::shared_ptr<TransactionDBMutex> mutex_arg,
     res = mysql_cond_timedwait(&m_cond, mutex_ptr, &wait_timeout);
 
 #ifndef STANDALONE_UNITTEST
-    if (current_thd)
-      killed = my_core::thd_killed(current_thd);
+    if (current_thd) killed = my_core::thd_killed(current_thd);
 #endif
   } while (!killed && res == EINTR);
 

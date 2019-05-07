@@ -81,12 +81,12 @@ namespace myrocks {
   Use the power of SHIP_ASSERT() wisely.
 */
 #ifndef SHIP_ASSERT
-#define SHIP_ASSERT(expr)                                                      \
-  do {                                                                         \
-    if (!(expr)) {                                                             \
-      my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr);         \
-      abort();                                                                 \
-    }                                                                          \
+#define SHIP_ASSERT(expr)                                              \
+  do {                                                                 \
+    if (!(expr)) {                                                     \
+      my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr); \
+      abort();                                                         \
+    }                                                                  \
   } while (0)
 #endif  // SHIP_ASSERT
 
@@ -104,7 +104,7 @@ namespace myrocks {
   a and b must be both true or both false.
 */
 #ifndef DBUG_ASSERT_IFF
-#define DBUG_ASSERT_IFF(a, b)                                                  \
+#define DBUG_ASSERT_IFF(a, b) \
   assert(static_cast<bool>(a) == static_cast<bool>(b))
 #endif
 
@@ -140,10 +140,10 @@ namespace myrocks {
   Macros to better convey the intent behind checking the results from locking
   and unlocking mutexes.
 */
-#define RDB_MUTEX_LOCK_CHECK(m)                                                \
+#define RDB_MUTEX_LOCK_CHECK(m) \
   rdb_check_mutex_call_result(__PRETTY_FUNCTION__, true, mysql_mutex_lock(&m))
-#define RDB_MUTEX_UNLOCK_CHECK(m)                                              \
-  rdb_check_mutex_call_result(__PRETTY_FUNCTION__, false,                      \
+#define RDB_MUTEX_UNLOCK_CHECK(m)                         \
+  rdb_check_mutex_call_result(__PRETTY_FUNCTION__, false, \
                               mysql_mutex_unlock(&m))
 
 /*

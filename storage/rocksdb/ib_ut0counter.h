@@ -45,7 +45,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define UT_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 /** Get the offset into the counter array. */
-template <typename Type, int N> struct generic_indexer_t {
+template <typename Type, int N>
+struct generic_indexer_t {
   /** Default constructor/destructor should be OK. */
 
   /** @return offset within m_counter */
@@ -88,7 +89,7 @@ struct thread_id_indexer_t : public generic_indexer_t<Type, N> {
 };
 
 /** For counters wher N=1 */
-template <typename Type, int N = 1> struct single_indexer_t {
+template <typename Type, int N = 1>
   /** Default constructor/destructor should are OK. */
 
   /** @return offset within m_counter */

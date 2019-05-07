@@ -242,9 +242,9 @@ const constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
 */
 #define HA_ERR_ROCKSDB_FIRST (HA_ERR_LAST + 1)
 #define HA_ERR_ROCKSDB_PK_REQUIRED (HA_ERR_ROCKSDB_FIRST + 0)
-#define HA_ERR_ROCKSDB_TABLE_DATA_DIRECTORY_NOT_SUPPORTED                      \
+#define HA_ERR_ROCKSDB_TABLE_DATA_DIRECTORY_NOT_SUPPORTED \
   (HA_ERR_ROCKSDB_FIRST + 1)
-#define HA_ERR_ROCKSDB_TABLE_INDEX_DIRECTORY_NOT_SUPPORTED                     \
+#define HA_ERR_ROCKSDB_TABLE_INDEX_DIRECTORY_NOT_SUPPORTED \
   (HA_ERR_ROCKSDB_FIRST + 2)
 #define HA_ERR_ROCKSDB_COMMIT_FAILED (HA_ERR_ROCKSDB_FIRST + 3)
 #define HA_ERR_ROCKSDB_BULK_LOAD (HA_ERR_ROCKSDB_FIRST + 4)
@@ -379,10 +379,15 @@ struct st_io_stall_stats {
   ulonglong total_slowdown;
 
   st_io_stall_stats()
-      : level0_slowdown(0), level0_slowdown_with_compaction(0),
-        level0_numfiles(0), level0_numfiles_with_compaction(0),
+      : level0_slowdown(0),
+        level0_slowdown_with_compaction(0),
+        level0_numfiles(0),
+        level0_numfiles_with_compaction(0),
         stop_for_pending_compaction_bytes(0),
-        slowdown_for_pending_compaction_bytes(0), memtable_compaction(0),
-        memtable_slowdown(0), total_stop(0), total_slowdown(0) {}
+        slowdown_for_pending_compaction_bytes(0),
+        memtable_compaction(0),
+        memtable_slowdown(0),
+        total_stop(0),
+        total_slowdown(0) {}
 };
 }  // namespace myrocks

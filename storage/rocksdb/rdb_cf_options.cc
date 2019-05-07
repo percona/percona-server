@@ -112,8 +112,7 @@ bool Rdb_cf_options::set_default(const std::string &default_config) {
 void Rdb_cf_options::skip_spaces(const std::string &input, size_t *const pos) {
   assert(pos != nullptr);
 
-  while (*pos < input.size() && isspace(input[*pos]))
-    ++(*pos);
+  while (*pos < input.size() && isspace(input[*pos])) ++(*pos);
 }
 
 // Find a valid column family name.  Note that all characters except a
@@ -131,8 +130,7 @@ bool Rdb_cf_options::find_column_family(const std::string &input,
   // Loop through the characters in the string until we see a '='.
   for (; *pos < input.size() && input[*pos] != '='; ++(*pos)) {
     // If this is not a space, move the end position to the current position.
-    if (input[*pos] != ' ')
-      end_pos = *pos;
+    if (input[*pos] != ' ') end_pos = *pos;
   }
 
   if (end_pos == beg_pos - 1) {
@@ -182,15 +180,15 @@ bool Rdb_cf_options::find_options(const std::string &input, size_t *const pos,
         return true;
       }
 
-      break;
+        break;
 
-    case '{':
-      // If this is an open curly brace increment the count.
-      ++brace_count;
-      break;
+      case '{':
+        // If this is an open curly brace increment the count.
+        ++brace_count;
+        break;
 
-    default:
-      break;
+      default:
+        break;
     }
 
     // Move to the next character.
@@ -217,8 +215,7 @@ bool Rdb_cf_options::find_cf_options_pair(const std::string &input,
   skip_spaces(input, pos);
 
   // We should now have a column family name.
-  if (!find_column_family(input, pos, cf))
-    return false;
+  if (!find_column_family(input, pos, cf)) return false;
 
   // If we are at the end of the input then we generate an error.
   if (*pos == input.size()) {
@@ -234,8 +231,7 @@ bool Rdb_cf_options::find_cf_options_pair(const std::string &input,
 
   // Find the options for this column family.  This should be in the format
   // {<options>} where <options> may contain embedded pairs of curly braces.
-  if (!find_options(input, pos, opt_str))
-    return false;
+  if (!find_options(input, pos, opt_str)) return false;
 
   // Skip any trailing spaces after the option string.
   skip_spaces(input, pos);
@@ -312,8 +308,8 @@ bool Rdb_cf_options::set_override(const std::string &override_config) {
   return true;
 }
 
-const rocksdb::Comparator *
-Rdb_cf_options::get_cf_comparator(const std::string &cf_name) {
+const rocksdb::Comparator *Rdb_cf_options::get_cf_comparator(
+    const std::string &cf_name) {
   if (Rdb_cf_manager::is_cf_name_reverse(cf_name.c_str())) {
     return &s_rev_pk_comparator;
   } else {
@@ -321,8 +317,8 @@ Rdb_cf_options::get_cf_comparator(const std::string &cf_name) {
   }
 }
 
-std::shared_ptr<rocksdb::MergeOperator>
-Rdb_cf_options::get_cf_merge_operator(const std::string &cf_name) {
+std::shared_ptr<rocksdb::MergeOperator> Rdb_cf_options::get_cf_merge_operator(
+    const std::string &cf_name) {
   return (cf_name == DEFAULT_SYSTEM_CF_NAME)
              ? std::make_shared<Rdb_system_merge_op>()
              : nullptr;

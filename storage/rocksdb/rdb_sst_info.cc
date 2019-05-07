@@ -44,8 +44,13 @@ Rdb_sst_file_ordered::Rdb_sst_file::Rdb_sst_file(
     rocksdb::DB *const db, rocksdb::ColumnFamilyHandle *const cf,
     const rocksdb::DBOptions &db_options, const std::string &name,
     const bool tracing)
-    : m_db(db), m_cf(cf), m_db_options(db_options), m_sst_file_writer(nullptr),
-      m_name(name), m_tracing(tracing), m_comparator(cf->GetComparator()) {
+    : m_db(db),
+      m_cf(cf),
+      m_db_options(db_options),
+      m_sst_file_writer(nullptr),
+      m_name(name),
+      m_tracing(tracing),
+      m_comparator(cf->GetComparator()) {
   DBUG_ASSERT(db != nullptr);
   DBUG_ASSERT(cf != nullptr);
 }
@@ -90,9 +95,8 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::open() {
   return s;
 }
 
-rocksdb::Status
-Rdb_sst_file_ordered::Rdb_sst_file::put(const rocksdb::Slice &key,
-                                        const rocksdb::Slice &value) {
+rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::put(
+    const rocksdb::Slice &key, const rocksdb::Slice &value) {
   DBUG_ASSERT(m_sst_file_writer != nullptr);
 
   // Add the specified key/value to the sst file writer
@@ -102,8 +106,8 @@ Rdb_sst_file_ordered::Rdb_sst_file::put(const rocksdb::Slice &key,
 #pragma GCC diagnostic pop
 }
 
-std::string
-Rdb_sst_file_ordered::Rdb_sst_file::generateKey(const std::string &key) {
+std::string Rdb_sst_file_ordered::Rdb_sst_file::generateKey(
+    const std::string &key) {
   static char const hexdigit[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                   '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
@@ -124,7 +128,7 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::commit() {
   DBUG_ASSERT(m_sst_file_writer != nullptr);
 
   rocksdb::Status s;
-  rocksdb::ExternalSstFileInfo fileinfo; /// Finish may should be modified
+  rocksdb::ExternalSstFileInfo fileinfo;  /// Finish may should be modified
 
   // Close out the sst file
   s = m_sst_file_writer->Finish(&fileinfo);
@@ -137,13 +141,14 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::commit() {
   if (s.ok()) {
     if (m_tracing) {
       // NO_LINT_DEBUG
-      sql_print_information("SST Tracing: Adding file %s, smallest key: %s, "
-                            "largest key: %s, file size: %lu, "
-                            "num_entries: %lu",
-                            fileinfo.file_path.c_str(),
-                            generateKey(fileinfo.smallest_key).c_str(),
-                            generateKey(fileinfo.largest_key).c_str(),
-                            fileinfo.file_size, fileinfo.num_entries);
+      sql_print_information(
+          "SST Tracing: Adding file %s, smallest key: %s, "
+          "largest key: %s, file size: %lu, "
+          "num_entries: %lu",
+          fileinfo.file_path.c_str(),
+          generateKey(fileinfo.smallest_key).c_str(),
+          generateKey(fileinfo.largest_key).c_str(), fileinfo.file_size,
+          fileinfo.num_entries);
     }
   }
 
@@ -189,7 +194,9 @@ Rdb_sst_file_ordered::Rdb_sst_file_ordered(
     rocksdb::DB *const db, rocksdb::ColumnFamilyHandle *const cf,
     const rocksdb::DBOptions &db_options, const std::string &name,
     const bool tracing, size_t max_size)
-    : m_use_stack(false), m_first(true), m_stack(max_size),
+    : m_use_stack(false),
+      m_first(true),
+      m_stack(max_size),
       m_file(db, cf, db_options, name, tracing) {
   m_stack.reset();
 }
@@ -297,17 +304,25 @@ Rdb_sst_info::Rdb_sst_info(rocksdb::DB *const db, const std::string &tablename,
                            rocksdb::ColumnFamilyHandle *const cf,
                            const rocksdb::DBOptions &db_options,
                            const bool tracing)
-    : m_db(db), m_cf(cf), m_db_options(db_options), m_curr_size(0),
-      m_sst_count(0), m_background_error(HA_EXIT_SUCCESS), m_done(false),
-      m_sst_file(nullptr), m_tracing(tracing), m_print_client_error(true) {
+    : m_db(db),
+      m_cf(cf),
+      m_db_options(db_options),
+      m_curr_size(0),
+      m_sst_count(0),
+      m_background_error(HA_EXIT_SUCCESS),
+      m_done(false),
+      m_sst_file(nullptr),
+      m_tracing(tracing),
+      m_print_client_error(true) {
   m_prefix = db->GetName() + "/";
 
   std::string normalized_table;
   if (rdb_normalize_tablename(tablename.c_str(), &normalized_table)) {
     // We failed to get a normalized table name.  This should never happen,
     // but handle it anyway.
-    m_prefix += "fallback_" + std::to_string(reinterpret_cast<intptr_t>(
-                                  reinterpret_cast<void *>(this))) +
+    m_prefix += "fallback_" +
+                std::to_string(reinterpret_cast<intptr_t>(
+                    reinterpret_cast<void *>(this))) +
                 "_" + indexname + "_";
   } else {
     m_prefix += normalized_table + "_" + indexname + "_";
@@ -350,8 +365,8 @@ int Rdb_sst_info::open_new_sst_file() {
   const std::string name = m_prefix + std::to_string(m_sst_count++) + m_suffix;
 
   // Create the new sst file object
-  m_sst_file = new Rdb_sst_file_ordered(m_db, m_cf, m_db_options,
-                                        name, m_tracing, m_max_size);
+  m_sst_file = new Rdb_sst_file_ordered(m_db, m_cf, m_db_options, name,
+                                        m_tracing, m_max_size);
 
   // Open the sst file
   const rocksdb::Status s = m_sst_file->open();
@@ -475,8 +490,7 @@ int Rdb_sst_info::finish(Rdb_sst_commit_info *commit_info,
 
 void Rdb_sst_info::set_error_msg(const std::string &sst_file_name,
                                  const rocksdb::Status &s) {
-  if (!m_print_client_error)
-    return;
+  if (!m_print_client_error) return;
 
   report_error_msg(s, sst_file_name.c_str());
 }
@@ -492,8 +506,9 @@ void Rdb_sst_info::report_error_msg(const rocksdb::Status &s,
   } else if (s.IsInvalidArgument() &&
              strcmp(s.getState(), "Global seqno is required, but disabled") ==
                  0) {
-    my_printf_error(ER_OVERLAPPING_KEYS, "Rows inserted during bulk load "
-                                         "must not overlap existing rows",
+    my_printf_error(ER_OVERLAPPING_KEYS,
+                    "Rows inserted during bulk load "
+                    "must not overlap existing rows",
                     MYF(0));
   } else {
     my_printf_error(ER_UNKNOWN_ERROR, "[%s] bulk load error: %s", MYF(0),
@@ -532,4 +547,4 @@ void Rdb_sst_info::init(const rocksdb::DB *const db) {
 
 std::atomic<uint64_t> Rdb_sst_info::m_prefix_counter(0);
 std::string Rdb_sst_info::m_suffix = ".bulk_load.tmp";
-} // namespace myrocks
+}  // namespace myrocks

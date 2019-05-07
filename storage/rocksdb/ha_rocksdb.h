@@ -98,7 +98,7 @@ struct Rdb_table_handler {
   uint m_table_name_length;
   int m_ref_count;
 
-  my_core::THR_LOCK m_thr_lock; ///< MySQL latch needed by m_db_lock
+  my_core::THR_LOCK m_thr_lock;  ///< MySQL latch needed by m_db_lock
 
   /* Stores cumulative table statistics */
   my_io_perf_atomic_t m_io_perf_read;
@@ -111,18 +111,19 @@ struct Rdb_table_handler {
   uint64_t m_mtcache_last_update;
 };
 
-} // namespace myrocks
+}  // namespace myrocks
 
 /* Provide hash function for GL_INDEX_ID so we can include it in sets */
 namespace std {
-template <> struct hash<myrocks::GL_INDEX_ID> {
+template <>
+struct hash<myrocks::GL_INDEX_ID> {
   std::size_t operator()(const myrocks::GL_INDEX_ID &gl_index_id) const {
     const uint64_t val =
         ((uint64_t)gl_index_id.cf_id << 32 | (uint64_t)gl_index_id.index_id);
     return std::hash<uint64_t>()(val);
   }
 };
-} // namespace std
+}  // namespace std
 
 namespace myrocks {
 
@@ -132,9 +133,9 @@ namespace myrocks {
 */
 
 class ha_rocksdb : public my_core::handler {
-  my_core::THR_LOCK_DATA m_db_lock; ///< MySQL database lock
+  my_core::THR_LOCK_DATA m_db_lock;  ///< MySQL database lock
 
-  Rdb_table_handler *m_table_handler; ///< Open table handler
+  Rdb_table_handler *m_table_handler;  ///< Open table handler
 
   /* Iterator used for range scans and for full table/index scans */
   rocksdb::Iterator *m_scan_it;
@@ -316,17 +317,18 @@ class ha_rocksdb : public my_core::handler {
                            const bool use_all_keys, const uint eq_cond_len);
   void release_scan_iterator(void);
 
-  rocksdb::Status
-  get_for_update(Rdb_transaction *const tx,
-                 rocksdb::ColumnFamilyHandle *const column_family,
-                 const rocksdb::Slice &key,
-                 rocksdb::PinnableSlice *value) const;
+  rocksdb::Status get_for_update(
+      Rdb_transaction *const tx,
+      rocksdb::ColumnFamilyHandle *const column_family,
+      const rocksdb::Slice &key, rocksdb::PinnableSlice *value) const;
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
-                       const uint rowid_size, const bool skip_ttl_check = true, const bool skip_lookup = false)
+                       const uint rowid_size, const bool skip_ttl_check = true,
+                       const bool skip_lookup = false)
       MY_ATTRIBUTE((__warn_unused_result__));
   int get_row_by_rowid(uchar *const buf, const uchar *const rowid,
-                       const uint rowid_size, const bool skip_ttl_check = true, const bool skip_lookup = false)
+                       const uint rowid_size, const bool skip_ttl_check = true,
+                       const bool skip_lookup = false)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__)) {
     return get_row_by_rowid(buf, reinterpret_cast<const char *>(rowid),
                             rowid_size, skip_ttl_check, skip_lookup);
@@ -383,7 +385,7 @@ class ha_rocksdb : public my_core::handler {
   */
   void update_stats(void);
 
-public:
+ public:
   /*
     Controls whether writes include checksums. This is updated from the session
     variable
@@ -399,9 +401,10 @@ public:
     int err MY_ATTRIBUTE((__unused__));
     err = finalize_bulk_load(false);
     if (err != 0) {
-      sql_print_error("RocksDB: Error %d finalizing bulk load while closing "
-                      "handler.",
-                      err);
+      sql_print_error(
+          "RocksDB: Error %d finalizing bulk load while closing "
+          "handler.",
+          err);
     }
   }
 
@@ -513,10 +516,9 @@ public:
   static const std::vector<std::string> parse_into_tokens(const std::string &s,
                                                           const char delim);
 
-  static const std::string generate_cf_name(const uint index,
-    const TABLE *const table_arg,
-    const Rdb_tbl_def *const tbl_def_arg,
-    bool *per_part_match_found);
+  static const std::string generate_cf_name(
+      const uint index, const TABLE *const table_arg,
+      const Rdb_tbl_def *const tbl_def_arg, bool *per_part_match_found);
 
   static const char *get_key_name(const uint index,
                                   const TABLE *const table_arg,
@@ -658,7 +660,7 @@ public:
   /*
     Default implementation from cancel_pushed_idx_cond() suits us
   */
-private:
+ private:
   struct key_def_cf_info {
     rocksdb::ColumnFamilyHandle *cf_handle;
     bool is_reverse_cf;
@@ -725,10 +727,9 @@ private:
       uint64 ttl_duration, const std::string &ttl_column) const
       MY_ATTRIBUTE((__warn_unused_result__));
 
-  std::unordered_map<std::string, uint>
-  get_old_key_positions(const TABLE *table_arg, const Rdb_tbl_def *tbl_def_arg,
-                        const TABLE *old_table_arg,
-                        const Rdb_tbl_def *old_tbl_def_arg) const;
+  std::unordered_map<std::string, uint> get_old_key_positions(
+      const TABLE *table_arg, const Rdb_tbl_def *tbl_def_arg,
+      const TABLE *old_table_arg, const Rdb_tbl_def *old_tbl_def_arg) const;
 
   int compare_key_parts(const KEY *const old_key,
                         const KEY *const new_key) const
@@ -745,10 +746,8 @@ private:
                                    rocksdb::Iterator *const iter,
                                    bool seek_backward);
 
-  int index_first_intern(uchar *buf)
-      MY_ATTRIBUTE((__warn_unused_result__));
-  int index_last_intern(uchar *buf)
-      MY_ATTRIBUTE((__warn_unused_result__));
+  int index_first_intern(uchar *buf) MY_ATTRIBUTE((__warn_unused_result__));
+  int index_last_intern(uchar *buf) MY_ATTRIBUTE((__warn_unused_result__));
 
   enum icp_result check_index_cond() const;
   int find_icp_matching_index_rec(const bool move_forward, uchar *const buf)
@@ -961,10 +960,9 @@ private:
       TABLE *const altered_table,
       my_core::Alter_inplace_info *const ha_alter_info) override;
 
-  bool
-  commit_inplace_alter_table(TABLE *const altered_table,
-                             my_core::Alter_inplace_info *const ha_alter_info,
-                             bool commit) override;
+  bool commit_inplace_alter_table(
+      TABLE *const altered_table,
+      my_core::Alter_inplace_info *const ha_alter_info, bool commit) override;
 
   bool is_read_free_rpl_table() const;
 
@@ -976,7 +974,7 @@ private:
   virtual void rpl_after_update_rows() override;
   virtual bool rpl_lookup_rows() override;
 
-  virtual bool use_read_free_rpl() const; // MyRocks only
+  virtual bool use_read_free_rpl() const;  // MyRocks only
 
  private:
   /* Flags tracking if we are inside different replication operation */
@@ -1027,16 +1025,21 @@ struct Rdb_inplace_alter_ctx : public my_core::inplace_alter_handler_ctx {
       std::unordered_set<std::shared_ptr<Rdb_key_def>> added_indexes,
       std::unordered_set<GL_INDEX_ID> dropped_index_ids, uint n_added_keys,
       uint n_dropped_keys, ulonglong max_auto_incr)
-      : my_core::inplace_alter_handler_ctx(), m_new_tdef(new_tdef),
-        m_old_key_descr(old_key_descr), m_new_key_descr(new_key_descr),
-        m_old_n_keys(old_n_keys), m_new_n_keys(new_n_keys),
-        m_added_indexes(added_indexes), m_dropped_index_ids(dropped_index_ids),
-        m_n_added_keys(n_added_keys), m_n_dropped_keys(n_dropped_keys),
+      : my_core::inplace_alter_handler_ctx(),
+        m_new_tdef(new_tdef),
+        m_old_key_descr(old_key_descr),
+        m_new_key_descr(new_key_descr),
+        m_old_n_keys(old_n_keys),
+        m_new_n_keys(new_n_keys),
+        m_added_indexes(added_indexes),
+        m_dropped_index_ids(dropped_index_ids),
+        m_n_added_keys(n_added_keys),
+        m_n_dropped_keys(n_dropped_keys),
         m_max_auto_incr(max_auto_incr) {}
 
   ~Rdb_inplace_alter_ctx() {}
 
-private:
+ private:
   /* Disable Copying */
   Rdb_inplace_alter_ctx(const Rdb_inplace_alter_ctx &);
   Rdb_inplace_alter_ctx &operator=(const Rdb_inplace_alter_ctx &);
@@ -1052,20 +1055,19 @@ private:
 */
 struct Rdb_hton_init_state {
   struct Scoped_lock {
-    Scoped_lock(Rdb_hton_init_state& state, bool write) : m_state(state) {
+    Scoped_lock(Rdb_hton_init_state &state, bool write) : m_state(state) {
       if (write)
         m_state.lock_write();
       else
         m_state.lock_read();
     }
-    ~Scoped_lock() {
-      m_state.unlock();
-    }
-  private:
-    Scoped_lock(const Scoped_lock& sl) : m_state(sl.m_state) {}
-    void operator=(const Scoped_lock&) {}
+    ~Scoped_lock() { m_state.unlock(); }
 
-    Rdb_hton_init_state& m_state;
+   private:
+    Scoped_lock(const Scoped_lock &sl) : m_state(sl.m_state) {}
+    void operator=(const Scoped_lock &) {}
+
+    Rdb_hton_init_state &m_state;
   };
 
   Rdb_hton_init_state() : m_initialized(false) {
@@ -1076,39 +1078,27 @@ struct Rdb_hton_init_state {
     mysql_rwlock_init(0, &m_rwlock);
   }
 
-  ~Rdb_hton_init_state() {
-    mysql_rwlock_destroy(&m_rwlock);
-  }
+  ~Rdb_hton_init_state() { mysql_rwlock_destroy(&m_rwlock); }
 
-  void lock_read() {
-    mysql_rwlock_rdlock(&m_rwlock);
-  }
+  void lock_read() { mysql_rwlock_rdlock(&m_rwlock); }
 
-  void lock_write() {
-    mysql_rwlock_wrlock(&m_rwlock);
-  }
+  void lock_write() { mysql_rwlock_wrlock(&m_rwlock); }
 
-  void unlock() {
-    mysql_rwlock_unlock(&m_rwlock);
-  }
+  void unlock() { mysql_rwlock_unlock(&m_rwlock); }
 
   /*
     Must be called with either a read or write lock held, unable to enforce
     behavior as mysql_rwlock has no means of determining if a thread has a lock
   */
-  bool initialized() const {
-    return m_initialized;
-  }
+  bool initialized() const { return m_initialized; }
 
   /*
     Must be called with only a write lock held, unable to enforce behavior as
     mysql_rwlock has no means of determining if a thread has a lock
   */
-  void set_initialized(bool init) {
-    m_initialized = init;
-  }
+  void set_initialized(bool init) { m_initialized = init; }
 
-private:
+ private:
   mysql_rwlock_t m_rwlock;
   bool m_initialized;
 };
@@ -1116,4 +1106,4 @@ private:
 // file name indicating RocksDB data corruption
 std::string rdb_corruption_marker_file_name();
 
-} // namespace myrocks
+}  // namespace myrocks

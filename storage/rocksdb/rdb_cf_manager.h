@@ -105,4 +105,4 @@ class Rdb_cf_manager {
   }
 };
 
-} // namespace myrocks
+}  // namespace myrocks

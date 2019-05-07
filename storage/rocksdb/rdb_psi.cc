@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation // gcc: Class implementation
+#pragma implementation  // gcc: Class implementation
 #endif
 
 #define MYSQL_SERVER 1
@@ -120,7 +120,7 @@ void init_rocksdb_psi_keys() {
   count = array_elements(all_rocksdb_memory);
   mysql_memory_register(category, all_rocksdb_memory, count);
 }
-#else  // HAVE_PSI_INTERFACE
+#else   // HAVE_PSI_INTERFACE
 void init_rocksdb_psi_keys() {}
 #endif  // HAVE+PSI_INTERFACE
 

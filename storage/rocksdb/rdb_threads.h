@@ -34,7 +34,7 @@
 namespace myrocks {
 
 class Rdb_thread {
-private:
+ private:
   // Disable Copying
   Rdb_thread(const Rdb_thread &);
   Rdb_thread &operator=(const Rdb_thread &);
@@ -44,12 +44,12 @@ private:
 
   my_thread_handle m_handle;
 
-protected:
+ protected:
   mysql_mutex_t m_signal_mutex;
   mysql_cond_t m_signal_cond;
   bool m_stop = false;
 
-public:
+ public:
   Rdb_thread() : m_run_once(false) {}
 
 #ifdef HAVE_PSI_INTERFACE
@@ -72,7 +72,7 @@ public:
 
   virtual ~Rdb_thread() {}
 
-private:
+ private:
   static void *thread_func(void *const thread_ptr);
 };
 
@@ -83,7 +83,7 @@ private:
 */
 
 class Rdb_background_thread : public Rdb_thread {
-private:
+ private:
   bool m_save_stats = false;
 
   void reset() {
@@ -92,7 +92,7 @@ private:
     m_save_stats = false;
   }
 
-public:
+ public:
   virtual void run() override;
 
   void request_save_stats() {
@@ -137,4 +137,4 @@ struct Rdb_drop_index_thread : public Rdb_thread {
   virtual void run() override;
 };
 
-} // namespace myrocks
+}  // namespace myrocks

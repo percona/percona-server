@@ -54,7 +54,7 @@ extern my_core::PSI_cond_key rdb_signal_bg_psi_cond_key,
 extern my_core::PSI_memory_key rdb_datadic_memory_key,
     rdb_open_tables_memory_key, rdb_handler_memory_key;
 
-#endif // HAVE_PSI_INTERFACE
+#endif  // HAVE_PSI_INTERFACE
 
 void init_rocksdb_psi_keys();
 

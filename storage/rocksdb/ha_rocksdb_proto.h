@@ -92,4 +92,4 @@ Rdb_ddl_manager *rdb_get_ddl_manager(void)
 struct Rdb_hton_init_state;
 Rdb_hton_init_state *rdb_get_hton_init_state(void)
     MY_ATTRIBUTE((__warn_unused_result__));
-} // namespace myrocks
+}  // namespace myrocks

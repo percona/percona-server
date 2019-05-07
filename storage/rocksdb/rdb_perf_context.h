@@ -144,7 +144,8 @@ class Rdb_io_perf {
   void end_and_record(const uint32_t perf_context_level);
 
   explicit Rdb_io_perf()
-      : m_atomic_counters(nullptr), m_shared_io_perf_read(nullptr),
+      : m_atomic_counters(nullptr),
+        m_shared_io_perf_read(nullptr),
         m_stats(nullptr) {}
 };
 

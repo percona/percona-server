@@ -21,8 +21,8 @@
 #endif
 
 /* C++ system header files */
-#include <string>
 #include <time.h>
+#include <string>
 
 /* RocksDB includes */
 #include "rocksdb/compaction_filter.h"
@@ -199,8 +199,8 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
 class Rdb_compact_filter_factory : public rocksdb::CompactionFilterFactory {
  public:
   Rdb_compact_filter_factory(const Rdb_compact_filter_factory &) = delete;
-  Rdb_compact_filter_factory &
-  operator=(const Rdb_compact_filter_factory &) = delete;
+  Rdb_compact_filter_factory &operator=(const Rdb_compact_filter_factory &) =
+      delete;
   Rdb_compact_filter_factory() {}
 
   ~Rdb_compact_filter_factory() {}

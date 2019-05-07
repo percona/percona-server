@@ -21,6 +21,7 @@
 #include <vector>
 
 // MySQL header files
+#include "handler.h"  // handler
 #include "ib_ut0counter.h"
 #include "sql/handler.h"  // handler
 #include "sql_string.h"
@@ -53,8 +54,8 @@ class Rdb_convert_to_record_value_decoder {
   Rdb_convert_to_record_value_decoder() = delete;
   Rdb_convert_to_record_value_decoder(
       const Rdb_convert_to_record_value_decoder &decoder) = delete;
-  Rdb_convert_to_record_value_decoder &
-  operator=(const Rdb_convert_to_record_value_decoder &decoder) = delete;
+  Rdb_convert_to_record_value_decoder &operator=(
+      const Rdb_convert_to_record_value_decoder &decoder) = delete;
 
   static int decode(uchar *const buf, uint *offset, TABLE *table,
                     my_core::Field *field, Rdb_field_encoder *field_dec,
@@ -78,7 +79,8 @@ class Rdb_convert_to_record_value_decoder {
   The reason to use template class instead of normal class is to elimate
   virtual method call.
 */
-template <typename value_field_decoder> class Rdb_value_field_iterator {
+template <typename value_field_decoder>
+class Rdb_value_field_iterator {
  private:
   bool m_is_null;
   std::vector<READ_FIELD>::const_iterator m_field_iter;
@@ -100,8 +102,8 @@ template <typename value_field_decoder> class Rdb_value_field_iterator {
                            uchar *const buf);
   Rdb_value_field_iterator(const Rdb_value_field_iterator &field_iterator) =
       delete;
-  Rdb_value_field_iterator &
-  operator=(const Rdb_value_field_iterator &field_iterator) = delete;
+  Rdb_value_field_iterator &operator=(
+      const Rdb_value_field_iterator &field_iterator) = delete;
 
   /*
     Move and decode next field

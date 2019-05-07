@@ -71,8 +71,7 @@ handler *ha_rockspart::clone(const char *name, MEM_ROOT *mem_root) {
 
   /* If this->table == nullptr, then the current handler has been created but
   not opened. Prohibit cloning such handler. */
-  if (!table)
-    DBUG_RETURN(nullptr);
+  if (!table) DBUG_RETURN(nullptr);
 
   new_handler =
       new (mem_root) ha_rockspart(ht, table_share, m_part_info, this, mem_root);

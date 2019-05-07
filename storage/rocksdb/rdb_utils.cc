@@ -379,16 +379,14 @@ std::vector<std::string> split_into_vector(const std::string &input,
   // Find next delimiter
   while ((pos = input.find(delimiter, start)) != std::string::npos) {
     // If there is any data since the last delimiter add it to the list
-    if (pos > start)
-      elems.push_back(input.substr(start, pos - start));
+    if (pos > start) elems.push_back(input.substr(start, pos - start));
 
     // Set our start position to the character after the delimiter
     start = pos + 1;
   }
 
   // Add a possible string since the last delimiter
-  if (input.length() > start)
-    elems.push_back(input.substr(start));
+  if (input.length() > start) elems.push_back(input.substr(start));
 
   // Return the resulting list back to the caller
   return elems;

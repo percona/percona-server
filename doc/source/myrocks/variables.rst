@@ -151,6 +151,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_create_temporary_checkpoint`
+     - Yes
+     - Yes
+     - Session
    * - :variable:`rocksdb_datadir`
      - Yes
      - No
@@ -199,6 +203,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_disable_file_deletions`
+     - Yes
+     - Yes
+     - Session
    * - :variable:`rocksdb_enable_bulk_load_api`
      - Yes
      - No
@@ -951,6 +959,20 @@ Specifies whether MyRocks should create new column families
 if they do not exist.
 Disabled by default.
 
+.. variable:: rocksdb_create_temporary_checkpoint
+
+  :cli: ``--rocksdb-create-temporary-checkpoint``
+  :dyn: Yes
+  :scope: Session
+  :vartype: String
+
+This variable has been implemented in |Percona Server| :rn:`8.0.15-6`.
+When specified it will create a temporary RocksDB 'checkpoint' or
+'snapshot' in the :term:`datadir`. If the session ends with an existing
+checkpoint, or if the variable is reset to another value, the checkpoint
+will get removed. This variable should be used by backup tools. Prolonged
+use or other misuse can have serious side effects to the server instance.
+
 .. variable:: rocksdb_datadir
 
   :cli: ``--rocksdb-datadir``
@@ -1108,6 +1130,23 @@ regardless of files removed during compaction.
 Default value is ``21600000000`` (6 hours).
 Allowed range is up to ``9223372036854775807``.
 
+.. variable:: rocksdb_disable_file_deletions
+
+  
+  :cli: ``--rocksdb-disable-file-deletions``
+  :dyn: Yes
+  :scope: Session
+  :vartype: Boolean
+  :default: ``OFF``
+
+This variable has been implemented in |Percona Server| :rn:`8.0.15-6`.
+It allows a client to temporarily disable RocksDB deletion
+of old ``WAL`` and ``.sst`` files for the purposes of making a consistent
+backup. If the client session terminates for any reason after disabling
+deletions and has not re-enabled deletions, they will be explicitly
+re-enabled. This variable should be used by backup tools. Prolonged
+use or other misuse can have serious side effects to the server instance.
+ 
 .. variable:: rocksdb_enable_bulk_load_api
 
   :cli: ``--rocksdb-enable-bulk-load-api``

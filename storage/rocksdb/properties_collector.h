@@ -62,9 +62,14 @@ struct Rdb_index_stats {
 
   Rdb_index_stats() : Rdb_index_stats({0, 0}) {}
   explicit Rdb_index_stats(GL_INDEX_ID gl_index_id)
-      : m_gl_index_id(gl_index_id), m_data_size(0), m_rows(0),
-        m_actual_disk_size(0), m_entry_deletes(0), m_entry_single_deletes(0),
-        m_entry_merges(0), m_entry_others(0) {}
+      : m_gl_index_id(gl_index_id),
+        m_data_size(0),
+        m_rows(0),
+        m_actual_disk_size(0),
+        m_entry_deletes(0),
+        m_entry_single_deletes(0),
+        m_entry_merges(0),
+        m_entry_others(0) {}
 
   void merge(const Rdb_index_stats &s, const bool increment = true,
              const int64_t estimated_data_len = 0);
@@ -171,8 +176,8 @@ class Rdb_tbl_prop_coll_factory
     : public rocksdb::TablePropertiesCollectorFactory {
  public:
   Rdb_tbl_prop_coll_factory(const Rdb_tbl_prop_coll_factory &) = delete;
-  Rdb_tbl_prop_coll_factory &
-  operator=(const Rdb_tbl_prop_coll_factory &) = delete;
+  Rdb_tbl_prop_coll_factory &operator=(const Rdb_tbl_prop_coll_factory &) =
+      delete;
 
   explicit Rdb_tbl_prop_coll_factory(Rdb_ddl_manager *ddl_manager)
       : m_ddl_manager(ddl_manager) {}

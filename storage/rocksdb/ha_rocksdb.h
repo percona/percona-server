@@ -118,7 +118,8 @@ struct Rdb_table_handler {
 
 /* Provide hash function for GL_INDEX_ID so we can include it in sets */
 namespace std {
-template <> struct hash<myrocks::GL_INDEX_ID> {
+template <>
+struct hash<myrocks::GL_INDEX_ID> {
   std::size_t operator()(const myrocks::GL_INDEX_ID &gl_index_id) const {
     const uint64_t val =
         ((uint64_t)gl_index_id.cf_id << 32 | (uint64_t)gl_index_id.index_id);
@@ -319,11 +320,10 @@ class ha_rocksdb : public my_core::handler {
                            const bool use_all_keys, const uint eq_cond_len);
   void release_scan_iterator(void);
 
-  rocksdb::Status
-  get_for_update(Rdb_transaction *const tx,
-                 rocksdb::ColumnFamilyHandle *const column_family,
-                 const rocksdb::Slice &key,
-                 rocksdb::PinnableSlice *value) const;
+  rocksdb::Status get_for_update(
+      Rdb_transaction *const tx,
+      rocksdb::ColumnFamilyHandle *const column_family,
+      const rocksdb::Slice &key, rocksdb::PinnableSlice *value) const;
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
                        const uint rowid_size, const bool skip_ttl_check = true,
@@ -705,10 +705,9 @@ class ha_rocksdb : public my_core::handler {
       uint64 ttl_duration, const std::string &ttl_column) const
       MY_ATTRIBUTE((__warn_unused_result__));
 
-  std::unordered_map<std::string, uint>
-  get_old_key_positions(const TABLE *table_arg, const Rdb_tbl_def *tbl_def_arg,
-                        const TABLE *old_table_arg,
-                        const Rdb_tbl_def *old_tbl_def_arg) const;
+  std::unordered_map<std::string, uint> get_old_key_positions(
+      const TABLE *table_arg, const Rdb_tbl_def *tbl_def_arg,
+      const TABLE *old_table_arg, const Rdb_tbl_def *old_tbl_def_arg) const;
 
   int compare_key_parts(const KEY *const old_key,
                         const KEY *const new_key) const
@@ -994,11 +993,16 @@ struct Rdb_inplace_alter_ctx : public my_core::inplace_alter_handler_ctx {
       std::unordered_set<std::shared_ptr<Rdb_key_def>> added_indexes,
       std::unordered_set<GL_INDEX_ID> dropped_index_ids, uint n_added_keys,
       uint n_dropped_keys, ulonglong max_auto_incr)
-      : my_core::inplace_alter_handler_ctx(), m_new_tdef(new_tdef),
-        m_old_key_descr(old_key_descr), m_new_key_descr(new_key_descr),
-        m_old_n_keys(old_n_keys), m_new_n_keys(new_n_keys),
-        m_added_indexes(added_indexes), m_dropped_index_ids(dropped_index_ids),
-        m_n_added_keys(n_added_keys), m_n_dropped_keys(n_dropped_keys),
+      : my_core::inplace_alter_handler_ctx(),
+        m_new_tdef(new_tdef),
+        m_old_key_descr(old_key_descr),
+        m_new_key_descr(new_key_descr),
+        m_old_n_keys(old_n_keys),
+        m_new_n_keys(new_n_keys),
+        m_added_indexes(added_indexes),
+        m_dropped_index_ids(dropped_index_ids),
+        m_n_added_keys(n_added_keys),
+        m_n_dropped_keys(n_dropped_keys),
         m_max_auto_incr(max_auto_incr) {}
 
   ~Rdb_inplace_alter_ctx() {}

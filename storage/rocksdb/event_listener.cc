@@ -31,9 +31,9 @@
 
 namespace myrocks {
 
-static std::vector<Rdb_index_stats>
-extract_index_stats(const std::vector<std::string> &files,
-                    const rocksdb::TablePropertiesCollection &props) {
+static std::vector<Rdb_index_stats> extract_index_stats(
+    const std::vector<std::string> &files,
+    const rocksdb::TablePropertiesCollection &props) {
   std::vector<Rdb_index_stats> ret;
   for (auto fn : files) {
     const auto it = props.find(fn);

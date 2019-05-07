@@ -463,7 +463,8 @@ class Rdb_bit_reader {
   }
 };
 
-template <size_t buf_length> class Rdb_buf_writer {
+template <size_t buf_length>
+class Rdb_buf_writer {
  public:
   Rdb_buf_writer(const Rdb_buf_writer &) = delete;
   Rdb_buf_writer &operator=(const Rdb_buf_writer &) = delete;

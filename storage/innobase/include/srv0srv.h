@@ -376,13 +376,6 @@ extern const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char *srv_log_group_home_dir;
 
-enum redo_log_encrypt_enum {
-  REDO_LOG_ENCRYPT_OFF = 0,
-  REDO_LOG_ENCRYPT_ON = 1,
-  REDO_LOG_ENCRYPT_MK = 2,
-  REDO_LOG_ENCRYPT_RK = 3,
-};
-
 /** Enable or Disable Encrypt of REDO tablespace. */
 extern ulong srv_redo_log_encrypt;
 
@@ -1108,6 +1101,19 @@ void undo_spaces_init();
 /** Free the resources occupied by undo::spaces and trx_sys_undo_spaces,
 called once during thread de-initialization. */
 void undo_spaces_deinit();
+
+/** Enables master key redo encryption.
+ * Doesn't depend on the srv_redo_log_encrypt variable, used by
+ * SET innodb_redo_log_encrypt = MK. */
+bool srv_enable_redo_encryption_mk();
+
+/** Enables master key redo encryption.
+ * Doesn't depend on the srv_redo_log_encrypt variable, used by
+ * SET innodb_redo_log_encrypt = RK. */
+bool srv_enable_redo_encryption_rk();
+
+/** Enables redo log encryption based on srv_redo_log_encrypt. */
+bool srv_enable_redo_encryption();
 
 #ifdef UNIV_DEBUG
 struct SYS_VAR;

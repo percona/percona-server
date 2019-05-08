@@ -1,0 +1,7 @@
+call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't set redo log tablespace to be encrypted.");
+select @@innodb_redo_log_encrypt;
+@@innodb_redo_log_encrypt
+off
+Pattern "Can't set redo log tablespace to be encrypted." found
+Pattern "Encryption can't find master key, please check the keyring plugin is loaded." found

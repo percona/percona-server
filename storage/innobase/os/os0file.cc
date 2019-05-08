@@ -1890,7 +1890,8 @@ os_file_io_complete(
 	ut_ad(type.validate());
 
 	if (!type.is_compression_enabled()) {
-		if (type.is_log() && offset >= LOG_FILE_HDR_SIZE) {
+		if (type.is_log() && offset >= LOG_FILE_HDR_SIZE
+		    && !type.is_encryption_disabled()) {
 			Encryption encryption(type.encryption_algorithm());
 
 			ret = encryption.decrypt_log(type, buf, src_len,

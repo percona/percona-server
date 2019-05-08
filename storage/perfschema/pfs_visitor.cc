@@ -1371,17 +1371,17 @@ void PFS_connection_status_visitor::visit_global()
 
 void PFS_connection_status_visitor::visit_host(PFS_host *pfs)
 {
-  pfs->m_status_stats.aggregate_to(m_status_vars, true);
+  pfs->m_status_stats.aggregate_to(m_status_vars);
 }
 
 void PFS_connection_status_visitor::visit_user(PFS_user *pfs)
 {
-  pfs->m_status_stats.aggregate_to(m_status_vars, true);
+  pfs->m_status_stats.aggregate_to(m_status_vars);
 }
 
 void PFS_connection_status_visitor::visit_account(PFS_account *pfs)
 {
-  pfs->m_status_stats.aggregate_to(m_status_vars, true);
+  pfs->m_status_stats.aggregate_to(m_status_vars);
 }
 
 void PFS_connection_status_visitor::visit_thread(PFS_thread *pfs)

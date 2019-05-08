@@ -71,6 +71,8 @@ compression/decompression request in an ``ALTER TABLE``, it is forced to the
 Two new variables: :variable:`innodb_compressed_columns_zip_level` and
 :variable:`innodb_compressed_columns_threshold` have been implemented.
 
+.. _compression_dictionary:
+
 Compression dictionary support
 ==============================
 

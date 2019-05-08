@@ -28,10 +28,10 @@ set global innodb_redo_log_encrypt='MASTER_KEY';
 set global innodb_redo_log_encrypt='KEYRING_KEY';
 select * from performance_schema.global_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_redo_log_encrypt	keyring_key
+innodb_redo_log_encrypt	off
 select * from performance_schema.session_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_redo_log_encrypt	keyring_key
+innodb_redo_log_encrypt	off
 set @@global.innodb_redo_log_encrypt=0;
 select @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt

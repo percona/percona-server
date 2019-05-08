@@ -1,0 +1,11 @@
+call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("Can't set redo log tablespace to be encrypted.");
+select @@innodb_redo_log_encrypt;
+
+
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN=Can't set redo log tablespace to be encrypted.
+--source include/search_pattern.inc
+--let SEARCH_PATTERN=Encryption can't find master key, please check the keyring plugin is loaded.
+--source include/search_pattern.inc
+

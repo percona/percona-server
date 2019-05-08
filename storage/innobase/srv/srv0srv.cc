@@ -79,6 +79,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "handler.h"
 #include "ha_innodb.h"
 #include "fil0crypt.h"
+#include "system_key.h"
 
 
 #ifndef UNIV_PFS_THREAD
@@ -3523,6 +3524,141 @@ srv_is_undo_tablespace(
 	       && space_id < (srv_undo_space_id_start
 			      + srv_undo_tablespaces_open));
 }
+
+bool
+srv_enable_redo_encryption()
+{
+	if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK) {
+		return srv_enable_redo_encryption_mk();
+	}
+
+	if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
+		return srv_enable_redo_encryption_rk();
+	}
+
+	return false;
+}
+
+bool
+srv_enable_redo_encryption_mk()
+{
+	fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		return false;
+	}
+	byte key[ENCRYPTION_KEY_LEN];
+	byte iv[ENCRYPTION_KEY_LEN];
+	
+	Encryption::random_value(iv);
+	Encryption::random_value(key);
+
+	if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_MK)) {
+
+		ib::error() << "Can't set redo log tablespace to be encrypted.";
+		return true;
+	}
+
+	space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+
+	const dberr_t err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+	if (err != DB_SUCCESS) {
+		ib::error() << "Can't set redo log tablespace to be encrypted.";
+		return true;
+	}
+
+	ib::info() << "Redo log encryption is enabled.";
+
+	return false;
+}
+
+
+bool
+srv_enable_redo_encryption_rk()
+{
+	fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags))
+	{
+		return false;
+	}
+
+	byte key[ENCRYPTION_KEY_LEN];
+        byte iv[ENCRYPTION_KEY_LEN];
+	uint version;
+
+	Encryption::random_value(key);
+	
+	// load latest key & write version
+
+	char *redo_key_type = NULL;
+	byte *rkey = NULL;
+	size_t klen = 0;
+
+	if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, NULL,
+				reinterpret_cast<void**>(&rkey), &klen) || rkey == NULL)
+	{
+		if (my_key_generate(PERCONA_REDO_KEY_NAME, "AES", NULL, ENCRYPTION_KEY_LEN)) {
+			ib::error() << "Redo log key generation failed.";
+			my_free(redo_key_type);
+			my_free(rkey);
+			return true;
+		} else if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, NULL,
+					reinterpret_cast<void**>(&rkey), &klen)) {
+			ib::error() << "Couldn't fetch newly generated redo key.";
+			my_free(redo_key_type);
+			my_free(rkey);
+			return true;
+		} else {
+			DBUG_ASSERT(rkey != NULL);
+			byte *rkey2 = NULL;
+			size_t klen2 = 0;
+			bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2)
+					== reinterpret_cast<uchar*>(NullS));
+			ut_ad(klen2 ==  ENCRYPTION_KEY_LEN);
+			if (err) {
+				ib::error() << "Couldn't parse system key: " << rkey;
+				my_free(redo_key_type);
+				my_free(rkey);
+				return true;
+			} else {
+				memcpy(key, rkey2, ENCRYPTION_KEY_LEN);
+			}
+			my_free(rkey2);
+		}
+	} else {
+		memcpy(key, rkey, ENCRYPTION_KEY_LEN);
+	}
+
+	ut_ad(redo_key_type && strcmp(redo_key_type, "AES") == 0);
+
+	my_free(redo_key_type);
+	my_free(rkey);
+
+#ifdef UNIV_ENCRYPT_DEBUG
+	fprintf(stderr, "Fetched redo key: %s.\n", key);
+#endif
+
+	if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_RK)) {
+		ib::error() << "Can't set redo log tablespace to be"
+			" encrypted.";
+		return true;
+	}
+
+	space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+	space->encryption_key_version = version;
+	dberr_t err = fil_set_encryption(
+			space->id, Encryption::AES,
+			key, iv);
+
+	if(err != DB_SUCCESS) {
+		ib::error() << "Can't set redo log tablespace to be encrypted.";
+		return true;
+	}
+
+	ib::info() << "Redo log encryption is enabled.";
+
+	return false;
+}
+
 
 /** Enable the undo log encryption if it is set.
 It will try to enable the undo log encryption and write the metadata to

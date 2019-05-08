@@ -34,7 +34,7 @@ UNINSTALL PLUGIN keyring_file;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
 master_key
-SET GLOBAL innodb_redo_log_encrypt = 1;
+SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
 master_key

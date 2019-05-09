@@ -19,6 +19,7 @@
 #pragma once
 
 /* C++ standard header files */
+#include <limits>
 #include <string>
 #include <vector>
 

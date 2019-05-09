@@ -43,12 +43,111 @@ New Features
 
 - RocksDB WAL file information can now be seen in the
   :table:`performance_schema.log_status` :ref:`table <log_status>`.
+
+- New :variable:`Audit_log_buffer_size_overflow` status variable has been
+  implemented to track when an :ref:`audit_log_plugin` entry was either
+  dropped or written directly to the file due to its size being bigger
+  than :variable:`audit_log_buffer_size` variable.
   
 
 Bugs Fixed
 ================================================================================
 
+- TokuDB and MyRocks native partitioning would never release memory which could
+  lead to a server crash. Bug fixed :psbug:`5508`.
+
+- using TokuDB or MyRocks native partitioning and ``index_merge`` could lead to
+  a server crash. Bugs fixed :psbug:`5206`, :psbug:`5562`.
+
+- upgrade from |Percona Server| 5.7.24 to :rn:`8.0.13-3` wasn't working with
+  encrypted undo tablespaces. Bug fixed :psbug:`5223`.
+
+- :ref:`keyring_vault_plugin` couldn't be initialized on *Ubuntu Cosmic 17.10*.
+  Bug fixed :psbug:`5453`.
+
+- rotated key encryption did not register ``encryption_key_id`` as a valid
+  table option. Bug fixed :psbug:`5482`.
+
+- :table:`INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES` queries could crash if
+  online ``ALTER TABLE`` was running in parallel. Bug fixed :psbug:`5566`.
+
+- setting :variable:`log_slow_verbosity` and enabling the
+  :variable:`slow_query_log` could lead to a server crash. Bug fixed
+  :psbug:`4933`.
+
+- :ref:`compression_dictionary` operations were not handled under
+  :variable:`innodb-force-recovery`. Bug fixed :psbug:`5148`.
+
+- ``BLOB`` entries in the binary log could become corrupted
+  in case when a database with ``Blackhole`` tables served as an
+  intermediate binary log server in a replication chain. Bug fixed
+  :psbug:`5353`.
+
+- ``FLUSH CHANGED_PAGE_BITMAPS`` would leave gaps between the last written
+  bitmap LSN and the |InnoDB| checkpoint LSN. Bug fixed :psbug:`5446`.
+
+- :ref:`changed_page_tracking` was missing pages changed by the in-place DDL.
+  Bug fixed :psbug:`5447`.
+
+- ``innodb_system tablespace`` information was missing from the 
+  :table:`INFORMATION_SCHEMA.innodb_tablespaces` view.
+  Bug fixed :psbug:`5473`.
+
+- undo log tablespace encryption status is now available through 
+  :table:`INFORMATION_SCHEMA.innodb_tablespaces` view.
+  Bug fixed :psbug:`5485` (upstream :mysqlbug:`94665`).
+
+- enabling temporay tablespace encryption didn't mark the 
+  ``innodb_temporary`` tablespace with the encryption flag. Bug fixed
+  :psbug:`5490`.
+
+- server would crash during bootstrap if :variable:`innodb_encrypt_tables`
+  was set to ``1``. Bug fixed :psbug:`5492`.
+
+- fixed intermittent shutdown crashes that were happening if :ref:`threadpool`
+  was enabled. Bug fixed :psbug:`5510`.
+
+- compression dictionary ``INFORMATION_SCHEMA`` views were missing when 
+  :term:`datadir` was upgraded from 8.0.13 to 8.0.15. Bug fixed :psbug:`5529`.
+
+- :variable:`innodb_encrypt_tables` variable accepted ``FORCE`` option only
+  as a string. Bug fixed :psbug:`5538`. 
+
+- ``ibd2sdi`` utility was missing in Debian/Ubuntu packages. Bug fixed
+  :psbug:`5549`.
+
+- Docker image is now ignoring password that is set in the configuration 
+  file when first initializing. Bug fixed :psbug:`5573`.
+
+- long running ``ALTER TABLE ADD INDEX`` could cause a ``semaphore wait > 600``
+  assertion. Bug fixed :psbug:`3410` (upstream :mysqlbug:`82940`).
+
 - :ref:`backup_locks` was blocking DML for RocksDB. Bug fixed :psbug:`5583`.
+
+Other bugs fixed:
+:psbug:`5537`,
+:psbug:`5243`,
+:psbug:`5371`,
+:psbug:`5475`,
+:psbug:`5484`,
+:psbug:`5512`,
+:psbug:`5514`,
+:psbug:`5523`,
+:psbug:`5528`,
+:psbug:`5536`,
+:psbug:`5550`,
+:psbug:`5554`,
+:psbug:`5570`,
+:psbug:`5578`,
+:psbug:`5441`,
+:psbug:`5442`,
+:psbug:`5456`,
+:psbug:`5462`,
+:psbug:`5487`,
+:psbug:`5489`,
+:psbug:`5501`,
+:psbug:`5520`, and
+:psbug:`5560`.
 
 .. |release| replace:: 8.0.15-6
 .. |date| replace:: May 07, 2019

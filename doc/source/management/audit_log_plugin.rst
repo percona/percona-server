@@ -680,9 +680,25 @@ This variable is used to specify the ``priority`` value for syslog. This
 variable has the same meaning as the appropriate parameter described in the
 `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
 
+Status Variables
+================
+
+.. variable:: Audit_log_buffer_size_overflow
+
+    :vartype: Numeric
+    :scope: Global
+
+This status variable has been
+implemented to track when an audit log entry was either
+dropped or written directly to the file due to its size being bigger
+than :variable:`audit_log_buffer_size` variable.
+
 Version Specific Information
 ============================
 
   * :rn:`8.0.12-1`
     Feature ported from |Percona Server| 5.7
+
+  * :rn:`8.0.15-6`
+    :variable:`Audit_log_buffer_size_overflow` variable implemented
 

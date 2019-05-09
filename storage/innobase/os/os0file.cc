@@ -8840,7 +8840,7 @@ bool Encryption::fill_encryption_info(uint key_version, byte *iv,
   ptr += ENCRYPTION_MAGIC_SIZE;
   /* Write master key id. */
   mach_write_to_4(ptr, key_version);
-  ptr += sizeof(ulint);
+  ptr += 4;
   /* Write server uuid. */
   memcpy(ptr, s_uuid, ENCRYPTION_SERVER_UUID_LEN);
   ptr += ENCRYPTION_SERVER_UUID_LEN;

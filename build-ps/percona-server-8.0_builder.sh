@@ -93,13 +93,6 @@ check_workdir(){
 add_percona_yum_repo(){
     if [ ! -f /etc/yum.repos.d/percona-dev.repo ]
     then
-	if [ "x$RHEL" = "x8" ]; then
-            echo -e '[main]\nenabled=0\n' > /etc/yum/pluginconf.d/subscription-manager.conf
-	    echo 'strict=0' >> /etc/dnf/dnf.conf
-            echo 'strict=0' >> /etc/yum/yum.conf
-	    wget -O /etc/yum.repos.d/rhel8-beta.repo https://jenkins.percona.com/yum-repo/rhel8/rhel8-beta.repo
-	    wget -O /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
-        fi
         curl -o /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
 	sed -i 's:$basearch:x86_64:g' /etc/yum.repos.d/percona-dev.repo
     fi

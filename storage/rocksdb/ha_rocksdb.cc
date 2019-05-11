@@ -2624,7 +2624,7 @@ class Rdb_transaction {
         std::max(m_auto_incr_map[gl_index_id], curr_id);
   }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   ulonglong get_auto_incr(const GL_INDEX_ID &gl_index_id) {
     if (m_auto_incr_map.count(gl_index_id) > 0) {
       return m_auto_incr_map[gl_index_id];
@@ -5364,7 +5364,7 @@ ulonglong ha_rocksdb::load_auto_incr_value_from_index() {
     if (last_val != max_val) {
       last_val++;
     }
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     ulonglong dd_val;
     if (last_val <= max_val) {
       const auto &gl_index_id = m_tbl_def->get_autoincr_gl_index_id();
@@ -5686,7 +5686,7 @@ int ha_rocksdb::rocksdb_skip_expired_records(const Rdb_key_def &kd,
   return HA_EXIT_SUCCESS;
 }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 void dbug_append_garbage_at_end(rocksdb::PinnableSlice *on_disk_rec) {
   std::string str(on_disk_rec->data(), on_disk_rec->size());
   on_disk_rec->Reset();

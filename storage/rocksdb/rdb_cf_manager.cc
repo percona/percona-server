@@ -100,6 +100,8 @@ rocksdb::ColumnFamilyHandle *Rdb_cf_manager::get_or_create_cf(
     bool cf_name_found = m_cf_options->get_cf_options(cf_name, &opts);
 
     if (create || cf_name_found) {
+      // NO_LINT_DEBUG
+      // NO_LINT_DEBUG
 
       LogPluginErrMsg(INFORMATION_LEVEL, 0, "Creating a column family %s",
                       cf_name.c_str());

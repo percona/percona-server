@@ -235,6 +235,7 @@ static int rocksdb_create_checkpoint(
         status = checkpoint->CreateCheckpoint(checkpoint_dir.c_str());
         delete checkpoint;
         if (status.ok()) {
+          // NO_LINT_DEBUG
           sql_print_information(
               "RocksDB: created checkpoint in directory : %s\n",
               checkpoint_dir.c_str());
@@ -264,6 +265,7 @@ static void rocksdb_force_flush_memtable_now_stub(
 static int rocksdb_force_flush_memtable_now(
     THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
     struct st_mysql_value *const value) {
+  // NO_LINT_DEBUG
   sql_print_information("RocksDB: Manual memtable flush.");
   rocksdb_flush_all_memtables();
   return HA_EXIT_SUCCESS;
@@ -276,6 +278,7 @@ static void rocksdb_force_flush_memtable_and_lzero_now_stub(
 static int rocksdb_force_flush_memtable_and_lzero_now(
     THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
     struct st_mysql_value *const value) {
+  // NO_LINT_DEBUG
   sql_print_information("RocksDB: Manual memtable and L0 flush.");
   rocksdb_flush_all_memtables();
 
@@ -4115,6 +4118,7 @@ static bool rocksdb_show_status(handlerton *const hton, THD *const thd,
     rocksdb::Status s = rdb->GetEnv()->GetThreadList(&thread_list);
 
     if (!s.ok()) {
+      // NO_LINT_DEBUG
       sql_print_error("RocksDB: Returned error (%s) from GetThreadList.\n",
                       s.ToString().c_str());
       res |= true;
@@ -4490,16 +4494,21 @@ static int rocksdb_init_func(void *const p) {
       Checking system errno happens to work right now.
     */
     if (status.IsIOError() && errno == ENOENT) {
+      // NO_LINT_DEBUG
       sql_print_information("RocksDB: Got ENOENT when listing column families");
+
+      // NO_LINT_DEBUG
       sql_print_information(
           "RocksDB:   assuming that we're creating a new database");
     } else {
       rdb_log_status_error(status, "Error listing column families");
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
-  } else
+  } else {
+    // NO_LINT_DEBUG
     sql_print_information("RocksDB: %ld column families found",
                           cf_names.size());
+  }
 
   std::vector<rocksdb::ColumnFamilyDescriptor> cf_descr;
   std::vector<rocksdb::ColumnFamilyHandle *> cf_handles;
@@ -4578,6 +4587,7 @@ static int rocksdb_init_func(void *const p) {
     }
     rocksdb_tbl_options->persistent_cache = pcache;
   } else if (strlen(rocksdb_persistent_cache_path)) {
+    // NO_LINT_DEBUG
     sql_print_error("RocksDB: Must specify rocksdb_persistent_cache_size_mb");
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
@@ -4598,13 +4608,20 @@ static int rocksdb_init_func(void *const p) {
   if (cf_names.size() == 0) cf_names.push_back(DEFAULT_CF_NAME);
 
   std::vector<int> compaction_enabled_cf_indices;
+
+  // NO_LINT_DEBUG
   sql_print_information("RocksDB: Column Families at start:");
   for (size_t i = 0; i < cf_names.size(); ++i) {
     rocksdb::ColumnFamilyOptions opts;
     cf_options_map->get_cf_options(cf_names[i], &opts);
 
+    // NO_LINT_DEBUG
     sql_print_information("  cf=%s", cf_names[i].c_str());
+
+    // NO_LINT_DEBUG
     sql_print_information("    write_buffer_size=%ld", opts.write_buffer_size);
+
+    // NO_LINT_DEBUG
     sql_print_information("    target_file_size_base=%" PRIu64,
                           opts.target_file_size_base);
 
@@ -4701,6 +4718,7 @@ static int rocksdb_init_func(void *const p) {
 #endif
   );
   if (err != 0) {
+    // NO_LINT_DEBUG
     sql_print_error("RocksDB: Couldn't start the background thread: (errno=%d)",
                     err);
     DBUG_RETURN(HA_EXIT_FAILURE);

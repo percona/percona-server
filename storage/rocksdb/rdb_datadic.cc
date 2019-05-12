@@ -4786,20 +4786,22 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
 
 Rdb_tbl_def *Rdb_ddl_manager::find(const std::string &table_name,
                                    const bool lock) {
-  Rdb_tbl_def *ret = nullptr;
+  Rdb_tbl_def *rec = nullptr;
 
   if (lock) {
     mysql_rwlock_rdlock(&m_rwlock);
   }
 
-  const auto &it = m_ddl_hash.find(table_name);
-  if (it != m_ddl_hash.end()) ret = it->second;
+  const auto &it = m_ddl_map.find(table_name);
+  if (it != m_ddl_map.end()) {
+    rec = it->second;
+  }
 
   if (lock) {
     mysql_rwlock_unlock(&m_rwlock);
   }
 
-  return ret;
+  return rec;
 }
 
 // this is a safe version of the find() function below.  It acquires a read
@@ -4955,24 +4957,25 @@ int Rdb_ddl_manager::put_and_write(Rdb_tbl_def *const tbl,
 
 /* Return 0 - ok, other value - error */
 /* TODO:
-  This function modifies m_ddl_hash and m_index_num_to_keydef.
+  This function modifies m_ddl_map and m_index_num_to_keydef.
   However, these changes need to be reversed if dict_manager.commit fails
   See the discussion here: https://reviews.facebook.net/D35925#inline-259167
   Tracked by https://github.com/facebook/mysql-5.6/issues/33
 */
 int Rdb_ddl_manager::put(Rdb_tbl_def *const tbl, const bool lock) {
+  Rdb_tbl_def *rec;
   const std::string &dbname_tablename = tbl->full_tablename();
 
   if (lock) mysql_rwlock_wrlock(&m_rwlock);
 
   // We have to do this find because 'tbl' is not yet in the list.  We need
   // to find the one we are replacing ('rec')
-  const auto &it = m_ddl_hash.find(dbname_tablename);
-  if (it != m_ddl_hash.end()) {
+  const auto &it = m_ddl_map.find(dbname_tablename);
+  if (it != m_ddl_map.end()) {
     delete it->second;
-    m_ddl_hash.erase(it);
+    m_ddl_map.erase(it);
   }
-  m_ddl_hash.insert({dbname_tablename, tbl});
+  m_ddl_map.emplace(dbname_tablename, tbl);
 
   for (uint keyno = 0; keyno < tbl->m_key_count; keyno++) {
     m_index_num_to_keydef[tbl->m_key_descr_arr[keyno]->get_gl_index_id()] =
@@ -4996,10 +4999,12 @@ void Rdb_ddl_manager::remove(Rdb_tbl_def *const tbl,
 
   m_dict->delete_key(batch, key_writer.to_slice());
 
-  const auto &it = m_ddl_hash.find(dbname_tablename);
-  if (it != m_ddl_hash.end()) {
+  const auto &it = m_ddl_map.find(dbname_tablename);
+  if (it != m_ddl_map.end()) {
+    // Free Rdb_tbl_def
     delete it->second;
-    m_ddl_hash.erase(it);
+
+    m_ddl_map.erase(it);
   }
 
   if (lock) mysql_rwlock_unlock(&m_rwlock);
@@ -5049,28 +5054,27 @@ bool Rdb_ddl_manager::rename(const std::string &from, const std::string &to,
 }
 
 void Rdb_ddl_manager::cleanup() {
-  for (const auto &it : m_ddl_hash) delete it.second;
-
-  m_ddl_hash.clear();
+  for (const auto &kv : m_ddl_map) {
+    delete kv.second;
+  }
+  m_ddl_map.clear();
 
   mysql_rwlock_destroy(&m_rwlock);
   m_sequence.cleanup();
 }
 
 int Rdb_ddl_manager::scan_for_tables(Rdb_tables_scanner *const tables_scanner) {
-  int i, ret;
+  int ret;
 
   DBUG_ASSERT(tables_scanner != nullptr);
 
   mysql_rwlock_rdlock(&m_rwlock);
 
   ret = 0;
-  i = 0;
 
-  for (const auto &it : m_ddl_hash) {
-    ret = tables_scanner->add_table(it.second);
+  for (const auto &kv : m_ddl_map) {
+    ret = tables_scanner->add_table(kv.second);
     if (ret) break;
-    i++;
   }
 
   mysql_rwlock_unlock(&m_rwlock);

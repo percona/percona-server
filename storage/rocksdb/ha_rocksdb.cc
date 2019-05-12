@@ -181,11 +181,26 @@ static void rocksdb_flush_all_memtables() {
 namespace  // anonymous namespace = not visible outside this source file
 {
 
-struct Rdb_open_tables_map {
+class Rdb_open_tables_map {
+ private:
   /* Hash table used to track the handlers of open tables */
-  std::unordered_map<std::string, Rdb_table_handler *> m_hash;
+  std::unordered_map<std::string, Rdb_table_handler *> m_table_map;
+
   /* The mutex used to protect the hash table */
   mutable mysql_mutex_t m_mutex;
+
+ public:
+  void init() {
+    m_table_map.clear();
+    mysql_mutex_init(rdb_psi_open_tbls_mutex_key, &m_mutex, MY_MUTEX_INIT_FAST);
+  }
+
+  void free() {
+    m_table_map.clear();
+    mysql_mutex_destroy(&m_mutex);
+  }
+
+  size_t count() { return m_table_map.size(); }
 
   Rdb_table_handler *get_table_handler(const char *const table_name);
   void release_table_handler(Rdb_table_handler *const table_handler);
@@ -1983,6 +1998,8 @@ static int rocksdb_compact_column_family(THD *const thd,
   }
   return HA_EXIT_SUCCESS;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////
 
 /*
   Drop index thread's control
@@ -4568,8 +4585,10 @@ static int rocksdb_init_func(void *const p) {
   init_rocksdb_psi_keys();
 
   rocksdb_hton = (handlerton *)p;
-  mysql_mutex_init(rdb_psi_open_tbls_mutex_key, &rdb_open_tables.m_mutex,
-                   MY_MUTEX_INIT_FAST);
+
+  rdb_open_tables.init();
+  Ensure_cleanup rdb_open_tables_cleanup([]() { rdb_open_tables.free(); });
+
 #ifdef HAVE_PSI_INTERFACE
   rdb_bg_thread.init(rdb_signal_bg_psi_mutex_key, rdb_signal_bg_psi_cond_key);
   rdb_drop_idx_thread.init(rdb_signal_drop_idx_psi_mutex_key,
@@ -5022,6 +5041,10 @@ static int rocksdb_init_func(void *const p) {
   rdb_get_hton_init_state()->set_initialized(true);
 
   LogPluginErrMsg(INFORMATION_LEVEL, 0, "instance opened");
+
+  // Skip cleaning up rdb_open_tables as we've succeeded
+  rdb_open_tables_cleanup.skip();
+
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
@@ -5083,13 +5106,13 @@ static int rocksdb_done_func(void *const p) {
                     err);
   }
 
-  if (rdb_open_tables.m_hash.size()) {
+  if (rdb_open_tables.count()) {
     // Looks like we are getting unloaded and yet we have some open tables
     // left behind.
     error = 1;
   }
 
-  mysql_mutex_destroy(&rdb_open_tables.m_mutex);
+  rdb_open_tables.free();
   mysql_mutex_destroy(&rdb_sysvars_mutex);
   mysql_mutex_destroy(&rdb_block_cache_resize_mutex);
 
@@ -5196,28 +5219,31 @@ Rdb_open_tables_map::get_table_handler(const char *const table_name) {
 
   DBUG_ASSERT(table_name != nullptr);
 
-  const std::string s_table_name(table_name);
+  Rdb_table_handler *table_handler;
+
+  const std::string table_name_str(table_name);
 
   // First, look up the table in the hash map.
   RDB_MUTEX_LOCK_CHECK(m_mutex);
-  Rdb_table_handler *table_handler = nullptr;
-  const auto &it = m_hash.find(s_table_name);
-  if (it != m_hash.end()) {
+  const auto &it = m_table_map.find(table_name_str);
+  if (it != m_table_map.end()) {
+    // Found it
     table_handler = it->second;
   } else {
+    char *tmp_name;
+
     // Since we did not find it in the hash map, attempt to create and add it
     // to the hash map.
-    char *tmp_name;
 #ifdef HAVE_PSI_INTERFACE
-    if (!(table_handler = static_cast<Rdb_table_handler *>(
+    if (!(table_handler = reinterpret_cast<Rdb_table_handler *>(
               my_multi_malloc(rdb_handler_memory_key, MYF(MY_WME | MY_ZEROFILL),
                               &table_handler, sizeof(*table_handler), &tmp_name,
-                              s_table_name.length() + 1, NullS)))) {
+                              table_name_str.length() + 1, NullS)))) {
 #else
-    if (!(table_handler = static_cast<Rdb_table_handler *>(
+    if (!(table_handler = reinterpret_cast<Rdb_table_handler *>(
               my_multi_malloc(PSI_NOT_INSTRUMENTED, MYF(MY_WME | MY_ZEROFILL),
                               &table_handler, sizeof(*table_handler), &tmp_name,
-                              s_table_name.length() + 1, NullS)))) {
+                              table_name_str.length() + 1, NullS)))) {
 #endif
       // Allocating a new Rdb_table_handler and a new table name failed.
       RDB_MUTEX_UNLOCK_CHECK(m_mutex);
@@ -5225,11 +5251,11 @@ Rdb_open_tables_map::get_table_handler(const char *const table_name) {
     }
 
     table_handler->m_ref_count = 0;
-    table_handler->m_table_name_length = s_table_name.length();
+    table_handler->m_table_name_length = table_name_str.length();
     table_handler->m_table_name = tmp_name;
-    my_stpmov(table_handler->m_table_name, s_table_name.c_str());
+    my_stpmov(table_handler->m_table_name, table_name_str.c_str());
 
-    m_hash.insert({s_table_name, table_handler});
+    m_table_map.emplace(table_name_str, table_handler);
 
     thr_lock_init(&table_handler->m_thr_lock);
     table_handler->m_io_perf_read.init();
@@ -5251,8 +5277,8 @@ std::vector<std::string> Rdb_open_tables_map::get_table_names(void) const {
   std::vector<std::string> names;
 
   RDB_MUTEX_LOCK_CHECK(m_mutex);
-  for (const auto &it : m_hash) {
-    table_handler = it.second;
+  for (const auto &kv : m_table_map) {
+    table_handler = kv.second;
     DBUG_ASSERT(table_handler != nullptr);
     names.push_back(table_handler->m_table_name);
   }
@@ -5525,8 +5551,8 @@ void Rdb_open_tables_map::release_table_handler(
   DBUG_ASSERT(table_handler->m_ref_count > 0);
   if (!--table_handler->m_ref_count) {
     const auto ret MY_ATTRIBUTE((__unused__)) =
-        m_hash.erase(std::string(table_handler->m_table_name));
-    DBUG_ASSERT(ret == 1);
+        m_table_map.erase(std::string(table_handler->m_table_name));
+    DBUG_ASSERT(ret == 1);  // the hash entry must actually be found and deleted
     my_core::thr_lock_delete(&table_handler->m_thr_lock);
     my_free(table_handler);
   }

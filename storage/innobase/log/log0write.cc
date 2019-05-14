@@ -2697,7 +2697,7 @@ bool log_read_encryption() {
     unsigned char *info_ptr =
         log_block_buf + LOG_HEADER_CREATOR_END + ENCRYPTION_MAGIC_SIZE;
     version = mach_read_from_4(info_ptr);
-    memcpy(iv, info_ptr + ENCRYPTION_SERVER_UUID_LEN + 8, ENCRYPTION_KEY_LEN);
+    memcpy(iv, info_ptr + ENCRYPTION_SERVER_UUID_LEN + 4, ENCRYPTION_KEY_LEN);
 #ifdef UNIV_ENCRYPT_DEBUG
     fprintf(stderr, "Using redo log encryption key version: %u\n", version);
 #endif

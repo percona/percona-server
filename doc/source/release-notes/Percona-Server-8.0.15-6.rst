@@ -53,8 +53,10 @@ New Features
 Bugs Fixed
 ================================================================================
 
-- TokuDB and MyRocks native partitioning would never release memory which could
-  lead to a server crash. Bug fixed :psbug:`5508`.
+- TokuDB and MyRocks native partitioning handler objects were allocated from a 
+  wrong memory allocator. Memory was released only on shutdown and concurrent
+  access to global memory allocator caused memory corruptions and therefore
+  crashes. Bug fixed :psbug:`5508`.
 
 - using TokuDB or MyRocks native partitioning and ``index_merge`` could lead to
   a server crash. Bugs fixed :psbug:`5206`, :psbug:`5562`.
@@ -71,12 +73,15 @@ Bugs Fixed
 - :table:`INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES` queries could crash if
   online ``ALTER TABLE`` was running in parallel. Bug fixed :psbug:`5566`.
 
-- setting :variable:`log_slow_verbosity` and enabling the
-  :variable:`slow_query_log` could lead to a server crash. Bug fixed
-  :psbug:`4933`.
+- setting the :variable:`log_slow_verbosity` to include ``innodb`` value and
+  enabling the :variable:`slow_query_log` could lead to a server crash.
+  Bug fixed :psbug:`4933`.
 
-- :ref:`compression_dictionary` operations were not handled under
-  :variable:`innodb-force-recovery`. Bug fixed :psbug:`5148`.
+- :ref:`compression_dictionary` operations were not allowed under
+  :variable:`innodb-force-recovery`. Now they work correctly when
+  :variable:`innodb_force_recovery` is <= ``2``, and are forbidden when
+  :variable:`innodb_force_recovery` is >= ``3``.
+  Bug fixed :psbug:`5148`.
 
 - ``BLOB`` entries in the binary log could become corrupted
   in case when a database with ``Blackhole`` tables served as an
@@ -89,7 +94,7 @@ Bugs Fixed
 - :ref:`changed_page_tracking` was missing pages changed by the in-place DDL.
   Bug fixed :psbug:`5447`.
 
-- ``innodb_system tablespace`` information was missing from the 
+- ``innodb_system`` tablespace information was missing from the 
   :table:`INFORMATION_SCHEMA.innodb_tablespaces` view.
   Bug fixed :psbug:`5473`.
 
@@ -122,7 +127,13 @@ Bugs Fixed
 - long running ``ALTER TABLE ADD INDEX`` could cause a ``semaphore wait > 600``
   assertion. Bug fixed :psbug:`3410` (upstream :mysqlbug:`82940`).
 
+- system keyring keys initialization wasn't thread safe. Bugs fixed
+  :psbug:`5554`.
+
 - :ref:`backup_locks` was blocking DML for RocksDB. Bug fixed :psbug:`5583`.
+
+- PerconaFT ``locktree`` library was re-licensed to Apache v2 license.
+  Bug fixed :psbug:`5501`.
 
 Other bugs fixed:
 :psbug:`5537`,
@@ -136,7 +147,6 @@ Other bugs fixed:
 :psbug:`5528`,
 :psbug:`5536`,
 :psbug:`5550`,
-:psbug:`5554`,
 :psbug:`5570`,
 :psbug:`5578`,
 :psbug:`5441`,
@@ -145,7 +155,6 @@ Other bugs fixed:
 :psbug:`5462`,
 :psbug:`5487`,
 :psbug:`5489`,
-:psbug:`5501`,
 :psbug:`5520`, and
 :psbug:`5560`.
 

@@ -11028,7 +11028,7 @@ static int calculate_stats(
 
   // get RocksDB table properties for these ranges
   rocksdb::TablePropertiesCollection props;
-  for (auto it : ranges) {
+  for (const auto &it : ranges) {
     const auto old_size MY_ATTRIBUTE((__unused__)) = props.size();
     const auto status = rdb->GetPropertiesOfTablesInRange(
         it.first, &it.second[0], it.second.size(), &props);

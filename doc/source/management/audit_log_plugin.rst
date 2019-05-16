@@ -688,8 +688,7 @@ Status Variables
     :vartype: Numeric
     :scope: Global
 
-This status variable has been
-implemented to track when an audit log entry was either
+The number of times an audit log entry was either
 dropped or written directly to the file due to its size being bigger
 than :variable:`audit_log_buffer_size` variable.
 

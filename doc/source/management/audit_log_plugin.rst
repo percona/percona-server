@@ -567,6 +567,18 @@ This variable is used to specify the ``facility`` value for syslog. This variabl
 
 This variable is used to specify the ``priority`` value for syslog. This variable has the same meaning as the appropriate parameter described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
 
+Status Variables
+================
+
+.. variable:: Audit_log_buffer_size_overflow
+
+    :vartype: Numeric
+    :scope: Global
+
+The number of times an audit log entry was either
+dropped or written directly to the file due to its size being bigger
+than :variable:`audit_log_buffer_size` variable.
+
 Version Specific Information
 ============================
 
@@ -580,3 +592,5 @@ Version Specific Information
     |Percona Server| :ref:`audit_log_plugin` now supports filtering by
     :ref:`user <filtering_by_user>` and
     :ref:`sql_command <filtering_by_sql_command_type>`.
+  * :rn:`5.6.44-85.0`
+    :variable:`Audit_log_buffer_size_overflow` variable implemented

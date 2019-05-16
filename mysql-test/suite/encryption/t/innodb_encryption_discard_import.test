@@ -1,9 +1,14 @@
---skip
 --source include/not_valgrind.inc
 
-call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table `[^`]+`.`[^`]+` is set as discarded\\.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Page [[:digit:]]+ at offset [[:digit:]]+ looks corrupted in file");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: os_file_read\\(\\) failed");
+call mtr.add_suppression("\\[InnoDB\\] Tablespace id .* in file t[1-8]\.ibd is encrypted but keyring or used key_id [4-5] is not available\. Can't continue reading table\. Please provide the correct keyring\.");
+call mtr.add_suppression("\\[InnoDB\\] Tablespace for table `test`\.`t[1-8]` is set as discarded\.");
+call mtr.add_suppression("\\[InnoDB\\] Cannot calculate statistics for table .* because the \.ibd file is missing\. Please refer to .* for how to resolve the issue\.");
+call mtr.add_suppression("\\[InnoDB\\] Encryption can't find tablespace key_id = 5");
+
+CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --let $number_of_records = 10000
 --let MYSQLD_DATADIR = `SELECT @@datadir`
@@ -19,7 +24,6 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: os_file_read\\(\\) failed");
 --let $t8_ibd = $MYSQLD_DATADIR/$DB_NAME/t8.ibd
 
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='KEYRING';
-CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
 CREATE TABLE t3 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB COMPRESSION="zlib" ENCRYPTION='KEYRING';
 CREATE TABLE t4 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB COMPRESSION="zlib";
 CREATE TABLE t5 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='KEYRING';
@@ -52,14 +56,12 @@ eval CALL innodb_insert_proc($number_of_records);
 COMMIT;
 SET autocommit = 1;
 
---let $tables_count = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`
+--let $tables_count=`SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES`
 
 --echo # Wait max 2 min for key encryption threads to encrypt all spaces
 --let $wait_timeout = 120
-# All tables should get encrypted. Exactly ($tables_count) because
-# INNODB_TABLESPACES_ENCRYPTION contains artificial 'innodb_system' (+1)
-# table and 't7' is unencrypted (-1).
---let $wait_condition = SELECT COUNT(*) = $tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+# All tables should get encrypted. Apart from temporary tablespace and t7.
+--let $wait_condition = SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
 --let $assert_text = Make sure t7 is not encrypted
@@ -191,10 +193,17 @@ ALTER TABLE t8 IMPORT TABLESPACE;
 --source include/search_pattern_in_file.inc
 
 
-ALTER TABLE t1 ENGINE InnoDB;
-SHOW CREATE TABLE t1;
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption = OFF;
+
 ALTER TABLE t2 ENGINE InnoDB;
 SHOW CREATE TABLE t2;
+
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
+
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
 ALTER TABLE t3 ENGINE InnoDB;
 SHOW CREATE TABLE t3;
 ALTER TABLE t4 ENGINE InnoDB;
@@ -209,6 +218,7 @@ ALTER TABLE t8 ENGINE InnoDB;
 SHOW CREATE TABLE t8;
 
 --echo # Restarting server
+--let $restart_hide_args=1
 --source include/restart_mysqld.inc
 --echo # Done restarting server
 
@@ -269,7 +279,7 @@ SHOW CREATE TABLE t8;
 
 
 --let $assert_text = Make sure all tables, apart from t7, are encrypted
---let $assert_cond = "[SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0]" = 1
+--let $assert_cond = "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0]" = 1
 --source include/assert.inc
 
 --list_files $MYSQLD_DATADIR/$DB_NAME
@@ -303,9 +313,9 @@ SET GLOBAL default_table_encryption = OFF;
 
 ALTER TABLE t1 IMPORT TABLESPACE;
 --let $assert_text = Make sure t1 has encrypted flag set after importing
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t1"] = 8192
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t1"] = 8192
 --source include/assert.inc
---let $assert_text = Make sure t1 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_text = Make sure t1 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 1
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t1"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t1 is readable
@@ -314,9 +324,9 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 
 ALTER TABLE t2 IMPORT TABLESPACE;
 --let $assert_text = Make sure t2 has encrypted flag set after importing
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t2"] = 8192
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t2"] = 8192
 --source include/assert.inc
---let $assert_text = Make sure t2 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_text = Make sure t2 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 1
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t2"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t2 is readable
@@ -325,9 +335,9 @@ ALTER TABLE t2 IMPORT TABLESPACE;
 
 ALTER TABLE t3 IMPORT TABLESPACE;
 --let $assert_text = Make sure t3 has encrypted flag set after importing
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t3"] = 8192
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t3"] = 8192
 --source include/assert.inc
---let $assert_text = Make sure t3 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_text = Make sure t3 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 1
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t3"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t3 is readable
@@ -336,9 +346,9 @@ ALTER TABLE t3 IMPORT TABLESPACE;
 
 ALTER TABLE t4 IMPORT TABLESPACE;
 --let $assert_text = Make sure t4 has encrypted flag set after importing
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t4"] = 8192
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t4"] = 8192
 --source include/assert.inc
---let $assert_text = Make sure t4 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_text = Make sure t4 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 1
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t4"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t4 is readable
@@ -347,9 +357,9 @@ ALTER TABLE t4 IMPORT TABLESPACE;
 
 ALTER TABLE t5 IMPORT TABLESPACE;
 --let $assert_text = Make sure t5 has encrypted flag set after importing
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t5"] = 8192
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t5"] = 8192
 --source include/assert.inc
---let $assert_text = Make sure t5 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_text = Make sure t5 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 1
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t5"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t5 is readable
@@ -358,9 +368,9 @@ ALTER TABLE t5 IMPORT TABLESPACE;
 
 ALTER TABLE t6 IMPORT TABLESPACE;
 --let $assert_text = Make sure t6 has encrypted flag set after importing
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t6"] = 8192
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t6"] = 8192
 --source include/assert.inc
---let $assert_text = Make sure t6 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_text = Make sure t6 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 1
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t6"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t6 is readable
@@ -369,9 +379,9 @@ ALTER TABLE t6 IMPORT TABLESPACE;
 
 ALTER TABLE t7 IMPORT TABLESPACE;
 --let $assert_text = Make sure t7 does not have encrypted flag set after importing
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t7"] = 0
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t7"] = 0
 --source include/assert.inc
---let $assert_text = Make sure t7 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0 (i.e. unencrypted)
+--let $assert_text = Make sure t7 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 0 (i.e. unencrypted)
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t7"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t7 is readable
@@ -380,9 +390,9 @@ ALTER TABLE t7 IMPORT TABLESPACE;
 
 ALTER TABLE t8 IMPORT TABLESPACE;
 --let $assert_text = Make sure t8 has encrypted flag set after importing
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t8"] = 8192
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t8"] = 8192
 --source include/assert.inc
---let $assert_text = Make sure t8 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_text = Make sure t8 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 1
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t8"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t8 is readable
@@ -418,6 +428,7 @@ ALTER TABLE t8 IMPORT TABLESPACE;
 --let SEARCH_FILE = $t8_ibd
 --source include/search_pattern_in_file.inc
 
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads = 4;
 
 --echo # Wait max 2 min for key encryption threads to decrypt all spaces, apart from t1, t3 and t5
@@ -426,9 +437,9 @@ SET GLOBAL innodb_encryption_threads = 4;
 --source include/wait_condition.inc
 
 --let $assert_text = Make sure t1 has encrypted flag set
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t1"] = 8192
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t1"] = 8192
 --source include/assert.inc
---let $assert_text = Make sure t1 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_text = Make sure t1 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 1
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t1"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t1 is readable
@@ -436,9 +447,9 @@ SET GLOBAL innodb_encryption_threads = 4;
 --source include/assert.inc
 
 --let $assert_text = Make sure t2 does not have encrypted flag set
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t2"] = 0
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t2"] = 0
 --source include/assert.inc
---let $assert_text = Make sure t2 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0
+--let $assert_text = Make sure t2 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 0
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t2"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t2 is readable
@@ -446,9 +457,9 @@ SET GLOBAL innodb_encryption_threads = 4;
 --source include/assert.inc
 
 --let $assert_text = Make sure t3 has encrypted flag set
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t3"] = 8192
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t3"] = 8192
 --source include/assert.inc
---let $assert_text = Make sure t3 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_text = Make sure t3 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 1
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t3"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t3 is readable
@@ -456,9 +467,9 @@ SET GLOBAL innodb_encryption_threads = 4;
 --source include/assert.inc
 
 --let $assert_text = Make sure t4 does not have encrypted flag set
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t4"] = 0
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t4"] = 0
 --source include/assert.inc
---let $assert_text = Make sure t4 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0
+--let $assert_text = Make sure t4 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 0
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t4"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t4 is readable
@@ -466,9 +477,9 @@ SET GLOBAL innodb_encryption_threads = 4;
 --source include/assert.inc
 
 --let $assert_text = Make sure t5 has encrypted flag set
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t5"] = 8192
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t5"] = 8192
 --source include/assert.inc
---let $assert_text = Make sure t5 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_text = Make sure t5 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 1
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t5"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t5 is readable
@@ -476,9 +487,9 @@ SET GLOBAL innodb_encryption_threads = 4;
 --source include/assert.inc
 
 --let $assert_text = Make sure t6 does not have encrypted flag set
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t6"] = 0
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t6"] = 0
 --source include/assert.inc
---let $assert_text = Make sure t6 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0
+--let $assert_text = Make sure t6 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 0
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t6"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t6 is readable
@@ -486,9 +497,9 @@ SET GLOBAL innodb_encryption_threads = 4;
 --source include/assert.inc
 
 --let $assert_text = Make sure t7 does not have encrypted flag set
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t7"] = 0
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t7"] = 0
 --source include/assert.inc
---let $assert_text = Make sure t7 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0 (i.e. unencrypted)
+--let $assert_text = Make sure t7 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 0 (i.e. unencrypted)
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t7"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t7 is readable
@@ -496,9 +507,9 @@ SET GLOBAL innodb_encryption_threads = 4;
 --source include/assert.inc
 
 --let $assert_text = Make sure t8 does not have encrypted flag set
---let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t8"] = 0
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = "$DB_NAME/t8"] = 0
 --source include/assert.inc
---let $assert_text = Make sure t8 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0
+--let $assert_text = Make sure t8 is visible in INNODB_TABLESPACES with MIN_KEY_VERSION = 0
 --let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t8"] = 1
 --source include/assert.inc
 --let $assert_text = Make sure t8 is readable
@@ -536,21 +547,24 @@ SET GLOBAL innodb_encryption_threads = 4;
 --let SEARCH_FILE = $t8_ibd
 --source include/search_pattern_in_file.inc
 
---echo # Now let's backup keyring file, change encryption key id of encrypt-able tables (all but t7) 
+--echo # Now let's backup keyring file, change encryption key id of encrypt-able tables (all but t7 and temporary)
 --echo # export and dicard them. Next restart the server with backuped keyring file and make sure that
---echo # server starts, but tables cannot be imported gracefully
+--echo # server starts, but tables cannot be imported gracefully.
 
+SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
 
 --echo # Wait max 2 min for key encryption threads to encrypt all spaces
 --let $wait_timeout = 120
-# All tables should get encrypted. Exactly ($tables_count) because
-# INNODB_TABLESPACES_ENCRYPTION contains artificial 'innodb_system' (+1)
-# table and 't7' is unencrypted (-1).
---let $wait_condition = SELECT COUNT(*) = $tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+# All tables should get encrypted. Apart from temporary tablespace and t7.
+--let $wait_condition = SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
---copy_file $MYSQLTEST_VARDIR/tmp/mysecret_keyring $MYSQLTEST_VARDIR/tmp/mysecret_keyring_backup
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption = OFF;
+
+--copy_file $MYSQL_TMP_DIR/mysecret_keyring $MYSQL_TMP_DIR/mysecret_keyring_backup
 
 ALTER TABLE t1 encryption_key_id = 5;
 ALTER TABLE t2 encryption_key_id = 5;
@@ -585,24 +599,23 @@ ib_restore_tablespaces("$ENV{DB_NAME}", "t1", "t2", "t3", "t4", "t5", "t6", "t8"
 EOF
 
 --let $restart_parameters = restart:--loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_backup
+--let $restart_hide_args=1
 --source include/restart_mysqld.inc
 
---error ER_INTERNAL_ERROR
+--error ER_IMPORT_TABLESPACE_MISSING_KEY
 ALTER TABLE t1 IMPORT TABLESPACE;
 #--error ER_INTERNAL_ERROR
 ALTER TABLE t2 IMPORT TABLESPACE;
---error ER_INTERNAL_ERROR
+--error ER_IMPORT_TABLESPACE_MISSING_KEY
 ALTER TABLE t3 IMPORT TABLESPACE;
---error ER_INTERNAL_ERROR
 ALTER TABLE t4 IMPORT TABLESPACE;
---error ER_INTERNAL_ERROR
+--error ER_IMPORT_TABLESPACE_MISSING_KEY
 ALTER TABLE t5 IMPORT TABLESPACE;
---error ER_INTERNAL_ERROR
 ALTER TABLE t6 IMPORT TABLESPACE;
---error ER_INTERNAL_ERROR
 ALTER TABLE t8 IMPORT TABLESPACE;
 
---let $restart_parameters = restart:--loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
+--let $restart_parameters = restart:--loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring --default-table-encryption=OFF --innodb-encryption-threads=4
+--let $restart_hide_args=1
 --source include/restart_mysqld.inc
 
 DROP PROCEDURE innodb_insert_proc;

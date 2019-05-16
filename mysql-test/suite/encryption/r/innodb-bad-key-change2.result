@@ -1,0 +1,58 @@
+call mtr.add_suppression("\\[InnoDB\\] Tablespace id [0-9]+ in file t1\.ibd is encrypted but keyring or used key_id 4 is not available\. Can't continue reading table\. Please provide the correct keyring\.");
+call mtr.add_suppression("\\[InnoDB\\] Table `test`\.`t1` does not have an \.ibd file in the database directory\.");
+CREATE TABLE t1 (pk INT PRIMARY KEY, f VARCHAR(8)) ENGINE=InnoDB ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=4;
+INSERT INTO t1 VALUES (1,'foo'),(2,'bar');
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys3.txt
+SET GLOBAL innodb_stats_persistent=OFF;
+SELECT * FROM t1;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+SHOW WARNINGS;
+Level	Code	Message
+Error	1296	Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+ALTER TABLE t1 ENGINE=InnoDB;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+SHOW WARNINGS;
+Level	Code	Message
+Error	1296	Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+test.t1	optimize	error	Corrupt
+SHOW WARNINGS;
+Level	Code	Message
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+test.t1	check	error	Corrupt
+SHOW WARNINGS;
+Level	Code	Message
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt
+SET GLOBAL innodb_stats_persistent=OFF;
+FLUSH TABLES t1 FOR EXPORT;
+backup: t1
+UNLOCK TABLES;
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys3.txt
+SET GLOBAL innodb_stats_persistent=OFF;
+ALTER TABLE t1 DISCARD TABLESPACE;
+ERROR HY000: Got error 501 'Table encrypted but decryption key was not found. Is correct keyring loaded?' from InnoDB
+# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1 .ibd and .cfg files
+SET GLOBAL innodb_stats_persistent=OFF;
+ALTER TABLE t1 IMPORT TABLESPACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int NOT NULL,
+  `f` varchar(8) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=4
+# restart: --keyring-file-data=MYSQLTEST_VARDIR/std_data/keys3.txt
+SET GLOBAL innodb_stats_persistent=OFF;
+RENAME TABLE t1 TO t1new;
+ERROR HY000: Error on rename of './test/t1' to './test/t1new' (errno: 155 - The table does not exist in engine)
+ALTER TABLE t1new RENAME TO t2new;
+ERROR 42S02: Table 'test.t1new' doesn't exist
+DROP TABLE t1new;
+ERROR 42S02: Unknown table 'test.t1new'
+DROP TABLE t1;

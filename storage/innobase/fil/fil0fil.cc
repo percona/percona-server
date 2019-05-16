@@ -8887,7 +8887,6 @@ struct Fil_page_iterator {
   /** Encruption iv */
   byte *m_encryption_iv;
 
-  uint m_encryption_key_version;
   uint m_encryption_key_id;
   fil_space_crypt_t *m_crypt_data; /*!< Crypt data (if encrypted) */
 };
@@ -8968,13 +8967,16 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     if ((iter.m_encryption_key != NULL || encrypted_with_keyring) &&
         offset != 0) {
       read_request.encryption_key(
-          encrypted_with_keyring ? iter.m_crypt_data->tablespace_key
-                                 : iter.m_encryption_key,
+          encrypted_with_keyring
+              ? iter.m_crypt_data
+                    ->local_keys_cache[iter.m_crypt_data->min_key_version]
+              : iter.m_encryption_key,
           Encryption::KEY_LEN,
           encrypted_with_keyring ? iter.m_crypt_data->iv : iter.m_encryption_iv,
           0, iter.m_encryption_key_id,
           encrypted_with_keyring ? iter.m_crypt_data->tablespace_key : nullptr,
-          encrypted_with_keyring ? iter.m_crypt_data->uuid : nullptr, nullptr);
+          encrypted_with_keyring ? iter.m_crypt_data->uuid : nullptr,
+          &iter.m_crypt_data->local_keys_cache);
 
       read_request.encryption_algorithm(iter.m_crypt_data ? Encryption::KEYRING
                                                           : Encryption::AES);
@@ -9026,17 +9028,25 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     if (iter.m_encryption_key != NULL && offset != 0 &&
         iter.m_crypt_data == NULL) {
       write_request.encryption_key(
-          iter.m_encryption_key, Encryption::KEY_LEN, iter.m_encryption_iv,
-          iter.m_encryption_key_version, iter.m_encryption_key_id, nullptr,
-          nullptr, nullptr);
+          iter.m_encryption_key, Encryption::KEY_LEN, iter.m_encryption_iv, 0,
+          iter.m_encryption_key_id, nullptr, nullptr, nullptr);
       write_request.encryption_algorithm(Encryption::AES);
-    } else if (offset != 0 && iter.m_crypt_data) {
+      write_request.encryption_rotation(Encryption_rotation::NO_ROTATION);
+    } else if (offset != 0 && iter.m_crypt_data &&
+               iter.m_crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
+      ut_ad(iter.m_crypt_data
+                ->local_keys_cache[iter.m_crypt_data->max_key_version] !=
+            nullptr);
       write_request.encryption_key(
-          iter.m_encryption_key, Encryption::KEY_LEN, iter.m_encryption_iv,
-          iter.m_encryption_key_version, iter.m_crypt_data->key_id, nullptr,
-          iter.m_crypt_data->uuid, nullptr);
+          iter.m_crypt_data
+              ->local_keys_cache[iter.m_crypt_data->max_key_version],
+          Encryption::KEY_LEN, iter.m_crypt_data->iv,
+          iter.m_crypt_data->max_key_version, iter.m_crypt_data->key_id,
+          nullptr, iter.m_crypt_data->uuid,
+          &iter.m_crypt_data->local_keys_cache);
 
       write_request.encryption_algorithm(Encryption::KEYRING);
+      write_request.encryption_rotation(iter.m_crypt_data->encryption_rotation);
 
       if (callback.get_page_size().is_compressed()) {
         write_request.mark_page_zip_compressed();
@@ -9263,20 +9273,38 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     /* read (optional) crypt data */
     if (iter.m_crypt_data &&
         iter.m_crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
-      ut_ad(FSP_FLAGS_GET_ENCRYPTION(space_flags));
+      // when importing half encrypted tablespace the encrypted
+      // flag will not be set
+      ut_ad(DBUG_EVALUATE_IF("importing_half_encrypted", true, false) ||
+            FSP_FLAGS_GET_ENCRYPTION(space_flags));
       iter.m_encryption_key_id = iter.m_crypt_data->key_id;
 
-      Encryption::get_latest_tablespace_key(
-          iter.m_crypt_data->key_id, iter.m_crypt_data->uuid,
-          &iter.m_encryption_key_version, &iter.m_encryption_key);
-      if (iter.m_encryption_key == NULL) err = DB_IO_DECRYPT_FAIL;
+      iter.m_encryption_iv = iter.m_crypt_data->iv;
+
+      if (iter.m_crypt_data->type != CRYPT_SCHEME_UNENCRYPTED &&
+          iter.m_crypt_data->private_version == 3) {
+        // for versions 1,2 and encrypted table we will fail the upgrade.
+        Validation_key_verions_result valid_result{
+            iter.m_crypt_data->key_found
+                ? iter.m_crypt_data->validate_encryption_key_versions()
+                : Validation_key_verions_result::MISSING_KEY_VERSIONS};
+        if (!iter.m_crypt_data->key_found ||
+            valid_result != Validation_key_verions_result::SUCCESS) {
+          err =
+              !iter.m_crypt_data->key_found
+                  ? DB_IO_IMPORT_ENCRYPTION_MISSING_KEY
+                  : (valid_result ==
+                             Validation_key_verions_result::MISSING_KEY_VERSIONS
+                         ? DB_IO_IMPORT_ENCRYPTION_MISSING_KEY_VERSIONS
+                         : DB_IO_IMPORT_ENCRYPTION_CORRUPTED_KEYS);
+        }
+
+        // iter.m_crypt_data->load_keys_to_local_cache();
+      }
     } else {
       /* Set encryption info. */
       iter.m_encryption_key = table->encryption_key;
       iter.m_encryption_iv = table->encryption_iv;
-      iter.m_encryption_key_version = ~0;  // TODO:Robert:flipping bits so to
-                                           // make this a marker that tablespace
-                                           // key id used
     }
 
     /* Check encryption is matched or not. */
@@ -9287,7 +9315,7 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
                                     " is an encrypted tablespace";
 
         err = DB_IO_NO_ENCRYPT_TABLESPACE;
-      } else {
+      } else if (!iter.m_crypt_data) {
         /* encryption_key must have been populated while reading CFP file. */
         ut_ad(table->encryption_key != nullptr &&
               table->encryption_iv != nullptr);
@@ -9323,7 +9351,6 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
 
     if (iter.m_crypt_data) {
       fil_space_destroy_crypt_data(&iter.m_crypt_data);
-      if (iter.m_encryption_key != NULL) my_free(iter.m_encryption_key);
     }
   }
 

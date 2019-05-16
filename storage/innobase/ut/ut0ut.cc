@@ -469,6 +469,12 @@ const char *ut_strerr(dberr_t num) {
       return ("Punch hole not supported by the tablespace");
     case DB_IO_NO_ENCRYPT_TABLESPACE:
       return ("Page encryption not supported by the tablespace");
+    case DB_IO_IMPORT_ENCRYPTION_MISSING_KEY:
+      return ("Encryption key missing for table being imported");
+    case DB_IO_IMPORT_ENCRYPTION_MISSING_KEY_VERSIONS:
+      return ("Versions of encryption key missing for table being imported");
+    case DB_IO_IMPORT_ENCRYPTION_CORRUPTED_KEYS:
+      return ("Corrupted encryption key for table being imported");
     case DB_IO_DECRYPT_FAIL:
       return ("Page decryption failed after reading from disk");
     case DB_IO_PARTIAL_FAILED:

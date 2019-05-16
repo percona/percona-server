@@ -91,6 +91,12 @@ update innodb_page_compressed7 set c1 = c1 + 1;
 update innodb_page_compressed8 set c1 = c1 + 1;
 update innodb_page_compressed9 set c1 = c1 + 1;
 
+--echo # Wait max 10 min for key encryption threads to decrypt all spaces as it is
+--echo # impossible to flush pages if encryption threads are still working on them.
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
 flush tables innodb_page_compressed1, innodb_page_compressed2,
 innodb_page_compressed3, innodb_page_compressed4,
 innodb_page_compressed5, innodb_page_compressed6,

@@ -1964,6 +1964,66 @@ static dberr_t row_insert_for_mysql_using_cursor(const byte *mysql_rec,
   return (err);
 }
 
+/** Determine is tablespace encrypted but decryption failed, is table corrupted
+or is tablespace .ibd file missing.
+@param[in] table                Table
+@param[in] trx                  Transaction
+@param[in] push_warning         true if we should push warning to user
+@param[in] err_on_tablespace_missing error that should be reported
+                                     when tablespace is missing, could
+                                     be either DB_TABLESPACE_NOT_FOUND
+                                     or DB_TABLE_NOT_FOUND
+@retval DB_IO_DECRYPT_FAIL    table is encrypted but decryption failed
+@retval DB_CORRUPTION           table is corrupted
+@retval DB_TABLESPACE_NOT_FOUND tablespace .ibd file not found
+                                if err_on_tablespace_missing ==
+DB_TABLESPACE_NOT_FOUND
+@retval DB_TABLE_NOT_FOUND      tablespace .ibd file not found
+                                if err_on_tablespace_missing ==
+DB_TABLE_NOT_FOUND */
+static dberr_t row_mysql_get_table_status(
+    const dict_table_t *table, trx_t *trx, bool push_warning = true,
+    dberr_t err_on_tablespace_missing = DB_TABLESPACE_NOT_FOUND) {
+  dberr_t err;
+  if (fil_space_t *space = fil_space_acquire_silent(table->space)) {
+    if (space->is_encrypted) {
+      if (push_warning) {
+        ib::warn(ER_XB_MSG_4, table->name);
+      }
+      err = DB_IO_DECRYPT_FAIL;
+    } else {
+      if (push_warning) {
+        push_warning_printf(trx->mysql_thd, Sql_condition::SL_WARNING,
+                            HA_ERR_CRASHED,
+                            "Table %s in tablespace %u corrupted.",
+                            table->name.m_name, table->space);
+      }
+      err = DB_CORRUPTION;
+    }
+    fil_space_release(space);
+  } else {
+    switch (err_on_tablespace_missing) {
+      case DB_TABLESPACE_NOT_FOUND:
+        ib::error(ER_IB_MSG_977)
+            << ".ibd file is missing for table " << table->name;
+        err = DB_TABLESPACE_NOT_FOUND;
+        break;
+      case DB_TABLE_NOT_FOUND:
+        ib::error(ER_IB_MSG_996) << "Table " << table->name
+                                 << " does not have an .ibd"
+                                    " file in the database directory. "
+                                 << TROUBLESHOOTING_MSG;
+        err = DB_TABLE_NOT_FOUND;
+        break;
+      default:
+        ut_ad(0);
+        break;
+    }
+  }
+
+  return (err);
+}
+
 /** Does an insert for MySQL using INSERT graph. This function will run/execute
 INSERT graph.
 @param[in]	mysql_rec	row in the MySQL format
@@ -4709,12 +4769,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
     goto funct_exit;
 
   } else if (table->ibd_file_missing && !dict_table_is_discarded(table)) {
-    err = DB_TABLE_NOT_FOUND;
-
-    ib::error(ER_IB_MSG_996) << "Table " << old_name
-                             << " does not have an .ibd"
-                                " file in the database directory. "
-                             << TROUBLESHOOTING_MSG;
+    err = row_mysql_get_table_status(table, trx, false, DB_TABLE_NOT_FOUND);
 
     goto funct_exit;
   }

@@ -9412,6 +9412,18 @@ ER_SYSTEM_KEY_ROTATION_CANT_GENERATE_NEW_VERSION
 ER_DTE_ENCRYPTION_THREADS_ACTIVE
   eng "In order to change default_table_encryption, disable encryption threads. Please set number of innodb_encryption_threads to 0."
 
+ER_FLUSH_ENC_THREADS_RUNNING
+  eng "Tablespace %s cannot be flushed for export as tablespace is being currently encrypted/decrypted by encryption threads."
+
+ER_IMPORT_TABLESPACE_MISSING_KEY
+  eng "You are importing table that is encrypted but keyring or used key is not available. Can't continue importing this table. Please provide the correct keyring.";
+
+ER_IMPORT_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
+  eng "You are importing table that is encrypted. Although server managed to find key in keyring to decrypt it, some versions of this key, that are needed to decrypt this space, are missing. Maybe you are using an old keyring? Can't continue impoting this table. Please provide the correct keyring."
+
+ER_IMPORT_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS
+  eng "You are importing table id %u that is encrypted. Although server managed to find all needed versions of key in keyring to decrypt it, the provided versions are either incorrect or corrupted. Can't continue importing this table. Please provide the correct keyring."
+
 #
 # End of Percona Server 8.0 client messages
 #

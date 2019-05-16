@@ -141,8 +141,7 @@ struct row_import {
                               m_indexes(),
                               m_missing(true),
                               m_has_sdi(false),
-                              m_cfp_missing(true),
-                              m_is_keyring_encrypted(false) {}
+                              m_cfp_missing(true) {}
 
   ~row_import() UNIV_NOTHROW;
 
@@ -261,7 +260,14 @@ struct row_import {
   bool m_cfp_missing; /*!< true if a .cfp file was
                       found and was readable */
 
-  bool m_is_keyring_encrypted;
+  struct KeyringInfo {
+    bool has_crypt_data{false};
+    // we need to store space encryption flag for spaces encrypted
+    // by encryption threads as space and table encryption flag
+    // may mismatch if there was a crash during completing the
+    // rotation
+    bool is_space_encrypted_flag_set{false};
+  } m_keyring_info;
 };
 
 /** Use the page cursor to iterate over records in a block. */
@@ -3224,6 +3230,31 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 @param[in,out]	cfg	meta data
 @return DB_SUCCESS or error code. */
 static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
+    row_import_read_keyring(FILE *file, THD *thd, row_import *cfg) {
+  cfg->m_keyring_info.has_crypt_data = true;
+  bool is_space_encrypted_flag_set{false};
+
+  /* Read the tablespace flags */
+  if (fread(&is_space_encrypted_flag_set, 1,
+            sizeof(is_space_encrypted_flag_set),
+            file) != sizeof(is_space_encrypted_flag_set)) {
+    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                strerror(errno), "while reading keyring encryption meta-data.");
+
+    return (DB_IO_ERROR);
+  }
+
+  cfg->m_keyring_info.is_space_encrypted_flag_set = is_space_encrypted_flag_set;
+
+  return (DB_SUCCESS);
+}
+
+/** Read tablespace flags from @<tablespace@>.cfg file
+@param[in]	file	File to read from
+@param[in]	thd	session
+@param[in,out]	cfg	meta data
+@return DB_SUCCESS or error code. */
+static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     row_import_read_v2(FILE *file, THD *thd, row_import *cfg) {
   byte value[sizeof(uint32_t)];
 
@@ -3288,6 +3319,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
   /* Check the version number. */
   switch (cfg.m_version) {
     dberr_t err;
+    case IB_EXPORT_CFG_VERSION_V1_WITH_KEYRING:
+      cfg.m_keyring_info.has_crypt_data = true;
+      /* fallthrough */
     case IB_EXPORT_CFG_VERSION_V1:
       err = row_import_read_v1(file, thd, &cfg);
       if (err == DB_SUCCESS) {
@@ -3295,6 +3329,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
       }
       return (err);
 
+    case IB_EXPORT_CFG_VERSION_V3_WITH_KEYRING:
+      err = row_import_read_keyring(file, thd, &cfg);
+      if (err != DB_SUCCESS) {
+        return (err);
+      }
+      /* fallthrough */
     case IB_EXPORT_CFG_VERSION_V2:
     case IB_EXPORT_CFG_VERSION_V3:
     case IB_EXPORT_CFG_VERSION_V4:
@@ -3309,9 +3349,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
         err = row_import_read_common(file, thd, &cfg);
       }
       return (err);
-    case IB_EXPORT_CFG_VERSION_V1_WITH_RK:
-      cfg.m_is_keyring_encrypted = true;
-      return (row_import_read_v1(file, thd, &cfg));
     default:
       my_error(ER_IMP_INCOMPATIBLE_CFG_VERSION, MYF(0), table->name.m_name,
                unsigned{cfg.m_version}, unsigned{IB_EXPORT_CFG_VERSION_V5});
@@ -3585,34 +3622,36 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   row_import cfg;
   ulint space_flags = 0;
 
+  /* Read CFG file */
+  err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
+
   /* Read CFP file */
   if (dd_is_table_in_encrypted_tablespace(table)) {
     /* First try to read CFP file here. */
-    err = row_import_read_cfp(table, trx->mysql_thd, cfg);
-    ut_ad(cfg.m_cfp_missing || err == DB_SUCCESS);
+    dberr_t err_cfp = row_import_read_cfp(table, trx->mysql_thd, cfg);
+    ut_ad(cfg.m_cfp_missing || err_cfp == DB_SUCCESS);
 
-    if (err != DB_SUCCESS) {
+    if (err_cfp != DB_SUCCESS) {
       rw_lock_s_unlock_gen(dict_operation_lock, 0);
       return (row_import_error(prebuilt, trx, err));
     }
 
-    /* If table is encrypted, but can't find cfp file, return error. */
-    if (cfg.m_cfp_missing == true && !cfg.m_is_keyring_encrypted) {
-      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Table is in an encrypted tablespace, but the encryption"
-              " meta-data file cannot be found while importing.");
-      err = DB_ERROR;
-      rw_lock_s_unlock_gen(dict_operation_lock, 0);
-      return (row_import_error(prebuilt, trx, err));
-    } else {
-      /* If CFP file is read, encryption_key must have been populted. */
-      ut_ad(table->encryption_key != nullptr &&
-            table->encryption_iv != nullptr);
+    /* If table is MK encrypted, but can't find cfp file, return error. */
+    if (!cfg.m_keyring_info.has_crypt_data) {
+      if (cfg.m_cfp_missing == true) {
+        ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+                "Table is in an encrypted tablespace, but the encryption"
+                " meta-data file cannot be found while importing.");
+        err = DB_ERROR;
+        rw_lock_s_unlock_gen(dict_operation_lock, 0);
+        return (row_import_error(prebuilt, trx, err));
+      } else {
+        /* If CFP file is read, encryption_key must have been populted. */
+        ut_ad(table->encryption_key != nullptr &&
+              table->encryption_iv != nullptr);
+      }
     }
   }
-
-  /* Read CFG file */
-  err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
 
   /* Check if the table column definitions match the contents
   of the config file. */
@@ -3694,6 +3733,18 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
           "Encryption attribute in the file does not match the dictionary.");
 
       return (row_import_cleanup(prebuilt, trx, err));
+    } else if (err == DB_IO_IMPORT_ENCRYPTION_MISSING_KEY) {
+      ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+                  ER_IMPORT_TABLESPACE_MISSING_KEY);
+      return (row_import_cleanup(prebuilt, trx, err));
+    } else if (err == DB_IO_IMPORT_ENCRYPTION_MISSING_KEY_VERSIONS) {
+      ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+                  ER_IMPORT_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS);
+      return (row_import_cleanup(prebuilt, trx, err));
+    } else if (err == DB_IO_IMPORT_ENCRYPTION_CORRUPTED_KEYS) {
+      ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+                  ER_IMPORT_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS);
+      return (row_import_cleanup(prebuilt, trx, err));
     }
     return (row_import_error(prebuilt, trx, err));
   }
@@ -3719,11 +3770,26 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   DBUG_EXECUTE_IF("ib_import_reset_space_and_lsn_failure",
                   err = DB_TOO_MANY_CONCURRENT_TRXS;);
 
-  if (err == DB_IO_NO_ENCRYPT_TABLESPACE) {
-    ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-            "Encryption attribute in the file does not match the dictionary.");
+  if (err != DB_SUCCESS) {
+    if (err == DB_IO_NO_ENCRYPT_TABLESPACE) {
+      ib_errf(
+          trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+          "Encryption attribute in the file does not match the dictionary.");
 
-    return (row_import_cleanup(prebuilt, trx, err));
+      return (row_import_cleanup(prebuilt, trx, err));
+    } else if (err == DB_IO_IMPORT_ENCRYPTION_MISSING_KEY) {
+      ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+                  ER_IMPORT_TABLESPACE_MISSING_KEY);
+      return (row_import_cleanup(prebuilt, trx, err));
+    } else if (err == DB_IO_IMPORT_ENCRYPTION_MISSING_KEY_VERSIONS) {
+      ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+                  ER_IMPORT_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS);
+      return (row_import_cleanup(prebuilt, trx, err));
+    } else if (err == DB_IO_IMPORT_ENCRYPTION_CORRUPTED_KEYS) {
+      ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+                  ER_IMPORT_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS);
+      return (row_import_cleanup(prebuilt, trx, err));
+    }
   }
 
   if (err != DB_SUCCESS) {
@@ -3771,7 +3837,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   fil_space_set_imported() to declare it a persistent tablespace. */
 
   uint32_t fsp_flags = dict_tf_to_fsp_flags(table->flags);
-  if (table->encryption_key != nullptr || cfg.m_is_keyring_encrypted) {
+  if (table->encryption_key != nullptr ||
+      cfg.m_keyring_info.is_space_encrypted_flag_set) {
     fsp_flags_set_encryption(fsp_flags);
   }
 
@@ -3780,21 +3847,14 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   std::string tablespace_name(table->name.m_name);
   dict_name::convert_to_space(tablespace_name);
 
+  // tablespaces with purpose = FIL_TYPE_IMPORT are not picked up by
+  // encryption threads
   err = fil_ibd_open(true, FIL_TYPE_IMPORT, table->space, fsp_flags,
                      tablespace_name.c_str(), table->name.m_name, filepath,
                      true, false, keyring_encryption_info);
 
-  if (err == DB_SUCCESS && cfg.m_is_keyring_encrypted &&
-      (!keyring_encryption_info.page0_has_crypt_data ||
-       !FSP_FLAGS_GET_ENCRYPTION(fsp_flags))) {
-    ut_ad(!keyring_encryption_info.is_encryption_in_progress());  // it should
-                                                                  // not be
-                                                                  // possible to
-                                                                  // FLUSH FOR
-                                                                  // EXPORT when
-                                                                  // encryption
-                                                                  // is in
-                                                                  // progress
+  if (err == DB_SUCCESS && cfg.m_keyring_info.has_crypt_data &&
+      !keyring_encryption_info.page0_has_crypt_data) {
     ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
             "Table is marked as encrypted with KEYRING in cfg file, but there"
             " is no KEYRING encryption information in tablespace header"
@@ -3816,12 +3876,14 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     return (row_import_cleanup(prebuilt, trx, err));
   }
 
-  /*a For encrypted tablespace, set encryption information. */
-  if (FSP_FLAGS_GET_ENCRYPTION(fsp_flags)) {
-    err = fil_set_encryption(
-        table->space,
-        cfg.m_is_keyring_encrypted ? Encryption::KEYRING : Encryption::AES,
-        table->encryption_key, table->encryption_iv);
+  /* For encrypted tablespace, set encryption information.
+  If it is keyring encryption encryption iv was already read in fil_ibd_open
+  and the encryption key will be loaded when keys version is read from pages. */
+
+  if (FSP_FLAGS_GET_ENCRYPTION(fsp_flags) &&
+      !cfg.m_keyring_info.has_crypt_data) {
+    err = fil_set_encryption(table->space, Encryption::AES,
+                             table->encryption_key, table->encryption_iv);
   }
 
   row_mysql_unlock_data_dictionary(trx);
@@ -3971,7 +4033,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   }
 
   if (dd_is_table_in_encrypted_tablespace(table) &&
-      !cfg.m_is_keyring_encrypted) {
+      !cfg.m_keyring_info.has_crypt_data) {
     mtr_t mtr;
     byte encrypt_info[Encryption::INFO_SIZE];
 

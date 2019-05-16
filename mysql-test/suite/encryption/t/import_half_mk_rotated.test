@@ -1,0 +1,176 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+
+# This test is to check if table which is half rotated from Master Key encryption
+# to Keyring encryption gets rotated correctly in case it was exported and imported
+# back.
+# In order to prepare such table we rotate only first 100 pages in t1.
+
+let MYSQLD_DATADIR = `SELECT @@datadir`;
+
+--let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd
+--let $number_of_records = 10000
+
+let $is_encrypted=1;
+let $t1_table_type=ENCRYPTION='Y';
+--source export_half_rotated.inc
+
+--echo # Now we have backup of t1 which has first 100 pages keyring encrypted and remaining
+--echo # pages master key encrypted. We will test now the following scenarios:
+--echo # 1) Disable encryption threads, import t1.
+--echo # 2) Import t1, enable encryption threads with rotation to unencryted.
+--echo # 3) Import t1, enable encryption threads with rotation to encrypted.
+--echo # 4) Enable encryption threads with rotation to unencryted, import t1.
+--echo # 5) Enable encryption threads with rotation to encrypted, import t1.
+
+--echo # Scenario: 1) Disable encryption threads, import t1.
+
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+ALTER TABLE t1 DISCARD TABLESPACE;
+--perl
+do "$ENV{MYSQL_TEST_DIR}/include/innodb-util.inc";
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+--let $assert_text = Make sure t1 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t1] = $number_of_records
+--source include/assert.inc
+
+--echo # Scenario: 2) Import t1, enable encryption threads with rotation to unencryted.
+--echo # t1 was already imported in Scenario 1.
+
+# decrypt all the tables
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+--let $assert_text = Make sure t1 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t1] = $number_of_records
+--source include/assert.inc
+
+--echo # We FLUSH TABLE t1 FOR EXPORT to grep t1.ibd to check if it really got decrypted.
+FLUSH TABLE t1 FOR EXPORT;
+--let SEARCH_PATTERN=foobar
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # Scenario: 3) Import t1, enable encryption threads with rotation to encrypted.
+
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+ALTER TABLE t1 DISCARD TABLESPACE;
+--perl
+do "$ENV{MYSQL_TEST_DIR}/include/innodb-util.inc";
+ib_restore_tablespaces("test", "t1");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+# encrypt all the tables
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 1
+--source include/wait_condition.inc
+
+--let $assert_text = Make sure t1 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t1] = $number_of_records
+--source include/assert.inc
+
+--echo # We FLUSH TABLE t1 FOR EXPORT to grep t1.ibd to check if it really got encrypted.
+FLUSH TABLE t1 FOR EXPORT;
+--let SEARCH_PATTERN=foobar
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # 4) Enable encryption threads with rotation to unencryted, import t1.
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
+
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+ALTER TABLE t1 DISCARD TABLESPACE;
+--perl
+do "$ENV{MYSQL_TEST_DIR}/include/innodb-util.inc";
+ib_restore_tablespaces("test", "t1");
+EOF
+
+# decrypt all the tables
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+--let $assert_text = Make sure t1 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t1] = $number_of_records
+--source include/assert.inc
+
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+--let $assert_text = Make sure t1 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t1] = $number_of_records
+--source include/assert.inc
+
+--echo # We FLUSH TABLE t1 FOR EXPORT to grep t1.ibd to check if it really got decrypted.
+FLUSH TABLE t1 FOR EXPORT;
+--let SEARCH_PATTERN=foobar
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # 5) Enable encryption threads with rotation to encrypted, import t1.
+
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+ALTER TABLE t1 DISCARD TABLESPACE;
+--perl
+do "$ENV{MYSQL_TEST_DIR}/include/innodb-util.inc";
+ib_restore_tablespaces("test", "t1");
+EOF
+
+# encrypt all the tables
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 1
+--source include/wait_condition.inc
+
+--let $assert_text = Make sure t1 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t1] = $number_of_records
+--source include/assert.inc
+
+--echo # We FLUSH TABLE t1 FOR EXPORT to grep t1.ibd to check if it really got encrypted.
+FLUSH TABLE t1 FOR EXPORT;
+--let SEARCH_PATTERN=foobar
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$t1_IBD
+--source include/search_pattern_in_file.inc
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+# cleanup
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

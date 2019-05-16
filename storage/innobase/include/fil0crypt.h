@@ -317,6 +317,8 @@ struct fil_space_crypt_t {
   @return false - error, true - success */
   bool load_keys_to_local_cache(const uint from_key_version,
                                 const uint to_key_version);
+
+  bool exclude_from_rotation;
 };
 
 /** Status info about encryption */
@@ -441,7 +443,8 @@ is running, encryption threads should not interfere.
               threads currently operating on it.
         true  success
 */
-bool fil_crypt_exclude_tablespace_from_rotation_temporarily(fil_space_t *space);
+bool fil_crypt_exclude_tablespace_from_rotation_temporarily(
+    fil_space_t *space, bool for_export = false);
 
 /**
 Re-adds temporarily excluded tablespace to rotation threads
@@ -486,8 +489,7 @@ void fil_space_merge_crypt_data(fil_space_crypt_t *dst,
 fil_space_crypt_t *fil_space_read_crypt_data(const page_size_t &page_size,
                                              const byte *page);
 
-// bool fil_space_read_crypt_data(const page_size_t& page_size, const byte*
-// page, ulint space_id);
+void fil_crypt_read_crypt_data(fil_space_t *space);
 
 /**
 Free a crypt data object
@@ -634,6 +636,19 @@ return 0 if data found */
 void fil_space_get_scrub_status(const fil_space_t *space,
                                 fil_space_scrub_status_t *status);
 
+/**
+Prepares space for export by:
+- reading crypt_data if space hasn't one assigned yet,
+- excluding space from rotation
+@param[in] space_id id of space to export
+@param[out] keyring_info <0> - does space has crypt_data
+                         <1> - is encrypted flag set
+return false - if there are threads running on space
+               and thus space cannot be exported
+return true - success
+*/
+bool fil_space_crypt_prepare_for_export(const space_id_t space_id,
+                                        std::tuple<bool, bool> &keyring_info);
 /**
 Checks if tablespace is encrypted with KEYRING encryption v1
 

@@ -19000,6 +19000,8 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
 
   reset_template();
 
+  bool has_crypt_data{false};
+
   switch (m_prebuilt->table->quiesce) {
     case QUIESCE_START:
       /* Check for FLUSH TABLE t WITH READ LOCK; */
@@ -19012,7 +19014,17 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
           return HA_ERR_NO_SUCH_TABLE;
         }
 
-        row_quiesce_table_start(m_prebuilt->table, trx);
+        std::tuple<bool, bool> keyring_info;
+        if (!fil_space_crypt_prepare_for_export(m_prebuilt->table->space,
+                                                keyring_info)) {
+          ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+                      ER_FLUSH_ENC_THREADS_RUNNING, table->s->table_name.str);
+
+          return HA_ERR_EXPORT_ENC_THREADS_RUNNING;
+        }
+
+        has_crypt_data = std::get<0>(keyring_info);
+        row_quiesce_table_start(m_prebuilt->table, trx, keyring_info);
 
         /* Use the transaction instance to track UNLOCK
         TABLES. It can be done via START TRANSACTION; too
@@ -19027,7 +19039,7 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
       or trx interruption. */
       if (trx->flush_tables > 0 &&
           (lock_type == F_UNLCK || trx_is_interrupted(trx))) {
-        row_quiesce_table_complete(m_prebuilt->table, trx);
+        row_quiesce_table_complete(m_prebuilt->table, trx, has_crypt_data);
 
         ut_a(trx->flush_tables > 0);
         --trx->flush_tables;

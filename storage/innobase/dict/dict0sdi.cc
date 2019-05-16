@@ -403,8 +403,12 @@ bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
                         << " is interrupted";);
     return (true);
   } else if (err != DB_SUCCESS) {
-    ut_ad(0);
-    dict_sdi_report_error(operation, table, tablespace);
+    ut_ad(err == DB_IO_DECRYPT_FAIL);
+    if (err == DB_IO_DECRYPT_FAIL) {
+      my_error(ER_XB_MSG_4, MYF(0), tablespace.name().c_str());
+    } else {
+      dict_sdi_report_error(operation, table, tablespace);
+    }
     return (true);
   } else {
     return (false);

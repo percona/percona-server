@@ -1,0 +1,108 @@
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+create procedure innodb_insert_proc (repeat_count int)
+begin
+declare current_num int;
+set current_num = 0;
+while current_num < repeat_count do
+insert into t1 values (current_num,repeat('foobar',42));
+set current_num = current_num + 1;
+end while;
+end//
+commit;
+set autocommit=0;
+call innodb_insert_proc(10000);
+commit;
+set autocommit=1;
+include/assert.inc [Make sure encryption is disabled]
+include/assert.inc [Make sure t1 is encrypted]
+# We want only first 100 pages to be rotated
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
+# Start rotation to online keyring encrypted (tables do not have crypt data stored in page 0)
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 1;
+# Wait max 10 min for key encryption threads to encrypt all spaces
+# Table t1 should have min_key_version = 0 assigned and ROTATIONG_OR_FLUSHING=1 <= this means that only 100 pages
+# have been rotatted.
+# Disable rotation threads
+SET GLOBAL innodb_encryption_threads = 0;
+# Disable rotation of only first 100 pages
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
+# Make sure that t1 deos not contain foobar - if first 100 pages should be
+# KEYRING encrypted and the remaining pages should be Master Key encrypted.
+# Or check if t1 is not encrypted if we requested only first 100 pages to
+# be KEYRING encrypted and rest un-encrypted.
+# Now let's restart with encryption threads diabled and check whether
+# the table can be FLUSH FOR EXPORT
+# restart:--default-table-encryption=OFF --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=0
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1
+UNLOCK TABLES;
+DROP TABLE t1;
+# Now we have backup of t1 which has first 100 pages keyring encrypted and remaining
+# pages master key encrypted. We will test now the following scenarios:
+# 1) Disable encryption threads, import t1.
+# 2) Import t1, enable encryption threads with rotation to unencryted.
+# 3) Import t1, enable encryption threads with rotation to encrypted.
+# 4) Enable encryption threads with rotation to unencryted, import t1.
+# 5) Enable encryption threads with rotation to encrypted, import t1.
+# Scenario: 1) Disable encryption threads, import t1.
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+include/assert.inc [Make sure t1 is readable]
+# Scenario: 2) Import t1, enable encryption threads with rotation to unencryted.
+# t1 was already imported in Scenario 1.
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+include/assert.inc [Make sure t1 is readable]
+# We FLUSH TABLE t1 FOR EXPORT to grep t1.ibd to check if it really got decrypted.
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+# Scenario: 3) Import t1, enable encryption threads with rotation to encrypted.
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+include/assert.inc [Make sure t1 is readable]
+# We FLUSH TABLE t1 FOR EXPORT to grep t1.ibd to check if it really got encrypted.
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+# 4) Enable encryption threads with rotation to unencryted, import t1.
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1 .ibd and .cfg files
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+ALTER TABLE t1 IMPORT TABLESPACE;
+include/assert.inc [Make sure t1 is readable]
+include/assert.inc [Make sure t1 is readable]
+# We FLUSH TABLE t1 FOR EXPORT to grep t1.ibd to check if it really got decrypted.
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+# 5) Enable encryption threads with rotation to encrypted, import t1.
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+ALTER TABLE t1 DISCARD TABLESPACE;
+restore: t1 .ibd and .cfg files
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+ALTER TABLE t1 IMPORT TABLESPACE;
+include/assert.inc [Make sure t1 is readable]
+# We FLUSH TABLE t1 FOR EXPORT to grep t1.ibd to check if it really got encrypted.
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

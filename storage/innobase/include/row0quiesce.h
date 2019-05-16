@@ -52,12 +52,13 @@ struct trx_t;
 #define IB_EXPORT_CFG_VERSION_V5 5
 /** Future version used to test that the correct error message is returned. */
 #define IB_EXPORT_CFG_VERSION_V99 99
-#define IB_EXPORT_CFG_VERSION_V1_WITH_RK 0xFFFFFFFF
+#define IB_EXPORT_CFG_VERSION_V1_WITH_KEYRING 0xFFFFFFFF
+#define IB_EXPORT_CFG_VERSION_V3_WITH_KEYRING 0xFFFFFFFD
 
 /** Quiesce the tablespace that the table resides in. */
 void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
-                             trx_t *trx); /*!< in/out: transaction/session */
-
+                             trx_t *trx, /*!< in/out: transaction/session */
+                             std::tuple<bool, bool> keyring_info);
 /** Set a table's quiesce state.
  @return DB_SUCCESS or errro code. */
 dberr_t row_quiesce_set_state(
@@ -69,6 +70,7 @@ dberr_t row_quiesce_set_state(
 /** Cleanup after table quiesce. */
 void row_quiesce_table_complete(
     dict_table_t *table, /*!< in: quiesce this table */
-    trx_t *trx);         /*!< in/out: transaction/session */
+    trx_t *trx,          /*!< in/out: transaction/session */
+    bool has_crypt_data);
 
 #endif /* row0quiesce_h */

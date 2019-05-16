@@ -43,6 +43,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0start.h"
 #include "trx0purge.h"
 
+#include "fil0crypt.h"
+
 #include "my_dbug.h"
 
 /** Write the meta data (index user fields) config file.
@@ -359,22 +361,20 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_quiesce_write_header(const dict_table_t *table, /*!< in: write the meta
                                                         data for this table */
                              FILE *file, /*!< in: file to write to */
-                             THD *thd)   /*!< in/out: session */
-{
+                             THD *thd,   /*!< in/out: session */
+                             std::tuple<bool, bool> keyring_info) {
   byte value[sizeof(ib_uint32_t)];
 
-  fil_space_t *space = fil_space_get(table->space);
-  // The table is read locked so it will not be dropped
-  ut_ad(space != NULL);
-  /* Write the current meta-data version number. */
+  /* Write the meta-data version number. */
+  auto has_crypt_data = std::get<0>(keyring_info);
+  auto is_space_encrypted_flag_set = std::get<1>(keyring_info);
   uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V5;
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_3",
                   cfg_version = IB_EXPORT_CFG_VERSION_V3;);
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_99",
                   cfg_version = IB_EXPORT_CFG_VERSION_V99;);
-  if (space->crypt_data != NULL &&
-      space->crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
-    cfg_version = IB_EXPORT_CFG_VERSION_V1_WITH_RK;
+  if (has_crypt_data) {
+    cfg_version = IB_EXPORT_CFG_VERSION_V3_WITH_KEYRING;
   }
   mach_write_to_4(value, cfg_version);
 
@@ -383,6 +383,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   if (fwrite(&value, 1, sizeof(value), file) != sizeof(value)) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while writing meta-data version number.");
+
+    return (DB_IO_ERROR);
+  }
+
+  if (has_crypt_data && fwrite(&is_space_encrypted_flag_set, 1,
+                               sizeof(is_space_encrypted_flag_set),
+                               file) != sizeof(is_space_encrypted_flag_set)) {
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
+                strerror(errno), "while writing keyring encryption meta-data.");
 
     return (DB_IO_ERROR);
   }
@@ -496,11 +505,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Write the table meta data after quiesce.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_quiesce_write_cfg(dict_table_t *table, /*!< in: write the meta data for
-                                                       this table */
-                          THD *thd)            /*!< in/out: session */
-{
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_cfg(
+    dict_table_t *table, /*!< in: write the meta data for
+                                 this table */
+    THD *thd,            /*!< in/out: session */
+    const std::tuple<bool, bool> keyring_info) /*!< in: keyring info */ {
   dberr_t err;
   char name[OS_FILE_MAX_PATH];
 
@@ -516,7 +525,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
     err = DB_IO_ERROR;
   } else {
-    err = row_quiesce_write_header(table, file, thd);
+    err = row_quiesce_write_header(table, file, thd, keyring_info);
 
     if (err == DB_SUCCESS) {
       err = row_quiesce_write_table(table, file, thd);
@@ -738,9 +747,10 @@ static bool row_quiesce_table_has_fts_index(
 }
 
 /** Quiesce the tablespace that the table resides in. */
-void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
-                             trx_t *trx) /*!< in/out: transaction/session */
-{
+void row_quiesce_table_start(
+    dict_table_t *table, /*!< in: quiesce this table */
+    trx_t *trx,          /*!< in/out: transaction/session */
+    const std::tuple<bool, bool> keyring_info /*!< in: keyring info */) {
   ut_a(trx->mysql_thd != nullptr);
   ut_a(srv_n_purge_threads > 0);
   ut_ad(!srv_read_only_mode);
@@ -768,10 +778,8 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
     extern ib_mutex_t master_key_id_mutex;
 
     bool was_master_key_id_mutex_locked = false;
-    fil_space_t *space = fil_space_get(table->space);
-    ut_ad(space != nullptr);
     if (dd_is_table_in_encrypted_tablespace(table) &&
-        space->crypt_data != NULL) {
+        !std::get<0>(keyring_info)) {
       /* Take the mutex to make sure master_key_id doesn't change (eg: key
       rotation). */
       was_master_key_id_mutex_locked = true;
@@ -787,7 +795,8 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
     if (trx_is_interrupted(trx)) {
       ib::warn(ER_IB_MSG_1018) << "Quiesce aborted!";
 
-    } else if (row_quiesce_write_cfg(table, trx->mysql_thd) != DB_SUCCESS) {
+    } else if (row_quiesce_write_cfg(table, trx->mysql_thd, keyring_info) !=
+               DB_SUCCESS) {
       ib::warn(ER_IB_MSG_1019) << "There was an error writing to the"
                                   " meta data file";
     } else if (row_quiesce_write_cfp(table, trx->mysql_thd) != DB_SUCCESS) {
@@ -807,8 +816,8 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
 /** Cleanup after table quiesce. */
 void row_quiesce_table_complete(
     dict_table_t *table, /*!< in: quiesce this table */
-    trx_t *trx)          /*!< in/out: transaction/session */
-{
+    trx_t *trx,          /*!< in/out: transaction/session */
+    const bool has_crypt_data) {
   ulint count = 0;
 
   ut_a(trx->mysql_thd != nullptr);
@@ -841,7 +850,9 @@ void row_quiesce_table_complete(
   ib::info(ER_IB_MSG_1024) << "Deleting the meta-data file '" << cfg_name
                            << "'";
 
-  if (dd_is_table_in_encrypted_tablespace(table)) {
+  if (has_crypt_data) {
+    fil_crypt_readd_space_to_rotation(table->space);
+  } else if (dd_is_table_in_encrypted_tablespace(table)) {
     char cfp_name[OS_FILE_MAX_PATH];
 
     srv_get_encryption_data_filename(table, cfp_name, sizeof(cfp_name));

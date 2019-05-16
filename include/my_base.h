@@ -998,6 +998,8 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)
 
 #define HA_ERR_ENCRYPTION_KEY_MISSING 501
+#define HA_ERR_EXPORT_ENC_THREADS_RUNNING \
+  502 /* Cannot flush, encryption threads operate on table */
 
 /* Other constants */
 

@@ -325,10 +325,10 @@ bool BlockReporter::is_corrupted() const {
       if ((i < FIL_PAGE_FILE_FLUSH_LSN ||
            i >= FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID) &&
           m_read_buf[i] != 0) {
-        if (i >= FIL_PAGE_ENCRYPTION_KEY_VERSION &&
-            i <= FIL_PAGE_ENCRYPTION_KEY_VERSION +
-                     3)  // those four bytes might not be 0 for keyring
-                         // encryption
+        if (i >= FIL_PAGE_ORIGINAL_TYPE_V1 &&
+            i <= FIL_PAGE_ENCRYPTION_KEY_VERSION + 3)  // those four bytes might
+                                                       // not be 0 for keyring
+                                                       // encryption
           continue;
         empty = false;
         break;
@@ -572,7 +572,11 @@ bool BlockReporter::verify_zip_checksum() const {
     ulint i;
     bool empty = true;
     for (i = 0; i < m_page_size.physical(); i++) {
-      if (*((const char *)m_read_buf + i) != 0) {
+      if (*((const char *)m_read_buf + i) != 0 &&
+          (i < FIL_PAGE_ORIGINAL_TYPE_V1 ||
+           i > FIL_PAGE_ENCRYPTION_KEY_VERSION +
+                   3)  // those four bytes might not be 0 for keyring encryption
+      ) {
         empty = false;
         break;
       }

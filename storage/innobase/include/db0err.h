@@ -165,6 +165,13 @@ enum dberr_t {
   DB_IO_DECRYPT_FAIL,
   /** The tablespace doesn't support encrypt */
   DB_IO_NO_ENCRYPT_TABLESPACE,
+
+  DB_IO_IMPORT_ENCRYPTION_MISSING_KEY_VERSIONS,
+
+  DB_IO_IMPORT_ENCRYPTION_CORRUPTED_KEYS,
+
+  DB_IO_IMPORT_ENCRYPTION_MISSING_KEY,
+
   /** Partial IO request failed */
   DB_IO_PARTIAL_FAILED,
   /** Transaction was forced to rollback by a higher priority transaction */

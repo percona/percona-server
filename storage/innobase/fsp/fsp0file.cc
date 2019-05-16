@@ -755,7 +755,7 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
   }
 
   if (crypt_data != nullptr) {
-    if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED && !for_import &&
+    if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED &&
         crypt_data->private_version == 3) {
       // for versions 1,2 and encrypted table we will fail the upgrade.
       Validation_key_verions_result valid_result{

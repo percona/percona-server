@@ -2981,7 +2981,8 @@ dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                                   << " Error returned: " << err
                                   << " by trx->id: " << trx->id;);
 
-    ut_ad(err == DB_SUCCESS || trx_is_interrupted(trx) || !"sdi_insert_failed");
+    ut_ad(err == DB_SUCCESS || err == DB_IO_DECRYPT_FAIL ||
+          trx_is_interrupted(trx) || !"sdi_insert_failed");
   }
 
   ib_tuple_delete(new_tuple);

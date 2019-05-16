@@ -58,6 +58,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "dict0dict.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
+#include "fil0crypt.h"
 #include "fsp0sysspace.h"
 #include "ha_innodb.h"
 #include "ha_innopart.h"
@@ -4070,6 +4071,8 @@ int ha_innopart::external_lock(THD *thd, int lock_type) {
   for (uint i = 0; i < m_tot_parts; i++) {
     dict_table_t *table = m_part_share->get_table_part(i);
 
+    bool has_crypt_data{false};
+
     switch (table->quiesce) {
       case QUIESCE_START:
         /* Check for FLUSH TABLE t WITH READ LOCK */
@@ -4084,7 +4087,17 @@ int ha_innopart::external_lock(THD *thd, int lock_type) {
             return (HA_ERR_NO_SUCH_TABLE);
           }
 
-          row_quiesce_table_start(table, m_prebuilt->trx);
+          std::tuple<bool, bool> keyring_info;
+          if (!fil_space_crypt_prepare_for_export(m_prebuilt->table->space,
+                                                  keyring_info)) {
+            ib_senderrf(m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+                        ER_FLUSH_ENC_THREADS_RUNNING, table->name.m_name);
+
+            return (HA_ERR_EXPORT_ENC_THREADS_RUNNING);
+          }
+
+          has_crypt_data = std::get<0>(keyring_info);
+          row_quiesce_table_start(table, m_prebuilt->trx, keyring_info);
 
           /* Use the transaction instance to track
           UNLOCK TABLES. It can be done via START
@@ -4100,7 +4113,7 @@ int ha_innopart::external_lock(THD *thd, int lock_type) {
         if (m_prebuilt->trx->flush_tables > 0 &&
             (lock_type == F_UNLCK || trx_is_interrupted(m_prebuilt->trx))) {
           ut_ad(table->quiesce == QUIESCE_COMPLETE);
-          row_quiesce_table_complete(table, m_prebuilt->trx);
+          row_quiesce_table_complete(table, m_prebuilt->trx, has_crypt_data);
 
           ut_a(m_prebuilt->trx->flush_tables > 0);
           --m_prebuilt->trx->flush_tables;

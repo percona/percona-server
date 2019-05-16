@@ -1,0 +1,55 @@
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB;
+CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB;
+CREATE PROCEDURE innodb_insert_proc (repeat_count INT)
+BEGIN
+DECLARE current_num INT;
+SET current_num = 0;
+WHILE current_num < repeat_count DO
+INSERT INTO t1 VALUES (current_num,repeat('foobar',42));
+INSERT INTO t2 VALUES (current_num,repeat('foobar',42));
+SET current_num = current_num + 1;
+END WHILE;
+END//
+COMMIT;
+SET autocommit=0;
+call innodb_insert_proc(10000);
+COMMIT;
+SET autocommit=1;
+include/assert.inc [Make sure encryption is disabled]
+include/assert.inc [Make sure t1 is not encrypted]
+include/assert.inc [Make sure t2 is not encrypted]
+# We want t1 to hang on starting rotation with one thread active on it.
+SET GLOBAL debug="+d,hang_on_t1_rotation";
+# Start rotation to online keyring encrypted (tables do not have crypt data stored in page 0)
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads = 4;
+# All tables should get encrypted. tables_count - 2 because temporary tablespace is not encrypted and t1 will hang
+# on starting rotation with one thread active on it.
+# Table t1 should have min_key_version = 0 assigned and ROTATIONG_OR_FLUSHING=1 <= this means that only 100 pages
+# have been rotatted.
+include/assert.inc [Make sure t1 is not encrypted]
+include/assert.inc [Make sure t2 is encrypted]
+FLUSH TABLE t1 FOR EXPORT;
+ERROR HY000: Tablespace t1 cannot be flushed for export as tablespace is being currently encrypted/decrypted by encryption threads.
+FLUSH TABLE t2 FOR EXPORT;
+backup: t2
+UNLOCK TABLES;
+SET GLOBAL debug="-d,hang_on_t1_rotation";
+# Wait for t1 to be fully encrypted
+include/assert.inc [Make sure t1 is encrypted]
+FLUSH TABLE t1 FOR EXPORT;
+backup: t1
+UNLOCK TABLES;
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t2 DISCARD TABLESPACE;
+restore: t1 .ibd and .cfg files
+restore: t2 .ibd and .cfg files
+ALTER TABLE t1 IMPORT TABLESPACE;
+ALTER TABLE t2 IMPORT TABLESPACE;
+include/assert.inc [Make sure t1 is readable]
+include/assert.inc [Make sure t2 is readable]
+DROP TABLE t1,t2;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;
+DROP PROCEDURE innodb_insert_proc;

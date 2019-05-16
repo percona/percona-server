@@ -22,8 +22,6 @@ sub ib_backup_ibd_file {
 		File::Spec->catfile($tmpd, $ibd_file));
 
     copy(@args) or die "copy @args failed: $!";
-
-    copy(@args) or die "copy @args failed: $!";
 }
 
 sub ib_backup_cfg_file {

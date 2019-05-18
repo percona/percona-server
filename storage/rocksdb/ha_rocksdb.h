@@ -129,6 +129,11 @@ struct hash<myrocks::GL_INDEX_ID> {
 }  // namespace std
 
 namespace myrocks {
+enum table_cardinality_scan_type {
+  SCAN_TYPE_NONE,
+  SCAN_TYPE_MEMTABLE_ONLY,
+  SCAN_TYPE_FULL_TABLE,
+};
 
 /**
   @brief
@@ -615,6 +620,7 @@ class ha_rocksdb : public my_core::handler {
       MY_ATTRIBUTE((__warn_unused_result__));
   int delete_row(const uchar *const buf) override
       MY_ATTRIBUTE((__warn_unused_result__));
+  void update_table_stats_if_needed();
   rocksdb::Status delete_or_singledelete(uint index, Rdb_transaction *const tx,
                                          rocksdb::ColumnFamilyHandle *const cf,
                                          const rocksdb::Slice &key)
@@ -816,6 +822,9 @@ class ha_rocksdb : public my_core::handler {
   int finalize_bulk_load(bool print_client_error = true)
       MY_ATTRIBUTE((__warn_unused_result__));
 
+  void inc_table_n_rows();
+  void dec_table_n_rows();
+
   bool should_skip_invalidated_record(const int rc) const;
   bool should_recreate_snapshot(const int rc, const bool is_new_snapshot) const;
 
@@ -930,6 +939,8 @@ class ha_rocksdb : public my_core::handler {
       const dd::Table *old_table_def, dd::Table *new_table_def) override;
 
   bool is_read_free_rpl_table() const;
+  int adjust_handler_stats_sst_and_memtable();
+  int adjust_handler_stats_table_scan();
 
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
  public:

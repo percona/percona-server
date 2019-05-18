@@ -38,7 +38,7 @@ set_mysql_rootpw() {
        # this avoids us having to call "test" or "[" on $rootpw
        cat << EOF > $tfile
 USE mysql;
-UPDATE user SET password=PASSWORD('${rootpw}') WHERE user='root';
+UPDATE user SET password=PASSWORD("${rootpw}") WHERE user='root';
 FLUSH PRIVILEGES;
 EOF
        if grep -q 'PASSWORD("")' $tfile; then

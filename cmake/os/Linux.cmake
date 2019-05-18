@@ -26,6 +26,7 @@ INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 
 SET(LINUX 1)
+SET(TARGET_OS_LINUX 1)
 
 # OS display name (version_compile_os etc).
 # Used by the test suite to ignore bugs on some platforms.

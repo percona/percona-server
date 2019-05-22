@@ -32,7 +32,7 @@ matrix:
         - wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py || travis_terminate 1
         - chmod a+x clang-format-diff.py
         - git diff -U0 --no-color HEAD^1 *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | ./clang-format-diff.py -binary=clang-format-5.0 -style=file -p1 >_GIT_DIFF
-        - '[ ! -s _GIT_DIFF ] && { echo The last git commit is clang-formatted; travis_terminate 0; } || { cat _GIT_DIFF; travis_terminate 1; }'
+        - '[ ! -s _GIT_DIFF ] && { echo The last git commit is clang-formatted; travis_terminate 0; } || { diffstat _GIT_DIFF; echo; cat _GIT_DIFF; travis_terminate 1; }'
 
 
     # Configurations for developers' forks and after merging a pull request for percona/percona-server

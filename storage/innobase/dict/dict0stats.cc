@@ -2056,7 +2056,7 @@ static dberr_t dict_stats_save_index_stat(dict_index_t *index, lint last_update,
 /** Report an error if updating table statistics failed because
 .ibd file is missing, table decryption failed or table is corrupted.
 @param[in,out]	table	Table
-@retval DB_DECRYPTION_FAILED if decryption of the table failed
+@retval DB_IO_DECRYPT_FAIL if decryption of the table failed
 @retval DB_TABLESPACE_DELETED if .ibd file is missing
 @retval DB_CORRUPTION if table is marked as corrupted */
 dberr_t dict_stats_report_error(dict_table_t *table) {
@@ -2076,7 +2076,7 @@ dberr_t dict_stats_report_error(dict_table_t *table) {
                << " because file " << space()->files.begin()->name
                << (table->is_corrupt ? " is corrupted."
                                      : " cannot be decrypted.");
-    err = table->is_corrupt ? DB_CORRUPTION : DB_DECRYPTION_FAILED;
+    err = table->is_corrupt ? DB_CORRUPTION : DB_IO_DECRYPT_FAIL;
   }
 
   dict_stats_empty_table(table);

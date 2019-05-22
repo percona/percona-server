@@ -2515,7 +2515,7 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
       Encryption::tablespace_key_exists(space->crypt_data->key_id) == false &&
       !recv_recovery_is_on()) {
     ib::error() << "There is no key for tablespace " << space->name;
-    return (DB_DECRYPTION_FAILED);
+    return (DB_IO_DECRYPT_FAIL);
   }
 
   if (file->size == 0) {
@@ -3836,9 +3836,31 @@ fil_space_t *fil_space_acquire_for_io(ulint space_id) {
   return (space);
 }
 
+/** Acquire a tablespace for reading or writing a block,
+when it could be dropped concurrently.
+@param[in]	id	tablespace ID
+@return	the tablespace
+@retval	NULL if missing */
+fil_space_t *fil_space_acquire_for_io_with_load(ulint space_id) {
+  auto shard = fil_system->shard_by_id(space_id);
+
+  shard->mutex_acquire();
+
+  fil_space_t *space = shard->space_load(space_id);
+
+  if (space) {
+    space->n_pending_ios++;
+  }
+
+  shard->mutex_release();
+
+  return (space);
+}
+
 /** Release a tablespace acquired with fil_space_acquire_for_io().
 @param[in,out]	space	tablespace to release  */
 void fil_space_release_for_io(fil_space_t *space) {
+  ut_ad(space);
   auto shard = fil_system->shard_by_id(space->id);
 
   shard->mutex_acquire();
@@ -3998,7 +4020,7 @@ fil_space_t *fil_space_keyrotate_next(
     shard = fil_system->shard_by_index(shard_index);
     ut_ad(shard != nullptr);
     shard->mutex_acquire();
-    space = fil_space_get_next_in_shards_rotation_list(prev_space, shard);
+    space = fil_space_get_next_in_shards_rotation_list(space, shard);
   }
 
   if (space != nullptr) {
@@ -5695,6 +5717,9 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     /* We don't reply the rename via the redo log anymore.
     Therefore we can get a space ID mismatch when validating
     the files during bootstrap. */
+
+    if (validate_output.keyring_encryption_info.page0_has_crypt_data)
+      keyring_encryption_info = validate_output.keyring_encryption_info;
 
     if (!is_encrypted && validate_output.error != DB_WRONG_FILE_NAME) {
       /* The following call prints an error message.
@@ -8042,7 +8067,8 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   /* We an try to recover the page from the double write buffer if
   the decompression fails or the page is corrupt. */
 
-  ut_a(req_type.is_dblwr_recover() || err == DB_SUCCESS);
+  ut_a(req_type.is_dblwr_recover() || err == DB_SUCCESS ||
+       err == DB_IO_DECRYPT_FAIL);
 
   if (sync) {
     /* The i/o operation is already completed when we return from
@@ -8930,7 +8956,7 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
       Encryption::get_latest_tablespace_key(iter.m_crypt_data->key_id,
                                             &iter.m_encryption_key_version,
                                             &iter.m_encryption_key);
-      if (iter.m_encryption_key == NULL) err = DB_DECRYPTION_FAILED;
+      if (iter.m_encryption_key == NULL) err = DB_IO_DECRYPT_FAIL;
     } else {
       /* Set encryption info. */
       iter.m_encryption_key = table->encryption_key;

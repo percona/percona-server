@@ -2255,7 +2255,7 @@ int convert_error_code_to_mysql(
     case DB_TABLESPACE_NOT_FOUND:
       return (HA_ERR_TABLESPACE_MISSING);
 
-    case DB_DECRYPTION_FAILED:
+    case DB_IO_DECRYPT_FAIL:
       return (HA_ERR_DECRYPTION_FAILED);
 
     case DB_TOO_BIG_RECORD: {
@@ -2717,6 +2717,18 @@ bool Encryption::none_explicitly_specified(const char *algorithm) noexcept {
 
 bool Encryption::is_keyring(const char *algoritm) {
   return (algoritm != NULL && innobase_strcasecmp(algoritm, "keyring") == 0);
+}
+
+bool Encryption::is_online_encryption_on() {
+  return srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING ||
+         srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE;
+}
+
+// This for now excludes MK encryption ...
+bool Encryption::should_be_keyring_encrypted(const char *algorithm) {
+  return !none_explicitly_specified(algorithm) &&
+         (is_keyring(algorithm) ||
+          (algorithm == nullptr && is_online_encryption_on()));
 }
 
 /** Check the encryption option and set it
@@ -5403,7 +5415,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   bool ret = dict_detect_encryption_of_mysql_ibd(
       dict_init_mode, upgrade_mysql_plugin_space, do_encrypt);
   if (!ret) {
-    ib::error(ER_XB_MSG_3) << "Failed to determine if mysql.ibd is encrypted. "
+    ib::error(ER_XB_MSG_4) << "Failed to determine if mysql.ibd is encrypted. "
                               "Have you deleted it?";
     DBUG_RETURN(innodb_init_abort());
   }
@@ -7126,7 +7138,7 @@ void ha_innobase::innobase_initialize_autoinc() {
         updates should fail. */
         err = DB_SUCCESS;
         break;
-      case DB_DECRYPTION_FAILED:
+      case DB_IO_DECRYPT_FAIL:
         ut_ad(index->table->is_readable() == false);
         return;
 
@@ -7322,22 +7334,27 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     /* Mark this table as corrupted, so the drop table
     or force recovery can still use it, but not others. */
     FilSpace space;
+    int error = 0;
     if (ib_table) space = fil_space_acquire_silent(ib_table->space);
     if (space() == NULL &&
         (ib_table->keyring_encryption_info.keyring_encryption_key_is_missing ||
          ib_table->keyring_encryption_info.page0_has_crypt_data)) {
       /* Proper error message has been already printed by
        * Datafile::validate_first_page, thus we do not print anything here */
-      DBUG_RETURN(HA_ERR_DECRYPTION_FAILED);
+      error = HA_ERR_ENCRYPTION_KEY_MISSING;
+    } else if (space() && space()->crypt_data) {
+      ib_table->keyring_encryption_info.page0_has_crypt_data = true;
+      ib::warn(ER_XB_MSG_4, table_share->table_name.str);
+      error = HA_ERR_DECRYPTION_FAILED;
     } else {
       my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-      dict_table_close(ib_table, FALSE, FALSE);
-      ib_table = NULL;
-      is_part = NULL;
-      free_share(m_share);
-
-      DBUG_RETURN(HA_ERR_TABLE_CORRUPT);
+      error = HA_ERR_TABLE_CORRUPT;
     }
+    dict_table_close(ib_table, FALSE, FALSE);
+    ib_table = NULL;
+    is_part = NULL;
+    free_share(m_share);
+    DBUG_RETURN(error);
   }
 
   // if (space() == NULL) {
@@ -7403,7 +7420,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   } else if (!ib_table->is_readable()) {
     if (space()) {
-      if (space()->crypt_data && space()->crypt_data->is_encrypted()) {
+      if (space()->crypt_data && space()->is_encrypted) {
         /* This means that tablespace was found but we could not
         decrypt encrypted page. */
         no_tablespace = true;
@@ -7432,20 +7449,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     is tablespace made unaccessible because encryption service
     or used key_id is not available. */
     if (encrypted) {
-      bool warning_pushed = false;
-
-      /* If table is marked as encrypted then we push
-      warning if it has not been already done as used
-      key_id might be found but it is incorrect. */
-      if (!warning_pushed) {
-        push_warning_printf(
-            thd, Sql_condition::SL_WARNING, HA_ERR_DECRYPTION_FAILED,
-            "Table %s in file %s is encrypted but encryption service or"
-            " used key_id is not available. "
-            " Can't continue reading table.",
-            table_share->table_name.str, space()->files.begin()->name);
-        ret_err = HA_ERR_DECRYPTION_FAILED;
-      }
+      ib::warn(ER_XB_MSG_4, table_share->table_name.str);
+      ret_err = HA_ERR_DECRYPTION_FAILED;
     }
 
     dict_table_close(ib_table, FALSE, FALSE);
@@ -12148,18 +12153,18 @@ bool create_table_info_t::create_option_encryption_is_valid() const {
   bool table_is_keyring =
       Encryption::is_keyring(m_create_info->encrypt_type.str);
 
-  if (table_is_keyring) {
-    if (!m_allow_file_per_table) {
-      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                      "InnoDB: KEYRING requires innodb_file_per_table.",
-                      MYF(0));
-      return (false);
-    }
+  if (table_is_keyring && !m_allow_file_per_table) {
+    my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                    "InnoDB: KEYRING requires innodb_file_per_table.", MYF(0));
+    return (false);
+  }
 
-    /* Currently we do not support keyring encryption for
-    spatial indexes thus do not allow creating table with forced
-    encryption */
+  /* Currently we do not support keyring encryption for
+  spatial indexes thus do not allow creating table with forced
+  encryption */
 
+  if (Encryption::should_be_keyring_encrypted(
+          m_create_info->encrypt_type.str)) {
     for (ulint i = 0; i < m_form->s->keys; i++) {
       const KEY *key = m_form->key_info + i;
       if (key->flags & HA_SPATIAL) {
@@ -12187,12 +12192,12 @@ bool create_table_info_t::create_option_encryption_is_valid() const {
     return (false);
   }
 
+  // in case KEYRING_FORCE is used all newly created tables need to have
+  // ENCRYPTION='KEYRING' specified, unless it is temporary table.
   if (srv_encrypt_tables == SRV_ENCRYPT_TABLES_KEYRING_FORCE &&
       (!Encryption::is_keyring(m_create_info->encrypt_type.str) &&
-       !(Encryption::is_master_key_encryption(
-             m_create_info->encrypt_type.str) &&
-         m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) &&
-      !(m_create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)) {
+       !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+       !(m_create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE))) {
     my_printf_error(ER_INVALID_ENCRYPTION_OPTION,
                     "InnoDB: Only KEYRING encrypted tables "
                     "(ENCRYPTION=\'KEYRING\') can be created with "
@@ -12416,6 +12421,43 @@ const char *create_table_info_t::create_options_are_invalid() {
 static const LEX_STRING yes_string = {C_STRING_WITH_LEN("Y")};
 static const LEX_STRING keyring_string = {C_STRING_WITH_LEN("KEYRING")};
 
+void ha_innobase::adjust_encryption_key_id(HA_CREATE_INFO *create_info,
+                                           dd::Properties *options) noexcept {
+  LEX_STRING *encrypt_type = &create_info->encrypt_type;
+
+  if (false == create_info->was_encryption_key_id_set) {
+    if (Encryption::should_be_keyring_encrypted(encrypt_type->str)) {
+      create_info->encryption_key_id =
+          THDVAR(current_thd, default_encryption_key_id);
+      create_info->was_encryption_key_id_set = true;
+    }
+  } else if (Encryption::is_master_key_encryption(encrypt_type->str) ||
+             Encryption::none_explicitly_specified(encrypt_type->str)) {
+    // if it is encrypted table with Master key encryption or marked as not to
+    // be encrypted and alter table does not have ENCRYPTION_KEY_ID - mark
+    // encryption key id as not set.
+
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        HA_WRONG_CREATE_OPTION,
+                        Encryption::none_explicitly_specified(encrypt_type->str)
+                            ? "InnoDB: Ignored ENCRYPTION_KEY_ID %u when "
+                              "encryption is disabled."
+                            : "InnoDB: Ignored ENCRYPTION_KEY_ID %u when "
+                              "Master Key encryption is enabled.",
+                        create_info->encryption_key_id);
+    create_info->encryption_key_id = FIL_DEFAULT_ENCRYPTION_KEY;
+    create_info->was_encryption_key_id_set = false;
+    options->remove("encryption_key_id");
+  }
+
+  if (options && create_info->was_encryption_key_id_set &&
+      (create_info->tablespace == nullptr ||
+       strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name) ==
+           0)) {
+    options->set("encryption_key_id", create_info->encryption_key_id);
+  }
+}
+
 /** Adjust encryption options.
 @param[in,out]  create_info Additional create information.
 @param[in,out]  table_def dd::Table object to be modified.*/
@@ -12443,39 +12485,16 @@ void ha_innobase::adjust_encryption_options(HA_CREATE_INFO *create_info,
         create_info->encrypt_type = keyring_string;
         break;
       case SRV_ENCRYPT_TABLES_OFF:
+      case SRV_ENCRYPT_TABLES_ONLINE_FROM_KEYRING_TO_UNENCRYPTED:
+      case SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING:
         break;
       default:
         ut_ad(0);
     }
   }
 
-  LEX_STRING *encrypt_type = &create_info->encrypt_type;
-
-  if (false == create_info->was_encryption_key_id_set) {
-    if (Encryption::is_keyring(encrypt_type->str) ||
-        (encrypt_type->length == 0 &&
-         srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING)) {
-      create_info->encryption_key_id =
-          THDVAR(current_thd, default_encryption_key_id);
-      create_info->was_encryption_key_id_set = true;
-    }
-  } else if (Encryption::is_master_key_encryption(encrypt_type->str) ||
-             Encryption::none_explicitly_specified(encrypt_type->str)) {
-    // if it is encrypted table with Master key encryption or marked as not to
-    // be encrypted and alter table does not have ENCRYPTION_KEY_ID - mark
-    // encryption key id as not set.
-
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        HA_WRONG_CREATE_OPTION,
-                        Encryption::none_explicitly_specified(encrypt_type->str)
-                            ? "InnoDB: Ignored ENCRYPTION_KEY_ID %u when "
-                              "encryption is disabled."
-                            : "InnoDB: Ignored ENCRYPTION_KEY_ID %u when "
-                              "Master Key encryption is enabled.",
-                        create_info->encryption_key_id);
-    create_info->encryption_key_id = FIL_DEFAULT_ENCRYPTION_KEY;
-    create_info->was_encryption_key_id_set = false;
-  }
+  adjust_encryption_key_id(create_info,
+                           table_def ? &(table_def->options()) : nullptr);
 
   /* Add encryption attribute only to file_per_table table */
   if (table_def && (create_info->tablespace == nullptr ||
@@ -12487,9 +12506,6 @@ void ha_innobase::adjust_encryption_options(HA_CREATE_INFO *create_info,
       encrypt_type.assign(create_info->encrypt_type.str,
                           create_info->encrypt_type.length);
       table_options.set("encrypt_type", encrypt_type);
-    }
-    if (create_info->was_encryption_key_id_set) {
-      table_options.set("encryption_key_id", create_info->encryption_key_id);
     }
   }
 }
@@ -14888,7 +14904,10 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
     ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, norm_name);
     DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
   } else if (!innodb_table->is_readable()) {
-    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+    DBUG_RETURN(innodb_table->keyring_encryption_info.page0_has_crypt_data ==
+                        true
+                    ? HA_ERR_DECRYPTION_FAILED
+                    : HA_ERR_TABLESPACE_MISSING);
   }
 
   if (UNIV_UNLIKELY(innodb_table->is_corrupt)) DBUG_RETURN(HA_ERR_CRASHED);
@@ -16032,6 +16051,12 @@ int ha_innobase::records(ha_rows *num_rows) /*!< out: number of rows */
     DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 
   } else if (m_prebuilt->table->file_unreadable) {
+    if (m_prebuilt->table->keyring_encryption_info.page0_has_crypt_data)
+      DBUG_RETURN(m_prebuilt->table->keyring_encryption_info
+                          .keyring_encryption_key_is_missing
+                      ? HA_ERR_ENCRYPTION_KEY_MISSING
+                      : HA_ERR_DECRYPTION_FAILED);
+
     ib_senderrf(m_user_thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_MISSING,
                 table->s->table_name.str);
 
@@ -17599,12 +17624,9 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
       if (err != DB_SUCCESS) {
         is_ok = false;
 
-        if (err == DB_DECRYPTION_FAILED) {
-          push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NO_SUCH_TABLE,
-                              "Table %s is encrypted but encryption service or"
-                              " used key_id is not available. "
-                              " Can't continue checking table.",
-                              index->table->name.m_name);
+        if (err == DB_IO_DECRYPT_FAIL) {
+          ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_XB_MSG_4,
+                      index->table->name.m_name);
         } else {
           push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
                               "InnoDB: The B-tree of"
@@ -17671,12 +17693,9 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
       break;
     }
     if (ret != DB_SUCCESS) {
-      if (ret == DB_DECRYPTION_FAILED) {
-        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NO_SUCH_TABLE,
-                            "Table %s is encrypted but encryption service or"
-                            " used key_id is not available. "
-                            " Can't continue checking table.",
-                            index->table->name.m_name);
+      if (ret == DB_IO_DECRYPT_FAIL) {
+        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_XB_MSG_4,
+                    index->table->name.m_name);
       } else {
         /* Assume some kind of corruption. */
         push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
@@ -19585,9 +19604,14 @@ bool ha_innobase::get_error_message(int error, String *buf) {
 
   if (error == HA_ERR_DECRYPTION_FAILED) {
     const char *msg =
-        "Table encrypted but decryption failed. This could be because correct "
-        "encryption management plugin is not loaded, used encryption key is "
-        "not available or encryption method does not match.";
+        "Table encrypted but decryption failed. Seems that the encryption key "
+        "fetched from keyring is "
+        "not the correct one. Are you using the correct keyring?";
+    buf->copy(msg, (uint)strlen(msg), system_charset_info);
+  } else if (error == HA_ERR_ENCRYPTION_KEY_MISSING) {
+    const char *msg =
+        "Table encrypted but decryption key was not found. "
+        "Is correct keyring loaded?";
     buf->copy(msg, (uint)strlen(msg), system_charset_info);
   } else {
     buf->copy(trx->detailed_error, (uint)strlen(trx->detailed_error),
@@ -21697,7 +21721,9 @@ static void innodb_encryption_threads_update(
     const void *save) /*!< in: immediate result
                       from check function */
 {
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   fil_crypt_set_thread_cnt(*static_cast<const uint *>(save));
+  mysql_mutex_lock(&LOCK_global_system_variables);
 }
 
 /******************************************************************

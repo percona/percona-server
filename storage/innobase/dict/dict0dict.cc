@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef UNIV_HOTBACKUP
 #include "clone0api.h"
+#include "fil0crypt.h"
 #include "mysqld.h"  // system_charset_info
 #include "que0types.h"
 #include "row0sel.h"

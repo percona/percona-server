@@ -67,7 +67,7 @@ buf_block_t *btr_block_get_func(const page_id_t &page_id,
   block = buf_page_get_gen(page_id, page_size, mode, nullptr,
                            Page_fetch::NORMAL, file, line, mtr, false, &err);
 
-  if (err == DB_DECRYPTION_FAILED) {
+  if (err == DB_IO_DECRYPT_FAIL) {
     if (index && index->table) {
       index->table->set_file_unreadable();
     }

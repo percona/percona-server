@@ -1,24 +1,12 @@
 --source include/have_64bit.inc
 
-#
-# MDEV-8588: Assertion failure in file ha_innodb.cc line 21140 if at least one encrypted
-# table exists and encryption service is not available.
-#
-
-call mtr.add_suppression("Plugin 'file_key_management' init function returned error");
-call mtr.add_suppression("Plugin 'file_key_management' registration.*failed");
-call mtr.add_suppression("InnoDB: The page \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\] in file '.*test.t[12]\\.ibd' cannot be decrypted\\.");
-call mtr.add_suppression("failed to read or decrypt \\[page id: space=[1-9][0-9]*, page number=[1-9][0-9]*\\]");
-call mtr.add_suppression("File '.*mysql-test.std_data.keysbad3\\.txt' not found");
-
-call mtr.add_suppression("\\[Error\\] InnoDB: Page is still encrypted");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Table is encrypted but encryption service or used key_id is not available\.  Can't continue reading table\.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot save statistics for table `test`\.`t2` because file \./test/t2\.ibd cannot be decrypted\.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Table in tablespace is encrypted but encryption service or used key_id is not available\.  Can't continue reading table\.");
+# Later on we grep for decryption/missing key errors to make sure that they are
+# present in error log
+--let $test_error_log=$MYSQL_TMP_DIR/error_log.err
 
 --echo # Start server with keys2.txt
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt --log-error=$test_error_log
 --source include/restart_mysqld.inc
 
 SET GLOBAL innodb_file_per_table = ON;
@@ -35,89 +23,126 @@ INSERT INTO t1 VALUES ('foobar',2);
 FLUSH TABLE WITH READ LOCK;
 SELECT * FROM t1;
 
+--source include/shutdown_mysqld.inc
+
+--echo #### Missing key errors ####
+--echo # Make sure that there is no error in error log related to missing key for t1
+
+--let SEARCH_PATTERN=Tablespace id 5 in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$test_error_log
+--source include/search_pattern_in_file.inc
+
 --echo
 --echo # Restart server with keysbad3.txt
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keysbad3.txt
---source include/restart_mysqld.inc
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keysbad3.txt --log-error=$test_error_log
+--source include/start_mysqld.inc
 
---disable_warnings
 --error ER_GET_ERRMSG
 SELECT * FROM t1;
---enable_warnings
 
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keysbad3.txt
---source include/restart_mysqld.inc
-
---disable_warnings
 --replace_regex /tablespace [0-9]*/tablespace /
 DROP TABLE t1;
---enable_warnings
 
-#
-# MDEV-8591: Database page corruption on disk or a failed space, Assertion failure in file buf0buf.cc
-# line 2856 on querying a table using wrong default encryption key
-#
+--source include/shutdown_mysqld.inc
 
+--let SEARCH_PATTERN=Tablespace id 5 in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$test_error_log
+--source include/search_pattern_in_file.inc
 --echo # Start server with keys3.txt
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt
--- source include/restart_mysqld.inc
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+-- let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt --log-error=$test_error_log
+-- source include/start_mysqld.inc
 
 SET GLOBAL innodb_stats_persistent=OFF;
 
+--echo #### Decryption errors ####
+
+# encryption_key_id 5 exists in keys3.txt and in keys2.txt. The id is the same, but the keys themselves
+# are different.
 SET SESSION innodb_default_encryption_key_id=5;
 CREATE TABLE t2 (c VARCHAR(8), id int not null primary key, b int, key(b)) ENGINE=InnoDB ENCRYPTION='KEYRING';
 
 INSERT INTO t2 VALUES ('foobar',1,2);
 
+--source include/shutdown_mysqld.inc
+
+--echo # Make sure that there is no error in error log related to decryption failures of t2
+--let SEARCH_PATTERN=Table test/t2 is encrypted but decryption failed\. Seems that the encryption key fetched from keyring is not the correct one\. Are you using the correct keyring?
+--let ABORT_ON=FOUND
+--let SEARCH_FILE=$test_error_log
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=The page \[page id: space=6, page number=4\] in file '\./test/t2\.ibd' cannot be decrypted\. Are you using correct keyring?
+--source include/search_pattern_in_file.inc
+
 --echo
 --echo # Restart server with keys2.txt
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
--- source include/restart_mysqld.inc
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt --log-error=$test_error_log
+--source include/start_mysqld.inc
 
 SET GLOBAL innodb_stats_persistent=ON;
 
---disable_warnings
 --error ER_GET_ERRMSG
 SELECT * FROM t2;
+--let $expected_error_message=Got error 500 Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring? from InnoDB
+--source check_error_in_warnings.inc
 
 --error ER_GET_ERRMSG
 SELECT * FROM t2 where id = 1;
+--source check_error_in_warnings.inc
 
 --error ER_GET_ERRMSG
 SELECT * FROM t2 where b = 1;
+--source check_error_in_warnings.inc
 
 --replace_regex /tablespace [0-9]*/tablespace /
 --error ER_GET_ERRMSG
 INSERT INTO t2 VALUES ('tmp',3,3);
+--source check_error_in_warnings.inc
 
 --error ER_GET_ERRMSG
 DELETE FROM t2 where b = 3;
+--source check_error_in_warnings.inc
 
 --error ER_GET_ERRMSG
 DELETE FROM t2 where id = 3;
+--source check_error_in_warnings.inc
 
 --error ER_GET_ERRMSG
 UPDATE t2 set b = b +1;
+--source check_error_in_warnings.inc
 
 OPTIMIZE TABLE t2;
 
 --error ER_GET_ERRMSG
 ALTER TABLE t2 ADD COLUMN d INT;
+--source check_error_in_warnings.inc
 
 ANALYZE TABLE t2;
 
 --error ER_GET_ERRMSG
 TRUNCATE TABLE t2;
+--source check_error_in_warnings.inc
 
 DROP TABLE t2;
---enable_warnings
+
+--source include/shutdown_mysqld.inc
+
+--echo # Make sure that log contains t2 decryption errors
+--let SEARCH_PATTERN=Table test/t2 is encrypted but decryption failed\. Seems that the encryption key fetched from keyring is not the correct one\. Are you using the correct keyring?
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$test_error_log
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=The page \[page id: space=6, page number=4\] in file '\./test/t2\.ibd' cannot be decrypted\. Are you using correct keyring?
+--source include/search_pattern_in_file.inc
 
 --echo
 --echo # Start server with keys2.txt
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
 -- let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
--- source include/restart_mysqld.inc
+-- source include/start_mysqld.inc
+
+--remove_file $test_error_log

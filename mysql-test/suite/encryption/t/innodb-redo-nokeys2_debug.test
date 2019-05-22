@@ -1,0 +1,89 @@
+# Test scenario when there are updates/inserts to encrypted table in redo log, but the keyring
+# with encryption key is not available.
+
+# There are two versions of this test - one for debug and the other for release. Please check PS-5590 for details.
+--source include/have_debug.inc
+
+SET GLOBAL innodb_file_per_table = ON;
+
+create table t1(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed ENCRYPTION='KEYRING' encryption_key_id=20;
+create table t2(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed;
+create table t3(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb ENCRYPTION='KEYRING' encryption_key_id=20;
+create table t4(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb;
+
+begin;
+--disable_query_log
+--let $i = 20
+begin;
+while ($i)
+{
+  eval insert into t1(a,c,b) values ($i, repeat('secret1',20), repeat('secret2',6000));
+  dec $i;
+}
+--enable_query_log
+
+insert into t2 select * from t1;
+insert into t3 select * from t1;
+insert into t4 select * from t1;
+commit;
+
+# If checkpoint happens we will skip this test.
+# If no checkpoint happens, InnoDB refuses to start as used
+# encryption key is not found.
+
+# We are restarting mysql to be sure that redo log was proceed and we get a clean checkout
+# in no_checkpoint_start (tables were created and no write to page0 will be in a redo log)
+--let $restart_hide_args=1
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
+--source include/restart_mysqld.inc
+
+--source include/no_checkpoint_start.inc
+
+SET GLOBAL innodb_flush_log_at_trx_commit=1;
+begin;
+update t1 set c = repeat('secret3', 20);
+update t2 set c = repeat('secret4', 20);
+update t3 set c = repeat('secret4', 20);
+update t4 set c = repeat('secret4', 20);
+insert into t1 (a,c,b) values (21, repeat('secret5',20), repeat('secret6',6000));
+insert into t2 (a,c,b) values (21, repeat('secret7',20), repeat('secret8',6000));
+insert into t3 (a,c,b) values (21, repeat('secret9',20), repeat('secre10',6000));
+insert into t4 (a,c,b) values (21, repeat('secre11',20), repeat('secre12',6000));
+COMMIT;
+
+let $cleanup= drop table t1,t2,t3,t4;
+--let CLEANUP_IF_CHECKPOINT= $cleanup;
+--source include/no_checkpoint_end.inc
+
+--let $error_log=$MYSQLTEST_VARDIR/tmp/my_restart.err
+
+--error 1
+--exec $MYSQLD_CMD --log-error=$error_log
+
+# We should get error in error log as it should not be possible to apply redo logs
+# to encrypted tables
+
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$error_log
+--let SEARCH_PATTERN=Tablespace id 4 in file t1.ibd is encrypted but
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=Tablespace id 5 in file t2.ibd is encrypted but
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=Tablespace id 6 in file t3.ibd is encrypted but
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=Tablespace id 7 in file t4.ibd is encrypted but
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN=keyring or used key_id 20 is not available. Can't continue reading table
+--source include/search_pattern_in_file.inc
+
+# In above server does start but InnoDB refuses to start
+# thus we need to restart server with correct key file
+
+--echo # Restart mysqld
+--let $restart_hide_args=1
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
+--source include/start_mysqld.inc
+
+--remove_file $error_log
+
+drop table t1,t2,t3,t4;

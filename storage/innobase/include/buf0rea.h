@@ -45,7 +45,7 @@ released by the i/o-handler thread.
 @param[in]	page_size	page size
 @retval DB_SUCCESS if the page was read and is not corrupted,
 @retval DB_PAGE_CORRUPTED if page based on checksum check is corrupted,
-@retval DB_DECRYPTION_FAILED if page post encryption checksum matches but
+@retval DB_IO_DECRYPT_FAIL if page post encryption checksum matches but
 after decryption normal page checksum does not match.
 @retval DB_TABLESPACE_DELETED if tablespace .ibd file is missing */
 dberr_t buf_read_page(const page_id_t &page_id, const page_size_t &page_size,

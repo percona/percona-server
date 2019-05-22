@@ -1117,8 +1117,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   if (space->crypt_data) {
     /* Write encryption metadata to page 0 if tablespace is
     encrypted or encryption is disabled by table option. */
-    if (space->crypt_data && (space->crypt_data->should_encrypt() ||
-                              space->crypt_data->not_encrypted())) {
+    if (space->crypt_data) {
       space->crypt_data->write_page0(
           space, page, mtr, space->crypt_data->min_key_version,
           space->crypt_data->type, space->crypt_data->encryption_rotation);

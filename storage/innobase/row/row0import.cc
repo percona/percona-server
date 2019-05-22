@@ -2192,7 +2192,7 @@ dberr_t PageConverter::operator()(os_offset_t offset,
           << offset << " in file " << m_filepath << " cannot be decrypted. "
           << "Are you using correct keyring that contain the key used to "
           << "encrypt the tablespace before it was discared ?";
-      return (DB_DECRYPTION_FAILED);
+      return (DB_IO_DECRYPT_FAIL);
 
     case IMPORT_PAGE_STATUS_CORRUPTED:
 
@@ -3652,7 +3652,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
     innobase_format_name(table_name, sizeof(table_name), table->name.m_name);
 
-    if (err != DB_DECRYPTION_FAILED) {
+    if (err != DB_IO_DECRYPT_FAIL) {
       ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_INTERNAL_ERROR,
               "Cannot reset LSNs in table %s : %s", table_name, ut_strerr(err));
     }

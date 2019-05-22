@@ -1715,7 +1715,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
     /* Do not continue if table pages are still encrypted */
     if (!old_table->is_readable() || !new_table->is_readable()) {
-      err = DB_DECRYPTION_FAILED;
+      err = DB_IO_DECRYPT_FAIL;
       trx->error_key_num = 0;
       goto func_exit;
     }
@@ -3723,10 +3723,8 @@ dberr_t row_merge_build_indexes(
   }
 
   if (!old_table->is_readable() || !new_table->is_readable()) {
-    error = DB_DECRYPTION_FAILED;
-    ib::warn() << "Table %s is encrypted but encryption service or"
-                  " used key_id is not available. "
-                  " Can't continue reading table.";
+    error = DB_IO_DECRYPT_FAIL;
+    ib::warn(ER_XB_MSG_4, table->s->table_name.str);
     goto func_exit;
   }
 

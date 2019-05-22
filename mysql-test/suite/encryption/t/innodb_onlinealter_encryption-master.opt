@@ -3,4 +3,4 @@ $KEYRING_PLUGIN_OPT
 --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
 --innodb-encrypt-tables=ONLINE_TO_KEYRING
 --innodb-encryption-rotate-key-age=15
---innodb-encryption-threads=4
+--innodb-encryption-threads=0

@@ -393,6 +393,7 @@ enum monitor_id_t {
   MONITOR_PAD_DECREMENTS,
 
   /* New monitor variables for page encryption */
+  MONITOR_MODULE_ENCRYPTION,
   MONITOR_OVLD_PAGES_ENCRYPTED,
   MONITOR_OVLD_PAGES_DECRYPTED,
 

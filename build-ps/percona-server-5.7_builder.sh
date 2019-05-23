@@ -102,13 +102,6 @@ add_percona_yum_repo(){
 
 add_percona_apt_repo(){
   if [ ! -f /etc/apt/sources.list.d/percona-dev.list ]; then
-    if [ "x$RHEL" = "x8" ]; then
-      echo -e '[main]\nenabled=0\n' > /etc/yum/pluginconf.d/subscription-manager.conf
-      echo 'strict=0' >> /etc/dnf/dnf.conf
-      echo 'strict=0' >> /etc/yum/yum.conf
-      wget -O /etc/yum.repos.d/rhel8-beta.repo https://jenkins.percona.com/yum-repo/rhel8/rhel8-beta.repo
-      wget -O /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
-    fi
     curl -o /etc/apt/sources.list.d/percona-dev.list https://jenkins.percona.com/apt-repo/percona-dev.list.template
     sed -i "s:@@DIST@@:$OS_NAME:g" /etc/apt/sources.list.d/percona-dev.list
   fi

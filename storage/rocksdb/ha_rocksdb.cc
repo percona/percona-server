@@ -3423,8 +3423,6 @@ static void set_tx_on_thd(THD *const thd, Rdb_transaction *trx) {
   return get_ha_data(thd)->set_trx(trx);
 }
 
-namespace {
-
 class Rdb_perf_context_guard {
   Rdb_io_perf m_io_perf;
   Rdb_io_perf *m_io_perf_ptr;
@@ -3459,8 +3457,6 @@ class Rdb_perf_context_guard {
     }
   }
 };
-
-}  // anonymous namespace
 
 /*
   TODO: maybe, call this in external_lock() and store in ha_rocksdb..

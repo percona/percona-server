@@ -257,7 +257,7 @@ rocksdb::UserCollectedProperties Rdb_tbl_prop_coll::GetReadableProperties()
   s.append("  records...]");
 #else
   bool first = true;
-  for (auto it : m_stats) {
+  for (const auto &it : m_stats) {
     if (first) {
       first = false;
     } else {

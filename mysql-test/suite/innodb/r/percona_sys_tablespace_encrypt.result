@@ -2,7 +2,7 @@ call mtr.add_suppression("Found 1 prepared XA transactions");
 # Do tests on un-encrypted system tablespace
 SELECT @@innodb_sys_tablespace_encrypt;
 @@innodb_sys_tablespace_encrypt
-0
+OFF
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 CREATE TABLE t2(a TEXT) TABLESPACE = innodb_system;
@@ -57,7 +57,7 @@ Pattern found.
 # restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON
 SELECT @@innodb_sys_tablespace_encrypt;
 @@innodb_sys_tablespace_encrypt
-1
+ON
 include/assert.inc [System tablespace should be encrypted]
 CREATE TABLE t1(a TEXT) TABLESPACE = innodb_system;
 CREATE TABLE t2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
@@ -165,7 +165,7 @@ CREATE TABLE t9(a TEXT) ENCRYPTION='Y';
 INSERT INTO t9 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
 SELECT @@innodb_sys_tablespace_encrypt;
 @@innodb_sys_tablespace_encrypt
-1
+ON
 ALTER TABLE t9 TABLESPACE=`innodb_system`;
 SHOW CREATE TABLE t9;
 Table	Create Table
@@ -191,10 +191,10 @@ XA PREPARE 'x1';
 # PS-5652 - innodb_sys_tablespace_encrypt must not be allowed to be persisted
 #
 SET PERSIST_ONLY innodb_sys_tablespace_encrypt = ON;
-ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent read only variable
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent variable
 SET PERSIST_ONLY innodb_sys_tablespace_encrypt = OFF;
-ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent read only variable
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent variable
 SET PERSIST innodb_sys_tablespace_encrypt = ON;
-ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent variable
 SET PERSIST innodb_sys_tablespace_encrypt = OFF;
-ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent variable

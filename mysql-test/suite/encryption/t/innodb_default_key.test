@@ -94,12 +94,14 @@ SHOW CREATE TABLE t7;
 --source include/assert.inc
 --let $assert_text= Table t7 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted) and CURRENT_KEY_ID = 6
 --let $assert_cond= "[SELECT MIN_KEY_VERSION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t7\\" AND CURRENT_KEY_ID = 6]" = 1
+--source include/assert.inc
 
+# Disable ONLINE_TO_KEYRING encryption for a moment to create MK encrypted tablespace
+SET GLOBAL innodb_encrypt_tables=OFF;
 --echo # Both statements should produce warnings
 CREATE TABLE t8 (a varchar(255)) ENCRYPTION="Y" ENCRYPTION_KEY_ID=5 ENGINE=innodb;
 CREATE TABLE t9 (a varchar(255)) ENCRYPTION="N" ENCRYPTION_KEY_ID=5 ENGINE=innodb;
-
---source include/assert.inc
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
 
 drop table t1,t2,t3,t4,t5,t6,t7,t8,t9;
 

@@ -1,0 +1,262 @@
+let $MYSQLD_BASEDIR= `select @@basedir`;
+
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+
+--echo # Online encryption to keyring is ON. It should not be possible to create
+--echo # MK encrypted table or MK encrypted general tablespace.
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1 (a varchar(255)) ENGINE=INNODB ENCRYPTION='Y';
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd' ENCRYPTION = 'Y' Engine=InnoDB;
+
+--echo # It should not be possible to turn on undo-tablespace-encrypt
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_undo_log_encrypt=ON;
+SHOW WARNINGS;
+
+SET GLOBAL innodb_encrypt_tables=OFF;
+
+--echo # It should be now possible to turn on above encryptions
+
+CREATE TABLE t1 (a varchar(255)) ENGINE=INNODB ENCRYPTION='Y';
+CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd' ENCRYPTION = 'Y' Engine=InnoDB;
+SET GLOBAL innodb_undo_log_encrypt=ON;
+
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+--echo # It should not be possible to turn on online to keyring encryption with
+--echo # undo log encryption turned on.
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SHOW WARNINGS;
+
+--echo # Stop the instance which was created by MTR
+--source include/shutdown_mysqld.inc
+
+--echo # System tablespace encryption is a bootstrap only option. It should not be
+--echo # possible to bootstrap server with system tablespace encryption and
+--echo # encryption threads turned on.
+
+--mkdir $MYSQL_TMP_DIR/datadir1
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
+--let KEYRING_DATA="--keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring"
+--let BOOT_LOG=$MYSQLTEST_VARDIR/tmp/boot.log
+
+--let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb-sys-tablespace-encrypt=ON --innodb-encrypt-tables=ONLINE_TO_KEYRING $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $BOOT_LOG 2>&1
+
+--error 1
+--exec $BOOTSTRAP_CMD
+
+--let SEARCH_PATTERN=Online to Keyring encryption cannot be turned ON, when system tablespace is to be Master Key encrypted. Please choose if system tablespace should be encrypted with Master Key or KEYRING.
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$BOOT_LOG
+--source include/search_pattern_in_file.inc
+
+--remove_file $BOOT_LOG
+
+--echo # It should not be possible to bootstrap server with encryption threads turned ON and
+--echo # innodb-sys-tablespace-encrypt=RE_ENCRYPTING_TO_KEYRING as this option does not make sense.
+--echo # System tablespace is not yet encrypted at this point.
+
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb-sys-tablespace-encrypt=RE_ENCRYPTING_TO_KEYRING --innodb-encrypt-tables=ONLINE_TO_KEYRING $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $BOOT_LOG 2>&1
+
+--error 1
+--exec $BOOTSTRAP_CMD
+
+--let SEARCH_PATTERN=You are bootstrapping server with --srv_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING and Online to keyring encryption ON. RE_ENCRYPTING_TO_KEYRING does not make sense in this case as system tablespace has not yet been encrypted. Please set --srv_sys_tablespace_encrypt to OFF and activate encryption threads if you want it to be encrypted with KEYRING encryption by encryption threads or set it to ON and turn off online encryption to keyring if you want it to be encrypted with Master Key encryption.
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$BOOT_LOG
+--source include/search_pattern_in_file.inc
+
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --innodb-sys-tablespace-encrypt=ON --innodb-encrypt-tables=OFF $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $BOOT_LOG 2>&1
+
+--echo # Bootstrap new instance with encrypted system tablespace
+--exec $BOOTSTRAP_CMD
+
+--let RESTART_LOG=$MYSQLTEST_VARDIR/tmp/restart.log
+
+--echo # Check if online to keyring encryption cannot be activated as
+--echo # startup option when system tablespace is encrypted
+
+--error 1
+--exec $MYSQLD_CMD --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON --innodb-encrypt-tables=ONLINE_TO_KEYRING  $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $RESTART_LOG 2>&1
+
+--let SEARCH_PATTERN=Online to Keyring encryption cannot be turned ON, when system tablespace is Master Key encrypted\. Please set --innodb-sys_tablespace_encrypt to RE_ENCRYPING_TO_KEYRING to allow encryption threads to re-encrypt system tablespace with KEYRING encryption\.
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$RESTART_LOG
+--source include/search_pattern_in_file.inc
+
+--remove_file $RESTART_LOG
+
+--echo # Start the instance with encrypted system tablespace
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON"
+--source include/start_mysqld.inc
+
+--echo # It should not be possible to turn on ONLINE_TO_KEYRING* encryption
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SHOW WARNINGS;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING_FORCE;
+SHOW WARNINGS;
+
+--echo # It should not be possible to disable Master Key encryption by
+--echo # setting sys_tablespace_encrypt to OFF
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_sys_tablespace_encrypt=OFF;
+SHOW WARNINGS;
+
+SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
+--echo # Since we have not started encryption threads with online to keyring
+--echo # encryption it should still be possible to turn
+--echo # innodb_sys_tablespace_encrypt back to ON.
+SET GLOBAL innodb_sys_tablespace_encrypt=ON;
+
+--echo # Now lets try re-encrypt system tablespace with keyring encryption
+SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces, apart from
+--echo # temporary tablespace
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--echo # Now that system tablespace is encrypted with keyring it should not be
+--echo # possible to change innodb_sys_tablespace_encrypt - it should remain
+--echo # RE_ENCRYPTING_TO_KEYRING
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_sys_tablespace_encrypt=ON;
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_sys_tablespace_encrypt=OFF;
+SHOW WARNINGS;
+
+SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
+
+--echo # It should not be possible to start server with --innodb-sys-tablespace
+--echo # set to ON once system tablespace was encrypted with encryption threads.
+
+--source include/shutdown_mysqld.inc
+
+--error 1
+--exec $MYSQLD_CMD --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $RESTART_LOG 2>&1
+
+--let SEARCH_PATTERN=The system tablespace was \(or is\) encrypted with keyring. Since then the system tablespace encryption is governed by encryption threads\. Use them to encrypt/decrypt system tablespace\.
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$RESTART_LOG
+--source include/search_pattern_in_file.inc
+
+--remove_file $RESTART_LOG
+
+--echo # It should not be possible to turn on the MK undo encryption, since undo tablespace is already encrypted with KEYRING
+--echo # encryption. It should not be possible to turn it on, even if encryption threads are disabled.
+
+--error 1
+--exec $MYSQLD_CMD --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=RE_ENCRYPTING_TO_KEYRING --innodb-undo-log-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $RESTART_LOG 2>&1
+
+--let SEARCH_PATTERN=Undo log cannot be encrypted with Master Key encryption while there are undo tablespaces encrypted with KEYRING encryption\. Please decrypt them first with encryption threads\.
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$RESTART_LOG
+--source include/search_pattern_in_file.inc
+
+--remove_file $RESTART_LOG
+
+--echo # Now we start the server and decrypt the system tablespace. It still should not be
+--echo # possible to set sys_tablespace_encrypt to different value than RE_ENCRYPTING_TO_KEYRING.
+
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=RE_ENCRYPTING_TO_KEYRING --innodb-encrypt-tables=OFF --innodb-encryption-threads=4"
+--source include/start_mysqld.inc
+
+--echo # Check also that undo tablespace encryption cannot be turned on if undo tablespace
+--echo # is already encrypted with encryption threads and keyring encryption is off.
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_undo_log_encrypt=ON;
+SHOW WARNINGS;
+
+SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+
+--echo # Wait max 10 min for key encryption threads to decrypt all spaces, apart from
+--echo # temporary tablespace
+--let $wait_timeout= 600
+--let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--echo # System tablespace is now unencrypted
+--echo # Disable encryption threads to be sure that it is not encryption threads
+--echo # fault that sys_tablespace_encrypt cannot be changed.
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL innodb_encrypt_tables = OFF;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_sys_tablespace_encrypt=ON;
+SHOW WARNINGS;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_sys_tablespace_encrypt=OFF;
+SHOW WARNINGS;
+
+--echo # Since undo tablespace is now decrypted it should be possible to
+--echo # encrypt it with MK encryption.
+SET GLOBAL innodb_undo_log_encrypt=ON;
+
+--source include/shutdown_mysqld.inc
+
+--let RESTART_LOG=$MYSQLTEST_VARDIR/tmp/restart.log
+
+--echo # There is no way back from KEYRING encryption to Master Key encryption
+--echo # - even if the system tablespace was unencrypted. Print appropriate
+--echo # messages.
+
+--error 1
+--exec $MYSQLD_CMD --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $RESTART_LOG 2>&1
+
+--let SEARCH_PATTERN=The system tablespace was \(or is\) encrypted with keyring. Since then the system tablespace encryption is governed by encryption threads\. Use them to encrypt/decrypt system tablespace\.
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$RESTART_LOG
+--source include/search_pattern_in_file.inc
+
+--remove_file $RESTART_LOG
+
+--echo # It should not be possible to start server with Master Key undo log encryption
+--echo # turned on and encryption threads turned on.
+
+--error 1
+--exec $MYSQLD_CMD --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=RE_ENCRYPTING_TO_KEYRING --innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-undo-log-encrypt=ON $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $RESTART_LOG 2>&1
+
+--let SEARCH_PATTERN=Online encryption to keyring cannot be turned ON as Undo log Master Key encryption is turned ON\. You can encrypt Undo log with either Master key encryption or with KEYRING encryption, but you have to choose one\.
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$RESTART_LOG
+--source include/search_pattern_in_file.inc
+
+--echo # Since undo tablespace was decrypted (by encryption threads) it should now be possible to
+--echo # encrypt the undo tablespace with MK encryption (with disabled encryption threads).
+
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=RE_ENCRYPTING_TO_KEYRING --innodb-encrypt-tables=OFF --innodb-undo-log-encrypt=ON"
+--source include/start_mysqld.inc
+
+--source include/shutdown_mysqld.inc
+
+--echo # Start default MTR instance
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+--force-rmdir $MYSQL_TMP_DIR/datadir1
+--remove_file $RESTART_LOG
+--remove_file $BOOT_LOG
+--remove_file $BOOTSTRAP_SQL

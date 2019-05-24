@@ -473,6 +473,12 @@ ibool meb_get_checksum_algorithm_enum(const char *algo_name,
 }
 #endif /* !UNIV_HOTBACKUP */
 
+static const char *sys_tablespace_encrypt_names[] = {
+    "OFF", "ON", "RE_ENCRYPTING_TO_KEYRING", NullS};
+static TYPELIB sys_tablespace_encrypt_typelib = {
+    array_elements(sys_tablespace_encrypt_names) - 1,
+    "sys_tablespace_encrypt_typelib", sys_tablespace_encrypt_names, nullptr};
+
 static const char *redo_log_encrypt_names[] = {"off", "on", "master_key",
                                                "keyring_key", NullS};
 static TYPELIB redo_log_encrypt_typelib = {
@@ -12167,6 +12173,16 @@ bool create_table_info_t::create_option_encryption_is_valid() const {
     return (false);
   }
 
+  if (!table_is_keyring &&
+      Encryption::is_master_key_encryption(m_create_info->encrypt_type.str) &&
+      Encryption::is_online_encryption_on()) {
+    my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                    "InnoDB: ENCRYPTED='Y' not supported for table because "
+                    "online encryption to KEYRING is turned ON.",
+                    MYF(0));
+    return (false);
+  }
+
   /* Currently we do not support keyring encryption for
   spatial indexes thus do not allow creating table with forced
   encryption */
@@ -15191,6 +15207,19 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
     if (Encryption::validate(encrypt.c_str()) != DB_SUCCESS) {
       /* Incorrect encryption option */
       my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+      err = DB_UNSUPPORTED;
+      goto error_exit;
+    }
+
+    /* Validate that encryption is not MK encryption if online encryption is ON
+     */
+    if (Encryption::is_master_key_encryption(encrypt.c_str()) &&
+        Encryption::is_online_encryption_on()) {
+      my_printf_error(
+          ER_ILLEGAL_HA_CREATE_OPTION,
+          "InnoDB: ENCRYPTED='Y' not supported for tablespace because "
+          "online encryption to KEYRING is turned ON.",
+          MYF(0));
       err = DB_UNSUPPORTED;
       goto error_exit;
     }
@@ -21877,6 +21906,161 @@ static void update_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var,
   ut_ad(0);
 }
 
+/** Check if it is a valid value of innodb_undo_log_encryption_validate.
+Undo log encryption can be turned ON only if online to keyring
+encryption is disabled.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	save	immediate result for update function
+@param[in]	value	incoming bool
+@return 0 for valid innodb_track_changed_pages */
+static int innodb_undo_log_encryption_validate(THD *thd, SYS_VAR *var,
+                                               void *save,
+                                               struct st_mysql_value *value) {
+  const char *undo_log_encryption_input;
+  char buff[4];
+  int len = sizeof(buff);
+
+  ut_a(save != nullptr);
+  ut_a(value != nullptr);
+
+  undo_log_encryption_input = value->val_str(value, buff, &len);
+
+  if (len > 3) return 1;
+
+  bool is_undo_log_encryption_on =
+      !innobase_strcasecmp(undo_log_encryption_input, "ON") ||
+      !innobase_strcasecmp(undo_log_encryption_input, "1");
+
+  if (!is_undo_log_encryption_on) {
+    if (innobase_strcasecmp(undo_log_encryption_input, "OFF") != 0 &&
+        innobase_strcasecmp(undo_log_encryption_input, "0") != 0) {
+      return 1;
+    }
+  } else if (Encryption::is_online_encryption_on()) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        "Undo log cannot be"
+                        " encrypted with Master Key encryption"
+                        " when online to KEYRING encryption is turned ON.");
+    return 1;
+  } else if (check_mk_and_keyring_encrypt_exclusion_for_undo(true, thd) !=
+             DB_SUCCESS) {
+    return 1;
+  }
+
+  *reinterpret_cast<bool *>(save) = is_undo_log_encryption_on;
+  return 0;
+}
+
+static int innodb_sys_tablespace_encyption_validate(
+    THD *thd, SYS_VAR *var, void *save, struct st_mysql_value *value) {
+  const char *innodb_sys_tablespace_encryption_input;
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  int len = sizeof(buff);
+
+  ut_a(save != nullptr);
+  ut_a(value != nullptr);
+
+  innodb_sys_tablespace_encryption_input = value->val_str(value, buff, &len);
+
+  bool legit_value = false;
+  uint use = 0;
+  for (; use < array_elements(sys_tablespace_encrypt_names); use++) {
+    if (!innobase_strcasecmp(innodb_sys_tablespace_encryption_input,
+                             sys_tablespace_encrypt_names[use])) {
+      legit_value = true;
+      break;
+    }
+  }
+
+  if (!legit_value) return 1;
+
+  const auto change_to_sys_tablespace_encryption =
+      static_cast<srv_sys_tablespace_encrypt_enum>(use);
+
+  if (change_to_sys_tablespace_encryption == SYS_TABLESPACE_ENCRYPT_OFF) {
+    if (srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                          "System tablespace Master Key encryption cannot be "
+                          "turned OFF dynamically. "
+                          "However you can still re-encrypt system tablespace "
+                          "with encryption threads "
+                          "and then instruct encryption threads to decrypt the "
+                          "system tablespace.");
+      return 1;
+    }
+    if (srv_sys_tablespace_encrypt == SYS_TABLESPACE_RE_ENCRYPTING_TO_KEYRING) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+          "RE_ENCRYPTING_TO_KEYRING can be only used when system tablespace "
+          "was previously encrypted with Master Key encryption. To encrypt "
+          "system tablespace with KEYRING encryption please use encryption "
+          "threads.");
+      return 1;
+    }
+  }
+
+  if (change_to_sys_tablespace_encryption == SYS_TABLESPACE_ENCRYPT_ON) {
+    if (srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_OFF) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+          "System tablespace Master Key encryption can be turned ON only "
+          "at bootstrap. You can still encrypt System tablespace encryption "
+          "with "
+          "KEYRING encryption.");
+      return 1;
+    } else if (srv_sys_tablespace_encrypt ==
+               SYS_TABLESPACE_RE_ENCRYPTING_TO_KEYRING) {
+      // The system tablespace encryption was marked to be re-encrypted to
+      // keyring. We allow it to be set back to ON in case encryption threads
+      // were not yet activated and system tablespace remain encrypted with
+      // Master Key.
+      if (Encryption::is_online_encryption_on()) {
+        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                            "System tablespace cannot be marked as encrypted "
+                            "with Master Key encryption "
+                            "when Online to keyring encryption is turned ON or "
+                            "when system tablespace "
+                            "was already encrypted with KEYRING encryption.");
+        return 1;
+      } else {
+        fil_space_t *space = fil_space_acquire_silent(TRX_SYS_SPACE);
+        ut_ad(space != nullptr);
+        fil_space_crypt_t *crypt_data = space->crypt_data;
+        fil_space_release(space);
+
+        if (crypt_data != nullptr) {
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_WRONG_ARGUMENTS,
+                              "System tablespace cannot be marked as encrypted "
+                              "with Master Key encryption "
+                              "as it was already encrypted with KEYRING "
+                              "encryption and Master Key encryption "
+                              "is bootstrap only option.");
+          return 1;
+        }
+      }
+    }
+  }
+
+  if (change_to_sys_tablespace_encryption ==
+          SYS_TABLESPACE_RE_ENCRYPTING_TO_KEYRING &&
+      srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_OFF) {
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+        "System tablespace can only be marked to be re-encrypted with keyring "
+        "in "
+        "case it was previosly encrypted with Master Key encryption. "
+        "You still can encrypt unencrypted system tablespace with encryption "
+        "threads.");
+    return 1;
+  }
+
+  *static_cast<ulong *>(save) = use;
+
+  return 0;
+}
+
 static SHOW_VAR innodb_status_variables_export[] = {
     {"Innodb", (char *)&show_innodb_vars, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
@@ -22811,11 +22995,13 @@ static MYSQL_SYSVAR_BOOL(
     "Enable or disable encryption of temporary tablespace.", nullptr,
     innodb_temp_tablespace_encryption_update, false);
 
-static MYSQL_SYSVAR_BOOL(
+static MYSQL_SYSVAR_ENUM(
     sys_tablespace_encrypt, srv_sys_tablespace_encrypt,
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
-    "Enable this option at bootstrap to encrypt system tablespace.", nullptr,
-    nullptr, false);
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
+    "Enable this option at bootstrap to encrypt system tablespace."
+    "Set it to RE_ENCRYPTING_TO_KEYRING to allow re-encryption to KEYRING.",
+    innodb_sys_tablespace_encyption_validate, nullptr,
+    SYS_TABLESPACE_ENCRYPT_OFF, &sys_tablespace_encrypt_typelib);
 
 static MYSQL_SYSVAR_BOOL(
     parallel_dblwr_encrypt, srv_parallel_dblwr_encrypt, PLUGIN_VAR_OPCMDARG,
@@ -22890,8 +23076,8 @@ static MYSQL_SYSVAR_ULONG(
 
 static MYSQL_SYSVAR_BOOL(undo_log_encrypt, srv_undo_log_encrypt,
                          PLUGIN_VAR_OPCMDARG,
-                         "Enable or disable Encrypt of UNDO tablespace.", NULL,
-                         NULL, FALSE);
+                         "Enable or disable Encrypt of UNDO tablespace.",
+                         innodb_undo_log_encryption_validate, nullptr, FALSE);
 
 static MYSQL_SYSVAR_LONG(
     autoinc_lock_mode, innobase_autoinc_lock_mode,
@@ -24387,7 +24573,33 @@ static int innodb_encrypt_tables_validate(
   }
 
   if (legit_value == false) return 1;
-  *static_cast<ulong *>(save) = use;
+
+  const auto change_to_encrypt_tables =
+      static_cast<srv_encrypt_tables_values>(use);
+
+  if (change_to_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING ||
+      change_to_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE) {
+    if (srv_undo_log_encrypt == true) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                          "Online encryption to KEYRING cannot be turned ON"
+                          " as Undo log Master Key encryption is turned ON."
+                          " Please disable the Undo log Master key encryption"
+                          " (innodb_undo_log_encrypt) and try again.");
+      return 1;
+    }
+    if (srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+          "Online encryption to KEYRING cannot be turned ON"
+          " as system tablespace is encrypted with Master Key"
+          " encryption. In case you want system tablespace to"
+          " get re-encrypted with KEYRING encryption set"
+          " --innodb-sys_tablespace_encrypt to RE_ENCRYPTING_TO_KEYRING");
+      return 1;
+    }
+  }
+
+  *static_cast<ulong *>(save) = change_to_encrypt_tables;
 
   return 0;
 }

@@ -1,0 +1,138 @@
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+# Online encryption to keyring is ON. It should not be possible to create
+# MK encrypted table or MK encrypted general tablespace.
+CREATE TABLE t1 (a varchar(255)) ENGINE=INNODB ENCRYPTION='Y';
+ERROR HY000: InnoDB: ENCRYPTED='Y' not supported for table because online encryption to KEYRING is turned ON.
+CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd' ENCRYPTION = 'Y' Engine=InnoDB;
+ERROR HY000: InnoDB: ENCRYPTED='Y' not supported for tablespace because online encryption to KEYRING is turned ON.
+# It should not be possible to turn on undo-tablespace-encrypt
+SET GLOBAL innodb_undo_log_encrypt=ON;
+ERROR 42000: Variable 'innodb_undo_log_encrypt' can't be set to the value of 'ON'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1210	Undo log cannot be encrypted with Master Key encryption when online to KEYRING encryption is turned ON.
+Error	1231	Variable 'innodb_undo_log_encrypt' can't be set to the value of 'ON'
+SET GLOBAL innodb_encrypt_tables=OFF;
+# It should be now possible to turn on above encryptions
+CREATE TABLE t1 (a varchar(255)) ENGINE=INNODB ENCRYPTION='Y';
+CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd' ENCRYPTION = 'Y' Engine=InnoDB;
+SET GLOBAL innodb_undo_log_encrypt=ON;
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+# It should not be possible to turn on online to keyring encryption with
+# undo log encryption turned on.
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+ERROR 42000: Variable 'innodb_encrypt_tables' can't be set to the value of 'ONLINE_TO_KEYRING'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1210	Online encryption to KEYRING cannot be turned ON as Undo log Master Key encryption is turned ON. Please disable the Undo log Master key encryption (innodb_undo_log_encrypt) and try again.
+Error	1231	Variable 'innodb_encrypt_tables' can't be set to the value of 'ONLINE_TO_KEYRING'
+# Stop the instance which was created by MTR
+# System tablespace encryption is a bootstrap only option. It should not be
+# possible to bootstrap server with system tablespace encryption and
+# encryption threads turned on.
+# create bootstrap file
+# It should not be possible to bootstrap server with encryption threads turned ON and
+# innodb-sys-tablespace-encrypt=RE_ENCRYPTING_TO_KEYRING as this option does not make sense.
+# System tablespace is not yet encrypted at this point.
+# Bootstrap new instance with encrypted system tablespace
+# Check if online to keyring encryption cannot be activated as
+# startup option when system tablespace is encrypted
+# Start the instance with encrypted system tablespace
+# restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON
+# It should not be possible to turn on ONLINE_TO_KEYRING* encryption
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+ERROR 42000: Variable 'innodb_encrypt_tables' can't be set to the value of 'ONLINE_TO_KEYRING'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1210	Online encryption to KEYRING cannot be turned ON as system tablespace is encrypted with Master Key encryption. In case you want system tablespace to get re-encrypted with KEYRING encryption set --innodb-sys_tablespace_encrypt to RE_ENCRYPTING_TO_KEYRING
+Error	1231	Variable 'innodb_encrypt_tables' can't be set to the value of 'ONLINE_TO_KEYRING'
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING_FORCE;
+ERROR 42000: Variable 'innodb_encrypt_tables' can't be set to the value of 'ONLINE_TO_KEYRING_FORCE'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1210	Online encryption to KEYRING cannot be turned ON as system tablespace is encrypted with Master Key encryption. In case you want system tablespace to get re-encrypted with KEYRING encryption set --innodb-sys_tablespace_encrypt to RE_ENCRYPTING_TO_KEYRING
+Error	1231	Variable 'innodb_encrypt_tables' can't be set to the value of 'ONLINE_TO_KEYRING_FORCE'
+# It should not be possible to disable Master Key encryption by
+# setting sys_tablespace_encrypt to OFF
+SET GLOBAL innodb_sys_tablespace_encrypt=OFF;
+ERROR 42000: Variable 'innodb_sys_tablespace_encrypt' can't be set to the value of 'OFF'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1210	System tablespace Master Key encryption cannot be turned OFF dynamically. However you can still re-encrypt system tablespace with encryption threads and then instruct encryption threads to decrypt the system tablespace.
+Error	1231	Variable 'innodb_sys_tablespace_encrypt' can't be set to the value of 'OFF'
+SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
+# Since we have not started encryption threads with online to keyring
+# encryption it should still be possible to turn
+# innodb_sys_tablespace_encrypt back to ON.
+SET GLOBAL innodb_sys_tablespace_encrypt=ON;
+# Now lets try re-encrypt system tablespace with keyring encryption
+SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+# Wait max 10 min for key encryption threads to encrypt all spaces, apart from
+# temporary tablespace
+# Now that system tablespace is encrypted with keyring it should not be
+# possible to change innodb_sys_tablespace_encrypt - it should remain
+# RE_ENCRYPTING_TO_KEYRING
+SET GLOBAL innodb_sys_tablespace_encrypt=ON;
+ERROR 42000: Variable 'innodb_sys_tablespace_encrypt' can't be set to the value of 'ON'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1210	System tablespace cannot be marked as encrypted with Master Key encryption when Online to keyring encryption is turned ON or when system tablespace was already encrypted with KEYRING encryption.
+Error	1231	Variable 'innodb_sys_tablespace_encrypt' can't be set to the value of 'ON'
+SET GLOBAL innodb_sys_tablespace_encrypt=OFF;
+ERROR 42000: Variable 'innodb_sys_tablespace_encrypt' can't be set to the value of 'OFF'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1210	RE_ENCRYPTING_TO_KEYRING can be only used when system tablespace was previously encrypted with Master Key encryption. To encrypt system tablespace with KEYRING encryption please use encryption threads.
+Error	1231	Variable 'innodb_sys_tablespace_encrypt' can't be set to the value of 'OFF'
+SET GLOBAL innodb_sys_tablespace_encrypt=RE_ENCRYPTING_TO_KEYRING;
+# It should not be possible to start server with --innodb-sys-tablespace
+# set to ON once system tablespace was encrypted with encryption threads.
+# It should not be possible to turn on the MK undo encryption, since undo tablespace is already encrypted with KEYRING
+# encryption. It should not be possible to turn it on, even if encryption threads are disabled.
+# Now we start the server and decrypt the system tablespace. It still should not be
+# possible to set sys_tablespace_encrypt to different value than RE_ENCRYPTING_TO_KEYRING.
+# restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=RE_ENCRYPTING_TO_KEYRING --innodb-encrypt-tables=OFF --innodb-encryption-threads=4
+# Check also that undo tablespace encryption cannot be turned on if undo tablespace
+# is already encrypted with encryption threads and keyring encryption is off.
+SET GLOBAL innodb_undo_log_encrypt=ON;
+ERROR 42000: Variable 'innodb_undo_log_encrypt' can't be set to the value of 'ON'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1210	 Undo log cannot be encrypted with Master Key encryption while there are undo tablespaces encrypted with KEYRING encryption. Please decrypt them first with encryption threads.
+Error	1231	Variable 'innodb_undo_log_encrypt' can't be set to the value of 'ON'
+SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+# Wait max 10 min for key encryption threads to decrypt all spaces, apart from
+# temporary tablespace
+# System tablespace is now unencrypted
+# Disable encryption threads to be sure that it is not encryption threads
+# fault that sys_tablespace_encrypt cannot be changed.
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL innodb_encrypt_tables = OFF;
+SET GLOBAL innodb_sys_tablespace_encrypt=ON;
+ERROR 42000: Variable 'innodb_sys_tablespace_encrypt' can't be set to the value of 'ON'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1210	System tablespace cannot be marked as encrypted with Master Key encryption as it was already encrypted with KEYRING encryption and Master Key encryption is bootstrap only option.
+Error	1231	Variable 'innodb_sys_tablespace_encrypt' can't be set to the value of 'ON'
+SET GLOBAL innodb_sys_tablespace_encrypt=OFF;
+ERROR 42000: Variable 'innodb_sys_tablespace_encrypt' can't be set to the value of 'OFF'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1210	RE_ENCRYPTING_TO_KEYRING can be only used when system tablespace was previously encrypted with Master Key encryption. To encrypt system tablespace with KEYRING encryption please use encryption threads.
+Error	1231	Variable 'innodb_sys_tablespace_encrypt' can't be set to the value of 'OFF'
+# Since undo tablespace is now decrypted it should be possible to
+# encrypt it with MK encryption.
+SET GLOBAL innodb_undo_log_encrypt=ON;
+# There is no way back from KEYRING encryption to Master Key encryption
+# - even if the system tablespace was unencrypted. Print appropriate
+# messages.
+# It should not be possible to start server with Master Key undo log encryption
+# turned on and encryption threads turned on.
+# Since undo tablespace was decrypted (by encryption threads) it should now be possible to
+# encrypt the undo tablespace with MK encryption (with disabled encryption threads).
+# restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=RE_ENCRYPTING_TO_KEYRING --innodb-encrypt-tables=OFF --innodb-undo-log-encrypt=ON
+# Start default MTR instance
+# restart

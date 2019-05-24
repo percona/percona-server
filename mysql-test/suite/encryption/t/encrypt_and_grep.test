@@ -27,7 +27,11 @@ show warnings;
 create table t3 (a varchar(255)) engine=innodb encryption='N';
 create table t4 (a varchar(255)) engine=innodb encryption='KEYRING' encryption_key_id=5;
 
+# Disable ONLINE_TO_KEYRING encryption for a moment to create MK encrypted tablespace
+SET GLOBAL innodb_encrypt_tables=OFF;
 CREATE TABLESPACE ts_encrypted ADD DATAFILE 'ts_encrypted.ibd' ENCRYPTION="Y" ENGINE="InnoDB";
+SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+
 CREATE TABLE t5 (a varchar(255)) TABLESPACE ts_encrypted ENGINE="InnoDB";
 
 CREATE TABLESPACE ts_rk_encrypted ADD DATAFILE 'ts_rk_encrypted.ibd' ENCRYPTION='KEYRING' ENGINE="InnoDB";

@@ -263,3 +263,15 @@ disconnect con1;
 --remove_file $BOOTSTRAP_SQL
 --force-rmdir $MYSQL_TMP_DIR/datadir1
 --remove_file $MYSQLTEST_VARDIR/tmp/boot.log
+
+--echo #
+--echo # PS-5652 - innodb_sys_tablespace_encrypt must not be allowed to be persisted
+--echo #
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY innodb_sys_tablespace_encrypt = ON;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY innodb_sys_tablespace_encrypt = OFF;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST innodb_sys_tablespace_encrypt = ON;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST innodb_sys_tablespace_encrypt = OFF;

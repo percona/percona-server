@@ -5,6 +5,7 @@
 .. toctree::
    :maxdepth: 1
 
+   Percona-Server-5.7.26-29
    Percona-Server-5.7.25-28
    Percona-Server-5.7.24-27
    Percona-Server-5.7.24-26

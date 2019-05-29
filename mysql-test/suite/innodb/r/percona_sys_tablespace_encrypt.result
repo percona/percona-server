@@ -187,3 +187,14 @@ XA PREPARE 'x1';
 # Kill and restart: --datadir=MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=ON
 # Start default MTR instance
 # restart
+#
+# PS-5652 - innodb_sys_tablespace_encrypt must not be allowed to be persisted
+#
+SET PERSIST_ONLY innodb_sys_tablespace_encrypt = ON;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent read only variable
+SET PERSIST_ONLY innodb_sys_tablespace_encrypt = OFF;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a non persistent read only variable
+SET PERSIST innodb_sys_tablespace_encrypt = ON;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable
+SET PERSIST innodb_sys_tablespace_encrypt = OFF;
+ERROR HY000: Variable 'innodb_sys_tablespace_encrypt' is a read only variable

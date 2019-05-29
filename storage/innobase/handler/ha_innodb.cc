@@ -3910,6 +3910,8 @@ static bool innobase_is_supported_system_table(const char *db,
 /* mutex protecting the master_key_id */
 ib_mutex_t	master_key_id_mutex;
 
+void srv_enable_undo_encryption_if_set();
+
 /** Fix the empty UUID of tablespaces like system, temp etc by generating
 a new master key and do key rotation. These tablespaces if encrypted
 during startup, will be encrypted with tablespace key which has empty UUID
@@ -3917,20 +3919,25 @@ during startup, will be encrypted with tablespace key which has empty UUID
 bool
 innobase_fix_tablespaces_empty_uuid()
 {
+	if (Encryption::master_key_id == 0) {
+		/* We have to call srv_enable_redo_encryption during every
+		 startup, to report errors generated in this function correctly.
+		 Without this call here, some illegal configurations, such as
+		 enabling encryption without a keyring are silently accepted,
+		 and result in errors later during the server run.
+		 These functions are also called later, when the 
+		 master key is correctly set up, later in this function. */
+		if(srv_enable_redo_encryption()) {
+			srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
+		} else {
+			redo_rotate_default_key();
+		}
+	}
+
 	/* If we are in read only mode, we cannot do rotation but it
 	is OK */
 	if (srv_read_only_mode) {
 		return(false);
-	}
-
-	if (Encryption::master_key_id == 0 && srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
-		/* redo log can be encrypted with keyring_key, which has to be 
-		   initialized even when nothing's encrypted with master_key - in
-		   which case, master_key_id == 0, so this condition succeeds. 
-		   We call this function here, because otherwise, if the redo log
-		   is encrypted with master_key, log encryption has to be initialized
-		   after Encryption::create_master_key. */
-		log_enable_encryption_if_set();
 	}
 
 	/* We only need to handle the case when an encrypted tablespace
@@ -3963,7 +3970,11 @@ innobase_fix_tablespaces_empty_uuid()
 		return(true);
 	}
 
-	log_enable_encryption_if_set();
+	if (srv_enable_redo_encryption()) {
+		srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
+	} else {
+		redo_rotate_default_key();
+	}
 
 	/** Check if sys, temp need rotation to fix the empty uuid */
 	/* Also, in future, it is possible to fix empty uuid for redo & undo
@@ -21439,12 +21450,36 @@ innodb_temp_tablespace_encryption_update(
 @param[in]	save	immediate result from check function */
 static
 void
-innodb_redo_encryption_update(
+update_innodb_redo_log_encrypt(
 	THD*				thd,
 	struct st_mysql_sys_var*	var,
 	void*				var_ptr,
 	const void*			save)
 {
+	const ulong target = *static_cast<const ulong *>(save);
+
+	if (srv_redo_log_encrypt == target) {
+		/* No change */
+		return;
+	}
+
+	if (target == REDO_LOG_ENCRYPT_OFF) {
+  		srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
+ 		return;
+	}
+
+	if (srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF
+	    && srv_redo_log_encrypt != target) {
+		push_warning_printf(
+			thd, Sql_condition::SL_WARNING,
+			ER_WRONG_ARGUMENTS,
+			" Redo log encryption mode"
+			" can't be switched without stopping the server and"
+			" recreating the redo logs.");
+	    return;
+	}
+
+
 	if (srv_read_only_mode) {
 		push_warning_printf(
 			thd, Sql_condition::SL_WARNING,
@@ -21454,10 +21489,30 @@ innodb_redo_encryption_update(
 		return;
 	}
 
-	*static_cast<ulong*>(var_ptr) =
-		*static_cast<const ulong*>(save);
+	byte iv[ENCRYPTION_KEY_LEN];
+	Encryption::random_value(iv);
 
-	log_enable_encryption_if_set();
+	if (target == REDO_LOG_ENCRYPT_MK) {
+		ut_ad(strlen(server_uuid) > 0);
+		if(srv_enable_redo_encryption_mk()) {
+			return;
+		}
+
+		srv_redo_log_encrypt = target;
+		return;
+	}
+
+	if (target == REDO_LOG_ENCRYPT_RK) {
+		ut_ad(strlen(server_uuid) > 0);
+		if(srv_enable_redo_encryption_rk()) {
+			return;
+		}
+
+		srv_redo_log_encrypt = target;
+		return;
+	}
+
+	ut_ad(0);
 }
 
 static SHOW_VAR innodb_status_variables_export[]= {
@@ -22530,7 +22585,7 @@ static MYSQL_SYSVAR_ENUM(default_row_format, innodb_default_row_format,
 static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
   PLUGIN_VAR_OPCMDARG,
   "Enable or disable Encryption of REDO tablespace. Possible values: OFF, MASTER_KEY, KEYRING_KEY.",
-  NULL, innodb_redo_encryption_update, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+  NULL, update_innodb_redo_log_encrypt, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,

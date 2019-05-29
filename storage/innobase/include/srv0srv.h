@@ -355,12 +355,6 @@ extern ulong	srv_n_log_files;
 
 extern ulong	srv_redo_log_encrypt;
 
-enum redo_log_encrypt_enum {
-	REDO_LOG_ENCRYPT_OFF = 0,
-	REDO_LOG_ENCRYPT_MK = 1,
-	REDO_LOG_ENCRYPT_RK = 2,
-};
-
 /** At startup, this is the current redo log file size.
 During startup, if this is different from srv_log_file_size_requested
 (innodb_log_file_size), the redo log will be rebuilt and this size
@@ -1052,6 +1046,19 @@ srv_was_tablespace_truncated(const fil_space_t* space);
 bool
 srv_is_undo_tablespace(
 	ulint	space_id);
+
+/** Enables master key redo encryption. 
+Doesn't depend on the srv_redo_log_encrypt variable, used by 
+SET innodb_redo_log_encrypt = MK. */
+bool srv_enable_redo_encryption_mk();
+
+/** Enables keyring key redo encryption. 
+Doesn't depend on the srv_redo_log_encrypt variable, used by 
+SET innodb_redo_log_encrypt = RK. */
+bool srv_enable_redo_encryption_rk();
+
+/** Enables redo log encryption based on srv_redo_log_encrypt. */
+bool srv_enable_redo_encryption();
 
 #ifdef UNIV_DEBUG
 /** Disables master thread. It's used by:

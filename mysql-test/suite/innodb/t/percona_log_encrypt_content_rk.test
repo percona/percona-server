@@ -1,0 +1,2 @@
+--let LOG_ENCRYPT_TYPE=KEYRING_KEY
+--source include/percona_log_encrypt_content.inc

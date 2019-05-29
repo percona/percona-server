@@ -142,6 +142,14 @@ Closes the log.
 lsn_t
 log_close(void);
 
+enum redo_log_encrypt_enum {
+	REDO_LOG_ENCRYPT_OFF = 0,
+	REDO_LOG_ENCRYPT_MK = 1,
+	REDO_LOG_ENCRYPT_RK = 2,
+};
+
+void redo_rotate_default_key();
+
 /** Write the encryption info into the log file header(the 3rd block).
 It just need to flush the file header block with current master key.
 @param[in]	key	encryption key
@@ -151,7 +159,8 @@ It just need to flush the file header block with current master key.
 bool
 log_write_encryption(
 	byte*	key,
-	byte*	iv);
+	byte*	iv,
+	redo_log_encrypt_enum redo_log_encrypt);
 
 /** Rotate the redo log encryption
  * It will re-encrypt the redo log encryption metadata and write it to
@@ -162,7 +171,7 @@ log_rotate_encryption();
 
 /** Enables redo log encryption. */
 void
-log_enable_encryption_if_set();
+redo_rotate_default_master_key();
 /************************************************************//**
 Gets the current lsn.
 @return current lsn */

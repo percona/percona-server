@@ -464,8 +464,9 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
   /* Write encryption information into the first log file header
   if redo log is set with encryption. */
   if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags) &&
-      !log_write_encryption(log_space->encryption_key, log_space->encryption_iv,
-                            true)) {
+      !log_write_encryption(
+          log_space->encryption_key, log_space->encryption_iv, true,
+          static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt))) {
     return (DB_ERROR);
   }
 

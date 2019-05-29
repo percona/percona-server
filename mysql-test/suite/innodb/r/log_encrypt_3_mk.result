@@ -38,10 +38,10 @@ UNINSTALL PLUGIN keyring_file;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
 master_key
-SET GLOBAL innodb_redo_log_encrypt = 1;
+SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-on
+master_key
 CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t1;

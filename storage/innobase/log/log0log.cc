@@ -62,7 +62,7 @@ Created 12/9/1995 Heikki Tuuri
 
 #include "system_key.h"
 
-static redo_log_encrypt_enum found_log_encryption_mode = REDO_LOG_ENCRYPT_OFF;
+redo_log_encrypt_enum existing_redo_encryption_mode = REDO_LOG_ENCRYPT_OFF;
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -1098,6 +1098,18 @@ log_group_file_header_flush(
 	srv_stats.os_log_pending_writes.dec();
 }
 
+const char* log_encrypt_name(redo_log_encrypt_enum val) {
+	switch(val) {
+	case REDO_LOG_ENCRYPT_OFF:
+		return "off";
+	case REDO_LOG_ENCRYPT_MK:
+		return "master_key";
+	case REDO_LOG_ENCRYPT_RK:
+		return "keyring_key";
+	}
+	return "unknown";
+}
+
 /* Read the first log file header to get the encryption. It's in the
 3rd block.
 @return true if success */
@@ -1125,7 +1137,7 @@ log_read_encryption()
 	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
 		   ENCRYPTION_KEY_MAGIC_RK, ENCRYPTION_MAGIC_SIZE) == 0) {
 		encryption_magic = true;
-		found_log_encryption_mode = REDO_LOG_ENCRYPT_RK;
+		existing_redo_encryption_mode = REDO_LOG_ENCRYPT_RK;
 
 		/* Make sure the keyring is loaded. */
 		if (!Encryption::check_keyring()) {
@@ -1168,7 +1180,7 @@ log_read_encryption()
 	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
 		   ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0) {
 		encryption_magic = true;
-		found_log_encryption_mode = REDO_LOG_ENCRYPT_MK;
+		existing_redo_encryption_mode = REDO_LOG_ENCRYPT_MK;
 
 		/* Make sure the keyring is loaded. */
 		if (!Encryption::check_keyring()) {
@@ -1183,6 +1195,22 @@ log_read_encryption()
 
 	}
 	if (encrypted_log) {
+		if (existing_redo_encryption_mode != srv_redo_log_encrypt &&
+		    srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF) {
+			ib::warn() <<
+				" Redo log encryption mode"
+				" can't be switched without stopping the server and"
+				" recreating the redo logs. Current mode is "
+				<< log_encrypt_name(existing_redo_encryption_mode)
+				<< ", requested "
+				<< log_encrypt_name(
+				static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt))
+				<< ".";
+
+			srv_redo_log_encrypt = existing_redo_encryption_mode;
+		}
+
+
 		/* If redo log encryption is enabled, set the
 		   space flag. Otherwise, we just fill the encryption
 		   information to space object for decrypting old
@@ -1305,7 +1333,9 @@ log_write_encryption(
 
 	log_write_mutex_enter();
 	if (redo_log_encrypt == REDO_LOG_ENCRYPT_MK || 
-	    found_log_encryption_mode == REDO_LOG_ENCRYPT_MK) {
+	    existing_redo_encryption_mode == REDO_LOG_ENCRYPT_MK) {
+		ut_ad(existing_redo_encryption_mode != REDO_LOG_ENCRYPT_RK);
+		ut_ad(redo_log_encrypt != REDO_LOG_ENCRYPT_RK);
 		if (!log_file_header_fill_encryption(log_block_buf,
 						     key,
 						     iv)) {
@@ -1313,8 +1343,11 @@ log_write_encryption(
 			log_write_mutex_exit();
 			return(false);
 		}
+		existing_redo_encryption_mode = REDO_LOG_ENCRYPT_MK;
 	} else if (redo_log_encrypt == REDO_LOG_ENCRYPT_RK ||
-		   found_log_encryption_mode == REDO_LOG_ENCRYPT_RK) {
+		   existing_redo_encryption_mode == REDO_LOG_ENCRYPT_RK) {
+		ut_ad(existing_redo_encryption_mode != REDO_LOG_ENCRYPT_MK);
+		ut_ad(redo_log_encrypt != REDO_LOG_ENCRYPT_MK);
 		if (!log_file_header_fill_encryption(log_block_buf,
 						     version,
 						     iv)) {
@@ -1322,6 +1355,7 @@ log_write_encryption(
 			log_write_mutex_exit();
 			return(false);
 		}
+		existing_redo_encryption_mode = REDO_LOG_ENCRYPT_RK;
 	} else {
 		ut_ad(0);
 	}

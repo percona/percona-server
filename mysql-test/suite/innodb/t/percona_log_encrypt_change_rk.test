@@ -1,0 +1,4 @@
+--let LOG_ENCRYPT_TYPE=KEYRING_KEY
+--let LOG_ENCRYPT_TEST_END=mk
+--let LOG_ENCRYPT_OTHER_TYPE=MASTER_KEY
+--source include/percona_log_encrypt_change.inc

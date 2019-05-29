@@ -2856,6 +2856,17 @@ bool srv_enable_redo_encryption() {
 }
 
 bool srv_enable_redo_encryption_mk() {
+  switch (existing_redo_encryption_mode) {
+    case REDO_LOG_ENCRYPT_RK:
+      ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
+                log_encrypt_name(existing_redo_encryption_mode), "master_key");
+      return true;
+    case REDO_LOG_ENCRYPT_OFF:
+    case REDO_LOG_ENCRYPT_MK:
+    case REDO_LOG_ENCRYPT_ON:
+      break;
+  }
+
   fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     return false;
@@ -2885,6 +2896,16 @@ bool srv_enable_redo_encryption_mk() {
 }
 
 bool srv_enable_redo_encryption_rk() {
+  switch (existing_redo_encryption_mode) {
+    case REDO_LOG_ENCRYPT_ON:
+    case REDO_LOG_ENCRYPT_MK:
+      ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
+                log_encrypt_name(existing_redo_encryption_mode), "keyring_key");
+      return true;
+    case REDO_LOG_ENCRYPT_OFF:
+    case REDO_LOG_ENCRYPT_RK:
+      break;
+  }
   fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     return false;

@@ -788,6 +788,10 @@ enum redo_log_encrypt_enum {
   REDO_LOG_ENCRYPT_RK = 3,
 };
 
+extern redo_log_encrypt_enum existing_redo_encryption_mode;
+
+const char *log_encrypt_name(redo_log_encrypt_enum val);
+
 void redo_rotate_default_key();
 
 /** Write the encryption info into the log file header(the 3rd block).

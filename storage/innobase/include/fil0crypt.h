@@ -271,7 +271,7 @@ struct fil_space_crypt_t {
 
   // In Oracle's tablespace encryption is Encryption::KEY_LEN long,
   // which is incorrect value - it should be always 128 bits,
-  unsigned char iv[16];
+  unsigned char iv[CRYPT_SCHEME_1_IV_LEN];
 
   uint encrypting_with_key_version;
   unsigned int keyserver_requests;

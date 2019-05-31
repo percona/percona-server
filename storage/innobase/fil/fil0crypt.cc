@@ -119,6 +119,7 @@ static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE =
     + 1                             // encryption rotation type
     + Encryption::KEY_LEN           // tablespace key
     + Encryption::SERVER_UUID_LEN;  // server's UUID
+
 static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 =
     Encryption::MAGIC_SIZE + 2  // length of iv
     + 4                         // space id
@@ -132,19 +133,14 @@ static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE_V1 =
     + Encryption::KEY_LEN       // tablespace key
     + Encryption::KEY_LEN;      // tablespace iv
 
-uint fil_get_encrypt_info_size(const uint iv_len) {
-  return Encryption::MAGIC_SIZE + 2  // length of iv
-         + 4                         // space id
-         + 2                         // offset
-         + 1                         // type
-         + 4                         // min_key_version
-         + 4                         // key_id
-         + 1                         // encryption
-         + iv_len                    // iv
-         + 4                         // encryption rotation type
-         + Encryption::KEY_LEN       // tablespace key
-         + Encryption::KEY_LEN;      // tablespace iv
-}
+/* The size of keyring key encrption header cannot cross the Master
+Key header. This is because the bytes followed by MK header are used
+by other features like SDI, encryption progress (MK) etc. If we cross
+the MK encryption header size ENCRYPTION_INFO_MAX_SIZE, we corrupt the
+header and other features will not work */
+static_assert(KERYING_ENCRYPTION_INFO_MAX_SIZE < Encryption::INFO_MAX_SIZE,
+              "Keyring key encryption header crosses Master Key encryption"
+              " header size");
 
 uchar *fil_space_crypt_t::get_key_currently_used_for_encryption() {
   // ut_ad(mutex_own(&this->mutex));
@@ -556,14 +552,11 @@ void fil_space_crypt_t::write_page0(
     const fil_space_t *space, byte *page, mtr_t *mtr, uint a_min_key_version,
     uint a_type, Encryption_rotation current_encryption_rotation) {
   ut_ad(this == space->crypt_data);
-  const uint iv_len = sizeof(iv);
   const ulint offset =
       fsp_header_get_keyring_encryption_offset(page_size_t(space->flags));
   page0_offset = offset;
 
-  const uint encrypt_info_size = fil_get_encrypt_info_size(iv_len);
-
-  byte *encrypt_info = new byte[encrypt_info_size];
+  byte *encrypt_info = new byte[KERYING_ENCRYPTION_INFO_MAX_SIZE];
   byte *encrypt_info_ptr = encrypt_info;
 
   mlog_write_ulint(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS, space->flags,
@@ -571,7 +564,7 @@ void fil_space_crypt_t::write_page0(
 
   memcpy(encrypt_info_ptr, Encryption::KEY_MAGIC_PS_V1, Encryption::MAGIC_SIZE);
   encrypt_info_ptr += Encryption::MAGIC_SIZE;
-  mach_write_to_2(encrypt_info_ptr, iv_len);
+  mach_write_to_2(encrypt_info_ptr, CRYPT_SCHEME_1_IV_LEN);
   encrypt_info_ptr += 2;
 
   mach_write_to_4(encrypt_info_ptr, space->id);
@@ -589,8 +582,8 @@ void fil_space_crypt_t::write_page0(
   mach_write_to_1(encrypt_info_ptr, encryption);
   encrypt_info_ptr += 1;
 
-  memcpy(encrypt_info_ptr, iv, iv_len);
-  encrypt_info_ptr += iv_len;
+  memcpy(encrypt_info_ptr, iv, CRYPT_SCHEME_1_IV_LEN);
+  encrypt_info_ptr += CRYPT_SCHEME_1_IV_LEN;
 
   mach_write_to_4(encrypt_info_ptr,
                   static_cast<byte>(current_encryption_rotation));
@@ -604,7 +597,8 @@ void fil_space_crypt_t::write_page0(
     encrypt_info_ptr += Encryption::KEY_LEN;
   }
 
-  mlog_write_string(page + offset, encrypt_info, encrypt_info_size, mtr);
+  mlog_write_string(page + offset, encrypt_info,
+                    KERYING_ENCRYPTION_INFO_MAX_SIZE, mtr);
 
   delete[] encrypt_info;
 }

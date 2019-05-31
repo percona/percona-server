@@ -1277,6 +1277,9 @@ struct export_var_t {
                                   encrypted */
   int64_t innodb_pages_decrypted; /*!< Number of pages
                                   decrypted */
+
+  /* Current redo log encryption key versison for keyring encryption */
+  int64_t innodb_redo_key_version;
   ulint innodb_encryption_rotation_pages_read_from_cache;
   ulint innodb_encryption_rotation_pages_read_from_disk;
   ulint innodb_encryption_rotation_pages_modified;

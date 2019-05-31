@@ -19,7 +19,7 @@ SELECT @@innodb_redo_log_encrypt;
 --let $assert_select=Redo log encryption mode can't be switched without stopping the server and recreating the redo logs
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count=2
---let $assert_only_after=CURRENT_TEST:innodb.percona_log_encrypt_change_$LOG_ENCRYPT_TEST_END
+--let $assert_only_after=CURRENT_TEST: innodb.percona_log_encrypt_change_$LOG_ENCRYPT_TEST_END
 --source include/assert_grep.inc
 
 # Test: using a different parameter during restart
@@ -35,7 +35,7 @@ SELECT @@innodb_redo_log_encrypt;
 --let $assert_select=Redo log encryption mode can't be switched without stopping the server and recreating the redo logs
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count=3
---let $assert_only_after=CURRENT_TEST:innodb.percona_log_encrypt_change_$LOG_ENCRYPT_TEST_END
+--let $assert_only_after=CURRENT_TEST: innodb.percona_log_encrypt_change_$LOG_ENCRYPT_TEST_END
 --source include/assert_grep.inc
 
 # Cleanup

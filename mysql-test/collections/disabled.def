@@ -182,14 +182,7 @@ innodb.tablespace_encrypt_6 : BUG#5102 work in progress
 innodb.innodb_row_log_encryption : BUG#5102 work in progress
 innodb.tablespace_encrypt_1 : BUG#5102 work in progress
 main.percona_dd_upgrade_encrypted : BUG#5102 work in progress
-innodb.log_encrypt_1_mk : BUG#5102 work in progress
-innodb.log_encrypt_1_rk : BUG#5102 work in progress
-innodb.log_encrypt_3_mk : BUG#5102 work in progress
-innodb.log_encrypt_3_rk : BUG#5102 work in progress
 main.mysql_80_inplace_upgrade : BUG#5102 work in progress
-innodb.log_encrypt_5_mk : BUG#5102 work in progress
-innodb.log_encrypt_5_rk : BUG#5102 work in progress
-innodb.log_encrypt_kill : BUG#5102 work in progress
 main.dd_upgrade_cs : BUG#5102 work in progress
 main.dd_upgrade_error_debug : BUG#5102 work in progress
 main.histograms : BUG#5102 work in progress
@@ -199,5 +192,4 @@ innodb.table_encrypt_1 : BUG#5102 work in progress
 innodb.tablespace_encrypt_4 : BUG#5102 work in progress
 innodb.tablespace_encrypt_8 : BUG#5102 work in progress
 innodb.temp_table_encrypt : BUG#5102 work in progress
-sys_vars.innodb_redo_log_encrypt_basic : BUG#5102 work in progress
 innodb.percona_log_encrypt_failure : BUG#5102 work in progress

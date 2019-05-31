@@ -327,6 +327,57 @@ struct fil_space_scrub_status_t {
   ulint current_scrub_max_page_number; /*!< current scrub max page no */
 };
 
+struct redo_log_key final {
+  uint version;
+  char key[ENCRYPTION_KEY_LEN];
+  ulint read_count;
+  ulint write_count;
+  bool present;
+
+  bool persisted() const noexcept { return version != 0; }
+};
+
+/** Handles the fetching/generation/storing/etc of keyring redo log keys.
+
+This class is *NOT* thread safe, as thread safety is not required.
+Data is only accessed/modified on the following points:
+* When the redo space is created, at startup
+* During redo log recovery, at startup
+* When the server UUID is generated, at startup
+* When the user requests a new key version, checked periodically in the
+   master thread
+
+As these can't happen in parallel, no lock is used. */
+class redo_log_keys final {
+ public:
+  /** Loads the latest redo log key from the keyring.
+  @param[in]	generate If true, a key is generated if an existing key can't
+  be loaded. */
+  MY_NODISCARD
+  redo_log_key *load_latest_key(bool generate);
+  MY_NODISCARD
+  redo_log_key *load_key_version(uint version);
+
+  MY_NODISCARD
+  redo_log_key *generate_and_store_new_key();
+
+  /** These two methods are used during bootstrap encryption, when wo do not yet
+  have an uuid */
+  MY_NODISCARD
+  redo_log_key *generate_new_key_without_storing();
+
+  MY_NODISCARD
+  bool store_used_keys() noexcept;
+
+  void unload_old_keys() noexcept;
+
+ private:
+  using key_map = std::map<ulint, redo_log_key>;
+  key_map m_keys;
+};
+
+extern redo_log_keys redo_log_key_mgr;
+
 /*********************************************************************
 Init space crypt */
 void fil_space_crypt_init();

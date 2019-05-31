@@ -11,7 +11,6 @@ call mtr.add_suppression("Encryption can't find master key, please check the key
 call mtr.add_suppression("Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("Ignoring tablespace .* because it could not be opened");
-call mtr.add_suppression("Redo log key generation failed");
 call mtr.add_suppression("InnoDB: Resizing redo log from");
 call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
 call mtr.add_suppression("InnoDB: New log files created, LSN=");

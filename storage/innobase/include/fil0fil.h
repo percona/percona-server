@@ -55,6 +55,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #define REDO_LOG_ENCRYPT_NO_VERSION 0
 
+struct redo_log_key;
+
 /** Structure containing encryption specification */
 struct fil_space_crypt_t;
 
@@ -312,6 +314,9 @@ struct fil_space_t {
   byte encryption_iv[ENCRYPTION_KEY_LEN];
 
   ulint encryption_key_version;
+
+  /** Only used for redo log encryption: the currently active key handle */
+  redo_log_key *encryption_redo_key;
 
   /** Encryption is in progress */
   encryption_op_type encryption_op_in_progress;

@@ -52,6 +52,8 @@ Created 10/25/1995 Heikki Tuuri
 /** Structure containing encryption specification */
 struct fil_space_crypt_t;
 
+struct redo_log_key;
+
 #define REDO_LOG_ENCRYPT_NO_VERSION 0
 
 #ifdef UNIV_HOTBACKUP
@@ -255,6 +257,8 @@ struct fil_space_t {
 
 	/** Encrypt key version*/
 	ulint			encryption_key_version;
+	/** Only used for redo log encryption: the currently active key handle */
+	redo_log_key*           encryption_redo_key;
 
 	/** Encrypt initial vector */
         byte			encryption_iv[ENCRYPTION_KEY_LEN];

@@ -52,6 +52,8 @@ struct log_t;
 /** Redo log group */
 struct log_group_t;
 
+extern uint srv_redo_log_key_version;
+
 /** Magic value to use instead of log checksums when they are disabled */
 #define LOG_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
@@ -152,7 +154,7 @@ extern redo_log_encrypt_enum existing_redo_encryption_mode;
 
 const char* log_encrypt_name(redo_log_encrypt_enum val);
 
-void redo_rotate_default_key();
+void log_rotate_default_key();
 
 /** Write the encryption info into the log file header(the 3rd block).
 It just need to flush the file header block with current master key.
@@ -172,6 +174,10 @@ log_write_encryption(
  * @return true if success. */
 bool
 log_rotate_encryption();
+
+/* Checks if there is a new redo key when using keyring encryption. */
+void
+log_check_new_key_version();
 
 /** Enables redo log encryption. */
 void

@@ -282,7 +282,7 @@ struct fil_space_crypt_t {
   // to be able to store this IV.
   uchar *tablespace_iv;
 
-  unsigned char iv[16];
+  unsigned char iv[CRYPT_SCHEME_1_IV_LEN];
 
   uint encrypting_with_key_version;
   unsigned int keyserver_requests;

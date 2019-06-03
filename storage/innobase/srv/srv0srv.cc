@@ -3607,26 +3607,23 @@ srv_enable_redo_encryption_rk()
 			my_free(redo_key_type);
 			my_free(rkey);
 			return true;
-		} else {
-			DBUG_ASSERT(rkey != NULL);
-			byte *rkey2 = NULL;
-			size_t klen2 = 0;
-			bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2)
-					== reinterpret_cast<uchar*>(NullS));
-			ut_ad(klen2 ==  ENCRYPTION_KEY_LEN);
-			if (err) {
-				ib::error() << "Couldn't parse system key: " << rkey;
-				my_free(redo_key_type);
-				my_free(rkey);
-				return true;
-			} else {
-				memcpy(key, rkey2, ENCRYPTION_KEY_LEN);
-			}
-			my_free(rkey2);
 		}
-	} else {
-		memcpy(key, rkey, ENCRYPTION_KEY_LEN);
 	}
+
+	DBUG_ASSERT(rkey != NULL);
+	byte *rkey2 = NULL;
+	size_t klen2 = 0;
+	bool parse_err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2)
+			== reinterpret_cast<uchar*>(NullS));
+	if (parse_err) {
+		ib::error() << "Couldn't parse system key: " << rkey;
+		my_free(redo_key_type);
+		my_free(rkey);
+		return true;
+	}
+	ut_ad(klen2 ==  ENCRYPTION_KEY_LEN);
+	memcpy(key, rkey2, ENCRYPTION_KEY_LEN);
+	my_free(rkey2);
 
 	ut_ad(redo_key_type && strcmp(redo_key_type, "AES") == 0);
 

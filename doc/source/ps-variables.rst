@@ -77,6 +77,11 @@ System Variables
      - Yes
      - Global
      - No
+   * - :variable:`binlog_space_limit`
+     - Yes
+     - Yes
+     - Global
+     - No
    * - :variable:`csv_mode`
      - Yes
      - Yes

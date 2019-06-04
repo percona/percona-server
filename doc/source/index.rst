@@ -79,6 +79,7 @@ Flexibility Improvements
 
    flexibility/log_warnings_suppress
    flexibility/improved_memory_engine
+   flexibility/maximum_binlog_size
    flexibility/extended_mysqldump
    flexibility/extended_select_into_outfile
    flexibility/extended_mysqlbinlog
@@ -190,5 +191,3 @@ Reference
 
 * :ref:`genindex`
 * :ref:`modindex`
-
-

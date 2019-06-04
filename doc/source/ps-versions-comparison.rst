@@ -41,14 +41,14 @@ List of features available in |Percona Server| releases
      - :ref:`Ability to change database for mysqlbinlog <ps80:mysqlbinlog_change_db>`
    * - :ref:`Fixed Size for the Read Ahead Area <ps56:buff_read_ahead_area>`
      - :ref:`Fixed Size for the Read Ahead Area <ps57:buff_read_ahead_area>`
-     - :ref:`Fixed Size for the Read Ahead Area <ps80:buff_read_ahead_area>`      
+     - :ref:`Fixed Size for the Read Ahead Area <ps80:buff_read_ahead_area>`
    * - :ref:`Improved MEMORY Storage Engine <ps56:improved_memory_engine>`
      - :ref:`Improved MEMORY Storage Engine <ps57:improved_memory_engine>`
      - :ref:`Improved MEMORY Storage Engine <ps80:improved_memory_engine>`
    * - :ref:`Restricting the number of binlog files <ps56:maximum_binlog_files>`
      - :ref:`Restricting the number of binlog files <ps57:maximum_binlog_files>`
-     - :ref:`Restricting the number of binlog files <ps80:maximum_binlog_files>`
-   * - :ref:`Ignoring missing tables in mysqldump <ps56:mysqldump_ignore_create_error>`
+     - :ref:`Restricting the size of binlog files <ps80:maximum_binlog_size>`
+   * - :ref:`Ignoring missing tables in mysqldump  <ps56:mysqldump_ignore_create_error>`
      - :ref:`Ignoring missing tables in mysqldump <ps57:mysqldump_ignore_create_error>`
      - :ref:`Ignoring missing tables in mysqldump <ps80:mysqldump_ignore_create_error>`
    * - :ref:`Too Many Connections Warning <ps56:log_connection_error>`

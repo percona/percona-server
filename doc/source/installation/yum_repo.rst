@@ -14,6 +14,8 @@ Supported Releases:
 
  * *CentOS* 7 and *RHEL* 7
 
+ * *RHEL* 8
+
  * *Amazon Linux AMI* (works the same as *CentOS* 6)
 
 The *CentOS* repositories should work well with *Red Hat Enterprise Linux* too, provided that :program:`yum` is installed on the server.
@@ -121,6 +123,14 @@ Installing |Percona Server| from Percona ``yum`` repository
      Percona-Server-test-57.x86_64           5.7.10-3.1.el7                 @percona-release-x86_64
      Percona-Server-tokudb-57.x86_64         5.7.10-3.1.el7                 @percona-release-x86_64
      ...
+
+     .. note:: 
+     
+     For a RHEL 8 package installation, the mysql module must be disabled.
+
+   .. code-block:: bash
+
+      $ sudo dnf module disable mysql
 
 3. Install the packages
 

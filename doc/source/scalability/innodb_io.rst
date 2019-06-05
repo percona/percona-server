@@ -49,7 +49,7 @@ If ``innodb_use_global_flush_log_at_trx_commit=1`` (True), the user session will
      :default: 512
      :units: Bytes
 
-This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use. Clean restart and removal of the old logs is needed for the variable :variable:`innodb_log_block_size` to be changed. **Note:** This feature implementation is considered BETA quality.
+This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use. Clean restart and removal of the old logs is needed for the variable :variable:`innodb_log_block_size` to be changed. 
 
 .. variable:: innodb_flush_method
 

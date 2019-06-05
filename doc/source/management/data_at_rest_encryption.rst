@@ -222,8 +222,21 @@ Trying to add unencrypted table to this table space will result in an error:
 
 .. note::
 
-   |Percona XtraBackup| currently doesn't support backup of encrypted general
-   tablespaces.
+    |Percona XtraBackup| version 2.4 and version 8.0 support the backup of encrypted general
+    tablespaces.
+
+    |Percona XtraBackup| version 2.4 does not support the following encryption features:
+
+      * System tablespace encryption
+      * Parallel doublewrite buffer encryption
+      * Redo log encryption
+      * Undo log encryption
+      * Master key encryption
+
+    |Percona XtraBackup| version 8.0 does not support the following encryption features:
+
+      * System tablespace encryption
+      * Parallel doublewrite buffer encryption
 
 Checking
 ================================================================================
@@ -625,8 +638,8 @@ Vault server.
 
 .. note::
 
-  |Percona XtraBackup| currently doesn't support backup of tables encrypted
-  with :ref:`keyring_vault_plugin`.
+  |Percona XtraBackup| version 2.4 and version 8.0 support the backup of tables encrypted
+    with :ref:`keyring_vault_plugin`.
 
 System Variables
 ----------------

@@ -22,6 +22,7 @@ DROP TABLE t3;
 
 --echo # System is unencrypted, test with innodb_encrypt_tables=OFF
 
+SET @save_innodb_encrypt_tables=@@innodb_encrypt_tables;
 SET GLOBAL innodb_encrypt_tables=OFF;
 SELECT @@innodb_encrypt_tables;
 
@@ -59,6 +60,33 @@ CREATE TABLE t10(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 
 --error ER_INVALID_ENCRYPTION_OPTION
 CREATE TABLE t11(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
+
+SET GLOBAL innodb_encrypt_tables=@save_innodb_encrypt_tables;
+
+########################### Additional Test Scenarios ################################
+# 1. Move table from un-encrypted sys tablespace to another encrypted tablespace     #
+# 2. Move table from un-encrypted sys tablespace to another un-encrypted tablespace  #
+######################################################################################
+--echo # 1. Move table from un-encrypted sys tablespace to another encrypted tablespace
+CREATE TABLE t1 (a int) TABLESPACE = `innodb_system`;
+ALTER TABLE t1 TABLESPACE = `innodb_file_per_table`, ENCRYPTION='Y';
+DROP TABLE t1;
+CREATE TABLE t1 (a int) TABLESPACE = `innodb_system`;
+CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd' ENCRYPTION='Y';
+--echo # Must fail. Encrypted external tablespace will not allow un-encrypted tables
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 TABLESPACE = `tb01`;
+DROP TABLE t1;
+DROP TABLESPACE tb01;
+--echo # 2. Move table from un-encrypted sys tablespace to another un-encrypted tablespace
+CREATE TABLE t1 (a int) TABLESPACE = `innodb_system`;
+ALTER TABLE t1 TABLESPACE = `innodb_file_per_table`;
+DROP TABLE t1;
+CREATE TABLE t1 (a int) TABLESPACE = `innodb_system`;
+CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd';
+ALTER TABLE t1 TABLESPACE = `tb01`;
+DROP TABLE t1;
+DROP TABLESPACE tb01;
 
 --echo # Stop the instance which was created by MTR
 --source include/shutdown_mysqld.inc
@@ -210,6 +238,59 @@ ALTER TABLE t8 TABLESPACE=`innodb_system`, ENCRYPTION='Y';
 CREATE TABLE t9(a TEXT) ENCRYPTION='Y';
 INSERT INTO t9 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
 ALTER TABLE t9 TABLESPACE=`innodb_system`;
+
+--echo # Test the behaviour when innodb_file_per_table is disabled
+SET @save_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+--echo # Setting innodb_file_per_table=0 forces table to be created using system tablespace unless
+--echo # explicilty tablespace=innodb_file_per_table is mentioned
+--echo # Must fail because encrypted sys cannot contain an un-encrypted table.
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t2 (a int);
+CREATE TABLE t2 (a int) ENCRYPTION='Y';
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t3 (a int) ENCRYPTION='N';
+--echo # Must be successful
+CREATE TABLE t2 (a int) TABLESPACE = `innodb_file_per_table`, ENCRYPTION='Y';
+CREATE TABLE t3 (a int) TABLESPACE = `innodb_file_per_table`, ENCRYPTION='N';
+DROP TABLE t2,t3;
+
+CREATE TABLE t2 (a int) ENCRYPTION='Y';
+CREATE TABLE t3 (a int) ENCRYPTION='Y';
+CREATE TABLE t4 (a int) ENCRYPTION='Y';
+--echo # Try to move the table from encrypted sys to un-encrypted file_per_tablespace
+--echo # Must pass on 5.7
+ALTER TABLE t2 TABLESPACE = `innodb_file_per_table`, ENCRYPTION='N';
+--echo # Try to move the table from encrypted sys to encrypted file_per_tablespace
+--echo # Both must be successful
+ALTER TABLE t3 TABLESPACE = `innodb_file_per_table`, ENCRYPTION='Y';
+ALTER TABLE t4 TABLESPACE = `innodb_file_per_table`;
+DROP TABLE t2,t3,t4;
+--echo # Try to move the table from encrypted sys to un-encrypted external tablespace
+CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd' ENGINE=INNODB;
+CREATE TABLE t2 (a int) ENCRYPTION='Y';
+CREATE TABLE t3 (a int) ENCRYPTION='Y';
+--echo # Must Fail
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t2 TABLESPACE = `tb01`;
+--echo # Must be successful
+ALTER TABLE t3 TABLESPACE = `tb01`, ENCRYPTION='N';
+SHOW CREATE TABLE t3;
+DROP TABLE t2,t3;
+DROP TABLESPACE tb01;
+--echo # Try to move the table from encrypted sys to encrypted external tablespace
+--echo # Must be successful as both the source & destination are encrypted
+CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd' ENCRYPTION='Y' ENGINE=INNODB;
+CREATE TABLE t2 (a int) ENCRYPTION='Y';
+CREATE TABLE t3 (a int) ENCRYPTION='Y';
+ALTER TABLE t2 TABLESPACE = `tb01`;
+ALTER TABLE t3 TABLESPACE = `tb01`, ENCRYPTION='Y';
+DROP TABLE t2,t3;
+DROP TABLESPACE tb01;
+
+SET GLOBAL innodb_file_per_table = @save_innodb_file_per_table;
 
 --source include/shutdown_mysqld.inc
 

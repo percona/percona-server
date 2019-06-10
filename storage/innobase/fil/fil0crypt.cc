@@ -832,8 +832,11 @@ fil_crypt_read_crypt_data(fil_space_t* space) {
 					      page_size, RW_S_LATCH, &mtr)) {
 		mutex_enter(&fil_system->mutex);
 		if (!space->crypt_data) {
-			space->crypt_data = fil_space_read_crypt_data(
-				page_size, block->frame);
+			fil_space_crypt_t *crypt_data =
+				fil_space_read_crypt_data(page_size, block->frame);
+			if (crypt_data != NULL) {
+				space->crypt_data = crypt_data;
+			}
 		}
 		mutex_exit(&fil_system->mutex);
 	}

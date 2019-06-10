@@ -18884,6 +18884,9 @@ ER_XB_MSG_5
 ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD
   eng "Waiting for keyring encryption threads to exit"
 
+ER_PARALLEL_DOUBLEWRITE_WRITE_ERROR
+  eng "Parallel doublewrite buffer write failed, crashing the server to avoid data loss"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

@@ -1331,8 +1331,13 @@ buf_dblwr_flush_buffered_writes(
 	      * srv_doublewrite_batch_size * UNIV_PAGE_SIZE);
 #endif
 
-	os_file_write(io_req, parallel_dblwr_buf.path, parallel_dblwr_buf.file,
-		      write_buf, file_pos, len);
+	dberr_t err = os_file_write(io_req, parallel_dblwr_buf.path,
+				    parallel_dblwr_buf.file, write_buf,
+				    file_pos, len);
+	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+		ib::fatal() << "Parallel doublewrite buffer write failed, "
+			"crashing the server to avoid data loss";
+	}
 
 	ut_ad(dblwr_shard->first_free <= srv_doublewrite_batch_size);
 

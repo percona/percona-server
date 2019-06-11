@@ -1204,8 +1204,11 @@ void buf_dblwr_flush_buffered_writes(ulint dblwr_partition) noexcept {
         (dblwr_partition + 1) * srv_doublewrite_batch_size * UNIV_PAGE_SIZE);
 #endif
 
-  os_file_write(io_req, parallel_dblwr_buf.path, parallel_dblwr_buf.file,
-                write_buf, file_pos, len);
+  const auto err =
+      os_file_write(io_req, parallel_dblwr_buf.path, parallel_dblwr_buf.file,
+                    write_buf, file_pos, len);
+  if (UNIV_UNLIKELY(err != DB_SUCCESS))
+    ib::fatal(ER_PARALLEL_DOUBLEWRITE_WRITE_ERROR);
 
   ut_ad(dblwr_shard->first_free <= srv_doublewrite_batch_size);
 

@@ -4,9 +4,9 @@
  Thread Pool
 =============
 
-|MySQL| executes statements using one thread per client connection. Once the number of connections increases past a certain point performance will degrade. 
+|MySQL| executes statements using one thread per client connection. Once the number of connections increases past a certain point performance will degrade.
 
-This feature enables the server to keep the top performance even with a large number of client connections by introducing a dynamic thread pool. By using the thread pool server would decrease the number of threads, which will then reduce the context switching and hot locks contentions. Using the thread pool will have the most effect with ``OLTP`` workloads (relatively short CPU-bound queries). 
+This feature enables the server to keep the top performance even with a large number of client connections by introducing a dynamic thread pool. By using the thread pool server would decrease the number of threads, which will then reduce the context switching and hot locks contentions. Using the thread pool will have the most effect with ``OLTP`` workloads (relatively short CPU-bound queries).
 
 In order to enable the thread pool variable :variable:`thread_handling` should be set up to ``pool-of-threads`` value. This can be done by adding: ::
 
@@ -14,10 +14,10 @@ In order to enable the thread pool variable :variable:`thread_handling` should b
 
 to the |MySQL| configuration file :file:`my.cnf`.
 
-Although the default values for the thread pool should provide good performance, additional `tuning <https://kb.askmonty.org/en/threadpool-in-55/#optimizing-server-variables-on-unix>`_ can be performed with the dynamic system variables described below. 
+Although the default values for the thread pool should provide good performance, additional `tuning <https://kb.askmonty.org/en/threadpool-in-55/#optimizing-server-variables-on-unix>`_ can be performed with the dynamic system variables described below.
 
-.. note:: 
- 
+.. note::
+
   Current implementation of the thread pool is built in the server, unlike the upstream version which is implemented as a plugin. Another significant implementation difference is that this implementation doesn't try to minimize the number of concurrent transactions like the ``MySQL Enterprise Threadpool``. Because of these things this implementation isn't compatible with the upstream one.
 
 Priority connection scheduling
@@ -40,7 +40,7 @@ The default thread pool behavior is to always put events from already started tr
 
 With the value of ``0``, all connections are always put into the common queue, i.e. no priority scheduling is used as in the original implementation in |MariaDB|. The higher is the value, the more chances each transaction gets to enter the high priority queue and commit before it is put in the common queue.
 
-In some cases it is required to prioritize all statements for a specific connection regardless of whether they are executed as a part of a multi-statement transaction or in the autocommit mode. Or vice versa, some connections may require using the low priority queue for all statements unconditionally. To implement this new :variable:`thread_pool_high_prio_mode` variable has been introduced in |Percona Server|. 
+In some cases it is required to prioritize all statements for a specific connection regardless of whether they are executed as a part of a multi-statement transaction or in the autocommit mode. Or vice versa, some connections may require using the low priority queue for all statements unconditionally. To implement this new :variable:`thread_pool_high_prio_mode` variable has been introduced in |Percona Server|.
 
 .. _low_priority_queue_throttling:
 
@@ -56,14 +56,14 @@ Such situations are prevented by throttling the low priority queue when the tota
 Handling of Long Network Waits
 ==============================
 
-Certain types of workloads (large result sets, BLOBs, slow clients) can have longer waits on network I/O (socket reads and writes). Whenever server waits, this should be communicated to the Thread Pool, so it can start new query by either waking a waiting thread or sometimes creating a new one. This implementation has been ported from |MariaDB| patch `MDEV-156 <https://mariadb.atlassian.net/browse/MDEV-156>`_. 
+Certain types of workloads (large result sets, BLOBs, slow clients) can have longer waits on network I/O (socket reads and writes). Whenever server waits, this should be communicated to the Thread Pool, so it can start new query by either waking a waiting thread or sometimes creating a new one. This implementation has been ported from |MariaDB| patch `MDEV-156 <https://mariadb.atlassian.net/browse/MDEV-156>`_.
 
 
 Version Specific Information
 ============================
 
  * :rn:`8.0.12-1`
-    ``Thread Pool`` feature ported from |Percona Server| 5.7. 
+    ``Thread Pool`` feature ported from |Percona Server| 5.7.
 
 System Variables
 ================
@@ -154,32 +154,6 @@ This variable can be used to define the number of threads that can use the CPU a
 
 The number of milliseconds before a running thread is considered stalled. When this limit is reached thread pool will wake up or create another thread. This is being used to prevent a long-running query from monopolizing the pool.
 
-.. variable:: extra_port
-      
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: No
-     :vartype: Numeric
-     :default: 0
-
-This variable can be used to specify additional port |Percona Server| will listen on. This can be used in case no new connections can be established due to all worker threads being busy or being locked when ``pool-of-threads`` feature is enabled. To connect to the extra port following command can be used: 
-
-.. code-block:: bash
-
-  mysql --port='extra-port-number' --protocol=tcp
-
-
-.. variable:: extra_max_connections
-      
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Numeric
-     :default: 1
-     
-This variable can be used to specify the maximum allowed number of connections plus one extra ``SUPER`` users connection on the :variable:`extra_port`. This can be used with the :variable:`extra_port` variable to access the server in case no new connections can be established due to all worker threads being busy or being locked when ``pool-of-threads`` feature is enabled.
 
 Status Variables
 =====================

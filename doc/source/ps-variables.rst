@@ -97,11 +97,6 @@ System Variables
      - Yes
      - Global
      - Yes
-   * - :variable:`extra_port`
-     - Yes
-     - Yes
-     - Global
-     - No
    * - :variable:`have_backup_locks`
      - Yes
      - No

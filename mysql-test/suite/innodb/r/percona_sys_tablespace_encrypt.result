@@ -10,6 +10,7 @@ DROP TABLE t2;
 CREATE TABLE t3(a TEXT) TABLESPACE = innodb_system;
 DROP TABLE t3;
 # System is unencrypted, test with innodb_encrypt_tables=OFF
+SET @save_innodb_encrypt_tables=@@innodb_encrypt_tables;
 SET GLOBAL innodb_encrypt_tables=OFF;
 SELECT @@innodb_encrypt_tables;
 @@innodb_encrypt_tables
@@ -42,6 +43,25 @@ CREATE TABLE t10(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 CREATE TABLE t11(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
 ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+SET GLOBAL innodb_encrypt_tables=@save_innodb_encrypt_tables;
+# 1. Move table from un-encrypted sys tablespace to another encrypted tablespace
+CREATE TABLE t1 (a int) TABLESPACE = innodb_system;
+ALTER TABLE t1 TABLESPACE = innodb_file_per_table, ENCRYPTION='Y';
+DROP TABLE t1;
+CREATE TABLE t1 (a int) TABLESPACE = innodb_system;
+CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd' ENCRYPTION='Y';
+ALTER TABLE t1 TABLESPACE = tb01;
+DROP TABLE t1;
+DROP TABLESPACE tb01;
+# 2. Move table from un-encrypted sys tablespace to another un-encrypted tablespace
+CREATE TABLE t1 (a int) TABLESPACE = innodb_system;
+ALTER TABLE t1 TABLESPACE = innodb_file_per_table;
+DROP TABLE t1;
+CREATE TABLE t1 (a int) TABLESPACE = innodb_system;
+CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd';
+ALTER TABLE t1 TABLESPACE = tb01;
+DROP TABLE t1;
+DROP TABLESPACE tb01;
 # Stop the instance which was created by MTR
 # create bootstrap file
 # start unencrypted system with --innodb-sys-tablespace-encrypt=ON
@@ -154,6 +174,7 @@ Table	Create Table
 t6	CREATE TABLE `t6` (
   `a` text
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t6;
 # Move unencrypted file_per_table to a table in encrypted system tablespace
 CREATE TABLE t8(a TEXT);
 INSERT INTO t8 (a) VALUES ('Abracadabra is of unknown origin, and its first occurrence is');
@@ -172,6 +193,65 @@ Table	Create Table
 t9	CREATE TABLE `t9` (
   `a` text
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t8,t9;
+# Test the behaviour when innodb_file_per_table is disabled
+SET @save_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+# Setting innodb_file_per_table=0 forces table to be created using system tablespace unless
+# explicilty tablespace=innodb_file_per_table is mentioned
+# Must fail as it tries to create table in system tablespace which is a shared tablespace
+CREATE TABLE t2 (a int) ENCRYPTION='Y';
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+CREATE TABLE t3 (a int) ENCRYPTION='N';
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+# Must be successful
+CREATE TABLE t2 (a int) TABLESPACE = innodb_file_per_table, ENCRYPTION='Y';
+CREATE TABLE t3 (a int) TABLESPACE = innodb_file_per_table, ENCRYPTION='N';
+DROP TABLE t2,t3;
+CREATE TABLE t2 (a int);
+# Try to move the table from encrypted sys to un-encrypted file_per_table space
+# Must fail as the source is encrypted but the destination is not
+ALTER TABLE t2 TABLESPACE = innodb_file_per_table;
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE t2 ENCRYPTION='N';
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ALTER TABLE t2 TABLESPACE = innodb_file_per_table, ENCRYPTION='N';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+# Try to move the table from encrypted sys to encrypted file_per_table space
+# Must be successful
+ALTER TABLE t2 TABLESPACE = innodb_file_per_table, ENCRYPTION='Y';
+DROP TABLE t2;
+# Try to move the table from encrypted sys to un-encrypted external tablespace
+# Must fail as the source is encrypted but the destination is not
+CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd' ENGINE=INNODB;
+CREATE TABLE t2 (a int);
+ALTER TABLE t2 TABLESPACE = tb01;
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+ALTER TABLE t2 TABLESPACE = tb01, ENCRYPTION='N';
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+DROP TABLESPACE tb01;
+DROP TABLE t2;
+# Try to move the table from encrypted sys to encrypted external tablespace
+# Must be successful as both the source & destination are encrypted
+CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd' ENCRYPTION='Y' ENGINE=INNODB;
+CREATE TABLE t2 (a int);
+ALTER TABLE t2 TABLESPACE = tb01;
+DROP TABLE t2;
+DROP TABLESPACE tb01;
+SET GLOBAL innodb_file_per_table = @save_innodb_file_per_table;
+# 3. Move table from encrypted sys tablespace to un-encrypted tablespace
+CREATE TABLE t2 (a int) TABLESPACE = innodb_system;
+CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd';
+ALTER TABLE t2 TABLESPACE = tb01;
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
+DROP TABLE t2;
+DROP TABLESPACE tb01;
+# 4. Move table from encrypted sys tablespace to encrypted tablespace
+CREATE TABLE t2 (a int) TABLESPACE = innodb_system;
+CREATE TABLESPACE tb01 ADD DATAFILE 'tb01.ibd' ENCRYPTION='Y';
+ALTER TABLE t2 TABLESPACE = tb01;
+DROP TABLE t2;
+DROP TABLESPACE tb01;
 # make sure that system tablespace is encrypted
 Pattern not found.
 Pattern not found.

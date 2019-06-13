@@ -70,7 +70,7 @@ the file COPYING.Google.
 #include "trx0sys.h"
 #include "trx0trx.h"
 
-static redo_log_encrypt_enum found_log_encryption_mode = REDO_LOG_ENCRYPT_OFF;
+redo_log_encrypt_enum existing_redo_encryption_mode = REDO_LOG_ENCRYPT_OFF;
 
 /**************************************************/ /**
  @page PAGE_INNODB_REDO_LOG_THREADS Background redo log threads
@@ -2659,6 +2659,19 @@ void log_closer(log_t *log_ptr) {
 
 /* @{ */
 
+const char *log_encrypt_name(redo_log_encrypt_enum val) {
+  switch (val) {
+    case REDO_LOG_ENCRYPT_OFF:
+      return "off";
+    case REDO_LOG_ENCRYPT_ON:
+    case REDO_LOG_ENCRYPT_MK:
+      return "master_key";
+    case REDO_LOG_ENCRYPT_RK:
+      return "keyring_key";
+  }
+  return "unknown";
+}
+
 bool log_read_encryption() {
   space_id_t log_space_id = dict_sys_t::s_log_space_first_id;
   const page_id_t page_id(log_space_id, 0);
@@ -2686,7 +2699,7 @@ bool log_read_encryption() {
   if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END, ENCRYPTION_KEY_MAGIC_RK,
              ENCRYPTION_MAGIC_SIZE) == 0) {
     encryption_magic = true;
-    found_log_encryption_mode = REDO_LOG_ENCRYPT_RK;
+    existing_redo_encryption_mode = REDO_LOG_ENCRYPT_RK;
     /* Make sure the keyring is loaded. */
     if (!Encryption::check_keyring()) {
       ut_free(log_block_buf_ptr);
@@ -2725,7 +2738,7 @@ bool log_read_encryption() {
              ENCRYPTION_MAGIC_SIZE) == 0) {
     /* Make sure the keyring is loaded. */
     encryption_magic = true;
-    found_log_encryption_mode = REDO_LOG_ENCRYPT_MK;
+    existing_redo_encryption_mode = REDO_LOG_ENCRYPT_MK;
     if (!Encryption::check_keyring()) {
       ut_free(log_block_buf_ptr);
       ib::error(ER_IB_MSG_1238) << "Redo log was encrypted,"
@@ -2740,6 +2753,16 @@ bool log_read_encryption() {
   }
 
   if (encrypted_log) {
+    if (existing_redo_encryption_mode != srv_redo_log_encrypt &&
+        srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF) {
+      ib::warn(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
+               log_encrypt_name(existing_redo_encryption_mode),
+               log_encrypt_name(
+                   static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt)));
+
+      srv_redo_log_encrypt = existing_redo_encryption_mode;
+    }
+
     /* If redo log encryption is enabled, set the
        space flag. Otherwise, we just fill the encryption
        information to space object for decrypting old
@@ -2821,18 +2844,26 @@ bool log_write_encryption(byte *key, byte *iv, bool is_boot,
 
   if (redo_log_encrypt == REDO_LOG_ENCRYPT_MK ||
       redo_log_encrypt == REDO_LOG_ENCRYPT_ON ||
-      found_log_encryption_mode == REDO_LOG_ENCRYPT_MK) {
+      existing_redo_encryption_mode == REDO_LOG_ENCRYPT_MK) {
+    ut_ad(existing_redo_encryption_mode != REDO_LOG_ENCRYPT_RK);
+    ut_ad(redo_log_encrypt != REDO_LOG_ENCRYPT_RK);
     if (!log_file_header_fill_encryption(log_block_buf, key, iv, is_boot)) {
       ut_free(log_block_buf_ptr);
       return (false);
     }
 
+    existing_redo_encryption_mode = REDO_LOG_ENCRYPT_MK;
+
   } else if (redo_log_encrypt == REDO_LOG_ENCRYPT_RK ||
-             found_log_encryption_mode == REDO_LOG_ENCRYPT_RK) {
+             existing_redo_encryption_mode == REDO_LOG_ENCRYPT_RK) {
+    ut_ad(existing_redo_encryption_mode != REDO_LOG_ENCRYPT_MK);
+    ut_ad(redo_log_encrypt != REDO_LOG_ENCRYPT_MK);
     if (!log_file_header_fill_encryption(log_block_buf, version, iv)) {
       ut_free(log_block_buf_ptr);
       return (false);
     }
+
+    existing_redo_encryption_mode = REDO_LOG_ENCRYPT_RK;
   }
 
   auto err = fil_redo_io(IORequestLogWrite, page_id, univ_page_size,

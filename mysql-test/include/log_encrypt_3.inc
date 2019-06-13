@@ -115,7 +115,7 @@ CREATE TABLE tde_db.t2 (a BIGINT PRIMARY KEY, b LONGBLOB)
 			ENCRYPTION='Y' ENGINE=InnoDB;
 
 START TRANSACTION;
-SET GLOBAL innodb_redo_log_encrypt = 1;
+eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_encrypt_mode;
 INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 INSERT INTO t2 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t1;

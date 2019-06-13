@@ -18922,6 +18922,9 @@ ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
 ER_COMPRESSION_DICTIONARY_IS_REFERENCED
   eng "Compression dictionary '%-.192s' is in use"
 
+ER_REDO_ENCRYPTION_CANT_BE_CHANGED
+  eng "Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is %s, requested %s."
+
 #
 # End of Percona Server 8.0 error messages
 #

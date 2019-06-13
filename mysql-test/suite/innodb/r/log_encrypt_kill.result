@@ -1,7 +1,7 @@
 # restart: --no-console --log-error=ERROR_LOG_FILE 
 SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 SET GLOBAL innodb_redo_log_encrypt = 1;
 SET GLOBAL innodb_undo_log_encrypt = 1;
 UNINSTALL PLUGIN keyring_file;
@@ -22,7 +22,7 @@ Pattern "Can\'t set redo log tablespace to be encrypted" found
 # Starting server with keyring plugin
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 SET GLOBAL innodb_redo_log_encrypt = 1;
 SELECT @@global.innodb_undo_log_encrypt;
 @@global.innodb_undo_log_encrypt
@@ -36,7 +36,7 @@ ERROR HY000: Function 'keyring_file' already exists
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 SET GLOBAL innodb_undo_log_encrypt = 0;
 SELECT @@global.innodb_undo_log_encrypt;
 @@global.innodb_undo_log_encrypt

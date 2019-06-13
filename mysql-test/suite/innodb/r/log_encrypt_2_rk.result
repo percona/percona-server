@@ -1,11 +1,11 @@
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
-innodb_redo_log_encrypt	off
+innodb_redo_log_encrypt	OFF
 CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
 DROP TABLE t1;
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
-innodb_redo_log_encrypt	keyring_key
+innodb_redo_log_encrypt	KEYRING_KEY
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -50,7 +50,7 @@ c1	c2
 9	jjjjj
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
-innodb_redo_log_encrypt	keyring_key
+innodb_redo_log_encrypt	KEYRING_KEY
 SELECT * FROM t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -91,7 +91,7 @@ INSERT INTO t1 SELECT * FROM t1;
 # Kill and restart:<hidden args>
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
-innodb_redo_log_encrypt	keyring_key
+innodb_redo_log_encrypt	KEYRING_KEY
 SELECT * FROM t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -108,7 +108,7 @@ INSERT INTO t1 SELECT * FROM t1;
 DROP TABLE t1;
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 Variable_name	Value
-innodb_redo_log_encrypt	keyring_key
+innodb_redo_log_encrypt	KEYRING_KEY
 SET block_encryption_mode = 'aes-256-cbc';
 CREATE DATABASE tde_db;
 CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENCRYPTION = 'Y' ENGINE = InnoDB;

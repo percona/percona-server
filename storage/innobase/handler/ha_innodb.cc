@@ -475,8 +475,8 @@ ibool meb_get_checksum_algorithm_enum(const char *algo_name,
 }
 #endif /* !UNIV_HOTBACKUP */
 
-static const char *redo_log_encrypt_names[] = {"off", "on", "master_key",
-                                               "keyring_key", NullS};
+static const char *redo_log_encrypt_names[] = {"OFF", "ON", "MASTER_KEY",
+                                               "KEYRING_KEY", NullS};
 static TYPELIB redo_log_encrypt_typelib = {
     array_elements(redo_log_encrypt_names) - 1, "redo_log_encrypt_typelib",
     redo_log_encrypt_names, nullptr};
@@ -1054,6 +1054,17 @@ static int innodb_encrypt_tables_validate(
     void *save,                    /*!< out: immediate result
                                    for update function */
     struct st_mysql_value *value); /*!< in: incoming string */
+
+/** Validates the possible innodb_redo_log_encrypt_values.
+memory needed for buffer pool resize.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	save	immediate result for update function
+@param[in]	value	incoming string
+@return 0 on success, 1 on failure.
+*/
+static int innodb_redo_log_encrypt_validate(THD *thd, SYS_VAR *var, void *save,
+                                            struct st_mysql_value *value);
 
 static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
                          "Enable InnoDB locking in LOCK TABLES",
@@ -23374,8 +23385,9 @@ static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
                          PLUGIN_VAR_OPCMDARG,
                          "Enable or disable Encryption of REDO tablespace."
                          "Possible values: OFF, ON, MASTER_KEY, KEYRING_KEY.",
-                         NULL, update_innodb_redo_log_encrypt,
-                         REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+                         innodb_redo_log_encrypt_validate,
+                         update_innodb_redo_log_encrypt, REDO_LOG_ENCRYPT_OFF,
+                         &redo_log_encrypt_typelib);
 
 static MYSQL_SYSVAR_BOOL(
     print_ddl_logs, srv_print_ddl_logs, PLUGIN_VAR_OPCMDARG,
@@ -24649,6 +24661,61 @@ static int innodb_encrypt_tables_validate(
   }
 
   if (legit_value == false) return 1;
+  *static_cast<ulong *>(save) = use;
+
+  return 0;
+}
+
+/** Validates the possible innodb_redo_log_encrypt_values.
+memory needed for buffer pool resize.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	save	immediate result for update function
+@param[in]	value	incoming string
+@return 0 on success, 1 on failure.
+*/
+static int innodb_redo_log_encrypt_validate(THD *thd, SYS_VAR *var, void *save,
+                                            struct st_mysql_value *value) {
+  const char *redo_log_encrypt_input;
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  int len = sizeof(buff);
+
+  ut_a(save != nullptr);
+  ut_a(value != nullptr);
+
+  redo_log_encrypt_input = value->val_str(value, buff, &len);
+
+  bool legit_value = false;
+  uint use = 0;
+  for (; use < array_elements(redo_log_encrypt_names); use++) {
+    if (innobase_strcasecmp(redo_log_encrypt_input,
+                            redo_log_encrypt_names[use]) == 0) {
+      legit_value = true;
+      break;
+    }
+  }
+
+  if (innobase_strcasecmp(redo_log_encrypt_input, "0") == 0) {
+    use = 0;
+    legit_value = true;
+  }
+
+  if (innobase_strcasecmp(redo_log_encrypt_input, "false") == 0) {
+    use = 0;
+    legit_value = true;
+  }
+
+  if (innobase_strcasecmp(redo_log_encrypt_input, "1") == 0) {
+    use = 1;
+    legit_value = true;
+  }
+
+  if (innobase_strcasecmp(redo_log_encrypt_input, "true") == 0) {
+    use = 1;
+    legit_value = true;
+  }
+
+  if (!legit_value) return 1;
   *static_cast<ulong *>(save) = use;
 
   return 0;

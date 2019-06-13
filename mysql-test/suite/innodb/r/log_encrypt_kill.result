@@ -1,7 +1,7 @@
 # restart: --no-console --log-error=ERROR_LOG_FILE
 SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
 UNINSTALL PLUGIN keyring_file;
 ERROR 42000: PLUGIN keyring_file does not exist
@@ -21,14 +21,14 @@ Pattern "Can\'t set redo log tablespace to be encrypted" found
 # Starting server with keyring plugin
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 ERROR HY000: Function 'keyring_file' already exists
 SET GLOBAL innodb_redo_log_encrypt = 0;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 ERROR HY000: Function 'keyring_file' already exists
 CREATE DATABASE tde_db;

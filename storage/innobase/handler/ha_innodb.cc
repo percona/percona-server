@@ -21468,14 +21468,26 @@ update_innodb_redo_log_encrypt(
  		return;
 	}
 
-	if (srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF
-	    && srv_redo_log_encrypt != target) {
+	if (existing_redo_encryption_mode != REDO_LOG_ENCRYPT_OFF
+	    && existing_redo_encryption_mode != target) {
 		push_warning_printf(
 			thd, Sql_condition::SL_WARNING,
-			ER_WRONG_ARGUMENTS,
+			ER_WRONG_ARGUMENTS, 
 			" Redo log encryption mode"
 			" can't be switched without stopping the server and"
-			" recreating the redo logs.");
+			" recreating the redo logs. Current mode is %s,"
+			" requested %s.",
+			log_encrypt_name(existing_redo_encryption_mode),
+			log_encrypt_name(static_cast<redo_log_encrypt_enum>(target)));
+
+		ib::warn() << 
+			" Redo log encryption mode"
+			" can't be switched without stopping the server and"
+			" recreating the redo logs. Current mode is "
+			<< log_encrypt_name(existing_redo_encryption_mode)
+			<< ", requested "
+			<< log_encrypt_name(static_cast<redo_log_encrypt_enum>(target))
+			<< ".";
 	    return;
 	}
 

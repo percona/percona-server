@@ -692,8 +692,8 @@ c CHAR NULL,
 c0 CHAR(0) NULL,
 c1 CHAR(1) NULL,
 c20 CHAR(20) NULL,
-c191 CHAR(191) NULL,
-PRIMARY KEY (c191)
+c255 CHAR(255) NULL,
+PRIMARY KEY (c255)
 ) ENGINE=rocksdb;
 ERROR 42000: All parts of a PRIMARY KEY must be NOT NULL; if you need NULL in a key, use UNIQUE instead
 CREATE TABLE t1 (
@@ -701,7 +701,7 @@ c CHAR NULL,
 c0 CHAR(0) NULL,
 c1 CHAR(1) NULL,
 c20 CHAR(20) NULL,
-c191 CHAR(191) NULL,
+c255 CHAR(255) NULL,
 fake_key INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (fake_key)
 ) ENGINE=rocksdb;
@@ -711,54 +711,53 @@ c	char(1)	YES		NULL
 c0	char(0)	YES		NULL	
 c1	char(1)	YES		NULL	
 c20	char(20)	YES		NULL	
-c191	char(191)	YES		NULL	
+c255	char(255)	YES		NULL	
 fake_key	int	NO	PRI	NULL	auto_increment
-INSERT INTO t1 (c,c0,c1,c20,c191) VALUES ('','','','','');
-INSERT INTO t1 (c,c0,c1,c20,c191) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn');
-SELECT c,c0,c1,c20,c191 FROM t1;
-c	c0	c1	c20	c191
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('','','','','');
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn');
+SELECT c,c0,c1,c20,c255 FROM t1;
+c	c0	c1	c20	c255
 				
 a		b	abcdefghi klmnopqrst	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn
-INSERT INTO t1 (c,c0,c1,c20,c191) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
 ERROR 22001: Data too long for column 'c' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-INSERT INTO t1 (c,c0,c1,c20,c191) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
 Warning	1265	Data truncated for column 'c0' at row 1
 Warning	1265	Data truncated for column 'c1' at row 1
 Warning	1265	Data truncated for column 'c20' at row 1
-Warning	1265	Data truncated for column 'c191' at row 1
+Warning	1265	Data truncated for column 'c255' at row 1
 set session sql_mode=@orig_sql_mode;
 set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
-INSERT INTO t1 (c,c0,c1,c20,c191) SELECT c191, c191, c191, c191, CONCAT('a',c191,c1) FROM t1;
+INSERT INTO t1 (c,c0,c1,c20,c255) SELECT c255, c255, c255, c255, CONCAT('a',c255,c1) FROM t1;
 ERROR 22001: Data too long for column 'c' at row 5
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-INSERT INTO t1 (c,c0,c1,c20,c191) SELECT c191, c191, c191, c191, CONCAT('a',c191,c1) FROM t1;
+INSERT INTO t1 (c,c0,c1,c20,c255) SELECT c255, c255, c255, c255, CONCAT('a',c255,c1) FROM t1;
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 5
 Warning	1265	Data truncated for column 'c0' at row 5
 Warning	1265	Data truncated for column 'c1' at row 5
 Warning	1265	Data truncated for column 'c20' at row 5
-Warning	1265	Data truncated for column 'c191' at row 5
 Warning	1265	Data truncated for column 'c' at row 6
 Warning	1265	Data truncated for column 'c0' at row 6
 Warning	1265	Data truncated for column 'c1' at row 6
 Warning	1265	Data truncated for column 'c20' at row 6
-Warning	1265	Data truncated for column 'c191' at row 6
+Warning	1265	Data truncated for column 'c255' at row 6
 set session sql_mode=@orig_sql_mode;
 set session transaction_isolation=@orig_tx_iso;
-SELECT c,c0,c1,c20,c191 FROM t1;
-c	c0	c1	c20	c191
+SELECT c,c0,c1,c20,c255 FROM t1;
+c	c0	c1	c20	c255
 				
 				a
-C		C	Creating an article	aCreating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn
-a		a	aaaaaaaaaaaaaaaaaaaa	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+C		C	Creating an article	aCreating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesnb
+a		a	aaaaaaaaaaaaaaaaaaaa	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 a		b	abcdefghi klmnopqrst	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn
-x		x	xxxxxxxxxxxxxxxxxxxx	axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+x		x	xxxxxxxxxxxxxxxxxxxx	axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 SELECT DISTINCT c20, REPEAT('a',LENGTH(c20)), COUNT(*) FROM t1 GROUP BY c1, c20;
 c20	REPEAT('a',LENGTH(c20))	COUNT(*)
 		2
@@ -812,8 +811,8 @@ PRIMARY KEY (v64)
 ) ENGINE=rocksdb;
 ERROR 42000: All parts of a PRIMARY KEY must be NOT NULL; if you need NULL in a key, use UNIQUE instead
 CREATE TABLE t2 (
-v VARCHAR(191) NULL,
-PRIMARY KEY (v(191))
+v VARCHAR(255) NULL,
+PRIMARY KEY (v(255))
 ) ENGINE=rocksdb;
 ERROR 42000: All parts of a PRIMARY KEY must be NOT NULL; if you need NULL in a key, use UNIQUE instead
 CREATE TABLE t1 (
@@ -825,7 +824,7 @@ fake_key INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (fake_key)
 ) ENGINE=rocksdb;
 CREATE TABLE t2 (
-v VARCHAR(191) NULL,
+v VARCHAR(255) NULL,
 fake_key INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (fake_key)
 ) ENGINE=rocksdb;
@@ -838,7 +837,7 @@ v16300	varchar(16300)	YES		NULL
 fake_key	int	NO	PRI	NULL	auto_increment
 SHOW COLUMNS IN t2;
 Field	Type	Null	Key	Default	Extra
-v	varchar(191)	YES		NULL	
+v	varchar(255)	YES		NULL	
 fake_key	int	NO	PRI	NULL	auto_increment
 INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('','','','');
 INSERT INTO t1 (v0,v1,v64,v16300) VALUES ('','y','Once there, double check that an article doesn\'t already exist','Here is a list of recommended books on MariaDB and MySQL. We\'ve provided links to Amazon.com here for convenience, but they can be found at many other bookstores, both online and off.

@@ -752,8 +752,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache,
                                   sizeof(IO_CACHE), MYF(MY_FAE | MY_ZEROFILL));
 
-        if (open_cached_file(tempfile, mysql_tmpdir, TEMP_PREFIX,
-                             DISK_BUFFER_SIZE, MYF(MY_WME))) {
+        if (open_cached_file_encrypted(tempfile, mysql_tmpdir, TEMP_PREFIX,
+                                       DISK_BUFFER_SIZE, MYF(MY_WME),
+                                       encrypt_tmp_files)) {
           my_free(tempfile);
           return true;
         }

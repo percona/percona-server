@@ -511,6 +511,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
         source_iterator, found_rows, &longest_key, &longest_addons);
     if (num_rows_found == HA_POS_ERROR) goto err;
   }
+  DEBUG_SYNC(thd, "after_find_all_keys");
 
   size_t num_chunks, num_initial_chunks;
   if (my_b_inited(&chunk_file)) {
@@ -548,8 +549,9 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
 
     /* Open cached file if it isn't open */
     if (!my_b_inited(outfile) &&
-        open_cached_file(outfile, mysql_tmpdir, TEMP_PREFIX, READ_RECORD_BUFFER,
-                         MYF(MY_WME)))
+        open_cached_file_encrypted(outfile, mysql_tmpdir, TEMP_PREFIX,
+                                   READ_RECORD_BUFFER, MYF(MY_WME),
+                                   encrypt_tmp_files))
       goto err;
     if (reinit_io_cache(outfile, WRITE_CACHE, 0L, false, false)) goto err;
 
@@ -1099,13 +1101,15 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
   count = fs_info->sort_buffer(param, count, param->max_rows);
 
   if (!my_b_inited(chunk_file) &&
-      open_cached_file(chunk_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
-                       MYF(MY_WME)))
+      open_cached_file_encrypted(chunk_file, mysql_tmpdir, TEMP_PREFIX,
+                                 DISK_BUFFER_SIZE, MYF(MY_WME),
+                                 encrypt_tmp_files))
     return 1;
 
   if (!my_b_inited(tempfile) &&
-      open_cached_file(tempfile, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
-                       MYF(MY_WME)))
+      open_cached_file_encrypted(tempfile, mysql_tmpdir, TEMP_PREFIX,
+                                 DISK_BUFFER_SIZE, MYF(MY_WME),
+                                 encrypt_tmp_files))
     return 1; /* purecov: inspected */
 
   // Check that we won't have more chunks than we can possibly keep in memory.
@@ -1757,8 +1761,9 @@ static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                ("read_to_buffer %p at file_pos %llu bytes %llu", merge_chunk,
                 static_cast<ulonglong>(merge_chunk->file_position()),
                 static_cast<ulonglong>(bytes_to_read)));
-    if (mysql_file_pread(fromfile->file, merge_chunk->buffer_start(),
-                         bytes_to_read, merge_chunk->file_position(), MYF_RW))
+    if (mysql_encryption_file_pread(fromfile, merge_chunk->buffer_start(),
+                                    bytes_to_read, merge_chunk->file_position(),
+                                    MYF_RW))
       return (uint)-1; /* purecov: inspected */
     merge_chunk->set_valid_buffer_end(merge_chunk->buffer_start() +
                                       bytes_to_read);

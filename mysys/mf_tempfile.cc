@@ -275,7 +275,8 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 
 #else /* mkstemp() is available on all non-Windows supported platforms. */
 #ifdef HAVE_O_TMPFILE
-  if (unlink_or_keep == UNLINK_FILE) {
+  if (unlink_or_keep == UNLINK_FILE &&
+      DBUG_EVALUATE_IF("enforce_legacy_temp_files", false, true)) {
     if (!dir && !(dir = getenv("TMPDIR"))) dir = DEFAULT_TMPDIR;
 
     char dirname_buf[FN_REFLEN];

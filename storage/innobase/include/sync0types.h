@@ -677,19 +677,7 @@ public:
 
 	/** Deregister a single instance counter
 	@param[in]	count		The count instance to deregister */
-	void single_deregister(Count* count)
-		UNIV_NOTHROW
-	{
-		m_mutex.enter();
-
-		m_counters.erase(
-			std::remove(
-				m_counters.begin(),
-				m_counters.end(), count),
-			m_counters.end());
-
-		m_mutex.exit();
-	}
+	void single_deregister(Count* count) UNIV_NOTHROW;
 
 	/** Iterate over the counters */
 	template <typename Callback>

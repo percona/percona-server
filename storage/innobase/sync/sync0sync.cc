@@ -33,6 +33,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "univ.i"
 #include "sync0rw.h"
 #include "sync0sync.h"
+#include "srv0start.h"
 
 /** Keeps count of number of Performance Schema keys defined. */
 unsigned int mysql_pfs_key_t::s_count;
@@ -306,4 +307,31 @@ MutexMonitor::reset()
 	}
 
 	mutex_exit(&rw_lock_list_mutex);
+}
+
+/** Deregister a single instance counter
+@param[in]	count		The count instance to deregister */
+void LatchCounter::single_deregister(Count* count) UNIV_NOTHROW
+{
+	m_mutex.enter();
+
+	/* m_counters vector size can be very big (in the order of millions).
+	Specially for the AUTOINC and BLOCK mutexes. Removal of one element is
+	atleast O(N) and for N elements, it is O(N^2). Since these are
+	about to destroyed during shutdown, there is no value point in removing
+	them one-by-one. Just remove them in one go. Subsequent clear() requests
+	would be no-op */
+        if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
+                m_counters.clear();
+                m_mutex.exit();
+                return;
+        }
+
+	m_counters.erase(
+		std::remove(
+			m_counters.begin(),
+			m_counters.end(), count),
+		m_counters.end());
+
+	m_mutex.exit();
 }

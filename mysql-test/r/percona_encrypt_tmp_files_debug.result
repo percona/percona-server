@@ -1,0 +1,68 @@
+SET GLOBAL local_infile = ON;
+include/assert.inc [Temporary file encryption must be enabled]
+include/assert.inc [Sort buffer size must be 4M]
+CREATE TEMPORARY TABLE id_table(id INT UNSIGNED);
+LOAD DATA LOCAL INFILE '<pid_file>' INTO TABLE id_table;
+TRUNCATE TABLE id_table;
+CREATE TABLE t1(
+id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+value CHAR(32) NOT NULL,
+dummy VARCHAR(1024) NOT NULL
+) DEFAULT CHARACTER SET=latin1 DEFAULT COLLATE=latin1_swedish_ci ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, MD5(0), REPEAT(MD5(0), 16));
+INSERT INTO t1 SELECT 1 + id, MD5(1 + id), REPEAT(MD5(1 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 2 + id, MD5(2 + id), REPEAT(MD5(2 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 4 + id, MD5(4 + id), REPEAT(MD5(4 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 8 + id, MD5(8 + id), REPEAT(MD5(8 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 16 + id, MD5(16 + id), REPEAT(MD5(16 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 32 + id, MD5(32 + id), REPEAT(MD5(32 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 64 + id, MD5(64 + id), REPEAT(MD5(64 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 128 + id, MD5(128 + id), REPEAT(MD5(128 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 256 + id, MD5(256 + id), REPEAT(MD5(256 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 512 + id, MD5(512 + id), REPEAT(MD5(512 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 1024 + id, MD5(1024 + id), REPEAT(MD5(1024 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 2048 + id, MD5(2048 + id), REPEAT(MD5(2048 + id), 16) FROM t1 ORDER BY id;
+SET DEBUG_SYNC = 'after_find_all_keys SIGNAL after_find_all_keys_reached WAIT_FOR after_find_all_keys_signaled';
+SELECT sql_big_result * FROM t1 ORDER BY dummy;
+SET DEBUG_SYNC = 'now WAIT_FOR after_find_all_keys_reached';
+LOAD DATA LOCAL INFILE '<fd_no_include_file>' INTO TABLE id_table;
+TRUNCATE TABLE id_table;
+include/assert_grep.inc [filesort() temporary file must not contain unencrypted key]
+SET DEBUG_SYNC = 'now SIGNAL after_find_all_keys_signaled';
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+# restart: --encrypt-tmp-files=OFF
+SET GLOBAL local_infile = ON;
+include/assert.inc [Temporary file encryption must be disabled]
+include/assert.inc [Sort buffer size must be 4M]
+CREATE TEMPORARY TABLE id_table(id INT UNSIGNED);
+LOAD DATA LOCAL INFILE '<pid_file>' INTO TABLE id_table;
+TRUNCATE TABLE id_table;
+CREATE TABLE t1(
+id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+value CHAR(32) NOT NULL,
+dummy VARCHAR(1024) NOT NULL
+) DEFAULT CHARACTER SET=latin1 DEFAULT COLLATE=latin1_swedish_ci ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, MD5(0), REPEAT(MD5(0), 16));
+INSERT INTO t1 SELECT 1 + id, MD5(1 + id), REPEAT(MD5(1 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 2 + id, MD5(2 + id), REPEAT(MD5(2 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 4 + id, MD5(4 + id), REPEAT(MD5(4 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 8 + id, MD5(8 + id), REPEAT(MD5(8 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 16 + id, MD5(16 + id), REPEAT(MD5(16 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 32 + id, MD5(32 + id), REPEAT(MD5(32 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 64 + id, MD5(64 + id), REPEAT(MD5(64 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 128 + id, MD5(128 + id), REPEAT(MD5(128 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 256 + id, MD5(256 + id), REPEAT(MD5(256 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 512 + id, MD5(512 + id), REPEAT(MD5(512 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 1024 + id, MD5(1024 + id), REPEAT(MD5(1024 + id), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 2048 + id, MD5(2048 + id), REPEAT(MD5(2048 + id), 16) FROM t1 ORDER BY id;
+SET DEBUG_SYNC = 'after_find_all_keys SIGNAL after_find_all_keys_reached WAIT_FOR after_find_all_keys_signaled';
+SELECT sql_big_result * FROM t1 ORDER BY dummy;
+SET DEBUG_SYNC = 'now WAIT_FOR after_find_all_keys_reached';
+LOAD DATA LOCAL INFILE '<fd_no_include_file>' INTO TABLE id_table;
+TRUNCATE TABLE id_table;
+include/assert_grep.inc [filesort() temporary file must contain unencrypted key]
+SET DEBUG_SYNC = 'now SIGNAL after_find_all_keys_signaled';
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+# restart

@@ -1,26 +1,45 @@
 --source include/have_myisam.inc
 
-# Row binlog format to fill binlog cache faster
-SET @binlog_format_saved = @@global.binlog_format;
-SET GLOBAL binlog_format='ROW';
-SET SESSION binlog_format='ROW';
---source include/have_binlog_format_row.inc
-
-if (`SELECT @@global.encrypt_tmp_files = 0`)
-{
-   --die Test requires --encrypt-tmp-files
-}
-
---source include/count_sessions.inc
+--let $assert_text = Temporary file encryption must be enabled
+--let $assert_cond = @@global.encrypt_tmp_files = 1
+--source include/assert.inc
 
 #
 # MyISAM messing around with IO_CACHE::file
 #
+
 CREATE TABLE t1(a INT) ENGINE=MyISAM;
-INSERT INTO t1 VALUES(1), (2);
-DELETE FROM t1 WHERE a = 1;
+eval INSERT INTO t1 VALUES (0);
+--let $shift = 1
+--let $n = 20
+while($n)
+{
+  eval INSERT INTO t1 SELECT $shift + a FROM t1 ORDER BY a;
+  --let $shift = `SELECT $shift * 2`
+  --dec $n
+}
+--let $original_number_of_records = `SELECT COUNT(*) FROM t1`
+
+DELETE FROM t1 WHERE a % 2 = 1;
+--let $reduced_number_of_records = `SELECT COUNT(*) FROM t1`
+--let $assert_text = Number of records must be reduced by a half
+--let $assert_cond = $original_number_of_records = $reduced_number_of_records * 2
+--source include/assert.inc
+
+--let $original_checksum = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+
 OPTIMIZE TABLE t1;
+--let $current_checksum = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+--let $assert_text = Table checksum after OPTIMIZE TABLE must not change
+--let $assert_cond = $current_checksum = $original_checksum
+--source include/assert.inc
+
 CHECK TABLE t1;
+--let $current_checksum = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+--let $assert_text = Table checksum after CHECK TABLE must not change
+--let $assert_cond = $current_checksum = $original_checksum
+--source include/assert.inc
+
 DROP TABLE t1;
 
 CREATE TABLE universal_seq (seq INT) ENGINE=InnoDB;
@@ -35,14 +54,6 @@ CREATE TABLE seq_0_to_26  (seq INT) ENGINE=InnoDB;
 INSERT INTO  seq_0_to_26  SELECT seq FROM universal_seq WHERE seq <= 26 ORDER BY seq;
 CREATE TABLE seq_0_to_9   (seq INT) ENGINE=InnoDB;
 INSERT INTO  seq_0_to_9   SELECT seq FROM universal_seq WHERE seq <=  9 ORDER BY seq;
-CREATE TABLE seq_1_to_15  (seq INT) ENGINE=InnoDB;
-INSERT INTO  seq_1_to_15  SELECT seq FROM universal_seq WHERE seq <= 15 AND seq >=  1 ORDER BY seq;
-CREATE TABLE seq_1_to_8   (seq INT) ENGINE=InnoDB;
-INSERT INTO  seq_1_to_8   SELECT seq FROM universal_seq WHERE seq <=  8 AND seq >=  1 ORDER BY seq;
-CREATE TABLE seq_16_to_30 (seq INT) ENGINE=InnoDB;
-INSERT INTO  seq_16_to_30 SELECT seq FROM universal_seq WHERE seq <= 30 AND seq >= 16 ORDER BY seq;
-CREATE TABLE seq_31_to_40 (seq INT) ENGINE=InnoDB;
-INSERT INTO  seq_31_to_40 SELECT seq FROM universal_seq WHERE seq <= 40 AND seq >= 31 ORDER BY seq;
 
 #
 # filesort, my_b_pread, seeks in READ_CACHE
@@ -54,72 +65,37 @@ UPDATE t1 SET c = v, t = v;
 SELECT sql_big_result t, COUNT(t) FROM t1 GROUP BY t LIMIT 10;
 DROP TABLE t1;
 
-RESET MASTER;
-SET @saved_binlog_cache_size = @@global.binlog_cache_size;
-SET GLOBAL binlog_cache_size = 8192;
-
-connect con1, localhost, root;
-
-#
-# Test the last half-filled block:
-# first write 3 blocks, then reinit the file and write one full and one
-# partial block. reading the second time must stop in the middle of the
-# second block, and NOT read till EOF.
-#
-CREATE TABLE t1 (a TEXT) ENGINE=InnoDB;
-START TRANSACTION;
-INSERT t1 SELECT REPEAT(seq, 1000) FROM seq_1_to_15;
-COMMIT;
-START TRANSACTION;
-INSERT t1 SELECT REPEAT(seq, 1000) FROM seq_1_to_8;
-COMMIT;
-
-disconnect con1;
-connect con2, localhost, root;
-
-#
-# Test reinit_io_cache(WRITE_CACHE) with non-zero seek_offset:
-# Start a transaction, write until the cache goes to disk,
-# create a savepoint, write more blocks to disk, rollback to savepoint.
-#
-CREATE TABLE t2 (a TEXT) ENGINE=InnoDB;
-START TRANSACTION;
-INSERT t2 SELECT REPEAT(seq, 1000) FROM seq_1_to_15;
-SAVEPOINT foo;
-INSERT t2 SELECT REPEAT(seq, 1000) FROM seq_16_to_30;
-ROLLBACK TO SAVEPOINT foo;
-INSERT t2 SELECT REPEAT(seq, 1000) FROM seq_31_to_40;
-COMMIT;
-
-# SHOW BINLOG EVENTS must succeed without 'CORRUPTED BINLOG' error
---disable_result_log
-SHOW BINLOG EVENTS;
---enable_result_log
-
-disconnect con2;
-connection default;
-
-FLUSH BINARY LOGS;
-
-DROP TABLE t1, t2;
-
-SET GLOBAL binlog_cache_size = @saved_binlog_cache_size;
-
-let $MYSQLD_DATADIR = `SELECT @@datadir`;
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 | $MYSQL;
-
-SELECT LEFT(a, 10) FROM t1;
-SELECT LEFT(a, 10) FROM t2;
-DROP TABLE t1, t2;
-
-DROP TABLE seq_31_to_40;
-DROP TABLE seq_16_to_30;
-DROP TABLE seq_1_to_8;
-DROP TABLE seq_1_to_15;
 DROP TABLE seq_0_to_9;
 DROP TABLE seq_0_to_26;
 DROP TABLE universal_seq;
 
---source include/wait_until_count_sessions.inc
+--echo #
+--echo # [PS8QA] handle_fatal_signal (sig=11) in my_strnncollsp_simple | ctype-simple.cc:190
+--echo #
 
-SET GLOBAL binlog_format = @binlog_format_saved;
+SET SESSION tmp_table_size=1024;
+CREATE TABLE t1(a TEXT,b TEXT);
+INSERT INTO t1 VALUES(7553,'7553');
+INSERT INTO t1 VALUES(662,'aaaaaaaaaaaaaaaaaaaa');
+INSERT INTO t1 VALUES(1,10),(2,20);
+REPLACE INTO t1 VALUES(@id,"REPLACE,deleting the duplicate");
+INSERT INTO t1 VALUES(2,"ccccc");
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3),(4,4);
+INSERT INTO t1 VALUES("abcd", -3);
+INSERT INTO t1 SET b=REPEAT('a',600);
+INSERT INTO t1 VALUES(1,"aaa"),(2,"bbb"),(3,"ccc");
+INSERT INTO t1 values("john","doe"),("John","Doe");
+INSERT INTO t1 VALUES(1,0),(1,1);
+INSERT INTO t1 VALUES(4811,'4811');
+INSERT INTO t1 VALUES(3,'2001-01-01 10:11:02');
+INSERT INTO t1 VALUES('a','a'),('b','b'),('c','c'),('aa','aa'),('bb','bb'),('cc','cc');
+INSERT INTO t1 VALUES(8799,'8799');
+INSERT INTO t1 VALUES(7436,'7436');
+SELECT GROUP_CONCAT(DISTINCT UCASE(b)) FROM t1;
+
+SET SESSION tmp_table_size = default;
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.7 testcases
+--echo #

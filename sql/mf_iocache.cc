@@ -43,6 +43,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_rnd.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
@@ -90,4 +91,35 @@ int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
   info->read_pos++;
 
   return 0;
+}
+
+/*
+** A wrapper for 'open_cached_file()' which also initializes encryption
+** subsystem depending on the value of 'encrypted' parameter.
+*/
+bool open_cached_file_encrypted(IO_CACHE *cache, const char *dir,
+                                const char *prefix, size_t cache_size,
+                                myf cache_myflags, bool encrypted) {
+  DBUG_ENTER("open_cached_file_encrypted");
+  bool res = open_cached_file(cache, dir, prefix, cache_size, cache_myflags);
+  if (res) DBUG_RETURN(true);
+  if (!encrypted) DBUG_RETURN(false);
+
+  Key_string password_str;
+  unsigned char password[Aes_ctr::PASSWORD_LENGTH];
+
+  /* Generate password, it is a random string. */
+  if (my_rand_buffer(password, sizeof(password)) != 0) DBUG_RETURN(true);
+  password_str.append(password, sizeof(password));
+
+  auto encryptor = std::make_unique<Aes_ctr_encryptor>();
+  if (encryptor->open(password_str, 0)) DBUG_RETURN(true);
+
+  auto decryptor = std::make_unique<Aes_ctr_decryptor>();
+  if (decryptor->open(password_str, 0)) DBUG_RETURN(true);
+
+  cache->m_encryptor = encryptor.release();
+  cache->m_decryptor = decryptor.release();
+
+  DBUG_RETURN(false);
 }

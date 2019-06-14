@@ -954,7 +954,7 @@ rocksdb_index_type	kBinarySearch
 rocksdb_info_log_level	error_level
 rocksdb_is_fd_close_on_exec	ON
 rocksdb_keep_log_file_num	1000
-rocksdb_large_prefix	OFF
+rocksdb_large_prefix	ON
 rocksdb_lock_scanned_rows	OFF
 rocksdb_lock_wait_timeout	1
 rocksdb_log_file_time_to_roll	0
@@ -1857,7 +1857,7 @@ create table t0 (a int) engine=myisam;
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (
 pk int primary key, 
-col1 varchar(191),
+col1 varchar(255),
 key(col1)
 ) engine=rocksdb;
 insert into t1 select a, repeat('123456789ABCDEF-', 5) from t0;
@@ -1875,7 +1875,7 @@ id1 bigint(20) unsigned NOT NULL DEFAULT '0',
 id2 bigint(20) unsigned NOT NULL DEFAULT '0',
 link_type bigint(20) unsigned NOT NULL DEFAULT '0',
 visibility tinyint(3) NOT NULL DEFAULT '0',
-data varchar(191) NOT NULL DEFAULT '',
+data varchar(255) NOT NULL DEFAULT '',
 time bigint(20) unsigned NOT NULL DEFAULT '0',
 version int(11) unsigned NOT NULL DEFAULT '0',
 PRIMARY KEY (link_type,id1,id2)
@@ -2386,11 +2386,11 @@ SET @old_mode = @@sql_mode;
 SET sql_mode = 'strict_all_tables';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-create table t1 (a int, b text, c varchar(191), Primary Key(a), Key(c, b(191))) engine=rocksdb;
+create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(c, b(255))) engine=rocksdb;
 drop table t1;
 set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
 set @@global.rocksdb_large_prefix=1;
-create table t1 (a int, b text, c varchar(191), Primary Key(a), Key(b(191))) engine=rocksdb;
+create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(b(255))) engine=rocksdb;
 set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
 insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
 select * from t1;
@@ -2400,12 +2400,12 @@ a	b	c
 3	3abcde	3abcde
 explain select * from t1 where b like '1%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	b	767	NULL	#	100.00	Using where
+1	SIMPLE	t1	NULL	range	b	b	1023	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` like '1%')
 explain select b, a from t1 where b like '1%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b	b	767	NULL	#	100.00	Using where
+1	SIMPLE	t1	NULL	range	b	b	1023	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` like '1%')
 update t1 set b= '12345' where b = '2abcde';
@@ -2416,7 +2416,7 @@ a	b	c
 3	3abcde	3abcde
 drop table t1;
 create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(2255))) engine=rocksdb;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
 SET sql_mode = @old_mode;
 drop table t0;
 #

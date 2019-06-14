@@ -515,7 +515,7 @@ static uint32_t rocksdb_table_stats_sampling_pct =
 static bool rocksdb_enable_bulk_load_api = true;
 static bool rpl_skip_tx_api_var = false;
 static bool rocksdb_print_snapshot_conflict_queries = false;
-static bool rocksdb_large_prefix = false;
+static bool rocksdb_large_prefix = true;
 static bool rocksdb_allow_to_start_after_corruption = false;
 static uint64_t rocksdb_write_policy =
     rocksdb::TxnDBWritePolicy::WRITE_COMMITTED;
@@ -1594,7 +1594,7 @@ static MYSQL_SYSVAR_BOOL(
     large_prefix, rocksdb_large_prefix, PLUGIN_VAR_RQCMDARG,
     "Support large index prefix length of 3072 bytes. If off, the maximum "
     "index prefix length is 767.",
-    nullptr, nullptr, false);
+    nullptr, nullptr, true);
 
 static MYSQL_SYSVAR_BOOL(
     allow_to_start_after_corruption, rocksdb_allow_to_start_after_corruption,

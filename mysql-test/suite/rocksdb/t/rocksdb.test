@@ -1290,7 +1290,7 @@ insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
 create table t1 (
   pk int primary key, 
-  col1 varchar(191),
+  col1 varchar(255),
   key(col1)
 ) engine=rocksdb;
 insert into t1 select a, repeat('123456789ABCDEF-', 5) from t0;
@@ -1308,7 +1308,7 @@ CREATE TABLE t1 (
   id2 bigint(20) unsigned NOT NULL DEFAULT '0',
   link_type bigint(20) unsigned NOT NULL DEFAULT '0',
   visibility tinyint(3) NOT NULL DEFAULT '0',
-  data varchar(191) NOT NULL DEFAULT '',
+  data varchar(255) NOT NULL DEFAULT '',
   time bigint(20) unsigned NOT NULL DEFAULT '0',
   version int(11) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (link_type,id1,id2)
@@ -1722,11 +1722,11 @@ drop table t1;
 --echo #Index on blob column
 SET @old_mode = @@sql_mode;
 SET sql_mode = 'strict_all_tables';
-create table t1 (a int, b text, c varchar(191), Primary Key(a), Key(c, b(191))) engine=rocksdb;
+create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(c, b(255))) engine=rocksdb;
 drop table t1;
 set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
 set @@global.rocksdb_large_prefix=1;
-create table t1 (a int, b text, c varchar(191), Primary Key(a), Key(b(191))) engine=rocksdb;
+create table t1 (a int, b text, c varchar(255), Primary Key(a), Key(b(255))) engine=rocksdb;
 set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
 insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
 select * from t1;

@@ -794,6 +794,9 @@ extern size_t my_b_vprintf(IO_CACHE *info, const char *fmt, va_list ap);
 extern bool open_cached_file(IO_CACHE *cache, const char *dir,
                              const char *prefix, size_t cache_size,
                              myf cache_myflags);
+extern bool open_cached_file_encrypted(IO_CACHE *cache, const char *dir,
+                                       const char *prefix, size_t cache_size,
+                                       myf cache_myflags, bool encrypted);
 extern bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 

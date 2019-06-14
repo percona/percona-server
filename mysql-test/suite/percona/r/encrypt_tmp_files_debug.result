@@ -1,0 +1,75 @@
+SET GLOBAL local_infile = ON;
+include/assert.inc [Temporary file encryption must be enabled]
+include/assert.inc [Sort buffer size must be 4M]
+CREATE TEMPORARY TABLE id_table(id INT UNSIGNED);
+LOAD DATA LOCAL INFILE '<pid_file>' INTO TABLE id_table;
+TRUNCATE TABLE id_table;
+CREATE TABLE t1(
+id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+value CHAR(64) NOT NULL,
+dummy VARCHAR(1024) NOT NULL
+) DEFAULT CHARACTER SET=latin1 DEFAULT COLLATE=latin1_swedish_ci ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, SHA2(0,256), REPEAT(SHA2(0, 256), 16));
+INSERT INTO t1 SELECT 1 + id, SHA2(1 + id, 256), REPEAT(SHA2(1 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 2 + id, SHA2(2 + id, 256), REPEAT(SHA2(2 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 4 + id, SHA2(4 + id, 256), REPEAT(SHA2(4 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 8 + id, SHA2(8 + id, 256), REPEAT(SHA2(8 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 16 + id, SHA2(16 + id, 256), REPEAT(SHA2(16 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 32 + id, SHA2(32 + id, 256), REPEAT(SHA2(32 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 64 + id, SHA2(64 + id, 256), REPEAT(SHA2(64 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 128 + id, SHA2(128 + id, 256), REPEAT(SHA2(128 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 256 + id, SHA2(256 + id, 256), REPEAT(SHA2(256 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 512 + id, SHA2(512 + id, 256), REPEAT(SHA2(512 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 1024 + id, SHA2(1024 + id, 256), REPEAT(SHA2(1024 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 2048 + id, SHA2(2048 + id, 256), REPEAT(SHA2(2048 + id, 256), 16) FROM t1 ORDER BY id;
+SET debug = "+d,enforce_legacy_temp_files";
+SET DEBUG_SYNC = 'after_find_all_keys SIGNAL after_find_all_keys_reached WAIT_FOR after_find_all_keys_signaled';
+CREATE TABLE t2 AS SELECT sql_big_result * FROM t1 ORDER BY dummy;
+SET DEBUG_SYNC = 'now WAIT_FOR after_find_all_keys_reached';
+LOAD DATA LOCAL INFILE '<fd_no_include_file>' INTO TABLE id_table;
+TRUNCATE TABLE id_table;
+include/assert_grep.inc [filesort() temporary file must not contain unencrypted key]
+SET DEBUG_SYNC = 'now SIGNAL after_find_all_keys_signaled';
+SET debug = "-d,enforce_legacy_temp_files";
+DROP TABLE t2;
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+# restart: --encrypt-tmp-files=OFF
+SET GLOBAL local_infile = ON;
+include/assert.inc [Temporary file encryption must be disabled]
+include/assert.inc [Sort buffer size must be 4M]
+CREATE TEMPORARY TABLE id_table(id INT UNSIGNED);
+LOAD DATA LOCAL INFILE '<pid_file>' INTO TABLE id_table;
+TRUNCATE TABLE id_table;
+CREATE TABLE t1(
+id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+value CHAR(64) NOT NULL,
+dummy VARCHAR(1024) NOT NULL
+) DEFAULT CHARACTER SET=latin1 DEFAULT COLLATE=latin1_swedish_ci ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, SHA2(0,256), REPEAT(SHA2(0, 256), 16));
+INSERT INTO t1 SELECT 1 + id, SHA2(1 + id, 256), REPEAT(SHA2(1 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 2 + id, SHA2(2 + id, 256), REPEAT(SHA2(2 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 4 + id, SHA2(4 + id, 256), REPEAT(SHA2(4 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 8 + id, SHA2(8 + id, 256), REPEAT(SHA2(8 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 16 + id, SHA2(16 + id, 256), REPEAT(SHA2(16 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 32 + id, SHA2(32 + id, 256), REPEAT(SHA2(32 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 64 + id, SHA2(64 + id, 256), REPEAT(SHA2(64 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 128 + id, SHA2(128 + id, 256), REPEAT(SHA2(128 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 256 + id, SHA2(256 + id, 256), REPEAT(SHA2(256 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 512 + id, SHA2(512 + id, 256), REPEAT(SHA2(512 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 1024 + id, SHA2(1024 + id, 256), REPEAT(SHA2(1024 + id, 256), 16) FROM t1 ORDER BY id;
+INSERT INTO t1 SELECT 2048 + id, SHA2(2048 + id, 256), REPEAT(SHA2(2048 + id, 256), 16) FROM t1 ORDER BY id;
+SET debug = "+d,enforce_legacy_temp_files";
+SET DEBUG_SYNC = 'after_find_all_keys SIGNAL after_find_all_keys_reached WAIT_FOR after_find_all_keys_signaled';
+CREATE TABLE t2 AS SELECT sql_big_result * FROM t1 ORDER BY dummy;
+SET DEBUG_SYNC = 'now WAIT_FOR after_find_all_keys_reached';
+LOAD DATA LOCAL INFILE '<fd_no_include_file>' INTO TABLE id_table;
+TRUNCATE TABLE id_table;
+include/assert_grep.inc [filesort() temporary file must contain unencrypted key]
+SET DEBUG_SYNC = 'now SIGNAL after_find_all_keys_signaled';
+SET debug = "-d,enforce_legacy_temp_files";
+DROP TABLE t2;
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+# restart
+include/assert.inc [SELECT result checksums must match]

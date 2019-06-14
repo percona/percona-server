@@ -1682,4 +1682,12 @@ void mi_check_print_error(MI_CHECK *param, const char *fmt, ...) {
   va_end(args);
 }
 
+bool get_global_encrypt_tmp_files() { return false; }
+
+bool open_cached_file_encrypted(IO_CACHE *cache, const char *dir,
+                                const char *prefix, size_t cache_size,
+                                myf cache_myflags, bool /*encrypted*/) {
+  return open_cached_file(cache, dir, prefix, cache_size, cache_myflags);
+}
+
 #include "storage/myisam/mi_extrafunc.h"

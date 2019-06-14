@@ -22,8 +22,8 @@ if ($extra_col_opts_ddl_err == 0)
     PRIMARY KEY (v64)
   ) ENGINE=rocksdb;
   eval CREATE TABLE t2 (
-    v VARCHAR(191) $extra_col_opts,
-    PRIMARY KEY (v(191))
+    v VARCHAR(255) $extra_col_opts,
+    PRIMARY KEY (v(255))
   ) ENGINE=rocksdb;
 }
 if ($extra_col_opts_ddl_err == 1)
@@ -39,8 +39,8 @@ if ($extra_col_opts_ddl_err == 1)
   ) ENGINE=rocksdb;
   --error ER_PRIMARY_CANT_HAVE_NULL
   eval CREATE TABLE t2 (
-    v VARCHAR(191) $extra_col_opts,
-    PRIMARY KEY (v(191))
+    v VARCHAR(255) $extra_col_opts,
+    PRIMARY KEY (v(255))
   ) ENGINE=rocksdb;
 
   # 5.7 _requires_ a not NULL PK and can't mimick 5.6 behavior, so we are
@@ -55,7 +55,7 @@ if ($extra_col_opts_ddl_err == 1)
   ) ENGINE=rocksdb;
 
   eval CREATE TABLE t2 (
-    v VARCHAR(191) $extra_col_opts,
+    v VARCHAR(255) $extra_col_opts,
     fake_key INT NOT NULL AUTO_INCREMENT,
     PRIMARY KEY (fake_key)
   ) ENGINE=rocksdb;

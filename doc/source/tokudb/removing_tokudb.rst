@@ -22,11 +22,11 @@ If you still need the data in the TokuDB tables you'll need to alter the tables 
 Removing the plugins
 --------------------
 
-To remove the |TokuDB| storage engine with all installed plugins you can use the ``ps_tokudb_admin`` script:
+To remove the |TokuDB| storage engine with all installed plugins you can use the ``ps-admin`` script:
 
 .. code-block:: bash
 
-  ps_tokudb_admin --disable -uroot -pPassw0rd
+  ps-admin --disable-tokudb -uroot -pPassw0rd
 
 Script output should look like this: 
 

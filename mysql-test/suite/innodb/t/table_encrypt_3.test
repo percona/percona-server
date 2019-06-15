@@ -1,4 +1,5 @@
 --let $keyring_plugin_name=keyring_file
 --let $keyring_restart_param=restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--let $number_of_MK_rotations=500
 --source include/table_encrypt_3.inc
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring

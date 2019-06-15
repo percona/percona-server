@@ -463,11 +463,11 @@ When this variable is set to ``ON`` log file will be closed and reopened. This c
 
 .. variable:: audit_log_buffer_size
 
-    :cli: Yes
-    :scope: Global
-    :dyn: No
-    :vartype: Numeric
-    :default: 4096
+     :cli: Yes
+     :scope: Global
+     :dyn: No
+     :vartype: Numeric
+     :default: 1 Mb
 
 This variable can be used to specify the size of memory buffer used for logging, used when :variable:`audit_log_strategy` variable is set to ``ASYNCHRONOUS`` or ``PERFORMANCE`` values. This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
 

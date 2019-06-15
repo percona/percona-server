@@ -290,7 +290,7 @@ log_online_read_bitmap_page(
 	     <= bitmap_file->size - MODIFIED_PAGE_BLOCK_SIZE);
 	ut_a(bitmap_file->offset % MODIFIED_PAGE_BLOCK_SIZE == 0);
 
-	IORequest io_request(IORequest::LOG | IORequest::READ);
+	IORequest io_request(IORequest::LOG | IORequest::READ | IORequest::NO_ENCRYPTION);
 	success = os_file_read(io_request, bitmap_file->file, page,
 			       bitmap_file->offset, MODIFIED_PAGE_BLOCK_SIZE);
 
@@ -886,6 +886,14 @@ log_online_parse_redo_log(void)
 
 				ut_a(len >= 3);
 				log_online_set_page_bit(space, page_no);
+				if (type == MLOG_INDEX_LOAD) {
+					const ulint space_size =
+						fil_space_get_size(space);
+					for (ulint i = 0; i < space_size; i++) {
+						log_online_set_page_bit(
+							space, i);
+					}
+				}
 			}
 
 			ptr += len;

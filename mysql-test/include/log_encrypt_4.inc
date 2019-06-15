@@ -72,7 +72,7 @@ DROP TABLE tab1,tab2;
 let NEW_CMD = $MYSQLD $extra_args --initialize-insecure --datadir=$MYSQLD_DATADIR2 --init-file=$BOOTSTRAP_SQL  --secure-file-priv="" --innodb_redo_log_encrypt=$redo_log_mode >>$MYSQLD_LOG 2>&1;
 
 --echo # Run the bootstrap command of datadir2, it should fail since the keyring is not loaded.
---error 1,42
+--error 1
 --exec $NEW_CMD
 --sleep 10
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -5926,9 +5926,12 @@ fil_io_set_encryption(
 		return;
 	}
 
-	/* Don't encrypt the log, page 0 of all tablespaces, all pages
+	/* Don't encrypt the page 0 of all tablespaces,
 	   don't encrypt TRX_SYS_SPACE.TRX_SYS_PAGE_NO as it contains address to dblwr buffer */
-	if (!req_type.is_log() && page_id.page_no() > 0 && (TRX_SYS_SPACE != page_id.space() || TRX_SYS_PAGE_NO != page_id.page_no())
+	if ((req_type.is_log()
+	     || (page_id.page_no() > 0
+		 && (TRX_SYS_SPACE != page_id.space()
+		     || TRX_SYS_PAGE_NO != page_id.page_no())))
 	    && space->encryption_type != Encryption::NONE) {
 		if (space->encryption_type == Encryption::KEYRING)  {
 			ut_ad(space->crypt_data != NULL);
@@ -6463,7 +6466,6 @@ fil_flush(
                 size changes to keep OS metadata in sync. */
 		ut_ad(!space->is_in_unflushed_spaces);
 		ut_ad(fil_space_is_flushed(space));
-		ut_ad(space->n_pending_flushes == 0);
 
 		/* Flush only if the file size changes */
 		bool no_flush = true;
@@ -6473,7 +6475,6 @@ fil_flush(
 #ifdef UNIV_DEBUG
 			ut_ad(node->modification_counter
 			      == node->flush_counter);
-			ut_ad(node->n_pending_flushes == 0);
 #endif /* UNIV_DEBUG */
 			if (node->flush_size != node->size) {
 				/* Found at least one file whose size has changed */

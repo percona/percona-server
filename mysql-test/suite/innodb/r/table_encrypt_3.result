@@ -812,11 +812,11 @@ SELECT * FROM (SELECT * FROM tde_db.t_encrypt ORDER BY RAND() LIMIT 1) AS A WHER
 set i = i + 1;
 end while;
 end|
-CREATE PROCEDURE tde_db.rotate_master_key()
+CREATE PROCEDURE tde_db.rotate_master_key(number_of_rotations INT)
 begin
 declare i int default 1;
 declare has_error int default 0;
-while (i <= 500) DO
+while (i <= number_of_rotations) DO
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 set i = i + 1;
 end while;
@@ -854,9 +854,9 @@ call tde_db.read_t_encrypt();
 # In connection con4 : Running select
 call tde_db.read_t_encrypt();
 # In connection con5 - Running "alter instance"
-call tde_db.rotate_master_key();
+call tde_db.rotate_master_key(500);
 # In connection con6 - Running "alter instance"
-call tde_db.rotate_master_key();
+call tde_db.rotate_master_key(500);
 # In connection con7 - Running "create table"
 call tde_db.create_encrypt_table("Y");
 # In connection con8 - Running "create table"

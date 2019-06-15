@@ -156,7 +156,7 @@ server is started with the ``--bootstrap`` option.
 .. variable:: innodb_parallel_dblwr_encrypt
 
    :version 5.7.23-24: Implemented
-   :cli: ``--innodb-sys-tablespace-encrypt``
+   :cli: ``--innodb-parallel-dblwr-encrypt``
    :dyn: Yes
    :scope: Global
    :vartype: Boolean
@@ -299,7 +299,7 @@ statement.
 
 .. rubric:: OFF
 
-By default, newly created tables are not encrypted. Add the ``ENCRYPTION=NO``
+By default, newly created tables are not encrypted. Add the ``ENCRYPTION=YES``
 clause in the ``CREATE TABLE`` or ``ALTER TABLE`` statement to create an
 encrypted table.
 
@@ -396,6 +396,19 @@ tables should be encrypted again. If it is set to **1**, the encrypted table is
 re-encrypted on each key rotation. If it is set to **2**, the table is encrypted
 on every other key rotation.
       
+.. variable:: innodb_encrypt_online_alter_logs
+
+   :version 5.7.21-21: Implemented
+   :cli: ``--innodb-encrypt-online-alter-logs``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: OFF
+
+This variable simultaneously turns on the encryption of files used by InnoDB for
+full text search using parallel sorting, building indexes using merge sort, and
+online DDL logs created by InnoDB for online DDL.
+
 .. _data-at-rest-encryption.undo-tablespace:
 
 InnoDB Undo Tablespace Encryption
@@ -453,6 +466,29 @@ Dumping of encrypted binary logs involves decryption, and can be done using
    Taking into account that ``--read-from-remote-server`` option  is only
    relevant to binary logs, encrypted relay logs can not be dumped/decrypted
    in this way.
+
+.. rubric:: Upgrading from |Percona Server| |changed-version| to any higher version
+
+The key format in the :ref:`keyring vault plugin
+<keyring_vault_plugin>` was changed for binlog encryption in |Percona
+Server| |changed-version| release. When you are upgrading from
+|Percona Server| 5.7.20-19 to a higher version in the |Percona Server|
+5.7 series or to a version prior to 8.0.15-5 in the |Percona Server|
+8.0 series, the binary log encryption will work after you complete the
+following steps:
+
+1. Upgrade to a version higher than |Percona Server| |changed-version|
+#. Start the server without enabling the binary log encryption: :bash:`--encrypt_binlog=OFF`
+#. Enforce the key rotation: :mysql:`SELECT rotate_system_key("percona_binlog")`
+#. Restart the server enabling the binary log encryption: :bash:`--encrypt_binlog=ON`
+
+.. seealso::
+
+   |Percona Server| Documentation: Important changes in |Percona Server| 8.0.15-5
+      - `Binary log encryption to use the upstream implementation
+	<https://www.percona.com/doc/percona-server/LATEST/management/data_at_rest_encryption.html#binary-log-encryption>`_
+
+.. |changed-version| replace:: 5.7.20-19
 
 System Variables
 ----------------
@@ -603,6 +639,15 @@ In |Percona Server| :rn:`5.7.20-18` a ``keyring_vault`` plugin has been
 implemented that can be used to store the encryption keys inside the
 `Hashicorp Vault server <https://www.vaultproject.io>`_.
 
+.. important::
+
+   ``keyring_vault`` plugin only works with kv secrets engine version 1.
+
+   .. seealso::
+
+      HashiCorp Documentation: More information about ``kv`` secrets engine
+         https://www.vaultproject.io/docs/secrets/kv/kv-v1.html
+
 Installation
 ------------
 
@@ -626,7 +671,7 @@ tables.
    semicolons. Also it's a good practice to put this list in double quotes so
    that semicolons do not create problems when executed in a script.
 
-Apart from installing plugin you also need to set the
+Apart from installing the plugin you also need to set the
 :variable:`keyring_vault_config` variable. This variable should point to the
 keyring_vault configuration file, whose contents are discussed below.
 

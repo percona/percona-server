@@ -18,6 +18,35 @@ Supported Releases:
 
 The *CentOS* repositories should work well with *Red Hat Enterprise Linux* too, provided that :program:`yum` is installed on the server.
 
+.. important::
+
+   *CentOS* 6 offers an outdated version of the ``curl`` library
+    required by the :ref:`keyring Vault plugin <keyring_vault_plugin>`
+    of |Percona Server|. The version of the ``curl`` library in
+    *CentOS* 6, which depends on the ``nss`` library, is known to
+    create memory corruption issues. This bug is `registered in Red
+    Hat Bugzilla
+    <https://bugzilla.redhat.com/show_bug.cgi?id=1057388>`_. Its
+    current status is `CLOSED WONTFIX`.
+
+    If you intend to use the keyring Vault plugin of |Percona Server|
+    make sure that you use the latest version of the ``curl`` library.
+    We recommend that you `build it from source
+    <https://curl.haxx.se/docs/install.html>`_ configuring with
+    ``ssl`` but without ``nss``:
+
+    .. code-block:: bash
+
+       $ ./configuration --with-ssl --without-nss --prefix=<INSTALATION DIRECTORY>
+
+    As soon as you install ``curl``, make sure that |Percona Server| will use
+    this version.
+    
+    .. seealso::
+
+       How to install curl and libcurl
+          https://curl.haxx.se/docs/install.html
+
 Supported Platforms:
 
  * x86

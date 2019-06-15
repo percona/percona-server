@@ -71,19 +71,25 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'EXAMPLE';
 --replace_result $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
 --source include/restart_mysqld.inc
 
+# In some testing environments $PLUGIN_AUTH and $EXAMPLE_PLUGIN can be
+# located in the same directory. Therefore, we copy $EXAMPLE_PLUGIN into
+# a temp dir under modified name and try to load this plugin from there.
+--let $modified_example_plugin = modified_$EXAMPLE_PLUGIN
+--copy_file $EXAMPLE_PLUGIN_DIR/$EXAMPLE_PLUGIN $MYSQL_TMP_DIR/$modified_example_plugin
+
 # This error message contains path and the message itself is limited by size.
 # As path can have different length depending on testing environment the
 # content of the error message can be different depending on testing
 # environment. That's why we disable result log when this error message
 # is expected.
 --disable_result_log
---replace_result $EXAMPLE_PLUGIN EXAMPLE_PLUGIN
+--replace_result $modified_example_plugin MODIFIED_EXAMPLE_PLUGIN
 --error ER_CANT_OPEN_LIBRARY
---eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN'
+--eval INSTALL PLUGIN example SONAME '$modified_example_plugin'
 --enable_result_log
---replace_result $EXAMPLE_PLUGIN_DIR EXAMPLE_PLUGIN_DIR $EXAMPLE_PLUGIN EXAMPLE_PLUGIN
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $modified_example_plugin MODIFIED_EXAMPLE_PLUGIN
 --error ER_UDF_NO_PATHS
---eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN_DIR/$EXAMPLE_PLUGIN'
+--eval INSTALL PLUGIN example SONAME '$MYSQL_TMP_DIR/$modified_example_plugin'
 --replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN test_plugin_server SONAME '$PLUGIN_AUTH'
 --replace_regex /\.dll/.so/
@@ -95,6 +101,9 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'cleartext_p
 
 UNINSTALL PLUGIN test_plugin_server;
 UNINSTALL PLUGIN cleartext_plugin_server;
+
+# Removing modified $EXAMPLE_PLUGIN from the temp directory.
+--remove_file $MYSQL_TMP_DIR/$modified_example_plugin
 
 --echo ###
 --echo # Test for path in UDF library loading

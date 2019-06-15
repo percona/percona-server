@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_multi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/20/2018
+.\"      Date: 04/12/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_MULTI\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLD_MULTI\FR" "1" "04/12/2019" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -514,7 +514,7 @@ mysql> \fBGRANT SHUTDOWN ON *\&.* TO \*(Aqmulti_admin\*(Aq@\*(Aqlocalhost\*(Aq;\
 .\}
 .sp
 See
-Section\ \&6.2, \(lqThe MySQL Access Privilege System\(rq\&. You have to do this for each
+Section\ \&6.2, \(lqAccess Control and Account Management\(rq\&. You have to do this for each
 \fBmysqld\fR
 server\&. Change the connection parameters appropriately when connecting to each one\&. Note that the host name part of the account name must permit you to connect as
 multi_admin
@@ -531,9 +531,9 @@ from the host where you want to run
 .IP \(bu 2.3
 .\}
 The Unix socket file and the TCP/IP port number must be different for every
-\fBmysqld\fR\&. (Alternatively, if the host has multiple network addresses, you can use
-\fB\-\-bind\-address\fR
-to cause different servers to listen to different interfaces\&.)
+\fBmysqld\fR\&. (Alternatively, if the host has multiple network addresses, you can set the
+bind_address
+system variable to cause different servers to listen to different interfaces\&.)
 .RE
 .sp
 .RS 4
@@ -645,7 +645,7 @@ Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

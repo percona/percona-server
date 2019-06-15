@@ -93,15 +93,23 @@ check_workdir(){
 add_percona_yum_repo(){
     if [ ! -f /etc/yum.repos.d/percona-dev.repo ]
     then
-        curl -o /etc/yum.repos.d/ https://jenkins.percona.com/yum-repo/percona-dev.repo
+        curl -o /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
+	sed -i 's:$basearch:x86_64:g' /etc/yum.repos.d/percona-dev.repo
+
     fi
     return
 }
 
 add_percona_apt_repo(){
   if [ ! -f /etc/apt/sources.list.d/percona-dev.list ]; then
-    curl -o /etc/apt/sources.list.d/ https://jenkins.percona.com/apt-repo/percona-dev.list.template
-    mv /etc/apt/sources.list.d/percona-dev.list.template /etc/apt/sources.list.d/percona-dev.list
+    if [ "x$RHEL" = "x8" ]; then
+      echo -e '[main]\nenabled=0\n' > /etc/yum/pluginconf.d/subscription-manager.conf
+      echo 'strict=0' >> /etc/dnf/dnf.conf
+      echo 'strict=0' >> /etc/yum/yum.conf
+      wget -O /etc/yum.repos.d/rhel8-beta.repo https://jenkins.percona.com/yum-repo/rhel8/rhel8-beta.repo
+      wget -O /etc/yum.repos.d/percona-dev.repo https://jenkins.percona.com/yum-repo/percona-dev.repo
+    fi
+    curl -o /etc/apt/sources.list.d/percona-dev.list https://jenkins.percona.com/apt-repo/percona-dev.list.template
     sed -i "s:@@DIST@@:$OS_NAME:g" /etc/apt/sources.list.d/percona-dev.list
   fi
  
@@ -293,15 +301,30 @@ install_deps() {
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         add_percona_yum_repo
-        yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
-        percona-release enable origin release
-        yum -y install epel-release
-        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
-        yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
-        yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
-        yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
-        if [ ${RHEL} -lt 7 -a $(uname -m) = x86_64 ]; then
-            yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils 
+        if [ ${RHEL} -lt 8 ]; then
+            yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
+            percona-release enable origin release
+            yum -y install epel-release
+            yum -y install git pkg-config numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc 
+            yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
+            yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel 
+            yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
+            if [ ${RHEL} = 6 ]; then
+		if [ $(uname -m) = x86_64 ]; then
+                    yum -y install percona-devtoolset-gcc percona-devtoolset-gcc-c++ percona-devtoolset-binutils
+		else
+                    wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
+                    wget -O /etc/pki/rpm-gpg/RPM-GPG-KEY-cern https://raw.githubusercontent.com/cms-sw/cms-docker/master/slc6-vanilla/RPM-GPG-KEY-cern
+                    yum -y install  devtoolset-2-gcc-c++ devtoolset-2-binutils libevent2-devel
+	        fi
+	    fi
+        else
+            yum -y install perl.x86_64
+            yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize 
+            yum -y install automake autoconf cmake jemalloc jemalloc-devel
+	    yum -y install libcurl-devel openldap-devel selinux-policy-devel
+	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
+	    yum -y install rpcgen libtirpc-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56  
@@ -319,17 +342,25 @@ install_deps() {
             echo "waiting"
         done
         apt-get -y purge eatmydata || true
+        echo "deb http://jenkins.percona.com/apt-repo/ ${DIST} main" > percona-dev.list
+        mv -f percona-dev.list /etc/apt/sources.list.d/
+        wget -q -O - http://jenkins.percona.com/apt-repo/8507EFA5.pub | sudo apt-key add -
+        wget -q -O - http://jenkins.percona.com/apt-repo/CD2EFD2A.pub | sudo apt-key add -
         apt-get update
-        apt-get -y install psmisc
-        apt-get -y install libsasl2-modules:amd64 || apt-get -y install libsasl2-modules
+        apt-get -y install psmisc pkg-config
+        apt-get -y install libsasl2-dev libsasl2-modules:amd64 libsasl2-modules-ldap || apt-get -y install libsasl2-modules libsasl2-modules-ldap libsasl2-dev
         apt-get -y install dh-systemd || true
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
-        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
+        apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libeatmydata libc6-dbg valgrind libjson-perl python-mysqldb libsasl2-dev
 
         apt-get -y install libmecab2 mecab mecab-ipadic
-        apt-get -y install build-essential devscripts
+        apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 
+        apt-get -y install libcurl4-openssl-dev
+        if [ "x${DIST}" = "xcosmic" -o "x${DIST}" = "xbionic" -o "x${DIST}" = "xdisco" -o "x${DIST}" = "xbuster"  ]; then
+            apt-get -y install libeatmydata1
+        fi
     fi
     return;
 }
@@ -442,6 +473,11 @@ build_mecab_lib(){
     make
     make check
     make DESTDIR=${MECAB_INSTALL_DIR} install
+    cd ../${MECAB_INSTALL_DIR}
+    if [ -d usr/lib64 ]; then
+        mkdir -p usr/lib
+        mv usr/lib64/* usr/lib
+    fi
     cd ${WORKDIR}
 }
 
@@ -511,9 +547,11 @@ build_rpm(){
     #
     mv *.src.rpm rpmbuild/SRPMS
     #
-    if [ ${ARCH} = x86_64 ]; then
-        if [ ${RHEL} != 7 ]; then
+    if [ ${RHEL} = 6 ]; then
+        if [ ${ARCH} = x86_64 ]; then
             source /opt/percona-devtoolset/enable
+	else
+	    source /opt/rh/devtoolset-2/enable
         fi
     fi
 
@@ -621,7 +659,7 @@ build_deb(){
 
     cd ${DIRNAME}
     #
-    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty ]; then
+    if [ ${DEBIAN_VERSION} = xenial -o ${DEBIAN_VERSION} = artful -o ${DEBIAN_VERSION} = bionic -o ${DEBIAN_VERSION} = trusty -o ${DEBIAN_VERSION} = cosmic -o ${DEBIAN_VERSION} = disco -o ${DEBIAN_VERSION} = buster ]; then
         rm -rf debian
         cp -r build-ps/ubuntu debian
     fi
@@ -633,7 +671,7 @@ build_deb(){
         mv debian/rules.notokudb debian/rules
         mv debian/control.notokudb debian/control
     else
-        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic ]; then
+        if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != cosmic -a ${DEBIAN_VERSION} != disco -a ${DEBIAN_VERSION} != buster ]; then
             gcc47=$(which gcc-4.7 2>/dev/null || true)
             if [ -x "${gcc47}" ]; then
                 export CC=gcc-4.7
@@ -657,7 +695,7 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" ]; then
+    if [ ${DEBIAN_VERSION} = "artful" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "cosmic" -o ${DEBIAN_VERSION} = "disco" -o ${DEBIAN_VERSION} = "buster" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules 
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time /' debian/rules
     fi
@@ -731,12 +769,8 @@ build_tarball(){
         CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-jemalloc=../jemalloc/ --with-yassl --with-mecab="${MECAB_INSTALL_DIR}/usr" ../TARGET
     else
         CMAKE_OPTS="-DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
-
         DIRNAME="tarball"
     fi
-
-
-    
     mkdir -p ${WORKDIR}/${DIRNAME}
     mkdir -p ${CURDIR}/${DIRNAME}
     cp ../TARGET/*.tar.gz ${WORKDIR}/${DIRNAME}

@@ -530,13 +530,13 @@ diff -rup old/rapid/plugin/x/CMakeLists.txt new/rapid/plugin/x/CMakeLists.txt
 diff -rup old/rapid/unittest/gunit/xplugin/CMakeLists.txt new/rapid/unittest/gunit/xplugin/CMakeLists.txt
 --- old/rapid/unittest/gunit/xplugin/CMakeLists.txt
 +++ new/rapid/unittest/gunit/xplugin/CMakeLists.txt
-@@ -137,7 +137,7 @@
+@@ -151,7 +151,7 @@
    regex
    gmock
    mysqlservices
 -  perconaserverclient
 +  mysqlclient
-   ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
+   ${LIBEVENT_LIBRARIES}
    ${CMAKE_THREAD_LIBS_INIT}
    ${PROTOBUF_LIBRARY}
 --- old/storage/tokudb/PerconaFT/tools/CMakeLists.txt

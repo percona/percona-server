@@ -919,7 +919,7 @@ fsp_header_fill_encryption_info(
 
 	/* Write master key id. */
 	mach_write_to_4(ptr, key_version);
-	ptr += sizeof(ulint);
+	ptr += 4;
 
 	/* Write server uuid. */
 	memcpy(ptr, Encryption::uuid, ENCRYPTION_SERVER_UUID_LEN);
@@ -930,10 +930,10 @@ fsp_header_fill_encryption_info(
 	       iv,
 	       ENCRYPTION_KEY_LEN);
 
-	ptr += ENCRYPTION_KEY_LEN * 2;
+	ptr += ENCRYPTION_KEY_LEN;
 
 	/* Write checksum bytes. */
-	crc = ut_crc32(encrypt_info, ENCRYPTION_KEY_LEN * 2);
+	crc = ut_crc32(encrypt_info, ENCRYPTION_KEY_LEN);
 	mach_write_to_4(ptr, crc);
 
 #ifdef UNIV_ENCRYPT_DEBUG

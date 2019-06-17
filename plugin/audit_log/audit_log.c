@@ -70,6 +70,7 @@ static char *audit_log_exclude_databases= NULL;
 static char *audit_log_include_databases= NULL;
 static char *audit_log_exclude_commands= NULL;
 static char *audit_log_include_commands= NULL;
+int64 audit_log_buffer_size_overflow = 0;
 
 PSI_memory_key key_memory_audit_log_logger_handle;
 PSI_memory_key key_memory_audit_log_handler;
@@ -647,7 +648,8 @@ char *audit_log_general_record(char *buf, size_t buflen,
     endptr= endbuf;
     query= escape_string(event->general_query.str, event->general_query.length,
                          endptr, endbuf - endptr, &endptr, &full_outlen);
-    full_outlen+= full_outlen * my_charset_utf8mb4_general_ci.mbmaxlen;
+    full_outlen*= my_charset_utf8mb4_general_ci.mbmaxlen;
+    full_outlen+= query_length * my_charset_utf8mb4_general_ci.mbmaxlen;
   }
 
   user= escape_string(event->general_user.str, event->general_user.length,
@@ -1369,7 +1371,7 @@ int audit_log_notify(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                                         &len);
       if (len > buflen)
       {
-        buflen= len * 4;
+        buflen= len + 1024;
         log_rec= audit_log_general_record(get_record_buffer(thd, buflen),
                                           buflen,
                                           event_general->general_command.str,
@@ -1377,6 +1379,7 @@ int audit_log_notify(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                                           event_general->general_error_code,
                                           event_general, local->db,
                                           &len);
+        DBUG_ASSERT(log_rec);
       }
       if (log_rec)
         audit_log_write(log_rec, len);
@@ -2063,6 +2066,9 @@ static struct st_mysql_audit audit_log_descriptor=
 
 static struct st_mysql_show_var audit_log_status_variables[]=
 {
+  {"Audit_log_buffer_size_overflow",
+    (char*) &audit_log_buffer_size_overflow,
+    SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 

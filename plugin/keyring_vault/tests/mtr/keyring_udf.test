@@ -1,6 +1,7 @@
 --source include/have_keyring_vault_plugin.inc
 --source include/have_keyring_udf_plugin.inc
 --source include/not_embedded.inc
+--source include/not_repeat.inc
 
 call mtr.add_suppression("Error while fetching key: key_id cannot be empty");
 call mtr.add_suppression("Error while removing key: key_id cannot be empty");
@@ -9,7 +10,7 @@ call mtr.add_suppression("Error while generating key: key_id cannot be empty");
 call mtr.add_suppression("Error while storing key: invalid key_type");
 call mtr.add_suppression("Error while storing key: key_id cannot be empty");
 
---source generate_default_conf_files.inc
+--source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc
 
 # Create mount points

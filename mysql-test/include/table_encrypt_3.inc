@@ -389,11 +389,12 @@ begin
                 set i = i + 1;
         end while;
 end|
-CREATE PROCEDURE tde_db.rotate_master_key()
+CREATE PROCEDURE tde_db.rotate_master_key(number_of_rotations INT)
 begin
         declare i int default 1;
         declare has_error int default 0;
-        while (i <= 500) DO
+
+        while (i <= number_of_rotations) DO
                 ALTER INSTANCE ROTATE INNODB MASTER KEY;
                 set i = i + 1;
         end while;
@@ -428,10 +429,10 @@ connect (con4,localhost,root,,);
 send call tde_db.read_t_encrypt();
 --echo # In connection con5 - Running "alter instance"
 connect (con5,localhost,root,,);
-send call tde_db.rotate_master_key();
+--send_eval call tde_db.rotate_master_key($number_of_MK_rotations)
 --echo # In connection con6 - Running "alter instance"
 connect (con6,localhost,root,,);
-send call tde_db.rotate_master_key();
+--send_eval call tde_db.rotate_master_key($number_of_MK_rotations)
 --enable_query_log
 --echo # In connection con7 - Running "create table"
 connect (con7,localhost,root,,);

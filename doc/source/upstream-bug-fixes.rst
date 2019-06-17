@@ -5,6 +5,24 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 ============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`92850` - Bad select+order by+limit performance in 5.7                              |
+|:JIRA bug: :psbug:`4949`                                                                                     |
+|:Upstream State: Verified (checked on 2019-02-11)                                                            |
+|:Fix Released: :rn:`5.7.25-28`                                                                               |
+|:Upstream Fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`92809` - Inconsistent ResultSet for different Execution Plans                      |
+|:JIRA bug: :psbug:`4907`                                                                                     |
+|:Upstream State: Verified (checked on 2019-02-11)                                                            |
+|:Fix Released: :rn:`5.7.25-28`                                                                               |
+|:Upstream Fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`92108` - Deadlock by concurrent show binlogs, pfs session_variables table ...      |
+|:JIRA bug: :psbug:`4716`                                                                                     |
+|:Upstream State: Closed                                                                                      |
+|:Fix Released: :rn:`5.7.25-28`                                                                               |
+|:Upstream Fix: 5.7.22                                                                                        |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`91541` - Flush status statement adds twice to global values                        |
 |:JIRA bug: :psbug:`4570`                                                                                     |
 |:Upstream State: Verified (checked on 2018-12-03)                                                            |
@@ -82,6 +100,12 @@ List of upstream |MySQL| bugs fixed in |Percona Server|  5.7
 |:Upstream State: Closed                                                                                      |
 |:Fix Released: :rn:`5.7.22-22`                                                                               |
 |:Upstream Fix: 5.7.20                                                                                        |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream Bug: :mysqlbug:`88720` -  Inconsistent and unsafe FLUSH behavior in terms of replication           |
+|:JIRA bug: :psbug:`1827`                                                                                     |
+|:Upstream State: Verified (checked on 2019-02-11)                                                            |
+|:Fix Released: :rn:`5.7.25-28`                                                                               |
+|:Upstream Fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream Bug: :mysqlbug:`88057` - Intermediary slave does not log master changes with...                    |
 |:JIRA bug: :psbug:`1119`                                                                                     |

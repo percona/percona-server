@@ -22,6 +22,7 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
+%undefine _missing_build_ids_terminate_build
 %global mysql_vendor Oracle and/or its affiliates
 %global percona_server_vendor Percona, Inc
 %global mysqldatadir /var/lib/mysql
@@ -44,7 +45,6 @@
 # By default a build will be done including the RocksDB
 %{!?with_rocksdb: %global rocksdb 1}
 
-
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -54,6 +54,7 @@
 
 %{!?with_systemd:                %global systemd 0}
 %{?el7:                          %global systemd 1}
+%{?el8:                          %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -57}
 %{!?feature_set:                 %global feature_set community}
@@ -89,7 +90,7 @@
 %endif
 
 # Version for compat libs
-%if 0%{?rhel} == 7
+%if 0%{?rhel} > 6
 %global compatver             5.6.28
 %global percona_compatver     76.1
 %global compatlib             18
@@ -209,6 +210,10 @@ Requires(preun):  /sbin/chkconfig
 Requires(preun):  /sbin/service
 %endif
 
+%if 0%{?rhel} == 8
+Obsoletes:      mariadb-connector-c-config
+%endif
+
 %description -n Percona-Server-server%{product_suffix}
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. Percona Server
@@ -280,7 +285,7 @@ and applications need to dynamically load and use Percona Server.
 
 %if 0%{?compatlib}
 %package -n Percona-Server-shared-compat%{product_suffix}
-Summary:        Shared compat libraries for Percona Server %{compatver}--%{percona_compatver} database client applications
+Summary:        Shared compat libraries for Percona Server %{compatver}-%{percona_compatver} database client applications
 Group:          Applications/Databases
 Provides:       mysql-libs-compat = %{version}-%{release}
 Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
@@ -543,10 +548,11 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "Percona Server" -u 27 mysql >/dev/null 2>&1 || :
-if [ $1 -ge 1 ]; then
-  if [ ! -f /etc/my.cnf -a -f /etc/my.cnf_back_before_remove -a ! -L /etc/my.cnf ]; then
-    mv /etc/my.cnf_back_before_remove /etc/my.cnf
-    echo "    /etc/my.cnf was restored from backup file my.cnf_back_before_remove"
+if [ "$1" = 1 ]; then
+  if [ -f %{_sysconfdir}/my.cnf ]; then
+    timestamp=$(date '+%Y%m%d-%H%M')
+    cp %{_sysconfdir}/my.cnf \
+    %{_sysconfdir}/my.cnf.rpmsave-${timestamp}
   fi
 fi
 
@@ -838,6 +844,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
@@ -858,6 +865,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so

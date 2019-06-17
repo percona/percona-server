@@ -31,7 +31,7 @@ ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain an ENCRYPTED tabl
 CREATE TABLE t8(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='N';
 DROP TABLE t8;
 # System is unencrypted, test with innodb_encrypt_tables=FORCE
-SET GLOBAL innodb_encrypt_tables="FORCE";
+SET GLOBAL innodb_encrypt_tables=FORCE;
 SELECT @@innodb_encrypt_tables;
 @@innodb_encrypt_tables
 FORCE
@@ -84,7 +84,7 @@ ERROR HY000: InnoDB: Tablespace `innodb_system` can contain only an ENCRYPTED ta
 CREATE TABLE t5_2(a TEXT) TABLESPACE = innodb_system, ENCRYPTION='Y';
 DROP TABLE t5_2;
 # System is encrypted, test with innodb_encrypt_tables=FORCE
-SET GLOBAL innodb_encrypt_tables="FORCE";
+SET GLOBAL innodb_encrypt_tables=FORCE;
 SELECT @@innodb_encrypt_tables;
 @@innodb_encrypt_tables
 FORCE

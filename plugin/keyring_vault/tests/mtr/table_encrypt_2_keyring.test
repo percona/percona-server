@@ -5,8 +5,9 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
 --source include/not_embedded.inc
+--source include/not_repeat.inc
 
---source generate_default_conf_files.inc
+--source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc
 
 # Create mount points

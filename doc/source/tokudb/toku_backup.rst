@@ -14,15 +14,15 @@ Percona |TokuBackup| is an open-source hot backup utility for |MySQL| servers ru
 Installing From Binaries
 ------------------------
 
-|TokuBackup| is included with |Percona Server| :rn:`5.7.10-1` and later versions. Installation can be performed with the ``ps_tokudb_admin`` script.
+|TokuBackup| is included with |Percona Server| :rn:`5.7.10-1` and later versions. Installation can be performed with the ``ps-admin`` script.
 
 To install |Percona TokuBackup|:
 
-1. Run ``ps_tokudb_admin --enable-backup`` to add the ``preload-hotbackup`` option into **[mysqld_safe]** section of :file:`my.cnf`.
+1. Run ``ps-admin --enable-tokubackup`` to add the ``preload-hotbackup`` option into **[mysqld_safe]** section of :file:`my.cnf`.
 
   .. code-block:: bash
     
-    $ sudo ps_tokudb_admin --enable-backup
+    $ sudo ps-admin --enable-tokubackup
     Checking SELinux status...
     INFO: SELinux is disabled.
 
@@ -42,11 +42,11 @@ To install |Percona TokuBackup|:
 
     $ sudo service mysql restart 
 
-3. Run ``ps_tokudb_admin --enable-backup`` again to finish installation of |TokuBackup| plugin
+3. Run ``ps-admin --enable-tokubackup`` again to finish installation of |TokuBackup| plugin
 
   .. code-block:: bash
     
-    $ sudo ps_tokudb_admin --enable-backup                                     
+    $ sudo ps-admin --enable-tokubackup                                     
     Checking SELinux status...
     INFO: SELinux is disabled.
 

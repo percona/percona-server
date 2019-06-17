@@ -37,6 +37,10 @@ SELECT 5; # No InnoDB pages accessed
 #
 
 LOCK TABLE t1 WRITE;
+
+# Log only con2 below
+SET SESSION long_query_time=50000;
+
 --connect (con2,localhost,root,,test,,)
 --connection con2
 
@@ -51,12 +55,9 @@ send LOCK TABLE t1 WRITE;
 
 --connection default
 
-# Do not slow-log wait_condition.inc due to variable number of queries
-SET SESSION long_query_time=5000;
 let $wait_condition= SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
     WHERE ID=$con2_id AND STATE="Waiting for table metadata lock";
 --source include/wait_condition.inc
-SET SESSION long_query_time=0;
 
 SELECT SLEEP(2);
 UNLOCK TABLES;
@@ -81,12 +82,9 @@ send DELETE FROM t2 WHERE a=2;
 
 --connection default
 
-# Do not slow-log wait_condition.inc due to variable number of queries
-SET SESSION long_query_time=5000;
 let $wait_condition= SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TRX
     WHERE TRX_STATE="LOCK WAIT";
 --source include/wait_condition.inc
-SET SESSION long_query_time=0;
 
 SELECT SLEEP(2);
 COMMIT;
@@ -97,6 +95,8 @@ reap;
 
 --disconnect con2
 --connection default
+
+SET SESSION long_query_time=0;
 
 --echo #
 --echo # PS-4788: Setting log_slow_verbosity and enabling the slow_query_log could lead to a server crash

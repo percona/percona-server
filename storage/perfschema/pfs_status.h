@@ -27,12 +27,11 @@ struct PFS_status_stats
 
   void reset();
   void aggregate(const PFS_status_stats *from);
-  void aggregate_from(const STATUS_VAR *from, bool already_aggregated);
-  void aggregate_to(STATUS_VAR *to, bool include_aggregated);
+  void aggregate_from(const STATUS_VAR *from);
+  void aggregate_to(STATUS_VAR *to);
 
   bool m_has_stats;
   ulonglong m_stats[COUNT_GLOBAL_STATUS_VARS];
-  ulonglong m_stats_aggregated_in_global[COUNT_GLOBAL_STATUS_VARS];
 };
 
 void reset_status_by_thread();

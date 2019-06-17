@@ -1183,7 +1183,6 @@ void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
 }
 
 static void log_pad_current_log_block(void)
-/*===========================*/
 {
   byte b = MLOG_DUMMY_RECORD;
   ulint pad_length;
@@ -1208,7 +1207,6 @@ static void log_pad_current_log_block(void)
 }
 
 static void log_scrub()
-/*=========*/
 {
   log_writer_mutex_enter(*log_sys);
   ulint cur_lbn = log_block_convert_lsn_to_no(log_sys->current_file_lsn);

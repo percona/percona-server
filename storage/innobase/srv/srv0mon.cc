@@ -858,6 +858,10 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITES},
 
+    {"log_lsn_tracked", "log", "Last LSN tracked for changed pages",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+     MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_TRACKED},
+
     {"log_flush_total_time", "log", "Total time spent on fsync for log files",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FLUSH_TOTAL_TIME},
 
@@ -1884,6 +1888,10 @@ void srv_mon_process_existing_counter(
 
     case MONITOR_OVLD_MAX_AGE_SYNC:
       value = log_sys->max_modified_age_sync;
+      break;
+
+    case MONITOR_OVLD_LSN_TRACKED:
+      value = log_sys->tracked_lsn.load();
       break;
 
     case MONITOR_OVLD_ADAPTIVE_HASH_SEARCH:

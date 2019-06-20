@@ -193,7 +193,7 @@ Table	Create Table
 t9	CREATE TABLE `t9` (
   `a` text
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t8,t9;
+DROP TABLE t8, t9;
 # Test the behaviour when innodb_file_per_table is disabled
 SET @save_innodb_file_per_table = @@global.innodb_file_per_table;
 SET GLOBAL innodb_file_per_table = 0;

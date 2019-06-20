@@ -9,5 +9,9 @@ call mtr.add_suppression("\\[ERROR\\] .* Plugin keyring_file reported: 'File .*k
 --let $install_keyring_statement=INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN'
 --let $select_keyring_variable_statement=SELECT @@global.keyring_file_data
 --let $set_keyring_variable_to_keyring1=SET @@global.keyring_file_data='$MYSQL_TMP_DIR/mysecret_keyring'
+# For restart without --early-plugin-load (still need to provide with keyring_file_dat
+# otherwise it would point to default location which might be non-writable to mtr).
+--let $keyring_setup_without_plugin_param=restart:--loose-keyring_file_data=$MYSQL_TMP_DIR/mydummy_keyring
 --source include/table_encrypt_5.inc
+--remove_file $MYSQL_TMP_DIR/mydummy_keyring
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring

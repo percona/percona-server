@@ -80,6 +80,7 @@ Database: information_schema
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CHECK_CONSTRAINTS                     |
 | CLIENT_STATISTICS                     |
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
@@ -163,6 +164,7 @@ Database: INFORMATION_SCHEMA
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CHECK_CONSTRAINTS                     |
 | CLIENT_STATISTICS                     |
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |

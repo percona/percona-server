@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -809,11 +809,6 @@ It will re-encrypt the redo log encryption metadata and write it to
 redo log file header.
 @return true if success. */
 bool log_rotate_encryption();
-
-/** Try to enable the redo log encryption if it's set.
-It will try to enable the redo log encryption and write the metadata to
-redo log file header if the innodb_undo_log_encrypt is ON. */
-void redo_rotate_default_master_key();
 
 /** Requests a sharp checkpoint write for provided or greater lsn.
 @param[in,out]	log	redo log

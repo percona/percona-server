@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2010, 2017, MariaDB Corporation.
 
@@ -26,7 +26,11 @@
 #define _my_sys_h
 
 /**
-  @file include/my_sys.h
+  @defgroup MYSYS Mysys - low level utilities for MySQL
+  @ingroup Runtime_Environment
+  @{
+  @file include/my_sys.h Common header for many mysys elements.
+  @note Many mysys implementation files now have their own header file.
 */
 
 #include "my_config.h"
@@ -172,15 +176,6 @@ struct MEM_ROOT;
 /* Internal error numbers (for assembler functions) */
 #define MY_ERRNO_EDOM 33
 #define MY_ERRNO_ERANGE 34
-
-/* Bits for get_date timeflag */
-#define GETDATE_DATE_TIME 1
-#define GETDATE_SHORT_DATE 2
-#define GETDATE_HHMMSSTIME 4
-#define GETDATE_GMT 8
-#define GETDATE_FIXEDLENGTH 16
-#define GETDATE_T_DELIMITER 32
-#define GETDATE_SHORT_DATE_FULL_YEAR 64
 
 /* defines when allocating data */
 extern void *my_multi_malloc(PSI_memory_key key, myf flags, ...);
@@ -477,7 +472,6 @@ struct IO_CACHE /* Used when cacheing files */
   bool alloced_buffer{false};
 };
 
-typedef int (*qsort_cmp)(const void *, const void *);
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
 /*
@@ -496,45 +490,43 @@ extern my_error_reporter my_charset_error_reporter;
 extern PSI_file_key key_file_io_cache;
 
 MY_NODISCARD
-extern int _my_b_get(IO_CACHE *info);
-MY_NODISCARD
 extern int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count);
+
 MY_NODISCARD
 extern int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count);
 
-/* inline functions for mf_iocache */
-static inline void my_b_clear(IO_CACHE *info) { info->buffer = 0; }
-
 /* Test if buffer is inited */
-MY_NODISCARD
-static inline bool my_b_inited(const IO_CACHE *info) noexcept {
-  return MY_TEST(info->buffer);
-}
-#define my_b_EOF INT_MIN
+inline void my_b_clear(IO_CACHE *info) { info->buffer = nullptr; }
 
-MY_NODISCARD
-static inline int my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
-  if ((size_t)(info->read_end - info->read_pos) >= Count) {
-    memcpy(Buffer, info->read_pos, Count);
-    info->read_pos += Count;
+inline bool my_b_inited(const IO_CACHE *info) {
+  return info->buffer != nullptr;
+}
+
+constexpr int my_b_EOF = INT_MIN;
+
+inline int my_b_read(IO_CACHE *info, uchar *buffer, size_t count) {
+  if ((size_t)(info->read_end - info->read_pos) >= count) {
+    memcpy(buffer, info->read_pos, count);
+    info->read_pos += count;
     return 0;
   }
-  return _my_b_read(info, Buffer, Count);
+  return _my_b_read(info, buffer, count);
 }
 
-MY_NODISCARD
-static inline int my_b_write(IO_CACHE *info, const uchar *Buffer,
-                             size_t Count) {
-  if ((size_t)(info->write_end - info->write_pos) >= Count) {
-    memcpy(info->write_pos, Buffer, Count);
-    info->write_pos += Count;
+inline int my_b_write(IO_CACHE *info, const uchar *buffer, size_t count) {
+  if ((size_t)(info->write_end - info->write_pos) >= count) {
+    memcpy(info->write_pos, buffer, count);
+    info->write_pos += count;
     return 0;
   }
-  return _my_b_write(info, Buffer, Count);
+  return _my_b_write(info, buffer, count);
 }
 
 MY_NODISCARD
-static inline int my_b_get(IO_CACHE *info) {
+extern int _my_b_get(IO_CACHE *info);
+
+MY_NODISCARD
+inline int my_b_get(IO_CACHE *info) {
   if (info->read_pos != info->read_end) {
     info->read_pos++;
     return info->read_pos[-1];
@@ -543,36 +535,35 @@ static inline int my_b_get(IO_CACHE *info) {
 }
 
 MY_NODISCARD
-static inline my_off_t my_b_tell(const IO_CACHE *info) noexcept {
-  return info->pos_in_file + (*info->current_pos - info->request_pos);
+int my_b_pread(IO_CACHE *info, uchar *Buffer, size_t Count, my_off_t pos);
+
+MY_NODISCARD
+inline my_off_t my_b_tell(const IO_CACHE *info) {
+  return info->pos_in_file + *info->current_pos - info->request_pos;
 }
 
 MY_NODISCARD
-static inline uchar *my_b_get_buffer_start(const IO_CACHE *info) noexcept {
+inline uchar *my_b_get_buffer_start(const IO_CACHE *info) {
   return info->request_pos;
 }
 
 MY_NODISCARD
-static inline size_t my_b_get_bytes_in_buffer(const IO_CACHE *info) noexcept {
-  return info->read_end - info->request_pos;
+inline size_t my_b_get_bytes_in_buffer(const IO_CACHE *info) {
+  return info->read_end - my_b_get_buffer_start(info);
 }
 
 MY_NODISCARD
-static inline my_off_t my_b_get_pos_in_file(const IO_CACHE *info) noexcept {
+inline my_off_t my_b_get_pos_in_file(const IO_CACHE *info) {
   return info->pos_in_file;
-}
-
-MY_NODISCARD
-static inline size_t my_b_bytes_in_cache(const IO_CACHE *info) noexcept {
-  return *info->current_end - *info->current_pos;
 }
 
 /* tell write offset in the SEQ_APPEND cache */
 int my_b_copy_to_file(IO_CACHE *cache, FILE *file);
-my_off_t my_b_append_tell(IO_CACHE *info);
-my_off_t my_b_safe_tell(IO_CACHE *info); /* picks the correct tell() */
+
 MY_NODISCARD
-int my_b_pread(IO_CACHE *info, uchar *Buffer, size_t Count, my_off_t pos);
+inline size_t my_b_bytes_in_cache(const IO_CACHE *info) {
+  return *info->current_end - *info->current_pos;
+}
 
 typedef uint32 ha_checksum;
 
@@ -717,7 +708,7 @@ void my_message_local_stderr(enum loglevel, uint ecode, va_list args);
 extern void my_message_local(enum loglevel ll, uint ecode, ...);
 extern bool my_init(void);
 extern void my_end(int infoflag);
-extern char *my_filename(File fd);
+extern const char *my_filename(File fd);
 extern MY_MODE get_file_perm(ulong perm_flags);
 extern bool my_chmod(const char *filename, ulong perm_flags, myf my_flags);
 
@@ -738,7 +729,8 @@ extern int test_if_hard_path(const char *dir_name);
 extern bool has_path(const char *name);
 extern char *convert_dirname(char *to, const char *from, const char *from_end);
 extern void to_unix_path(char *name);
-extern char *fn_ext(const char *name);
+extern char *fn_ext(char *name);
+extern const char *fn_ext(const char *name);
 extern char *fn_same(char *toname, const char *name, int flag);
 extern char *fn_format(char *to, const char *name, const char *dir,
                        const char *form, uint flag);
@@ -755,7 +747,6 @@ extern char *my_load_path(char *to, const char *path,
                           const char *own_path_prefix);
 extern bool array_append_string_unique(const char *str, const char **array,
                                        size_t size);
-extern void get_date(char *to, int timeflag, time_t use_time);
 
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
@@ -849,23 +840,9 @@ extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
                                 size_t *complen);
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem, size_t count);
 
-/* Wait a given number of microseconds */
-static inline void my_sleep(time_t m_seconds) {
-#if defined(_WIN32)
-  Sleep((DWORD)m_seconds / 1000 + 1); /* Sleep() has millisecond arg */
-#else
-  struct timeval t;
-  t.tv_sec = m_seconds / 1000000L;
-  t.tv_usec = m_seconds % 1000000L;
-  select(0, 0, 0, 0, &t); /* sleep */
-#endif
-}
-
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
-extern time_t my_time(myf flags);
-extern ulonglong my_micro_time();
 extern bool my_gethwaddr(uchar *to);
 
 #define my_microsecond_getsystime() (my_getsystime() / 10)
@@ -1018,5 +995,9 @@ extern void set_psi_transaction_service(void *psi);
 
 struct MYSQL_FILE;
 extern MYSQL_FILE *mysql_stdin;
+
+/**
+  @} (end of group MYSYS)
+*/
 
 #endif /* _my_sys_h */

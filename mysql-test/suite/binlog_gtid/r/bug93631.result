@@ -1,0 +1,7 @@
+#
+# Bug 93631: wrong error returned or crash if mysql.gtid_executed is inaccessible
+#
+CREATE DATABASE transforms;
+FLUSH BINARY LOGS;
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
+DROP DATABASE transforms;

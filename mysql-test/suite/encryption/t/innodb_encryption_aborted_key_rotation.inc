@@ -20,8 +20,9 @@ let MYSQLD_DATADIR = `SELECT @@datadir`;
 --let $id = `SELECT RAND()`
 --let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd
 
---disable_warnings # Disabling warnings as punch hole get generate ones when compression is enabled and
-                   # filesystem is not supporting them
+# Disabling warnings as punch hole get generate ones when compression is enabled
+# and filesystem is not supporting them
+--disable_warnings
 eval CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB $t1_table_type ENCRYPTION='KEYRING';
 --enable_warnings
 

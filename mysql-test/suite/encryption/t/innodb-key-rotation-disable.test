@@ -12,8 +12,9 @@ SET GLOBAL innodb_file_per_table = ON;
 
 create database enctests;
 use enctests;
---disable_warnings # Disabling warnings as punch hole get generate ones when compression is enabled and
-                   # filesystem is not supporting them
+# Disabling warnings as punch hole get generate ones when compression is enabled
+# and filesystem is not supporting them
+--disable_warnings
 create table t1(a int not null primary key, b char(200)) engine=innodb;
 create table t2(a int not null primary key, b char(200)) engine=innodb row_format=compressed;
 create table t3(a int not null primary key, b char(200)) engine=innodb COMPRESSION="zlib";

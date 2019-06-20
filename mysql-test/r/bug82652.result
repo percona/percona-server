@@ -26,5 +26,5 @@ Warning	1265	Data truncated for column 'c3' at row 1
 ALTER TABLE t3 MODIFY c3 TINYTEXT CHARACTER SET "latin1" COLLATE "latin1_bin";
 INSERT INTO t3 SELECT * FROM t2;
 Warnings:
-Warning	1264	Out of range value for column 'c1' at row 2
+Warning	1264	Out of range value for column 'c1' at row 1
 DROP TABLE t2;

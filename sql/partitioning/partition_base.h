@@ -975,8 +975,7 @@ class Partition_base : public handler,
                                   key_part_map keypart_map) override;
   int read_range_first_in_part(uint part_id, uchar *buf,
                                const key_range *start_key,
-                               const key_range *end_key, bool eq_range_arg,
-                               bool sorted) override;
+                               const key_range *end_key, bool sorted) override;
   int read_range_next_in_part(uint part, uchar *buf) override;
   ha_checksum checksum_in_part(uint part_id) const override;
   int initialize_auto_increment(bool no_lock) override;

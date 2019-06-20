@@ -291,7 +291,7 @@ const Column *Abstract_table_impl::get_column(Object_id column_id) const {
 
 ///////////////////////////////////////////////////////////////////////////
 
-Column *Abstract_table_impl::get_column(const String_type name) {
+Column *Abstract_table_impl::get_column(const String_type &name) {
   for (Column *c : m_columns) {
     // Column names are case-insensitive
     if (my_strcasecmp(system_charset_info, name.c_str(), c->name().c_str()) ==
@@ -304,7 +304,7 @@ Column *Abstract_table_impl::get_column(const String_type name) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-const Column *Abstract_table_impl::get_column(const String_type name) const {
+const Column *Abstract_table_impl::get_column(const String_type &name) const {
   for (const Column *c : m_columns) {
     // Column names are case-insensitive
     if (my_strcasecmp(system_charset_info, name.c_str(), c->name().c_str()) ==

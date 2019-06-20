@@ -21,8 +21,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/sql_zip_dict.h"
 
 #include <iostream>
-#include "sql/dd/impl/bootstrapper.h"
+#include "sql/dd/impl/bootstrap/bootstrapper.h"
 #include "sql/dd/impl/transaction_impl.h"
+#include "sql/dd/impl/utils.h"                 // execute_query
 #include "sql/dd/types/column.h"               // dd::enum_column_types
 #include "sql/dd/types/column_type_element.h"  // dd::Column_type_element
 #include "sql/dd/types/table.h"                // dd::enum_column_types
@@ -313,11 +314,12 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
 #ifndef DBUG_OFF
   const std::string name_str(name, name_len);
   const std::string data_str(data, data_len);
-  DBUG_LOG("zip_dict",
-           "thd->query: " << thd->query().str << " dict_name: " << name_str
-                          << " dict_name_len: " << name_len
-                          << " data: " << data_str << " data_len: " << data_len
-                          << " if_not_exists: " << if_not_exists);
+  const std::string query_str(to_string(thd->query()));
+  DBUG_LOG("zip_dict", "thd->query: " << query_str << " dict_name: " << name_str
+                                      << " dict_name_len: " << name_len
+                                      << " data: " << data_str
+                                      << " data_len: " << data_len
+                                      << " if_not_exists: " << if_not_exists);
 #endif
   int error;
 

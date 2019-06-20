@@ -13,7 +13,7 @@ child	CREATE TABLE `child` (
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
-test/child_ibfk_1	test/child	test/parent	1	0
+test/child_ibfk_1	test/child	test/parent	1	48
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 mysql/compression_dictionary_cols_ibfk_1	dict_id	id	1
@@ -39,7 +39,7 @@ child	CREATE TABLE `child` (
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 mysql/compression_dictionary_cols_ibfk_1	mysql/compression_dictionary_cols	mysql/compression_dictionary	1	0
-test/child_ibfk_1	test/child	test/parent	1	0
+test/child_ibfk_1	test/child	test/parent	1	48
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 mysql/compression_dictionary_cols_ibfk_1	dict_id	id	1

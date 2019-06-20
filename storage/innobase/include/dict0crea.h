@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,19 +47,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in,out]	table	dict table object
 @param[in,out]	trx	transaction instance
 @return DB_SUCCESS or error code */
-dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx, fil_encryption_t mode, const CreateInfoEncryptionKeyId &create_info_encryption_key_id);
+dberr_t dict_build_table_def(
+    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    const CreateInfoEncryptionKeyId &create_info_encryption_key_id);
 
 /** Builds a tablespace to store various objects.
 @param[in,out]	trx		DD transaction
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
-dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace, fil_encryption_t mode, const CreateInfoEncryptionKeyId &create_info_encryption_key_id);
+dberr_t dict_build_tablespace(
+    trx_t *trx, Tablespace *tablespace, fil_encryption_t mode,
+    const CreateInfoEncryptionKeyId &create_info_encryption_key_id);
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]	table	Table to build in its own tablespace.
 @param[in,out]	trx	Transaction
 @return DB_SUCCESS or error code */
-dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx, fil_encryption_t mode, const CreateInfoEncryptionKeyId &create_info_encryption_key_id);
+dberr_t dict_build_tablespace_for_table(
+    dict_table_t *table, trx_t *trx, fil_encryption_t mode,
+    const CreateInfoEncryptionKeyId &create_info_encryption_key_id);
 
 /** Assign a new table ID and put it into the table cache and the transaction.
 @param[in,out]	table	Table that needs an ID
@@ -169,7 +175,7 @@ struct tab_node_t {
 @param[in]	is_create	true when creating SDI index
 @return in-memory index structure for tablespace dictionary or NULL */
 dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
-                                         ulint in_flags, bool is_create);
+                                         uint32_t in_flags, bool is_create);
 
 /* Index create node struct */
 

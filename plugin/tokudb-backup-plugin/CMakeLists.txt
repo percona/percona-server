@@ -53,7 +53,7 @@ IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Percona-TokuBackup/backup/CMakeLists.txt"
 ELSE()
   MESSAGE(STATUS "tokudb-backup-plugin no backup ${CMAKE_CURRENT_SOURCE_DIR}")
 ENDIF()
-MYSQL_ADD_PLUGIN(tokudb_backup ${TOKUDB_BACKUP_SOURCES} MODULE_ONLY MODULE_OUTPUT_NAME "tokudb_backup" LINK_LIBRARIES regex stdc++)
+MYSQL_ADD_PLUGIN(tokudb_backup ${TOKUDB_BACKUP_SOURCES} MODULE_ONLY MODULE_OUTPUT_NAME "tokudb_backup" LINK_LIBRARIES stdc++)
 #
 # RPM installs documentation directly from the source tree
 #

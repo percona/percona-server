@@ -29,7 +29,7 @@ let $restart_parameters = restart: $KEYRING_PARAMS --general-log --log-output=FI
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld_no_echo.inc
 
-#Enable redo log encryption
+# Enable redo log encryption
 eval SET GLOBAL innodb_redo_log_encrypt = $redo_log_mode;
 
 SHOW CREATE TABLE t1;

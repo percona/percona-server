@@ -3,7 +3,7 @@ source include/have_log_bin.inc;
 --let $encrypted_binlog_file= $MYSQL_TEST_DIR/std_data/57_binlog_encryption/ps_encrypted_master-bin.000002
 --let $outfile=$MYSQLTEST_VARDIR/tmp/mysqlbinlog_output
 
-exec $MYSQL_BINLOG $encrypted_binlog_file > $outfile;
+exec $MYSQL_BINLOG $encrypted_binlog_file --force-if-open > $outfile;
 --echo # Make sure that relay logs are encrypted with 5.7 encryption
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$outfile
@@ -12,7 +12,7 @@ exec $MYSQL_BINLOG $encrypted_binlog_file > $outfile;
 
 --remove_file $outfile
 
-exec $MYSQL_BINLOG $encrypted_binlog_file --force-read > $outfile;
+exec $MYSQL_BINLOG $encrypted_binlog_file --force-if-open --force-read > $outfile;
 --echo # Make sure that relay logs are encrypted with 5.7 encryption
 --let SEARCH_PATTERN=The rest of the binlog is encrypted with Percona Server 5.7 encryption!
 --source include/search_pattern_in_file.inc

@@ -65,4 +65,4 @@ DROP TABLE t;
 --let SEARCH_PATTERN=Buffer pool size, bytes 25149440
 --echo Grepping InnoDB status for $SEARCH_PATTERN
 --source include/search_pattern_in_file.inc
-
+--remove_file $innodb_status

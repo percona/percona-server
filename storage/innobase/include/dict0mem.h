@@ -1493,6 +1493,8 @@ temp table */
 typedef std::vector<row_prebuilt_t *> temp_prebuilt_vec;
 #endif /* !UNIV_HOTBACKUP */
 
+using AutoIncMutex = ib_bpmutex_t;
+
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
@@ -1891,7 +1893,7 @@ detect this and will eventually quit sooner. */
 #endif /* !UNIV_HOTBACKUP */
 
   /** Mutex protecting the autoincrement counter. */
-  ib_mutex_t *autoinc_mutex;
+  AutoIncMutex *autoinc_mutex;
 
   /** Autoinc counter value to give to the next inserted row. */
   ib_uint64_t autoinc;

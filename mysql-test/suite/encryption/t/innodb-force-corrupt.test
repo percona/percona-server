@@ -12,8 +12,9 @@ CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT,c char(200)) ENGINE=In
 # Corruption of this table will NOT cause post-encryption checksum validation. However the innodb checksum validation will fail.
 # Post-encryption checksum is XORed with innodb checksum - so it is not possible to validate post-encryption checksum for zipped pages.
 CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT,c char(200)) ENGINE=InnoDB row_format=compressed ENCRYPTION='KEYRING';
---disable_warnings # Disabling warnings as punch hole get generate ones when compression is enabled and
-                   # filesystem is not supporting them
+# Disabling warnings as punch hole get generate ones when compression is enabled
+# and filesystem is not supporting them
+--disable_warnings
 # Corruption of this table will cause post-encryption checksum validation to fail on decrypt.
 CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT, c char(200)) ENGINE=InnoDB COMPRESSION="zlib" ENCRYPTION='KEYRING';
 --enable_warnings

@@ -140,3 +140,4 @@ SET GLOBAL innodb_encryption_threads=0;
 UNINSTALL PLUGIN keyring_file;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --remove_file "$MYSQL_TMP_DIR/mysecret_keyring"
+--remove_file $MYSQL_TMP_DIR/mydummy_key

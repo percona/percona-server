@@ -1,5 +1,11 @@
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	off
 CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
 DROP TABLE t1;
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	master_key
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -42,6 +48,9 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	master_key
 SELECT * FROM t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -77,6 +86,9 @@ INSERT INTO t1 select * from t1;
 INSERT INTO t1 select * from t1;
 INSERT INTO t1 select * from t1;
 # Kill and restart:<hidden args>
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	master_key
 SELECT * FROM t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -90,6 +102,9 @@ c1	c2
 8	iiiii
 9	jjjjj
 DROP TABLE t1;
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	master_key
 SET block_encryption_mode = 'aes-256-cbc';
 CREATE DATABASE tde_db;
 CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENCRYPTION = 'Y' ENGINE = InnoDB;
@@ -112,7 +127,7 @@ c1	c2
 3	NULL
 # Mysqldump output
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `tde_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `tde_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE `tde_db`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,20 +34,7 @@ use My::Find;
 use My::Platform;
 
 # Rules to run first of all
-
-sub add_opt_values {
-  my ($self, $config)= @_;
-
-  # add auto-options
-  $config->insert('OPT', 'port'   => fix_port($self, $config) );
-  $config->insert('OPT', 'vardir' => sub { $self->{ARGS}->{vardir} });
-  $config->insert('mysqld', "loose-skip-$_" => undef) for (@::optional_plugins);
-}
-
-my @pre_rules=
-(
-  \&add_opt_values,
-);
+my @pre_rules = ();
 
 sub get_basedir {
   my ($self, $group) = @_;
@@ -113,9 +100,9 @@ sub fix_pidfile {
 }
 
 sub fix_port {
-  my ($self, $config, $group_name, $group)= @_;
-  my $port= $self->{PORT}++;
-  return $port;
+  my ($self, $config, $group_name, $group) = @_;
+  my $hostname = $group->value('#host');
+  return $self->{HOSTS}->{$hostname}++;
 }
 
 sub fix_x_port {
@@ -607,7 +594,6 @@ sub new_config {
 
   my $self = bless { CONFIG    => $config,
                      ARGS      => $args,
-                     PORT      => $args->{baseport},
                      HOSTS     => $hosts,
                      NEXT_HOST => 0,
                      SERVER_ID => 1,
@@ -646,6 +632,14 @@ sub new_config {
   # Additional rules required for [mysqltest]
   $self->run_rules_for_group($config, $config->insert('mysqltest'),
                              @mysqltest_rules);
+
+  if ($::secondary_engine_support) {
+    eval 'use mtr_secondary_engine_config; 1';
+    # Additional rules required for secondary engine server
+    push(@post_rules, \&post_check_secondary_engine_group);
+    # Additional rules required for [mysqld] when secondary engine is enabled
+    push(@post_rules, \&post_check_secondary_engine_mysqld_group);
+  }
 
   # Run post rules
   foreach my $rule (@post_rules) {

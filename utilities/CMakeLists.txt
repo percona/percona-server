@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,8 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 # Default install component for the files is Server here
 SET(MYSQL_INSTALL_COMPONENT Server)
@@ -94,12 +92,10 @@ ENDIF()
 
 MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.cc)
 TARGET_LINK_LIBRARIES(my_print_defaults  mysys mysys_ssl)
-SET_TARGET_PROPERTIES(my_print_defaults PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(perror perror.cc)
 ADD_DEPENDENCIES(perror GenError)
 TARGET_LINK_LIBRARIES(perror mysys mysys_ssl)
-SET_TARGET_PROPERTIES(perror PROPERTIES LINKER_LANGUAGE CXX)
 
 IF (BUILD_BUNDLED_LZ4)
   MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)

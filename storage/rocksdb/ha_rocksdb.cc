@@ -3473,7 +3473,8 @@ static int rocksdb_recover(handlerton *hton, XA_recover_txn *txn_list, uint len,
     rdb_xid_from_string(name, &(txn_list[count].id));
 
     txn_list[count].mod_tables = new (mem_root) List<st_handler_tablename>();
-    if (!txn_list[count].mod_tables) break;
+    if (!txn_list[count].mod_tables)
+      break;
 
     count++;
   }

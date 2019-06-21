@@ -1,0 +1,9 @@
+--echo #
+--echo # Bug 93631: wrong error returned or crash if mysql.gtid_executed is inaccessible
+--echo #
+CREATE DATABASE transforms;
+
+--error ER_INNODB_FORCED_RECOVERY
+FLUSH BINARY LOGS;
+
+DROP DATABASE transforms;

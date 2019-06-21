@@ -903,8 +903,7 @@ static int tokudb_xa_recover(TOKUDB_UNUSED(handlerton *hton),
   xids.resize(len);
 
   long num_returned = 0;
-  r = db_env->txn_xa_recover(db_env, &xids[0], len,
-                             &num_returned, DB_NEXT);
+  r = db_env->txn_xa_recover(db_env, &xids[0], len, &num_returned, DB_NEXT);
 
   uint count = 0;
   for (; count < num_returned; count++) {

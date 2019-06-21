@@ -2675,7 +2675,6 @@ int Partition_base::index_prev_in_part(uint part, uchar *buf) {
   @param part_id       Partition to start in.
   @param start_key     Specification of start key.
   @param end_key       Specification of end key.
-  @param eq_range_arg  Is it equal range.
   @param sorted        Should records be returned in sorted order.
 
   @return Operation status.
@@ -2686,10 +2685,10 @@ int Partition_base::index_prev_in_part(uint part, uchar *buf) {
 int Partition_base::read_range_first_in_part(uint part_id, uchar *buf,
                                              const key_range *start_key,
                                              const key_range *end_key,
-                                             bool eq_range_arg, bool sorted) {
+                                             bool sorted) {
   int error;
 
-  error = m_file[part_id]->read_range_first(start_key, end_key, eq_range_arg,
+  error = m_file[part_id]->read_range_first(start_key, end_key, get_eq_range(),
                                             sorted);
   if (!error && buf != nullptr) {
     memcpy(buf, table->record[0], m_rec_length);

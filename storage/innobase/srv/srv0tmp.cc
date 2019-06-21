@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -94,7 +94,7 @@ dberr_t Tablespace::create() {
   ut_ad(m_space_id > dict_sys_t::s_min_temp_space_id);
 
   /* Create the filespace flags */
-  ulint fsp_flags =
+  uint32_t fsp_flags =
       fsp_flags_init(univ_page_size, /* page sizes and a flag if compressed */
                      false,          /* needed only for compressed tables */
                      false,          /* has DATA_DIR */
@@ -175,7 +175,7 @@ void Tablespace::decrypt() {
 
   fil_space_t *space = fil_space_get(m_space_id);
 
-  FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
+  fsp_flags_unset_encryption(space->flags);
 
   /* There is no need to empty the encryption info in page 0
   here. This is because the file is just truncated and extended

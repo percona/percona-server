@@ -2787,7 +2787,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
       arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
-    thd->lex->unit->cleanup(true);
+    thd->lex->unit->cleanup(thd, true);
 
     if (!thd->in_sub_stmt) {
       thd->get_stmt_da()->set_overwrite_status(true);
@@ -3173,7 +3173,7 @@ bool sp_head::show_routine_code(THD *thd) {
     protocol->store((longlong)ip);
 
     buffer.set("", 0, system_charset_info);
-    i->print(&buffer);
+    i->print(thd, &buffer);
     protocol->store(buffer.ptr(), buffer.length(), system_charset_info);
     if ((res = protocol->end_row())) break;
   }
@@ -3361,7 +3361,7 @@ bool sp_head::check_show_access(THD *thd, bool *full_access) {
     WL#9049.
   */
   *full_access =
-      (thd->security_context()->check_access(SELECT_ACL) ||
+      (thd->security_context()->check_access(SELECT_ACL, m_db.str) ||
        (!strcmp(m_definer_user.str, thd->security_context()->priv_user().str) &&
         !strcmp(m_definer_host.str, thd->security_context()->priv_host().str)));
 

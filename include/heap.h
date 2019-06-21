@@ -39,7 +39,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "binary_log_types.h"  // enum_field_types
+#include "field_types.h"  // enum_field_types
 #include "my_compare.h"
 #include "my_inttypes.h"
 #include "my_list.h"

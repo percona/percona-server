@@ -425,9 +425,8 @@ eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLU
 eval $select_keyring_variable_statement;
 --echo # init tables
 call tde_db.init_setup();
---echo # restart without --early-plugin-load and keyring_file_data
---echo # AND explicitly install plugin to access old table
-let $restart_parameters = restart: ;
+let $restart_parameters = $keyring_setup_without_plugin_param;
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 
 --echo # Install keyring plugin

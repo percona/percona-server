@@ -330,6 +330,13 @@ INSERT INTO dd_published_schema
 INSERT INTO dd_published_schema
   VALUES ('80014', 1,
     'cc5651651505fe0a4ebccb74d82e6fcd9555a4bd29478e21637c95da98f4537c');
+# Note: DD version 80015 was never published, it's similar to 80014.
+INSERT INTO dd_published_schema
+  VALUES('80016', 0,
+    '74bc023e5a04abf196d6334963ace9958152e12b9962334f01bffbab0e348149');
+INSERT INTO dd_published_schema
+  VALUES('80016', 1,
+    '688e7cc964bb0c264ca6f41ef697545a278e0dc1c880df8af0c234e9c894f95d');
 
 SELECT IFNULL(CONCAT('The schema checksum corresponds to DD version ',
                      version, '.'),

@@ -328,5 +328,5 @@ static int init_dialog(char *unused1 MY_ATTRIBUTE((unused)),
 
 mysql_declare_client_plugin(AUTHENTICATION) "dialog", "Sergei Golubchik",
     "Dialog Client Authentication Plugin", {0, 1, 0}, "GPL",
-    nullptr, init_dialog, nullptr,
-    nullptr, perform_dialog mysql_end_client_plugin;
+    nullptr, init_dialog, nullptr, nullptr, perform_dialog,
+    nullptr mysql_end_client_plugin;

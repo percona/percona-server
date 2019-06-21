@@ -2228,9 +2228,9 @@ a	b
 3	Moe
 #We will use the error message returned from server to differentiate between DELETE and TRUNCATE
 DELETE FROM federated.t2;
-ERROR HY000: Got error 10000 'Error on remote system: 1451: Cannot delete or update a parent row: a foreign key constraint fails (' from FEDERATED
+ERROR HY000: Got error 10000 'Error on remote system: 1451: Cannot delete or update a parent row: a foreign key constraint fails (`federated`.`t1_child`, CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))' from FEDERATED
 TRUNCATE TABLE federated.t2;
-ERROR HY000: Got error 10000 'Error on remote system: 1701: Cannot truncate a table referenced in a foreign key constraint (`feder' from FEDERATED
+ERROR HY000: Got error 10000 'Error on remote system: 1701: Cannot truncate a table referenced in a foreign key constraint (`federated`.`t1_child`, CONSTRAINT `dc`)' from FEDERATED
 SELECT * FROM federated.t2;
 a	b
 1	Larry

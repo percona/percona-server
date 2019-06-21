@@ -104,7 +104,8 @@ TEST_P(IOCacheTest, MDEV9044) {
   res = open_cached_file(&info, 0, 0, CACHE_SIZE, 0);
   EXPECT_EQ(0, res) << "open_cached_file" << INFO_TAIL;
 
-  res = my_b_write(&info, USTRING_WITH_LEN("first write\0"));
+  res = my_b_write(
+      &info, STRING_WITH_LEN(reinterpret_cast<const uchar *>("first write\0")));
   EXPECT_EQ(0, res) << "first write" << INFO_TAIL;
 
   res = my_b_flush_io_cache(&info, 1);
@@ -113,7 +114,9 @@ TEST_P(IOCacheTest, MDEV9044) {
   res = reinit_io_cache(&info, WRITE_CACHE, 0, 0, 0);
   EXPECT_EQ(0, res) << "reinit WRITE_CACHE" << INFO_TAIL;
 
-  res = my_b_write(&info, USTRING_WITH_LEN("second write\0"));
+  res = my_b_write(
+      &info,
+      STRING_WITH_LEN(reinterpret_cast<const uchar *>("second write\0")));
   EXPECT_EQ(0, res) << "second write" << INFO_TAIL;
 
   res = reinit_io_cache(&info, READ_CACHE, 0, 0, 0);

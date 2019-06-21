@@ -69,13 +69,6 @@ SET GLOBAL innodb_fast_shutdown=0;
 --replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $MYSQLD_HOME_DATA_DIR HOME_DIR $MYSQLD_UNDO_DATADIR UNDO_DATADIR $MYSQLD_DATADIR1 DATADIR
 --source include/start_mysqld_no_echo.inc
 
---echo # Execute mysql_upgrade
-
---source include/mysql_upgrade_preparation.inc
---exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---source include/mysql_upgrade_cleanup.inc
-
-
 SHOW CREATE TABLE test.tab1;
 SELECT * FROM tab1;
 

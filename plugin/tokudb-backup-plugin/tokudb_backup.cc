@@ -24,8 +24,6 @@
 #include "sql/sql_parse.h"  // check_global_access
 #include "sql/sql_plugin.h"
 
-#include "extra/regex/my_regex.h"
-
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/log_builtins.h"
 

@@ -41,7 +41,7 @@ Pattern "Auto generated SSL certificates are placed in data directory." found
 # Ensure that RSA files are not there in data directory
 # Ensure that server is ssl enabled
 Variable_name	Value
-Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
+Ssl_cipher	SSL_CIPHER
 # Test 4 : RSA key pair
 # 4.1 : Restarting mysqld with :
 #       --sha256_password_auto_generate_rsa_keys=1
@@ -87,7 +87,7 @@ sha256_password_public_key_path	public_key.pem
 create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 # Should be able to connect to server using generated SSL certificates.
 Variable_name	Value
-Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
+Ssl_cipher	SSL_CIPHER
 # Should be able to connect to server using RSA key pair.
 current_user()
 wl7699_sha256@%
@@ -126,12 +126,12 @@ sha256_password_public_key_path	public_key.pem
 # 6.3 : SSL connection
 # Should be able to connect to server using generated SSL certificates.
 Variable_name	Value
-Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
+Ssl_cipher	SSL_CIPHER
 # 6.4 : SHA256_password user
 create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 # Should be able to connect to server using generated SSL certificates.
 Variable_name	Value
-Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
+Ssl_cipher	SSL_CIPHER
 # Should be able to connect to server using RSA key pair.
 current_user()
 wl7699_sha256@%

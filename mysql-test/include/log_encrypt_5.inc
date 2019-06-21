@@ -44,7 +44,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
 
---let $restart_parameters= restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR $KEYRING_PLUGIN_OPT
+--let $restart_parameters= restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR $KEYRING_PLUGIN_OPT --loose-keyring-file-data=$MYSQL_TMP_DIR/mydummy_key
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 
@@ -114,7 +114,7 @@ DROP DATABASE tde_db;
 --source include/restart_mysqld_no_echo.inc
 
 # Cleanup
-
+--remove_file $MYSQL_TMP_DIR/mydummy_key
 --force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir1
 --force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir
 --remove_file $MYSQL_TMP_DIR/bootstrap1.log

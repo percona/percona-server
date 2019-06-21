@@ -14,7 +14,7 @@ CALL mtr.add_suppression("Failed to set up SSL because of the following SSL");
 --let $PORT_OFFSET = 1
 --expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
 
---let $restart_parameters=restart:--thread-handling=pool-of-threads --thread-pool-size=2 --thread-pool-max-threads=2 --admin-address=127.0.0.1 --admin-port=$ADMIN_PORT --skip-mysqlx
+--let $restart_parameters=restart:--thread-handling=pool-of-threads --thread-pool-size=2 --thread-pool-max-threads=2 --admin-address=127.0.0.1 --admin-port=$ADMIN_PORT --loose-skip-mysqlx
 --replace_result $ADMIN_PORT ADMIN_PORT
 --source include/restart_mysqld.inc
 

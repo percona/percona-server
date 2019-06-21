@@ -716,7 +716,7 @@ This function must not be called concurrently on the same table object.
 static void dict_table_autoinc_alloc(void *table_void) {
   dict_table_t *table = static_cast<dict_table_t *>(table_void);
 
-  table->autoinc_mutex = UT_NEW_NOKEY(ib_mutex_t());
+  table->autoinc_mutex = UT_NEW_NOKEY(AutoIncMutex());
   ut_a(table->autoinc_mutex != nullptr);
   mutex_create(LATCH_ID_AUTOINC, table->autoinc_mutex);
 

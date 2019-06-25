@@ -75,6 +75,19 @@ static void scheduler_wait_sync_end()
     MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
 }
 
+static void scheduler_wait_net_begin()
+{
+  THD* thd= current_thd;
+  if (likely(thd))
+    MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, THD_WAIT_NET));
+}
+
+static void scheduler_wait_net_end()
+{
+  THD* thd= current_thd;
+  if (likely(thd))
+    MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
+}
 
 bool Connection_handler_manager::valid_connection_count(
                                                bool extra_port_connection)
@@ -220,6 +233,7 @@ bool Connection_handler_manager::init()
                              scheduler_wait_lock_end);
   thr_set_sync_wait_callback(scheduler_wait_sync_begin,
                              scheduler_wait_sync_end);
+  vio_set_wait_callback(scheduler_wait_net_begin, scheduler_wait_net_end);
   return false;
 }
 

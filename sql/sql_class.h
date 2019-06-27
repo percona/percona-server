@@ -5719,8 +5719,6 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
   return thd->lex->current_select->add_group_to_list(thd, item, asc);
 }
 
-extern pthread_attr_t *get_connection_attrib(void);
-
 #endif /* MYSQL_SERVER */
 
 /**

@@ -67,20 +67,23 @@ extern bool do_command(THD*);
   using my_thread_init() and freed with my_thread_end().
 
 */
-struct Worker_thread_context
+class Worker_thread_context
 {
-  PSI_thread *psi_thread;
-  st_my_thread_var* mysys_var;
-
-  void save()
-  {
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    psi_thread= PSI_THREAD_CALL(get_thread)();
+  PSI_thread * const psi_thread;
 #endif
-    mysys_var= (st_my_thread_var *)pthread_getspecific(THR_KEY_mysys);
+  st_my_thread_var * const mysys_var;
+
+public:
+  Worker_thread_context() :
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    psi_thread(PSI_THREAD_CALL(get_thread)()),
+#endif
+    mysys_var(static_cast<st_my_thread_var *>(pthread_getspecific(THR_KEY_mysys)))
+  {
   }
 
-  void restore()
+  ~Worker_thread_context()
   {
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread)(psi_thread);
@@ -183,7 +186,6 @@ int threadpool_add_connection(THD *thd)
 {
   int retval=1;
   Worker_thread_context worker_context;
-  worker_context.save();
 
   /*
     Create a new connection context: mysys_thread_var and PSI thread
@@ -196,7 +198,6 @@ int threadpool_add_connection(THD *thd)
   if (!thd->mysys_var)
   {
     /* Out of memory? */
-    worker_context.restore();
     return 1;
   }
 
@@ -241,7 +242,6 @@ int threadpool_add_connection(THD *thd)
                              (char *) thd->security_ctx->host_or_ip);
     }
   }
-  worker_context.restore();
   thd->system_tid = -1;
   return retval;
 }
@@ -249,9 +249,7 @@ int threadpool_add_connection(THD *thd)
 
 void threadpool_remove_connection(THD *thd)
 {
-
   Worker_thread_context worker_context;
-  worker_context.save();
 
   thread_attach(thd);
   thd->net.reading_or_writing= 0;
@@ -273,8 +271,6 @@ void threadpool_remove_connection(THD *thd)
   my_thread_end();
 
   mysql_cond_broadcast(&COND_thread_count);
-
-  worker_context.restore();
 }
 
 /**
@@ -283,8 +279,7 @@ void threadpool_remove_connection(THD *thd)
 int threadpool_process_request(THD *thd)
 {
   int retval= 0;
-  Worker_thread_context  worker_context;
-  worker_context.save();
+  Worker_thread_context worker_context;
 
   thread_attach(thd);
 
@@ -345,7 +340,6 @@ end:
     thd->m_server_idle= true;
   }
 
-  worker_context.restore();
   thd->system_tid = -1;
   return retval;
 }

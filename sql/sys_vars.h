@@ -2103,9 +2103,9 @@ class Sys_var_enum_default_table_encryption : public Sys_var_enum {
       size_t size, CMD_LINE getopt, const char *values[], uint def_val,
       PolyLock *lock, enum binlog_status_enum binlog_status_arg,
       on_check_function on_check_func = 0)
-      : Sys_var_enum(name_arg, comment, flag_args | PERSIST_AS_READ_ONLY, off,
-                     size, getopt, values, def_val, lock, binlog_status_arg,
-                     on_check_func, nullptr) {}
+      : Sys_var_enum(name_arg, comment, flag_args, off, size, getopt, values,
+                     def_val, lock, binlog_status_arg, on_check_func, nullptr) {
+  }
   virtual bool global_update(THD *thd, set_var *var);
 };
 

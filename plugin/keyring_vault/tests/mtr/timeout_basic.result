@@ -1,6 +1,7 @@
 call mtr.add_suppression("keyring_vault initialization failure.");
 call mtr.add_suppression("Plugin keyring_vault reported: 'Could not open file with credentials.'");
 call mtr.add_suppression("Plugin keyring_vault reported: 'File '' not found");
+call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached");
 SET @start_global_value = @@GLOBAL.keyring_vault_timeout;
 SET @@GLOBAL.keyring_vault_timeout = 100;
 SET @@GLOBAL.keyring_vault_timeout = DEFAULT;

@@ -6961,17 +6961,15 @@ static bool check_set_default_table_encryption_access(
   return true;
 }
 
-static const char *default_table_encryption_names[] = {
-    "OFF", "ON", "KEYRING_ON", "ONLINE_TO_KEYRING",
-    "ONLINE_FROM_KEYRING_TO_UNENCRYPTED"};
+static const char *default_table_encryption_type_names[] = {
+    "OFF",
+    "ON",
+    "KEYRING_ON",
+    "ONLINE_TO_KEYRING",
+    "ONLINE_FROM_KEYRING_TO_UNENCRYPTED",
+    nullptr};
 
-bool Sys_var_enum_default_table_encryption::global_update(
-    THD *thd, set_var *var) {  // TODO: Test if it deos not overflow
-
-  if (thd->variables.default_table_encryption ==
-      var->save_result.ulonglong_value)
-    return 0;
-
+bool Sys_var_enum_default_table_encryption::global_update(THD *, set_var *var) {
   global_var(ulong) = var->save_result.ulonglong_value;
 
   static const LEX_STRING innodb_engine{C_STRING_WITH_LEN("innodb")};
@@ -6991,7 +6989,7 @@ static Sys_var_enum_default_table_encryption Sys_default_table_encryption(
     "Database and tablespace created with this default encryption property"
     "unless, the user specify a explicit encryption property.",
     HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
-    default_table_encryption_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
+    default_table_encryption_type_names, DEFAULT(DEFAULT_TABLE_ENC_OFF),
     NO_MUTEX_GUARD, IN_BINLOG,
     ON_CHECK(check_set_default_table_encryption_access));
 

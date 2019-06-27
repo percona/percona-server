@@ -2108,14 +2108,24 @@ static bool fill_dd_table_from_create_info(
                           create_info->encrypt_type.length);
     }
     table_options->set("encrypt_type", encrypt_type);
+
+    // assign explicit encryption only to file_per_table
+    if ((create_info->used_fields & HA_CREATE_USED_ENCRYPT) &&
+        create_info->db_type->get_tablespace_type_by_name) {
+      Tablespace_type tt;
+      if (create_info->db_type->get_tablespace_type_by_name(
+              create_info->tablespace, &tt)) {
+        return true;
+      }
+
+      if (tt == Tablespace_type::SPACE_TYPE_IMPLICIT) {
+        table_options->set("explicit_encryption", true);
+      }
+    }
   }
 
   if (create_info->was_encryption_key_id_set) {
     table_options->set("encryption_key_id", create_info->encryption_key_id);
-  }
-
-  if (create_info->used_fields & HA_CREATE_USED_ENCRYPT) {
-    table_options->set("explicit_encryption", true);
   }
 
   // Storage media

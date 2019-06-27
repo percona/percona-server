@@ -13,6 +13,7 @@ call mtr.add_suppression("InnoDB: Can't generate new master key for tablespace e
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 call mtr.add_suppression("Plugin keyring_vault reported: 'File '' not found");
 call mtr.add_suppression("keyring_vault initialization failure");
+call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached");
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault2.conf';
 [On Master]
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf';
@@ -115,7 +116,17 @@ Warning	29	File '' not found (OS errno 2 - No such file or directory)
 Warning	42000	keyring_vault initialization failure. Please check the server log.
 # Cleanup
 DROP TABLE t1,t2,t3,t4;
-include/sync_slave_sql_with_master.inc
-include/rpl_end.inc
 UNINSTALL PLUGIN keyring_vault;
-# restart:--plugin_load=keyring_vault=keyring_vault.so KEYRING_VAULT_PLUGIN_OPT
+include/sync_slave_sql_with_master.inc
+include/rpl_restart_server.inc [server_number=1]
+SELECT @@global.keyring_vault_config;
+@@global.keyring_vault_config
+
+include/sync_slave_sql_with_master.inc
+UNINSTALL PLUGIN keyring_vault;
+include/rpl_restart_server.inc [server_number=2]
+START SLAVE;
+SELECT @@global.keyring_vault_config;
+@@global.keyring_vault_config
+
+include/rpl_end.inc

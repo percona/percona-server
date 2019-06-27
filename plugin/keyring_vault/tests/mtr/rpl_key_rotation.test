@@ -15,6 +15,7 @@ call mtr.add_suppression("InnoDB: Can't generate new master key for tablespace e
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 call mtr.add_suppression("Plugin keyring_vault reported: 'File '' not found");
 call mtr.add_suppression("keyring_vault initialization failure");
+call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached");
 
 --source generate_default_mount_conf_files.inc
 --source is_vault_server_up.inc
@@ -123,9 +124,6 @@ eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
 --echo # Cleanup
 DROP TABLE t1,t2,t3,t4;
 
---source include/sync_slave_sql_with_master.inc
---source include/rpl_end.inc
-
 # Delete mount points
 --let MOUNT_POINT_SERVICE_OP=DELETE
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
@@ -139,9 +137,29 @@ DROP TABLE t1,t2,t3,t4;
 --connection slave
 --source mount_point_service.inc
 
-#reset keyring_vault_config variable to null
+--connection master
+UNINSTALL PLUGIN keyring_vault;
+--source include/sync_slave_sql_with_master.inc
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN keyring_vault.so $KEYRING_VAULT_PLUGIN_OPT KEYRING_VAULT_PLUGIN_OPT
+--let $restart_parameters="restart:$KEYRING_VAULT_PLUGIN_LOAD $KEYRING_VAULT_PLUGIN_OPT"
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+--connection master
+SELECT @@global.keyring_vault_config;
+--source include/sync_slave_sql_with_master.inc
+
+--connection slave
 UNINSTALL PLUGIN keyring_vault;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN keyring_vault.so $KEYRING_VAULT_PLUGIN_OPT KEYRING_VAULT_PLUGIN_OPT
 --let $restart_parameters="restart:$KEYRING_VAULT_PLUGIN_LOAD $KEYRING_VAULT_PLUGIN_OPT"
---source include/restart_mysqld.inc
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+
+--connection slave
+START SLAVE;
+SELECT @@global.keyring_vault_config;
+
 # End:
+--connection master
+--source include/rpl_end.inc

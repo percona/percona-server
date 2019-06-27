@@ -1,0 +1,53 @@
+#
+# PS-5772 8.0.16 encryption reconciliation
+# Check if explicit ENCRYPTION='N' is always shown in SHOW CREATE TABLE
+# for innodb_file_per_table tables. It should not be printed for any
+# different table (in general or system tablespace). Please note we test
+# explicit ENCRYPTION='N' and not the rules of printing this clause in
+# SHOW CREATE TABLE according to WL#12261.
+#
+CREATE TABLE t1 (a INT) ENCRYPTION='N';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
+DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ENCRYPTION='N';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
+DROP TABLE t1;
+CREATE TABLESPACE ts1;
+CREATE TABLE t1 (a INT) TABLESPACE=ts1 ENCRYPTION='N';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+CREATE TABLE t1 (a INT) TABLESPACE=innodb_file_per_table ENCRYPTION='N';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=0;
+CREATE TABLE t1 (a INT) ENCRYPTION='N';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=1;

@@ -1037,10 +1037,8 @@ bool Log_event::write_footer(IO_CACHE* file)
     if (event_encrypter.encrypt_and_write(file, buf, BINLOG_CHECKSUM_LEN))
       return true;
   }
-  if (event_encrypter.is_encryption_enabled() &&
-      event_encrypter.finish(file))
-    return true;
-  return false;
+  return event_encrypter.is_encryption_enabled() &&
+      event_encrypter.finish(file);
 }
 
 
@@ -1146,7 +1144,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
 
   write_header_to_memory(header);
 
-  bool is_format_decription_and_need_checksum= need_checksum() &&
+  const bool is_format_description_and_need_checksum= need_checksum() &&
        ((common_header->flags & LOG_EVENT_BINLOG_IN_USE_F) != 0);
 
   /*
@@ -1160,7 +1158,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
     in case binlog encryption is turned on. 
   */
 
-  if (is_format_decription_and_need_checksum)
+  if (is_format_description_and_need_checksum)
   {
     common_header->flags&= ~LOG_EVENT_BINLOG_IN_USE_F;
     int2store(header + FLAGS_OFFSET, common_header->flags);
@@ -1168,7 +1166,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
   crc= my_checksum(crc, header, LOG_EVENT_HEADER_LEN);
 
   // restore IN_USE flag after calculating the checksum
-  if (is_format_decription_and_need_checksum)
+  if (is_format_description_and_need_checksum)
   {
     common_header->flags|= LOG_EVENT_BINLOG_IN_USE_F;
     int2store(header + FLAGS_OFFSET, common_header->flags);

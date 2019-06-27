@@ -7460,6 +7460,9 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
 @return true if encrypted, false if not (or fail to open mysql/plugin table) */
 static bool dict_is_mysql_plugin_space_encrypted(
     space_id_t mysql_plugin_space) {
+  /* It is possible that plugin table was created with
+  innodb_file_per_table == false, then this tablespace
+  will reside in system tablespace */
   if (mysql_plugin_space == SYSTEM_TABLE_SPACE) {
     return (srv_sys_space.is_encrypted());
   }
@@ -7483,10 +7486,8 @@ ONLINE_TO_KEYRING*
 @return true if innodb_encrypt_tables is equal to ON or FORCE or
 ONLINE_TO_KEYRING* */
 static bool dict_should_be_keyring_encrypted() {
-  return srv_encrypt_tables == SRV_ENCRYPT_TABLES_ON ||
-         srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE ||
-         srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING ||
-         srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE;
+  return srv_default_table_encryption == DEFAULT_TABLE_ENC_ON ||
+         srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING;
 }
 
 /** Reads mysql.ibd's page0 from buffer if the tablespace is already loaded

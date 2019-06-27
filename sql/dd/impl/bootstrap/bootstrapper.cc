@@ -748,6 +748,24 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
                            &ddse_tablespaces))
     return true;
 
+  // first table in ddse_tablespaces is mysql.ibd
+  dd::Properties *p = dd::Properties_impl::parse_properties(
+      ddse_tablespaces.begin()->get_options());
+
+  DBUG_ASSERT(memcmp(ddse_tablespaces.begin()->get_name(),
+                     MYSQL_TABLESPACE_NAME.str,
+                     MYSQL_TABLESPACE_NAME.length) == 0);
+
+  if (p->exists("encryption")) {
+    dd::String_type tablespace_encryption;
+    p->get("encryption", &tablespace_encryption);
+    if (my_strcasecmp(system_charset_info, tablespace_encryption.c_str(),
+                      "y") == 0) {
+      bootstrap::DD_bootstrap_ctx::instance().set_dd_encrypted();
+      // From now on all DD tables will be created with encryption='y'
+    }
+  }
+
   /*
     Iterate over the table definitions and add them to the System_tables
     registry. The Object_table instances will later be used to execute
@@ -1148,8 +1166,11 @@ void store_predefined_tablespace_metadata(THD *thd) {
       space_file->set_se_private_data(file->get_se_private_data());
     }
 
-    // All the predefined tablespace are unencrypted (atleast for now).
-    tablespace->options().set("encryption", "N");
+    // If predefined tablespace is not encrypted assign
+    // encryption=n to it.
+    if (!tablespace->options().exists("encryption")) {
+      tablespace->options().set("encryption", "N");
+    }
 
     /*
       Here, we just want to populate the core registry in the storage
@@ -1176,6 +1197,9 @@ bool create_dd_schema(THD *thd) {
 
 bool initialize_dd_properties(THD *thd) {
   // Create the dd_properties table.
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+    dd::tables::DD_properties::instance().set_encrypted();
+  }
   const Object_table_definition *dd_properties_def =
       dd::tables::DD_properties::instance().target_table_definition();
   if (dd::execute_query(thd, dd_properties_def->get_ddl())) return true;

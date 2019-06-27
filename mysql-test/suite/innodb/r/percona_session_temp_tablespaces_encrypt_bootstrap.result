@@ -1,8 +1,10 @@
 # Stop the instance which was created by MTR
 # create bootstrap file
-# Bootstrap new instance with innodb_encrypt_tables=ON
-# Start the instance with innodb_encrypt_tables=ON
-# restart: --datadir=MYSQLD_DATADIR1 --innodb_encrypt_tables=ON
+# Bootstrap new instance with default_table_encryption=ON
+# Start the instance with default_table_encryption=ON
+# restart: --datadir=MYSQLD_DATADIR1 --default_table_encryption=ON
+CREATE DATABASE db1;
+USE db1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5);
 SHOW CREATE TABLE t1;
@@ -23,5 +25,6 @@ SELECT SPACE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WH
 SPACE	PURPOSE
 4294501265	USER ENCRYPTED
 4294501266	INTRINSIC ENCRYTPED
+DROP DATABASE db1;
 # Start default MTR instance
 # restart

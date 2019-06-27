@@ -211,7 +211,7 @@ our $opt_xml_report;
 our $opt_gterm;
 
 our $DEFAULT_SUITES =
-"main,sys_vars,binlog,binlog_gtid,binlog_nogtid,binlog_57_decryption,rpl_encryption,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x,secondary_engine,"
+"main,sys_vars,binlog,binlog_gtid,binlog_nogtid,binlog_57_decryption,encryption,rpl_encryption,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x,secondary_engine,"
   ."funcs_2,jp,stress,engines/iuds,engines/funcs,group_replication,audit_null,"
   ."interactive_utilities,"
   ."audit_log,"

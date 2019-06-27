@@ -152,53 +152,53 @@ Table	Create Table
 innodb_compact	CREATE TABLE `innodb_compact` (
   `c1` bigint(20) NOT NULL,
   `b` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT ENCRYPTION_KEY_ID=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=1
 alter table innodb_compressed engine=innodb encryption='KEYRING';
 show create table innodb_compressed;
 Table	Create Table
 innodb_compressed	CREATE TABLE `innodb_compressed` (
   `c1` bigint(20) NOT NULL,
   `b` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION_KEY_ID=2
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2
 alter table innodb_dynamic engine=innodb encryption='KEYRING';
 show create table innodb_dynamic;
 Table	Create Table
 innodb_dynamic	CREATE TABLE `innodb_dynamic` (
   `c1` bigint(20) NOT NULL,
   `b` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC ENCRYPTION_KEY_ID=33
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=33
 alter table innodb_redundant engine=innodb encryption='KEYRING';
 show create table innodb_redundant;
 Table	Create Table
 innodb_redundant	CREATE TABLE `innodb_redundant` (
   `c1` bigint(20) NOT NULL,
   `b` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT ENCRYPTION_KEY_ID=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=4
 # restart
 show create table innodb_compact;
 Table	Create Table
 innodb_compact	CREATE TABLE `innodb_compact` (
   `c1` bigint(20) NOT NULL,
   `b` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT ENCRYPTION_KEY_ID=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=1
 show create table innodb_compressed;
 Table	Create Table
 innodb_compressed	CREATE TABLE `innodb_compressed` (
   `c1` bigint(20) NOT NULL,
   `b` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION_KEY_ID=2
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2
 show create table innodb_dynamic;
 Table	Create Table
 innodb_dynamic	CREATE TABLE `innodb_dynamic` (
   `c1` bigint(20) NOT NULL,
   `b` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC ENCRYPTION_KEY_ID=33
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=33
 show create table innodb_redundant;
 Table	Create Table
 innodb_redundant	CREATE TABLE `innodb_redundant` (
   `c1` bigint(20) NOT NULL,
   `b` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT ENCRYPTION_KEY_ID=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=4
 show create table innodb_defkey;
 Table	Create Table
 innodb_defkey	CREATE TABLE `innodb_defkey` (

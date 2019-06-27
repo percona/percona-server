@@ -7,13 +7,13 @@ call mtr.add_suppression("\\[InnoDB\\] Unable to encrypt a session temp tablespa
 --echo #
 CREATE TABLE t1 (a INT, b BLOB);
 INSERT INTO t1 VALUES (1, 'hello'), (2, 'hi'), (3, 'satya');
-SET GLOBAL innodb_encrypt_tables=ON;
+SET GLOBAL default_table_encryption=ON;
 SET big_tables=ON;
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 INSERT INTO t1 SELECT * FROM t1;
 DROP TABLE t1;
 SET big_tables=default;
-SET GLOBAL innodb_encrypt_tables=default;
+SET GLOBAL default_table_encryption=default;
 
 --echo # without keyring plugin, try to enable encryption of temporary
 --echo # tablespace
@@ -61,12 +61,12 @@ SELECT @@innodb_temp_tablespace_encrypt;
 
 CREATE TABLE t1 (a INT, b BLOB);
 INSERT INTO t1 VALUES (1, 'hello'), (2, 'hi'), (3, 'satya');
-SET GLOBAL innodb_encrypt_tables=ON;
+SET GLOBAL default_table_encryption=ON;
 SET big_tables=ON;
 INSERT INTO t1 SELECT * FROM t1;
 DROP TABLE t1;
 SET big_tables=default;
-SET GLOBAL innodb_encrypt_tables=default;
+SET GLOBAL default_table_encryption=default;
 
 --source include/count_sessions.inc
 connect (other1,localhost,root,,test);
@@ -97,9 +97,9 @@ disconnect other2;
 connect (other2,localhost,root,,test);
 connection other2;
 
-SET GLOBAL innodb_encrypt_tables=ON;
+SET GLOBAL default_table_encryption=ON;
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
-SET GLOBAL innodb_encrypt_tables=OFF;
+SET GLOBAL default_table_encryption=OFF;
 INSERT INTO t01 VALUES (1), (2), (3);
 
 connection default;

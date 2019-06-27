@@ -8,7 +8,7 @@ Level	Code	Message
 create table t3 (a varchar(255)) engine=innodb encryption='N';
 create table t4 (a varchar(255)) engine=innodb encryption='KEYRING' encryption_key_id=5;
 CREATE TABLESPACE ts_encrypted ADD DATAFILE 'ts_encrypted.ibd' ENCRYPTION="Y" ENGINE="InnoDB";
-CREATE TABLE t5 (a varchar(255)) TABLESPACE ts_encrypted ENGINE="InnoDB";
+CREATE TABLE t5 (a varchar(255)) TABLESPACE ts_encrypted ENCRYPTION="Y" ENGINE="InnoDB";
 CREATE TABLESPACE ts_rk_encrypted ADD DATAFILE 'ts_rk_encrypted.ibd' ENCRYPTION='KEYRING' ENGINE="InnoDB";
 create table t6 (a varchar(255)) engine=innodb;
 insert t1 values (repeat('foobarsecret', 12));

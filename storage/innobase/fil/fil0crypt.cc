@@ -71,7 +71,6 @@ static int number_of_t1_pages_rotated = 0;
 static ib_mutex_t fil_crypt_key_mutex;
 
 static bool fil_crypt_threads_inited = false;
-extern ulong srv_encrypt_tables;
 
 /** No of key rotation threads requested */
 uint srv_n_fil_crypt_threads = 0;
@@ -754,8 +753,8 @@ Copy global key state
 @param[in]	crypt_data	crypt data */
 static void fil_crypt_get_key_state(key_state_t *new_state,
                                     fil_space_crypt_t *crypt_data) {
-  if (srv_encrypt_tables ==
-      SRV_ENCRYPT_TABLES_ONLINE_FROM_KEYRING_TO_UNENCRYPTED) {
+  if (srv_default_table_encryption ==
+      DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED) {
     new_state->key_version = ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED;
     new_state->rotate_key_age = 0;
   } else {
@@ -2698,8 +2697,8 @@ void fil_crypt_set_rotation_iops(uint val) {
 Adjust encrypt tables
 @param[in]	val		New setting for innodb-encrypt-tables */
 
-void fil_crypt_set_encrypt_tables(uint val) {
-  srv_encrypt_tables = val;
+void fil_crypt_set_encrypt_tables(enum_default_table_encryption val) {
+  srv_default_table_encryption = val;
   os_event_set(fil_crypt_threads_event);
 }
 

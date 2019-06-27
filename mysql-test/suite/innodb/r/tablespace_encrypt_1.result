@@ -51,15 +51,17 @@ ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
 TEMPORARY TABLESPACE
 ---------------------------
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
-ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
+ERROR HY000: InnoDB: ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
+Error	1478	InnoDB: ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
-ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
+ERROR HY000: InnoDB: ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
+Error	1478	InnoDB: ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.
+Error	1031	Table storage engine for 't1' doesn't have this option
 ------------------------------------------------
 CREATE TABLESPACE WITH INVALID ENCRYPTION OPTION
 ------------------------------------------------
@@ -410,7 +412,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="N" ENGINE = InnoDB;
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
@@ -424,7 +426,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 ALTER TABLE t1 encryption="Y";
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
 NAME	ENCRYPTION
@@ -464,7 +466,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE=innodb_file_per_table ENCRYPTION="N" ENGINE = InnoDB;
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
@@ -478,7 +480,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 ALTER TABLE t1 encryption="Y";
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
 NAME	ENCRYPTION

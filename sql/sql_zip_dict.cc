@@ -21,6 +21,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/sql_zip_dict.h"
 
 #include <iostream>
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // DD_bootstrap_ctx
 #include "sql/dd/impl/bootstrap/bootstrapper.h"
 #include "sql/dd/impl/transaction_impl.h"
 #include "sql/dd/impl/utils.h"                 // execute_query
@@ -103,13 +104,25 @@ bool bootstrap(THD *thd) {
   DBUG_EXECUTE_IF("skip_compression_dict_create", skip_bootstrap = true;
                   return false;);
 
+  dd::String_type dict_table_str_enc{dict_table_str};
+
+  if (dd::bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+    dict_table_str_enc += " ENCRYPTION='Y'";
+  }
+
   // Create mysql.compression_dictionary table
-  if (execute_query(thd, dict_table_str)) {
+  if (execute_query(thd, dict_table_str_enc)) {
     return true;
   }
 
+  dd::String_type dict_cols_table_str_enc{dict_cols_table_str};
+
+  if (dd::bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+    dict_cols_table_str_enc += " ENCRYPTION='Y'";
+  }
+
   // Create mysql.compression_dictionary_cols table
-  if (execute_query(thd, dict_cols_table_str)) {
+  if (execute_query(thd, dict_cols_table_str_enc)) {
     return true;
   }
 

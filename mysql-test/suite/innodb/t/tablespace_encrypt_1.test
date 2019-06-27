@@ -117,11 +117,11 @@ ALTER TABLESPACE innodb_system ENCRYPTION='Y';
 --echo ---------------------------
 # Test: create temporary encrypted table,
 # Should fail, since temporary table cannot use ENCRYPTION clause.
---error ER_CANNOT_USE_ENCRYPTION_CLAUSE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
 SHOW WARNINGS;
 
---error ER_CANNOT_USE_ENCRYPTION_CLAUSE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
 SHOW WARNINGS;
 

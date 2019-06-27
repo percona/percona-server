@@ -46,9 +46,20 @@ Object_table_impl::Object_table_impl()
                           "ROW_FORMAT", "ROW_FORMAT=DYNAMIC");
   m_target_def.add_option(static_cast<int>(Common_option::STATS_PERSISTENT),
                           "STATS_PERSISTENT", "STATS_PERSISTENT=0");
+
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+    m_target_def.add_option(static_cast<int>(Common_option::ENCRYPTION),
+                            "ENCRYPTION", "ENCRYPTION='Y'");
+  }
+
   m_target_def.add_option(
       static_cast<int>(Common_option::TABLESPACE), "TABLESPACE",
       String_type("TABLESPACE=") + String_type(MYSQL_TABLESPACE_NAME.str));
+}
+
+void Object_table_impl::set_encrypted() {
+  m_target_def.add_option(static_cast<int>(Common_option::ENCRYPTION),
+                          "ENCRYPTION", "ENCRYPTION='Y'");
 }
 
 bool Object_table_impl::set_actual_table_definition(

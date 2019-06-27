@@ -1416,6 +1416,7 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
                      "keyring is functional and try restarting the server";
       state->space->exclude_from_rotation = true;
       mutex_exit(&crypt_data->mutex);
+      crypt_data->rotate_state.destroy_flush_observer();
       mutex_exit(&crypt_data->start_rotate_mutex);
       return false;
     }
@@ -1429,8 +1430,6 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
     crypt_data->rotate_state.min_key_version_found = key_state->key_version;
 
     crypt_data->rotate_state.start_time = time(0);
-
-    crypt_data->rotate_state.create_flush_observer(state->space->id);
 
     if (crypt_data->type == CRYPT_SCHEME_UNENCRYPTED &&
         !crypt_data->is_encryption_disabled() &&
@@ -2398,6 +2397,13 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
     mutex_enter(&crypt_data->mutex);
     ut_a(crypt_data->rotate_state.active_threads > 0);
     crypt_data->rotate_state.active_threads--;
+    if (crypt_data->rotate_state.active_threads == 0) {
+      crypt_data->rotate_state.flushing = true;
+      mutex_exit(&crypt_data->mutex);
+      crypt_data->rotate_state.destroy_flush_observer();
+      mutex_enter(&crypt_data->mutex);
+      crypt_data->rotate_state.flushing = false;
+    }
     mutex_exit(&crypt_data->mutex);
   }
 }
@@ -2477,6 +2483,13 @@ void fil_crypt_thread() {
           if (thr.space->is_space_encrypted) {
             /* There were some pages that were corrupted or could not have been
              * decrypted - abort rotating space */
+            mutex_enter(&thr.space->crypt_data->mutex);
+            thr.space->crypt_data->rotate_state.flushing = true;
+            mutex_exit(&thr.space->crypt_data->mutex);
+            thr.space->crypt_data->rotate_state.destroy_flush_observer();
+            mutex_enter(&thr.space->crypt_data->mutex);
+            thr.space->crypt_data->rotate_state.flushing = false;
+            mutex_exit(&thr.space->crypt_data->mutex);
             fil_space_release(thr.space);
             thr.space = NULL;
             break;

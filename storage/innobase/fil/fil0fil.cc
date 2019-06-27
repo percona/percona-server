@@ -2635,8 +2635,12 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   recovery error due to differing encryption flags, ensure that the
   fil_space_t instance has the same setting as the header page. First
   clear the encryption flag, then set it from the flags found in the
-  file. */
-  if (recv_recovery_is_on()) {
+  file.
+  It is also possible that for tables, general tablespaces encryption flag
+  is updated in DD but server crashed before encryption flag is updated on
+  disk.
+  Below we print warning in such case. */
+  if (space->crypt_data == nullptr && recv_recovery_is_on()) {
     fsp_flags_unset_encryption(space->flags);
     space->flags |= flags & FSP_FLAGS_MASK_ENCRYPTION;
   }

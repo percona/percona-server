@@ -10190,7 +10190,12 @@ int main(int argc, char **argv) {
           do_eval(&ds_skip_msg, command->first_argument, command->end, false);
 
           char skip_msg[FN_REFLEN];
-          strmake(skip_msg, ds_skip_msg.str, FN_REFLEN - 1);
+          if (ds_skip_msg.length > 0) {
+            strmake(skip_msg, ds_skip_msg.str, FN_REFLEN - 1);
+          } else {
+            skip_msg[0] = '\0';
+          }
+
           dynstr_free(&ds_skip_msg);
 
           if (!no_skip) {

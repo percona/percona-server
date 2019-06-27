@@ -6284,6 +6284,9 @@ dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
 @return true if encrypted, false if not (or fail to open mysql/plugin table) */
 static bool dict_is_mysql_plugin_space_encrypted(
     space_id_t mysql_plugin_space) {
+  /* It is possible that plugin table was created with
+  innodb_file_per_table == false, then this tablespace
+  will reside in system tablespace */
   if (mysql_plugin_space == SYSTEM_TABLE_SPACE) {
     return (srv_sys_space.is_encrypted());
   }

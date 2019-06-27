@@ -48,7 +48,8 @@ class Object_table_impl : virtual public Object_table {
     COLLATION,
     ROW_FORMAT,
     STATS_PERSISTENT,
-    TABLESPACE
+    TABLESPACE,
+    ENCRYPTION
   };
 
   /*
@@ -121,6 +122,8 @@ class Object_table_impl : virtual public Object_table {
   bool is_hidden() const override { return m_hidden; }
 
   void set_hidden(bool hidden) override { m_hidden = hidden; }
+
+  virtual void set_encrypted() override;
 
   ~Object_table_impl() override = default;
 };

@@ -289,6 +289,8 @@ struct Srv_threads {
   waiting procedure used in the pre_dd_shutdown. */
   os_event_t m_shutdown_cleanup_dbg;
 #endif /* UNIV_DEBUG */
+  /** true if tablespace alter encrypt thread is created */
+  bool m_ts_alter_encrypt_thread_active;
 
   /** No of key rotation threads started */
   size_t m_crypt_threads_n = 0;

@@ -603,15 +603,15 @@ struct System_variables {
   uint32_t immediate_server_version;
 
   /**
-    Used to determine if the database or tablespace should be encrypted by
-    default.
-  */
-  bool default_table_encryption;
-
-  /**
     @sa Sys_var_print_identified_with_as_hex
   */
   bool print_identified_with_as_hex;
+
+  /**
+    Used to determine if the database or tablespace should be encrypted by
+    default.
+  */
+  ulong default_table_encryption;
 
   /**
     @sa Sys_var_show_create_table_skip_secondary_engine

@@ -433,6 +433,8 @@ using Encrypt_result = ResultType<bool>;
 Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
                                        bool *found_tablespace);
 
+Encrypt_result is_system_tablespace_encrypted(THD *thd);
+
 /**
   Predicate which indicates if the table has real (non-hidden) primary key.
 

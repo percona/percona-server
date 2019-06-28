@@ -20,6 +20,7 @@
 /* MySQL header files */
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
+#include "sql/table.h"
 
 /* MyRocks header files */
 #include "./ha_rocksdb.h"

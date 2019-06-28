@@ -18,15 +18,32 @@ KEY (b),
 KEY (c) COMMENT "cfname=rev:cf") ENGINE=ROCKSDB;
 SET rocksdb_bulk_load=1;
 INSERT INTO t1 SELECT * FROM t3 FORCE INDEX (PRIMARY) ORDER BY a;
-SELECT count(*) FROM t1 FORCE INDEX (PRIMARY);
-count(*)
+SELECT a FROM t1 FORCE INDEX (PRIMARY);
+a
+SELECT b FROM t1 FORCE INDEX (b);
+b
+-8
+-6
+-4
+-2
 0
-SELECT count(*) FROM t1 FORCE INDEX (b);
-count(*)
-10
-SELECT count(*) FROM t1 FORCE INDEX (c);
-count(*)
-10
+3
+5
+7
+9
+11
+SELECT c FROM t1 FORCE INDEX (c);
+c
+-8
+-6
+-4
+-2
+0
+3
+5
+7
+9
+11
 SET rocksdb_bulk_load=0;
 SELECT * FROM t1 FORCE INDEX (PRIMARY);
 a	b	c

@@ -73,18 +73,18 @@ set session sql_mode=@orig_sql_mode;
 set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 (v0,v1,v64,v65000) SELECT v65000, v65000, CONCAT('a',v65000), CONCAT(v65000,v1) FROM t1;
-ERROR 22001: Data too long for column 'v0' at row 5
+ERROR 22001: Data too long for column 'v0' at row 2
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
 INSERT INTO t1 (v0,v1,v64,v65000) SELECT v65000, v65000, CONCAT('a',v65000), CONCAT(v65000,v1) FROM t1;
 Warnings:
-Warning	1265	Data truncated for column 'v0' at row 5
-Warning	1265	Data truncated for column 'v1' at row 5
-Warning	1265	Data truncated for column 'v64' at row 5
-Warning	1265	Data truncated for column 'v0' at row 6
-Warning	1265	Data truncated for column 'v1' at row 6
-Warning	1265	Data truncated for column 'v64' at row 6
-Warning	1265	Data truncated for column 'v65000' at row 6
+Warning	1265	Data truncated for column 'v0' at row 2
+Warning	1265	Data truncated for column 'v1' at row 2
+Warning	1265	Data truncated for column 'v64' at row 2
+Warning	1265	Data truncated for column 'v0' at row 3
+Warning	1265	Data truncated for column 'v1' at row 3
+Warning	1265	Data truncated for column 'v64' at row 3
+Warning	1265	Data truncated for column 'v65000' at row 3
 set session sql_mode=@orig_sql_mode;
 set session transaction_isolation=@orig_tx_iso;
 SELECT HEX(v0), HEX(v1), HEX(v64), LENGTH(HEX(v65000)) FROM t1;

@@ -679,15 +679,15 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (a INT) ENCRYPTION='y' ENGINE=ROCKSDB;
-ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
 CREATE TABLE t1 (a INT) ENCRYPTION='n' ENGINE=ROCKSDB;
 ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
 CREATE TABLE t1 (a INT) ENCRYPTION='1' ENGINE=ROCKSDB;
-ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
 CREATE TABLE t1 (a INT) ENCRYPTION='AES' ENGINE=ROCKSDB;
-ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
 CREATE TABLE t1 (a INT) ENCRYPTION='867-5309' ENGINE=ROCKSDB;
-ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=ROCKSDB;
 ERROR HY000: Table storage engine 'ROCKSDB' does not support the create option 'CREATE TABLESPACE'
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=INNODB;

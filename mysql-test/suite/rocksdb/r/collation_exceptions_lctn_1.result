@@ -23,8 +23,12 @@ CREATE TABLE ABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=ro
 DROP TABLE ABC;
 SET GLOBAL rocksdb_strict_collation_exceptions="^ABC";
 CREATE TABLE abcd (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb4;
+Warnings:
+Warning	122	Indexed column test.abcd.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE abcd;
 CREATE TABLE ABCD (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb4;
+Warnings:
+Warning	122	Indexed column test.abcd.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE ABCD;
 CREATE TABLE ZABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb4;
 Warnings:

@@ -304,11 +304,10 @@ void rdb_log_status_error(const rocksdb::Status &s, const char *msg) {
                   s.code(), s.ToString().c_str());
 }
 
-void warn_about_bad_patterns(const Regex &regex, const char *name) {
+void warn_about_bad_patterns(const char *regex, const char *name) {
   // There was some invalid regular expression data in the patterns supplied
 
-  LogPluginErrMsg(WARNING_LEVEL, 0, "Invalid pattern in %s: %s", name,
-                  regex.pattern().c_str());
+  LogPluginErrMsg(WARNING_LEVEL, 0, "Invalid pattern in %s: %s", name, regex);
 }
 
 // Split a string based on a delimiter.  Two delimiters in a row will not add

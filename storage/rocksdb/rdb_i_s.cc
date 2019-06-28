@@ -26,6 +26,7 @@
 #include "sql_string.h" /* for now this must violate clang-format style as it */
                         /* is needed before sql_show.h */
 #include "sql/sql_show.h"
+#include "sql/table.h"  // ST_FIELD_INFO
 
 /* RocksDB header files */
 #include "rocksdb/compaction_filter.h"

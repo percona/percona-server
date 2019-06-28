@@ -45,7 +45,7 @@ set @@global.rocksdb_compact_cf = 'my_custom_cf';
 set @@global.rocksdb_compact_cf = 'baz';
 SELECT DISTINCT(cf_name) FROM information_schema.rocksdb_cfstats WHERE cf_name='foo';
 cf_name
-foo
+FOO
 SELECT DISTINCT(cf_name) FROM information_schema.rocksdb_cfstats WHERE cf_name='my_custom_cf';
 cf_name
 my_custom_cf

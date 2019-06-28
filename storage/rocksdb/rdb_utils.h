@@ -26,7 +26,6 @@
 #include "mysql/components/services/log_builtins.h"
 
 #include "my_stacktrace.h"
-#include "sql/sql_regex.h"
 #include "sql_string.h"
 
 /* RocksDB header files */
@@ -309,7 +308,7 @@ std::string rdb_hexdump(const char *data, const std::size_t data_len,
  */
 bool rdb_database_exists(const std::string &db_name);
 
-void warn_about_bad_patterns(const Regex &regex, const char *name);
+void warn_about_bad_patterns(const char *regex, const char *name);
 
 std::vector<std::string> split_into_vector(const std::string &input,
                                            char delimiter);

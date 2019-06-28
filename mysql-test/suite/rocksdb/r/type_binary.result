@@ -35,7 +35,7 @@ set session sql_mode=@orig_sql_mode;
 set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 SELECT b255, b255, b255, b255, CONCAT('a',b255,b255), 'c' FROM t1;
-ERROR 22001: Data too long for column 'b' at row 4
+ERROR 22001: Data too long for column 'b' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
 INSERT INTO t1 SELECT b255, b255, b255, b255, CONCAT('a',b255,b255), 'c' FROM t1;

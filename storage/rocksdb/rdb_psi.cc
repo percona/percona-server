@@ -28,8 +28,8 @@ namespace myrocks {
   The following is needed as an argument for mysql_stage_register,
   irrespectively of whether we're compiling with P_S or not.
 */
-my_core::PSI_stage_info stage_waiting_on_row_lock(0, "Waiting for row lock", 0,
-                                                  nullptr);
+my_core::PSI_stage_info stage_waiting_on_row_lock = {0, "Waiting for row lock",
+                                                     0, nullptr};
 
 #ifdef HAVE_PSI_INTERFACE
 my_core::PSI_stage_info *all_rocksdb_stages[] = {&stage_waiting_on_row_lock};
@@ -38,9 +38,12 @@ my_core::PSI_thread_key rdb_background_psi_thread_key,
     rdb_drop_idx_psi_thread_key, rdb_mc_psi_thread_key;
 
 my_core::PSI_thread_info all_rocksdb_threads[] = {
-    {&rdb_background_psi_thread_key, "background", PSI_FLAG_SINGLETON},
-    {&rdb_drop_idx_psi_thread_key, "drop index", PSI_FLAG_SINGLETON},
-    {&rdb_mc_psi_thread_key, "manual compaction", PSI_FLAG_SINGLETON},
+    {&rdb_background_psi_thread_key, "background", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&rdb_drop_idx_psi_thread_key, "drop index", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&rdb_mc_psi_thread_key, "manual compaction", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
 };
 
 my_core::PSI_mutex_key rdb_psi_open_tbls_mutex_key, rdb_signal_bg_psi_mutex_key,
@@ -50,54 +53,59 @@ my_core::PSI_mutex_key rdb_psi_open_tbls_mutex_key, rdb_signal_bg_psi_mutex_key,
     rdb_sst_commit_key, rdb_block_cache_resize_mutex_key;
 
 my_core::PSI_mutex_info all_rocksdb_mutexes[] = {
-    {&rdb_psi_open_tbls_mutex_key, "open tables", PSI_FLAG_SINGLETON},
-    {&rdb_signal_bg_psi_mutex_key, "stop background", PSI_FLAG_SINGLETON},
+    {&rdb_psi_open_tbls_mutex_key, "open tables", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&rdb_signal_bg_psi_mutex_key, "stop background", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
     {&rdb_signal_drop_idx_psi_mutex_key, "signal drop index",
-     PSI_FLAG_SINGLETON},
-    {&rdb_collation_data_mutex_key, "collation data init", PSI_FLAG_SINGLETON},
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&rdb_collation_data_mutex_key, "collation data init", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
     {&rdb_signal_mc_psi_mutex_key, "signal manual compaction",
-     PSI_FLAG_SINGLETON},
-    {&rdb_collation_data_mutex_key, "collation data init", PSI_FLAG_SINGLETON},
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&rdb_collation_data_mutex_key, "collation data init", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
     {&rdb_mem_cmp_space_mutex_key, "collation space char data init",
-     PSI_FLAG_SINGLETON},
-    {&key_mutex_tx_list, "tx_list", PSI_FLAG_SINGLETON},
-    {&rdb_sysvars_psi_mutex_key, "setting sysvar", PSI_FLAG_SINGLETON},
-    {&rdb_cfm_mutex_key, "column family manager", PSI_FLAG_SINGLETON},
-    {&rdb_sst_commit_key, "sst commit", PSI_FLAG_SINGLETON},
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_mutex_tx_list, "tx_list", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&rdb_sysvars_psi_mutex_key, "setting sysvar", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&rdb_cfm_mutex_key, "column family manager", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&rdb_sst_commit_key, "sst commit", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&rdb_block_cache_resize_mutex_key, "resizing block cache",
-     PSI_FLAG_SINGLETON},
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
 
-my_core::PSI_rwlock_key key_rwlock_collation_exception_list,
-    key_rwlock_read_free_rpl_tables, key_rwlock_skip_unique_check_tables;
+my_core::PSI_rwlock_key key_rwlock_read_free_rpl_tables,
+    key_rwlock_skip_unique_check_tables;
 
 my_core::PSI_rwlock_info all_rocksdb_rwlocks[] = {
-    {&key_rwlock_collation_exception_list, "collation_exception_list",
-     PSI_FLAG_SINGLETON},
     {&key_rwlock_read_free_rpl_tables, "read_free_rpl_tables",
-     PSI_FLAG_SINGLETON},
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_rwlock_skip_unique_check_tables, "skip_unique_check_tables",
-     PSI_FLAG_SINGLETON},
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
 
 my_core::PSI_cond_key rdb_signal_bg_psi_cond_key,
     rdb_signal_drop_idx_psi_cond_key, rdb_signal_mc_psi_cond_key;
 
 my_core::PSI_cond_info all_rocksdb_conds[] = {
-    {&rdb_signal_bg_psi_cond_key, "cond signal background", PSI_FLAG_SINGLETON},
+    {&rdb_signal_bg_psi_cond_key, "cond signal background", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
     {&rdb_signal_drop_idx_psi_cond_key, "cond signal drop index",
-     PSI_FLAG_SINGLETON},
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&rdb_signal_mc_psi_cond_key, "cond signal manual compaction",
-     PSI_FLAG_SINGLETON},
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
 
 my_core::PSI_memory_key rdb_datadic_memory_key, rdb_open_tables_memory_key,
     rdb_handler_memory_key;
 
 my_core::PSI_memory_info all_rocksdb_memory[] = {
-    {&rdb_datadic_memory_key, "datadic", 0},
-    {&rdb_open_tables_memory_key, "open tables", 0},
-    {&rdb_handler_memory_key, "handler", 0},
+    {&rdb_datadic_memory_key, "datadic", 0, 0, PSI_DOCUMENT_ME},
+    {&rdb_open_tables_memory_key, "open tables", 0, 0, PSI_DOCUMENT_ME},
+    {&rdb_handler_memory_key, "handler", 0, 0, PSI_DOCUMENT_ME},
 };
 
 void init_rocksdb_psi_keys() {

@@ -32,6 +32,7 @@
 /* MySQL header files */
 #include "ib_ut0counter.h"
 #include "my_icp.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/sql_bitmap.h"

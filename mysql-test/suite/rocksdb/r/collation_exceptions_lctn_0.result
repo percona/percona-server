@@ -43,6 +43,7 @@ DROP TABLE abcd;
 CREATE TABLE ABCD (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	122	Indexed column test.ABCD.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE ABCD;
 CREATE TABLE ZABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8mb3;
 Warnings:

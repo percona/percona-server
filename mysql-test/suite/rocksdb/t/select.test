@@ -45,7 +45,7 @@ SELECT FOUND_ROWS();
 --sorted_result
 SELECT a+10 AS field1, CONCAT(b,':',b) AS field2 FROM t1 
 WHERE b > 'b' AND a IS NOT NULL 
-GROUP BY 2 DESC, field1 ASC
+GROUP BY field2, field1
 HAVING field1 < 1000
 ORDER BY field2, 1 DESC, field1*2
 LIMIT 5 OFFSET 1;

@@ -36,8 +36,8 @@ using namespace rocksdb;
 
 namespace myrocks {
 
-static PSI_stage_info stage_waiting_on_row_lock2(0, "Waiting for row lock", 0,
-                                                 nullptr);
+static PSI_stage_info stage_waiting_on_row_lock2 = {0, "Waiting for row lock",
+                                                    0, nullptr};
 
 static const int64_t ONE_SECOND_IN_MICROSECS = 1000 * 1000;
 // A timeout as long as one full non-leap year worth of microseconds is as

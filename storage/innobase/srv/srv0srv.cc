@@ -2774,29 +2774,15 @@ srv_temp_encryption_update(bool enable)
 
 	ut_ad(fsp_is_system_temporary(space->id));
 
-	if (enable) {
-
-		if (is_encrypted) {
-			/* Encryption already enabled */
-			return(DB_SUCCESS);
-		} else {
-			/* Enable encryption now */
-			dberr_t err = fil_temp_update_encryption(space);
-			if (err == DB_SUCCESS) {
-				srv_tmp_space.set_flags(space->flags);
-			}
-			return(err);
+	if (enable != is_encrypted) {
+		/* Toggle encryption */
+		dberr_t err = fil_temp_update_encryption(space, enable);
+		if (err == DB_SUCCESS) {
+			srv_tmp_space.set_flags(space->flags);
 		}
-
-	} else {
-		if (!is_encrypted) {
-			/* Encryption already disabled */
-			return(DB_SUCCESS);
-		} else {
-			// TODO: Disabling encryption is not allowed yet
-			return(DB_SUCCESS);
-		}
+		return (err);
 	}
+	return (DB_SUCCESS);
 }
 
 /*********************************************************************//**

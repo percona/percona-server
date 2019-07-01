@@ -7948,66 +7948,72 @@ fil_set_encryption(
 
 /** Enable encryption of temporary tablespace
 @param[in,out]	space	tablespace object
+@param[in]	enable	true to enable encryption, false to disable
 @return DB_SUCCESS on success, DB_ERROR on failure */
 dberr_t
 fil_temp_update_encryption(
-	fil_space_t*	space)
+	fil_space_t*	space,
+	bool		enable)
 {
-	/* Make sure the keyring is loaded. */
-	if (!Encryption::check_keyring()) {
-		ib::error() << "Can't set temporary tablespace"
-			<< " to be encrypted because"
-			<< " keyring plugin is not"
-			<< " available.";
-			return(DB_ERROR);
+	if (enable && !FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		/* Make sure the keyring is loaded. */
+		if (!Encryption::check_keyring()) {
+			ib::error() << "Can't set temporary tablespace"
+				    << " to be encrypted because"
+				    << " keyring plugin is not"
+				    << " available.";
+			return (DB_ERROR);
+		}
+
+		if (!fsp_enable_encryption(space)) {
+			ib::error() << "Can't set temporary tablespace"
+				    << " to be encrypted.";
+			return (DB_ERROR);
+		}
+
+		dberr_t err = fil_set_encryption(space->id, Encryption::AES,
+						 NULL, NULL);
+
+		ut_ad(err == DB_SUCCESS);
+
+		return (err);
 	}
 
-	if (!fsp_enable_encryption(space)) {
-		ib::error() << "Can't set temporary tablespace"
-			<< " to be encrypted.";
-		return(DB_ERROR);
-	}
+	/* Do nothing when asked to disable encryption. Because existing
+	tables in the temporary tablespace may be encrypted we need to keep
+	existing keys */
 
-	dberr_t	err = fil_set_encryption(
-		space->id,
-		Encryption::AES, NULL, NULL);
-
-	ut_ad(err == DB_SUCCESS);
-
-	return(err);
+	return (DB_SUCCESS);
 }
 
 /** Rotate the tablespace key by new master key.
 @param[in]	space	tablespace object
 @return true if the re-encrypt suceeds */
-static
-bool
-fil_encryption_rotate_low(const fil_space_t* space)
-{
-	bool success = true;
-	if (space->encryption_type == Encryption::AES) {
-		mtr_t mtr;
-		mtr_start(&mtr);
+	static bool fil_encryption_rotate_low(const fil_space_t *space) {
+		bool success = true;
+		if (space->encryption_type == Encryption::AES) {
+			mtr_t mtr;
+			mtr_start(&mtr);
 
-		if (fsp_is_system_temporary(space->id)) {
-			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+			if (fsp_is_system_temporary(space->id)) {
+				mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+			}
+
+			mtr.set_named_space(space->id);
+
+			fil_space_t *space_locked =
+			    mtr_x_lock_space(space->id, &mtr);
+
+			byte encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
+
+			if (!fsp_header_rotate_encryption(
+				space_locked, encrypt_info, &mtr)) {
+				success = false;
+			}
+			mtr_commit(&mtr);
 		}
-
-		mtr.set_named_space(space->id);
-
-		fil_space_t* space_locked = mtr_x_lock_space(space->id, &mtr);
-
-		byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
-		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
-
-		if (!fsp_header_rotate_encryption(space_locked,
-						  encrypt_info,
-						  &mtr)) {
-			success = false;
-		}
-		mtr_commit(&mtr);
-	}
-	return(success);
+		return (success);
 }
 
 /** Rotate the tablespace keys by new master key.

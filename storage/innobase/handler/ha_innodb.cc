@@ -12262,6 +12262,12 @@ create_table_info_t::create_option_encryption_is_valid() const
 		create_option_tablespace_is_valid */
 		ut_a(space_id != ULINT_UNDEFINED);
 	} else if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		if (m_create_info->key_block_size != 0 ||
+		    m_create_info->row_type == ROW_TYPE_COMPRESSED) {
+			/* file-per-table temporary table does not
+			obey innodb_temp_tablespace_encrypt */
+			return (true);
+		}
 		space_id = srv_tmp_space.space_id();
 	} else if (!m_use_file_per_table) {
 		space_id = TRX_SYS_SPACE;
@@ -12273,6 +12279,9 @@ create_table_info_t::create_option_encryption_is_valid() const
 	ulint		fsp_flags = space->flags;
 
 	bool tablespace_is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
+	if (fsp_is_system_temporary(space_id)) {
+		tablespace_is_encrypted = srv_tmp_tablespace_encrypt;
+	}
 	const char *tablespace_name = m_create_info->tablespace != NULL ?
 		m_create_info->tablespace : space->name;
 

@@ -7948,11 +7948,20 @@ fil_set_encryption(
 
 /** Enable encryption of temporary tablespace
 @param[in,out]	space	tablespace object
+@param[in]	enable	true to enable encryption, false to disable
 @return DB_SUCCESS on success, DB_ERROR on failure */
 dberr_t
 fil_temp_update_encryption(
-	fil_space_t*	space)
+	fil_space_t*	space,
+	bool		enable)
 {
+	if (!enable || FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		/* Do nothing when asked to disable encryption. Because
+		existing tables in the temporary tablespace may be
+		encrypted we need to keep existing keys */
+
+		return(DB_SUCCESS);
+	}
 	/* Make sure the keyring is loaded. */
 	if (!Encryption::check_keyring()) {
 		ib::error() << "Can't set temporary tablespace"

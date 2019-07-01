@@ -5392,8 +5392,9 @@ static Sys_var_have Sys_have_statement_timeout(
        "have_statement_timeout", "have_statement_timeout",
        READ_ONLY GLOBAL_VAR(have_statement_timeout), NO_CMD_LINE);
 
-const char *log_slow_filter_name[]= { "qc_miss", "full_scan", "full_join",
-                                      "tmp_table", "tmp_table_on_disk", "filesort", "filesort_on_disk", 0};
+static const char *log_slow_filter_name[]= { "qc_miss", "full_scan", "full_join",
+                                             "tmp_table", "tmp_table_on_disk",
+                                             "filesort", "filesort_on_disk", 0};
 static Sys_var_set Sys_log_slow_filter(
        "log_slow_filter",
        "Log only the queries that followed certain execution plan. "
@@ -5423,7 +5424,7 @@ static Sys_var_double sys_slow_query_log_always_write_time(
        VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(update_slow_query_log_always_write_time));
-const char* log_slow_verbosity_name[] = { 
+static const char* log_slow_verbosity_name[] = {
   "microtime", "query_plan", "innodb", 
   "profiling", "profiling_use_getrusage", 
   "minimal", "standard", "full", 0
@@ -5440,12 +5441,12 @@ static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong wh
 static void update_log_slow_verbosity(ulonglong* value_ptr)
 {
   ulonglong &value    = *value_ptr;
-  ulonglong microtime= 1ULL << SLOG_V_MICROTIME;
-  ulonglong query_plan= 1ULL << SLOG_V_QUERY_PLAN;
-  ulonglong innodb= 1ULL << SLOG_V_INNODB;
-  ulonglong minimal= 1ULL << SLOG_V_MINIMAL;
-  ulonglong standard= 1ULL << SLOG_V_STANDARD;
-  ulonglong full= 1ULL << SLOG_V_FULL;
+  static const ulonglong microtime= 1ULL << SLOG_V_MICROTIME;
+  static const ulonglong query_plan= 1ULL << SLOG_V_QUERY_PLAN;
+  static const ulonglong innodb= 1ULL << SLOG_V_INNODB;
+  static const ulonglong minimal= 1ULL << SLOG_V_MINIMAL;
+  static const ulonglong standard= 1ULL << SLOG_V_STANDARD;
+  static const ulonglong full= 1ULL << SLOG_V_FULL;
   value= update_log_slow_verbosity_replace(value,minimal,microtime);
   value= update_log_slow_verbosity_replace(value,standard,microtime | query_plan);
   value= update_log_slow_verbosity_replace(value,full,microtime | query_plan | innodb);
@@ -5531,7 +5532,7 @@ static Sys_var_set Sys_slow_query_log_use_global_control(
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_slow_query_log_use_global_control));
 
-const char* slow_query_log_rate_name[]= {"session", "query", 0};
+static const char* slow_query_log_rate_name[]= {"session", "query", 0};
 static Sys_var_enum Sys_slow_query_log_rate_type(
        "log_slow_rate_type",
        "Choose the log_slow_rate_limit behavior: session or query. "

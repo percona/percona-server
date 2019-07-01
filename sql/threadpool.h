@@ -77,6 +77,4 @@ extern void tp_set_max_threads(uint val);
 extern void tp_set_threadpool_size(uint val);
 extern void tp_set_threadpool_stall_limit(uint val);
 
-extern int show_threadpool_idle_threads(THD *thd, SHOW_VAR *var, char *buff);
-
 #endif /* THREADPOOL_INCLUDED */

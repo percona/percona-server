@@ -6032,8 +6032,6 @@ static inline bool is_engine_substitution_allowed(THD* thd)
 
 /*************************************************************************/
 
-extern pthread_attr_t *get_connection_attrib(void);
-
 #endif /* MYSQL_SERVER */
 
 #endif /* SQL_CLASS_INCLUDED */

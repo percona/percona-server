@@ -3735,7 +3735,7 @@ public:
     PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
-  void get_time(QUERY_START_TIME_INFO *time_info)
+  void get_time(QUERY_START_TIME_INFO *time_info) const
   {
     time_info->start_time= start_time;
     time_info->start_utime= start_utime;

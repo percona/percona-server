@@ -2472,7 +2472,9 @@ fil_recreate_table(
 	/* Step-1: Scan for active indexes from REDO logs and drop
 	all the indexes using low level function that take root_page_no
 	and space-id. */
+	mutex_enter(&dict_sys->mutex);
 	truncate.drop_indexes(space_id);
+	mutex_exit(&dict_sys->mutex);
 
 	/* Step-2: Scan for active indexes and re-create them. */
 	err = truncate.create_indexes(

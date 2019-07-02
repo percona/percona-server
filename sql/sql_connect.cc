@@ -201,7 +201,7 @@ void init_global_thread_stats(void) {
   global_thread_stats =
       new (std::nothrow) thread_stats_t(key_memory_userstat_thread_stats);
   if (unlikely(!global_thread_stats)) {
-    sql_print_error("Initializing global_client_stats failed.");
+    sql_print_error("Initializing global_thread_stats failed.");
     exit(1);
   }
 }

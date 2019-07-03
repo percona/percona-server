@@ -31,6 +31,7 @@
 
 #include <inttypes.h>
 #include <algorithm>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -211,7 +212,7 @@ static struct SYS_VAR *tokudb_backup_system_variables[] = {
 struct tokudb_backup_exclude_copy_extra {
   THD *_thd;
   char *exclude_string;
-  my_regex_t *re;
+  std::regex *re;
 };
 
 static int tokudb_backup_exclude_copy_fun(const char *source_file,
@@ -219,12 +220,14 @@ static int tokudb_backup_exclude_copy_fun(const char *source_file,
   tokudb_backup_exclude_copy_extra *exclude_extra =
       static_cast<tokudb_backup_exclude_copy_extra *>(extra);
   int r = 0;
-  if (exclude_extra->exclude_string) {
-    int regr = my_regexec(exclude_extra->re, source_file, 0, nullptr, 0);
-    if (regr == 0) {
-      LogPluginErrMsg(INFORMATION_LEVEL, 0, "tokudb backup exclude %s\n",
-                      source_file);
-      r = 1;
+  if (exclude_extra->re) {
+    std::cmatch matches;
+    if (exclude_extra->re) {
+      if (std::regex_match(source_file, matches, *exclude_extra->re)) {
+        LogPluginErrMsg(INFORMATION_LEVEL, 0, "tokudb backup exclude %s\n",
+                        source_file);
+        r = 1;
+      }
     }
   }
   return r;
@@ -1141,15 +1144,17 @@ static void tokudb_backup_run(THD *thd, const char *dest_dir) {
   }
 
   char *exclude_string = THDVAR(thd, exclude);
-  my_regex_t exclude_re;
+  std::regex *exclude_re = nullptr;
   if (exclude_string) {
-    int regr = my_regcomp(&exclude_re, exclude_string, MY_REG_EXTENDED,
-                          system_charset_info);
-    if (regr) {
+    try {
+      exclude_re =
+          new std::regex(exclude_string, std::regex_constants::extended);
+    } catch (std::regex_error const &re) {
       error = EINVAL;
       char reg_error[100 + strlen(exclude_string)];
       snprintf(reg_error, sizeof reg_error,
-               "tokudb backup exclude %s regcomp %d", exclude_string, regr);
+               "tokudb backup exclude %s regular expression error: %s",
+               exclude_string, re.what());
       tokudb_backup_set_error(thd, error, reg_error);
       return;
     }
@@ -1173,7 +1178,7 @@ static void tokudb_backup_run(THD *thd, const char *dest_dir) {
   tokudb_backup_progress_extra progress_extra = {thd, nullptr};
   tokudb_backup_error_extra error_extra = {thd};
   tokudb_backup_exclude_copy_extra exclude_copy_extra = {thd, exclude_string,
-                                                         &exclude_re};
+                                                         exclude_re};
   tokudb_backup_after_stop_capt_extra asce = {thd, &master_info_channels,
                                               &master_state};
   error = tokubackup_create_backup(
@@ -1183,7 +1188,7 @@ static void tokudb_backup_run(THD *thd, const char *dest_dir) {
       tokudb_backup_before_stop_capt_fun, thd,
       tokudb_backup_after_stop_capt_fun, &asce);
 
-  if (exclude_string) my_regfree(&exclude_re);
+  delete exclude_copy_extra.re;
 
   if (!master_info_channels.empty() &&
       (error = tokudb_backup_save_master_infos(thd, dest_dir,

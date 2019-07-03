@@ -2558,28 +2558,6 @@ void THD::shutdown_active_vio()
 }
 #endif
 
-char *THD::get_client_host_port(THD *client)
-{
-  Security_context *client_sctx= client->security_ctx;
-  char *client_host= NULL;
-
-  if (client->peer_port && (client_sctx->get_host()->length()
-                            || client_sctx->get_ip()->length()) &&
-      security_ctx->host_or_ip[0])
-  {
-    if ((client_host= (char *) this->alloc(LIST_PROCESS_HOST_LEN+1)))
-      my_snprintf((char *) client_host, LIST_PROCESS_HOST_LEN,
-                  "%s:%u", client_sctx->host_or_ip, client->peer_port);
-  }
-  else
-    client_host= this->strdup(client_sctx->host_or_ip[0] ?
-                              client_sctx->host_or_ip :
-                              client_sctx->get_host()->length() ?
-                              client_sctx->get_host()->ptr() : "");
-
-  return client_host;
-}
-
 const char *get_client_host(THD *client)
 {
   return client->security_ctx->host_or_ip[0] ?

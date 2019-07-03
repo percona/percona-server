@@ -133,54 +133,50 @@ end:
 
 }
 
-extern "C" uchar *get_key_user_stats(USER_STATS *user_stats, size_t *length,
-                         my_bool not_used MY_ATTRIBUTE((unused)))
+static uchar *get_key_user_stats(USER_STATS *user_stats, size_t *length,
+                                 my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= user_stats->user_len;
   return (uchar*) user_stats->user;
 }
 
-extern "C" uchar *get_key_thread_stats(THREAD_STATS *thread_stats, size_t *length,
-                         my_bool not_used MY_ATTRIBUTE((unused)))
+/* Lookup function for my_hash tables with THREAD_STATS entries */
+static uchar *get_key_thread_stats(THREAD_STATS *thread_stats,
+                                   size_t *length,
+                                   my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= sizeof(my_thread_id);
   return (uchar *) &(thread_stats->id);
 }
 
-void free_user_stats(USER_STATS* user_stats)
+static void free_user_stats(USER_STATS* user_stats)
 {
   my_free((char *) user_stats);
 }
 
-void free_thread_stats(THREAD_STATS* thread_stats)
+static void free_thread_stats(THREAD_STATS* thread_stats)
 {
   my_free((char *) thread_stats);
 }
 
-void init_user_stats(USER_STATS *user_stats,
-                     const char *user,
-                     const char *priv_user,
-                     uint total_connections,
-                     uint total_ssl_connections,
-                     uint concurrent_connections,
-                     time_t connected_time,
-                     double busy_time,
-                     double cpu_time,
-                     ulonglong bytes_received,
-                     ulonglong bytes_sent,
-                     ulonglong binlog_bytes_written,
-                     ha_rows rows_fetched,
-                     ha_rows rows_updated,
-                     ha_rows rows_read,
-                     ulonglong select_commands,
-                     ulonglong update_commands,
-                     ulonglong other_commands,
-                     ulonglong commit_trans,
-                     ulonglong rollback_trans,
-                     ulonglong denied_connections,
-                     ulonglong lost_connections,
-                     ulonglong access_denied_errors,
-                     ulonglong empty_queries)
+/* Intialize an instance of USER_STATS */
+static void init_user_stats(USER_STATS *user_stats, const char *user,
+                            const char *priv_user, uint total_connections,
+                            uint total_ssl_connections,
+                            uint concurrent_connections,
+                            time_t connected_time, double busy_time,
+                            double cpu_time, ulonglong bytes_received,
+                            ulonglong bytes_sent,
+                            ulonglong binlog_bytes_written,
+                            ha_rows rows_fetched, ha_rows rows_updated,
+                            ha_rows rows_read, ulonglong select_commands,
+                            ulonglong update_commands,
+                            ulonglong other_commands,
+                            ulonglong commit_trans, ulonglong rollback_trans,
+                            ulonglong denied_connections,
+                            ulonglong lost_connections,
+                            ulonglong access_denied_errors,
+                            ulonglong empty_queries)
 {
   DBUG_ENTER("init_user_stats");
   DBUG_PRINT("info",
@@ -216,29 +212,25 @@ void init_user_stats(USER_STATS *user_stats,
   DBUG_VOID_RETURN;
 }
 
-void init_thread_stats(THREAD_STATS *thread_stats,
-                     my_thread_id id,
-                     uint total_connections,
-                     uint total_ssl_connections,
-                     uint concurrent_connections,
-                     time_t connected_time,
-                     double busy_time,
-                     double cpu_time,
-                     ulonglong bytes_received,
-                     ulonglong bytes_sent,
-                     ulonglong binlog_bytes_written,
-                     ha_rows rows_fetched,
-                     ha_rows rows_updated,
-                     ha_rows rows_read,
-                     ulonglong select_commands,
-                     ulonglong update_commands,
-                     ulonglong other_commands,
-                     ulonglong commit_trans,
-                     ulonglong rollback_trans,
-                     ulonglong denied_connections,
-                     ulonglong lost_connections,
-                     ulonglong access_denied_errors,
-                     ulonglong empty_queries)
+/* Intialize an instance of THREAD_STATS */
+static void init_thread_stats(THREAD_STATS *thread_stats, my_thread_id id,
+                              uint total_connections,
+                              uint total_ssl_connections,
+                              uint concurrent_connections,
+                              time_t connected_time,
+                              double busy_time, double cpu_time,
+                              ulonglong bytes_received,
+                              ulonglong bytes_sent,
+                              ulonglong binlog_bytes_written,
+                              ha_rows rows_fetched, ha_rows rows_updated,
+                              ha_rows rows_read, ulonglong select_commands,
+                              ulonglong update_commands,
+                              ulonglong other_commands, ulonglong commit_trans,
+                              ulonglong rollback_trans,
+                              ulonglong denied_connections,
+                              ulonglong lost_connections,
+                              ulonglong access_denied_errors,
+                              ulonglong empty_queries)
 {
   DBUG_ENTER("init_thread_stats");
   DBUG_PRINT("info",
@@ -296,19 +288,19 @@ void init_global_thread_stats(void)
                 0, 0, (my_hash_get_key) get_key_thread_stats,
                 (my_hash_free_key) free_thread_stats, 0))
   {
-    sql_print_error("Initializing global_client_stats failed.");
+    sql_print_error("Initializing global_thread_stats failed.");
     exit(1);
   }
 }
 
-extern "C" uchar *get_key_table_stats(TABLE_STATS *table_stats, size_t *length,
-                                     my_bool not_used MY_ATTRIBUTE((unused)))
+static uchar *get_key_table_stats(TABLE_STATS *table_stats, size_t *length,
+                                  my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= table_stats->table_len;
   return (uchar*) table_stats->table;
 }
 
-extern "C" void free_table_stats(TABLE_STATS* table_stats)
+static void free_table_stats(TABLE_STATS* table_stats)
 {
   my_free((char*) table_stats);
 }
@@ -323,14 +315,14 @@ void init_global_table_stats(void)
   }
 }
 
-extern "C" uchar *get_key_index_stats(INDEX_STATS *index_stats, size_t *length,
-                                     my_bool not_used MY_ATTRIBUTE((unused)))
+static uchar *get_key_index_stats(INDEX_STATS *index_stats, size_t *length,
+                                  my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= index_stats->index_len;
   return (uchar*) index_stats->index;
 }
 
-extern "C" void free_index_stats(INDEX_STATS* index_stats)
+static void free_index_stats(INDEX_STATS* index_stats)
 {
   my_free((char*) index_stats);
 }

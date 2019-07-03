@@ -329,7 +329,7 @@ statement.
 
 .. rubric:: OFF
 
-By default, newly created tables are not encrypted. Add the ``ENCRYPTION=NO``
+By default, newly created tables are not encrypted. Add the ``ENCRYPTION=YES``
 clause in the ``CREATE TABLE`` or ``ALTER TABLE`` statement to create an
 encrypted table.
 
@@ -423,6 +423,18 @@ KEYRING. The value of this variable determines how frequently the encrypted
 tables should be encrypted again. If it is set to **1**, the encrypted table is
 re-encrypted on each key rotation. If it is set to **2**, the table is encrypted
 on every other key rotation.
+
+.. variable:: innodb_encrypt_online_alter_logs
+
+   :cli: ``--innodb-encrypt-online-alter-logs``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: OFF
+
+This variable simultaneously turns on the encryption of files used by InnoDB for
+full text search using parallel sorting, building indexes using merge sort, and
+online DDL logs created by InnoDB for online DDL.
 
 Binary log encryption
 =====================

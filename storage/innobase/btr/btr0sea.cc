@@ -1436,9 +1436,6 @@ btr_search_drop_page_hash_when_freed(
 
 	ut_d(export_vars.innodb_ahi_drop_lookups++);
 
-	/* Sleep 10ms */
-	DBUG_EXECUTE_IF("simulate_long_ahi", os_thread_sleep(10000););
-
 	mtr_start(&mtr);
 
 	/* If the caller has a latch on the page, then the caller must

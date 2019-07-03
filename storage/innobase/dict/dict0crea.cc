@@ -1117,8 +1117,7 @@ bool
 dict_drop_index_tree(
 	rec_t*		rec,
 	btr_pcur_t*	pcur,
-	mtr_t*		mtr,
-	bool		is_truncate)
+	mtr_t*		mtr)
 {
 	const byte*	ptr;
 	ulint		len;
@@ -1175,7 +1174,7 @@ dict_drop_index_tree(
 	}
 
 	btr_free_if_exists(page_id_t(space, root_page_no), page_size,
-			   mach_read_from_8(ptr), mtr, is_truncate);
+			   mach_read_from_8(ptr), mtr);
 
 	return(true);
 }
@@ -1202,7 +1201,7 @@ dict_drop_index_tree_in_mem(
 	tablespace and the .ibd file is missing do nothing,
 	else free the all the pages */
 	if (root_page_no != FIL_NULL && found) {
-		btr_free(page_id_t(space, root_page_no), page_size, false);
+		btr_free(page_id_t(space, root_page_no), page_size);
 	}
 }
 
@@ -1345,7 +1344,7 @@ dict_truncate_index_tree_in_mem(
 	tablespace objects. */
 
 	if (truncate) {
-		btr_free(page_id_t(space, root_page_no), page_size, false);
+		btr_free(page_id_t(space, root_page_no), page_size);
 	}
 
 	mtr_start(&mtr);

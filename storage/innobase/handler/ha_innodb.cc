@@ -7378,9 +7378,6 @@ ha_innobase::open_dict_table(
 	dict_err_ignore_t	ignore_err)
 {
 	DBUG_ENTER("ha_innobase::open_dict_table");
-
-	DEBUG_SYNC_C("open_dict_table");
-
 	dict_table_t*	ib_table = dict_table_open_on_name(norm_name, FALSE,
 							   TRUE, ignore_err);
 

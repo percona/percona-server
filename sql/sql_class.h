@@ -4555,15 +4555,6 @@ public:
   }
   thd_scheduler event_scheduler;
 
-  /* Returns string as 'IP:port' for the client-side
-     of the connnection represented
-     by 'client' as displayed by SHOW PROCESSLIST.
-     Allocates memory from the heap of
-     this THD and that is not reclaimed
-     immediately, so use sparingly. May return NULL.
-  */
-  char *get_client_host_port(THD *client);
-
 public:
   /**
     Save the performance schema thread instrumentation

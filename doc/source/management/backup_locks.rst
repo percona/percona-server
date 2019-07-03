@@ -14,8 +14,8 @@ LOCK TABLES FOR BACKUP
 ``LOCK TABLES FOR BACKUP`` uses a new MDL lock type to block updates to
 non-transactional tables and DDL statements for all tables. If there is an
 active ``LOCK TABLES FOR BACKUP`` lock then all DDL statements and all updates
-to MyISAM, CSV, MEMORY, ARCHIVE, and |TokuDB| tables will be blocked in the
-``Waiting for backup lock`` status, visible in ``PERFORMANCE_SCHEMA`` or
+to MyISAM, CSV, MEMORY, ARCHIVE, |TokuDB|, and |MyRocks| tables will be blocked
+in the ``Waiting for backup lock`` status, visible in ``PERFORMANCE_SCHEMA`` or
 ``PROCESSLIST``.
 
 ``LOCK TABLES FOR BACKUP`` has no effect on ``SELECT`` queries for all mentioned

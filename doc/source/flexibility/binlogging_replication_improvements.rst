@@ -68,5 +68,56 @@ problem was fixed in |Percona Server|. Bug fixed :psbug:`1812` (upstream
 :mysqlbug:`85158`).
 
 
+.. _percona-server.binary-log.flush.writing:
+
+Writing ``FLUSH`` Commands to the Binary Log
+================================================================================
+
+``FLUSH`` commands, such as ``FLUSH SLOW LOGS``, are not written to the
+binary log if the system variable :variable:`binlog_skip_flush_commands` is set
+to **ON**.
+
+In addition, the following changes were implemented in the behavior of
+``read_only`` and |super-read-only| modes:
+
+- When ``read_only`` is set to **ON**, any ``FLUSH ...`` command executed by a
+  normal user (without the ``SUPER`` privilege) are not written to the binary
+  log regardless of the value of the |bsfc| variable.
+- When |super-read-only| is set to **ON**, any ``FLUSH ...`` command executed by
+  any user (even by those with the ``SUPER`` privilege) are not written to the
+  binary log regardless of the value of the |bsfc| variable.
+
+An attempt to run a ``FLUSH`` command without either ``SUPER`` or ``RELOAD``
+privileges results in the ``ER_SPECIFIC_ACCESS_DENIED_ERROR`` exception
+regardless of the value of the |bsfc| variable.
+
+.. variable:: binlog_skip_flush_commands
+
+     :version 8.0.15-5: Introduced
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :default: OFF
+
+When |bsfc| is set to **ON**, ``FLUSH ...`` commands are not written to the binary
+log. See :ref:`percona-server.binary-log.flush.writing` for more information
+about what else affects the writing of ``FLUSH`` commands to the binary log.
+
+.. note::
+
+   ``FLUSH LOGS``, ``FLUSH BINARY LOGS``, ``FLUSH TABLES WITH READ LOCK``, and
+   ``FLUSH TABLES ... FOR EXPORT`` are not written to the binary log no matter
+   what value the |bsfc| variable contains. The ``FLUSH`` command is not
+   recorded to the binary log and the value of |bsfc| is ignored if the
+   ``FLUSH`` command is run with the ``NO_WRITE_TO_BINLOG`` keyword (or its
+   alias ``LOCAL``).
+
+   .. seealso::
+
+      |MySQL| Documentation: FLUSH Syntax
+         https://dev.mysql.com/doc/refman/8.0/en/flush.html
 
 
+.. |bsfc| replace:: :variable:`binlog_skip_flush_command`
+.. |super-read-only| replace:: :variable:`super_read_only`

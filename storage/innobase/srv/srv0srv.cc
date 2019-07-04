@@ -1601,7 +1601,7 @@ srv_export_innodb_status(void)
 	ulint			free_len;
 	ulint			flush_list_len;
 	fil_crypt_stat_t	crypt_stat;
-	btr_scrub_stat_t        scrub_stat;
+	btr_scrub_stat_t	scrub_stat;
 	ulint			mem_adaptive_hash, mem_dictionary;
 	ReadView*		oldest_view;
 	ulint			i;
@@ -1875,19 +1875,19 @@ srv_export_innodb_status(void)
 	export_vars.innodb_key_rotation_list_length =
 		srv_stats.key_rotation_list_length;
 
-        export_vars.innodb_scrub_page_reorganizations =
-                scrub_stat.page_reorganizations;
-        export_vars.innodb_scrub_page_splits =
-                scrub_stat.page_splits;
-        export_vars.innodb_scrub_page_split_failures_underflow =
-                scrub_stat.page_split_failures_underflow;
-        export_vars.innodb_scrub_page_split_failures_out_of_filespace =
-                scrub_stat.page_split_failures_out_of_filespace;
-        export_vars.innodb_scrub_page_split_failures_missing_index =
-                scrub_stat.page_split_failures_missing_index;
-        export_vars.innodb_scrub_page_split_failures_unknown =
-                scrub_stat.page_split_failures_unknown;
-        export_vars.innodb_scrub_log = srv_stats.n_log_scrubs;
+	export_vars.innodb_scrub_page_reorganizations =
+		scrub_stat.page_reorganizations;
+	export_vars.innodb_scrub_page_splits =
+		scrub_stat.page_splits;
+	export_vars.innodb_scrub_page_split_failures_underflow =
+		scrub_stat.page_split_failures_underflow;
+	export_vars.innodb_scrub_page_split_failures_out_of_filespace =
+		scrub_stat.page_split_failures_out_of_filespace;
+	export_vars.innodb_scrub_page_split_failures_missing_index =
+		scrub_stat.page_split_failures_missing_index;
+	export_vars.innodb_scrub_page_split_failures_unknown =
+		scrub_stat.page_split_failures_unknown;
+	export_vars.innodb_scrub_log = srv_stats.n_log_scrubs;
 	
 	export_vars.innodb_redo_key_version
 		= srv_redo_log_key_version;

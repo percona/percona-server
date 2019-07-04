@@ -894,11 +894,10 @@ struct log_t{
 
 /* log scrubbing speed, in bytes/sec */
 extern ulonglong innodb_scrub_log_speed;
-
 /** Event to wake up log_scrub_thread */
-extern os_event_t       log_scrub_event;
+extern os_event_t log_scrub_event;
 /** Whether log_scrub_thread is active */
-extern bool             log_scrub_thread_active;
+extern bool log_scrub_thread_active;
 
 /** Calculate the offset of an lsn within a log group.
 @param[in]	lsn	log sequence number

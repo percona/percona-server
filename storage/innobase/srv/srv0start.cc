@@ -416,8 +416,20 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
       return (DB_ERROR);
     }
 
+    Encryption::Type alg = srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK
+                               ? Encryption::KEYRING
+                               : Encryption::AES;
+
+    log_space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+
+    redo_log_key *mkey = redo_log_key_mgr.generate_new_key_without_storing();
+
     fsp_flags_set_encryption(log_space->flags);
-    err = fil_set_encryption(log_space->id, Encryption::AES, NULL, NULL);
+    err = fil_set_encryption(log_space->id, alg,
+                             reinterpret_cast<byte *>(mkey->key), nullptr);
+    log_space->encryption_redo_key = mkey;
+    log_space->encryption_key_version = REDO_LOG_ENCRYPT_NO_VERSION;
+
     ut_ad(err == DB_SUCCESS);
   }
 

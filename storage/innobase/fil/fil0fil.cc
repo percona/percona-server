@@ -7553,6 +7553,27 @@ inline void fil_io_set_keyring_encryption(IORequest &req_type,
   mutex_exit(&space->crypt_data->mutex);
 }
 
+static void fil_io_set_mk_encryption(IORequest &req_type, fil_space_t *space) {
+  unsigned char *key =
+      space->encryption_redo_key != nullptr
+          ? reinterpret_cast<unsigned char *>(space->encryption_redo_key->key)
+          : space->encryption_key;
+  uint version = space->encryption_redo_key != nullptr
+                     ? space->encryption_redo_key->version
+                     : space->encryption_key_version;
+  req_type.encryption_key(key, 32, false, space->encryption_iv, version, 0,
+                          nullptr, nullptr);
+
+  req_type.encryption_rotation(Encryption::NO_ROTATION);
+}
+
+static bool fil_keyring_skip_encryption(const page_id_t &page_id) {
+  /* Don't encrypt TRX_SYS_SPACE.TRX_SYS_PAGE_NO as it contains the address
+  to dblwr buffer */
+  return page_id.space() == TRX_SYS_SPACE &&
+         page_id.page_no() == TRX_SYS_PAGE_NO;
+}
+
 /** Set encryption information for IORequest.
 @param[in,out]	req_type	IO request
 @param[in]	page_id		page id
@@ -7614,26 +7635,54 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
   clone_mark_abort(true);
   clone_mark_active();
 
-  if (space->encryption_type == Encryption::KEYRING) {
-    ut_ad(space->crypt_data != NULL);
-    /* Don't encrypt the log, page 0 of all tablespaces, all pages
-    don't encrypt TRX_SYS_SPACE.TRX_SYS_PAGE_NO as it contains address to dblwr
-    buffer in keyring encryption */
-    if (!req_type.is_log() && page_id.page_no() > 0 &&
-        (TRX_SYS_SPACE != page_id.space() ||
-         TRX_SYS_PAGE_NO != page_id.page_no())) {
-      fil_io_set_keyring_encryption(req_type, space, page_id);
-    } else {
-      req_type.clear_encrypted();
+  if (req_type.is_log()) {
+#ifdef UNIV_DEBUG
+    const space_id_t redo_space_id = dict_sys_t::s_log_space_first_id;
+#endif
+    ut_ad(page_id.space() == redo_space_id);
+
+    switch (space->encryption_type) {
+      case Encryption::AES:
+      case Encryption::KEYRING:
+        // Both MK and Keyring key use same style for redo log
+        fil_io_set_mk_encryption(req_type, space);
+        req_type.encryption_algorithm(space->encryption_type);
+        return;
+      case Encryption::NONE:
+        // Already handled above
+      default:
+        ut_a(0);
     }
   } else {
-    ut_ad(space->encryption_type == Encryption::AES);
-    req_type.encryption_key(space->encryption_key, 32, false,
-                            space->encryption_iv, 0, 0, NULL,
-                            NULL);  // not relevant for Master Key encryption
+    /* tablespace encryption */
 
-    req_type.encryption_rotation(Encryption::NO_ROTATION);
-    req_type.encryption_algorithm(Encryption::AES);
+    /* Don't encrypt the page 0 of all tablespaces */
+    if (page_id.page_no() == 0) {
+      req_type.clear_encrypted();
+      return;
+    }
+
+    switch (space->encryption_type) {
+      case Encryption::KEYRING:
+        if (fil_keyring_skip_encryption(page_id)) {
+          req_type.clear_encrypted();
+          return;
+        } else {
+          ut_ad(space->crypt_data != nullptr);
+          fil_io_set_keyring_encryption(req_type, space, page_id);
+          req_type.encryption_algorithm(space->encryption_type);
+          return;
+        }
+
+      case Encryption::AES:
+        fil_io_set_mk_encryption(req_type, space);
+        req_type.encryption_algorithm(space->encryption_type);
+        return;
+      case Encryption::NONE:
+        // Already handled above
+      default:
+        ut_a(0);
+    }
   }
 }
 

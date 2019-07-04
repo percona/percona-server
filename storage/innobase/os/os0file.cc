@@ -10093,9 +10093,8 @@ Encryption::is_encrypted_and_compressed(const byte *page)
 @param[in]	block	log block to check
 @return true if it is an encrypted block */
 bool
-Encryption::is_encrypted_log(const byte* block)
-{
-	return(log_block_get_encrypt_bit(block));
+Encryption::is_encrypted_log(const byte *block) {
+	return (log_block_get_encrypt_bit(block));
 }
 
 /** Encrypt the redo log block.
@@ -10104,12 +10103,9 @@ Encryption::is_encrypted_log(const byte* block)
 @param[in,out]	dst_ptr		destination area
 @return true if success. */
 bool
-Encryption::encrypt_log_block(
-	const IORequest&	type,
-	byte*			src_ptr,
-	byte*			dst_ptr)
-{
-	byte		remain_buf[MY_AES_BLOCK_SIZE * 2];
+Encryption::encrypt_log_block(const IORequest &type, byte* src_ptr,
+			      byte* dst_ptr) {
+	byte remain_buf[MY_AES_BLOCK_SIZE * 2];
 
 #ifdef UNIV_ENCRYPT_DEBUG
 	fprintf(stderr, "Encrypting block %lu.\n",
@@ -10118,8 +10114,12 @@ Encryption::encrypt_log_block(
 	fprintf(stderr, "\n");
 #endif
 	/* This is data size which need to encrypt. */
-	const ulint data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE;
-	const ulint main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
+	const ulint unencrypted_trailer_size =
+	    (m_type == Encryption::KEYRING) ? LOG_BLOCK_TRL_SIZE : 0;
+	const ulint data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE -
+			       unencrypted_trailer_size;
+	const ulint main_len =
+	    (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
 	ulint remain_len = data_len - main_len;
 
 	/* Encrypt the block. */
@@ -10128,74 +10128,79 @@ Encryption::encrypt_log_block(
 	ut_ad(memcmp(src_ptr, dst_ptr, LOG_BLOCK_HDR_SIZE) == 0);
 
 	switch (m_type) {
-	case Encryption::NONE:
-		ut_error;
+		case Encryption::NONE:
+			ut_error;
 
-	case Encryption::AES: {
-		lint			elen;
+		case Encryption::KEYRING:
+		case Encryption::AES: {
+			lint elen;
 
-		ut_ad(m_klen == ENCRYPTION_KEY_LEN);
-
-		elen = my_aes_encrypt(
-			src_ptr + LOG_BLOCK_HDR_SIZE,
-			static_cast<uint32>(main_len),
-			dst_ptr + LOG_BLOCK_HDR_SIZE,
-			reinterpret_cast<unsigned char*>(m_key),
-			static_cast<uint32>(m_klen),
-			my_aes_256_cbc,
-			reinterpret_cast<unsigned char*>(m_iv),
-			false);
-
-		if (elen == MY_AES_BAD_DATA) {
-			return(false);
-		}
-
-		const ulint len = static_cast<ulint>(elen);
-		ut_ad(len == main_len);
-
-		/* Copy remaining bytes. */
-		memcpy(dst_ptr + LOG_BLOCK_HDR_SIZE + len,
-		       src_ptr + LOG_BLOCK_HDR_SIZE + len,
-		       OS_FILE_LOG_BLOCK_SIZE
-		       - LOG_BLOCK_HDR_SIZE - len);
-
-		/* Encrypt the remaining bytes. Since my_aes_encrypt
-		request the content which need to encrypt is
-		multiple of MY_AES_BLOCK_SIZE, but the block
-		content is possiblly not, so, we need to handle
-		the tail bytes first. */
-		if (remain_len != 0) {
-			remain_len = MY_AES_BLOCK_SIZE * 2;
+			ut_ad(m_klen == ENCRYPTION_KEY_LEN);
 
 			elen = my_aes_encrypt(
-				dst_ptr + LOG_BLOCK_HDR_SIZE
-					+ data_len - remain_len,
-				static_cast<uint32>(remain_len),
-				remain_buf,
-				reinterpret_cast<unsigned char*>(m_key),
-				static_cast<uint32>(m_klen),
-				my_aes_256_cbc,
-				reinterpret_cast<unsigned char*>(m_iv),
-				false);
+			    src_ptr + LOG_BLOCK_HDR_SIZE,
+			    static_cast<uint32>(main_len),
+			    dst_ptr + LOG_BLOCK_HDR_SIZE,
+			    reinterpret_cast<unsigned char *>(m_key),
+			    static_cast<uint32>(m_klen), my_aes_256_cbc,
+			    reinterpret_cast<unsigned char *>(m_iv), false);
 
 			if (elen == MY_AES_BAD_DATA) {
-				return(false);
+				return (false);
 			}
 
-			memcpy(dst_ptr + LOG_BLOCK_HDR_SIZE
-			       + data_len - remain_len,
-			       remain_buf, remain_len);
+			const ulint len = static_cast<ulint>(elen);
+			ut_ad(len == main_len);
+
+			/* Copy remaining bytes. */
+			memcpy(dst_ptr + LOG_BLOCK_HDR_SIZE + len,
+			       src_ptr + LOG_BLOCK_HDR_SIZE + len,
+			       OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE -
+				   len);
+
+			/* Encrypt the remaining bytes. Since my_aes_encrypt
+			request the content which need to encrypt is
+			multiple of MY_AES_BLOCK_SIZE, but the block
+			content is possiblly not, so, we need to handle
+			the tail bytes first. */
+			if (remain_len != 0) {
+				remain_len = MY_AES_BLOCK_SIZE * 2;
+
+				elen = my_aes_encrypt(
+				    dst_ptr + LOG_BLOCK_HDR_SIZE + data_len -
+					remain_len,
+				    static_cast<uint32>(remain_len),
+				    remain_buf,
+				    reinterpret_cast<unsigned char *>(m_key),
+				    static_cast<uint32>(m_klen),
+				    my_aes_256_cbc,
+				    reinterpret_cast<unsigned char *>(m_iv),
+				    false);
+
+				if (elen == MY_AES_BAD_DATA) {
+					return (false);
+				}
+
+				memcpy(dst_ptr + LOG_BLOCK_HDR_SIZE +
+					   data_len - remain_len,
+				       remain_buf, remain_len);
+			}
+
+			break;
 		}
 
-		break;
-	}
-
-	default:
-		ut_error;
+		default:
+			ut_error;
 	}
 
 	/* Set the encrypted flag. */
 	log_block_set_encrypt_bit(dst_ptr, true);
+
+	if (m_type == Encryption::KEYRING) {
+		const ulint crc = log_block_calc_checksum_crc32(dst_ptr);
+		log_block_set_checksum(dst_ptr, crc + m_key_version);
+	}
+
 
 #ifdef UNIV_ENCRYPT_DEBUG
 	fprintf(stderr, "Encrypted block %lu.\n",
@@ -10203,29 +10208,26 @@ Encryption::encrypt_log_block(
 	ut_print_buf_hex(std::cerr, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
 	fprintf(stderr, "\n");
 
-	byte*	check_buf = static_cast<byte*>(
-		ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
-	byte*	buf2 = static_cast<byte*>(
-		ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
+	byte* check_buf =
+	    static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
+	byte* buf2 =
+	    static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
 
 	memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
-	dberr_t err = decrypt_log(type, check_buf,
-				  OS_FILE_LOG_BLOCK_SIZE,
+	dberr_t err = decrypt_log(type, check_buf, OS_FILE_LOG_BLOCK_SIZE,
 				  buf2, OS_FILE_LOG_BLOCK_SIZE);
-	if (err != DB_SUCCESS
-	    || memcmp(src_ptr, check_buf,
-		      OS_FILE_LOG_BLOCK_SIZE) != 0) {
-		ut_print_buf_hex(std::cerr, src_ptr,
-			     OS_FILE_LOG_BLOCK_SIZE);
+	if (err != DB_SUCCESS ||
+	    memcmp(src_ptr, check_buf, OS_FILE_LOG_BLOCK_SIZE) != 0) {
+		ut_print_buf_hex(std::cerr, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
 		ut_print_buf_hex(std::cerr, check_buf,
-			     OS_FILE_LOG_BLOCK_SIZE);
+				 OS_FILE_LOG_BLOCK_SIZE);
 		ut_ad(0);
 	}
 	ut_free(buf2);
 	ut_free(check_buf);
 #endif
 
-	return(true);
+	return (true);
 }
 
 /** Encrypt the redo log data contents.
@@ -10235,16 +10237,11 @@ Encryption::encrypt_log_block(
 @param[in,out]	dst		destination area
 @param[in,out]	dst_len		Size of the destination in bytes
 @return buffer data, dst_len will have the length of the data */
-byte*
-Encryption::encrypt_log(
-	const IORequest&	type,
-	byte*			src,
-	ulint			src_len,
-	byte*			dst,
-	ulint*			dst_len)
-{
-	byte*		src_ptr = src;
-	byte*		dst_ptr = dst;
+byte *
+Encryption::encrypt_log(const IORequest &type, byte* src, ulint src_len,
+			byte* dst, ulint* dst_len) {
+	byte* src_ptr = src;
+	byte* dst_ptr = dst;
 
 	ut_ad(type.is_log());
 	ut_ad(src_len % OS_FILE_LOG_BLOCK_SIZE == 0);
@@ -10254,10 +10251,9 @@ Encryption::encrypt_log(
 	while (src_ptr != src + src_len) {
 		if (!encrypt_log_block(type, src_ptr, dst_ptr)) {
 			*dst_len = src_len;
-				ib::error()
-					<< " Can't encrypt data of"
-					<< " redo log";
-			return(src);
+			ib::error() << " Can't encrypt data of"
+				    << " redo log";
+			return (src);
 		}
 
 		src_ptr += OS_FILE_LOG_BLOCK_SIZE;
@@ -10265,8 +10261,8 @@ Encryption::encrypt_log(
 	}
 
 #ifdef UNIV_ENCRYPT_DEBUG
-	byte*	check_buf = static_cast<byte*>(ut_malloc_nokey(src_len));
-	byte*	buf2 = static_cast<byte*>(ut_malloc_nokey(src_len));
+	byte* check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
+	byte* buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
 
 	memcpy(check_buf, dst, src_len);
 
@@ -10280,8 +10276,9 @@ Encryption::encrypt_log(
 	ut_free(check_buf);
 #endif
 
-	return(dst);
+	return (dst);
 }
+
 
 #endif
 
@@ -10598,90 +10595,104 @@ Encryption::encrypt(
 @param[in,out]	dst		Scratch area to use for decryption
 @return DB_SUCCESS or error code */
 dberr_t
-Encryption::decrypt_log_block(
-	const IORequest&	type,
-	byte*			src,
-	byte*			dst)
-{
-	byte		remain_buf[MY_AES_BLOCK_SIZE * 2];
+Encryption::decrypt_log_block(const IORequest &type, byte* src, byte* dst) {
+	byte remain_buf[MY_AES_BLOCK_SIZE * 2];
 
-	const ulint data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE;
-	const ulint main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
+	const ulint unencrypted_trailer_size =
+	    (m_type == Encryption::KEYRING) ? LOG_BLOCK_TRL_SIZE : 0;
+	const ulint data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE -
+			       unencrypted_trailer_size;
+	const ulint main_len =
+	    (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
 	ulint remain_len = data_len - main_len;
-	byte*		ptr = src + LOG_BLOCK_HDR_SIZE;
+	byte* ptr = src + LOG_BLOCK_HDR_SIZE;
 
 	switch (m_type) {
-	case Encryption::AES: {
-		lint			elen;
+		case Encryption::KEYRING: {
+			const ulint block_crc =
+			    log_block_calc_checksum_crc32(src);
+			const ulint written_crc = log_block_get_checksum(src);
 
-		/* First decrypt the last 2 blocks data of data, since
-		data is no block aligned. */
-		if (remain_len != 0) {
-			ut_ad(m_klen == ENCRYPTION_KEY_LEN);
+			const ulint enc_key_version = written_crc - block_crc;
 
-			remain_len = MY_AES_BLOCK_SIZE * 2;
+			if (m_key_version != enc_key_version &&
+			    enc_key_version != REDO_LOG_ENCRYPT_NO_VERSION) {
+				redo_log_key* mkey =
+				    redo_log_key_mgr.load_key_version(
+					enc_key_version);
+				m_key_version = mkey->version;
+				m_key = reinterpret_cast<unsigned char *>(
+				    mkey->key);
+			}
+		}
+		/* FALLTHROUGH */
+		case Encryption::AES: {
+			lint elen;
 
-			/* Copy the last 2 blocks. */
-			memcpy(remain_buf,
-			       ptr + data_len - remain_len,
-			       remain_len);
+			/* First decrypt the last 2 blocks data of data, since
+			data is no block aligned. */
+			if (remain_len != 0) {
+				ut_ad(m_klen == ENCRYPTION_KEY_LEN);
 
-			elen = my_aes_decrypt(
-				remain_buf,
-				static_cast<uint32>(remain_len),
-				dst + data_len - remain_len,
-				reinterpret_cast<unsigned char*>(m_key),
-				static_cast<uint32>(m_klen),
-				my_aes_256_cbc,
-				reinterpret_cast<unsigned char*>(m_iv),
-				false);
-			if (elen == MY_AES_BAD_DATA) {
-				return(DB_IO_DECRYPT_FAIL);
+				remain_len = MY_AES_BLOCK_SIZE * 2;
+
+				/* Copy the last 2 blocks. */
+				memcpy(remain_buf,
+				       ptr + data_len - remain_len,
+				       remain_len);
+
+				elen = my_aes_decrypt(
+				    remain_buf,
+				    static_cast<uint32>(remain_len),
+				    dst + data_len - remain_len,
+				    reinterpret_cast<unsigned char *>(m_key),
+				    static_cast<uint32>(m_klen),
+				    my_aes_256_cbc,
+				    reinterpret_cast<unsigned char *>(m_iv),
+				    false);
+				if (elen == MY_AES_BAD_DATA) {
+					return (DB_IO_DECRYPT_FAIL);
+				}
+
+				/* Copy the other data bytes to temp area. */
+				memcpy(dst, ptr, data_len - remain_len);
+			} else {
+				ut_ad(data_len == main_len);
+
+				/* Copy the data bytes to temp area. */
+				memcpy(dst, ptr, data_len);
 			}
 
-			/* Copy the other data bytes to temp area. */
-			memcpy(dst, ptr, data_len - remain_len);
-		} else {
-			ut_ad(data_len == main_len);
+			/* Then decrypt the main data */
+			elen = my_aes_decrypt(
+			    dst, static_cast<uint32>(main_len), ptr,
+			    reinterpret_cast<unsigned char *>(m_key),
+			    static_cast<uint32>(m_klen), my_aes_256_cbc,
+			    reinterpret_cast<unsigned char *>(m_iv), false);
+			if (elen == MY_AES_BAD_DATA) {
+				return (DB_IO_DECRYPT_FAIL);
+			}
 
-			/* Copy the data bytes to temp area. */
-			memcpy(dst, ptr, data_len);
+			ut_ad(static_cast<ulint>(elen) == main_len);
+
+			/* Copy the remaining bytes. */
+			memcpy(ptr + main_len, dst + main_len,
+			       data_len - main_len);
+
+			break;
 		}
 
-		/* Then decrypt the main data */
-		elen = my_aes_decrypt(
-				dst,
-				static_cast<uint32>(main_len),
-				ptr,
-				reinterpret_cast<unsigned char*>(m_key),
-				static_cast<uint32>(m_klen),
-				my_aes_256_cbc,
-				reinterpret_cast<unsigned char*>(m_iv),
-				false);
-		if (elen == MY_AES_BAD_DATA) {
-			return(DB_IO_DECRYPT_FAIL);
-		}
-
-		ut_ad(static_cast<ulint>(elen) == main_len);
-
-		/* Copy the remaining bytes. */
-		memcpy(ptr + main_len, dst + main_len, data_len - main_len);
-
-		break;
-	}
-
-	default:
-		ib::error()
-			<< "Encryption algorithm support missing: "
-			<< Encryption::to_string(m_type);
-		return(DB_UNSUPPORTED);
+		default:
+			ib::error()
+			    << "Encryption algorithm support missing: "
+			    << Encryption::to_string(m_type);
+			return (DB_UNSUPPORTED);
 	}
 
 	ptr -= LOG_BLOCK_HDR_SIZE;
 
 #ifdef UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, "Decrypted block %lu.\n",
-		log_block_get_hdr_no(ptr));
+	fprintf(stderr, "Decrypted block %lu.\n", log_block_get_hdr_no(ptr));
 	ut_print_buf_hex(std::cerr, ptr, OS_FILE_LOG_BLOCK_SIZE);
 	fprintf(stderr, "\n");
 #endif
@@ -10689,7 +10700,12 @@ Encryption::decrypt_log_block(
 	/* Reset the encrypted flag. */
 	log_block_set_encrypt_bit(ptr, false);
 
-	return(DB_SUCCESS);
+	if (m_type == Encryption::KEYRING) {
+		const ulint crc = log_block_calc_checksum_crc32(src);
+		log_block_set_checksum(src, crc);
+	}
+
+	return (DB_SUCCESS);
 }
 
 /** Decrypt the log data contents.
@@ -10701,16 +10717,11 @@ Encryption::decrypt_log_block(
 @param[in]	dst_len		Size of the scratch area in bytes
 @return DB_SUCCESS or error code */
 dberr_t
-Encryption::decrypt_log(
-	const IORequest&	type,
-	byte*			src,
-	ulint			src_len,
-	byte*			dst,
-	ulint			dst_len)
-{
-	Block*		block;
-	byte*		ptr = src;
-	dberr_t		ret;
+Encryption::decrypt_log(const IORequest &type, byte* src, ulint src_len,
+			byte* dst, ulint dst_len) {
+	Block*  block;
+	byte*   ptr = src;
+	dberr_t ret;
 
 	ut_ad(type.is_log());
 
@@ -10749,7 +10760,7 @@ Encryption::decrypt_log(
 				os_free_block(block);
 			}
 
-			return(ret);
+			return (ret);
 		}
 
 		ptr += OS_FILE_LOG_BLOCK_SIZE;
@@ -10759,9 +10770,8 @@ Encryption::decrypt_log(
 		os_free_block(block);
 	}
 
-	return(DB_SUCCESS);
+	return (DB_SUCCESS);
 }
-
 #endif
 
 /** Decrypt the page data contents. Page type must be FIL_PAGE_ENCRYPTED,

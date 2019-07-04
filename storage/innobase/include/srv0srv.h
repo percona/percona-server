@@ -1185,6 +1185,7 @@ struct export_var_t{
 						encrypted */
 	int64_t innodb_pages_decrypted;      /*!< Number of pages
 						decrypted */
+	int64_t innodb_redo_key_version;
 
 	/*!< Number of merge blocks encrypted */
 	int64_t innodb_n_merge_blocks_encrypted;

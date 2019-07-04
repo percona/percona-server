@@ -46,6 +46,8 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/binlog.h"            // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/table.h"
 #include "sql/debug_sync.h"        // DEBUG_SYNC
 #include "sql/filesort.h"          // Filesort
 #include "sql/handler.h"
@@ -967,6 +969,58 @@ void SetUpTablesForDelete(THD *thd, JOIN *join) {
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
 }
 
+/**
+  Test that the two strings are equal, accoding to the lower_case_table_names
+  setting.
+
+  @param  a     A table or database name
+  @param  b     A table or database name
+  @retval bool  True if the two names are equal
+*/
+static bool db_or_table_name_equals(const char *a, dd::String_type const &b) {
+  return lower_case_table_names
+             ? my_strcasecmp(files_charset_info, a, b.c_str()) == 0
+             : strcmp(a, b.c_str()) == 0;
+}
+
+/**
+  Test that the subject table (of DELETE) has a cascade foreign key
+  parent present in the query.
+
+  @param  thd        thread handle
+  @param  table      table to be checked (must be updatable base table)
+  @param  table_list List of tables to check against
+
+  @retval bool       True if cascade parent found.
+*/
+static bool has_cascade_dependency(THD *thd, Table_ref &table,
+                                   Table_ref *table_list) {
+  assert(&table == const_cast<Table_ref &>(table).updatable_base_table());
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *table_obj = nullptr;
+  if (table.table->s->tmp_table)
+    table_obj = table.table->s->tmp_table_def;
+  else {
+    if (thd->dd_client()->acquire(
+            dd::String_type(table.table->s->db.str),
+            dd::String_type(table.table->s->table_name.str), &table_obj))
+      return true;
+  }
+  for (const dd::Foreign_key_parent *fk_p : table_obj->foreign_key_parents()) {
+    for (Table_ref *curr = table_list; curr; curr = curr->next_local) {
+      const bool same_table_name =
+          db_or_table_name_equals(curr->table_name, fk_p->child_table_name());
+      const bool same_db_name =
+          db_or_table_name_equals(curr->db, fk_p->child_schema_name());
+      if (same_table_name && same_db_name) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
   if (!Overlaps(thd->variables.option_bits, OPTION_SAFE_UPDATES)) {
     return false;
@@ -1276,7 +1330,8 @@ table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables) {
        tr = tr->next_leaf) {
     if (!tr->is_deleted()) continue;
 
-    if (unique_table(tr, join->tables_list, false) != nullptr) {
+    if (unique_table(tr, join->tables_list, false) != nullptr ||
+        has_cascade_dependency(join->thd, *tr, join->tables_list)) {
       /*
         If the table being deleted from is also referenced in the query,
         defer delete so that the delete doesn't interfere with reading of this

@@ -1,0 +1,37 @@
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+CREATE TABLE t0 (
+f0 INT PRIMARY KEY
+) ENGINE=innodb;
+
+CREATE TABLE t1 (
+f1 INT PRIMARY KEY,
+f0 INTEGER,
+FOREIGN KEY (f0)
+REFERENCES t0(f0)
+ON DELETE CASCADE
+) ENGINE=innodb;
+
+INSERT INTO t0 VALUES (0);
+INSERT INTO t0 VALUES (1);
+INSERT INTO t1 VALUES (0, 0);
+INSERT INTO t1 VALUES (1, 0);
+
+# Should delete both t1 values, and the 0 value from t0
+DELETE t0a.*, t1.* FROM t0 AS t0a, t1 WHERE t0a.f0 = 0 AND t1.f1 = 0;
+
+SELECT COUNT(*) = 1 FROM t0;
+SELECT COUNT(*) = 0 FROM t1;
+
+--source include/sync_slave_sql_with_master.inc
+
+SELECT COUNT(*) = 1 FROM t0;
+SELECT COUNT(*) = 0 FROM t1;
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+DROP TABLE t0;
+
+--source include/rpl_end.inc

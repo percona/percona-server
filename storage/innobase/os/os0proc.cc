@@ -71,7 +71,7 @@ ulint os_total_large_mem_allocated = 0;
 bool os_use_large_pages;
 
 /** Large page size. This may be a boot-time option on some platforms */
-uint os_large_page_size;
+ulint os_large_page_size;
 
 /** Retrieve and compare operating system release.
 @return	TRUE if the OS release is equal to, or later than release. */

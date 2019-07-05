@@ -356,7 +356,8 @@ class Rdb_string_writer {
 
   void write_uint16_at(const size_t &pos, const uint &new_val) {
     // This function will only overwrite what was written
-    assert(pos < get_current_pos() && (pos + 1) < get_current_pos());
+    assert(pos < get_current_pos());
+    assert((pos + 1) < get_current_pos());
     rdb_netbuf_store_uint16(m_data.data() + pos, new_val);
   }
 

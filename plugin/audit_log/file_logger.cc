@@ -211,32 +211,6 @@ exit:
   return log->file < 0 || result;
 }
 
-int logger_vprintf(LOGGER_HANDLE *log, const char *fmt, va_list ap) noexcept {
-  char cvtbuf[1024];
-  size_t n_bytes;
-
-  int result;
-  flogger_mutex_lock(log);
-  if (log->rotations > 0) {
-    my_off_t filesize;
-    if ((filesize = my_tell(log->file, MYF(0))) == (my_off_t)-1 ||
-        ((unsigned long long)filesize >= log->size_limit && do_rotate(log))) {
-      result = -1;
-      errno = my_errno();
-      goto exit; /* Log rotation needed but failed */
-    }
-  }
-
-  n_bytes = vsnprintf(cvtbuf, sizeof(cvtbuf), fmt, ap);
-  if (n_bytes >= sizeof(cvtbuf)) n_bytes = sizeof(cvtbuf) - 1;
-
-  result = my_write(log->file, (uchar *)cvtbuf, n_bytes, MYF(0));
-
-exit:
-  flogger_mutex_unlock(log);
-  return result;
-}
-
 int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size,
                  log_record_state_t state) noexcept {
   flogger_mutex_lock(log);
@@ -253,24 +227,6 @@ int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size,
   }
 
   flogger_mutex_unlock(log);
-  return result;
-}
-
-int logger_rotate(LOGGER_HANDLE *log) {
-  flogger_mutex_lock(log);
-  const int result = do_rotate(log);
-  flogger_mutex_unlock(log);
-  return result;
-}
-
-#ifndef __clang__
-MY_ATTRIBUTE((format(gnu_printf, 2, 3)))
-#endif
-int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...) noexcept {
-  va_list args;
-  va_start(args, fmt);
-  const int result = logger_vprintf(log, fmt, args);
-  va_end(args);
   return result;
 }
 

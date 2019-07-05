@@ -17,11 +17,10 @@ INSERT INTO t01 VALUES ('Lorem ipsum dolor sit amet, consectetur adipiscing elit
 --source include/wait_condition.inc
 
 # make sure ibtmp1 is not encrypted
-
---let $grep_pattern= Lorem ipsum dolor sit amet
---let $grep_file= $MYSQL_DATA_DIR/ibtmp1
---let $grep_output= boolean
---source include/grep_pattern.inc
+--let SEARCH_PATTERN= Lorem ipsum dolor sit amet
+--let SEARCH_FILE= $MYSQL_DATA_DIR/ibtmp1
+--let ABORT_ON= NOT_FOUND
+--source include/search_pattern_in_file.inc
 
 
 # this table created in separate file per table tablespace, make sure it not
@@ -36,21 +35,14 @@ INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
 --let $t04_fn= `SELECT CONCAT(@@tmpdir, '/', NAME, '.ibd') FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO WHERE NAME LIKE '#%';`
 
 # make sure t04 is not encrypted
-
---let $grep_pattern= Praesent tristique eros a tempus fringilla
---let $grep_file= $t04_fn
---let $grep_output= boolean
---source include/grep_pattern.inc
+--let SEARCH_PATTERN= Praesent tristique eros a tempus fringilla
+--let SEARCH_FILE= $t04_fn
+--let ABORT_ON= NOT_FOUND
+--source include/search_pattern_in_file.inc
 
 DROP TABLE t04;
 
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
-
---let $innodb_master_loops= `SELECT SUM(VARIABLE_VALUE) FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'innodb_master%loops'`
-
-# wait for couple of master thread turnarounds
---let $wait_condition= SELECT SUM(VARIABLE_VALUE) > $innodb_master_loops + 2 FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'innodb_master%loops'
---source include/wait_condition.inc
 
 CREATE TEMPORARY TABLE t02 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 
@@ -62,11 +54,10 @@ INSERT INTO t03 VALUES ('Curabitur laoreet, velit non interdum venenatis');
 --source include/wait_condition.inc
 
 # make sure ibtmp1 is encrypted now
-
---let $grep_pattern= Curabitur laoreet, velit non interdum venenatis
---let $grep_file= $MYSQL_DATA_DIR/ibtmp1
---let $grep_output= boolean
---source include/grep_pattern.inc
+--let SEARCH_PATTERN= Curabitur laoreet, velit non interdum venenatis
+--let SEARCH_FILE= $MYSQL_DATA_DIR/ibtmp1
+--let ABORT_ON= FOUND
+--source include/search_pattern_in_file.inc
 
 # this table created in separate file per table tablespace, make sure it is
 # encrypted as well
@@ -82,25 +73,47 @@ INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
 --let $t04_fn= `SELECT CONCAT(@@tmpdir, '/', NAME, '.ibd') FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO WHERE NAME LIKE '#%';`
 
 # make sure t04 is encrypted
+--let SEARCH_PATTERN= Praesent tristique eros a tempus fringilla
+--let SEARCH_FILE= $t04_fn
+--let ABORT_ON= FOUND
+--source include/search_pattern_in_file.inc
 
---let $grep_pattern= Praesent tristique eros a tempus fringilla
---let $grep_file= $t04_fn
---let $grep_output= boolean
---source include/grep_pattern.inc
+DROP TABLE t04;
 
-CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='y';
-INSERT INTO t05 VALUES (1), (2), (3);
+CREATE TEMPORARY TABLE t05 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='y';
+INSERT INTO t05 VALUES ('Quisque malesuada placerat nisl');
 
---error ER_ILLEGAL_HA_CREATE_OPTION
-CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='n';
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--let SEARCH_PATTERN= Quisque malesuada placerat nisl
+--let SEARCH_FILE= `SELECT CONCAT(@@tmpdir, '/', NAME, '.ibd') FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO WHERE NAME LIKE '#%';`
+--let ABORT_ON= FOUND
+--source include/search_pattern_in_file.inc
+
+DROP TABLE t05;
+
+CREATE TEMPORARY TABLE t06 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='n';
+INSERT INTO t06 VALUES ('Sed in libero ut nibh placerat accumsan');
+
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--let SEARCH_PATTERN= Sed in libero ut nibh placerat accumsan
+--let SEARCH_FILE= `SELECT CONCAT(@@tmpdir, '/', NAME, '.ibd') FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO WHERE NAME LIKE '#%';`
+--let ABORT_ON= NOT_FOUND
+--source include/search_pattern_in_file.inc
+
+DROP TABLE t06;
 
 # test that we can turn encryption OFF and ON
 
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
 
-# Setting OFF after encryption doesn't make it decrypted. So temp tablespace
-# is still encrypted.
+# Setting OFF after encryption allows to create unencrypted tables.
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB;
 INSERT INTO t07 VALUES (1), (2), (3);
 
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
@@ -181,3 +194,60 @@ INSERT INTO t1 VALUES (3);
 SET big_tables=1;
 SELECT * FROM t1 WHERE a IN(SELECT MAX(a) FROM t1);
 DROP TABLE t1;
+
+#
+# PS-5736: Make innodb_temp_tablespace_encrypt truly dynamic
+#
+
+--echo # innodb temp table encrypt is ON:
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE t1 (a INT);
+
+CREATE TEMPORARY TABLE tmp1 (a TEXT) ENCRYPTION='y';
+INSERT INTO tmp1 VALUES ('Maecenas condimentum leo eu lorem aliquam malesuada');
+CREATE TEMPORARY TABLE tmp2 (a TEXT) ENCRYPTION='y';
+
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--let SEARCH_PATTERN= Maecenas condimentum leo eu lorem aliquam malesuada
+--let SEARCH_FILE= $MYSQL_DATA_DIR/ibtmp1
+--let ABORT_ON= FOUND
+--source include/search_pattern_in_file.inc
+
+# file-per-table temporary tables do not obey 'innodb_temp_tablespace_encrypt'
+CREATE TEMPORARY TABLE t1 (a INT) KEY_BLOCK_SIZE=8 ENCRYPTION='y';
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1 (a INT) KEY_BLOCK_SIZE=8 ENCRYPTION='n';
+DROP TABLE t1;
+
+SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE t1 (a INT) ENCRYPTION='y';
+
+INSERT INTO tmp2 VALUES ('Nam vestibulum mauris massa');
+
+CREATE TEMPORARY TABLE tmp3 (a TEXT);
+INSERT INTO tmp3 VALUES ('Sed sodales ligula sed enim condimentum');
+
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--let SEARCH_PATTERN= Nam vestibulum mauris massa
+--let SEARCH_FILE= $MYSQL_DATA_DIR/ibtmp1
+--let ABORT_ON= NOT_FOUND
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Sed sodales ligula sed enim condimentum
+--let SEARCH_FILE= $MYSQL_DATA_DIR/ibtmp1
+--let ABORT_ON= NOT_FOUND
+--source include/search_pattern_in_file.inc
+
+# file-per-table temporary tables do not obey 'innodb_temp_tablespace_encrypt'
+CREATE TEMPORARY TABLE t1 (a INT) ROW_FORMAT=COMPRESSED ENCRYPTION='y';
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1 (a INT) ROW_FORMAT=COMPRESSED ENCRYPTION='n';
+DROP TABLE t1;
+
+SET GLOBAL innodb_temp_tablespace_encrypt = ON;

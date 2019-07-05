@@ -1863,11 +1863,13 @@ fil_names_clear(
 
 /** Enable encryption of temporary tablespace
 @param[in,out]	space	tablespace object
+@param[in]	enable	true to enable encryption, false to disable
 @return DB_SUCCESS on success, DB_ERROR on failure */
 MY_NODISCARD
 dberr_t
 fil_temp_update_encryption(
-	fil_space_t*	space);
+	fil_space_t*	space,
+	bool		enable);
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 /**

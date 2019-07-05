@@ -3254,10 +3254,10 @@ static void rocksdb_disable_file_deletions_update(
  * be used as a rocksdb transaction name
  */
 static std::string rdb_xid_to_string(const XID &src) {
-  DBUG_ASSERT(src.get_gtrid_length() >= 0 &&
-              src.get_gtrid_length() <= MAXGTRIDSIZE);
-  DBUG_ASSERT(src.get_bqual_length() >= 0 &&
-              src.get_bqual_length() <= MAXBQUALSIZE);
+  DBUG_ASSERT(src.get_gtrid_length() >= 0);
+  DBUG_ASSERT(src.get_gtrid_length() <= MAXGTRIDSIZE);
+  DBUG_ASSERT(src.get_bqual_length() >= 0);
+  DBUG_ASSERT(src.get_bqual_length() <= MAXBQUALSIZE);
 
   std::string buf;
   buf.reserve(RDB_XIDHDR_LEN + src.get_gtrid_length() + src.get_bqual_length());
@@ -3439,10 +3439,10 @@ static void rdb_xid_from_string(const std::string &src, XID *const dst) {
   dst->set_bqual_length(src.at(offset));
   offset += RDB_BQUAL_SZ;
 
-  DBUG_ASSERT(dst->get_gtrid_length() >= 0 &&
-              dst->get_gtrid_length() <= MAXGTRIDSIZE);
-  DBUG_ASSERT(dst->get_bqual_length() >= 0 &&
-              dst->get_bqual_length() <= MAXBQUALSIZE);
+  DBUG_ASSERT(dst->get_gtrid_length() >= 0);
+  DBUG_ASSERT(dst->get_gtrid_length() <= MAXGTRIDSIZE);
+  DBUG_ASSERT(dst->get_bqual_length() >= 0);
+  DBUG_ASSERT(dst->get_bqual_length() <= MAXBQUALSIZE);
 
   const std::string &tmp_data = src.substr(
       RDB_XIDHDR_LEN, (dst->get_gtrid_length()) + (dst->get_bqual_length()));

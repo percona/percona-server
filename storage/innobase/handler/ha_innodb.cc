@@ -346,9 +346,9 @@ static TYPELIB innodb_default_row_format_typelib = {
 };
 
 static const char* redo_log_encrypt_names[] = {
-	"off",
-	"master_key",
-	"keyring_key",
+	"OFF",
+	"MASTER_KEY",
+	"KEYRING_KEY",
 	NullS
 };
 
@@ -945,6 +945,19 @@ innodb_encrypt_tables_validate(
 	void*				save,	/*!< out: immediate result
 						for update function */
 	struct st_mysql_value*		value);	/*!< in: incoming string */
+
+/** Validates the possible innodb_redo_log_encrypt_values.
+@param[in]	thd	current session
+@param[in]	var	the system variable innodb_support_xa
+@param[in,out]	var_ptr	the contents of the variable
+@param[in]	save	the to-be-updated value */
+static
+int
+innodb_redo_log_encrypt_validate(
+	THD *		     	thd,
+	struct st_mysql_sys_var *var,
+	void *		     	save,
+	struct st_mysql_value   *value);
 
 
 /** Update the session variable innodb_support_xa.
@@ -22608,7 +22621,7 @@ static MYSQL_SYSVAR_ENUM(default_row_format, innodb_default_row_format,
 static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
   PLUGIN_VAR_OPCMDARG,
   "Enable or disable Encryption of REDO tablespace. Possible values: OFF, MASTER_KEY, KEYRING_KEY.",
-  NULL, update_innodb_redo_log_encrypt, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+  innodb_redo_log_encrypt_validate, update_innodb_redo_log_encrypt, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
@@ -24004,6 +24017,65 @@ innodb_encrypt_tables_validate(
 	if (legit_value == false)
 		return 1;
 	*static_cast<ulong*>(save)= use;
+
+	return 0;
+}
+
+/** Validates the possible innodb_redo_log_encrypt_values.
+@param[in]	thd	current session
+@param[in]	var	the system variable innodb_support_xa
+@param[in,out]	var_ptr	the contents of the variable
+@param[in]	save	the to-be-updated value */
+static
+int
+innodb_redo_log_encrypt_validate(
+	THD *		     	thd,
+	struct st_mysql_sys_var *var,
+	void *		     	save,
+	struct st_mysql_value   *value)
+{
+	const char	*redo_log_encrypt_input;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	int		len = sizeof(buff);
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	redo_log_encrypt_input = value->val_str(value, buff, &len);
+
+	bool legit_value = false;
+	uint use = 0;
+	for (; use < array_elements(redo_log_encrypt_names); use++) {
+		if (innobase_strcasecmp(redo_log_encrypt_input,
+					redo_log_encrypt_names[use]) == 0) {
+			legit_value = true;
+			break;
+		}
+	}
+
+	if (innobase_strcasecmp(redo_log_encrypt_input, "0") == 0) {
+		use = 0;
+		legit_value = true;
+	}
+
+	if (innobase_strcasecmp(redo_log_encrypt_input, "false") == 0) {
+		use = 0;
+		legit_value = true;
+	}
+
+	if (innobase_strcasecmp(redo_log_encrypt_input, "1") == 0) {
+		use = 1;
+		legit_value = true;
+	}
+
+	if (innobase_strcasecmp(redo_log_encrypt_input, "true") == 0) {
+		use = 1;
+		legit_value = true;
+	}
+
+	if (!legit_value)
+		return 1;
+	*static_cast<ulong *>(save) = use;
 
 	return 0;
 }

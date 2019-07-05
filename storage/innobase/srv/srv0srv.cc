@@ -3516,30 +3516,35 @@ srv_is_undo_tablespace(
 }
 
 bool
-srv_enable_redo_encryption()
+srv_enable_redo_encryption(THD* thd)
 {
 	if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK) {
-		return srv_enable_redo_encryption_mk();
+		return srv_enable_redo_encryption_mk(thd);
 	}
 
 	if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
-		return srv_enable_redo_encryption_rk();
+		return srv_enable_redo_encryption_rk(thd);
 	}
 
 	return false;
 }
 
 bool
-srv_enable_redo_encryption_mk()
+srv_enable_redo_encryption_mk(THD* thd)
 {
 	switch (existing_redo_encryption_mode) {
 	case REDO_LOG_ENCRYPT_RK:
                 ib::warn() <<
-                        " Redo log encryption mode"
+                        "Redo log encryption mode"
                         " can't be switched without stopping the server and"
                         " recreating the redo logs. Current mode is "
                         << log_encrypt_name(existing_redo_encryption_mode)
                         << ", requested master_key.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
+				    "master_key",
+				    log_encrypt_name(existing_redo_encryption_mode));
+		}
 
 		return true;
 	case REDO_LOG_ENCRYPT_OFF:
@@ -3560,6 +3565,11 @@ srv_enable_redo_encryption_mk()
 	if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_MK)) {
 
 		ib::error() << "Can't set redo log tablespace to be encrypted.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Can't set redo log tablespace to be"
+				    " encrypted.");
+		}
 		return true;
 	}
 
@@ -3568,6 +3578,11 @@ srv_enable_redo_encryption_mk()
 	const dberr_t err = fil_set_encryption(space->id, Encryption::AES, key, iv);
 	if (err != DB_SUCCESS) {
 		ib::error() << "Can't set redo log tablespace to be encrypted.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Can't set redo log tablespace to be"
+				    " encrypted.");
+		}
 		return true;
 	}
 
@@ -3578,16 +3593,22 @@ srv_enable_redo_encryption_mk()
 
 
 bool
-srv_enable_redo_encryption_rk()
+srv_enable_redo_encryption_rk(THD* thd)
 {
 	switch (existing_redo_encryption_mode) {
 	case REDO_LOG_ENCRYPT_MK:
-                ib::warn() <<
-                        " Redo log encryption mode"
+                ib::error() <<
+                        "Redo log encryption mode"
                         " can't be switched without stopping the server and"
                         " recreating the redo logs. Current mode is "
                         << log_encrypt_name(existing_redo_encryption_mode)
                         << ", requested keyring_key.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN,
+				    ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
+				    "keyring_key",
+				    log_encrypt_name(existing_redo_encryption_mode));
+		}
 		return true;
 	case REDO_LOG_ENCRYPT_OFF:
 	case REDO_LOG_ENCRYPT_RK:
@@ -3608,7 +3629,7 @@ srv_enable_redo_encryption_rk()
 	
 	// load latest key & write version
 
-        redo_log_key* mkey = redo_log_key_mgr.load_latest_key(true);
+        redo_log_key* mkey = redo_log_key_mgr.load_latest_key(thd, true);
 	if (mkey == NULL) {
 		return(true);
 	}
@@ -3623,6 +3644,11 @@ srv_enable_redo_encryption_rk()
 	if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_RK)) {
 		ib::error() << "Can't set redo log tablespace to be"
 			" encrypted.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Can't set redo log tablespace to be"
+				    " encrypted.");
+		}
 		return(true);
 	}
 
@@ -3635,6 +3661,11 @@ srv_enable_redo_encryption_rk()
 
 	if(err != DB_SUCCESS) {
 		ib::error() << "Can't set redo log tablespace to be encrypted.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Can't set redo log tablespace to be"
+				    " encrypted.");
+		}
 		return(true);
 	}
 

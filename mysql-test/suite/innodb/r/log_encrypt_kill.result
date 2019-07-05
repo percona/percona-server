@@ -3,6 +3,8 @@ SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
 OFF
 SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
+Warnings:
+Warning	3236	InnoDB: Can't set redo log tablespace to be encrypted.
 UNINSTALL PLUGIN keyring_file;
 ERROR 42000: PLUGIN keyring_file does not exist
 CREATE TABLE tne_1(c1 INT, c2 varchar(2000)) ENGINE = InnoDB;

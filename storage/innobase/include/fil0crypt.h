@@ -639,12 +639,12 @@ struct redo_log_key {
 class redo_log_keys {
        public:
 	MY_NODISCARD redo_log_key*
-	load_latest_key(bool generate);
+	load_latest_key(THD* thd, bool generate);
 	MY_NODISCARD redo_log_key*
-	load_key_version(uint version);
+	load_key_version(THD* thd, uint version);
 
 	MY_NODISCARD redo_log_key*
-	generate_and_store_new_key();
+	generate_and_store_new_key(THD* thd);
 
 	/* These two methods are used during bootstrap encryption,
 	when wo do not yet have an uuid */

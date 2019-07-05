@@ -3147,7 +3147,7 @@ fil_space_verify_crypt_checksum(
 }
 
 redo_log_key*
-redo_log_keys::load_latest_key(bool generate) {
+redo_log_keys::load_latest_key(THD *thd, bool generate) {
 	size_t klen = 0;
 	char*   key_type = NULL;
 	byte*   rkey = NULL;
@@ -3160,7 +3160,7 @@ redo_log_keys::load_latest_key(bool generate) {
 		if (!generate) {
 			return(NULL);
 		}
-		return(generate_and_store_new_key());
+		return(generate_and_store_new_key(thd));
 	}
 
 
@@ -3199,7 +3199,7 @@ redo_log_keys::load_latest_key(bool generate) {
 }
 
 redo_log_key*
-redo_log_keys::load_key_version(uint version) {
+redo_log_keys::load_key_version(THD* thd, uint version) {
 	key_iterator it = m_keys.find(version);
 
 	if (it != m_keys.end() && it->second.present) {
@@ -3218,6 +3218,11 @@ redo_log_keys::load_key_version(uint version) {
 		my_free(rkey);
 		my_free(key_type);
 		ib::error() << "Failed to load redo key version " << version;
+		if (thd) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Failed to load redo key version %u",
+				    version);
+		}
 		return(NULL);
 	}
 
@@ -3235,10 +3240,14 @@ redo_log_keys::load_key_version(uint version) {
 }
 
 redo_log_key*
-redo_log_keys::generate_and_store_new_key() {
+redo_log_keys::generate_and_store_new_key(THD* thd) {
 	if (my_key_generate(PERCONA_REDO_KEY_NAME, "AES", NULL,
 			    ENCRYPTION_KEY_LEN)) {
 		ib::error() << "Redo log key generation failed.";
+		if (thd) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Redo log key generation failed.");
+		}
 		return(NULL);
 	}
 
@@ -3249,6 +3258,10 @@ redo_log_keys::generate_and_store_new_key() {
 	if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, NULL,
 			 reinterpret_cast<void **>(&rkey), &klen)) {
 		ib::error() << "Couldn't fetch newly generated redo key.";
+		if (thd) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Couldn't fetch newly generated redo key.");
+		}
 		my_free(redo_key_type);
 		my_free(rkey);
 		return(NULL);
@@ -3266,6 +3279,10 @@ redo_log_keys::generate_and_store_new_key() {
 
 	if (err) {
 		ib::error() << "Couldn't parse system key: " << rkey;
+		if (thd) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Couldn't parse system key: %s", rkey);
+		}
 		my_free(redo_key_type);
 		my_free(rkey);
 		return(NULL);

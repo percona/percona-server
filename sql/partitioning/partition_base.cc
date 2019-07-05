@@ -120,7 +120,8 @@ Parts_share_refs::~Parts_share_refs() {
 }
 
 bool Parts_share_refs::init(uint arg_num_parts) {
-  assert(!num_parts && !ha_shares);
+  assert(!num_parts);
+  assert(!ha_shares);
   num_parts = arg_num_parts;
   /* Allocate an array of Handler_share pointers */
   ha_shares = new Handler_share *[num_parts];
@@ -611,7 +612,6 @@ int Partition_base::create(const char *name, TABLE *table_arg,
 
   if (foreach_partition([&](partition_element *parent_elem,
                             partition_element *part_elem) -> bool {
-
         char name_buff[FN_REFLEN];
         part_name(name_buff, path,
                   parent_elem ? parent_elem->partition_name : nullptr,
@@ -1163,7 +1163,8 @@ void Partition_base::update_create_info(HA_CREATE_INFO *create_info) {
         sub_elem = subpart_it++;
         assert(sub_elem);
         part = i * num_subparts + j;
-        assert(part < m_file_tot_parts && m_file[part]);
+        assert(part < m_file_tot_parts);
+        assert(m_file[part]);
         if (ha_legacy_type(m_file[part]->ht) == DB_TYPE_INNODB) {
           dummy_info.data_file_name = dummy_info.index_file_name = nullptr;
           m_file[part]->update_create_info(&dummy_info);
@@ -1611,7 +1612,7 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
         if (m_clone_base != nullptr) {
           uint ref_length = (*clone_base_file)->ref_length;
           (*file)->ref =
-              (uchar *)alloc_root(m_clone_mem_root, ALIGN_SIZE(ref_length) * 2);
+              (uchar *)m_clone_mem_root->Alloc(ALIGN_SIZE(ref_length) * 2);
         }
 
         if ((error = (*file)->ha_open(table, name_buff, mode, test_if_locked,
@@ -1757,7 +1758,8 @@ int Partition_base::external_lock(THD *thd, int lock_type) {
   MY_BITMAP *used_partitions;
   DBUG_ENTER("Partition_base::external_lock");
 
-  assert(!m_auto_increment_lock && !m_auto_increment_safe_stmt_log_lock);
+  assert(!m_auto_increment_lock);
+  assert(!m_auto_increment_safe_stmt_log_lock);
 
   if (lock_type == F_UNLCK)
     used_partitions = &m_locked_partitions;
@@ -1975,8 +1977,8 @@ void Partition_base::unlock_row() {
 */
 bool Partition_base::was_semi_consistent_read() {
   DBUG_ENTER("Partition_base::was_semi_consistent_read");
-  assert(m_last_part < m_tot_parts &&
-              m_part_info->is_partition_used(m_last_part));
+  assert(m_last_part < m_tot_parts);
+  assert(m_part_info->is_partition_used(m_last_part));
   DBUG_RETURN(m_file[m_last_part]->was_semi_consistent_read());
 }
 
@@ -4369,7 +4371,8 @@ void Partition_base::get_auto_increment(ulonglong offset, ulonglong increment,
                       "first_value: %lu",
                       (ulong)offset, (ulong)increment, (ulong)nb_desired_values,
                       (ulong)*first_value));
-  assert(increment && nb_desired_values);
+  assert(increment);
+  assert(nb_desired_values);
   *first_value = 0;
   if (table->s->next_number_keypart) {
     /*

@@ -1,23 +1,23 @@
 call mtr.add_suppression("Redo log encryption mode can't be switched without stopping the server and recreating the redo logs");
 SELECT @@innodb_redo_log_encrypt;
 @@innodb_redo_log_encrypt
-keyring_key
+KEYRING_KEY
 SET GLOBAL innodb_redo_log_encrypt=MASTER_KEY;
 Warnings:
 Warning	49008	InnoDB: Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is keyring_key, requested master_key.
 SELECT @@innodb_redo_log_encrypt;
 @@innodb_redo_log_encrypt
-keyring_key
+KEYRING_KEY
 SET GLOBAL innodb_redo_log_encrypt=OFF;
 SET GLOBAL innodb_redo_log_encrypt=MASTER_KEY;
 Warnings:
 Warning	49008	InnoDB: Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is keyring_key, requested master_key.
 SELECT @@innodb_redo_log_encrypt;
 @@innodb_redo_log_encrypt
-off
+OFF
 include/assert_grep.inc [Check that there is a warning in the error log]
 SELECT @@innodb_redo_log_encrypt;
 @@innodb_redo_log_encrypt
-keyring_key
+KEYRING_KEY
 include/assert_grep.inc [Check that there is a warning in the error log]
 SET GLOBAL innodb_redo_log_encrypt=KEYRING_KEY;

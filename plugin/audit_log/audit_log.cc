@@ -1606,7 +1606,7 @@ static SYS_VAR *audit_log_system_variables[] = {MYSQL_SYSVAR(file),
 
 static char thd_local_init_buf[sizeof(audit_log_thd_local)];
 
-void MY_ATTRIBUTE((constructor)) audit_log_so_init() noexcept {
+static void MY_ATTRIBUTE((constructor)) audit_log_so_init() noexcept {
   memset(thd_local_init_buf, 1, sizeof(thd_local_init_buf) - 1);
   thd_local_init_buf[sizeof(thd_local_init_buf) - 1] = 0;
 }

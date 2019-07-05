@@ -121,7 +121,8 @@ Parts_share_refs::~Parts_share_refs() {
 }
 
 bool Parts_share_refs::init(uint arg_num_parts) {
-  DBUG_ASSERT(!num_parts && !ha_shares);
+  DBUG_ASSERT(!num_parts);
+  DBUG_ASSERT(!ha_shares);
   num_parts = arg_num_parts;
   /* Allocate an array of Handler_share pointers */
   ha_shares = new Handler_share *[num_parts];
@@ -612,7 +613,6 @@ int Partition_base::create(const char *name, TABLE *table_arg,
 
   if (foreach_partition([&](partition_element *parent_elem,
                             partition_element *part_elem) -> bool {
-
         char name_buff[FN_REFLEN];
         part_name(name_buff, path,
                   parent_elem ? parent_elem->partition_name : nullptr,
@@ -1163,7 +1163,8 @@ void Partition_base::update_create_info(HA_CREATE_INFO *create_info) {
         sub_elem = subpart_it++;
         DBUG_ASSERT(sub_elem);
         part = i * num_subparts + j;
-        DBUG_ASSERT(part < m_file_tot_parts && m_file[part]);
+        DBUG_ASSERT(part < m_file_tot_parts);
+        DBUG_ASSERT(m_file[part]);
         if (ha_legacy_type(m_file[part]->ht) == DB_TYPE_INNODB) {
           dummy_info.data_file_name = dummy_info.index_file_name = nullptr;
           m_file[part]->update_create_info(&dummy_info);
@@ -1337,7 +1338,7 @@ bool Partition_base::new_handlers_from_part_info(MEM_ROOT *mem_root) {
   List_iterator_fast<partition_element> part_it(m_part_info->partitions);
   DBUG_ENTER("Partition_base::new_handlers_from_part_info");
 
-  if (!(m_file = (handler **)alloc_root(mem_root, alloc_len))) {
+  if (!(m_file = (handler **)mem_root->Alloc(alloc_len))) {
     mem_alloc_error(alloc_len);
     goto error_end;
   }
@@ -1611,7 +1612,7 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
         if (m_clone_base != nullptr) {
           uint ref_length = (*clone_base_file)->ref_length;
           (*file)->ref =
-              (uchar *)alloc_root(m_clone_mem_root, ALIGN_SIZE(ref_length) * 2);
+              (uchar *)m_clone_mem_root->Alloc(ALIGN_SIZE(ref_length) * 2);
         }
 
         if ((error = (*file)->ha_open(table, name_buff, mode, test_if_locked,
@@ -1757,7 +1758,8 @@ int Partition_base::external_lock(THD *thd, int lock_type) {
   MY_BITMAP *used_partitions;
   DBUG_ENTER("Partition_base::external_lock");
 
-  DBUG_ASSERT(!m_auto_increment_lock && !m_auto_increment_safe_stmt_log_lock);
+  DBUG_ASSERT(!m_auto_increment_lock);
+  DBUG_ASSERT(!m_auto_increment_safe_stmt_log_lock);
 
   if (lock_type == F_UNLCK)
     used_partitions = &m_locked_partitions;
@@ -1975,8 +1977,8 @@ void Partition_base::unlock_row() {
 */
 bool Partition_base::was_semi_consistent_read() {
   DBUG_ENTER("Partition_base::was_semi_consistent_read");
-  DBUG_ASSERT(m_last_part < m_tot_parts &&
-              m_part_info->is_partition_used(m_last_part));
+  DBUG_ASSERT(m_last_part < m_tot_parts);
+  DBUG_ASSERT(m_part_info->is_partition_used(m_last_part));
   DBUG_RETURN(m_file[m_last_part]->was_semi_consistent_read());
 }
 
@@ -3535,7 +3537,7 @@ int Partition_base::loop_extra(enum ha_extra_function operation) {
 
   for (i = bitmap_get_first_set(&m_part_info->lock_partitions); i < m_tot_parts;
        i = bitmap_get_next_set(&m_part_info->lock_partitions, i)) {
-    if ((tmp = m_file[i]->extra(operation))) result = tmp;
+    if ((tmp = m_file[i]->ha_extra(operation))) result = tmp;
   }
   /* Add all used partitions to be called in reset(). */
   bitmap_union(&m_partitions_to_reset, &m_part_info->lock_partitions);
@@ -4198,7 +4200,7 @@ uint Partition_base::min_record_length(uint options) const {
 
 int Partition_base::cmp_ref(const uchar *ref1, const uchar *ref2) const {
   int cmp;
-  my_ptrdiff_t diff1, diff2;
+  ptrdiff_t diff1, diff2;
   DBUG_ENTER("Partition_base::cmp_ref");
 
   cmp = m_file[0]->cmp_ref((ref1 + PARTITION_BYTES_IN_POS),
@@ -4242,7 +4244,8 @@ Item *Partition_base::idx_cond_push(uint keyno, Item *idx_cond) {
   uint i;
   Item *res;
   DBUG_ENTER("Partition_base::idx_cond_push");
-  DBUG_EXECUTE("where", print_where(idx_cond, "cond", QT_ORDINARY););
+  DBUG_EXECUTE("where",
+               print_where(current_thd, idx_cond, "cond", QT_ORDINARY););
   DBUG_PRINT("info", ("keyno: %u, active_index: %u", keyno, active_index));
   DBUG_ASSERT(pushed_idx_cond == nullptr);
 
@@ -4368,7 +4371,8 @@ void Partition_base::get_auto_increment(ulonglong offset, ulonglong increment,
                       "first_value: %lu",
                       (ulong)offset, (ulong)increment, (ulong)nb_desired_values,
                       (ulong)*first_value));
-  DBUG_ASSERT(increment && nb_desired_values);
+  DBUG_ASSERT(increment);
+  DBUG_ASSERT(nb_desired_values);
   *first_value = 0;
   if (table->s->next_number_keypart) {
     /*

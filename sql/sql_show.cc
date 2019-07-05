@@ -2831,6 +2831,7 @@ end:
      0 - OK
      1 - error
 */
+static
 int send_user_stats(THD* thd, HASH *all_user_stats, TABLE *table)
 {
   DBUG_ENTER("send_user_stats");
@@ -2870,6 +2871,7 @@ int send_user_stats(THD* thd, HASH *all_user_stats, TABLE *table)
   DBUG_RETURN(0);
 }
 
+static
 int send_thread_stats(THD* thd, HASH *all_thread_stats, TABLE *table)
 {
   DBUG_ENTER("send_thread_stats");
@@ -2923,7 +2925,7 @@ int send_thread_stats(THD* thd, HASH *all_thread_stats, TABLE *table)
      1 - error
 */
 
-
+static
 int fill_schema_user_stats(THD* thd, TABLE_LIST* tables, Item* cond)
 {
   TABLE *table= tables->table;
@@ -2963,7 +2965,7 @@ int fill_schema_user_stats(THD* thd, TABLE_LIST* tables, Item* cond)
      1 - error
 */
 
-
+static
 int fill_schema_client_stats(THD* thd, TABLE_LIST* tables, Item* cond)
 {
   TABLE *table= tables->table;
@@ -2990,6 +2992,7 @@ int fill_schema_client_stats(THD* thd, TABLE_LIST* tables, Item* cond)
   DBUG_RETURN(1);
 }
 
+static
 int fill_schema_thread_stats(THD* thd, TABLE_LIST* tables, Item* cond)
 {
   TABLE *table= tables->table;
@@ -3016,6 +3019,7 @@ int fill_schema_thread_stats(THD* thd, TABLE_LIST* tables, Item* cond)
 }
 
 // Sends the global table stats back to the client.
+static
 int fill_schema_table_stats(THD* thd, TABLE_LIST* tables, Item* cond)
 {
   TABLE *table= tables->table;
@@ -3060,6 +3064,7 @@ int fill_schema_table_stats(THD* thd, TABLE_LIST* tables, Item* cond)
 }
 
 // Sends the global index stats back to the client.
+static
 int fill_schema_index_stats(THD* thd, TABLE_LIST* tables, Item* cond)
 {
   TABLE *table= tables->table;
@@ -4110,6 +4115,7 @@ uint get_table_open_method(TABLE_LIST *tables,
     @retval       0                        success
     @retval       1                        error
 */
+static
 int make_temporary_tables_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   char tmp[128];
@@ -4331,7 +4337,7 @@ static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond
     @retval       0                        success
     @retval       1                        error
 */
-
+static
 int fill_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_temporary_tables");
@@ -8257,7 +8263,7 @@ ST_FIELD_INFO tables_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
-ST_FIELD_INFO temporary_table_fields_info[]=
+static ST_FIELD_INFO temporary_table_fields_info[]=
 {
   {"SESSION_ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, "Session", SKIP_OPEN_TABLE},
   {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Db", SKIP_OPEN_TABLE},
@@ -8692,7 +8698,7 @@ ST_FIELD_INFO variables_fields_info[]=
 };
 
 
-ST_FIELD_INFO user_stats_fields_info[]=
+static ST_FIELD_INFO user_stats_fields_info[]=
 {
   {"USER", USERNAME_LENGTH, MYSQL_TYPE_STRING, 0, 0, "User", SKIP_OPEN_TABLE},
   {"TOTAL_CONNECTIONS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
@@ -8740,7 +8746,7 @@ ST_FIELD_INFO user_stats_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}
 };
 
-ST_FIELD_INFO client_stats_fields_info[]=
+static ST_FIELD_INFO client_stats_fields_info[]=
 {
   {"CLIENT", LIST_PROCESS_HOST_LEN, MYSQL_TYPE_STRING, 0, 0, "Client",
    SKIP_OPEN_TABLE},
@@ -8789,7 +8795,7 @@ ST_FIELD_INFO client_stats_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}
 };
 
-ST_FIELD_INFO thread_stats_fields_info[]=
+static ST_FIELD_INFO thread_stats_fields_info[]=
 {
   {"THREAD_ID", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
    MY_I_S_UNSIGNED, "Thread_id", SKIP_OPEN_TABLE},
@@ -8838,7 +8844,7 @@ ST_FIELD_INFO thread_stats_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}
 };
 
-ST_FIELD_INFO table_stats_fields_info[]=
+static ST_FIELD_INFO table_stats_fields_info[]=
 {
   {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_schema",
    SKIP_OPEN_TABLE},
@@ -8853,7 +8859,7 @@ ST_FIELD_INFO table_stats_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}
 };
 
-ST_FIELD_INFO index_stats_fields_info[]=
+static ST_FIELD_INFO index_stats_fields_info[]=
 {
   {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Table_schema",
    SKIP_OPEN_TABLE},

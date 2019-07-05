@@ -1119,8 +1119,8 @@ bool Global_backup_lock::acquire(THD *thd)
 
   DBUG_ENTER("Global_backup_lock::acquire");
 
-  DBUG_ASSERT(m_lock == NULL &&
-              !thd->mdl_context.is_lock_owner(m_namespace, "", "",
+  DBUG_ASSERT(m_lock == NULL);
+  DBUG_ASSERT(!thd->mdl_context.is_lock_owner(m_namespace, "", "",
                                               MDL_SHARED));
 
   mdl_request.init(m_namespace, "", "", MDL_SHARED, MDL_EXPLICIT);
@@ -1144,8 +1144,8 @@ void Global_backup_lock::release(THD *thd)
 {
   DBUG_ENTER("Global_backup_lock::release");
 
-  DBUG_ASSERT(m_lock != NULL &&
-              thd->mdl_context.is_lock_owner(m_namespace, "", "",
+  DBUG_ASSERT(m_lock != NULL);
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(m_namespace, "", "",
                                              MDL_SHARED));
 
   thd->mdl_context.release_lock(m_lock);
@@ -1246,8 +1246,8 @@ void Global_backup_lock::release_protection(THD *thd)
 {
   DBUG_ENTER("Global_backup_lock::release_protection");
 
-  DBUG_ASSERT(m_prot_lock != NULL &&
-              thd->mdl_context.is_lock_owner(m_namespace, "", "",
+  DBUG_ASSERT(m_prot_lock != NULL);
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(m_namespace, "", "",
                                              MDL_INTENTION_EXCLUSIVE));
 
   thd->mdl_context.release_lock(m_prot_lock);

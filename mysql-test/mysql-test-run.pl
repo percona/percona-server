@@ -628,7 +628,8 @@ sub main {
   # Also read from any plugin local or suite specific plugin.defs
   my $plugin_def =
     "$basedir/internal/cloud/mysql-test/suite/*/plugin.defs " .
-    "suite/*/plugin.defs ";
+    "suite/*/plugin.defs " .
+    "$basedir/plugin/*/tests/mtr/plugin.defs ";
 
   $plugin_def = $plugin_def . "$basedir/internal/mysql-test/include/plugin.defs"
     if (-e "$basedir/internal/mysql-test/include/plugin.defs");

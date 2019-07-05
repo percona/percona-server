@@ -71,6 +71,12 @@ IF(SOLARIS)
   ENDIF()
 ENDIF()
 
+# Clang 5 and older: disable "suggest braces around initialization of subobject" warnings
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND
+   CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6.0")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-braces")
+ENDIF()
+
 IF(WIN32)
   # 'identifier' : class 'type' needs to have dll-interface to be used by clients of class 'type2'
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")

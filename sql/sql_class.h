@@ -1598,16 +1598,10 @@ class Bloom_filter {
  public:
   Bloom_filter() : bit_set(NULL) {}
 
-  ~Bloom_filter()
-  {
-    // Do not delete, just destruct, due to MEM_ROOT allocation
-    bit_set->~bitset();
-  }
-
   void clear()
   {
-    // Do not delete, just force new MEM_ROOT allocation on the next use
-    bit_set= NULL;
+    if (bit_set != NULL)
+      bit_set->reset();
   }
 
   /**
@@ -1627,7 +1621,7 @@ class Bloom_filter {
       void *bit_set_place= alloc_root(mem_root, sizeof(Bit_set));
       // FIXME: memory allocation failure is eaten silently. Nonexact stats are
       // the least of the concerns then.
-      if (!bit_set_place)
+      if (bit_set_place == NULL)
         return false;
       bit_set= new (bit_set_place) Bit_set();
     }

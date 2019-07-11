@@ -1680,6 +1680,8 @@ void Log_DDL::replay_free_tree_log(space_id_t space_id, page_no_t page_no,
   /* This is required by dropping hash index afterwards. */
   dict_sys_mutex_enter();
 
+  DEBUG_SYNC_C("replay_free_tree_log");
+
   mtr_t mtr;
   mtr_start(&mtr);
 

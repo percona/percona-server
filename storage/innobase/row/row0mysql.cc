@@ -2976,7 +2976,7 @@ void row_delete_all_rows(dict_table_t *table) {
   for (auto index : table->indexes) {
     ut_ad(index->space == table->space);
     const page_id_t root(index->space, index->page);
-    btr_free(root, page_size);
+    btr_free(root, page_size, table->is_intrinsic());
 
     mtr_t mtr;
 

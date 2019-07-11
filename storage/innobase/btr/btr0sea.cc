@@ -1261,6 +1261,11 @@ void btr_search_drop_page_hash_when_freed(const page_id_t &page_id,
 
   ut_d(export_vars.innodb_ahi_drop_lookups++);
 
+  /* Sleep 10ms */
+  DBUG_EXECUTE_IF(
+      "simulate_long_ahi",
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));;);
+
   mtr_start(&mtr);
 
   /* If the caller has a latch on the page, then the caller must

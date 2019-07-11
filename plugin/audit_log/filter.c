@@ -67,9 +67,9 @@ static PSI_rwlock_info all_rwlock_list[]=
 
 #endif
 
-mysql_rwlock_t LOCK_account_list;
-mysql_rwlock_t LOCK_database_list;
-mysql_rwlock_t LOCK_command_list;
+static mysql_rwlock_t LOCK_account_list;
+static mysql_rwlock_t LOCK_database_list;
+static mysql_rwlock_t LOCK_command_list;
 
 /*
   Initialize account
@@ -106,6 +106,7 @@ account *account_create(const char *user, size_t user_length,
 /*
   Get account key
 */
+static
 uchar *account_get_key(const account *acc, size_t *length,
                        my_bool not_used MY_ATTRIBUTE((unused)))
 {
@@ -144,6 +145,7 @@ database *database_create(const char *name, size_t length)
 /*
   Get database key
 */
+static
 uchar *database_get_key(const database *db, size_t *length,
                         my_bool not_used MY_ATTRIBUTE((unused)))
 {
@@ -182,6 +184,7 @@ command *command_create(const char *name, size_t length)
 /*
   Get command key
 */
+static
 uchar *command_get_key(const command *acc, size_t *length,
                        my_bool not_used MY_ATTRIBUTE((unused)))
 {

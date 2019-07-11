@@ -1739,12 +1739,8 @@ os_file_read_string(
 
 static
 dberr_t
-verify_post_encryption_checksum(
-	const IORequest&type,
-	Encryption	&encryption,
-	byte*		buf,
-	ulint		src_len,
-	ulint		offset)
+verify_post_encryption_checksum(const IORequest &type, Encryption &encryption,
+				byte *buf, ulint src_len)
 {
 	bool is_crypt_checksum_correct = false; // For MK encryption is_crypt_checksum_correct stays false
 	ulint original_type = static_cast<uint16_t>(
@@ -1759,7 +1755,7 @@ verify_post_encryption_checksum(
 							ENCRYPTION_ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN) == 0;
 		} else
 			is_crypt_checksum_correct = fil_space_verify_crypt_checksum(buf, src_len, type.is_page_zip_compressed(),
-										    encryption.is_encrypted_and_compressed(buf), offset);
+										    encryption.is_encrypted_and_compressed(buf));
 
 		if (encryption.m_encryption_rotation == Encryption::NO_ROTATION && !is_crypt_checksum_correct) { // There is no re-encryption going on
 			ulint space_id = mach_read_from_4(buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
@@ -1816,8 +1812,8 @@ load_key_needed_for_decryption(
 			key_version_read_from_page= mach_read_from_4(buf + FIL_PAGE_ENCRYPTION_KEY_VERSION);
 		}
 
-		ut_ad(key_version_read_from_page != ENCRYPTION_KEY_VERSION_INVALID &&
-		      key_version_read_from_page != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
+		ut_ad(key_version_read_from_page != ENCRYPTION_KEY_VERSION_INVALID);
+		ut_ad(key_version_read_from_page != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
 
 		// in rare cases - when (re-)encryption was aborted there can be pages encrypted with
 		// different key versions in a given tablespace - retrieve needed key here
@@ -1907,7 +1903,7 @@ os_file_io_complete(
 
 		if (is_page_encrypted)
 		{
-			dberr_t err = verify_post_encryption_checksum(type, encryption, buf, src_len, offset);
+			dberr_t err = verify_post_encryption_checksum(type, encryption, buf, src_len);
 			if (err != DB_SUCCESS)
 				return err;
 
@@ -1964,7 +1960,7 @@ os_file_io_complete(
 
 		//TODO:Robert czy bez type.is_page_zip_compressed to działa - powinno
 		ut_ad(!was_page_encrypted || //!type.is_page_zip_compressed() ||
-		fil_space_verify_crypt_checksum(buf, src_len, type.is_page_zip_compressed(), encryption.is_encrypted_and_compressed(buf), offset));
+		fil_space_verify_crypt_checksum(buf, src_len, type.is_page_zip_compressed(), encryption.is_encrypted_and_compressed(buf)));
 	}
 #endif
 
@@ -2408,7 +2404,9 @@ os_file_encrypt_log(
 	byte*		buf_ptr;
 	Block*		block = NULL;
 
-	ut_ad(type.is_write() && type.is_encrypted() && type.is_log());
+	ut_ad(type.is_write());
+	ut_ad(type.is_encrypted());
+	ut_ad(type.is_log());
 	ut_ad(*n % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	if (*n <= BUFFER_BLOCK_SIZE - os_io_ptr_align) {
@@ -4328,11 +4326,8 @@ future.
 @param[in]	advice	advice for access pattern
 @return true if success */
 bool
-os_file_advise(
-	pfs_os_file_t   file,   /*!< in, own: handle to a file */
-	os_offset_t     offset, /*!< in: file region offset  */
-	os_offset_t     len,    /*!< in: file region length  */
-	ulint		advice)	/*!< in: advice for access pattern */
+os_file_advise(pfs_os_file_t file, os_offset_t offset, os_offset_t len,
+	       ulint advice)
 {
 #ifdef __WIN__
 	return(true);
@@ -10500,8 +10495,7 @@ Encryption::encrypt(
 
 		#ifdef UNIV_ENCRYPT_DEBUG
 		ut_ad(type.is_page_zip_compressed() ||
-		fil_space_verify_crypt_checksum(dst, *dst_len, type.is_page_zip_compressed(), type.is_compressed(),
-						page_no)); // This works only for not zipped compressed pages
+		fil_space_verify_crypt_checksum(dst, *dst_len, type.is_page_zip_compressed(), type.is_compressed())); // This works only for not zipped compressed pages
 		#endif 
 	}
 
@@ -10551,12 +10545,10 @@ Encryption::encrypt(
           ut_free(check_buf);
 
           ut_ad(type.is_page_zip_compressed() ||
-                fil_space_verify_crypt_checksum(dst, *dst_len, type.is_page_zip_compressed(), type.is_compressed(),
-                                                page_no));
+                fil_space_verify_crypt_checksum(dst, *dst_len, type.is_page_zip_compressed(), type.is_compressed()));
 
           ut_ad(type.is_page_zip_compressed() ||
-                fil_space_verify_crypt_checksum(dst, *dst_len, type.is_page_zip_compressed(), type.is_compressed(),
-                                                page_no));
+                fil_space_verify_crypt_checksum(dst, *dst_len, type.is_page_zip_compressed(), type.is_compressed()));
         }
 #endif
 	fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);

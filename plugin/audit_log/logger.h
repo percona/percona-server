@@ -33,15 +33,10 @@
   So that one can open the log with logger_open(), specifying
   the limit on the logfile size and the rotations number.
 
-  Then it's possible to write messages to the log with
-  logger_printf or logger_vprintf functions.
-
   As the size of the logfile grows over the specified limit,
   it is renamed to 'logfile.1'. The former 'logfile.1' becomes
   'logfile.2', etc. The file 'logfile.rotations' is removed.
   That's how the rotation works.
-
-  The rotation can be forced with the logger_rotate() call.
 
   Finally the log should be closed with logger_close().
 
@@ -75,11 +70,8 @@ LOGGER_HANDLE *logger_open(const char *path,
                            int thread_safe,
                            logger_prolog_func_t header);
 int logger_close(LOGGER_HANDLE *log, logger_epilog_func_t footer);
-int logger_vprintf(LOGGER_HANDLE *log, const char *fmt, va_list argptr);
-int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...);
 int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size,
                  log_record_state_t state);
-int logger_rotate(LOGGER_HANDLE *log); 
 int logger_sync(LOGGER_HANDLE *log);
 int logger_reopen(LOGGER_HANDLE *log, logger_prolog_func_t header,
                   logger_epilog_func_t footer);

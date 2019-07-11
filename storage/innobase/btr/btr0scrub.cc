@@ -15,9 +15,6 @@ Scrubbing of btree pages
 #include "dict0dict.h"
 #include "mtr0mtr.h"
 
-/* used when trying to acquire dict-lock */
-bool fil_crypt_is_closing(ulint space);
-
 /**
 * scrub data at delete time (e.g purge thread)
 */

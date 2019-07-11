@@ -438,7 +438,7 @@ const char*
 dict_process_sys_zip_dict_cols(
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_ZIP_DICT rec */
-	ulint*		table_id,	/*!< out: table id */
+	table_id_t*	table_id,	/*!< out: table id */
 	ulint*		column_pos,	/*!< out: column position */
 	ulint*		dict_id);	/*!< out: dict id */
 

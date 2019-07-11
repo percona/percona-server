@@ -425,6 +425,7 @@ column_zip_free(
 }
 
 /** Configure the zlib allocator to use the given memory heap. */
+static
 void
 column_zip_set_alloc(
 	void*		stream,	/*!< in/out: zlib stream */
@@ -667,7 +668,8 @@ row_decompress_column(
 
 	err = inflate(&d_stream, Z_FINISH);
 	if (err == Z_NEED_DICT) {
-		ut_a(dict_data != 0 && dict_data_len != 0);
+		ut_a(dict_data != NULL);
+		ut_a(dict_data_len != 0);
 		err = inflateSetDictionary(&d_stream, dict_data,
 			dict_data_len);
 		ut_a(err == Z_OK);

@@ -8218,11 +8218,6 @@ mysql_getopt_value(const char *keyname, size_t key_length,
 
 C_MODE_END
 
-/* defined in sys_vars.cc */
-extern void init_log_slow_verbosity();
-extern void init_slow_query_log_use_global_control();
-extern void init_log_slow_sp_statements();
-
 /**
   Ensure all the deprecared options with 1 possible value are
   within acceptable range.

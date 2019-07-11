@@ -298,7 +298,7 @@ InnoDB system table.
 @return	error code or DB_SUCCESS */
 dberr_t
 dict_create_add_zip_dict_reference(
-	ulint		table_id,	/*!< in: table id */
+	table_id_t	table_id,	/*!< in: table id */
 	ulint		column_pos,	/*!< in: column position */
 	ulint		dict_id,	/*!< in: dict id */
 	trx_t*		trx);		/*!< in/out: transaction */
@@ -308,10 +308,10 @@ dict_create_add_zip_dict_reference(
 @return	error code or DB_SUCCESS */
 dberr_t
 dict_create_get_zip_dict_id_by_reference(
-	ulint	table_id,	/*!< in: table id */
-	ulint	column_pos,	/*!< in: column position */
-	ulint*	dict_id,	/*!< out: dict id */
-	trx_t*	trx);		/*!< in/out: transaction */
+	table_id_t	table_id,	/*!< in: table id */
+	ulint		column_pos,	/*!< in: column position */
+	ulint*		dict_id,	/*!< out: dict id */
+	trx_t*		trx);		/*!< in/out: transaction */
 
 /** Get compression dictionary id for the given name.
 @return	error code or DB_SUCCESS */
@@ -349,8 +349,8 @@ the data dictionary tables in the database.
 @return	error code or DB_SUCCESS */
 dberr_t
 dict_create_remove_zip_dict_references_for_table(
-	ulint	table_id,	/*!< in: table id */
-	trx_t*	trx);		/*!< in/out: transaction */
+	table_id_t	table_id,	/*!< in: table id */
+	trx_t*		trx);		/*!< in/out: transaction */
 
 /********************************************************************//**
 Add a foreign key definition to the data dictionary tables.

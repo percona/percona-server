@@ -5820,7 +5820,6 @@ public:
 
 class Query_dumpvar :public Query_result_interceptor {
   ha_rows row_count;
-  Item_func_set_user_var **set_var_items;
 public:
   List<PT_select_var> var_list;
   Query_dumpvar()  { var_list.empty(); row_count= 0;}

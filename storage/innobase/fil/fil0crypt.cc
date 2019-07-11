@@ -891,14 +891,15 @@ fil_crypt_start_encrypting_space(
 	crypt_data->rotate_state.active_threads = 1;
 
 	if (space->encryption_type == Encryption::AES) {// We are re-encrypting space from MK encryption to RK encryption
+		// TODO: assert that space->encryption_key is all zeroes here
 		crypt_data->encryption_rotation = Encryption::MASTER_KEY_TO_KEYRING;
-		ut_ad(space->encryption_key != NULL && space->encryption_iv != NULL);
 		crypt_data->set_tablespace_key(space->encryption_key);
 		crypt_data->set_tablespace_iv(space->encryption_iv); //space key and encryption are always initalized for MK encrypted tables
 	}
 
 	crypt_data->encrypting_with_key_version = crypt_data->key_get_latest_version();
-	ut_ad(crypt_data->encrypting_with_key_version != 0 && crypt_data->encrypting_with_key_version != ENCRYPTION_KEY_VERSION_INVALID);
+	ut_ad(crypt_data->encrypting_with_key_version != 0);
+	ut_ad(crypt_data->encrypting_with_key_version != ENCRYPTION_KEY_VERSION_INVALID);
 
 	if (crypt_data->key_found == false || crypt_data->load_needed_keys_into_local_cache() == false) {
 		// This should not happen, we have locked the keyring before encryption threads could have even started
@@ -2156,10 +2157,13 @@ public:
 	{}
 	
 	bool lock_x_dict_operation_lock(fil_space_t *space) {
-		ut_ad(!dict_operation_locked && trx == NULL &&
-			!dict_sys_mutex_entered && heap == NULL &&
-			heap_alloc == NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(!dict_operation_locked);
+		ut_ad(trx == NULL);
+		ut_ad(!dict_sys_mutex_entered);
+		ut_ad(heap == NULL);
+		ut_ad(heap_alloc == NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		// This should only wait in rare cases
 		while (!rw_lock_x_lock_nowait(dict_operation_lock)) {
@@ -2173,10 +2177,13 @@ public:
 	}
 
 	bool allocate_trx() {
-		ut_ad(dict_operation_locked && trx == NULL &&
-			!dict_sys_mutex_entered && heap == NULL &&
-			heap_alloc == NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx == NULL);
+		ut_ad(!dict_sys_mutex_entered);
+		ut_ad(heap == NULL);
+		ut_ad(heap_alloc == NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		trx = trx_allocate_for_background();
 		if(trx == NULL)
@@ -2187,20 +2194,26 @@ public:
 	}
 
 	void enter_dict_sys_mutex() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			!dict_sys_mutex_entered && heap == NULL &&
-			heap_alloc == NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(!dict_sys_mutex_entered);
+		ut_ad(heap == NULL);
+		ut_ad(heap_alloc == NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		dict_mutex_enter_for_mysql();
 		dict_sys_mutex_entered = true;
 	}
 
 	bool create_heap() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap == NULL &&
-			heap_alloc == NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap == NULL);
+		ut_ad(heap_alloc == NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		// TODO: consider moving expensive operation out of dict_sys->mutex
 		heap = mem_heap_create(1024); 
@@ -2208,40 +2221,52 @@ public:
 	}
 
 	bool create_allocator() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap != NULL &&
-			heap_alloc == NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap != NULL);
+		ut_ad(heap_alloc == NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		heap_alloc = ib_heap_allocator_create(heap);
 		return heap_alloc != NULL;
 	}
 
 	bool create_table_ids_vector() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap != NULL &&
-			heap_alloc != NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap != NULL);
+		ut_ad(heap_alloc != NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		table_ids = ib_vector_create(heap_alloc, sizeof(table_id_t), 128);
 		return table_ids != NULL;
 	}
 
 	bool create_table_ids_to_revert_vector() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap != NULL &&
-			heap_alloc != NULL && table_ids != NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap != NULL);
+		ut_ad(heap_alloc != NULL);
+		ut_ad(table_ids != NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		table_ids_to_revert = ib_vector_create(heap_alloc, sizeof(table_id_t), 128);
 		return table_ids_to_revert != NULL;
 	}
 
 	bool is_table_ids_empty() const {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap != NULL &&
-			heap_alloc != NULL && table_ids != NULL &&
-			table_ids_to_revert != NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap != NULL);
+		ut_ad(heap_alloc != NULL);
+		ut_ad(table_ids != NULL);
+		ut_ad(table_ids_to_revert != NULL);
 
 		return ib_vector_is_empty(table_ids);
 	}
@@ -2274,10 +2299,13 @@ public:
 	}
 
 	void commit() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap != NULL &&
-			heap_alloc != NULL && table_ids != NULL &&
-			table_ids_to_revert != NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap != NULL);
+		ut_ad(heap_alloc != NULL);
+		ut_ad(table_ids != NULL);
+		ut_ad(table_ids_to_revert != NULL);
 
 		fts_sql_commit(trx);
 		do_rollback = false;
@@ -3088,18 +3116,11 @@ encrypted, or corrupted.
 
 @param[in,out]	page		page frame (checksum is temporarily modified)
 @param[in]	page_size	page size
-@param[in]	space		tablespace identifier
-@param[in]	offset		page number
 @return true if page is encrypted AND OK, false otherwise */
 bool
-fil_space_verify_crypt_checksum(
-	byte* 		page,
-	ulint		page_size,
-	bool		is_zip_compressed,
-	bool                    is_new_schema_compressed, 
-	ulint			offset) {
-
-
+fil_space_verify_crypt_checksum(byte *page, ulint page_size,
+				bool is_zip_compressed,
+				bool is_new_schema_compressed) {
 	if (is_new_schema_compressed) {
 		page_size = static_cast<uint16_t>(mach_read_from_2(page + FIL_PAGE_COMPRESS_SIZE_V1));
 	}

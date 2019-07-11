@@ -477,7 +477,8 @@ void dict_drop_temporary_table_index(const dict_index_t *index,
   tablespace and the .ibd file is missing do nothing,
   else free the all the pages */
   if (root_page_no != FIL_NULL && found) {
-    btr_free(page_id_t(space, root_page_no), page_size);
+    btr_free(page_id_t(space, root_page_no), page_size,
+             index->table->is_intrinsic());
   }
 }
 

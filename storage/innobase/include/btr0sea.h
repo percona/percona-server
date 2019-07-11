@@ -55,8 +55,10 @@ void btr_search_sys_free();
 /** Disable the adaptive hash search system and empty the index.
 @param[in]      need_mutex      Need to acquire dict_sys->mutex */
 void btr_search_disable(bool need_mutex);
-/** Enable the adaptive hash search system. */
-void btr_search_enable();
+/** Enable the adaptive hash search system
+@param[in]	need_dict_mutex	if true mutex is acquired and released
+                                by function */
+void btr_search_enable(bool need_dict_mutex);
 
 /** Returns search info for an index.
  @return search info; search mutex reserved */

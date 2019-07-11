@@ -7482,6 +7482,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
   if (ib_table == nullptr) {
+    DEBUG_SYNC_C("ha_innobase_open");
+
     dict_sys_mutex_enter();
     ib_table = dict_table_check_if_in_cache_low(norm_name);
     if (ib_table != nullptr) {
@@ -21180,7 +21182,7 @@ static void innodb_adaptive_hash_index_update(
                       from check function */
 {
   if (*(bool *)save) {
-    btr_search_enable();
+    btr_search_enable(true);
   } else {
     btr_search_disable(true);
   }

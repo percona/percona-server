@@ -2645,7 +2645,7 @@ withdraw_retry:
 
   /* enable AHI if needed */
   if (btr_search_disabled) {
-    btr_search_enable();
+    btr_search_enable(true);
     ib::info(ER_IB_MSG_70) << "Re-enabled adaptive hash index.";
   }
 

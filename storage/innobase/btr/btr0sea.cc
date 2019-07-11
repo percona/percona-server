@@ -429,16 +429,28 @@ btr_search_disable(
 	btr_search_mem_accounting_validate();
 }
 
-/** Enable the adaptive hash search system. */
+/** Enable the adaptive hash search system
+@param[in]	need_mutex	need to acquire dict_sys->mutex */
 void
-btr_search_enable()
+btr_search_enable(bool need_dict_mutex)
 {
 	os_rmb;
 	if (srv_buf_pool_old_size != srv_buf_pool_size)
 		return;
 
+	if (need_dict_mutex) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
 	btr_search_x_lock_all();
 	btr_search_enabled = true;
+
+	if (need_dict_mutex) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
 	btr_search_x_unlock_all();
 
 	btr_search_mem_accounting_validate();
@@ -1435,6 +1447,9 @@ btr_search_drop_page_hash_when_freed(
 	mtr_t		mtr;
 
 	ut_d(export_vars.innodb_ahi_drop_lookups++);
+
+	/* Sleep 10ms */
+	DBUG_EXECUTE_IF("simulate_long_ahi", os_thread_sleep(10000););
 
 	mtr_start(&mtr);
 

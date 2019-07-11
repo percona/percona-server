@@ -2987,7 +2987,7 @@ calc_buf_pool_size:
 
 	/* enable AHI if needed */
 	if (btr_search_disabled) {
-		btr_search_enable();
+		btr_search_enable(true);
 		ib::info() << "Re-enabled adaptive hash index.";
 	}
 

@@ -1201,7 +1201,8 @@ dict_drop_index_tree_in_mem(
 	tablespace and the .ibd file is missing do nothing,
 	else free the all the pages */
 	if (root_page_no != FIL_NULL && found) {
-		btr_free(page_id_t(space, root_page_no), page_size);
+		btr_free(page_id_t(space, root_page_no), page_size,
+			 dict_table_is_intrinsic(index->table));
 	}
 }
 
@@ -1344,7 +1345,8 @@ dict_truncate_index_tree_in_mem(
 	tablespace objects. */
 
 	if (truncate) {
-		btr_free(page_id_t(space, root_page_no), page_size);
+		btr_free(page_id_t(space, root_page_no), page_size,
+			 dict_table_is_intrinsic(index->table));
 	}
 
 	mtr_start(&mtr);

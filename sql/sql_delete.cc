@@ -836,13 +836,59 @@ bool Query_result_delete::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
 }
 
 /**
+  Test that the two strings are equal, accoding to the lower_case_table_names
+  setting.
+
+  @param  a     A table or database name
+  @param  b     A table or database name
+  @retval bool  True if the two names are equal
+*/
+static bool db_or_table_name_equals(const char *a, const char *b) {
+  return lower_case_table_names ? my_strcasecmp(files_charset_info, a, b) == 0
+                                : strcmp(a, b) == 0;
+}
+
+/**
+  Test that the subject table (of DELETE) has a cascade foreign key
+  parent present in the query.
+
+  @param  thd        thread handle
+  @param  table      table to be checked (must be updatable base table)
+  @param  table_list List of tables to check against
+
+  @retval bool       True if cascade parent found.
+*/
+static bool has_cascade_dependency(THD *thd, const TABLE_LIST &table,
+                                   TABLE_LIST *table_list) {
+  DBUG_ASSERT(&table == const_cast<TABLE_LIST &>(table).updatable_base_table());
+
+  List<st_handler_tablename> fk_table_list;
+  List_iterator<st_handler_tablename> fk_table_list_it(fk_table_list);
+
+  table.table->file->get_cascade_foreign_key_table_list(thd, &fk_table_list);
+
+  st_handler_tablename *tbl_name;
+  while ((tbl_name = fk_table_list_it++)) {
+    for (TABLE_LIST *curr = table_list; curr; curr = curr->next_local) {
+      const bool same_table_name =
+          db_or_table_name_equals(curr->table_name, tbl_name->tablename);
+      const bool same_db_name = db_or_table_name_equals(curr->db, tbl_name->db);
+      if (same_table_name && same_db_name) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
   Optimize for deletion from one or more tables in a multi-table DELETE
 
   Function is called when the join order has been determined.
   Calculate which tables can be deleted from immediately and which tables
   must be delayed. Create objects for handling of delayed deletes.
 */
-
 bool Query_result_delete::optimize() {
   DBUG_ENTER("Query_result_delete::optimize");
 
@@ -868,7 +914,9 @@ bool Query_result_delete::optimize() {
   for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
     if (!tr->updating) continue;
     delete_table_map |= tr->map();
-    if (delete_while_scanning && unique_table(tr, join->tables_list, false)) {
+    if (delete_while_scanning &&
+        (unique_table(tr, join->tables_list, false) ||
+         has_cascade_dependency(thd, *tr, join->tables_list))) {
       /*
         If the table being deleted from is also referenced in the query,
         defer delete so that the delete doesn't interfer with reading of this

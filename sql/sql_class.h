@@ -904,14 +904,10 @@ class Bloom_filter final {
  public:
   Bloom_filter() : bit_set(nullptr) {}
 
-  ~Bloom_filter() {
-    // Do not delete, just destruct, due to MEM_ROOT allocation
-    bit_set->~bitset();
-  }
+  ~Bloom_filter() = default;
 
   void clear() noexcept {
-    // Do not delete, just force new MEM_ROOT allocation on the next use
-    bit_set = nullptr;
+    if (bit_set != nullptr) bit_set->reset();
   }
 
   /**
@@ -925,11 +921,11 @@ class Bloom_filter final {
      is definitely not a member of the set.
   */
   bool test_and_set(MEM_ROOT *mem_root, ulong key) {
-    if (!bit_set) {
+    if (bit_set == nullptr) {
       void *bit_set_place = alloc_root(mem_root, sizeof(Bit_set));
       // FIXME: memory allocation failure is eaten silently. Nonexact stats are
       // the least of the concerns then.
-      if (!bit_set_place) return false;
+      if (bit_set_place == nullptr) return false;
       bit_set = new (bit_set_place) Bit_set();
     }
     // Duplicating ut_hash_ulint calculation

@@ -486,6 +486,12 @@ create_log_files(
 					 alg,
 					 reinterpret_cast<byte*>(mkey->key),
 					 NULL);
+
+		if (err != DB_SUCCESS) {
+			ib::error() << "Failed to encrypt redo log tablespace.";
+			return(DB_ERROR);
+		}
+
 		log_space->encryption_redo_key = mkey;
 		log_space->encryption_key_version = REDO_LOG_ENCRYPT_NO_VERSION;
 		ut_ad(err == DB_SUCCESS);

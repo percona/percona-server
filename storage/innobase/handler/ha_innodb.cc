@@ -3942,7 +3942,7 @@ innobase_fix_tablespaces_empty_uuid()
 		 and result in errors later during the server run.
 		 These functions are also called later, when the 
 		 master key is correctly set up, later in this function. */
-		if(srv_enable_redo_encryption()) {
+		if (srv_enable_redo_encryption(NULL)) {
 			srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
 		} else {
 			log_rotate_default_key();
@@ -3985,7 +3985,7 @@ innobase_fix_tablespaces_empty_uuid()
 		return(true);
 	}
 
-	if (srv_enable_redo_encryption()) {
+	if (srv_enable_redo_encryption(NULL)) {
 		srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
 	} else {
 		log_rotate_default_key();
@@ -21494,9 +21494,9 @@ update_innodb_redo_log_encrypt(
 
 	if (existing_redo_encryption_mode != REDO_LOG_ENCRYPT_OFF
 	    && existing_redo_encryption_mode != target) {
-		push_warning_printf(
-			thd, Sql_condition::SL_WARNING,
-			ER_WRONG_ARGUMENTS, 
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_WARN,
+			ER_REDO_ENCRYPTION_ERROR, 
 			" Redo log encryption mode"
 			" can't be switched without stopping the server and"
 			" recreating the redo logs. Current mode is %s,"
@@ -21504,7 +21504,7 @@ update_innodb_redo_log_encrypt(
 			log_encrypt_name(existing_redo_encryption_mode),
 			log_encrypt_name(static_cast<redo_log_encrypt_enum>(target)));
 
-		ib::warn() << 
+		ib::error() << 
 			" Redo log encryption mode"
 			" can't be switched without stopping the server and"
 			" recreating the redo logs. Current mode is "
@@ -21517,11 +21517,14 @@ update_innodb_redo_log_encrypt(
 
 
 	if (srv_read_only_mode) {
-		push_warning_printf(
-			thd, Sql_condition::SL_WARNING,
-			ER_WRONG_ARGUMENTS,
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_WARN,
+			ER_REDO_ENCRYPTION_ERROR,
 			" Redo log cannot be"
-			" encrypted in innodb_read_only mode");
+			" encrypted in innodb_read_only mode.");
+		ib::error() <<
+			" Redo log cannot be"
+			" encrypted in innodb_read_only mode.";
 		return;
 	}
 
@@ -21530,7 +21533,7 @@ update_innodb_redo_log_encrypt(
 
 	if (target == REDO_LOG_ENCRYPT_MK) {
 		ut_ad(strlen(server_uuid) > 0);
-		if(srv_enable_redo_encryption_mk()) {
+		if (srv_enable_redo_encryption_mk(thd)) {
 			return;
 		}
 
@@ -21540,7 +21543,7 @@ update_innodb_redo_log_encrypt(
 
 	if (target == REDO_LOG_ENCRYPT_RK) {
 		ut_ad(strlen(server_uuid) > 0);
-		if(srv_enable_redo_encryption_rk()) {
+		if (srv_enable_redo_encryption_rk(thd)) {
 			return;
 		}
 

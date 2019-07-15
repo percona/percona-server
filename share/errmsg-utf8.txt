@@ -19306,6 +19306,21 @@ ER_COMPRESSION_DICTIONARY_IS_REFERENCED
 ER_REDO_ENCRYPTION_CANT_BE_CHANGED
   eng "Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is %s, requested %s."
 
+ER_REDO_ENCRYPTION_CANT_GENERATE_KEY
+  eng "Redo log key generation failed."
+
+ER_REDO_ENCRYPTION_FAILED
+  eng "Failed to encrypt redo log tablespace."
+
+ER_REDO_ENCRYPTION_CANT_LOAD_KEY_VERSION
+  eng "Failed to load redo key version %u"
+
+ER_REDO_ENCRYPTION_CANT_FETCH_KEY
+  eng "Couldn't fetch newly generated redo key."
+
+ER_REDO_ENCRYPTION_CANT_PARSE_KEY
+  eng "Couldn't parse system key: %s"
+
 #
 # End of Percona Server 8.0 error messages
 #

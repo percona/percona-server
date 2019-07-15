@@ -2995,7 +2995,7 @@ bool fil_space_verify_crypt_checksum(byte *page, ulint page_size,
   return (encrypted);
 }
 
-redo_log_key *redo_log_keys::load_latest_key(bool generate) {
+redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
   size_t klen = 0;
   char *key_type = nullptr;
   byte *rkey = nullptr;
@@ -3005,7 +3005,7 @@ redo_log_key *redo_log_keys::load_latest_key(bool generate) {
       rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
     /* There is no key yet, we'll try to generate one */
     my_free(rkey);
-    return generate ? generate_and_store_new_key() : nullptr;
+    return generate ? generate_and_store_new_key(thd) : nullptr;
   }
 
   uint version = 0;
@@ -3041,7 +3041,7 @@ redo_log_key *redo_log_keys::load_latest_key(bool generate) {
   return rk;
 }
 
-redo_log_key *redo_log_keys::load_key_version(uint version) {
+redo_log_key *redo_log_keys::load_key_version(THD *thd, uint version) {
   auto it = m_keys.find(version);
 
   if (it != m_keys.end() && it->second.present) {
@@ -3059,7 +3059,11 @@ redo_log_key *redo_log_keys::load_key_version(uint version) {
       rkey == nullptr || strncmp(key_type, "AES", 4) != 0) {
     my_free(rkey);
     my_free(key_type);
-    ib::error() << "Failed to load redo key version " << version;
+    ib::error(ER_REDO_ENCRYPTION_CANT_LOAD_KEY_VERSION, version);
+    if (thd) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN,
+                  ER_REDO_ENCRYPTION_CANT_LOAD_KEY_VERSION, version);
+    }
     return nullptr;
   }
 
@@ -3076,10 +3080,13 @@ redo_log_key *redo_log_keys::load_key_version(uint version) {
   return rk;
 }
 
-redo_log_key *redo_log_keys::generate_and_store_new_key() {
+redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   if (my_key_generate(PERCONA_REDO_KEY_NAME, "AES", nullptr,
                       ENCRYPTION_KEY_LEN)) {
-    ib::error() << "Redo log key generation failed.";
+    ib::error(ER_REDO_ENCRYPTION_CANT_GENERATE_KEY);
+    if (thd) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_CANT_GENERATE_KEY);
+    }
     return nullptr;
   }
 
@@ -3089,7 +3096,10 @@ redo_log_key *redo_log_keys::generate_and_store_new_key() {
 
   if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, nullptr,
                    reinterpret_cast<void **>(&rkey), &klen)) {
-    ib::error() << "Couldn't fetch newly generated redo key.";
+    ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_KEY);
+    if (thd) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_CANT_FETCH_KEY);
+    }
     my_free(redo_key_type);
     my_free(rkey);
     return nullptr;
@@ -3106,7 +3116,11 @@ redo_log_key *redo_log_keys::generate_and_store_new_key() {
   ut_ad(klen2 == ENCRYPTION_KEY_LEN);
 
   if (err) {
-    ib::error() << "Couldn't parse system key: " << rkey;
+    ib::error(ER_REDO_ENCRYPTION_CANT_PARSE_KEY, rkey);
+    if (thd != nullptr) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_CANT_PARSE_KEY,
+                  rkey);
+    }
     my_free(redo_key_type);
     my_free(rkey);
     return nullptr;

@@ -3,6 +3,8 @@ SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
 OFF
 SET GLOBAL innodb_redo_log_encrypt = 1;
+Warnings:
+Warning	13068	InnoDB: Can't set redo log tablespace to be encrypted.
 SET GLOBAL innodb_undo_log_encrypt = 1;
 UNINSTALL PLUGIN keyring_file;
 ERROR 42000: PLUGIN keyring_file does not exist

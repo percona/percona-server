@@ -9635,7 +9635,8 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
 
       if (m_key_version != enc_key_version &&
           enc_key_version != REDO_LOG_ENCRYPT_NO_VERSION) {
-        redo_log_key *mkey = redo_log_key_mgr.load_key_version(enc_key_version);
+        redo_log_key *mkey =
+            redo_log_key_mgr.load_key_version(nullptr, enc_key_version);
         m_key_version = mkey->version;
         m_key = reinterpret_cast<unsigned char *>(mkey->key);
       }

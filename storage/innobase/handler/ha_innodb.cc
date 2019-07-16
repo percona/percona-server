@@ -22040,8 +22040,15 @@ static void update_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var,
     return;
   }
 
+  ut_ad(strlen(server_uuid) > 0);
+
+  if (!Encryption::check_keyring()) {
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_KEYRING);
+    ib::error(ER_REDO_ENCRYPTION_KEYRING);
+    return;
+  }
+
   if (target == REDO_LOG_ENCRYPT_MK || target == REDO_LOG_ENCRYPT_ON) {
-    ut_ad(strlen(server_uuid) > 0);
     if (srv_enable_redo_encryption_mk(thd)) {
       return;
     }

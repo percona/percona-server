@@ -1143,7 +1143,7 @@ log_read_encryption() {
 		/* Make sure the keyring is loaded. */
 		if (!Encryption::check_keyring()) {
 			ut_free(log_block_buf_ptr);
-			ib::fatal() << "Redo log was encrypted,"
+			ib::error() << "Redo log was encrypted,"
 				    << " but keyring plugin is not loaded.";
 			return(false);
 		}
@@ -1177,7 +1177,7 @@ log_read_encryption() {
 
 		/* Make sure the keyring is loaded. */
 		if (!Encryption::check_keyring()) {
-			ib::fatal() << "Redo log was encrypted,"
+			ib::error() << "Redo log was encrypted,"
 				    << " but keyring plugin is not loaded.";
 		} else if (Encryption::decode_encryption_info(
 			       key, iv,
@@ -1189,7 +1189,7 @@ log_read_encryption() {
 	if (encrypted_log) {
 		if (existing_redo_encryption_mode != srv_redo_log_encrypt &&
 		    srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF) {
-			ib::fatal() <<
+			ib::error() <<
 				" Redo log encryption mode"
 				" can't be switched without stopping the server and"
 				" recreating the redo logs. Current mode is "
@@ -1226,7 +1226,7 @@ log_read_encryption() {
 		}
 	} else if (encryption_magic) {
 		ut_free(log_block_buf_ptr);
-		ib::fatal() << "Cannot read the encryption"
+		ib::error() << "Cannot read the encryption"
 			       " information in log file header, please"
 			       " check if keyring plugin loaded and"
 			       " the key file exists.";

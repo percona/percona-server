@@ -21528,11 +21528,20 @@ update_innodb_redo_log_encrypt(
 		return;
 	}
 
-	byte iv[ENCRYPTION_KEY_LEN];
-	Encryption::random_value(iv);
+	ut_ad(strlen(server_uuid) > 0);
+
+	if (!Encryption::check_keyring()) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_WARN,
+			ER_REDO_ENCRYPTION_ERROR,
+			"Redo log cannot be encrypted"
+			" if the keyring plugin is not loaded.");
+		ib::error() << "Redo log cannot be encrypted,"
+			<< " if the keyring plugin is not loaded.";
+		return;
+	}
 
 	if (target == REDO_LOG_ENCRYPT_MK) {
-		ut_ad(strlen(server_uuid) > 0);
 		if (srv_enable_redo_encryption_mk(thd)) {
 			return;
 		}
@@ -21542,7 +21551,6 @@ update_innodb_redo_log_encrypt(
 	}
 
 	if (target == REDO_LOG_ENCRYPT_RK) {
-		ut_ad(strlen(server_uuid) > 0);
 		if (srv_enable_redo_encryption_rk(thd)) {
 			return;
 		}

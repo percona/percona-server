@@ -63,9 +63,6 @@ c1	c2
 0	aaaaa
 0	aaaaa
 # Start the DB server with undo log encryption enabled and keyring plugin loaded. It should success.
-# undo tablespace already encrypted, off at startup doesn't matter
-include/assert.inc [Undo tablespace should be encrypted]
-include/assert.inc [Undo tablespace should be encrypted]
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 0	aaaaa

@@ -4044,7 +4044,7 @@ static void innobase_post_recover() {
       srv_undo_log_encrypt = false;
     } else {
       /* Enable encryption for UNDO tablespaces */
-      if (srv_enable_undo_encryption(true)) {
+      if (srv_enable_undo_encryption(nullptr, true)) {
         ut_ad(false);
         srv_undo_log_encrypt = false;
       }
@@ -21170,13 +21170,20 @@ static void update_innodb_undo_log_encrypt(THD *thd MY_ATTRIBUTE((unused)),
   /* There would be at least 2 UNDO tablespaces */
   ut_ad(undo::spaces->size() >= FSP_IMPLICIT_UNDO_TABLESPACES);
 
+  if (!Encryption::check_keyring()) {
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_UNDO_NO_KEYRING);
+    ib::error(ER_UNDO_NO_KEYRING);
+    return;
+  }
+
   if (srv_read_only_mode) {
     ib::error(ER_IB_MSG_1051);
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1051);
     return;
   }
 
   /* Enable encryption for UNDO tablespaces */
-  bool ret = srv_enable_undo_encryption(false);
+  bool ret = srv_enable_undo_encryption(thd, false);
 
   if (ret == false) {
     /* At this point, all UNDO tablespaces have been encrypted. */

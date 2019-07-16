@@ -23,6 +23,8 @@ select * from performance_schema.session_variables where variable_name='innodb_u
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_undo_log_encrypt	OFF
 set global innodb_undo_log_encrypt=1;
+Warnings:
+Warning	49015	InnoDB: Undo log can't be encrypted if the keyring plugin is not loaded.
 select @@global.innodb_undo_log_encrypt;
 @@global.innodb_undo_log_encrypt
 0
@@ -51,6 +53,8 @@ ERROR 42000: Incorrect argument type to variable 'innodb_undo_log_encrypt'
 set global innodb_undo_log_encrypt='foo';
 ERROR 42000: Variable 'innodb_undo_log_encrypt' can't be set to the value of 'foo'
 set global innodb_undo_log_encrypt=-2;
+Warnings:
+Warning	49015	InnoDB: Undo log can't be encrypted if the keyring plugin is not loaded.
 set global innodb_undo_log_encrypt=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_undo_log_encrypt'
 set global innodb_undo_log_encrypt=2;

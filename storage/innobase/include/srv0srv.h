@@ -1057,7 +1057,7 @@ void undo_rotate_default_master_key();
                         case, default master key will be used which will be
                         rotated later with actual master key from kyering.
 @return false for success, true otherwise. */
-bool srv_enable_undo_encryption(bool is_boot);
+bool srv_enable_undo_encryption(THD *thd, bool is_boot);
 
 /** Get count of tasks in the queue.
  @return number of tasks in queue */

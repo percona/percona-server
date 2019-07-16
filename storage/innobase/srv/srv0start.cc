@@ -1341,7 +1341,7 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
   }
 
   if (srv_undo_log_encrypt) {
-    srv_enable_undo_encryption(false);
+    srv_enable_undo_encryption(nullptr, false);
   }
 
   return (DB_SUCCESS);

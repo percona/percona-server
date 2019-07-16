@@ -10,6 +10,8 @@
 
 --disable_query_log
 call mtr.add_suppression('Error in Log_event::read_log_event()');
+call mtr.add_suppression("Undo log can't be encrypted if the keyring plugin is not loaded.");
+call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
 
 # Create a table with encryption, should fail since keyring is not

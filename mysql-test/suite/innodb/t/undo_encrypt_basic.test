@@ -58,14 +58,6 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 
 --echo # Enable undo log encryption, should report error in server log, since keyring is not loaded.
 SET GLOBAL innodb_undo_log_encrypt = ON;
-let $wait_condition = SELECT ENCRYPTION = 'N'
-        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-        WHERE NAME='innodb_undo_001';
---source include/wait_condition.inc
-let $wait_condition = SELECT ENCRYPTION = 'N'
-        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-        WHERE NAME='innodb_undo_002';
---source include/wait_condition.inc
 
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -78,14 +70,6 @@ CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 --echo # Enable undo log encryption, shouldn't report error in server log.
 SET GLOBAL innodb_undo_log_encrypt = ON;
-let $wait_condition = SELECT ENCRYPTION = 'Y'
-        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-        WHERE NAME='innodb_undo_001';
---source include/wait_condition.inc
-let $wait_condition = SELECT ENCRYPTION = 'Y'
-        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-        WHERE NAME='innodb_undo_002';
---source include/wait_condition.inc
 
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION='Y' ENGINE = InnoDB;
 
@@ -119,15 +103,6 @@ SELECT * FROM t2 ORDER BY c1 LIMIT 10;
 --replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PATH $MYSQLD_HOME_DATA_DIR HOME_DIR $MYSQLD_UNDO_DATADIR UNDO_DIR $MYSQLD_DATADIR DATADIR $START_PAGE_SIZE PAGE_SIZE $LOG_CAPACITY LOG_CAPACITY
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld_no_echo.inc
-
---echo # undo tablespace already encrypted, off at startup doesn't matter
---let $assert_text = Undo tablespace should be encrypted
---let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \"innodb_undo_001\"]" = "Y"
---source include/assert.inc
-
---let $assert_text = Undo tablespace should be encrypted
---let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \"innodb_undo_002\"]" = "Y"
---source include/assert.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 SELECT * FROM t2 ORDER BY c1 LIMIT 10;

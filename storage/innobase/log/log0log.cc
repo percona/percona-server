@@ -1182,8 +1182,7 @@ void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
   ut_a(*current_lsn >= *checkpoint_lsn);
 }
 
-static void log_pad_current_log_block(void)
-{
+static void log_pad_current_log_block(void) {
   byte b = MLOG_DUMMY_RECORD;
   ulint pad_length;
   ulint i;
@@ -1206,10 +1205,9 @@ static void log_pad_current_log_block(void)
   ut_a(lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE);
 }
 
-static void log_scrub()
-{
+static void log_scrub() {
   log_writer_mutex_enter(*log_sys);
-  ulint cur_lbn = log_block_convert_lsn_to_no(log_sys->current_file_lsn);
+  const auto cur_lbn = log_block_convert_lsn_to_no(log_sys->current_file_lsn);
   if (next_lbn_to_pad == cur_lbn) {
     log_pad_current_log_block();
   }

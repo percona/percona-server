@@ -2171,9 +2171,9 @@ bool srv_check_activity(ulint old_activity_count,
   ut_ad(new_ibuf_merge_activity_count >= old_ibuf_merge_activity_count);
   ut_ad(new_activity_count >= old_activity_count);
 
-  const ulint ibuf_merge_activity_delta =
+  const auto ibuf_merge_activity_delta =
       new_ibuf_merge_activity_count - old_ibuf_merge_activity_count;
-  const ulint activity_delta = new_activity_count - old_activity_count;
+  const auto activity_delta = new_activity_count - old_activity_count;
 
   return (activity_delta > ibuf_merge_activity_delta);
 }

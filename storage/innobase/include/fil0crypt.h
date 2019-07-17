@@ -129,8 +129,8 @@ struct fil_space_rotate_state_t {
 
   time_t start_time;          /*!< time when rotation started */
   ulint active_threads;       /*!< active threads in space */
-  ulint next_offset;          /*!< next "free" offset */
-  ulint max_offset;           /*!< max offset needing to be rotated */
+  page_no_t next_offset;      /*!< next "free" offset */
+  page_no_t max_offset;       /*!< max offset needing to be rotated */
   uint min_key_version_found; /*!< min key version found but not
                               rotated */
   lsn_t end_lsn;              /*!< max lsn created when rotating this
@@ -146,7 +146,7 @@ struct fil_space_rotate_state_t {
   trx_t *trx;
   FlushObserver *flush_observer;
 
-  void create_flush_observer(uint space_id);
+  void create_flush_observer(space_id_t space_id);
 
   void destroy_flush_observer();
 };
@@ -294,16 +294,16 @@ struct fil_space_crypt_t {
 
 /** Status info about encryption */
 struct fil_space_crypt_status_t {
-  ulint space;                   /*!< tablespace id */
-  ulint scheme;                  /*!< encryption scheme */
-  uint min_key_version;          /*!< min key version */
-  uint current_key_version;      /*!< current key version */
-  uint keyserver_requests;       /*!< no of key requests to key server */
-  uint key_id;                   /*!< current key_id */
-  bool rotating;                 /*!< is key rotation ongoing */
-  bool flushing;                 /*!< is flush at end of rotation ongoing */
-  ulint rotate_next_page_number; /*!< next page if key rotating */
-  ulint rotate_max_page_number;  /*!< max page if key rotating */
+  space_id_t space;                  /*!< tablespace id */
+  ulint scheme;                      /*!< encryption scheme */
+  uint min_key_version;              /*!< min key version */
+  uint current_key_version;          /*!< current key version */
+  uint keyserver_requests;           /*!< no of key requests to key server */
+  uint key_id;                       /*!< current key_id */
+  bool rotating;                     /*!< is key rotation ongoing */
+  bool flushing;                     /*!< is flush at end of rotation ongoing */
+  page_no_t rotate_next_page_number; /*!< next page if key rotating */
+  page_no_t rotate_max_page_number;  /*!< max page if key rotating */
 };
 
 /** Statistics about encryption key rotation */
@@ -317,7 +317,7 @@ struct fil_crypt_stat_t {
 
 /** Status info about scrubbing */
 struct fil_space_scrub_status_t {
-  ulint space;                         /*!< tablespace id */
+  space_id_t space;                    /*!< tablespace id */
   bool compressed;                     /*!< is space compressed  */
   time_t last_scrub_completed;         /*!< when was last scrub completed */
   bool scrubbing;                      /*!< is scrubbing ongoing */
@@ -412,11 +412,6 @@ void fil_space_merge_crypt_data(fil_space_crypt_t *dst,
 @param[in]	page		first page of the tablespace
 @return crypt data from page 0
 @retval	NULL	if not present or not valid */
-// UNIV_INTERN
-// fil_space_crypt_t*
-// fil_space_read_crypt_data(const page_size_t& page_size, const byte* page)
-// MY_ATTRIBUTE((nonnull, warn_unused_result));
-
 fil_space_crypt_t *fil_space_read_crypt_data(const page_size_t &page_size,
                                              const byte *page);
 
@@ -437,33 +432,6 @@ Parse a MLOG_FILE_WRITE_CRYPT_DATA log entry
 @return position on log buffer */
 byte *fil_parse_write_crypt_data(byte *ptr, const byte *end_ptr,
                                  const buf_block_t *block, ulint len)
-    MY_ATTRIBUTE((warn_unused_result));
-
-/** Encrypt a buffer.
-@param[in,out]		crypt_data	Crypt data
-@param[in]		space		space_id
-@param[in]		offset		Page offset
-@param[in]		lsn		Log sequence number
-@param[in]		src_frame	Page to encrypt
-@param[in]		page_size	Page size
-@param[in,out]		dst_frame	Output buffer
-@return encrypted buffer or NULL */
-byte *fil_encrypt_buf(fil_space_crypt_t *crypt_data, ulint space, ulint offset,
-                      lsn_t lsn, const byte *src_frame,
-                      const page_size_t &page_size, byte *dst_frame)
-    MY_ATTRIBUTE((warn_unused_result));
-
-/**
-Encrypt a page.
-
-@param[in]		space		Tablespace
-@param[in]		offset		Page offset
-@param[in]		lsn		Log sequence number
-@param[in]		src_frame	Page to encrypt
-@param[in,out]		dst_frame	Output buffer
-@return encrypted buffer or NULL */
-byte *fil_space_encrypt(const fil_space_t *space, ulint offset, lsn_t lsn,
-                        byte *src_frame, byte *dst_frame)
     MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -511,15 +479,10 @@ encrypted, or corrupted.
 
 @param[in,out]	page		page frame (checksum is temporarily modified)
 @param[in]	page_size	page size
-@param[in]	space		tablespace identifier
-@param[in]	offset		page number
 @return true if page is encrypted AND OK, false otherwise */
-bool fil_space_verify_crypt_checksum(byte *page,
-                                     // const ulint	        page_size,
-                                     ulint page_size, bool is_zip_compressed,
-                                     bool is_new_schema_compressed,
-                                     // ulint			space_id,
-                                     ulint offset)
+bool fil_space_verify_crypt_checksum(byte *page, ulint page_size,
+                                     bool is_zip_compressed,
+                                     bool is_new_schema_compressed)
     MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************

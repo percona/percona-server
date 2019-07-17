@@ -123,7 +123,7 @@ static const constexpr auto ZIP_DICT_MAX_DATA_LENGTH = 32506;
 @param[in,out]	trx		transaction
 @return	error code or DB_SUCCESS */
 MY_NODISCARD
-dberr_t dict_create_get_zip_dict_id_by_reference(ulint table_id,
+dberr_t dict_create_get_zip_dict_id_by_reference(table_id_t table_id,
                                                  ulint column_pos,
                                                  ulint *dict_id, trx_t *trx);
 

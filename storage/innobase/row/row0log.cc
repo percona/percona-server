@@ -3078,7 +3078,7 @@ bool row_log_allocate(
   index->online_log = log;
 
   if (log_tmp_is_encrypted()) {
-    ulint size = srv_sort_buf_size;
+    auto size = srv_sort_buf_size;
     log->crypt_head = static_cast<byte *>(os_mem_alloc_large(&size, false));
     log->crypt_tail = static_cast<byte *>(os_mem_alloc_large(&size, false));
 

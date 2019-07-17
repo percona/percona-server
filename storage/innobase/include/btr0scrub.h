@@ -46,7 +46,7 @@ struct btr_scrub_stat_t {
 /** struct for thread local scrub state. */
 struct btr_scrub_t {
   /* current space */
-  ulint space;
+  space_id_t space;
 
   /* is scrubbing enabled for this space */
   bool scrubbing;
@@ -115,7 +115,7 @@ void btr_scrub_skip_page(btr_scrub_t *scrub_data, int needs_scrubbing);
 @param[in]	compressed
   @return true if scrubbing is turned on
 */
-bool btr_scrub_start_space(ulint space, btr_scrub_t *scrub_data,
+bool btr_scrub_start_space(space_id_t space, btr_scrub_t *scrub_data,
                            bool compressed);
 
 /** Complete iterating a space.

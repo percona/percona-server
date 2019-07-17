@@ -474,8 +474,8 @@ static void tokudb_backup_before_stop_capt_fun(void *arg) {
       return;
     }
   }
-  // TODO : Backup lock not ported to 8.0
-  // (void)lock_binlog_for_backup(thd);
+  // TODO: In 5.7, binlog backup lock was taken here. In 8.0,
+  // performance_schema.log_status has to be queried instead.
   if (!plugin_foreach(nullptr, tokudb_backup_flush_log_plugin_callback,
                       MYSQL_STORAGE_ENGINE_PLUGIN, 0))
     tokudb_backup_set_error_string(thd, EINVAL, "Can't flush TokuDB log",

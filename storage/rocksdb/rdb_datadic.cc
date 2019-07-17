@@ -732,7 +732,8 @@ uint Rdb_key_def::get_memcmp_sk_parts(const TABLE *table,
   DBUG_ASSERT(table != nullptr);
   DBUG_ASSERT(sk_buffer != nullptr);
   DBUG_ASSERT(n_null_fields != nullptr);
-  DBUG_ASSERT(m_keyno != table->s->primary_key && !table_has_hidden_pk(table));
+  DBUG_ASSERT(m_keyno != table->s->primary_key);
+  DBUG_ASSERT(!table_has_hidden_pk(table));
 
   uchar *buf = sk_buffer;
 
@@ -2530,7 +2531,8 @@ int Rdb_key_def::unpack_utf8_str(
     my_wc_t wc = (src[0] << 8) | src[1];
     src += 2;
     int res = cset->cset->wc_mb(cset, wc, dst, dst_end);
-    DBUG_ASSERT(res > 0 && res <= 3);
+    DBUG_ASSERT(res > 0);
+    DBUG_ASSERT(res <= 3);
     if (res < 0)
       return UNPACK_FAILURE;
     dst += res;
@@ -2920,7 +2922,8 @@ unpack_charset(const CHARSET_INFO *cset,  // character set information
   for (uint ii = 0; ii < src_len; ii += 2) {
     my_wc_t wc = (src[ii] << 8) | src[ii + 1];
     int res = cset->cset->wc_mb(cset, wc, dst + used, dst_end);
-    DBUG_ASSERT(res > 0 && res <= 3);
+    DBUG_ASSERT(res > 0);
+    DBUG_ASSERT(res <= 3);
     if (res < 0) {
       return UNPACK_FAILURE;
     }
@@ -3514,7 +3517,8 @@ bool rdb_is_collation_supported(const my_core::CHARSET_INFO *const cs) {
 
 static const Rdb_collation_codec *
 rdb_init_collation_mapping(const my_core::CHARSET_INFO *const cs) {
-  DBUG_ASSERT(cs && cs->state & MY_CS_AVAILABLE);
+  DBUG_ASSERT(cs);
+  DBUG_ASSERT(cs->state & MY_CS_AVAILABLE);
   const Rdb_collation_codec *codec = rdb_collation_data[cs->number];
 
   if (codec == nullptr && rdb_is_collation_supported(cs)) {

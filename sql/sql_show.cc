@@ -2641,8 +2641,8 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
   0 - OK
   1 - error
 */
-int send_user_stats(THD *thd, const user_stats_t &all_user_stats,
-                    TABLE *table) noexcept {
+static int send_user_stats(THD *thd, const user_stats_t &all_user_stats,
+                           TABLE *table) noexcept {
   DBUG_ENTER("send_user_stats");
   for (const auto &it : all_user_stats) {
     restore_record(table, s->default_values);
@@ -2678,8 +2678,8 @@ int send_user_stats(THD *thd, const user_stats_t &all_user_stats,
   DBUG_RETURN(0);
 }
 
-int send_thread_stats(THD *thd, const thread_stats_t &all_thread_stats,
-                      TABLE *table) noexcept {
+static int send_thread_stats(THD *thd, const thread_stats_t &all_thread_stats,
+                             TABLE *table) noexcept {
   DBUG_ENTER("send_thread_stats");
   for (const auto &it : all_thread_stats) {
     restore_record(table, s->default_values);
@@ -3131,7 +3131,8 @@ end:
     @retval       0                        success
     @retval       1                        error
 */
-int make_temporary_tables_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table) {
+static int make_temporary_tables_old_format(THD *thd,
+                                            ST_SCHEMA_TABLE *schema_table) {
   char tmp[128];
   String buffer(tmp, sizeof(tmp), thd->charset());
   LEX *lex = thd->lex;
@@ -3281,9 +3282,9 @@ static int store_temporary_table_record(THD *thd, TABLE *table,
 class Fill_global_temporary_tables final : public Do_THD_Impl {
  private:
   THD *const m_client_thd;
-  const Security_context *m_sctx;
+  const Security_context *const m_sctx;
   bool m_failed;
-  const TABLE_LIST *m_tables;
+  const TABLE_LIST *const m_tables;
 
  public:
   Fill_global_temporary_tables(THD *client_thd, TABLE_LIST *tables) noexcept
@@ -3359,8 +3360,7 @@ static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables,
     @retval       0                        success
     @retval       1                        error
 */
-
-int fill_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond) {
+static int fill_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond) {
   DBUG_ENTER("fill_temporary_tables");
 
   if (thd->lex->option_type == OPT_GLOBAL)

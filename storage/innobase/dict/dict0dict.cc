@@ -7402,7 +7402,7 @@ std::string dict_table_get_datadir(const dict_table_t *table) {
 @param[out]	dict_id		zip_dict id
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
-dberr_t dict_get_dictionary_id_by_key(ulint table_id, ulint column_pos,
+dberr_t dict_get_dictionary_id_by_key(table_id_t table_id, ulint column_pos,
                                       ulint *dict_id) {
   ut_ad(srv_is_upgrade_mode);
   ut_ad(!mutex_own(&dict_sys->mutex));

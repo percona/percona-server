@@ -271,7 +271,7 @@ static std::atomic<ulint> io_tid_i(0);
 /** I/o-handler thread function.
 @param[in]	segment		The AIO segment the thread will work on */
 static void io_handler_thread(ulint segment) {
-  const ulint tid_i = io_tid_i.fetch_add(1, std::memory_order_relaxed);
+  const auto tid_i = io_tid_i.fetch_add(1, std::memory_order_relaxed);
   ut_ad(tid_i < srv_n_file_io_threads);
   srv_io_tids[tid_i] = os_thread_get_tid();
   const auto actual_priority =
@@ -1945,7 +1945,7 @@ static dberr_t srv_sys_enable_encryption(bool create_new_db) {
     err = fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);
     ut_ad(err == DB_SUCCESS);
   } else {
-    const ulint fsp_flags = srv_sys_space.m_files.begin()->flags();
+    const auto fsp_flags = srv_sys_space.m_files.begin()->flags();
     const bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
 
     if (is_encrypted && !srv_sys_tablespace_encrypt &&

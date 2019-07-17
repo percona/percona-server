@@ -1775,7 +1775,7 @@ extern bool dict_upgrade_zip_dict_missing;
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
 MY_NODISCARD
-dberr_t dict_get_dictionary_id_by_key(ulint table_id, ulint column_pos,
+dberr_t dict_get_dictionary_id_by_key(table_id_t table_id, ulint column_pos,
                                       ulint *dict_id);
 
 /** Get compression dictionary info (name and data) for the given id.

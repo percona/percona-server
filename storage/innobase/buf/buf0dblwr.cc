@@ -1076,7 +1076,7 @@ out: encrypted page (if tablespace is
 encrypted */
 static void buf_dblwr_encrypt_page(const buf_block_t *block,
                                    page_t *dblwr_page) {
-  const ulint space_id = block->page.id.space();
+  const auto space_id = block->page.id.space();
   fil_space_t *space = fil_space_acquire_silent(space_id);
 
   if (space == nullptr) {

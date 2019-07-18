@@ -2485,8 +2485,4 @@ class Sys_var_binlog_encryption : public Sys_var_bool {
   virtual bool global_update(THD *thd, set_var *var) override;
 };
 
-extern void init_log_slow_verbosity() noexcept;
-extern void init_slow_query_log_use_global_control() noexcept;
-extern void init_log_slow_sp_statements() noexcept;
-
 #endif /* SYS_VARS_H_INCLUDED */

@@ -851,10 +851,10 @@ static ibool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
 (table id, column pos) pair.
 @return	error code or DB_SUCCESS */
 dberr_t dict_create_get_zip_dict_id_by_reference(
-    ulint table_id,   /*!< in: table id */
-    ulint column_pos, /*!< in: column position */
-    ulint *dict_id,   /*!< out: dict id */
-    trx_t *trx)       /*!< in/out: transaction */
+    table_id_t table_id, /*!< in: table id */
+    ulint column_pos,    /*!< in: column position */
+    ulint *dict_id,      /*!< out: dict id */
+    trx_t *trx)          /*!< in/out: transaction */
 {
   ut_ad(dict_id);
   ut_ad(srv_is_upgrade_mode);

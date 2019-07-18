@@ -12405,13 +12405,9 @@ bool create_table_info_t::create_option_encryption_is_valid() const {
     return (false);
   }
 
-  ulint space_id;
+  space_id_t space_id;
   if (m_use_shared_space) {
     space_id = fil_space_get_id_by_name(m_create_info->tablespace);
-
-    /* Space id already validated by
-    create_option_tablespace_is_valid */
-    ut_a(space_id != ULINT_UNDEFINED);
   } else if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
     space_id = srv_tmp_space.space_id();
   } else if (!m_use_file_per_table) {
@@ -12421,7 +12417,7 @@ bool create_table_info_t::create_option_encryption_is_valid() const {
   }
 
   fil_space_t *space = fil_space_get(space_id);
-  const ulint fsp_flags = space->flags;
+  const auto fsp_flags = space->flags;
 
   const bool tablespace_is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
   const char *const tablespace_name =

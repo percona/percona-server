@@ -1210,14 +1210,14 @@ when it could be dropped concurrently.
 @param[in]	id	tablespace ID
 @return	the tablespace
 @retval	NULL if missing */
-fil_space_t *fil_space_acquire_for_io(ulint id);
+fil_space_t *fil_space_acquire_for_io(space_id_t id);
 
 /** Load and acquire a tablespace for reading or writing a block,
 when it could be dropped concurrently.
 @param[in]	id	tablespace ID
 @return	the tablespace
 @retval	NULL if missing */
-fil_space_t *fil_space_acquire_for_io_with_load(ulint space_id);
+fil_space_t *fil_space_acquire_for_io_with_load(space_id_t space_id);
 
 /** Release a tablespace acquired with fil_space_acquire_for_io().
 @param[in,out]	space	tablespace to release  */
@@ -1254,7 +1254,7 @@ class FilSpace {
   /** Constructor: Look up the tablespace and increment the
   referece count if found.
   @param[in]	space_id	tablespace ID */
-  explicit FilSpace(ulint space_id, bool silent = false)
+  explicit FilSpace(space_id_t space_id, bool silent = false)
       : m_space(silent ? fil_space_acquire_silent(space_id)
                        : fil_space_acquire(space_id)) {}
 
@@ -1983,7 +1983,7 @@ void fil_space_update_name(fil_space_t *space, const char *name);
 @param space_id	space id */
 void fil_space_set_corrupt(space_id_t space_id);
 
-void fil_space_set_encrypted(ulint space_id);
+void fil_space_set_encrypted(space_id_t space_id);
 
 using space_id_vec = std::vector<space_id_t>;
 
@@ -1997,7 +1997,7 @@ bool fil_encryption_rotate_global(const space_id_vec &space_ids);
 void fil_system_acquire();
 void fil_system_release();
 
-void fil_lock_shard_by_id(ulint space_id);
-void fil_unlock_shard_by_id(ulint space_id);
+void fil_lock_shard_by_id(space_id_t space_id);
+void fil_unlock_shard_by_id(space_id_t space_id);
 
 #endif /* fil0fil_h */

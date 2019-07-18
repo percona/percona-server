@@ -580,7 +580,8 @@ const byte *row_decompress_column(const byte *data, ulint *len,
 
   err = inflate(&d_stream, Z_FINISH);
   if (err == Z_NEED_DICT) {
-    ut_a(dict_data != 0 && dict_data_len != 0);
+    ut_a(dict_data != nullptr);
+    ut_a(dict_data_len != 0);
     err = inflateSetDictionary(&d_stream, dict_data, dict_data_len);
     ut_a(err == Z_OK);
     err = inflate(&d_stream, Z_FINISH);

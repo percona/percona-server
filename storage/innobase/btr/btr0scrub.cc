@@ -14,9 +14,6 @@ Scrubbing of btree pages
 #include "ibuf0ibuf.h"
 #include "mtr0mtr.h"
 
-/* used when trying to acquire dict-lock */
-bool fil_crypt_is_closing(ulint space);
-
 /**
  * scrub data at delete time (e.g purge thread)
  */
@@ -90,8 +87,9 @@ static void log_scrub_failure(dict_index_t *index, btr_scrub_t *scrub_data,
 @param[in]	lock_to_close_table
 @param[in]	file
 @param[in]	line */
-static bool btr_scrub_lock_dict_func(ulint space_id, bool lock_to_close_table,
-                                     const char *file, uint line) {
+static bool btr_scrub_lock_dict_func(space_id_t space_id,
+                                     bool lock_to_close_table, const char *file,
+                                     uint line) {
   time_t start = time(0);
   time_t last = start;
 
@@ -126,7 +124,8 @@ static bool btr_scrub_lock_dict_func(ulint space_id, bool lock_to_close_table,
     if (now >= last + 30) {
       fprintf(stderr,
               "WARNING: %s:%u waited %ld seconds for"
-              " dict_sys lock, space: " ULINTPF " lock_to_close_table: %d\n",
+              " dict_sys lock, space: " SPACE_ID_PF
+              " lock_to_close_table: %d\n",
               file, line, long(now - start), space_id, lock_to_close_table);
 
       last = now;
@@ -354,9 +353,9 @@ static dberr_t btr_pessimistic_scrub(btr_scrub_t *scrub_data,
   }
 
   /* read block variables */
-  const ulint page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
-  const ulint left_page_no = mach_read_from_4(page + FIL_PAGE_PREV);
-  const ulint right_page_no = mach_read_from_4(page + FIL_PAGE_NEXT);
+  const page_no_t page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
+  const page_no_t left_page_no = mach_read_from_4(page + FIL_PAGE_PREV);
+  const page_no_t right_page_no = mach_read_from_4(page + FIL_PAGE_NEXT);
   fil_space_t *space = fil_space_get(index->table->space);
   const page_size_t page_size(space->flags);
 
@@ -705,7 +704,7 @@ int btr_scrub_page(btr_scrub_t *scrub_data, buf_block_t *block,
 @param[im]	space
 @param[out]	scrub_data
 @param[in]	compressed */
-bool btr_scrub_start_space(ulint space, btr_scrub_t *scrub_data,
+bool btr_scrub_start_space(space_id_t space, btr_scrub_t *scrub_data,
                            bool compressed) {
   scrub_data->space = space;
   scrub_data->current_table = NULL;

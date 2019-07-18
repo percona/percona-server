@@ -5356,7 +5356,7 @@ locks_ok:
       /* Condition (1) from above: is the field in the
       index (prefix or not)? */
       const mysql_row_templ_t *templ = prebuilt->mysql_template + i;
-      ulint secondary_index_field_no = templ->rec_prefix_field_no;
+      const auto secondary_index_field_no = templ->rec_prefix_field_no;
       if (secondary_index_field_no == ULINT_UNDEFINED) {
         row_contains_all_values = false;
         break;
@@ -5365,7 +5365,7 @@ locks_ok:
       prefix, is this row's value size shorter
       than the prefix? */
       if (templ->rec_field_is_prefix) {
-        ulint record_size =
+        const auto record_size =
             rec_offs_nth_size(offsets, secondary_index_field_no);
         const dict_field_t *field = index->get_field(secondary_index_field_no);
         ut_a(field->prefix_len > 0);

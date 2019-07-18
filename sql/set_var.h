@@ -532,4 +532,8 @@ bool check_priv(THD *thd, bool static_variable);
 #define PERSISTED_GLOBALS_LOAD "persisted_globals_load"
 extern char *sys_var_persist_only_admin_x509_subject;
 
+extern void init_log_slow_verbosity() noexcept;
+extern void init_slow_query_log_use_global_control() noexcept;
+extern void init_log_slow_sp_statements() noexcept;
+
 #endif

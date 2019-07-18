@@ -161,7 +161,8 @@ THD_timer_info *thd_timer_set(THD *thd, THD_timer_info *thd_timer,
   if (thd_timer == NULL && (thd_timer = thd_timer_create()) == NULL)
     DBUG_RETURN(NULL);
 
-  DBUG_ASSERT(!thd_timer->destroy && !thd_timer->thread_id);
+  DBUG_ASSERT(!thd_timer->destroy);
+  DBUG_ASSERT(!thd_timer->thread_id);
 
   /* Mark the notification as pending. */
   thd_timer->thread_id = thd->thread_id();

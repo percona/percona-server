@@ -1161,7 +1161,8 @@ fsp_enable_encryption(
 			 space->flags, MLOG_4BYTES, &mtr);
 
 	ulint offset = fsp_header_get_encryption_offset(page_size);
-	ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
+	ut_ad(offset != 0);
+	ut_ad(offset < UNIV_PAGE_SIZE);
 
 	mlog_write_string(page + offset,
 			  encrypt_info,

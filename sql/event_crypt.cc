@@ -3,7 +3,8 @@
 
 static bool encrypt_event(uint32 offs, int flags, const Binlog_crypt_data &crypto, uchar* buf, uchar *ebuf, size_t buf_len) 
 {
-  DBUG_ASSERT(crypto.is_enabled() && crypto.get_key() != NULL);
+  DBUG_ASSERT(crypto.is_enabled());
+  DBUG_ASSERT(crypto.get_key() != NULL);
 
   size_t elen;
   uchar iv[Binlog_crypt_data::BINLOG_IV_LENGTH];
@@ -112,7 +113,8 @@ err:
 
 bool Event_encrypter::finish(IO_CACHE *output_cache)
 {
-  DBUG_ASSERT(output_cache != NULL && ctx != NULL);
+  DBUG_ASSERT(output_cache != NULL);
+  DBUG_ASSERT(ctx != NULL);
 
   size_t dstlen;
   uchar dst[MY_AES_BLOCK_SIZE*2];

@@ -398,15 +398,8 @@ fil_space_merge_crypt_data(
 @param[in]	page		first page of the tablespace
 @return crypt data from page 0
 @retval	NULL	if not present or not valid */
-//UNIV_INTERN
-//fil_space_crypt_t*
-//fil_space_read_crypt_data(const page_size_t& page_size, const byte* page)
-	//MY_ATTRIBUTE((nonnull, warn_unused_result));
-
 fil_space_crypt_t*
 fil_space_read_crypt_data(const page_size_t& page_size, const byte* page);
-  
-//bool fil_space_read_crypt_data(const page_size_t& page_size, const byte* page, ulint space_id);
 
 /**
 Free a crypt data object
@@ -428,44 +421,6 @@ fil_parse_write_crypt_data(
 	const byte*		end_ptr,
 	const buf_block_t*	block,
 	ulint 		        len)
-	MY_ATTRIBUTE((warn_unused_result));
-
-/** Encrypt a buffer.
-@param[in,out]		crypt_data	Crypt data
-@param[in]		space		space_id
-@param[in]		offset		Page offset
-@param[in]		lsn		Log sequence number
-@param[in]		src_frame	Page to encrypt
-@param[in]		page_size	Page size
-@param[in,out]		dst_frame	Output buffer
-@return encrypted buffer or NULL */
-byte*
-fil_encrypt_buf(
-	fil_space_crypt_t*	crypt_data,
-	ulint			space,
-	ulint			offset,
-	lsn_t			lsn,
-	const byte*		src_frame,
-	const page_size_t&	page_size,
-	byte*			dst_frame)
-	MY_ATTRIBUTE((warn_unused_result));
-
-/**
-Encrypt a page.
-
-@param[in]		space		Tablespace
-@param[in]		offset		Page offset
-@param[in]		lsn		Log sequence number
-@param[in]		src_frame	Page to encrypt
-@param[in,out]		dst_frame	Output buffer
-@return encrypted buffer or NULL */
-byte*
-fil_space_encrypt(
-	const fil_space_t* space,
-	ulint		offset,
-	lsn_t		lsn,
-	byte*		src_frame,
-	byte*		dst_frame)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -524,18 +479,11 @@ encrypted, or corrupted.
 
 @param[in,out]	page		page frame (checksum is temporarily modified)
 @param[in]	page_size	page size
-@param[in]	space		tablespace identifier
-@param[in]	offset		page number
 @return true if page is encrypted AND OK, false otherwise */
 bool
-fil_space_verify_crypt_checksum(
-	byte* 			page,
-	//const ulint	        page_size,
-	ulint	        page_size,
-        bool                    is_zip_compressed,
-        bool                    is_new_schema_compressed, 
-	//ulint			space_id,
-	ulint			offset)
+fil_space_verify_crypt_checksum(byte *page, ulint page_size,
+				bool is_zip_compressed,
+				bool is_new_schema_compressed)
 	MY_ATTRIBUTE((warn_unused_result));
 
 

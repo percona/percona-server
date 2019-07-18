@@ -62,7 +62,7 @@ Created 12/9/1995 Heikki Tuuri
 
 #include "system_key.h"
 
-static redo_log_encrypt_enum found_log_encryption_mode = REDO_LOG_ENCRYPT_OFF;
+redo_log_encrypt_enum existing_redo_encryption_mode = REDO_LOG_ENCRYPT_OFF;
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -1098,119 +1098,138 @@ log_group_file_header_flush(
 	srv_stats.os_log_pending_writes.dec();
 }
 
+const char* log_encrypt_name(redo_log_encrypt_enum val) {
+	switch(val) {
+	case REDO_LOG_ENCRYPT_OFF:
+		return "off";
+	case REDO_LOG_ENCRYPT_MK:
+		return "master_key";
+	case REDO_LOG_ENCRYPT_RK:
+		return "keyring_key";
+	}
+	return "unknown";
+}
+
 /* Read the first log file header to get the encryption. It's in the
 3rd block.
 @return true if success */
 bool
-log_read_encryption()
-{
-	byte		key[ENCRYPTION_KEY_LEN];
-	byte		iv[ENCRYPTION_KEY_LEN];
+log_read_encryption() {
+	byte key[ENCRYPTION_KEY_LEN];
+	byte iv[ENCRYPTION_KEY_LEN];
 
-	byte* log_block_buf_ptr = static_cast<byte*>(ut_malloc_nokey(
-		2 * OS_FILE_LOG_BLOCK_SIZE));
+	byte* log_block_buf_ptr =
+	    static_cast<byte *>(ut_malloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
 	memset(log_block_buf_ptr, 0, 2 * OS_FILE_LOG_BLOCK_SIZE);
-	byte* log_block_buf = static_cast<byte*>(
-		ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+	byte* log_block_buf = static_cast<byte *>(
+	    ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
 	ulint		log_space_id = SRV_LOG_SPACE_FIRST_ID;
-	const page_id_t	page_id(log_space_id, 0);
+	const page_id_t page_id(log_space_id, 0);
 	fil_io(IORequestLogRead, true, page_id, univ_page_size,
 	       LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
 	       OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
 
-	bool encryption_magic = false;
-	bool encrypted_log = false;
+	bool		 encryption_magic = false;
+	bool		 encrypted_log = false;
+	redo_log_key*    mkey = NULL;
+	Encryption::Type encryption_type = Encryption::NONE;
 
 	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
 		   ENCRYPTION_KEY_MAGIC_RK, ENCRYPTION_MAGIC_SIZE) == 0) {
 		encryption_magic = true;
-		found_log_encryption_mode = REDO_LOG_ENCRYPT_RK;
+		existing_redo_encryption_mode = REDO_LOG_ENCRYPT_RK;
 
 		/* Make sure the keyring is loaded. */
 		if (!Encryption::check_keyring()) {
 			ut_free(log_block_buf_ptr);
-			ib::error()
-				<< "Redo log was encrypted,"
-				<< " but keyring plugin is not loaded.";
+			ib::fatal() << "Redo log was encrypted,"
+				    << " but keyring plugin is not loaded.";
 			return(false);
 		}
 
-		unsigned char* info_ptr = log_block_buf + LOG_HEADER_CREATOR_END + ENCRYPTION_MAGIC_SIZE;
-	        uint version = mach_read_from_4(info_ptr);
+		unsigned char* info_ptr = log_block_buf +
+					  LOG_HEADER_CREATOR_END +
+					  ENCRYPTION_MAGIC_SIZE;
+		uint version = mach_read_from_4(info_ptr);
 
-		memcpy(iv, info_ptr + ENCRYPTION_SERVER_UUID_LEN + 8, ENCRYPTION_KEY_LEN);
+		memcpy(iv, info_ptr + ENCRYPTION_SERVER_UUID_LEN + 4,
+		       ENCRYPTION_KEY_LEN);
 
 #ifdef UNIV_ENCRYPT_DEBUG
-			fprintf(stderr, "Using redo log encryption key version: %u\n", version);
+		fprintf(stderr, "Using redo log encryption key version: %u\n",
+			version);
 #endif
-		
-		char *key_type = NULL;
-		char* rkey = NULL;
-		std::ostringstream percona_redo_with_ver_ss;
-		percona_redo_with_ver_ss << PERCONA_REDO_KEY_NAME << ':' << version;
-		size_t klen;
-		if (my_key_fetch(percona_redo_with_ver_ss.str().c_str(), &key_type, NULL,
-					reinterpret_cast<void**>(&rkey), &klen) ||
-				rkey == NULL)
-		{
-			ib::error() << "Couldn't fetch redo log encryption key: " << percona_redo_with_ver_ss.str() << ".";
-		} else if(key_type == NULL || strncmp(key_type, "AES", 3) != 0) {
-			ib::error() << "Unknown redo log encryption type: " << key_type << ".";
-		} else {
+
+		mkey = redo_log_key_mgr.load_key_version(NULL, version);
+		if (mkey != NULL) {
 			encrypted_log = true;
-			memcpy(key, rkey, ENCRYPTION_KEY_LEN);
+			memcpy(key, mkey->key, ENCRYPTION_KEY_LEN);
+			encryption_type = Encryption::KEYRING;
+			srv_redo_log_key_version = mkey->version;
 		}
-		my_free(key_type);
-		my_free(rkey);
 	}
 
 	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
 		   ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0) {
 		encryption_magic = true;
-		found_log_encryption_mode = REDO_LOG_ENCRYPT_MK;
+		existing_redo_encryption_mode = REDO_LOG_ENCRYPT_MK;
 
 		/* Make sure the keyring is loaded. */
 		if (!Encryption::check_keyring()) {
-			ib::error()
-				<< "Redo log was encrypted,"
-				<< " but keyring plugin is not loaded.";
+			ib::fatal() << "Redo log was encrypted,"
+				    << " but keyring plugin is not loaded.";
 		} else if (Encryption::decode_encryption_info(
-				key, iv,
-				log_block_buf + LOG_HEADER_CREATOR_END)) {
+			       key, iv,
+			       log_block_buf + LOG_HEADER_CREATOR_END)) {
 			encrypted_log = true;
+			encryption_type = Encryption::AES;
 		}
-
 	}
 	if (encrypted_log) {
+		if (existing_redo_encryption_mode != srv_redo_log_encrypt &&
+		    srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF) {
+			ib::fatal() <<
+				" Redo log encryption mode"
+				" can't be switched without stopping the server and"
+				" recreating the redo logs. Current mode is "
+				<< log_encrypt_name(existing_redo_encryption_mode)
+				<< ", requested "
+				<< log_encrypt_name(
+				static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt))
+				<< ".";
+
+			return(false);
+		}
+
+
 		/* If redo log encryption is enabled, set the
 		   space flag. Otherwise, we just fill the encryption
 		   information to space object for decrypting old
 		   redo log blocks. */
-		fil_space_t*	space = fil_space_get(log_space_id);
+		fil_space_t* space = fil_space_get(log_space_id);
+		space->encryption_redo_key = mkey;
 		space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
-		dberr_t err = fil_set_encryption(space->id,
-				Encryption::AES,
-				key, iv);
+		dberr_t err =
+		    fil_set_encryption(space->id, encryption_type, key, iv);
 
 		if (err == DB_SUCCESS) {
 			ut_free(log_block_buf_ptr);
 			ib::info() << "Read redo log encryption"
-				<< " metadata successful.";
+				   << " metadata successful.";
 			return(true);
 		} else {
 			ut_free(log_block_buf_ptr);
-			ib::error()
-				<< "Can't set redo log tablespace"
-				<< " encryption metadata.";
+			ib::fatal() << "Can't set redo log tablespace"
+				    << " encryption metadata.";
 			return(false);
 		}
 	} else if (encryption_magic) {
 		ut_free(log_block_buf_ptr);
-		ib::error() << "Cannot read the encryption"
-			" information in log file header, please"
-			" check if keyring plugin loaded and"
-			" the key file exists.";
+		ib::fatal() << "Cannot read the encryption"
+			       " information in log file header, please"
+			       " check if keyring plugin loaded and"
+			       " the key file exists.";
 		return(false);
 	}
 
@@ -1223,49 +1242,36 @@ log_read_encryption()
 @param[in,out]	buf	log file header
 @param[in]	key	encryption key
 @param[in]	iv	encryption iv */
-static
-bool
-log_file_header_fill_encryption(
-	byte*		buf,
-	byte*		key,
-	byte*		iv)
-{
-	byte		encryption_info[ENCRYPTION_INFO_SIZE_V2];
+static bool
+log_file_header_fill_encryption(byte* buf, byte* key, byte* iv) {
+	byte encryption_info[ENCRYPTION_INFO_SIZE_V2];
 
-	if (!fsp_header_fill_encryption_info(key,
-				      iv, encryption_info)) {
+	if (!fsp_header_fill_encryption_info(key, iv, encryption_info)) {
 		return(false);
 	}
 
-	ut_ad(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE_V2
-	      < OS_FILE_LOG_BLOCK_SIZE);
+	ut_ad(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE_V2 <
+	      OS_FILE_LOG_BLOCK_SIZE);
 
-	memcpy(buf + LOG_HEADER_CREATOR_END,
-	       encryption_info,
+	memcpy(buf + LOG_HEADER_CREATOR_END, encryption_info,
 	       ENCRYPTION_INFO_SIZE_V2);
 
 	return(true);
 }
 
-static
-bool
-log_file_header_fill_encryption(
-	byte*		buf,
-	ulint           key_version,
-	byte*		iv)
-{
-	byte		encryption_info[ENCRYPTION_INFO_SIZE_V2] = {};
+static bool
+log_file_header_fill_encryption(byte* buf, ulint key_version, byte* iv) {
+	byte encryption_info[ENCRYPTION_INFO_SIZE_V2] = {};
 
 	if (!fsp_header_fill_encryption_info(key_version, iv,
-				      encryption_info)) {
+					     encryption_info)) {
 		return(false);
 	}
 
-	ut_ad(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE_V2
-	      < OS_FILE_LOG_BLOCK_SIZE);
+	ut_ad(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE_V2 <
+	      OS_FILE_LOG_BLOCK_SIZE);
 
-	memcpy(buf + LOG_HEADER_CREATOR_END,
-	       encryption_info,
+	memcpy(buf + LOG_HEADER_CREATOR_END, encryption_info,
 	       ENCRYPTION_INFO_SIZE_V2);
 
 	return(true);
@@ -1273,28 +1279,26 @@ log_file_header_fill_encryption(
 
 /** Write the encryption info into the log file header(the 3rd block).
 It just need to flush the file header block with current master key.
-@param[in]	key	encryption key
-@param[in]	iv	encryption iv
+@param[in]	key			encryption key
+@param[in]	iv			encryption iv
+@param[in]	redo_log_encrypt	encryption mode
 @return true if success. */
 bool
-log_write_encryption(
-	byte*	key,
-	byte*	iv)
-{
-	const page_id_t	page_id(SRV_LOG_SPACE_FIRST_ID, 0);
-	byte*		log_block_buf_ptr;
-	byte*		log_block_buf;
-	ulint version = 1;
+log_write_encryption(byte* key, byte* iv,
+		     redo_log_encrypt_enum redo_log_encrypt) {
+	const page_id_t page_id(SRV_LOG_SPACE_FIRST_ID, 0);
+	byte 		*log_block_buf_ptr;
+	byte 		*log_block_buf;
+	ulint		version = 1;
 
-	log_block_buf_ptr = static_cast<byte*>(ut_malloc_nokey(
-		2 * OS_FILE_LOG_BLOCK_SIZE));
+	log_block_buf_ptr =
+	    static_cast<byte *>(ut_malloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
 	memset(log_block_buf_ptr, 0, 2 * OS_FILE_LOG_BLOCK_SIZE);
-	log_block_buf = static_cast<byte*>(
-		ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+	log_block_buf = static_cast<byte *>(
+	    ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
 	if (key == NULL && iv == NULL) {
-		fil_space_t*	space = fil_space_get(
-			SRV_LOG_SPACE_FIRST_ID);
+		fil_space_t* space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
 
 		key = space->encryption_key;
 		iv = space->encryption_iv;
@@ -1302,24 +1306,28 @@ log_write_encryption(
 	}
 
 	log_write_mutex_enter();
-	if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK || 
-	    found_log_encryption_mode == REDO_LOG_ENCRYPT_MK) {
-		if (!log_file_header_fill_encryption(log_block_buf,
-						     key,
+	if (redo_log_encrypt == REDO_LOG_ENCRYPT_MK ||
+	    existing_redo_encryption_mode == REDO_LOG_ENCRYPT_MK) {
+		ut_ad(existing_redo_encryption_mode != REDO_LOG_ENCRYPT_RK);
+		ut_ad(redo_log_encrypt != REDO_LOG_ENCRYPT_RK);
+		if (!log_file_header_fill_encryption(log_block_buf, key,
 						     iv)) {
 			ut_free(log_block_buf_ptr);
 			log_write_mutex_exit();
 			return(false);
 		}
-	} else if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK ||
-		   found_log_encryption_mode == REDO_LOG_ENCRYPT_RK) {
-		if (!log_file_header_fill_encryption(log_block_buf,
-						     version,
+		existing_redo_encryption_mode = REDO_LOG_ENCRYPT_MK;
+	} else if (redo_log_encrypt == REDO_LOG_ENCRYPT_RK ||
+		   existing_redo_encryption_mode == REDO_LOG_ENCRYPT_RK) {
+		ut_ad(existing_redo_encryption_mode != REDO_LOG_ENCRYPT_MK);
+		ut_ad(redo_log_encrypt != REDO_LOG_ENCRYPT_MK);
+		if (!log_file_header_fill_encryption(log_block_buf, version,
 						     iv)) {
 			ut_free(log_block_buf_ptr);
 			log_write_mutex_exit();
 			return(false);
 		}
+		existing_redo_encryption_mode = REDO_LOG_ENCRYPT_RK;
 	} else {
 		ut_ad(0);
 	}
@@ -1330,9 +1338,7 @@ log_write_encryption(
 
 	srv_stats.os_log_pending_writes.inc();
 
-	fil_io(IORequestLogWrite, true,
-	       page_id,
-	       univ_page_size,
+	fil_io(IORequestLogWrite, true, page_id, univ_page_size,
 	       LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
 	       OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
 
@@ -1349,195 +1355,74 @@ redo log file header.
 @return true if success. */
 bool
 log_rotate_encryption() {
-	fil_space_t* space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
- 	if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+	fil_space_t *space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+	if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
 		return(true);
 	}
- 	/* Rotate log tablespace */
-	return(log_write_encryption(NULL, NULL));
+	/* Rotate log tablespace */
+	return (log_write_encryption(
+	    NULL, NULL,
+	    static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt)));
+}
+
+void
+log_check_new_key_version() {
+	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		return;
+	}
+	fil_space_t* space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+	if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		return;
+	}
+	if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
+		/* re-fetch latest key */
+		redo_log_key* mkey = redo_log_key_mgr.load_latest_key(NULL, false);
+		if (mkey != NULL) {
+			space->encryption_redo_key = mkey;
+			srv_redo_log_key_version = mkey->version;
+		}
+	}
 }
 
 /** Check the redo log encryption is enabled or not.
 It will try to enable the redo log encryption and write the metadata to
 redo log file header. */
 void
-log_enable_encryption_if_set()
-{
+log_rotate_default_key() {
 	fil_space_t* space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
 
 	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 		return;
 	}
 
-	/* Check encryption for redo log is enabled or not. If it's
-	enabled, we will start to encrypt the redo log block from now on.
-	Note: We need the server_uuid initialized, otherwise, the keyname will
-	not contains server uuid. */
-	if (srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF
-	    && !FSP_FLAGS_GET_ENCRYPTION(space->flags)
-	    && strlen(server_uuid) > 0) {
-		byte	key[ENCRYPTION_KEY_LEN];
-		byte	iv[ENCRYPTION_KEY_LEN];
-
-		if (srv_read_only_mode) {
-			srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-			ib::error() << "Can't set redo log tablespace to be"
-				<< " encrypted in read-only mode.";
-			return;
-		}
-
-		bool encryption_enabled = false;
-		Encryption::random_value(iv);
-
-		uint version = 1;
-
-		if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK) {
-			Encryption::random_value(key);
-			encryption_enabled = true;
-			if (!log_write_encryption(key, iv)) {
-				srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-				ib::error() << "Can't set redo log"
-					<< " tablespace to be"
-					<< " encrypted.";
-				encryption_enabled = false;
-			}
-		} else if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
-			// load latest key & write version
-
-			char *redo_key_type = NULL;
-			byte *rkey = NULL;
-			size_t   klen = 0;
-			
-			encryption_enabled = true;
-			
-			if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, NULL,
-						reinterpret_cast<void**>(&rkey), &klen) || rkey == NULL)
-			{
-				if (my_key_generate(PERCONA_REDO_KEY_NAME, "AES", NULL, ENCRYPTION_KEY_LEN)) {
-					ib::error() << "Redo log key generation failed.";
-					encryption_enabled = false;
-				} else if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, NULL,
-							reinterpret_cast<void**>(&rkey), &klen)) {
-					ib::error() << "Couldn't fetch newly generated redo key.";
-					encryption_enabled = false;
-				} else {
-					DBUG_ASSERT(rkey != NULL);
-					byte *rkey2 = NULL;
-					size_t   klen2 = 0;
-					bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) 
-						   == reinterpret_cast<uchar*>(NullS));
-					ut_ad(klen2 ==	ENCRYPTION_KEY_LEN);
-					if (err) {
-						encryption_enabled = false;
-					} else {
-						memcpy(key, rkey2, ENCRYPTION_KEY_LEN);
-					}
-					if (rkey2 != NULL) {
-						my_free(rkey2);
-					}
-				}
-			} else {
-				memcpy(key, rkey, ENCRYPTION_KEY_LEN);
-			}
-
-			if (encryption_enabled) {
-				ut_ad(redo_key_type && strcmp(redo_key_type, "AES") == 0);
-			}
-			if (redo_key_type != NULL) {
-				my_free(redo_key_type);
-			}
-			if (rkey != NULL) {
-				my_free(rkey);
-			}
-
-#ifdef UNIV_ENCRYPT_DEBUG
-			fprintf(stderr, "Fetched redo key: %s.\n", key);
-#endif
-
-			if (encryption_enabled && !log_write_encryption(key, iv)) {
-				srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-				ib::error() << "Can't set redo log"
-					<< " tablespace to be"
-					<< " encrypted.";
-				encryption_enabled = false;
-			}
-		}
-
-		if (encryption_enabled) {
-			space->flags |=
-				FSP_FLAGS_MASK_ENCRYPTION;
-			dberr_t err = fil_set_encryption(
-				space->id, Encryption::AES,
-				key, iv);
-			space->encryption_key_version = version;
-			if (err != DB_SUCCESS) {
-				srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-				ib::warn() << "Can't set redo log"
-					<< " tablespace to be"
-					<< " encrypted.";
-			} else {
-				ib::info() << "Redo log encryption is"
-					<< " enabled.";
-			}
-		}
-	}
-
 	/* If the redo log space is using default key, rotate it.
 	We also need the server_uuid initialized. */
-	if (space->encryption_type != Encryption::NONE
-	    && Encryption::master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID
-	    && !srv_read_only_mode
-	    && strlen(server_uuid) > 0
-	    && srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK) {
-			ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+	if (space->encryption_type != Encryption::NONE &&
+	    Encryption::master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID &&
+	    !srv_read_only_mode &&
+	    srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK) {
+		ut_ad(strlen(server_uuid) > 0);
+		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
-			log_write_encryption(NULL, NULL);
+		log_write_encryption(NULL, NULL, REDO_LOG_ENCRYPT_MK);
 	}
 
-	if (space->encryption_type != Encryption::NONE
-	    && space->encryption_key_version ==REDO_LOG_ENCRYPT_NO_VERSION 
-	    && !srv_read_only_mode
-	    && strlen(server_uuid) > 0
-	    && srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
-			/* This only happens when the server uuid was just generated, so we can
-			 * save the key to the keyring */
-			if (my_key_store(PERCONA_REDO_KEY_NAME, "AES", NULL,
-						space->encryption_key, ENCRYPTION_KEY_LEN))
-			{
-				srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-				ib::error() << "Can't store redo log encryption key.";
-			}
-			uint version = 0;
-			size_t   klen = 0;
-			size_t   klen2 = 0;
-			char *redo_key_type = NULL;
-			byte *rkey = NULL;
-			unsigned char *rkey2 = NULL;
-			if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, NULL,
-						reinterpret_cast<void**>(&rkey), &klen)) {
-				srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-				ib::error() << "Can't fetch latest redo log encryption key.";
-			}
-			const bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) == reinterpret_cast<uchar*>(NullS));
-			if (err) {
-				srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
-				ib::error() << "Can't parse latest redo log encryption key.";
-			}
-			space->encryption_key_version = version;
-			if (!log_write_encryption(NULL, NULL)) {
-				ib::error() << "Can't write redo log encryption information.";
-			}
-			if (rkey != NULL) {
-				my_free(rkey);
-			}
-			if (rkey2 != NULL) {
-				my_free(rkey2);
-			}
-			if (redo_key_type != NULL) {
-				my_free(redo_key_type);
-			}
-
+	if (space->encryption_type != Encryption::NONE &&
+	    space->encryption_key_version == REDO_LOG_ENCRYPT_NO_VERSION &&
+	    !srv_read_only_mode &&
+	    srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
+		/* This only happens when the server uuid was just generated, so we can
+		save the key to the keyring */
+		ut_ad(strlen(server_uuid) > 0);
+		if (!redo_log_key_mgr.store_used_keys()) {
+			srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
+			ib::error() << "Can't store redo log encryption key.";
 		}
+		redo_log_key* key = redo_log_key_mgr.load_latest_key(NULL, true);
+		space->encryption_key_version = key->version;
+		space->encryption_redo_key = key;
+		srv_redo_log_key_version = key->version;
+	}
 }
 
 /******************************************************//**
@@ -3124,90 +3009,83 @@ log_mem_free(void)
 	}
 }
 
-static
-void
+static void
 log_pad_current_log_block(void)
-/*===========================*/
 {
+	ut_ad(!recv_no_log_write);
+	lsn_t lsn = log_reserve_and_open(OS_FILE_LOG_BLOCK_SIZE);
 
-        ut_ad(!recv_no_log_write);
-        lsn_t lsn = log_reserve_and_open(OS_FILE_LOG_BLOCK_SIZE);
+	ulint pad_length = OS_FILE_LOG_BLOCK_SIZE -
+			   log_sys->buf_free % OS_FILE_LOG_BLOCK_SIZE -
+			   LOG_BLOCK_TRL_SIZE;
+	if (pad_length == (OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE -
+			   LOG_BLOCK_TRL_SIZE)) {
+		pad_length = 0;
+	}
 
-        ulint pad_length = OS_FILE_LOG_BLOCK_SIZE
-                - log_sys->buf_free % OS_FILE_LOG_BLOCK_SIZE
-		- LOG_BLOCK_TRL_SIZE;
-        if (pad_length == (OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE
-		- LOG_BLOCK_TRL_SIZE)) {
-                pad_length = 0;
-        }
+	if (pad_length) {
+		srv_stats.n_log_scrubs.inc();
+	}
 
-        if (pad_length) {
-                srv_stats.n_log_scrubs.inc();
-        }
-
-        for (ulint i = 0; i < pad_length; i++) {
+	for (ulint i = 0; i < pad_length; i++) {
 		byte b = MLOG_DUMMY_RECORD;
-                log_write_low(&b, 1);
-        }
+		log_write_low(&b, 1);
+	}
 
-        lsn = log_sys->lsn;
+	lsn = log_sys->lsn;
 
-        log_close();
+	log_close();
 
-        ut_a(lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE);
+	ut_a(lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE);
 }
 
-/*****************************************************************//*
-If no log record has been written for a while, fill current log
+/** If no log record has been written for a while, fill current log
 block with dummy records. */
-static
-void
+static void
 log_scrub()
-/*=========*/
 {
-        log_mutex_enter();
-        ulint cur_lbn = log_block_convert_lsn_to_no(log_sys->lsn);
+	log_mutex_enter();
+	ulint cur_lbn = log_block_convert_lsn_to_no(log_sys->lsn);
 
-        if (next_lbn_to_pad == cur_lbn)
-        {
-                log_pad_current_log_block();
-        }
+	if (next_lbn_to_pad == cur_lbn) {
+		log_pad_current_log_block();
+	}
 
-        next_lbn_to_pad = log_block_convert_lsn_to_no(log_sys->lsn);
-        log_mutex_exit();
+	next_lbn_to_pad = log_block_convert_lsn_to_no(log_sys->lsn);
+	log_mutex_exit();
 }
 
 /* log scrubbing speed, in bytes/sec */
 ulonglong innodb_scrub_log_speed;
 
-/*****************************************************************//**
-This is the main thread for log scrub. It waits for an event and
-when waked up fills current log block with dummy records and
-sleeps again.
+/** This is the main thread for log scrub. It waits for an event and
+when waked up fills current log block with dummy records and sleeps again.
 @return this function does not return, it calls os_thread_exit() */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(log_scrub_thread)(void*)
-{
-        ut_ad(!srv_read_only_mode);
+extern "C" os_thread_ret_t
+DECLARE_THREAD(log_scrub_thread)(void *) {
+	ut_ad(!srv_read_only_mode);
 
-        while (srv_shutdown_state < SRV_SHUTDOWN_FLUSH_PHASE) {
-                /* log scrubbing interval in µs. */
-                ulonglong interval = 1000*1000*512/innodb_scrub_log_speed;
+	while (srv_shutdown_state < SRV_SHUTDOWN_FLUSH_PHASE) {
+		/* log scrubbing interval in µs. */
+		ulonglong interval =
+		    1000 * 1000 * 512 / innodb_scrub_log_speed;
 
-                os_event_wait_time(log_scrub_event, static_cast<ulint>(interval));
+		os_event_wait_time(log_scrub_event,
+				   static_cast<ulint>(interval));
 
-                log_scrub();
+		log_scrub();
 
-                os_event_reset(log_scrub_event);
-        }
+		os_event_reset(log_scrub_event);
+	}
 
-        log_scrub_thread_active = false;
+	log_scrub_thread_active = false;
 
-        /* We count the number of threads in os_thread_exit(). A created
+	/* We count the number of threads in os_thread_exit(). A created
         thread should always use that to exit and not use return() to exit. */
-        os_thread_exit();
+	os_thread_exit();
 
-        OS_THREAD_DUMMY_RETURN;
+	OS_THREAD_DUMMY_RETURN;
 }
+
+uint srv_redo_log_key_version = 0;
 #endif /* !UNIV_HOTBACKUP */

@@ -28,11 +28,11 @@ matrix:
         - curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
         - echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-5.0 main" | sudo tee -a /etc/apt/sources.list > /dev/null;
         - sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
-        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install clang-format-5.0 || travis_terminate 1
+        - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install diffstat clang-format-5.0 || travis_terminate 1
         - wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py || travis_terminate 1
         - chmod a+x clang-format-diff.py
         - git diff -U0 --no-color HEAD^1 *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | ./clang-format-diff.py -binary=clang-format-5.0 -style=file -p1 >_GIT_DIFF
-        - '[ ! -s _GIT_DIFF ] && { echo The last git commit is clang-formatted; travis_terminate 0; } || { cat _GIT_DIFF; travis_terminate 1; }'
+        - '[ ! -s _GIT_DIFF ] && { echo The last git commit is clang-formatted; travis_terminate 0; } || { diffstat _GIT_DIFF; echo; cat _GIT_DIFF; travis_terminate 1; }'
 
 
     # Configurations for developers' forks and after merging a pull request for percona/percona-server
@@ -43,37 +43,45 @@ matrix:
       os: osx
     # 2
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=7  BUILD=RelWithDebInfo
+      env: VERSION=8    BUILD=RelWithDebInfo
       compiler: clang
     # 3
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=6.0  BUILD=Debug
+      env: VERSION=7    BUILD=Debug
       compiler: clang
     # 4
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=5.0  BUILD=Debug
+      env: VERSION=6.0  BUILD=Debug
       compiler: clang
     # 5
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=4.0  BUILD=Debug
+      env: VERSION=5.0  BUILD=Debug
       compiler: clang
     # 6
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=8    BUILD=Debug
-      compiler: gcc
+      env: VERSION=4.0  BUILD=Debug
+      compiler: clang
     # 7
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=7    BUILD=Debug
+      env: VERSION=9    BUILD=Debug
       compiler: gcc
     # 8
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=6    BUILD=Debug
+      env: VERSION=8    BUILD=Debug
       compiler: gcc
     # 9
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=5    BUILD=Debug
+      env: VERSION=7    BUILD=Debug
       compiler: gcc
     # 10
+    - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
+      env: VERSION=6    BUILD=Debug
+      compiler: gcc
+    # 11
+    - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
+      env: VERSION=5    BUILD=Debug
+      compiler: gcc
+    # 12
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=4.8  BUILD=Debug
       compiler: gcc
@@ -87,37 +95,45 @@ matrix:
       os: osx
     # 2
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=7  BUILD=Debug
+      env: VERSION=8    BUILD=Debug
       compiler: clang
     # 3
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=6.0  BUILD=RelWithDebInfo
+      env: VERSION=7    BUILD=RelWithDebInfo
       compiler: clang
     # 4
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=5.0  BUILD=RelWithDebInfo
+      env: VERSION=6.0  BUILD=RelWithDebInfo
       compiler: clang
     # 5
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=4.0  BUILD=RelWithDebInfo
+      env: VERSION=5.0  BUILD=RelWithDebInfo
       compiler: clang
     # 6
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=8    BUILD=RelWithDebInfo
-      compiler: gcc
+      env: VERSION=4.0  BUILD=RelWithDebInfo
+      compiler: clang
     # 7
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=7    BUILD=RelWithDebInfo
+      env: VERSION=9    BUILD=RelWithDebInfo
       compiler: gcc
     # 8
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=6    BUILD=RelWithDebInfo
+      env: VERSION=8    BUILD=RelWithDebInfo
       compiler: gcc
     # 9
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=5    BUILD=RelWithDebInfo
+      env: VERSION=7    BUILD=RelWithDebInfo
       compiler: gcc
     # 10
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+      env: VERSION=6    BUILD=RelWithDebInfo
+      compiler: gcc
+    # 11
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+      env: VERSION=5    BUILD=RelWithDebInfo
+      compiler: gcc
+    # 12
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
       env: VERSION=4.8  BUILD=RelWithDebInfo
       compiler: gcc
@@ -126,37 +142,45 @@ matrix:
     # Configurations to be run after merging a pull request for percona/percona-server
     # 1
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=7  BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=8    BUILD=RelWithDebInfo  INVERTED=ON
       compiler: clang
     # 2
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=6.0  BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=7    BUILD=RelWithDebInfo  INVERTED=ON
       compiler: clang
     # 3
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=5.0  BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=6.0  BUILD=RelWithDebInfo  INVERTED=ON
       compiler: clang
     # 4
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=4.0  BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=5.0  BUILD=RelWithDebInfo  INVERTED=ON
       compiler: clang
     # 5
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=8    BUILD=RelWithDebInfo  INVERTED=ON
-      compiler: gcc
+      env: VERSION=4.0  BUILD=RelWithDebInfo  INVERTED=ON
+      compiler: clang
     # 6
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=7    BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=9    BUILD=RelWithDebInfo  INVERTED=ON
       compiler: gcc
     # 7
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=6    BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=8    BUILD=RelWithDebInfo  INVERTED=ON
       compiler: gcc
     # 8
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=5    BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=7    BUILD=RelWithDebInfo  INVERTED=ON
       compiler: gcc
     # 9
+    - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
+      env: VERSION=6    BUILD=RelWithDebInfo  INVERTED=ON
+      compiler: gcc
+    # 10
+    - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
+      env: VERSION=5    BUILD=RelWithDebInfo  INVERTED=ON
+      compiler: gcc
+    # 11
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=4.8  BUILD=RelWithDebInfo  INVERTED=ON
       compiler: gcc
@@ -169,7 +193,7 @@ script:
     echo --- JOB_NUMBER=$JOB_NUMBER TRAVIS_COMMIT=$TRAVIS_COMMIT TRAVIS_COMMIT_RANGE=$TRAVIS_COMMIT_RANGE TRAVIS_REPO_SLUG=$TRAVIS_REPO_SLUG TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST TRAVIS_PULL_REQUEST_BRANCH=$TRAVIS_PULL_REQUEST_BRANCH
 
   - echo --- Perform all Travis jobs or only jobs that are included in ENV_VAR_JOB_NUMBERS list if it is defined;
-    JOB_NUMBERS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30";
+    JOB_NUMBERS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36";
     if [[ "$ENV_VAR_JOB_NUMBERS" != "" ]]; then
        JOB_NUMBERS=$ENV_VAR_JOB_NUMBERS;
     fi;

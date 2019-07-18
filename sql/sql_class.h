@@ -1598,16 +1598,10 @@ class Bloom_filter {
  public:
   Bloom_filter() : bit_set(NULL) {}
 
-  ~Bloom_filter()
-  {
-    // Do not delete, just destruct, due to MEM_ROOT allocation
-    bit_set->~bitset();
-  }
-
   void clear()
   {
-    // Do not delete, just force new MEM_ROOT allocation on the next use
-    bit_set= NULL;
+    if (bit_set != NULL)
+      bit_set->reset();
   }
 
   /**
@@ -1627,7 +1621,7 @@ class Bloom_filter {
       void *bit_set_place= alloc_root(mem_root, sizeof(Bit_set));
       // FIXME: memory allocation failure is eaten silently. Nonexact stats are
       // the least of the concerns then.
-      if (!bit_set_place)
+      if (bit_set_place == NULL)
         return false;
       bit_set= new (bit_set_place) Bit_set();
     }
@@ -3639,7 +3633,7 @@ public:
     PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
-  void get_time(QUERY_START_TIME_INFO *time_info)
+  void get_time(QUERY_START_TIME_INFO *time_info) const
   {
     time_info->start_time= start_time;
     time_info->start_utime= start_utime;
@@ -4554,15 +4548,6 @@ public:
     return false;
   }
   thd_scheduler event_scheduler;
-
-  /* Returns string as 'IP:port' for the client-side
-     of the connnection represented
-     by 'client' as displayed by SHOW PROCESSLIST.
-     Allocates memory from the heap of
-     this THD and that is not reclaimed
-     immediately, so use sparingly. May return NULL.
-  */
-  char *get_client_host_port(THD *client);
 
 public:
   /**
@@ -6030,8 +6015,6 @@ static inline bool is_engine_substitution_allowed(THD* thd)
 }
 
 /*************************************************************************/
-
-extern pthread_attr_t *get_connection_attrib(void);
 
 #endif /* MYSQL_SERVER */
 

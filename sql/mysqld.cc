@@ -5105,7 +5105,7 @@ int mysqld_main(int argc, char **argv)
     }
 
     sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                          "successfull");
+                          "successful");
     log_error_dest= "stderr";
     flush_error_log_messages();
     unireg_abort(MYSQLD_SUCCESS_EXIT);
@@ -7211,7 +7211,8 @@ show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
 #ifdef HAVE_POOL_OF_THREADS
-int show_threadpool_idle_threads(THD *thd, SHOW_VAR *var, char *buff)
+static int
+show_threadpool_idle_threads(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_INT;
   var->value= buff;

@@ -2789,8 +2789,8 @@ private:
 */
 class Unknown_log_event: public binary_log::Unknown_event , public Log_event
 {
-public:
   enum { UNKNOWN, ENCRYPTED } what;
+public:
   /**
     Even if this is an unknown event, we still pass description_event to
     Log_event's ctor, this way we can extract maximum information from the

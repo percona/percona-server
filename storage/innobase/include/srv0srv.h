@@ -160,14 +160,11 @@ struct srv_stats_t {
 	/** Number of encryption_get_latest_key_version calls */
 	ulint_ctr_64_t		n_key_requests;
 
-	/** Number of log scrub operations */
-	//ulint_ctr_64_t		n_log_scrubs;
-
 	/** Number of spaces in keyrotation list */
 	ulint_ctr_64_t		key_rotation_list_length;
 
 	/** Number of log scrub operations */
-	ulint_ctr_64_t          n_log_scrubs;
+	ulint_ctr_64_t		n_log_scrubs;
 
 	/* Number of pages encrypted */
 	ulint_ctr_64_t          pages_encrypted;
@@ -355,12 +352,6 @@ extern ulong	srv_n_log_files;
 
 extern ulong	srv_redo_log_encrypt;
 
-enum redo_log_encrypt_enum {
-	REDO_LOG_ENCRYPT_OFF = 0,
-	REDO_LOG_ENCRYPT_MK = 1,
-	REDO_LOG_ENCRYPT_RK = 2,
-};
-
 /** At startup, this is the current redo log file size.
 During startup, if this is different from srv_log_file_size_requested
 (innodb_log_file_size), the redo log will be rebuilt and this size
@@ -544,7 +535,7 @@ extern bool	srv_buf_resize_thread_active;
 extern ibool	srv_dict_stats_thread_active;
 
 /* TRUE if enable log scrubbing */
-extern my_bool  srv_scrub_log;
+extern my_bool	srv_scrub_log;
 
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_n_free_tickets_to_enter;
@@ -1053,6 +1044,19 @@ bool
 srv_is_undo_tablespace(
 	ulint	space_id);
 
+/** Enables master key redo encryption. 
+Doesn't depend on the srv_redo_log_encrypt variable, used by 
+SET innodb_redo_log_encrypt = MK. */
+bool srv_enable_redo_encryption_mk(THD* thd);
+
+/** Enables keyring key redo encryption. 
+Doesn't depend on the srv_redo_log_encrypt variable, used by 
+SET innodb_redo_log_encrypt = RK. */
+bool srv_enable_redo_encryption_rk(THD* thd);
+
+/** Enables redo log encryption based on srv_redo_log_encrypt. */
+bool srv_enable_redo_encryption(THD* thd);
+
 #ifdef UNIV_DEBUG
 /** Disables master thread. It's used by:
 	SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
@@ -1178,6 +1182,7 @@ struct export_var_t{
 						encrypted */
 	int64_t innodb_pages_decrypted;      /*!< Number of pages
 						decrypted */
+	int64_t innodb_redo_key_version;
 
 	/*!< Number of merge blocks encrypted */
 	int64_t innodb_n_merge_blocks_encrypted;
@@ -1196,13 +1201,13 @@ struct export_var_t{
 	int64_t innodb_encryption_key_requests;
 	int64_t innodb_key_rotation_list_length;
 
-        ulint innodb_scrub_page_reorganizations;
-        ulint innodb_scrub_page_splits;
-        ulint innodb_scrub_page_split_failures_underflow;
-        ulint innodb_scrub_page_split_failures_out_of_filespace;
-        ulint innodb_scrub_page_split_failures_missing_index;
-        ulint innodb_scrub_page_split_failures_unknown;
-        int64_t innodb_scrub_log;
+	ulint innodb_scrub_page_reorganizations;
+	ulint innodb_scrub_page_splits;
+	ulint innodb_scrub_page_split_failures_underflow;
+	ulint innodb_scrub_page_split_failures_out_of_filespace;
+	ulint innodb_scrub_page_split_failures_missing_index;
+	ulint innodb_scrub_page_split_failures_unknown;
+	int64_t innodb_scrub_log;
 };
 
 /** Thread slot in the thread table.  */

@@ -1,0 +1,5 @@
+--let LOG_ENCRYPT_TYPE=MASTER_KEY
+--let LOG_ENCRYPT_TEST_END=mk
+--let LOG_ENCRYPT_OTHER_TYPE=KEYRING_KEY
+--let KEYRING_PARAMS=--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_change $KEYRING_PLUGIN_OPT
+--source include/percona_log_encrypt_change.inc

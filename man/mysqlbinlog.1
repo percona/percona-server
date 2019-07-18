@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/20/2018
+.\"      Date: 04/12/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "12/20/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "04/12/2019" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -587,7 +587,7 @@ Print debugging information and memory and CPU usage statistics when the program
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about the client\-side authentication plugin to use\&. See
-Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -754,7 +754,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .sp
 The
 \fB\-\-get\-server\-public\-key\fR
@@ -833,7 +833,7 @@ Display only the groups listed in the
 \fB\-l \fR\fB\fIdir_name\fR\fR
 .sp
 Prepare local temporary files for
-LOAD DATA INFILE
+LOAD DATA
 in the specified directory\&.
 .if n \{\
 .sp
@@ -929,6 +929,18 @@ entries in the log\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-open\-files\-limit=\fR\fB\fIN\fR\fR
+Specify the number of open file descriptors to reserve\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
@@ -963,7 +975,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqlbinlog\fR
 does not find it\&. See
-Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1220,7 +1232,7 @@ As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future
 .ps -1
 .br
 Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them was removed in MySQL 5\&.7\&.5\&. For account upgrade instructions, see
-Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
+Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -1294,8 +1306,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.4, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .sp
 The
 \fB\-\-server\-public\-key\-path\fR
@@ -1404,7 +1416,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
+Section\ \&6.3.2, \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1558,8 +1570,8 @@ Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
-The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.3.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
 .RE
@@ -1644,23 +1656,6 @@ Display version information and exit\&.
 In MySQL 5\&.7, the
 \fBmysqlbinlog\fR
 version number is 3\&.4\&.
-.RE
-.PP
-You can also set the following variable by using
-\fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR
-syntax:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-open_files_limit
-.sp
-Specify the number of open file descriptors to reserve\&.
 .RE
 .PP
 You can pipe the output of
@@ -1785,11 +1780,11 @@ shell> \fBmysql \-u root \-p \-e "source /tmp/statements\&.sql"\fR
 .PP
 \fBmysqlbinlog\fR
 can produce output that reproduces a
-LOAD DATA INFILE
+LOAD DATA
 operation without the original data file\&.
 \fBmysqlbinlog\fR
 copies the data to a temporary file and writes a
-LOAD DATA LOCAL INFILE
+LOAD DATA LOCAL
 statement that refers to the file\&. The default location of the directory where these files are written is system\-specific\&. To specify a directory explicitly, use the
 \fB\-\-local\-load\fR
 option\&.
@@ -1797,9 +1792,9 @@ option\&.
 Because
 \fBmysqlbinlog\fR
 converts
-LOAD DATA INFILE
+LOAD DATA
 statements to
-LOAD DATA LOCAL INFILE
+LOAD DATA LOCAL
 statements (that is, it adds
 LOCAL), both the client and the server that you use to process the statements must be configured with the
 LOCAL
@@ -2759,7 +2754,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -47,7 +47,6 @@ Created 2/25/1997 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 #include "fil0fil.h"
-
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
@@ -126,7 +125,8 @@ row_undo_ins_remove_clust_rec(
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
 		dict_drop_index_tree(
-			btr_pcur_get_rec(&node->pcur), &(node->pcur), &mtr);
+			btr_pcur_get_rec(&node->pcur), &(node->pcur), &mtr,
+			false);
 
 		mtr_commit(&mtr);
 
@@ -136,6 +136,8 @@ row_undo_ins_remove_clust_rec(
 			BTR_MODIFY_LEAF, &node->pcur, &mtr);
 		ut_a(success);
 	}
+
+	row_convert_impl_to_expl_if_needed(btr_cur, node);
 
 	if (btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 		err = DB_SUCCESS;
@@ -190,7 +192,8 @@ row_undo_ins_remove_sec_low(
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: index */
 	dtuple_t*	entry,	/*!< in: index entry to remove */
-	que_thr_t*	thr)	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread */
+	undo_node_t*	node)	/*!< in: undo node */
 {
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur;
@@ -254,6 +257,8 @@ row_undo_ins_remove_sec_low(
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
+	row_convert_impl_to_expl_if_needed(btr_cur, node);
+
 	if (modify_leaf) {
 		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
 			? DB_SUCCESS : DB_FAIL;
@@ -284,14 +289,15 @@ row_undo_ins_remove_sec(
 /*====================*/
 	dict_index_t*	index,	/*!< in: index */
 	dtuple_t*	entry,	/*!< in: index entry to insert */
-	que_thr_t*	thr)	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread */
+	undo_node_t*	node)
 {
 	dberr_t	err;
 	ulint	n_tries	= 0;
 
 	/* Try first optimistic descent to the B-tree */
 
-	err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr);
+	err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr, node);
 
 	if (err == DB_SUCCESS) {
 
@@ -302,7 +308,7 @@ row_undo_ins_remove_sec(
 retry:
 	err = row_undo_ins_remove_sec_low(
 		BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
-		index, entry, thr);
+		index, entry, thr, node);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -425,7 +431,7 @@ row_undo_ins_remove_sec_rec(
 			assume that the secondary index record does
 			not exist. */
 		} else {
-			err = row_undo_ins_remove_sec(index, entry, thr);
+			err = row_undo_ins_remove_sec(index, entry, thr, node);
 
 			if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 				goto func_exit;

@@ -919,7 +919,7 @@ fsp_header_fill_encryption_info(
 
 	/* Write master key id. */
 	mach_write_to_4(ptr, key_version);
-	ptr += sizeof(ulint);
+	ptr += 4;
 
 	/* Write server uuid. */
 	memcpy(ptr, Encryption::uuid, ENCRYPTION_SERVER_UUID_LEN);

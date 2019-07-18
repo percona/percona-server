@@ -79,6 +79,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "handler.h"
 #include "ha_innodb.h"
 #include "fil0crypt.h"
+#include "system_key.h"
 
 
 #ifndef UNIV_PFS_THREAD
@@ -1600,7 +1601,7 @@ srv_export_innodb_status(void)
 	ulint			free_len;
 	ulint			flush_list_len;
 	fil_crypt_stat_t	crypt_stat;
-	btr_scrub_stat_t        scrub_stat;
+	btr_scrub_stat_t	scrub_stat;
 	ulint			mem_adaptive_hash, mem_dictionary;
 	ReadView*		oldest_view;
 	ulint			i;
@@ -1874,20 +1875,22 @@ srv_export_innodb_status(void)
 	export_vars.innodb_key_rotation_list_length =
 		srv_stats.key_rotation_list_length;
 
-        export_vars.innodb_scrub_page_reorganizations =
-                scrub_stat.page_reorganizations;
-        export_vars.innodb_scrub_page_splits =
-                scrub_stat.page_splits;
-        export_vars.innodb_scrub_page_split_failures_underflow =
-                scrub_stat.page_split_failures_underflow;
-        export_vars.innodb_scrub_page_split_failures_out_of_filespace =
-                scrub_stat.page_split_failures_out_of_filespace;
-        export_vars.innodb_scrub_page_split_failures_missing_index =
-                scrub_stat.page_split_failures_missing_index;
-        export_vars.innodb_scrub_page_split_failures_unknown =
-                scrub_stat.page_split_failures_unknown;
-        export_vars.innodb_scrub_log = srv_stats.n_log_scrubs;
+	export_vars.innodb_scrub_page_reorganizations =
+		scrub_stat.page_reorganizations;
+	export_vars.innodb_scrub_page_splits =
+		scrub_stat.page_splits;
+	export_vars.innodb_scrub_page_split_failures_underflow =
+		scrub_stat.page_split_failures_underflow;
+	export_vars.innodb_scrub_page_split_failures_out_of_filespace =
+		scrub_stat.page_split_failures_out_of_filespace;
+	export_vars.innodb_scrub_page_split_failures_missing_index =
+		scrub_stat.page_split_failures_missing_index;
+	export_vars.innodb_scrub_page_split_failures_unknown =
+		scrub_stat.page_split_failures_unknown;
+	export_vars.innodb_scrub_log = srv_stats.n_log_scrubs;
 	
+	export_vars.innodb_redo_key_version
+		= srv_redo_log_key_version;
         }
 
 	mutex_exit(&srv_innodb_monitor_mutex);
@@ -2774,29 +2777,15 @@ srv_temp_encryption_update(bool enable)
 
 	ut_ad(fsp_is_system_temporary(space->id));
 
-	if (enable) {
-
-		if (is_encrypted) {
-			/* Encryption already enabled */
-			return(DB_SUCCESS);
-		} else {
-			/* Enable encryption now */
-			dberr_t err = fil_temp_update_encryption(space);
-			if (err == DB_SUCCESS) {
-				srv_tmp_space.set_flags(space->flags);
-			}
-			return(err);
+	if (enable != is_encrypted) {
+		/* Toggle encryption */
+		dberr_t err = fil_temp_update_encryption(space, enable);
+		if (err == DB_SUCCESS) {
+			srv_tmp_space.set_flags(space->flags);
 		}
-
-	} else {
-		if (!is_encrypted) {
-			/* Encryption already disabled */
-			return(DB_SUCCESS);
-		} else {
-			// TODO: Disabling encryption is not allowed yet
-			return(DB_SUCCESS);
-		}
+		return (err);
 	}
+	return (DB_SUCCESS);
 }
 
 /*********************************************************************//**
@@ -2880,6 +2869,8 @@ loop:
 		}
 
 		srv_enable_undo_encryption_if_set();
+
+		log_check_new_key_version();
 	}
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS
@@ -3523,6 +3514,166 @@ srv_is_undo_tablespace(
 	       && space_id < (srv_undo_space_id_start
 			      + srv_undo_tablespaces_open));
 }
+
+bool
+srv_enable_redo_encryption(THD* thd)
+{
+	if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK) {
+		return srv_enable_redo_encryption_mk(thd);
+	}
+
+	if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
+		return srv_enable_redo_encryption_rk(thd);
+	}
+
+	return false;
+}
+
+bool
+srv_enable_redo_encryption_mk(THD* thd)
+{
+	switch (existing_redo_encryption_mode) {
+	case REDO_LOG_ENCRYPT_RK:
+                ib::warn() <<
+                        "Redo log encryption mode"
+                        " can't be switched without stopping the server and"
+                        " recreating the redo logs. Current mode is "
+                        << log_encrypt_name(existing_redo_encryption_mode)
+                        << ", requested master_key.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
+				    "master_key",
+				    log_encrypt_name(existing_redo_encryption_mode));
+		}
+
+		return true;
+	case REDO_LOG_ENCRYPT_OFF:
+	case REDO_LOG_ENCRYPT_MK:
+		break;
+	}
+
+	fil_space_t* space = fil_space_get(dict_sys_t::s_log_space_first_id);
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		return false;
+	}
+	byte key[ENCRYPTION_KEY_LEN];
+	byte iv[ENCRYPTION_KEY_LEN];
+	
+	Encryption::random_value(iv);
+	Encryption::random_value(key);
+
+	if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_MK)) {
+
+		ib::error() << "Can't set redo log tablespace to be encrypted.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Can't set redo log tablespace to be"
+				    " encrypted.");
+		}
+		return true;
+	}
+
+	space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+
+	const dberr_t err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+	if (err != DB_SUCCESS) {
+		ib::error() << "Can't set redo log tablespace to be encrypted.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Can't set redo log tablespace to be"
+				    " encrypted.");
+		}
+		return true;
+	}
+
+	ib::info() << "Redo log encryption is enabled.";
+
+	return false;
+}
+
+
+bool
+srv_enable_redo_encryption_rk(THD* thd)
+{
+	switch (existing_redo_encryption_mode) {
+	case REDO_LOG_ENCRYPT_MK:
+                ib::error() <<
+                        "Redo log encryption mode"
+                        " can't be switched without stopping the server and"
+                        " recreating the redo logs. Current mode is "
+                        << log_encrypt_name(existing_redo_encryption_mode)
+                        << ", requested keyring_key.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN,
+				    ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
+				    "keyring_key",
+				    log_encrypt_name(existing_redo_encryption_mode));
+		}
+		return true;
+	case REDO_LOG_ENCRYPT_OFF:
+	case REDO_LOG_ENCRYPT_RK:
+		break;
+	}
+
+	fil_space_t* space = fil_space_get(dict_sys_t::s_log_space_first_id);
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags))
+	{
+		return(false);
+	}
+
+	byte key[ENCRYPTION_KEY_LEN];
+        byte iv[ENCRYPTION_KEY_LEN];
+	uint version;
+
+	Encryption::random_value(iv);
+	
+	// load latest key & write version
+
+        redo_log_key* mkey = redo_log_key_mgr.load_latest_key(thd, true);
+	if (mkey == NULL) {
+		return(true);
+	}
+	version = mkey->version;
+	srv_redo_log_key_version = version;
+	memcpy(key, mkey->key, ENCRYPTION_KEY_LEN);
+
+#ifdef UNIV_ENCRYPT_DEBUG
+	fprintf(stderr, "Fetched redo key: %s.\n", key);
+#endif
+
+	if (!log_write_encryption(key, iv, REDO_LOG_ENCRYPT_RK)) {
+		ib::error() << "Can't set redo log tablespace to be"
+			" encrypted.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Can't set redo log tablespace to be"
+				    " encrypted.");
+		}
+		return(true);
+	}
+
+	space->encryption_redo_key = mkey;
+	space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+	space->encryption_key_version = version;
+	dberr_t err = fil_set_encryption(
+			space->id, Encryption::KEYRING,
+			key, iv);
+
+	if(err != DB_SUCCESS) {
+		ib::error() << "Can't set redo log tablespace to be encrypted.";
+		if (thd != NULL) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Can't set redo log tablespace to be"
+				    " encrypted.");
+		}
+		return(true);
+	}
+
+	ib::info() << "Redo log encryption is enabled.";
+
+	return(false);
+}
+
 
 /** Enable the undo log encryption if it is set.
 It will try to enable the undo log encryption and write the metadata to

@@ -506,8 +506,7 @@ dict_build_tablespace_for_table(
 
 		/* Determine the tablespace flags. */
 		bool	is_temp = dict_table_is_temporary(table);
-		bool	is_encrypted = (srv_tmp_tablespace_encrypt && is_temp)
-					|| dict_table_is_encrypted(table);
+		bool	is_encrypted = dict_table_is_encrypted(table);
 		bool	has_data_dir = DICT_TF_HAS_DATA_DIR(table->flags);
 		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags,
 							 is_temp,
@@ -1118,7 +1117,8 @@ bool
 dict_drop_index_tree(
 	rec_t*		rec,
 	btr_pcur_t*	pcur,
-	mtr_t*		mtr)
+	mtr_t*		mtr,
+	bool		is_truncate)
 {
 	const byte*	ptr;
 	ulint		len;
@@ -1175,7 +1175,7 @@ dict_drop_index_tree(
 	}
 
 	btr_free_if_exists(page_id_t(space, root_page_no), page_size,
-			   mach_read_from_8(ptr), mtr);
+			   mach_read_from_8(ptr), mtr, is_truncate);
 
 	return(true);
 }
@@ -1202,7 +1202,7 @@ dict_drop_index_tree_in_mem(
 	tablespace and the .ibd file is missing do nothing,
 	else free the all the pages */
 	if (root_page_no != FIL_NULL && found) {
-		btr_free(page_id_t(space, root_page_no), page_size);
+		btr_free(page_id_t(space, root_page_no), page_size, false);
 	}
 }
 
@@ -1345,7 +1345,7 @@ dict_truncate_index_tree_in_mem(
 	tablespace objects. */
 
 	if (truncate) {
-		btr_free(page_id_t(space, root_page_no), page_size);
+		btr_free(page_id_t(space, root_page_no), page_size, false);
 	}
 
 	mtr_start(&mtr);

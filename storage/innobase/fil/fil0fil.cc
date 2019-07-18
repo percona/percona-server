@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2472,7 +2472,9 @@ fil_recreate_table(
 	/* Step-1: Scan for active indexes from REDO logs and drop
 	all the indexes using low level function that take root_page_no
 	and space-id. */
+	mutex_enter(&dict_sys->mutex);
 	truncate.drop_indexes(space_id);
+	mutex_exit(&dict_sys->mutex);
 
 	/* Step-2: Scan for active indexes and re-create them. */
 	err = truncate.create_indexes(
@@ -5868,6 +5870,34 @@ fil_io_set_keyring_encryption(IORequest& req_type,
 	mutex_exit(&space->crypt_data->mutex);
 }
 
+static void
+fil_io_set_mk_encryption(IORequest& req_type, fil_space_t* space)
+{
+	unsigned char* key = space->encryption_redo_key != NULL
+		? reinterpret_cast<unsigned char*>(space->encryption_redo_key->key)
+		: space->encryption_key;
+	uint version = space->encryption_redo_key != NULL
+		? space->encryption_redo_key->version
+		: space->encryption_key_version;
+	req_type.encryption_key(key,
+				32,
+				false,
+				space->encryption_iv,
+				version, 0, NULL, NULL);
+
+	req_type.encryption_rotation(Encryption::NO_ROTATION);
+}
+
+static
+bool
+fil_keyring_skip_encryption(const page_id_t& page_id) {
+
+	/* Don't encrypt TRX_SYS_SPACE.TRX_SYS_PAGE_NO as it contains address
+	to dblwr buffer */
+	return((page_id.space() == TRX_SYS_SPACE
+		&& page_id.page_no() == TRX_SYS_PAGE_NO) ? true : false);
+}
+
 /** Set encryption information for IORequest.
 @param[in,out]	req_type	IO request
 @param[in]	page_id		page id
@@ -5926,30 +5956,59 @@ fil_io_set_encryption(
 		return;
 	}
 
-	/* Don't encrypt the page 0 of all tablespaces,
-	   don't encrypt TRX_SYS_SPACE.TRX_SYS_PAGE_NO as it contains address to dblwr buffer */
-	if ((req_type.is_log()
-	     || (page_id.page_no() > 0
-		 && (TRX_SYS_SPACE != page_id.space()
-		     || TRX_SYS_PAGE_NO != page_id.page_no())))
-	    && space->encryption_type != Encryption::NONE) {
-		if (space->encryption_type == Encryption::KEYRING)  {
-			ut_ad(space->crypt_data != NULL);
-
-			fil_io_set_keyring_encryption(req_type, space, page_id);
-		} else {
-			ut_ad(space->encryption_type == Encryption::AES);
-			req_type.encryption_key(space->encryption_key,
-						32,
-						false,
-						space->encryption_iv,
-						0, 0, NULL, NULL); // not relevant for Master Key encryption
-
-			req_type.encryption_rotation(Encryption::NO_ROTATION);
-		}
-		req_type.encryption_algorithm(space->encryption_type);
-	} else {
+	if (space->encryption_type == Encryption::NONE) {
 		req_type.clear_encrypted();
+		return;
+	}
+
+        if (req_type.is_log())  {
+		/* redo log encryption */
+		ut_ad(page_id.space() == SRV_LOG_SPACE_FIRST_ID);
+
+		switch (space->encryption_type) {
+		case Encryption::AES:
+		case Encryption::KEYRING:
+			// Both MK and Keyrig key use same style for redo log
+			fil_io_set_mk_encryption(req_type, space);
+		        req_type.encryption_algorithm(space->encryption_type);
+			return;
+		case Encryption::NONE:
+			// Already handled above
+		default:
+			ut_a(0);
+		}
+
+	} else {
+		/* tablespace encryption */
+
+		/* Don't encrypt the page 0 of all tablespaces */
+		if (page_id.page_no() == 0) {
+		    req_type.clear_encrypted();
+		    return;
+		}
+
+		switch (space->encryption_type) {
+		case Encryption::KEYRING:
+			if (fil_keyring_skip_encryption(page_id)) {
+				req_type.clear_encrypted();
+				return;
+			} else {
+				fil_io_set_keyring_encryption(
+					req_type, space, page_id);
+				req_type.encryption_algorithm(
+						space->encryption_type);
+				return;
+			}
+
+		case Encryption::AES:
+			fil_io_set_mk_encryption(req_type, space);
+		        req_type.encryption_algorithm(space->encryption_type);
+			return;
+		case Encryption::NONE:
+			// Already handled above
+		default:
+			ut_a(0);
+		}
 	}
 }
 
@@ -6466,7 +6525,6 @@ fil_flush(
                 size changes to keep OS metadata in sync. */
 		ut_ad(!space->is_in_unflushed_spaces);
 		ut_ad(fil_space_is_flushed(space));
-		ut_ad(space->n_pending_flushes == 0);
 
 		/* Flush only if the file size changes */
 		bool no_flush = true;
@@ -6476,7 +6534,6 @@ fil_flush(
 #ifdef UNIV_DEBUG
 			ut_ad(node->modification_counter
 			      == node->flush_counter);
-			ut_ad(node->n_pending_flushes == 0);
 #endif /* UNIV_DEBUG */
 			if (node->flush_size != node->size) {
 				/* Found at least one file whose size has changed */
@@ -7959,7 +8016,6 @@ fil_set_encryption(
 
 	if (key == NULL) {
 		Encryption::random_value(space->encryption_key);
-		space->encryption_key_version = REDO_LOG_ENCRYPT_NO_VERSION;
 	} else {
 		memcpy(space->encryption_key,
 		       key, ENCRYPTION_KEY_LEN);
@@ -7981,11 +8037,20 @@ fil_set_encryption(
 
 /** Enable encryption of temporary tablespace
 @param[in,out]	space	tablespace object
+@param[in]	enable	true to enable encryption, false to disable
 @return DB_SUCCESS on success, DB_ERROR on failure */
 dberr_t
 fil_temp_update_encryption(
-	fil_space_t*	space)
+	fil_space_t*	space,
+	bool		enable)
 {
+	if (!enable || FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		/* Do nothing when asked to disable encryption. Because
+		existing tables in the temporary tablespace may be
+		encrypted we need to keep existing keys */
+
+		return(DB_SUCCESS);
+	}
 	/* Make sure the keyring is loaded. */
 	if (!Encryption::check_keyring()) {
 		ib::error() << "Can't set temporary tablespace"

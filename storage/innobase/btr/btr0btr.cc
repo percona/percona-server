@@ -921,17 +921,52 @@ btr_page_get_father(
 	mem_heap_free(heap);
 }
 
+/** Check whether AHI is enabled or not. Not this is only applicable
+for dropping of indexes during truncate.
+@param[in]	is_truncate 	true for truncate operation
+@return true always for non-truncate operations, for truncate, check
+the AHI status under lock */
+static
+bool
+btr_check_ahi_status(bool is_truncate) {
+
+	if (!is_truncate) {
+		return(true);
+	}
+
+	/* At drop index stage (only for truncate), concurrently AHI can only
+	be enabled. It cannot be disabled because disabling needs dict_sys
+	mutex. See btr_search_disable(). We already own dict_sys mutex here.
+	Lock and get status of AHI. If we read it as disabled under
+	lock, it can become enabled after lock release. But it doesn't
+	matter because no one can add AHI entries at this stage. So
+	what we read under lock can be trusted */
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	const ulint             ahi_slot
+		= static_cast<ulint>(1) % btr_ahi_parts;
+	rw_lock_t* latch = btr_search_latches[ahi_slot];
+
+	rw_lock_s_lock(latch);
+	bool ahi = btr_search_enabled;
+	rw_lock_s_unlock(latch);
+
+	return(ahi);
+}
+
 /** Free a B-tree root page. btr_free_but_not_root() must already
 have been called.
 In a persistent tablespace, the caller must invoke fsp_init_file_page()
 before mtr.commit().
-@param[in,out]	block	index root page
-@param[in,out]	mtr	mini-transaction */
+@param[in,out]	block		index root page
+@param[in,out]	mtr		mini-transaction
+@param[in]	is_truncate	true for drop indexes from truncate operation */
 static
 void
 btr_free_root(
 	buf_block_t*	block,
-	mtr_t*		mtr)
+	mtr_t*		mtr,
+	bool		is_truncate)
 {
 	fseg_header_t*	header;
 
@@ -947,7 +982,9 @@ btr_free_root(
 	ut_a(btr_root_fseg_validate(header, block->page.id.space()));
 #endif /* UNIV_BTR_DEBUG */
 
-	while (!fseg_free_step(header, true, mtr)) {
+	bool ahi = btr_check_ahi_status(is_truncate);
+
+	while (!fseg_free_step(header, ahi, mtr)) {
 		/* Free the entire segment in small steps. */
 	}
 }
@@ -1099,7 +1136,7 @@ btr_create(
 				 PAGE_HEADER + PAGE_BTR_SEG_LEAF, mtr)) {
 			/* Not enough space for new segment, free root
 			segment before return. */
-			btr_free_root(block, mtr);
+			btr_free_root(block, mtr, false);
 			if (!dict_table_is_temporary(index->table)) {
 				btr_free_root_invalidate(block, mtr);
 			}
@@ -1192,17 +1229,22 @@ btr_create(
 /** Free a B-tree except the root page. The root page MUST be freed after
 this by calling btr_free_root.
 @param[in,out]	block		root page
-@param[in]	log_mode	mtr logging mode */
+@param[in]	log_mode	mtr logging mode
+@param[in]	is_truncate	true for drop indexes from truncate operation */
 static
 void
 btr_free_but_not_root(
 	buf_block_t*	block,
-	mtr_log_t	log_mode)
+	mtr_log_t	log_mode,
+	bool 		is_truncate)
 {
 	ibool	finished;
 	mtr_t	mtr;
 
 	ut_ad(page_is_root(block->frame));
+
+	bool	ahi = btr_check_ahi_status(is_truncate);
+
 leaf_loop:
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, log_mode);
@@ -1227,7 +1269,7 @@ leaf_loop:
 	fsp0fsp. */
 
 	finished = fseg_free_step(root + PAGE_HEADER + PAGE_BTR_SEG_LEAF,
-				  true, &mtr);
+				  ahi, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -1253,7 +1295,7 @@ top_loop:
 #endif /* UNIV_BTR_DEBUG */
 
 	finished = fseg_free_step_not_header(
-		root + PAGE_HEADER + PAGE_BTR_SEG_TOP, true, &mtr);
+		root + PAGE_HEADER + PAGE_BTR_SEG_TOP, ahi, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -1266,13 +1308,16 @@ top_loop:
 @param[in]	page_id		root page id
 @param[in]	page_size	page size
 @param[in]	index_id	PAGE_INDEX_ID contents
-@param[in,out]	mtr		mini-transaction */
+@param[in,out]	mtr		mini-transaction
+@param[in]	is_truncate	true for drop index during
+				truncate operation */
 void
 btr_free_if_exists(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	index_id_t		index_id,
-	mtr_t*			mtr)
+	mtr_t*			mtr,
+	bool			is_truncate)
 {
 	buf_block_t* root = btr_free_root_check(
 		page_id, page_size, index_id, mtr);
@@ -1281,9 +1326,10 @@ btr_free_if_exists(
 		return;
 	}
 
-	btr_free_but_not_root(root, mtr->get_log_mode());
+
+	btr_free_but_not_root(root, mtr->get_log_mode(), is_truncate);
 	mtr->set_named_space(page_id.space());
-	btr_free_root(root, mtr);
+	btr_free_root(root, mtr, is_truncate);
 	btr_free_root_invalidate(root, mtr);
 }
 
@@ -1293,7 +1339,8 @@ btr_free_if_exists(
 void
 btr_free(
 	const page_id_t&	page_id,
-	const page_size_t&	page_size)
+	const page_size_t&	page_size,
+	bool 			is_truncate)
 {
 	mtr_t		mtr;
 	mtr.start();
@@ -1304,8 +1351,8 @@ btr_free(
 
 	ut_ad(page_is_root(block->frame));
 
-	btr_free_but_not_root(block, MTR_LOG_NO_REDO);
-	btr_free_root(block, &mtr);
+	btr_free_but_not_root(block, MTR_LOG_NO_REDO, is_truncate);
+	btr_free_root(block, &mtr, is_truncate);
 	mtr.commit();
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -1,0 +1,3 @@
+--let LOG_ENCRYPT_TYPE=KEYRING_KEY
+--let KEYRING_PARAMS=--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_content $KEYRING_PLUGIN_OPT
+--source include/percona_log_encrypt_content.inc

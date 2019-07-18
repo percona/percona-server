@@ -1341,7 +1341,7 @@ search:
         pfs->m_class= klass;
         pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
         pfs->m_timed= klass->m_timed;
-        strncpy(pfs->m_filename, normalized_filename, normalized_length);
+        memcpy(pfs->m_filename, normalized_filename, normalized_length);
         pfs->m_filename[normalized_length]= '\0';
         pfs->m_filename_length= normalized_length;
         pfs->m_file_stat.m_open_count= 1;

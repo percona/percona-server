@@ -182,11 +182,17 @@ static void init_user_stats(USER_STATS *user_stats, const char *user,
   DBUG_PRINT("info",
              ("Add user_stats entry for user %s - priv_user %s",
               user, priv_user));
-  strncpy(user_stats->user, user, sizeof(user_stats->user));
-  strncpy(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
+  user_stats->user_len=               strlen(user);
+  if (user_stats->user_len >= sizeof(user_stats->user))
+    user_stats->user_len= sizeof(user_stats->user) - 1;
+  memcpy(user_stats->user, user, user_stats->user_len);
+  user_stats->user[user_stats->user_len]= '\0';
 
-  user_stats->user_len=               strlen(user_stats->user);
-  user_stats->priv_user_len=          strlen(user_stats->priv_user);
+  user_stats->priv_user_len=          strlen(priv_user);
+  if (user_stats->priv_user_len >= sizeof(user_stats->priv_user))
+    user_stats->priv_user_len= sizeof(user_stats->priv_user) - 1;
+  strncpy(user_stats->priv_user, priv_user, user_stats->priv_user_len);
+  user_stats->priv_user[user_stats->priv_user_len]= '\0';
 
   user_stats->total_connections=      total_connections;
   user_stats->total_ssl_connections=  total_ssl_connections;

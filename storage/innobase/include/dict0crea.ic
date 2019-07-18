@@ -65,7 +65,7 @@ dict_create_add_foreign_id(
 			sprintf(id, "%s_ibfk_%lu", name,
 				(ulong) (*id_nr)++);
 		} else {
-			char	table_name[MAX_TABLE_NAME_LEN + 20] = "";
+			char	table_name[MAX_TABLE_NAME_LEN + 20 + 1] = "";
 			uint	errors = 0;
 
 			strncpy(table_name, name,

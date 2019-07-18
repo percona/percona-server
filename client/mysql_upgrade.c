@@ -1004,7 +1004,7 @@ static int check_version_match(void)
 
 int main(int argc, char **argv)
 {
-  char self_name[FN_REFLEN];
+  char self_name[FN_REFLEN + 1];
 
   MY_INIT(argv[0]);
 

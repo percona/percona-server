@@ -50,7 +50,7 @@ SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 # Test crash right before writing of new bitmap data
 #
 
---let $restart_parameters= restart:-#d,crash_before_bitmap_write
+--let $restart_parameters=restart:--debug="+d,crash_before_bitmap_write"
 --echo 2nd restart
 --source include/restart_mysqld.inc
 

@@ -9384,11 +9384,6 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
 
 C_MODE_END
 
-/* defined in sys_vars.cc */
-extern void init_log_slow_verbosity();
-extern void init_slow_query_log_use_global_control();
-extern void init_log_slow_sp_statements();
-
 /**
   Get server options from the command line,
   and perform related server initializations.

@@ -1806,9 +1806,9 @@ UNIV_INTERN
 ulong
 thd_flush_log_at_trx_commit(
 /*================================*/
-	void*	thd)
+	THD*	thd)
 {
-	return(THDVAR((THD*) thd, flush_log_at_trx_commit));
+	return(THDVAR(thd, flush_log_at_trx_commit));
 }
 
 /******************************************************************//**
@@ -17195,7 +17195,7 @@ innodb_sched_priority_master_update(
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "Failed to set the master thread "
-				    "priority to %lu,  "
+				    "priority to %lu, "
 				    "the current priority is %lu", priority,
 				    actual_priority);
 	} else {
@@ -18799,14 +18799,14 @@ static MYSQL_SYSVAR_ULONG(saved_page_number_debug,
   NULL, innodb_save_page_no, 0, 0, UINT_MAX32, 0);
 #endif /* UNIV_DEBUG */
 
-const char *corrupt_table_action_names[]=
+static const char *corrupt_table_action_names[]=
 {
   "assert", /* 0 */
   "warn", /* 1 */
   "salvage", /* 2 */
   NullS
 };
-TYPELIB corrupt_table_action_typelib=
+static TYPELIB corrupt_table_action_typelib=
 {
   array_elements(corrupt_table_action_names) - 1, "corrupt_table_action_typelib",
   corrupt_table_action_names, NULL

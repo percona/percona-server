@@ -157,7 +157,8 @@ thd_timer_set(THD *thd, thd_timer_t *ttp, unsigned long time)
   if (ttp == NULL && (ttp= thd_timer_create()) == NULL)
     DBUG_RETURN(NULL);
 
-  DBUG_ASSERT(!ttp->destroy && !ttp->thd);
+  DBUG_ASSERT(!ttp->destroy);
+  DBUG_ASSERT(!ttp->thd);
 
   /* Mark the notification as pending. */
   ttp->thd= thd;

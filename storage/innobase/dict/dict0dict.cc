@@ -5837,7 +5837,8 @@ dict_table_set_corrupt_by_space(
 	dict_table_t*	table;
 	ibool		found = FALSE;
 
-	ut_a(space_id != 0 && space_id < SRV_LOG_SPACE_FIRST_ID);
+	ut_a(space_id != 0);
+	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 
 	if (need_mutex)
 		mutex_enter(&(dict_sys->mutex));

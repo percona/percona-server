@@ -7932,6 +7932,7 @@ fil_get_compression(
 @param[in] algorithm		Encryption algorithm
 @param[in] key			Encryption key
 @param[in] iv			Encryption iv
+@param[in] acquire_mutex	if true acquire fil_sys mutex, else false
 @return DB_SUCCESS or error code */
 dberr_t
 fil_set_encryption(
@@ -7939,15 +7940,18 @@ fil_set_encryption(
 	Encryption::Type	algorithm,
 	byte*			key,
 	byte*			iv,
-	bool aquire_mutex)
+	bool			acquire_mutex)
 {
-	if (aquire_mutex)
+	if (acquire_mutex) {
 		mutex_enter(&fil_system->mutex);
+	}
 
 	fil_space_t*	space = fil_space_get_by_id(space_id);
 
 	if (space == NULL) {
-		mutex_exit(&fil_system->mutex);
+		if (acquire_mutex) {
+			mutex_exit(&fil_system->mutex);
+		}
 		return(DB_NOT_FOUND);
 	}
 
@@ -7973,8 +7977,9 @@ fil_set_encryption(
 		       iv, ENCRYPTION_KEY_LEN);
 	}
 
-	if (aquire_mutex)
+	if (acquire_mutex) {
 		mutex_exit(&fil_system->mutex);
+	}
 
 	return(DB_SUCCESS);
 }

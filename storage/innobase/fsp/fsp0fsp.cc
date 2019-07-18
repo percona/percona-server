@@ -1139,7 +1139,8 @@ fsp_enable_encryption(
 
 	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 
-	if (!fsp_header_fill_encryption_info(space->encryption_key, space->encryption_iv, encrypt_info)) {
+	if (!fsp_header_fill_encryption_info(
+		space->encryption_key, space->encryption_iv, encrypt_info)) {
 		return(false);
 	}
 
@@ -1167,6 +1168,10 @@ fsp_enable_encryption(
 			  encrypt_info,
 			  ENCRYPTION_INFO_SIZE_V2,
 			  &mtr);
+
+	fsp_flags_set_encryption(space->flags);
+	mlog_write_ulint(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS,
+			 space->flags, MLOG_4BYTES, &mtr);
 
 	mtr_commit(&mtr);
 

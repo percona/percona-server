@@ -364,4 +364,11 @@ is a tablespace with encryption. */
 #define fsp_is_shared_tablespace FSP_FLAGS_GET_SHARED
 /* @} */
 
+/* Set encryption bit in tablespace flags
+@param[in,out]	flags	the flags to be modified with
+			encryption bit */
+inline void fsp_flags_set_encryption(ulint& flags) {
+	flags |= FSP_FLAGS_MASK_ENCRYPTION;
+}
+
 #endif /* fsp0types_h */

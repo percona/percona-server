@@ -1770,25 +1770,15 @@ fil_get_compression(
 @param[in] algorithm		Encryption algorithm
 @param[in] key			Encryption key
 @param[in] iv			Encryption iv
+@param[in] acquire_mutex	if true acquire fil_sys mutex, else false
 @return DB_SUCCESS or error code */
-/*
 dberr_t
 fil_set_encryption(
 	ulint			space_id,
 	Encryption::Type	algorithm,
 	byte*			key,
 	byte*			iv,
-        ulint                   key_version,
-        fil_encryption_t        encryption)
-	MY_ATTRIBUTE((warn_unused_result));
-*/
-dberr_t
-fil_set_encryption(
-	ulint			space_id,
-	Encryption::Type	algorithm,
-	byte*			key,
-	byte*			iv,
-        bool aquire_mutex = true)
+	bool			acquire_mutex = true)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /**

@@ -7166,8 +7166,7 @@ static int i_s_innodb_session_temp_tablespaces_fill(THD *thd,
      mutex again */
   check_trx_exists(thd);
   innodb_session_t *innodb_session = thd_to_innodb_session(thd);
-  if (srv_encrypt_tables == SRV_ENCRYPT_TABLES_ON ||
-      srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE ||
+  if (srv_default_table_encryption == DEFAULT_TABLE_ENC_ON ||
       srv_tmp_tablespace_encrypt) {
     innodb_session->get_enc_instrinsic_temp_tblsp();
   } else {

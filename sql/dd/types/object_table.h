@@ -175,6 +175,8 @@ class Object_table {
   */
   virtual void set_hidden(bool hidden) = 0;
 
+  virtual void set_encrypted() = 0;
+
  public:
   virtual ~Object_table() {}
 };

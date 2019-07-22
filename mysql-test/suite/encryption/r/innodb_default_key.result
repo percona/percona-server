@@ -15,7 +15,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION_KEY_ID=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=1
 include/assert.inc [Table t1 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted) and CURRENT_KEY_ID = 1]
 # Encryption disabled, innodb_default_encryption_key_id set to 5. Create table KEYRING should assign ENCRYPION_KEY_ID=5
 SET SESSION innodb_default_encryption_key_id = 5;
@@ -32,7 +32,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION_KEY_ID=6
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=6
 include/assert.inc [Table t2 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted) and CURRENT_KEY_ID = 6]
 # Create table t3 (unencrypted), create table t4 with MK encryption, set global innodb_default_encryption_key_id to 8.
 CREATE TABLE t3 (a varchar(255)) ENGINE=innodb;

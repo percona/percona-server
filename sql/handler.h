@@ -1836,6 +1836,14 @@ typedef bool (*rotate_encryption_master_key_t)(void);
 */
 using fix_tablespaces_empty_uuid_t = bool (*)(void);
 
+/**
+ @brief
+ This is used by encryption threads. It updates innodb's copy of
+ default_table_encryption variable according to the parameter.
+ @param value for innodb's copy of default_table_encryption
+*/
+using fix_default_table_encryption_t = void (*)(ulong);
+
 using compression_dict_data_vec_t =
     std::vector<std::pair<std::string, std::string>>;
 
@@ -2390,6 +2398,7 @@ struct handlerton {
   notify_alter_table_t notify_alter_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
   fix_tablespaces_empty_uuid_t fix_tablespaces_empty_uuid;
+  fix_default_table_encryption_t fix_default_table_encryption;
   upgrade_get_compression_dict_data_t upgrade_get_compression_dict_data;
 
   get_table_statistics_t get_table_statistics;

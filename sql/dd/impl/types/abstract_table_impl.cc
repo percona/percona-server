@@ -61,33 +61,35 @@ namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
 
-static const std::set<String_type> default_valid_option_keys = {
-    "avg_row_length",
-    "checksum",
-    "compress",
-    "connection_string",
-    "delay_key_write",
-    "encrypt_type",
-    "explicit_tablespace",
-    "key_block_size",
-    "keys_disabled",
-    "max_rows",
-    "min_rows",
-    "pack_keys",
-    "pack_record",
-    "plugin_version",
-    "row_type",
-    "secondary_engine",
-    "server_i_s_table",
-    "server_p_s_table",
-    "stats_auto_recalc",
-    "stats_persistent",
-    "stats_sample_pages",
-    "storage",
-    "tablespace",
-    "timestamp",
-    "view_valid",
-    "encryption_key_id"};  // Added by Percona InnoDB rotated key encryption
+static const std::set<String_type> default_valid_option_keys =
+    {"avg_row_length",
+     "checksum",
+     "compress",
+     "connection_string",
+     "delay_key_write",
+     "encrypt_type",
+     "explicit_tablespace",
+     "key_block_size",
+     "keys_disabled",
+     "max_rows",
+     "min_rows",
+     "pack_keys",
+     "pack_record",
+     "plugin_version",
+     "row_type",
+     "secondary_engine",
+     "server_i_s_table",
+     "server_p_s_table",
+     "stats_auto_recalc",
+     "stats_persistent",
+     "stats_sample_pages",
+     "storage",
+     "tablespace",
+     "timestamp",
+     "view_valid",
+     "encryption_key_id",     // Added by Percona InnoDB rotated key encryption
+     "explicit_encryption"};  // Added by Percona InnoDB rotated key
+                              // encryption
 
 ///////////////////////////////////////////////////////////////////////////
 // Abstract_table_impl implementation.

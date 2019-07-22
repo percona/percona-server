@@ -88,5 +88,5 @@ SHOW CREATE TABLE test.t6;
 --source include/start_mysqld.inc
 
 --echo # PS-5333: Remove need for innodb_encrypt_tables to ON/FORCE when mysql.ibd is encrypted
---let $restart_parameters="restart:--innodb-encrypt-tables=OFF"
+--let $restart_parameters="restart:--default_table_encryption=OFF"
 --source include/restart_mysqld.inc

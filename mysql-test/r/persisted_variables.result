@@ -53,7 +53,7 @@ SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 SET PERSIST long_query_time= 8.3452;
 SET PERSIST sql_require_primary_key= true;
-SET PERSIST default_table_encryption= true;
+SET PERSIST default_table_encryption= ON;
 SET PERSIST table_encryption_privilege_check= true;
 # Restart server
 # after restart
@@ -77,7 +77,7 @@ SELECT @@global.sql_require_primary_key;
 1
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
-1
+ON
 SELECT @@global.table_encryption_privilege_check;
 @@global.table_encryption_privilege_check
 1
@@ -86,7 +86,7 @@ SET PERSIST sort_buffer_size=156000,max_connections= 52;
 SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
 SET PERSIST long_query_time= 7.8102;
 SET PERSIST sql_require_primary_key= false;
-SET PERSIST default_table_encryption= false;
+SET PERSIST default_table_encryption= OFF;
 SET PERSIST table_encryption_privilege_check= false;
 # Restart server
 # after restart
@@ -110,7 +110,7 @@ SELECT @@global.sql_require_primary_key;
 0
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
-0
+OFF
 SELECT @@global.table_encryption_privilege_check;
 @@global.table_encryption_privilege_check
 0
@@ -125,7 +125,7 @@ SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 SET PERSIST long_query_time= 2.999999;
 SET PERSIST sql_require_primary_key= true;
-SET PERSIST default_table_encryption= true;
+SET PERSIST default_table_encryption= ONLINE_TO_KEYRING;
 SET PERSIST table_encryption_privilege_check= true;
 SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
 # Restart server
@@ -153,7 +153,7 @@ SELECT @@global.sql_require_primary_key;
 1
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
-1
+ONLINE_TO_KEYRING
 SELECT @@global.table_encryption_privilege_check;
 @@global.table_encryption_privilege_check
 1
@@ -199,7 +199,7 @@ SELECT @@global.sql_require_primary_key;
 0
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
-0
+OFF
 SELECT @@global.table_encryption_privilege_check;
 @@global.table_encryption_privilege_check
 0

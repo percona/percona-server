@@ -1043,6 +1043,14 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
 */
 static bool should_print_encryption_clause(THD *thd, TABLE_SHARE *share,
                                            bool *print) {
+  // If encryption clause was specified we always print it, even if it
+  // is 'N'. This is to mark that tablespace will not be encrypted
+  // by encryption threads.
+  if (share->explicit_encryption) {
+    *print = true;
+    return false;
+  }
+
   // Don't print for temporary
   if (share->tmp_table) {
     *print = false;

@@ -4053,14 +4053,14 @@ Table	Create Table
 innodb_compact	CREATE TABLE `innodb_compact` (
   `c1` bigint(20) NOT NULL,
   `b` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT COMPRESSION='zlib' ENCRYPTION_KEY_ID=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT COMPRESSION='zlib' ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=1
 alter table innodb_dynamic engine=innodb encryption='KEYRING' COMPRESSION="zlib";
 show create table innodb_dynamic;
 Table	Create Table
 innodb_dynamic	CREATE TABLE `innodb_dynamic` (
   `c1` bigint(20) NOT NULL,
   `b` char(200) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC COMPRESSION='zlib' ENCRYPTION_KEY_ID=2
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC COMPRESSION='zlib' ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2
 drop procedure innodb_insert_proc;
 drop table innodb_normal;
 drop table innodb_compact;

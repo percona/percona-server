@@ -198,17 +198,14 @@ static ibt::Tablespace *determine_session_temp_tblsp(
     innodb_session_t *innodb_session, bool is_intrinsic, bool is_slave_thd) {
   ibt::Tablespace *tblsp = nullptr;
   bool encrypted = false;
-  switch (srv_encrypt_tables) {
-    case SRV_ENCRYPT_TABLES_ON:
-    case SRV_ENCRYPT_TABLES_FORCE:
-    case SRV_ENCRYPT_TABLES_KEYRING_ON:
-    case SRV_ENCRYPT_TABLES_KEYRING_FORCE:
-    case SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING:
-    case SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE:
+  switch (srv_default_table_encryption) {
+    case DEFAULT_TABLE_ENC_ON:
+    case DEFAULT_TABLE_ENC_KEYRING_ON:
+    case DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING:
       encrypted = true;
       break;
-    case SRV_ENCRYPT_TABLES_OFF:
-    case SRV_ENCRYPT_TABLES_ONLINE_FROM_KEYRING_TO_UNENCRYPTED:
+    case DEFAULT_TABLE_ENC_OFF:
+    case DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED:
       if (srv_tmp_tablespace_encrypt) {
         encrypted = true;
       }
@@ -259,8 +256,7 @@ dberr_t dict_build_tablespace_for_table(
 
   if (mode == FIL_ENCRYPTION_ON ||
       (mode == FIL_ENCRYPTION_DEFAULT &&
-       (srv_encrypt_tables == SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING ||
-        srv_encrypt_tables == SRV_ENCRYPT_TABLES_KEYRING_FORCE))) {
+       srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING)) {
     DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
   }
 

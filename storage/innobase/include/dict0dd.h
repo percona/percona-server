@@ -1223,6 +1223,8 @@ bool dd_tablespace_update_cache(THD *thd);
 @return true if it does. */
 bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table);
 
+bool dd_is_table_in_encrypted_tablespace(const char *name);
+
 /* Sets tablespace's DD encryption flag.
 @param[in] Thread       THD
 @param[in] space_name   name of the space for which DD encryption flag is to be

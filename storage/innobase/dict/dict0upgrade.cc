@@ -937,18 +937,6 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
 
   dd_set_table_options(dd_table, ib_table);
 
-  /* Tables in encrypted general tablespace from PS-5.7 have
-  encryption attribute. Remove this attribute as tables in
-  general tablespace shouldn't have it. General tablespace
-  should have encryption attribute */
-  if (!dict_table_is_file_per_table(ib_table) &&
-      ib_table->tablespace != nullptr) {
-    dd::Table *dd_table_def = &(dd_table->table());
-    dd::Properties &options = dd_table_def->options();
-    if (options.exists("encrypt_type")) {
-      options.remove("encrypt_type");
-    }
-  }
 
   /* The number of indexes has to match. */
   DBUG_EXECUTE_IF("dd_upgrade_strict_mode",

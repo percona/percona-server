@@ -1,0 +1,36 @@
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%"; 
+
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data1;
+
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--echo # Stop the MTR default DB server
+--source include/shutdown_mysqld.inc
+
+--let $KEYRING_PARAMS=--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+let extra_args=--no-defaults --console --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let NEW_CMD = $MYSQLD $extra_args --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PARAMS --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb-redo-log-encrypt >>$MYSQL_TMP_DIR/bootstrap1.log 2>&1;
+
+--echo # Run the bootstrap command of datadir1
+--exec $NEW_CMD
+
+--echo # Start the DB server with datadir1
+--let $restart_parameters="restart: $KEYRING_PARAMS --innodb-redo-log-encrypt --datadir=$MYSQLD_DATADIR1"
+--replace_regex /\.dll/.so/
+--source include/start_mysqld_no_echo.inc
+
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%"; 
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
+
+--force-rmdir $MYSQL_TMP_DIR/data1
+--remove_file $MYSQL_TMP_DIR/bootstrap1.log
+--remove_file $MYSQL_TMP_DIR/boot.sql
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring
+

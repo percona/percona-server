@@ -27,7 +27,6 @@
 #include "my_inttypes.h"
 #include "my_stacktrace.h"
 #include "unittest/gunit/test_utils.h"
-#include "unittest/gunit/thread_utils.h"
 
 namespace segfault_unittest {
 
@@ -47,9 +46,9 @@ class FatalSignalDeathTest : public ::testing::Test {
 
 TEST_F(FatalSignalDeathTest, Abort) {
 #if defined(_WIN32)
-  MY_EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
+  EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
 #else
-  MY_EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
+  EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
 #endif
 }
 
@@ -61,16 +60,16 @@ TEST_F(FatalSignalDeathTest, Segfault) {
    caught by handle_fatal_signal(). We get an empty error message from the
    gtest library instead.
   */
-  MY_EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
+  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
 #elif defined(__SANITIZE_ADDRESS__)
   /* AddressSanitizer */
-  MY_EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
+  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
 #else
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).
   */
-  MY_EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".* UTC - mysqld got signal .*");
+  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".* UTC - mysqld got signal .*");
 #endif
 }
 

@@ -59,11 +59,11 @@ let MOUNT_POINT_SERVICE_OP=$MOUNT_POINT_SERVICE_OP;
 
   if ($mount_point_service_op eq 'CREATE')
   {
-    system(qq#curl -L -H "X-Vault-Token: $token" $vault_ca_cert_opt --data '{"type":"generic"}' --request POST $vault_url/v1/sys/mounts/$secret_mount_point#);
+    system(qq#curl --http1.1 -L -H "X-Vault-Token: $token" $vault_ca_cert_opt --data '{"type":"generic"}' --request POST $vault_url/v1/sys/mounts/$secret_mount_point#);
   }
   elsif ($mount_point_service_op eq 'DELETE')
   {
-    system(qq#curl -L -H "X-Vault-Token: $token" $vault_ca_cert_opt -X DELETE $vault_url/v1/sys/mounts/$secret_mount_point#);
+    system(qq#curl --http1.1 -L -H "X-Vault-Token: $token" $vault_ca_cert_opt -X DELETE $vault_url/v1/sys/mounts/$secret_mount_point#);
   }
   else
   {

@@ -226,7 +226,7 @@ class ha_rocksdb : public my_core::handler {
   uchar *m_pack_buffer;
 
   /* class to convert between Mysql format and RocksDB format*/
-  std::shared_ptr<Rdb_converter> m_converter;
+  std::unique_ptr<Rdb_converter> m_converter;
 
   /*
     Pointer to the original TTL timestamp value (8 bytes) during UPDATE.
@@ -404,15 +404,7 @@ class ha_rocksdb : public my_core::handler {
 
   ha_rocksdb(my_core::handlerton *const hton,
              my_core::TABLE_SHARE *const table_arg);
-  virtual ~ha_rocksdb() override {
-    int err MY_ATTRIBUTE((__unused__));
-    err = finalize_bulk_load(false);
-    if (err != 0) {
-      LogPluginErrMsg(ERROR_LEVEL, 0,
-                      "Error %d finalizing bulk load while closing handler.",
-                      err);
-    }
-  }
+  virtual ~ha_rocksdb() override;
 
   /** @brief
     The name that will be used for display purposes.

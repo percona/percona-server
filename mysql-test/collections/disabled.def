@@ -172,7 +172,7 @@ tokudb.rpl.rpl_deadlock_tokudb : BUG#0 temporarily disabled until properly debug
 tokudb.rpl.rpl_partition_tokudb : BUG#0 exchange partition is not supported
 
 # encryption suite tests
-encryption.innodb-bad-key-change2 : BUG#5322 percona https://jira.percona.com/browse/PS-5322
+encryption.innodb-bad-key-change2 : BUG#5772 percona fix after https://jira.percona.com/browse/PS-5772
 encryption.alter_rename_table : BUG#5772 8.0.16 encryption reconciliation
 encryption.create_or_replace : BUG#5772 8.0.16 encryption reconciliation
 encryption.encrypt_and_grep : BUG#5772 8.0.16 encryption reconciliation
@@ -233,14 +233,3 @@ encryption.uninstall_keyring : BUG#5772 8.0.16 encryption reconciliation
 
 # PS-5772 8.0.16 encryption reconciliation
 innodb.percona_force_encryption : BUG#5772 8.0.16 encryption reconciliation
-innodb.percona_session_temp_tablespaces_encrypt : BUG#5772 8.0.16 encryption reconciliation
-innodb.table_encrypt_3 : BUG#5772 8.0.16 encryption reconciliation
-main.mysqld--help-notwin : BUG#5772 8.0.16 encryption reconciliation
-innodb.percona_log_encrypt_failure : BUG#5772 8.0.16 encryption reconciliation
-main.mysqldump : BUG#5772 8.0.16 encryption reconciliation
-main.system_mysql_db : BUG#5772 8.0.16 encryption reconciliation
-innodb.innodb-index-debug : BUG#5772 8.0.16 encryption reconciliation
-innodb.sdi_delete_marked : BUG#5772 8.0.16 encryption reconciliation
-main.all_persisted_variables : BUG#5772 8.0.16 encryption reconciliation
-main.dd_schema_definition_debug : BUG#5772 8.0.16 encryption reconciliation
-innodb.table_encrypt_1 : BUG#5772 8.0.16 encryption reconciliation

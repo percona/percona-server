@@ -12579,9 +12579,6 @@ const char *create_table_info_t::create_options_are_invalid() {
   return (ret);
 }
 
-static const LEX_STRING yes_string = {C_STRING_WITH_LEN("Y")};
-static const LEX_STRING keyring_string = {C_STRING_WITH_LEN("KEYRING")};
-
 void ha_innobase::adjust_encryption_key_id(HA_CREATE_INFO *create_info,
                                            dd::Properties *options) noexcept {
   if (false == create_info->was_encryption_key_id_set) {

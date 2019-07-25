@@ -32,7 +32,7 @@ Level	Code	Message
 Error	1478	InnoDB: ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.
 Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
-ERROR HY000: InnoDB : ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.
+ERROR HY000: InnoDB: ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.

@@ -208,6 +208,9 @@ bool Vault_curl::setup_curl_session(CURL *curl)
       (curl_res= curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, timeout)) !=
           CURLE_OK ||
       (curl_res= curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout)) !=
+          CURLE_OK ||
+      (curl_res = curl_easy_setopt(curl, CURLOPT_HTTP_VERSION,
+                                   (long)CURL_HTTP_VERSION_1_1)) !=
           CURLE_OK)
   {
     logger->log(MY_ERROR_LEVEL, get_error_from_curl(curl_res).c_str());

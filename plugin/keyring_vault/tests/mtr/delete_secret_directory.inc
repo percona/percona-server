@@ -50,7 +50,7 @@ let SERVER_UUID= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
     $vault_ca_cert_opt= "--cacert $vault_ca";
   }
 
-  system(qq#curl -L -H "X-Vault-Token: $token" -X LIST $vault_ca_cert_opt $vault_url/v1/$secret_mount_point > $vardir/tmp/curl_list_result#);
+  system(qq#curl --http1.1 -L -H "X-Vault-Token: $token" -X LIST $vault_ca_cert_opt $vault_url/v1/$secret_mount_point > $vardir/tmp/curl_list_result#);
 
   my $curl_conn_successful = 1;
   my $curl_response = 0;
@@ -107,7 +107,7 @@ let SERVER_UUID= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
         if ($_ =~ m/"(.*)"/)
         {
           print $help_file $1;
-          system(qq#curl -L -H "X-Vault-Token: $token" $vault_ca_cert_opt -X DELETE $vault_url/v1/$secret_mount_point/$1#);
+          system(qq#curl --http1.1 -L -H "X-Vault-Token: $token" $vault_ca_cert_opt -X DELETE $vault_url/v1/$secret_mount_point/$1#);
         }
       }
     }

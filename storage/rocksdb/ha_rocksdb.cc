@@ -5470,6 +5470,18 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
 {
 }
 
+ha_rocksdb::~ha_rocksdb() {
+  int err MY_ATTRIBUTE((__unused__));
+  err = finalize_bulk_load(false);
+  if (err != 0) {
+    // NO_LINT_DEBUG
+    sql_print_error(
+        "RocksDB: Error %d finalizing bulk load while closing "
+        "handler.",
+        err);
+  }
+}
+
 static const char *ha_rocksdb_exts[] = {NullS};
 
 const char **ha_rocksdb::bas_ext() const {
@@ -5914,7 +5926,7 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked) {
   init_with_fields();
 
   /* Initialize decoder */
-  m_converter = std::make_shared<Rdb_converter>(ha_thd(), m_tbl_def, table);
+  m_converter.reset(new Rdb_converter(ha_thd(), m_tbl_def, table));
 
   /*
      Update m_ttl_bytes address to same as Rdb_converter's m_ttl_bytes.

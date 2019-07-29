@@ -337,3 +337,17 @@ After this is done, just restart the server as usual:
 .. code-block:: bash
 
   $ service mysql restart
+
+Performing a Distribution Upgrade in-place on a System with Percona Packages 
+Installed
+-----------------------------------------------------------------------------
+The recommended process for performing a distribution upgrade on a system with 
+the Percona packages installed is:
+    1. Record which Percona packages are installed
+    2. Backup the data and configurations
+    3. Uninstall the Percona packages without removing the configurations or 
+data
+    4. Perform the upgrade by following the distribution upgrade instructions
+    5. Reboot the system
+    6. Install the Percona packages intended for the new version of the 
+distribution

@@ -1402,13 +1402,17 @@ Enabled by default.
   :dyn: Yes
   :scope: Global
   :vartype: Boolean
-  :default: ``OFF``
+  :default: ``TRUE``
 
 When enabled, this option allows index key prefixes longer than 767 bytes (up to
 3072 bytes). This option mirrors the `innodb_large_prefix
 <https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_large_prefix>`_
 The values for :variable:`rocksdb_large_prefix` should be the same between
 master and slave.
+
+.. note::
+
+In version 8.0.16-7 and later, the default value is changed to ``TRUE``.
 
 .. variable:: rocksdb_keep_log_file_num
 

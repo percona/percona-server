@@ -336,24 +336,17 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
-<<<<<<< HEAD
-  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
-  int ret_set_cipherlist= 0;
-  char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
-#if defined(OPENSSL_EC_NAMED_CURVE) && (OPENSSL_VERSION_NUMBER < 0x10002000L)
-  EC_KEY *ecdh;
-#endif
-||||||| merged common ancestors
-  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
-=======
   long ssl_ctx_options= (SSL_OP_NO_SSLv2 |
                          SSL_OP_NO_SSLv3
 #ifndef HAVE_YASSL
                          | SSL_OP_NO_TICKET
 #endif
                         );
-
->>>>>>> mysql-5.6.45
+  int ret_set_cipherlist= 0;
+  char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
+#if defined(OPENSSL_EC_NAMED_CURVE) && (OPENSSL_VERSION_NUMBER < 0x10002000L)
+  EC_KEY *ecdh;
+#endif
   DBUG_ENTER("new_VioSSLFd");
   DBUG_PRINT("enter",
              ("key_file: '%s'  cert_file: '%s'  ca_file: '%s'  ca_path: '%s'  "

@@ -102,7 +102,6 @@ if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
 }
 
 # End of 4.1 tests
-<<<<<<< HEAD
 
 --echo #
 --echo # Bug 83003: Using temporary tables on slaves increases GTID sequence number
@@ -132,11 +131,6 @@ SET SESSION sql_log_bin= 1;
 --source include/wait_until_count_sessions.inc
 
 --source include/show_binlog_events.inc
-
-# End of 5.6 tests
-||||||| merged common ancestors
-=======
-
 
 --echo #
 --echo # BUG#28642318: POINT IN TIME RECOVERY USING MYSQLBINLOG BROKEN
@@ -205,4 +199,5 @@ RESET MASTER;
 
 --disconnect con1
 --enable_warnings
->>>>>>> mysql-5.6.45
+
+# End of 5.6 tests

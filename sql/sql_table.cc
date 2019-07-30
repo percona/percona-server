@@ -2739,14 +2739,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 #endif
   }
   DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
-<<<<<<< HEAD
-  thd->thread_specific_used= thd->thread_specific_used || tmp_table_deleted;
-||||||| merged common ancestors
-  thd->thread_specific_used|= (trans_tmp_table_deleted ||
-                               non_trans_tmp_table_deleted);
-=======
   thd->thread_specific_used= TRUE;
->>>>>>> mysql-5.6.45
   error= 0;
 err:
   if (wrong_tables.length())

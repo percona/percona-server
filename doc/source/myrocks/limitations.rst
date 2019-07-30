@@ -90,3 +90,9 @@ You should also consider the following:
      |MySQL| Documentation: Preparing Your Installation for Upgrade
         https://dev.mysql.com/doc/refman/8.0/en/upgrade-prerequisites.html
 
+* |Percona Server| 8.0 and Unicode 9.0.0 standards have defined a change in the
+  handling of binary collations. These collations are handled as NO PAD,
+  trailing spaces are included in key comparisons. A binary collation comparison
+  may result in two unique rows inserted and does not generate a`DUP_ENTRY`
+  error. MyRocks key encoding and comparison does not account for this
+  character set attribute.

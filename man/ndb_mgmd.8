@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/14/2019
+.\"      Date: 06/08/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "03/14/2019" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "06/08/2019" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -662,11 +662,7 @@ is invoked with
 \fB\-\-initial\fR
 but cannot find a global configuration file, the management server cannot start\&.
 .sp
-When a management server starts, it checks for another management server in the same NDB Cluster and tries to use the other management server\*(Aqs configuration data;
-\fBndb_mgmd\fR
-ignores
-\fB\-\-initial\fR
-unless it is the only management server running\&. This behavior also has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
+When a management server starts, it checks for another management server in the same NDB Cluster and tries to use the other management server\*(Aqs configuration data\&. This behavior has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
 Section\ \&18.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
 .sp
 Formerly, using this option together with the
@@ -1203,7 +1199,7 @@ FALSE
 T}
 .TE
 .sp 1
-In NDB Cluster 7\&.3, configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
+NDB Cluster configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
 Section\ \&18.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
 .sp
 This differs in two ways from the
@@ -1218,12 +1214,12 @@ If the management server cannot find a global configuration file, then the
 \fB\-\-reload\fR
 option is ignored\&.
 .sp
-When a management server starts, it checks for another management server in the same NDB Cluster and tries to use the other management server\*(Aqs configuration data;
-\fBndb_mgmd\fR
-ignores
+When
 \fB\-\-reload\fR
-unless it is the only management server running\&. This behavior also has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
-Section\ \&18.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
+is used, the management server must be able to communicate with data nodes and any other management servers in the cluster before it attempts to read the global configuration file; otherwise, the management server fails to start\&. This can happen due to changes in the networking environment, such as new IP addresses for nodes or an altered firewall configuration\&. In such cases, you must use
+\fB\-\-initial\fR
+instead to force the exsiting cached configuration to be discarded and reloaded from the file\&. See
+Section\ \&18.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
 .RE
 .sp
 .RS 4

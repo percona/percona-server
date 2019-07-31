@@ -230,6 +230,3 @@ encryption.innodb-spatial-index : BUG#5772 8.0.16 encryption reconciliation
 encryption.percona_system_key_rotation : BUG#5772 8.0.16 encryption reconciliation
 encryption.rename_table : BUG#5772 8.0.16 encryption reconciliation
 encryption.uninstall_keyring : BUG#5772 8.0.16 encryption reconciliation
-
-# PS-5772 8.0.16 encryption reconciliation
-innodb.percona_force_encryption : BUG#5772 8.0.16 encryption reconciliation

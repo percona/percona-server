@@ -422,20 +422,21 @@ too much normal client queries. */
 UNIV_INLINE
 void
 buf_load_throttle_if_needed(
-    ut_monotonic_time *last_check_time, /*!< in/out: milliseconds since epoch
+/*========================*/
+	ulint*	last_check_time,	/*!< in/out: milliseconds since epoch
 					of the last time we did check if
 					throttling is needed, we do the check
 					every srv_io_capacity IO ops. */
-    ulint *	    last_activity_count,
-    ulint	      n_io) /*!< in: number of IO ops done since
+	ulint*	last_activity_count,
+	ulint	n_io)			/*!< in: number of IO ops done since
 					buffer pool load has started */
 {
 	if (n_io % srv_io_capacity < srv_io_capacity - 1) {
 		return;
 	}
 
-	if (last_check_time->ms == 0 || *last_activity_count == 0) {
-		*last_check_time = ut_monotonic_time_ms();
+	if (*last_check_time == 0 || *last_activity_count == 0) {
+		*last_check_time = ut_time_ms();
 		*last_activity_count = srv_get_activity_count();
 		return;
 	}
@@ -450,9 +451,8 @@ buf_load_throttle_if_needed(
 
 	/* There has been other activity, throttle. */
 
-	const ut_monotonic_time now = ut_monotonic_time_ms();
-	ulint			elapsed_time;
-	elapsed_time = now.ms - last_check_time->ms;
+	ulint	now = ut_time_ms();
+	ulint	elapsed_time = now - *last_check_time;
 
 	/* Notice that elapsed_time is not the time for the last
 	srv_io_capacity IO operations performed by BP load. It is the
@@ -471,13 +471,13 @@ buf_load_throttle_if_needed(
 	The deficiency is that we could have slept at 3., but for this we
 	would have to update last_check_time before the
 	"cur_activity_count == *last_activity_count" check and calling
-	ut_monotonic_time_ms() that often may turn out to be too expensive. */
+	ut_time_ms() that often may turn out to be too expensive. */
 
 	if (elapsed_time < 1000 /* 1 sec (1000 milli secs) */) {
 		os_thread_sleep((1000 - elapsed_time) * 1000 /* micro secs */);
 	}
 
-	*last_check_time = ut_monotonic_time_ms();
+	*last_check_time = ut_time_ms();
 	*last_activity_count = srv_get_activity_count();
 }
 
@@ -632,7 +632,7 @@ buf_load()
 		std::sort(dump, dump + dump_n);
 	}
 
-	ut_monotonic_time last_check_time = {0};
+	ulint		last_check_time = 0;
 	ulint		last_activity_cnt = 0;
 
 	/* Avoid calling the expensive fil_space_acquire_silent() for each

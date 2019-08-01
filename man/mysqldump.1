@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/14/2019
+.\"      Date: 06/08/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "03/14/2019" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "06/08/2019" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -400,7 +400,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 Connection Options.PP
 The
 \fBmysqldump\fR
@@ -417,8 +417,6 @@ command logs into a MySQL server to extract information\&. The following options
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
 .sp
 On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
-.sp
-This option is supported beginning with MySQL 5\&.6\&.1\&.
 .RE
 .sp
 .RS 4
@@ -432,7 +430,8 @@ This option is supported beginning with MySQL 5\&.6\&.1\&.
 \fB\-\-compress\fR,
 \fB\-C\fR
 .sp
-Compress all information sent between the client and the server if both support compression\&.
+Compress all information sent between the client and the server if possible\&. See
+Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
 .RE
 .sp
 .RS 4
@@ -445,8 +444,8 @@ Compress all information sent between the client and the server if both support 
 .\}
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
-A hint about the client\-side authentication plugin to use\&. See
-Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
+A hint about which client\-side authentication plugin to use\&. See
+Section\ \&6.2.11, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -462,7 +461,7 @@ Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
+Section\ \&6.4.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .sp
 This option was added in MySQL 5\&.6\&.28\&.
 .RE
@@ -502,7 +501,7 @@ utility\&. See
 \fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -516,20 +515,24 @@ Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
-The password to use when connecting to the server\&. If you use the short option form (\fB\-p\fR), you
-\fIcannot\fR
-have a space between the option and the password\&. If you omit the
-\fIpassword\fR
-value following the
-\fB\-\-password\fR
+The password of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
+\fBmysqldump\fR
+prompts for one\&. If given, there must be
+\fIno space\fR
+between
+\fB\-\-password=\fR
 or
 \fB\-p\fR
-option on the command line,
-\fBmysqldump\fR
-prompts for one\&.
+and the password following it\&. If no password option is specified, the default is to send no password\&.
 .sp
-Specifying a password on the command line should be considered insecure\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
+Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.sp
+To explicitly specify that there is no password and that
+\fBmysqldump\fR
+should not prompt for one, use the
+\fB\-\-skip\-password\fR
+option\&.
 .RE
 .sp
 .RS 4
@@ -543,7 +546,11 @@ Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server using a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
+On Windows, connect to the server using a named pipe\&. This option applies only if the server was started with the
+named_pipe
+system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
+named_pipe_full_access_group
+system variable\&.
 .RE
 .sp
 .RS 4
@@ -561,7 +568,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqldump\fR
 does not find it\&. See
-Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.11, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -575,7 +582,7 @@ Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
-The TCP/IP port number to use for the connection\&.
+For TCP/IP connections, the port number to use\&.
 .RE
 .sp
 .RS 4
@@ -588,8 +595,8 @@ The TCP/IP port number to use for the connection\&.
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
+Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -618,7 +625,7 @@ to disable it\&. This option was added in MySQL 5\&.6\&.17\&.
 .ps -1
 .br
 Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them will be removed in a future MySQL release\&. For account upgrade instructions, see
-Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
+Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -651,6 +658,12 @@ This option is deprecated and will be removed in a future release\&. As of MySQL
 .sp
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.sp
+On Windows, this option applies only if the server was started with the
+named_pipe
+system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
+named_pipe_full_access_group
+system variable\&.
 .RE
 .sp
 .RS 4
@@ -666,7 +679,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
+the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -680,49 +693,7 @@ Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
-The MySQL user name to use when connecting to the server\&.
-.RE
-.PP
-You can also set the following variables by using
-\fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR
-syntax:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-max_allowed_packet
-.sp
-The maximum size of the buffer for client/server communication\&. The default is 24MB, the maximum is 1GB\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-net_buffer_length
-.sp
-The initial size of the buffer for client/server communication\&. When creating multiple\-row
-INSERT
-statements (as with the
-\fB\-\-extended\-insert\fR
-or
-\fB\-\-opt\fR
-option),
-\fBmysqldump\fR
-creates rows up to
-net_buffer_length
-bytes long\&. If you increase this variable, ensure that the MySQL server
-net_buffer_length
-system variable has a value at least this large\&.
+The user name of the MySQL account to use for connecting to the server\&.
 .RE
 Option\-File Options.PP
 These options are used to control which option files to read\&.
@@ -742,7 +713,7 @@ Read this option file after the global option file but (on Unix) before the user
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -764,7 +735,7 @@ Exception: Even with
 \&.mylogin\&.cnf\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -795,7 +766,7 @@ and
 groups\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -823,7 +794,7 @@ utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -839,7 +810,7 @@ Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
-Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 DDL Options.PP
 Usage scenarios for
@@ -1435,9 +1406,6 @@ It is also possible to set up a slave by dumping an existing slave of the master
 option, which overrides
 \fB\-\-master\-data\fR
 and causes it to be ignored if both options are used\&.
-.sp
-Prior to MySQL 5\&.6\&.4, this option was required for dumping the replication log tables (see
-Section\ \&17.2.2, \(lqReplication Relay and Status Logs\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1550,7 +1518,6 @@ It is not recommended to load a dump file when GTIDs are enabled on the server (
 issues DML instructions for the system tables which use the non\-transactional MyISAM storage engine, and this combination is not permitted when GTIDs are enabled\&. Also be aware that loading a dump file from a server with GTIDs enabled, into another server with GTIDs enabled, causes different transaction identifiers to be generated\&.
 .sp .5v
 .RE
-This option was added in MySQL 5\&.6\&.9\&.
 .RE
 Format Options.PP
 The following options specify how to represent the entire dump file or certain kinds of data in the dump file\&. They also control whether certain optional information is written to the dump file\&.
@@ -1935,10 +1902,6 @@ Collation="latin1_swedish_ci" Create_options="" Comment="" />
 .if n \{\
 .RE
 .\}
-.sp
-Prior to MySQL 5\&.6\&.5, this option prevented the
-\fB\-\-routines\fR
-option from working correctly\(emthat is, no stored routines, triggers, or events could be dumped in XML format\&. (Bug #11760384, Bug #52792)
 .RE
 Filtering Options.PP
 The following options control which kinds of schema objects are written to the dump file: by category, such as triggers or events; by name, for example, choosing which databases and tables to dump; or even filtering rows from the table data using a
@@ -1959,13 +1922,6 @@ clause\&.
 Dump all tables in all databases\&. This is the same as using the
 \fB\-\-databases\fR
 option and naming all the databases on the command line\&.
-.sp
-Prior to MySQL 5\&.6\&.4, the
-slave_master_info
-and
-slave_relay_log_info
-tables (see
-Section\ \&17.2.2, \(lqReplication Relay and Status Logs\(rq) were not included by this option\&.
 .RE
 .sp
 .RS 4
@@ -2087,10 +2043,6 @@ mysql\&.proc
 table directly, using a MySQL account that has appropriate privileges for the
 mysql
 database\&.
-.sp
-Prior to MySQL 5\&.6\&.5, this option had no effect when used together with the
-\fB\-\-xml\fR
-option\&. (Bug #11760384, Bug #52792)
 .RE
 .sp
 .RS 4
@@ -2249,6 +2201,42 @@ INSERT IGNORE
 statements rather than
 INSERT
 statements\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-max\-allowed\-packet=\fR\fB\fIvalue\fR\fR
+The maximum size of the buffer for client/server communication\&. The default is 24MB, the maximum is 1GB\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-net\-buffer\-length=\fR\fB\fIvalue\fR\fR
+The initial size of the buffer for client/server communication\&. When creating multiple\-row
+INSERT
+statements (as with the
+\fB\-\-extended\-insert\fR
+or
+\fB\-\-opt\fR
+option),
+\fBmysqldump\fR
+creates rows up to
+\fB\-\-net\-buffer\-length\fR
+bytes long\&. If you increase this variable, ensure that the MySQL server
+net_buffer_length
+system variable has a value at least this large\&.
 .RE
 .sp
 .RS 4
@@ -2480,9 +2468,9 @@ table, but makes the dump operation take considerably longer\&.
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
 MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
-The server must be started with the
-\fB\-\-shared\-memory\fR
-option to enable shared\-memory connections\&.
+This option applies only if the server was started with the
+shared_memory
+system variable enabled to support shared\-memory connections\&.
 .RE
 .sp
 .RS 4
@@ -2771,16 +2759,6 @@ option\&.
 does not dump the NDB Cluster
 ndbinfo
 information database\&.
-.PP
-Before MySQL 5\&.6\&.6,
-\fBmysqldump\fR
-does not dump the
-general_log
-or
-slow_query_log
-tables for dumps of the
-mysql
-database\&. As of 5\&.6\&.6, the dump includes statements to recreate those tables so that they are not missing after reloading the dump file\&. Log table contents are not dumped\&.
 .PP
 If you encounter problems backing up views due to insufficient privileges, see
 Section\ \&C.5, \(lqRestrictions on Views\(rq

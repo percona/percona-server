@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_multi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/14/2019
+.\"      Date: 06/08/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_MULTI\FR" "1" "03/14/2019" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLD_MULTI\FR" "1" "06/08/2019" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -184,7 +184,7 @@ option, if one is given\&. (If the option is given multiple times, the last valu
 .RE
 .PP
 For additional information about these and other option\-file options, see
-Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .PP
 Option files read are searched for
 [mysqld_multi]
@@ -496,7 +496,7 @@ mysql> \fBGRANT SHUTDOWN ON *\&.* TO \*(Aqmulti_admin\*(Aq@\*(Aqlocalhost\*(Aq;\
 .\}
 .sp
 See
-Section\ \&6.2, \(lqThe MySQL Access Privilege System\(rq\&. You have to do this for each
+Section\ \&6.2, \(lqAccess Control and Account Management\(rq\&. You have to do this for each
 \fBmysqld\fR
 server\&. Change the connection parameters appropriately when connecting to each one\&. The host name part of the account name must permit you to connect as
 multi_admin
@@ -513,9 +513,9 @@ from the host where you want to run
 .IP \(bu 2.3
 .\}
 The Unix socket file and the TCP/IP port number must be different for every
-\fBmysqld\fR\&. (Alternatively, if the host has multiple network addresses, you can use
-\fB\-\-bind\-address\fR
-to cause different servers to listen to different interfaces\&.)
+\fBmysqld\fR\&. (Alternatively, if the host has multiple network addresses, you can set the
+bind_address
+system variable to cause different servers to listen to different interfaces\&.)
 .RE
 .sp
 .RS 4
@@ -623,7 +623,7 @@ user       = unix_user4
 .\}
 .PP
 See
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

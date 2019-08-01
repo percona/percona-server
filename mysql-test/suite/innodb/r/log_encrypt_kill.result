@@ -4,7 +4,7 @@ SELECT @@global.innodb_redo_log_encrypt ;
 OFF
 SET GLOBAL innodb_redo_log_encrypt = 1;
 Warnings:
-Warning	13068	InnoDB: Can't set redo log tablespace to be encrypted.
+Warning	49014	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 SET GLOBAL innodb_undo_log_encrypt = 1;
 UNINSTALL PLUGIN keyring_file;
 ERROR 42000: PLUGIN keyring_file does not exist
@@ -17,7 +17,7 @@ c1	LEFT(c2,10)
 100	cccccccccc
 DROP TABLE tne_1;
 # Stop the MTR default DB server
-Pattern "Can\'t set redo log tablespace to be encrypted" found
+Pattern "Redo log cannot be encrypted if the keyring plugin is not loaded." found
 # create bootstrap file
 # Prepare new datadir
 # Run the bootstrap command with keyring

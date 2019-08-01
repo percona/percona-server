@@ -23296,7 +23296,7 @@ static MYSQL_SYSVAR_ENUM(
     NULL, NULL, DEFAULT_ROW_FORMAT_DYNAMIC, &innodb_default_row_format_typelib);
 
 static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
-                         PLUGIN_VAR_OPCMDARG,
+                         PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
                          "Enable or disable Encryption of REDO tablespace."
                          "Possible values: OFF, ON, MASTER_KEY, KEYRING_KEY.",
                          innodb_redo_log_encrypt_validate,

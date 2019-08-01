@@ -22,6 +22,12 @@ select * from performance_schema.global_variables where variable_name='innodb_re
 select * from performance_schema.session_variables where variable_name='innodb_redo_log_encrypt';
 --enable_warnings
 
+# Can't be persisted
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set persist innodb_redo_log_encrypt=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set persist_only innodb_redo_log_encrypt=1;
+
 #
 # show that it's writable
 #

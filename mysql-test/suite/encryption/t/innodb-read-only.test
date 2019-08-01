@@ -2,7 +2,7 @@ call mtr.add_suppression(".* in InnoDB read only mode");
 call mtr.add_suppression(".* in InnoDB read-only mode");
 call mtr.add_suppression("Plugin \'keyring_file\' has ref_count=1 after shutdown"); #TODO: Needs fixing 
 
-SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=4;
 
 #We do not encrypt temporary tablespace
@@ -18,13 +18,13 @@ SET GLOBAL innodb_encryption_threads=4;
 # MDEV-11835: InnoDB: Failing assertion: free_slot != NULL on
 # restarting server with encryption and read-only
 #
---let $restart_parameters=restart:--innodb-read-only=1 --innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-encryption-threads=4
+--let $restart_parameters=restart:--innodb-read-only=1 --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-threads=4
 --source include/restart_mysqld.inc
 --echo # All done
 
 --echo # cleanup
 
---let $restart_parameters=restart:--innodb-read-only=0 --innodb-encrypt-tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb-encryption-threads=4
+--let $restart_parameters=restart:--innodb-read-only=0 --default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb-encryption-threads=4
 --source include/restart_mysqld.inc
 --echo # All done
 
@@ -33,5 +33,5 @@ SET GLOBAL innodb_encryption_threads=4;
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-SET GLOBAL innodb_encrypt_tables=OFF;
+SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=0;

@@ -551,8 +551,8 @@ SELECT COUNT(1) FROM t4;
 COUNT(1)
 0
 DROP TABLE t1, t2, t3, t4;
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 # Wait max 10 min for encryption threads to decrypt all tables
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=0;

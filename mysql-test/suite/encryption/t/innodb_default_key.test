@@ -1,9 +1,9 @@
-let $innodb_encrypt_tables_orig = `SELECT @@innodb_encrypt_tables`;
+let $default_table_encryption_orig = `SELECT @@default_table_encryption`;
 let $innodb_encryption_threads_orig = `SELECT @@innodb_encryption_threads`;
 
 --disable_warnings
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads= 0;
 --enable_warnings
 
@@ -39,7 +39,7 @@ SET GLOBAL innodb_default_encryption_key_id = 8;
 
 --echo # Turn on encryption. t3 and t4 should get encrypted with key 8.
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads= 4;
 
 --let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
@@ -70,7 +70,7 @@ SHOW CREATE TABLE t5;
 --echo # Turn off encryption, create table t6 (unencrypted), create table t7 with MK encryption, restart server with innodb_default_key = 6 and encryption enabled. t6 and t7 should get encrypted with key 6.
 
 SET GLOBAL innodb_encryption_threads= 0;
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 CREATE TABLE t6 (a varchar(255)) ENGINE=innodb;
 SHOW CREATE TABLE t6;
 CREATE TABLE t7 (a varchar(255)) ENCRYPTION="Y" ENGINE=innodb;
@@ -80,7 +80,7 @@ SHOW CREATE TABLE t7;
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE NAME = \\"test/t6\\" OR NAME = \\"test/t7\\" ]" = 0
 --source include/assert.inc
 
---let $restart_parameters=restart:--innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=6
+--let $restart_parameters=restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=6
 --source include/restart_mysqld.inc
 
 --let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
@@ -103,12 +103,12 @@ CREATE TABLE t9 (a varchar(255)) ENCRYPTION="N" ENCRYPTION_KEY_ID=5 ENGINE=innod
 
 drop table t1,t2,t3,t4,t5,t6,t7,t8,t9;
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 --echo # Wait for all tables to get decrypted encrypted
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-EVAL SET GLOBAL innodb_encrypt_tables = $innodb_encrypt_tables_orig;
+EVAL SET GLOBAL default_table_encryption = $default_table_encryption_orig;
 EVAL SET GLOBAL innodb_encryption_threads = $innodb_encryption_threads_orig;

@@ -32,7 +32,7 @@ commit;
 #let $wait_condition= select variable_value > 0 from information_schema.global_status where variable_name = 'INNODB_NUM_PAGES_PAGE_COMPRESSED';
 #--source include/wait_condition.inc
 
---let $restart_parameters=restart:--innodb-encrypt-tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+--let $restart_parameters=restart:--default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
 --source include/restart_mysqld.inc
 
 select * from innodb_compact;

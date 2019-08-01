@@ -1,5 +1,5 @@
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads= 0;
 # Encryption disabled, innodb_default_encryption_key_id set default. Create table KEYRING should assign ENCRYPION_KEY_ID=0
 CREATE TABLE t1 (a varchar(255)) ENCRYPTION="KEYRING" ENGINE=innodb;
@@ -39,7 +39,7 @@ CREATE TABLE t3 (a varchar(255)) ENGINE=innodb;
 CREATE TABLE t4 (a varchar(255)) ENCRYPTION="Y" ENGINE=innodb;
 SET GLOBAL innodb_default_encryption_key_id = 8;
 # Turn on encryption. t3 and t4 should get encrypted with key 8.
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads= 4;
 #Wait for all tables to get encrypted (without temporary tablespace)
 include/assert.inc [Table t3 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted) and CURRENT_KEY_ID = 8]
@@ -65,7 +65,7 @@ t5	CREATE TABLE `t5` (
 include/assert.inc [Table t5 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted) and CURRENT_KEY_ID = 5]
 # Turn off encryption, create table t6 (unencrypted), create table t7 with MK encryption, restart server with innodb_default_key = 6 and encryption enabled. t6 and t7 should get encrypted with key 6.
 SET GLOBAL innodb_encryption_threads= 0;
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 CREATE TABLE t6 (a varchar(255)) ENGINE=innodb;
 SHOW CREATE TABLE t6;
 Table	Create Table
@@ -79,7 +79,7 @@ t7	CREATE TABLE `t7` (
   `a` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 include/assert.inc [Table t6 and t7 should NOT be included in INNODB_TABLESPACES_ENCRYPTION]
-# restart:--innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=6
+# restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=6
 #Wait for all tables to get encrypted (without temporary tablespace)
 include/assert.inc [Table t6 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted) and CURRENT_KEY_ID = 6]
 # Both statements should produce warnings
@@ -91,7 +91,7 @@ Warnings:
 Warning	140	InnoDB: Ignored ENCRYPTION_KEY_ID 5 when encryption is disabled.
 include/assert.inc [Table t7 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted) and CURRENT_KEY_ID = 6]
 drop table t1,t2,t3,t4,t5,t6,t7,t8,t9;
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 # Wait for all tables to get decrypted encrypted
-SET GLOBAL innodb_encrypt_tables = OFF;
+SET GLOBAL default_table_encryption = OFF;
 SET GLOBAL innodb_encryption_threads = 0;

@@ -89,8 +89,8 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 SHOW CREATE TABLE t1;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---let $restart_parameters=restart: --innodb-encrypt-tables --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt
-#--let $restart_parameters= --innodb-encrypt-tables --plugin-load-add=file_key_management.so --file-key-management --file-key-management-filename=$MYSQLTEST_VARDIR/std_data/keys3.txt
+--let $restart_parameters=restart: --default-table-encryption --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt
+#--let $restart_parameters= --default-table-encryption --plugin-load-add=file_key_management.so --file-key-management --file-key-management-filename=$MYSQLTEST_VARDIR/std_data/keys3.txt
 --source include/restart_mysqld.inc
 
 SET GLOBAL innodb_stats_persistent=OFF;

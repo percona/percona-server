@@ -59,7 +59,7 @@ let $cleanup= drop table t1,t2,t3,t4;
 
 --echo # Start the server without keyring loaded
 --let $restart_hide_args=1
---let $restart_parameters=restart:--early-plugin-load="" --log-error=$error_log --innodb-encrypt-tables=OFF
+--let $restart_parameters=restart:--early-plugin-load="" --log-error=$error_log --default-table-encryption=OFF
 --source include/start_mysqld.inc
 
 --source include/shutdown_mysqld.inc

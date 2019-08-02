@@ -43,7 +43,7 @@ insert into t3 select a,a/10,a,a from t1;
 explain
 select * from t3 where kp1=3 and kp2 like '%foo%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	kp1	kp1	5	const	#	11.11	Using where
+1	SIMPLE	t3	NULL	ref	kp1	kp1	5	const	#	11.11	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t3`.`kp1` AS `kp1`,`test`.`t3`.`kp2` AS `kp2`,`test`.`t3`.`col1` AS `col1` from `test`.`t3` where ((`test`.`t3`.`kp1` = 3) and (`test`.`t3`.`kp2` like '%foo%'))
 explain format=json
@@ -69,7 +69,7 @@ EXPLAIN
       "rows_examined_per_scan": 1000,
       "rows_produced_per_join": 111,
       "filtered": "11.11",
-      "index_condition": "((`test`.`t3`.`kp1` between 2 and 4) and ((`test`.`t3`.`kp1` % 3) = 0))",
+      "index_condition": "((`test`.`t3`.`kp1` between 2 and 4) and ((`test`.`t3`.`kp1` % 3) = 0) and (`test`.`t3`.`kp2` like '%foo%'))",
       "cost_info": {
         "read_cost": "439.15",
         "eval_cost": "11.11",
@@ -81,8 +81,7 @@ EXPLAIN
         "kp1",
         "kp2",
         "col1"
-      ],
-      "attached_condition": "(`test`.`t3`.`kp2` like '%foo%')"
+      ]
     }
   }
 }

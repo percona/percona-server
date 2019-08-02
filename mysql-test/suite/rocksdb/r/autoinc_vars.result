@@ -149,6 +149,8 @@ DROP TABLE t1;
 # Issue #792 Crash in autoincrement
 #----------------------------------
 CREATE TABLE t1(C1 DOUBLE AUTO_INCREMENT KEY,C2 CHAR) ENGINE=ROCKSDB;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'C1'.
 INSERT INTO t1 VALUES(2177,0);
 DROP TABLE t1;
 CREATE TABLE t0(c0 BLOB) ENGINE=ROCKSDB;

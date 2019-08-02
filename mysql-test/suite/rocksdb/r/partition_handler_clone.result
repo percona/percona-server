@@ -36,6 +36,11 @@ SUBPARTITIONS 5
 (PARTITION p0 VALUES IN (0) ENGINE = ROCKSDB,
 PARTITION p1 VALUES IN (1) ENGINE = ROCKSDB,
 PARTITION p2 VALUES IN (2) ENGINE = ROCKSDB);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT /*+ INDEX_MERGE(t1) */ id  FROM `t1` WHERE `l` = 281523560 AND `dd` = 0 AND `e` = '';
 id
 DROP TABLE t1;

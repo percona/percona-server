@@ -12,7 +12,7 @@ CREATE TABLE invalid_values (value varchar(255)) ENGINE=myisam;
 --let $read_only=0
 --let $session=0
 --let $sticky=1
---source suite/rocksdb.sys_vars/include/rocksdb_sys_var.inc
+--source ../include/rocksdb_sys_var.inc
 
 DROP TABLE valid_values;
 DROP TABLE invalid_values;

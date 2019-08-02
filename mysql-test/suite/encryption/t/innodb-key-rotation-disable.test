@@ -5,7 +5,7 @@ SET GLOBAL innodb_encryption_threads=4;
 
 --disable_query_log
 --disable_warnings
-let $encryption = `SELECT @@innodb_encrypt_tables`;
+let $encryption = `SELECT @@default_table_encryption`;
 SET GLOBAL innodb_file_per_table = ON;
 --enable_warnings
 --enable_query_log
@@ -43,8 +43,8 @@ SELECT NAME,ENCRYPTION_SCHEME,CURRENT_KEY_ID FROM INFORMATION_SCHEMA.INNODB_TABL
 
 # Check if changing encrypt variable is still possible even though key rotation is disabled
 SET GLOBAL innodb_encryption_threads=0;
-SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 
 --let $MYSQLD_DATADIR=`select @@datadir`
 
@@ -90,12 +90,12 @@ SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
 drop database enctests;
 
 --echo # Decrypt all tables
-SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=0;

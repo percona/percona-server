@@ -21,7 +21,7 @@ include/assert.inc [Make sure t1 is encrypted]
 SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
 # Start rotation unnencrypted => encrypted (tables do not have crypt data stored in page 0)
 SET GLOBAL innodb_encryption_threads = 4;
-SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 # Wait max 10 min for key encryption threads to encrypt all spaces
 # Table t1 should have min_key_version = 0 assigned and ROTATIONG_OR_FLUSHING=1 <= this means that only 100 pages
 # have been rotatted.
@@ -33,14 +33,14 @@ SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
 # unless originaly table was compressed or MK encrypted - then it does not
 # make sense to check the table as table will not contain plaintext
 # t1 is only half rotatted, now we will check if the encryption can be completed after the restart
-# restart:--innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
+# restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
 # All tables should get encrypted. tables_count - 1 because temporary tablespace should remain unencrypted
 # innodb_system
 # Make sure t1 is encrypted
 # Now we try rotation encrypted => unencrypted
 # Enable rotation of only first 100 pages
 SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
-SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 # Table t1 should have min_key_version = 1 assigned and ROTATING_OR_FLUSHING=1 <= this means that only 100 pages
 # have been rotatted.
 # Disable rotation threads
@@ -49,12 +49,12 @@ SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
 # Make sure that t1 contains foobar - as it is only decrypted in half
 # t1 is only half rotatted, now we will check if the decryption can be completed after the restart
-# restart:--innodb-encrypt-tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
+# restart:--default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
 # Make sure that t1 contains foobar - as it is decrypted
 # Now we try rotation => unencrypted => encrypted (now tables have crypt data in page 0)
 # Enable rotation of only first 100 pages
 SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
-SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 # Table t1 should have min_key_version = 0 assigned and ROTATING_OR_FLUSHING=1 <= this means that only 100 pages
 # have been rotatted.
 # Disable rotation threads
@@ -63,7 +63,7 @@ SET GLOBAL innodb_encryption_threads = 0;
 SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
 # Make sure that t1 contains foobar - as it is only encrypted in half
 # t1 is only half rotatted, now we will check if the decryption can be completed after the restart
-# restart:--innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
+# restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
 # Make sure that t1 does not contain foobar - as it is encrypted
 # After table has been rotated there is update to DD and after that
 # there is update to page0 of the table. When a crash occures after DD update we will go out of sync with table's
@@ -73,7 +73,7 @@ SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
 # In order to check this behavior we will first rotate encrypted=>unencrypted and we will make server commit suicide
 # after DD update and before page 0 update.
 SET GLOBAL debug="+d,crash_on_t1_flush_after_dd_update";
-SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 # Make sure that t1 has been decrypted
 # First restart the server after crash so any redo logs for t1 were proceed. If there are any logs available
 # t1 will be opened without validating idb file to DD.
@@ -87,14 +87,14 @@ SELECT COUNT(1) FROM t1;
 COUNT(1)
 30000
 # Restart and finish up the rotation
-# restart:--innodb-encrypt-tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
+# restart:--default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
 # restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=0 --log-error=MYSQL_TMP_DIR/my_restart.err
 SELECT COUNT(1) FROM t1;
 COUNT(1)
 30000
 # Now we need to test the rotation unencrypted=>encrypted, when we get a crash after all pages
 # got rotated and DD was updated but before updating page 0
-# restart:--innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=0
+# restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=0
 SET GLOBAL debug="+d,crash_on_t1_flush_after_dd_update";
 SET GLOBAL innodb_encryption_threads=4;
 # First restart the server after crash so any redo logs for t1 were proceed. If there are any logs available
@@ -110,9 +110,9 @@ SELECT COUNT(1) FROM t1;
 COUNT(1)
 30000
 # Restart and finish up the rotation
-# restart:--innodb-encrypt-tables=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
+# restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
 DROP TABLE t1;
 DROP PROCEDURE innodb_insert_proc;
-SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-SET GLOBAL innodb_encrypt_tables=OFF;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption=OFF;
 SET GLOBAL innodb_encryption_threads=0;

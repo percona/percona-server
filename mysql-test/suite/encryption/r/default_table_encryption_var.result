@@ -1,0 +1,40 @@
+call mtr.add_suppression("Plugin keyring_file reported: 'File .*keyring' not found .*");
+call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
+SET GLOBAL innodb_file_per_table = ON;
+INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
+SET GLOBAL keyring_file_data="MYSQL_TMP_DIR/mysecret_keyring";
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+create table t1 (a varchar(255)) engine=innodb;
+create table t2 (a varchar(255)) engine=innodb;
+create table t3 (a varchar(255)) engine=innodb;
+create table t4 (a varchar(255)) engine=innodb;
+insert t1 values (repeat('foobarsecret', 12));
+insert t2 values (repeat('tempsecret', 12));
+insert t3 values (repeat('dummysecret', 12));
+insert t4 values (repeat('verysecret', 12));
+# Wait max 10 min for key encryption threads to encrypt all spaces, apart from temp tablespace
+SET GLOBAL default_table_encryption = OFF;
+include/assert.inc [Make sure all tables stay encrypted, apart from temporary tablespace]
+SET GLOBAL default_table_encryption = ON;
+include/assert.inc [Make sure all tables stay encrypted, apart from temporary tablespace]
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+include/assert.inc [Make sure all tables stay encrypted, apart from temporary tablespace]
+SET GLOBAL default_table_encryption = OFF;
+include/assert.inc [Successful rotation of percona_innodb-0 to version 2]
+SET GLOBAL default_table_encryption = ON;
+include/assert.inc [Successful rotation of percona_innodb-0 to version 3]
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
+include/assert.inc [Successful rotation of percona_innodb-0 to version 4]
+include/assert.inc [Successful rotation of percona_innodb-0 to version 5]
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+include/assert.inc [Successful rotation of percona_innodb-0 to version 6]
+# Wait max 10 min for key encryption threads to decrypt all spaces
+SET GLOBAL default_table_encryption = OFF;
+include/assert.inc [Make sure all tables stay decrypted]
+SET GLOBAL default_table_encryption = ON;
+include/assert.inc [Make sure all tables stay decrypted]
+DROP TABLES t1,t2,t3,t4;
+SET GLOBAL default_table_encryption = OFF;
+SET GLOBAL innodb_encryption_threads=0;
+UNINSTALL PLUGIN keyring_file;

@@ -174,7 +174,7 @@ alter table t6 encryption='N';
 --echo # Now turn off the encryption. Only one table should remain encrypted - the one with explicite encryption
 --echo # ie. t1
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 --let $wait_timeout= 600
 # We should have $tables_count - 2 tables unencrypted (table t1 should stay encrypted with version 4 of key 0 and temporary is never encrypted)
@@ -187,7 +187,7 @@ SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 --source include/assert.inc
 
 # t6 has been marked as unencrypted - turn on the encryption - it should stay unencrypted
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 
 --let $wait_timeout= 600
 # Encrypted tables count should be equal $tables_count - 2 as t6 and temporary should stays unencrypted
@@ -212,12 +212,12 @@ drop table t1, t2, t3, t4, t5, t6, t7;
 # cleanup
 
 # Decrypt all tables
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=0;
 # The backup file might be a leftover after calling generate key on existing key
 --error 0,1

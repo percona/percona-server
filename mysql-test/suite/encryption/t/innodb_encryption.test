@@ -1,6 +1,6 @@
 SHOW VARIABLES LIKE 'innodb_encrypt%';
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 
 # We do not encrypt temporary tablespace
 --let encrypted_tables_count=`select count(*) - 1 from INFORMATION_SCHEMA.INNODB_TABLESPACES`
@@ -13,7 +13,7 @@ SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
 --echo # Success!
 
 --echo # Now turn off encryption and wait for threads to decrypt everything
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 --echo # Wait max 10 min for key encryption threads to decrypt all spaces
 --let $wait_timeout= 600
@@ -27,7 +27,7 @@ SET GLOBAL innodb_encryption_threads=0;
 
 --echo # Turn on encryption
 --echo # since threads are off tables should remain unencrypted
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 
 --echo # Wait 15s to check that nothing gets encrypted
 
@@ -51,14 +51,14 @@ SET GLOBAL innodb_encryption_threads=4;
 
 --source include/shutdown_mysqld.inc
 
---let $restart_parameters=restart:--innodb-encryption-threads=0 --innodb-encrypt-tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+--let $restart_parameters=restart:--innodb-encryption-threads=0 --default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
 --source include/start_mysqld.inc
 
 SHOW VARIABLES LIKE 'innodb_encrypt%';
 
 # cleanup
 #
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 
 --echo # Wait max 10 min for key encryption threads to decrypt all spaces
@@ -66,4 +66,4 @@ SET GLOBAL innodb_encryption_threads=4;
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0;
 --source include/wait_condition.inc
 
-SET GLOBAL innodb_encrypt_tables = OFF;
+SET GLOBAL default_table_encryption = OFF;

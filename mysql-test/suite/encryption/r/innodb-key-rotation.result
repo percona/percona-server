@@ -57,15 +57,15 @@ include/assert.inc [table t6 should be marked as unencrypted]
 # restart:--innodb-encryption-threads=4
 # Now turn off the encryption. Only one table should remain encrypted - the one with explicite encryption
 # ie. t1
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 include/assert.inc [table t1 should stay encrypted with version 4 of key 0]
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 include/assert.inc [table t6 should be marked as unencrypted]
 # Create table t7 encrypted with an existing key 5. It should have its latest
 # key_version assigned, i.e. 5
 create table t7 (a varchar(255)) engine=innodb encryption='KEYRING' ENCRYPTION_KEY_ID=5;
 include/assert.inc [table t7 should be encrypted with latest version of percona_innodb-5, i.e. version 5]
 drop table t1, t2, t3, t4, t5, t6, t7;
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=0;

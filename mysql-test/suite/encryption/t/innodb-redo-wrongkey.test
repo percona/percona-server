@@ -5,7 +5,7 @@
 # should fail to apply redo logs to those tables since the tables will be garbage, as incorrect key was
 # used.
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_encrypt_tables = KEYRING_ON;
+SET GLOBAL default_table_encryption = KEYRING_ON;
 
 create table t1(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed ENCRYPTION='KEYRING' encryption_key_id=2;
 create table t2(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed;
@@ -62,7 +62,7 @@ let $cleanup= drop table t1,t2,t3,t4;
 # and then encrypted with keys from keys3.txt. Making it impossible to decrypt for subsequentail restart with
 # correct keyring file, i.e. keys2.txt
 --error 1
---exec $MYSQLD_CMD --core-file --log-error=$error_log --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt $KEYRING_PLUGIN_OPT --innodb-encrypt-tables=OFF --innodb-doublewrite=0
+--exec $MYSQLD_CMD --core-file --log-error=$error_log --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys3.txt $KEYRING_PLUGIN_OPT --default-table-encryption=OFF --innodb-doublewrite=0
 
 # We should get error in error log as it should not be possible to apply redo logs
 # to encrypted tables
@@ -90,4 +90,4 @@ let $cleanup= drop table t1,t2,t3,t4;
 drop table t1,t2,t3,t4;
 --remove_file $error_log
 
-SET GLOBAL innodb_encrypt_tables=OFF;
+SET GLOBAL default_table_encryption=OFF;

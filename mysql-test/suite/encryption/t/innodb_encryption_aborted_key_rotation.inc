@@ -100,7 +100,7 @@ SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
 --let SEARCH_FILE=$t1_IBD
 --source include/search_pattern_in_file.inc
 
-SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 --let $wait_timeout= 600
 --echo # All tables should get decrypted, apart from t1.
@@ -110,7 +110,7 @@ SET GLOBAL innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 #Cleanup
 
 SET GLOBAL innodb_encryption_threads=0;
-SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 
 DROP TABLE t1;
 DROP PROCEDURE innodb_insert_proc;

@@ -34,7 +34,7 @@ call innodb_insert_proc(2000);
 insert into innodb_compact select * from innodb_normal;
 insert into innodb_dynamic select * from innodb_normal;
 commit;
-# restart:--innodb-encrypt-tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+# restart:--default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED
 select * from innodb_compact;
 c1	b
 0	

@@ -1,8 +1,8 @@
-let $innodb_encrypt_tables_orig=`SELECT @@innodb_encrypt_tables`;
+let $default_table_encryption_orig=`SELECT @@default_table_encryption`;
 
 # Need to restart the server with KEYRING_FORCE to check how it behaves as a command line option.
 --let $restart_hide_args=1 
---let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb-encrypt-tables=KEYRING_FORCE
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --default-table-encryption=KEYRING_FORCE
 --source include/restart_mysqld.inc
 
 create table t1 (a int) engine=innodb encryption='KEYRING';
@@ -14,9 +14,9 @@ create table t4 (a int) engine=innodb encryption='KEYRING' partition by hash(a) 
 --error ER_INVALID_ENCRYPTION_OPTION
 create table t5 (a int) engine=innodb encryption='N' partition by hash(a) partitions 2;
 
-set global innodb_encrypt_tables='KEYRING_ON';
+set global default_table_encryption='KEYRING_ON';
 create table t3 (a int) engine=innodb encryption='N';
-set global innodb_encrypt_tables='KEYRING_FORCE';
+set global default_table_encryption='KEYRING_FORCE';
 
 show create table t1;
 show create table t2;
@@ -55,4 +55,4 @@ drop table t3;
 drop table t4;
 
 UNINSTALL PLUGIN keyring_file;
-EVAL SET GLOBAL innodb_encrypt_tables = $innodb_encrypt_tables_orig;
+EVAL SET GLOBAL default_table_encryption = $default_table_encryption_orig;

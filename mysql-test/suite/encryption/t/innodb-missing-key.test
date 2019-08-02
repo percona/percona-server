@@ -65,7 +65,7 @@ SELECT COUNT(1) FROM t4;
 DROP TABLE t1, t2, t3, t4;
 
 # Decrypt all tables
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 
 --echo # Wait max 10 min for encryption threads to decrypt all tables
@@ -73,5 +73,5 @@ SET GLOBAL innodb_encryption_threads=4;
 --let $wait_condition=SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
 --source include/wait_condition.inc
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=0;

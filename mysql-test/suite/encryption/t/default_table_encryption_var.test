@@ -8,7 +8,7 @@ INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval SET GLOBAL keyring_file_data="$MYSQL_TMP_DIR/mysecret_keyring";
-SET GLOBAL innodb_encrypt_tables=ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=4;
 
 create table t1 (a varchar(255)) engine=innodb;
@@ -30,33 +30,33 @@ insert t4 values (repeat('verysecret', 12));
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
-# Now all the tables are encrypted - need to check if other values of innodb_encrypt_tables than
+# Now all the tables are encrypted - need to check if other values of default_table_encryption than
 # ONLINE_FROM_KEYRING_TO_UNENCRYPTED do not start decrypting the tables
-SET GLOBAL innodb_encrypt_tables = OFF;
+SET GLOBAL default_table_encryption = OFF;
 --sleep 10
 
 --let $assert_text= Make sure all tables stay encrypted, apart from temporary tablespace
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = $tables_count - 1
 --source include/assert.inc
 
-SET GLOBAL innodb_encrypt_tables = ON;
+SET GLOBAL default_table_encryption = ON;
 --sleep 10
 
 --let $assert_text= Make sure all tables stay encrypted, apart from temporary tablespace
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = $tables_count - 1
 --source include/assert.inc
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING_FORCE;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 --sleep 10
 
 --let $assert_text= Make sure all tables stay encrypted, apart from temporary tablespace
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1]" = $tables_count - 1
 --source include/assert.inc
 
-# Now check key rotation works with different values of innodb_encrypt_tables and encryption
+# Now check key rotation works with different values of default_table_encryption and encryption
 # threads running
 
-SET GLOBAL innodb_encrypt_tables = OFF;
+SET GLOBAL default_table_encryption = OFF;
 
 --let $assert_text= Successful rotation of percona_innodb-0 to version 2
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
@@ -69,7 +69,7 @@ SET GLOBAL innodb_encrypt_tables = OFF;
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 2
 --source include/wait_condition.inc
 
-SET GLOBAL innodb_encrypt_tables = ON;
+SET GLOBAL default_table_encryption = ON;
 
 --let $assert_text= Successful rotation of percona_innodb-0 to version 3
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
@@ -80,7 +80,7 @@ SET GLOBAL innodb_encrypt_tables = ON;
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 3
 --source include/wait_condition.inc
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 
 --let $assert_text= Successful rotation of percona_innodb-0 to version 4
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
@@ -91,8 +91,6 @@ SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 4
 --source include/wait_condition.inc
 
-SET GLOBAL innodb_encrypt_tables = FORCE;
-
 --let $assert_text= Successful rotation of percona_innodb-0 to version 5
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
 --source include/assert.inc
@@ -102,14 +100,14 @@ SET GLOBAL innodb_encrypt_tables = FORCE;
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 5
 --source include/wait_condition.inc
 
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 --let $assert_text= Successful rotation of percona_innodb-0 to version 6
 --let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_innodb-0\\"\\) = 1]" = 1
 --source include/assert.inc
 
 # Even though the key was rotated - all the tables should be decrypted as
-# innodb_encrypt_tables is set to ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+# default_table_encryption is set to ONLINE_FROM_KEYRING_TO_UNENCRYPTED
 
 --echo # Wait max 10 min for key encryption threads to decrypt all spaces
 --let $wait_timeout= 600
@@ -118,14 +116,14 @@ SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
 # Now all the tables are decrypted - need to check if other values than
 # ONLINE_TO_KEYRING do not start encrypting the tables
-SET GLOBAL innodb_encrypt_tables = OFF;
+SET GLOBAL default_table_encryption = OFF;
 --sleep 10
 
 --let $assert_text= Make sure all tables stay decrypted
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0]" = 0
 --source include/assert.inc
 
-SET GLOBAL innodb_encrypt_tables = ON;
+SET GLOBAL default_table_encryption = ON;
 --sleep 10
 
 --let $assert_text= Make sure all tables stay decrypted
@@ -134,7 +132,7 @@ SET GLOBAL innodb_encrypt_tables = ON;
 
 # cleanup
 DROP TABLES t1,t2,t3,t4;
-SET GLOBAL innodb_encrypt_tables = OFF;
+SET GLOBAL default_table_encryption = OFF;
 SET GLOBAL innodb_encryption_threads=0;
 
 UNINSTALL PLUGIN keyring_file;

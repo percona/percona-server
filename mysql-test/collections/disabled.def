@@ -172,61 +172,9 @@ tokudb.rpl.rpl_deadlock_tokudb : BUG#0 temporarily disabled until properly debug
 tokudb.rpl.rpl_partition_tokudb : BUG#0 exchange partition is not supported
 
 # encryption suite tests
-encryption.innodb-bad-key-change2 : BUG#5772 percona fix after https://jira.percona.com/browse/PS-5772
-encryption.alter_rename_table : BUG#5772 8.0.16 encryption reconciliation
-encryption.create_or_replace : BUG#5772 8.0.16 encryption reconciliation
-encryption.encrypt_and_grep : BUG#5772 8.0.16 encryption reconciliation
-encryption.encryption_force : BUG#5772 8.0.16 encryption reconciliation
-encryption.encryption_rotation : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_aborted_flush : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_alter_mk_to_rk : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_alters : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-bad-key-change2 : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-bad-key-change3 : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-bad-key-change4 : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-bad-key-change : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-corrupt-row-compressed : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_default_key : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_key_rotation_mk_page_compressed : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_key_rotation_mk_row_compressed : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_key_rotation_mk : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_key_rotation_page_compressed : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_key_rotation_row_compressed : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_key_rotation : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_rotation_mk_page_compressed : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_rotation_mk_row_compressed : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_rotation_mk : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_rotation_page_compressed : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_rotation_row_compressed : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_aborted_rotation : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-encryption-alter : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_discard_import : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption-page-compression : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_row_compressed_big_table : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_row_compressed_corrupted : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_row_compressed : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption_tables : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encryption : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_encrypt_tables_var : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-first-page-read : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-force-corrupt : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-key-rotation-disable : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-key-rotation : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_lotoftables : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-missing-key : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_onlinealter_encryption : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-page_encryption-32k : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-page_encryption_compression : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_page_encryption_key_change : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-page_encryption : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-read-only : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-redo-nokeys2_debug : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-redo-nokeys2_release : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-redo-nokeys : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-redo-wrongkey : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_rotation_mk_to_rk_post_enc_checksum_fail : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb_rotation_mk_to_rk : BUG#5772 8.0.16 encryption reconciliation
-encryption.innodb-spatial-index : BUG#5772 8.0.16 encryption reconciliation
-encryption.percona_system_key_rotation : BUG#5772 8.0.16 encryption reconciliation
-encryption.rename_table : BUG#5772 8.0.16 encryption reconciliation
-encryption.uninstall_keyring : BUG#5772 8.0.16 encryption reconciliation
+encryption.encryption_force : BUG#5817 Align Keyring encryption and default_table_encryption
+encryption.innodb_lotoftables : BUG#5817 Align Keyring encryption and default_table_encryption
+encryption.innodb-bad-key-change2 : BUG#5322 Keyring encrypted tablespace import/export is broken
+encryption.innodb-bad-key-change3 : BUG#5322 Keyring encrypted tablespace import/export is broken
+encryption.innodb_encryption_discard_import : BUG#5322 Keyring encrypted tablespace import/export is broken
+encryption.innodb-redo-wrongkey : BUG#5635 Intoduce crypt_schema 2 for better error checking in encryption threads

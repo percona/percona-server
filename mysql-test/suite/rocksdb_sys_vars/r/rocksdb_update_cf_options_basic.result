@@ -21,6 +21,9 @@ PARTITION custom_p5 VALUES IN (0x6789A),
 PARTITION custom_p6 VALUES IN (0x789AB),
 PARTITION custom_p7 VALUES IN (0x89ABC)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT @@global.rocksdb_update_cf_options;
 @@global.rocksdb_update_cf_options
 NULL

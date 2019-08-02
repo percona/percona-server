@@ -1669,6 +1669,13 @@ d53 DOUBLE(53,0) NOT NULL,
 d53_10 DOUBLE(53,10) NOT NULL,
 pk DOUBLE NOT NULL PRIMARY KEY
 ) ENGINE=rocksdb;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
 f	float	NO		NULL	
@@ -2122,6 +2129,22 @@ b1 BIGINT(1) NOT NULL,
 b20 BIGINT(20) NOT NULL,
 pk INT AUTO_INCREMENT PRIMARY KEY
 ) ENGINE=rocksdb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
 i	int	NO		NULL	

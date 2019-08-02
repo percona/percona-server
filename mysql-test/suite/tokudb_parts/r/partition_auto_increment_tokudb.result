@@ -1159,6 +1159,8 @@ PRIMARY KEY (`a`)
 ) ENGINE='TokuDB'
 AUTO_INCREMENT=2147483648 DEFAULT CHARSET=latin1
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (NULL, "Overflow");
 # mysql_errno: 1264
 INSERT INTO t1 VALUES (NULL, "Overflow");
@@ -1228,6 +1230,8 @@ CREATE TABLE `t1` (
 PRIMARY KEY (`a`)
 ) ENGINE='TokuDB' AUTO_INCREMENT=4294967296 DEFAULT CHARSET=latin1
 PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (NULL, "Overflow");
 # mysql_errno: 1264
 DROP TABLE t1;
@@ -1296,6 +1300,8 @@ PRIMARY KEY (`a`)
 ) ENGINE='TokuDB' AUTO_INCREMENT=9223372036854775808 DEFAULT CHARSET=latin1
 PARTITION BY HASH (a)
 PARTITIONS 3;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (NULL, "Overflow");
 # mysql_errno: 1264
 DROP TABLE t1;
@@ -1364,6 +1370,8 @@ PRIMARY KEY (`a`)
 ) ENGINE='TokuDB' AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
 PARTITION BY HASH (a)
 PARTITIONS 3;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (NULL, "Overflow");
 # mysql_errno: 1467
 DROP TABLE t1;

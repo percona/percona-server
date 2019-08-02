@@ -56,6 +56,20 @@ KEY `c9` (`c9`),
 KEY `c7` (`c7`),
 KEY `c35` (`c35`)
 ) DEFAULT CHARSET latin1 ENGINE=TOKUDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2` (
 `c12` varchar(240) DEFAULT NULL,
 `c15` varchar(240) DEFAULT NULL,
@@ -114,9 +128,23 @@ KEY `c1` (`c1`),
 KEY `c27` (`c27`(255)),
 KEY `c31` (`c31`)
 ) DEFAULT CHARSET latin1 ENGINE=TOKUDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 LOAD DATA INFILE 'leak172_t1.data' INTO TABLE `t1` CHARACTER SET latin1 FIELDS TERMINATED BY ',';
 set session debug="+d,tokudb_end_bulk_insert_sleep";
 LOAD DATA INFILE 'leak172_t2.data' INTO TABLE `t2` CHARACTER SET latin1 FIELDS TERMINATED BY ',';
-UPDATE t1, t2 SET t1.`c5` = 4 WHERE t1.`c6` <= 'o';
+UPDATE t1, t2 SET t1.`c5` = 4 WHERE t1.`c6` <= CONVERT('o', UNSIGNED);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 drop table t1,t2;

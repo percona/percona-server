@@ -1,26 +1,20 @@
-use test;
-drop table if exists site;
-Warnings:
-Note	1051	Unknown table 'test.site'
-drop table if exists screenshot;
-Warnings:
-Note	1051	Unknown table 'test.screenshot'
 CREATE TABLE `site` (
 `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
 `title` varchar(200) NOT NULL DEFAULT '',
 PRIMARY KEY (`id`),
 KEY `owner_title` (`title`)
-) ENGINE=TokuDB AUTO_INCREMENT=575 DEFAULT CHARSET=utf8;
+) ENGINE=TokuDB AUTO_INCREMENT=575 DEFAULT CHARSET=utf8mb4;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `screenshot` (
 `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
 `site` int(11) unsigned NOT NULL,
 `timestamp` timestamp NOT NULL,
 PRIMARY KEY (`id`)
-) ENGINE=TokuDB AUTO_INCREMENT=82720 DEFAULT CHARSET=utf8;
+) ENGINE=TokuDB AUTO_INCREMENT=82720 DEFAULT CHARSET=utf8mb4;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `site` (`id`, `title`)
 VALUES
 (9, 'Facebook'),
@@ -42,7 +36,7 @@ WHERE screenshot.id IS NULL;
 id	title	id	site	timestamp
 SELECT * FROM site where site.id not in (select screenshot.site from screenshot where timestamp > '2013-04-28 13:30:00');
 id	title
-create index `site` on screenshot(`site`);
+CREATE INDEX `site` ON screenshot(`site`);
 SELECT * 
 FROM site 
 LEFT JOIN screenshot
@@ -50,5 +44,5 @@ ON site.id = screenshot.site
 AND timestamp > '2013-04-28 13:30:00'
 WHERE screenshot.id IS NULL;
 id	title	id	site	timestamp
-drop table site;
-drop table screenshot;
+DROP TABLE site;
+DROP TABLE screenshot;

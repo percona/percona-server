@@ -78,6 +78,9 @@ static bool field_valid_for_tokudb_table(Field *field) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+
+    // NOT SUPPORTED in 8.0
+    case MYSQL_TYPE_TYPED_ARRAY:
       ret_val = false;
   }
 exit:
@@ -222,6 +225,9 @@ static TOKU_TYPE mysql_to_toku_type(const Field &field) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+
+    // NOT SUPPORTED in 8.0
+    case MYSQL_TYPE_TYPED_ARRAY:
       assert_unreachable();
   }
 exit:
@@ -3056,6 +3062,9 @@ static bool fields_are_same_type(Field *a, Field *b) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_NULL:
+
+    // NOT SUPPORTED in 8.0
+    case MYSQL_TYPE_TYPED_ARRAY:
       assert_unreachable();
   }
 

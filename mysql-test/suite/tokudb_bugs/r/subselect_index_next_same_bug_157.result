@@ -6,6 +6,8 @@ CREATE TABLE `C` (
 PRIMARY KEY (`pk`),
 KEY `col_varchar_key` (`col_varchar_key`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `C` VALUES (1,'v','v'),(2,'v','v'),(3,'c','c'),(4,NULL,NULL),(5,'x','x');
 CREATE TABLE `CC` (
 `pk` int(11) NOT NULL AUTO_INCREMENT,
@@ -14,6 +16,8 @@ CREATE TABLE `CC` (
 PRIMARY KEY (`pk`),
 KEY `col_varchar_key` (`col_varchar_key`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `CC` VALUES (10,'x','x');
 CREATE TABLE `D` (
 `pk` int(11) NOT NULL AUTO_INCREMENT,
@@ -21,6 +25,8 @@ CREATE TABLE `D` (
 PRIMARY KEY (`pk`),
 KEY `col_varchar_key` (`col_varchar_key`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `D` VALUES (10,'u');
 SELECT
 alias1.col_varchar_key, alias2.col_varchar_key

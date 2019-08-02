@@ -7,7 +7,7 @@ CREATE TABLE `testtable` (
   `keyword` VARCHAR(299) DEFAULT NULL,
   PRIMARY KEY (`id`),  
   KEY `keyword` (`keyword`(100))
-) ENGINE=TokuDB DEFAULT CHARSET=utf8;
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4;
 
 set tokudb_disable_hot_alter=ON;
 ALTER TABLE testtable DROP PRIMARY KEY;
@@ -19,7 +19,7 @@ CREATE TABLE `testtable` (
   `keyword` VARCHAR(299) DEFAULT NULL,
   PRIMARY KEY (`id`),  
   KEY `keyword` (`keyword`(100))
-) ENGINE=TokuDB DEFAULT CHARSET=utf8;
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4;
 
 set tokudb_disable_hot_alter=OFF;
 ALTER TABLE testtable DROP PRIMARY KEY;

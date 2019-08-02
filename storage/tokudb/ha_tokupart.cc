@@ -57,7 +57,7 @@ handler *ha_tokupart::clone(const char *name, MEM_ROOT *mem_root) {
     when the clone handler object is destroyed.
   */
   if (!(new_handler->ref =
-            (uchar *)alloc_root(mem_root, ALIGN_SIZE(ref_length) * 2)))
+            (uchar *)mem_root->Alloc(ALIGN_SIZE(ref_length) * 2)))
     goto err;
 
   /* We will not use clone() interface to clone individual partition

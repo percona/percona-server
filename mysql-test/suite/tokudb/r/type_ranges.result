@@ -39,6 +39,21 @@ KEY (ulong),
 KEY (ulonglong,ulong),
 KEY (options,flags)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	int(5) unsigned	NULL	NO	PRI	NULL	auto_increment	#	
@@ -137,6 +152,8 @@ mediumblob_col mediumblob not null,
 new_field char(2),
 PRIMARY KEY (auto)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 (string,mediumblob_col,new_field) SELECT string,mediumblob_col,new_field from t1 where auto > 10;
 ERROR 22001: Data too long for column 'new_field' at row 1
 select * from t2;
@@ -159,6 +176,10 @@ options	flags
 one	one
 drop table t2;
 create table t2 select * from t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 update t2 set string="changed" where auto=16;
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment

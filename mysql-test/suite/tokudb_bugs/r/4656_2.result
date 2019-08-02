@@ -7,6 +7,10 @@ CREATE TABLE `t2` (
 KEY `c2` (`c2`),
 KEY `c1` (`c1`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 (c1,c2,c3) VALUES (2147483647,	4294967295,	14),(0,	2147483648,	15);
 SELECT * FROM t2;
 c1	c2	c3

@@ -3,12 +3,6 @@
 # Record inconsistency.
 #
 #
-SET DEFAULT_STORAGE_ENGINE = 'tokudb';
-
---disable_warnings
-DROP TABLE IF EXISTS foo;
---enable_warnings
-
 
 set tokudb_disable_slow_alter=ON;
 
@@ -38,7 +32,7 @@ CREATE TABLE `foo` (
   KEY `last_action` (`last_action`),
   KEY `last_login` (`last_login`),
   KEY `admin` (`admin`)
-) ENGINE=TokuDB DEFAULT CHARSET=utf8;
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4;
 
 ALTER TABLE `foo` ADD `gender` TINYINT NULL AFTER `website` ,
 ADD `influence` INT NOT NULL DEFAULT '0' AFTER `gender` ,
@@ -47,4 +41,3 @@ ADD `virality` INT NOT NULL DEFAULT '0' AFTER `influence`;
 
 # Final cleanup.
 DROP TABLE foo;
-

@@ -340,28 +340,28 @@ a+0	b+0	c+0
 4	1	100
 select a+0, b+0, c+0 from t1 order by b desc;
 a+0	b+0	c+0
-2	1	4
 1	1	100
-4	1	100
-4	0	3
-4	0	23
-4	0	54
-56	0	22
+2	1	4
 23	0	1
+4	0	23
+4	0	3
 4	0	34
+4	0	54
+4	1	100
 4	NULL	1
+56	0	22
 select a+0, b+0, c+0 from t1 order by c;
 a+0	b+0	c+0
-4	NULL	1
-23	0	1
-4	0	3
+1	1	100
 2	1	4
-56	0	22
+23	0	1
 4	0	23
+4	0	3
 4	0	34
 4	0	54
-1	1	100
 4	1	100
+4	NULL	1
+56	0	22
 drop table t1;
 create table t1(a bit(2), b bit(2)) engine=innodb;
 insert into t1 (a) values (0x01), (0x03), (0x02);

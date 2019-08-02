@@ -1,22 +1,18 @@
 --source include/have_tokudb.inc
-use test;
-
-drop table if exists site;
-drop table if exists screenshot;
 
 CREATE TABLE `site` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `owner_title` (`title`)
-) ENGINE=TokuDB AUTO_INCREMENT=575 DEFAULT CHARSET=utf8;
+) ENGINE=TokuDB AUTO_INCREMENT=575 DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE `screenshot` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `site` int(11) unsigned NOT NULL,
   `timestamp` timestamp NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=TokuDB AUTO_INCREMENT=82720 DEFAULT CHARSET=utf8;
+) ENGINE=TokuDB AUTO_INCREMENT=82720 DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO `site` (`id`, `title`)
 VALUES
@@ -44,7 +40,7 @@ WHERE screenshot.id IS NULL;
 SELECT * FROM site where site.id not in (select screenshot.site from screenshot where timestamp > '2013-04-28 13:30:00');
 
 # adding either of these two indexes causes the SQL to return an incorrect rowset (1 rows instead of 0 rows)
- create index `site` on screenshot(`site`);
+CREATE INDEX `site` ON screenshot(`site`);
 
 # this query is wrong when one or both of the above indexes is added
 SELECT * 
@@ -54,5 +50,5 @@ LEFT JOIN screenshot
     AND timestamp > '2013-04-28 13:30:00'
 WHERE screenshot.id IS NULL;
 
-drop table site;
-drop table screenshot;
+DROP TABLE site;
+DROP TABLE screenshot;

@@ -2,24 +2,24 @@
 
 import sys
 def gen_test(n):
-    print "CREATE TABLE t (a CHAR(%d));" % (n)
+    print "CREATE TABLE t (a CHAR(%d) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci);" % (n)
     print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
     print "--error ER_UNSUPPORTED_EXTENSION"
-    print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d) BINARY;" % (n)
+    print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d) COLLATE utf8mb4_bin;" % (n)
     if n+1 < 256:
         print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
         print "--error ER_UNSUPPORTED_EXTENSION"
-        print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d) BINARY;" % (n+1)
+        print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d) COLLATE utf8mb4_bin;" % (n+1)
     print "DROP TABLE t;"
 
-    print "CREATE TABLE t (a CHAR(%d) BINARY);" % (n)
+    print "CREATE TABLE t (a CHAR(%d) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);" % (n)
     print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
     print "--error ER_UNSUPPORTED_EXTENSION"
-    print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d);" % (n)
+    print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d) COLLATE utf8mb4_general_ci;" % (n)
     if n+1 < 256:
         print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
         print "--error ER_UNSUPPORTED_EXTENSION"
-        print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d);" % (n+1)
+        print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d) COLLATE utf8mb4_general_ci;" % (n+1)
     print "DROP TABLE t;"
 
 def main():

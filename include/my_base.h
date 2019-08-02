@@ -988,7 +988,7 @@ Information in the data-dictionary needs to be updated. */
 /** Path is too long for the OS */
 #define HA_ERR_TOO_LONG_PATH 207
 /** Destination schema does not exist */
-#define HA_ERR_DEST_SCHEMA_NOT_EXIST 208 /
+#define HA_ERR_DEST_SCHEMA_NOT_EXIST 208
 /** Copy of last error number */
 #define HA_ERR_LAST 208
 

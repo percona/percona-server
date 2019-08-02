@@ -863,6 +863,28 @@ a 	2	6120	a	1	61	a 	2	6120	a	1	61
 b  	3	622020	b	1	62	b  	3	622020	b	1	62
 c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
 DROP TABLE t_utf8;
+# Testing character set utf8mb4 collation utf8mb4_0900_bin
+CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin, pk_char CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin, d_varchar VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
+INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
+INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb4.PRIMARY'
+INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
+INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb4.PRIMARY'
+INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
+INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
+# Try longer values
+INSERT INTO t_utf8mb4 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb4.PRIMARY'
+INSERT INTO t_utf8mb4 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
+SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
+pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
+a		2	6109	a		2	6109	a		2	6109	a		2	6109
+a 		3	612009	a 		3	612009	a 		3	612009	a 		3	612009
+a 	2	6120	a	1	61	a 	2	6120	a	1	61
+b  	3	622020	b	1	62	b  	3	622020	b	1	62
+c          	11	6320202020202020202020	c	1	63	c          	11	6320202020202020202020	c	1	63
+DROP TABLE t_utf8mb4;
 # Testing character set utf8mb4 collation utf8mb4_bin
 CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, pk_char CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, d_varchar VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');

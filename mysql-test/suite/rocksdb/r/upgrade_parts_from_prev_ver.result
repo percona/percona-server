@@ -14,9 +14,9 @@
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL,
-  `b` int(10) unsigned NOT NULL,
-  `c` int(10) unsigned NOT NULL,
+  `a` int unsigned NOT NULL,
+  `b` int unsigned NOT NULL,
+  `c` int unsigned NOT NULL,
   PRIMARY KEY (`a`),
   KEY `k_b_c` (`b`,`c`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=latin1

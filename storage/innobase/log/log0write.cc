@@ -2749,7 +2749,11 @@ bool log_read_encryption() {
   }
 
   if (encrypted_log) {
-    if (existing_redo_encryption_mode != srv_redo_log_encrypt &&
+    const auto set_encryption =
+        srv_redo_log_encrypt == REDO_LOG_ENCRYPT_ON
+            ? REDO_LOG_ENCRYPT_MK
+            : static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt);
+    if (existing_redo_encryption_mode != set_encryption &&
         srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF) {
       ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
                 log_encrypt_name(existing_redo_encryption_mode),

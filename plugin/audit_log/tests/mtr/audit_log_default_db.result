@@ -18,6 +18,7 @@ GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user2'@'%';
 UNINSTALL PLUGIN audit_log;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
+set names utf8;
 INSTALL PLUGIN audit_log SONAME 'audit_log.so';
 SELECT * FROM t;
 a

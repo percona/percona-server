@@ -255,15 +255,6 @@ ut_win_init_time();
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************//**
-Returns the number of milliseconds since some epoch.  The
-value may wrap around.  It should only be used for heuristic
-purposes.
-@return ms since epoch */
-ulint
-ut_time_ms(void);
-/*============*/
-
-/**********************************************************//**
 Returns the difference of two times in seconds.
 @return time2 - time1 expressed in seconds */
 double

@@ -1,15 +1,7 @@
 /***********************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2009, 2016, Percona Inc.
-||||||| merged common ancestors
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2009, Percona Inc.
-=======
 Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2009, Percona Inc.
->>>>>>> mysql-5.7.27
+Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -6168,7 +6160,7 @@ os_file_pread(
 {
 	++os_n_file_reads;
 
-	const ib_uint64_t start_time = trx_stats::start_io_read(trx, n);
+	const ib_time_monotonic_ms_t start_time = trx_stats::start_io_read(trx, n);
 
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);

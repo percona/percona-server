@@ -7777,7 +7777,26 @@ ER_XA_REPLICATION_FILTERS
 ER_CANT_OPEN_ERROR_LOG
   eng "Could not open file '%s' for error logging%s%s"
 
-<<<<<<< HEAD
+ER_GROUPING_ON_TIMESTAMP_IN_DST
+  eng "Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query."
+
+ER_CANT_START_SERVER_NAMED_PIPE
+  eng "Can't start server : Named Pipe \"%s\" already in use."
+
+#
+#  End of 5.7 error messages.
+#
+
+#
+# Start of Percona Server 5.7 error messages
+#
+
+start-error-number 11000
+
+ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+  eng "Can't execute the query because you have a conflicting backup lock"
+  rus "Запрос не может быть выполнен из-за конфликтующей блокировки резервного копирования"
+
 ER_COMPRESSED_COLUMN_USED_AS_KEY
   eng "Compressed column '%-.192s' is not allowed in the key list"
 
@@ -7805,22 +7824,9 @@ ER_REDO_ENCRYPTION_ERROR
 ER_REDO_ENCRYPTION_CANT_BE_CHANGED
   eng "Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is %s, requested %s."
 
-||||||| merged common ancestors
-=======
-ER_GROUPING_ON_TIMESTAMP_IN_DST
-  eng "Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query."
-
-ER_CANT_START_SERVER_NAMED_PIPE
-  eng "Can't start server : Named Pipe \"%s\" already in use."
-
->>>>>>> mysql-5.7.27
 #
-#  End of 5.7 error messages.
+# End of Percona Server 5.7 error messages
 #
-
-ER_CANT_EXECUTE_WITH_BACKUP_LOCK
-  eng "Can't execute the query because you have a conflicting backup lock"
-  rus "Запрос не может быть выполнен из-за конфликтующей блокировки резервного копирования"
 
 #
 # Start of MyRocks specific messages

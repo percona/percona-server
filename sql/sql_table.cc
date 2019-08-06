@@ -2743,14 +2743,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 #endif
   }
   DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
-<<<<<<< HEAD
-  thd->thread_specific_used= thd->thread_specific_used || tmp_table_deleted;
-||||||| merged common ancestors
-  thd->thread_specific_used|= (trans_tmp_table_deleted ||
-                               non_trans_tmp_table_deleted);
-=======
   thd->thread_specific_used= true;
->>>>>>> mysql-5.7.27
   error= 0;
 err:
   if (wrong_tables.length())
@@ -2987,7 +2980,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   */
   size_t path_length= build_table_filename(path, sizeof(path) - 1, db,
                                            table_name, reg_ext, flags);
-  strncpy(frm_path, path, sizeof(frm_path) - 1);
+  my_strncpy_trunc(frm_path, path, sizeof(frm_path) - 1);
   path[path_length - reg_ext_length]= '\0';  // Remove reg_ext
   if (flags & NO_HA_TABLE)
   {

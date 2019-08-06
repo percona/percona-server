@@ -1363,16 +1363,16 @@ the error log if more than two seconds have been spent already.
 */
 static
 void
-buf_LRU_handle_lack_of_free_blocks(ulint n_iterations, ulint started_ms,
+buf_LRU_handle_lack_of_free_blocks(ulint n_iterations, ib_time_monotonic_ms_t started_ms,
 				   ulint flush_failures,
 				   bool *mon_value_was,
 				   bool *started_monitor)
 {
-	static ulint last_printout_ms = 0;
+	static ib_time_monotonic_ms_t last_printout_ms = 0;
 
 	/* Legacy algorithm started warning after at least 2 seconds, we
 	emulate	this. */
-	const ulint current_ms = ut_time_ms();
+	const ib_time_monotonic_ms_t current_ms = ut_time_monotonic_ms();
 
 	if ((current_ms > started_ms + 2000)
 	    && (current_ms > last_printout_ms + 2000)
@@ -1450,7 +1450,7 @@ buf_LRU_get_free_block(
 	ulint		flush_failures	= 0;
 	bool		mon_value_was	= false;
 	bool		started_monitor	= false;
-	ulint		started_ms	= 0;
+	ib_time_monotonic_ms_t started_ms = 0;
 
 	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
@@ -1494,7 +1494,7 @@ loop:
 	}
 
 	if (!started_ms)
-		started_ms = ut_time_ms();
+		started_ms = ut_time_monotonic_ms();
 
 	MONITOR_INC( MONITOR_LRU_GET_FREE_LOOPS );
 

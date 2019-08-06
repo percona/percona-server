@@ -1,13 +1,7 @@
 /*****************************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| merged common ancestors
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
-=======
 Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
->>>>>>> mysql-5.7.27
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -141,17 +135,8 @@ struct page_cleaner_slot_t {
 	bool			succeeded_list;
 					/*!< true if flush_list flushing
 					succeeded. */
-<<<<<<< HEAD
-	ulint			flush_list_time;
-||||||| merged common ancestors
-	ulint			flush_lru_time;
-					/*!< elapsed time for LRU flushing */
-	ulint			flush_list_time;
-=======
-	uint64_t		flush_lru_time;
 					/*!< elapsed time for LRU flushing */
 	uint64_t		flush_list_time;
->>>>>>> mysql-5.7.27
 					/*!< elapsed time for flush_list
 					flushing */
 	ulint			flush_list_pass;
@@ -2615,17 +2600,7 @@ page_cleaner_flush_pages_recommendation(
 		page_cleaner->flush_time = 0;
 		page_cleaner->flush_pass = 0;
 
-<<<<<<< HEAD
-		ulint	list_tm = 0;
-||||||| merged common ancestors
-		ulint	lru_tm = 0;
-		ulint	list_tm = 0;
-		ulint	lru_pass = 0;
-=======
-		uint64_t lru_tm = 0;
 		uint64_t list_tm = 0;
-		ulint	lru_pass = 0;
->>>>>>> mysql-5.7.27
 		ulint	list_pass = 0;
 
 		for (ulint i = 0; i < page_cleaner->n_slots; i++) {
@@ -2918,17 +2893,7 @@ static
 ulint
 pc_flush_slot(void)
 {
-<<<<<<< HEAD
-	ulint	list_tm = 0;
-||||||| merged common ancestors
-	ulint	lru_tm = 0;
-	ulint	list_tm = 0;
-	int	lru_pass = 0;
-=======
-	ib_time_monotonic_ms_t	lru_tm = 0;
 	ib_time_monotonic_ms_t	list_tm = 0;
-	int	lru_pass = 0;
->>>>>>> mysql-5.7.27
 	int	list_pass = 0;
 
 	mutex_enter(&page_cleaner->mutex);
@@ -2966,36 +2931,6 @@ pc_flush_slot(void)
 
 		mutex_exit(&page_cleaner->mutex);
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-		lru_tm = ut_time_ms();
-
-		/* Flush pages from end of LRU if required */
-		slot->n_flushed_lru = buf_flush_LRU_list(buf_pool);
-
-		lru_tm = ut_time_ms() - lru_tm;
-		lru_pass++;
-
-		if (!page_cleaner->is_running) {
-			slot->n_flushed_list = 0;
-			goto finish;
-		}
-
-=======
-		lru_tm = ut_time_monotonic_ms();
-
-		/* Flush pages from end of LRU if required */
-		slot->n_flushed_lru = buf_flush_LRU_list(buf_pool);
-
-		lru_tm = ut_time_monotonic_ms() - lru_tm;
-		lru_pass++;
-
-		if (!page_cleaner->is_running) {
-			slot->n_flushed_list = 0;
-			goto finish;
-		}
-
->>>>>>> mysql-5.7.27
 		/* Flush pages from flush_list if required */
 		if (page_cleaner->requested) {
 
@@ -3409,16 +3344,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 
 			/* only coordinator is using these counters,
 			so no need to protect by lock. */
-<<<<<<< HEAD
-			page_cleaner->flush_time += ut_time_ms() - tm;
-			page_cleaner->flush_pass++;
-||||||| merged common ancestors
-			page_cleaner->flush_time += ut_time_ms() - tm;
-			page_cleaner->flush_pass++ ;
-=======
 			page_cleaner->flush_time += ut_time_monotonic_ms() - tm;
 			page_cleaner->flush_pass++ ;
->>>>>>> mysql-5.7.27
 
 			/* Wait for all slots to be finished */
 			ulint	n_flushed_list = 0;
@@ -3635,21 +3562,21 @@ already in the past.
 static
 void
 buf_lru_manager_sleep_if_needed(
-	ulint	next_loop_time)
+	ib_time_monotonic_ms_t next_loop_time)
 {
 	/* If this is the server shutdown buffer pool flushing phase, skip the
 	sleep to quit this thread faster */
 	if (srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE)
 		return;
 
-	ulint	cur_time	= ut_time_ms();
+	ib_time_monotonic_ms_t cur_time = ut_time_monotonic_ms();
 
 	if (next_loop_time > cur_time) {
 		/* Get sleep interval in micro seconds. We use
 		ut_min() to avoid long sleep in case of
 		wrap around. */
-		os_thread_sleep(std::min(1000000UL,
-					 (next_loop_time - cur_time)
+		os_thread_sleep(std::min((uint64_t)1000000UL,
+					 (uint64_t)(next_loop_time - cur_time)
 					 * 1000));
 	}
 }
@@ -3732,7 +3659,7 @@ DECLARE_THREAD(buf_lru_manager)(
 	os_atomic_increment_ulint(&buf_lru_manager_running_threads, 1);
 
 	ulint	lru_sleep_time	= 1000;
-	ulint	next_loop_time	= ut_time_ms() + lru_sleep_time;
+	ib_time_monotonic_ms_t next_loop_time = ut_time_monotonic_ms() + lru_sleep_time;
 	ulint	lru_n_flushed	= 1;
 
 	/* On server shutdown, the LRU manager thread runs through cleanup
@@ -3747,7 +3674,7 @@ DECLARE_THREAD(buf_lru_manager)(
 		buf_lru_manager_adapt_sleep_time(buf_pool, lru_n_flushed,
 						 &lru_sleep_time);
 
-		next_loop_time = ut_time_ms() + lru_sleep_time;
+		next_loop_time = ut_time_monotonic_ms() + lru_sleep_time;
 
 		lru_n_flushed = buf_flush_LRU_list(buf_pool);
 

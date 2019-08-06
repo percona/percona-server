@@ -354,7 +354,7 @@ buf_parallel_dblwr_make_path(void)
 
 	if (is_absolute_path(srv_parallel_doublewrite_path)) {
 
-		strncpy(path, srv_parallel_doublewrite_path, sizeof(path));
+		my_strncpy_trunc(path, srv_parallel_doublewrite_path, sizeof(path));
 	} else {
 
 		/* A relative path to the parallel doublewrite file is based

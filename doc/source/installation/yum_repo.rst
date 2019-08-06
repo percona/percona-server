@@ -1,4 +1,4 @@
-.. _yum_repo:
+. _yum_repo:
 
 ====================================================================
  Installing |Percona Server| on Red Hat Enterprise Linux and CentOS
@@ -18,6 +18,7 @@ Supported Releases:
 
 - *CentOS* 6 and *RHEL* 6 (Current Stable)
 - *CentOS* 7 and *RHEL* 7
+- *RHEL* 8
 - *Amazon Linux AMI* (works the same as *CentOS* 6)
 - *Amazon Linux* 2
 
@@ -195,6 +196,11 @@ Installing |Percona Server| using downloaded rpm packages
 	 percona-server-shared-compat-80-8.0.13-3.el7.x86_64.rpm
 	 percona-server-test-80-8.0.13-3.el7.x86_64.rpm
 	 percona-server-tokudb-80-8.0.13-3.el7.x86_64.rpm
+
+  .. note::
+
+    For an RHEL 8 package installation, Percona Server requires the mysql module 
+to be disabled.
 
 3. Now you can install |Percona Server| 8.0 by running:
 

@@ -934,7 +934,7 @@ dict_stats_update_transient(
 	table->stat_sum_of_other_index_sizes = sum_of_index_sizes
 		- index->stat_index_size;
 
-	table->stats_last_recalc = ut_time();
+	table->stats_last_recalc = ut_time_monotonic();
 
 	table->stat_modified_counter = 0;
 
@@ -2253,7 +2253,7 @@ dict_stats_update_persistent(
 			+= index->stat_index_size;
 	}
 
-	table->stats_last_recalc = ut_time();
+	table->stats_last_recalc = ut_time_monotonic();
 
 	table->stat_modified_counter = 0;
 

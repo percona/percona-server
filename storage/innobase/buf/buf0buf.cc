@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1797,7 +1797,7 @@ buf_pool_init_instance(
 
 		buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
-		buf_pool->last_printout_time = ut_time();
+		buf_pool->last_printout_time = ut_time_monotonic();
 	}
 	/* 2. Initialize flushing fields
 	-------------------------------- */
@@ -7163,6 +7163,32 @@ buf_print_io(
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
 void
+<<<<<<< HEAD
+||||||| merged common ancestors
+buf_refresh_io_stats(
+/*=================*/
+	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
+{
+	buf_pool->last_printout_time = ut_time();
+	buf_pool->old_stat = buf_pool->stat;
+}
+
+/**********************************************************************//**
+Refreshes the statistics used to print per-second averages. */
+void
+=======
+buf_refresh_io_stats(
+/*=================*/
+	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
+{
+	buf_pool->last_printout_time = ut_time_monotonic();
+	buf_pool->old_stat = buf_pool->stat;
+}
+
+/**********************************************************************//**
+Refreshes the statistics used to print per-second averages. */
+void
+>>>>>>> mysql-5.7.27
 buf_refresh_io_stats_all(void)
 /*==========================*/
 {

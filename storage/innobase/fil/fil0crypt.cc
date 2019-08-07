@@ -106,7 +106,7 @@ static uint n_fil_crypt_iops_allocated = 0;
 
 extern bool mysqld_server_started;
 
-uint get_global_default_encryption_key_id_value();
+EncryptionKeyId get_global_default_encryption_key_id_value();
 
 #define DEBUG_KEYROTATION_THROTTLING 0
 
@@ -1037,6 +1037,13 @@ struct rotate_thread_t {
   }
 };
 
+#ifdef UNIV_DEBUG
+static bool is_unenc_to_enc_rotation(const fil_space_crypt_t &crypt_data) {
+  return crypt_data.type == CRYPT_SCHEME_UNENCRYPTED &&
+         !crypt_data.is_encryption_disabled();
+}
+#endif
+
 /***********************************************************************
 Check if space needs rotation given a key_state
 @param[in,out]		state		Key rotation state
@@ -1119,11 +1126,22 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
         crypt_data->encryption, crypt_data->min_key_version,
         key_state->key_version, key_state->rotate_key_age);
 
-    if (need_key_rotation && crypt_data->rotate_state.active_threads > 0 &&
-        crypt_data->rotate_state.next_offset >
-            crypt_data->rotate_state.max_offset) {
-      break;  // the space is already being processed and there are no more
-              // pages to rotate
+    if (need_key_rotation) {
+      if (crypt_data->rotate_state.active_threads == 0) {
+        if (key_state->key_version == ENCRYPTION_KEY_VERSION_INVALID) {
+          ut_ad(is_unenc_to_enc_rotation(*crypt_data));
+          // we are asked to encrypt table with encryption_key_id assigned, but
+          // the key is not in the keyring - create it now.
+          if (Encryption::create_tablespace_key(crypt_data->key_id)) {
+            break;  // failed to create the key - skip the tablespace
+          }
+          key_state->key_version = 1;
+        }
+      } else if (crypt_data->rotate_state.next_offset >
+                 crypt_data->rotate_state.max_offset) {
+        break;  // the space is already being processed and there are no more
+                // pages to rotate
+      }
     }
 
     if (need_key_rotation == false) {

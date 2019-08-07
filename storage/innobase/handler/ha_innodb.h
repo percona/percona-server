@@ -1002,9 +1002,18 @@ class create_table_info_t {
                  FIL_ENCRYPTION_(ON/DEFAULT/OFF)
   @return on success DB_SUCCESS else DB_UNSPPORTED on failure */
   dberr_t enable_keyring_encryption(
-      dict_table_t *table, fil_encryption_t &rotated_keys_encryption_option);
+      dict_table_t *table, fil_encryption_t &keyring_encryption_option);
 
  private:
+  /** Check if encryption key exists or can be created
+  in keyring
+  @param[in] encryption_key_id key to fetch/create
+  @return DB_UNSUPPORTED error
+          DB_SUCCESS     success */
+
+  MY_NODISCARD dberr_t
+  check_tablespace_key(const EncryptionKeyId encryption_key_id);
+
   /** Parses the table name into normal name and either temp path or
   remote path if needed.*/
   int parse_table_name(const char *name);

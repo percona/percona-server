@@ -1738,6 +1738,7 @@ the normal data directory
 @param[in]      flags           Tablespace flags
 @param[in]      size            Initial size of the tablespace file in pages,
                                 must be >= FIL_IBD_FILE_INITIAL_SIZE
+@param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t fil_ibd_create(
     space_id_t space_id, const char *name, const char *path, uint32_t flags,

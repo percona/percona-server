@@ -3004,6 +3004,19 @@ dberr_t Encryption::validate(const char *option) noexcept {
 
   return (encryption.set_algorithm(option, &encryption));
 }
+
+/** Check for supported ENCRYPT := (Y | N) supported values
+@param[in]	option		Encryption option
+@return DB_SUCCESS or DB_UNSUPPORTED */
+dberr_t Encryption::validate_for_tablespace(const char *option) noexcept {
+  if (innobase_strcasecmp(option, "KEYRING") == 0) {
+    return DB_UNSUPPORTED;
+  }
+
+  Encryption encryption;
+
+  return (encryption.set_algorithm(option, &encryption));
+}
 /** Compute the next autoinc value.
 
  For MySQL replication the autoincrement values can be partitioned among
@@ -12184,20 +12197,60 @@ dberr_t create_table_info_t::enable_master_key_encryption(dict_table_t *table) {
   return (err);
 }
 
+/** Retrive keyring encryption mode
+@param[in]	encrypt_type    from ENCRYPTION clause
+@param[in]	explicit_encryption was ENCRYPTION clause used
+@param[in]	flags		tabelspace flags
+@retval FIL_ENCRYPTION_OFF      tablespace should be skipped by
+                                encryption threads
+        FIL_ENCRYPTION_DEFAULT  online encryption allowed by
+                                encryption threads
+        FIL_ENCRYPTION_ON       table should be keyring encrypted */
+static fil_encryption_t get_encryption_mode(const char *encrypt_type,
+                                            bool explicit_encryption) {
+  if (explicit_encryption && innobase_strcasecmp(encrypt_type, "n") == 0) {
+    return FIL_ENCRYPTION_OFF;
+  }
+  if (Encryption::is_keyring(encrypt_type)) {
+    return FIL_ENCRYPTION_ON;
+  }
+  return FIL_ENCRYPTION_DEFAULT;
+}
+
+dberr_t create_table_info_t::check_tablespace_key(
+    const EncryptionKeyId encryption_key_id) {
+  if (!Encryption::tablespace_key_exists_or_create_new_one_if_does_not_exist(
+          encryption_key_id, server_uuid)) {
+    my_printf_error(
+        ER_ILLEGAL_HA_CREATE_OPTION,
+        "Seems that keyring is down. It is not possible to create encrypted "
+        "tables "
+        " without keyring. Please install a keyring and try again.",
+        MYF(0));
+    return (DB_UNSUPPORTED);
+  }
+  return DB_SUCCESS;
+}
+
+/** Enable keyring encryption for table
+@param[in,out]	table           table to have its encryption flag set
+                                in case it should be KEYRING encrypted
+@param[out]	keyring_encryption_mode FIL_ENCRYPTION_ON |
+                                FIL_ENCRYPTION_OFF | FIL_ENCRYPTION_DEFAULT
+@retval         DB_UNSUPPORTED  on error
+                DB_SUCCESS      on success */
 dberr_t create_table_info_t::enable_keyring_encryption(
-    dict_table_t *table, fil_encryption_t &keyring_encryption_option) {
-  if (Encryption::none_explicitly_specified(m_create_info->used_fields,
-                                            m_create_info->encrypt_type.str)) {
-    keyring_encryption_option = FIL_ENCRYPTION_OFF;
-  } else if (Encryption::is_keyring(m_create_info->encrypt_type.str) ||
-             (srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING)) {
-    // Check if keyring is up and the key exists in keyring was already done in
-    // encryption option validation
-    keyring_encryption_option =
-        Encryption::is_keyring(m_create_info->encrypt_type.str)
-            ? FIL_ENCRYPTION_ON
-            : FIL_ENCRYPTION_DEFAULT;
+    dict_table_t *table, fil_encryption_t &keyring_encryption_mode) {
+  keyring_encryption_mode =
+      get_encryption_mode(m_create_info->encrypt_type.str,
+                          m_create_info->used_fields & HA_CREATE_USED_ENCRYPT);
+
+  if (keyring_encryption_mode == FIL_ENCRYPTION_ON ||
+      (keyring_encryption_mode == FIL_ENCRYPTION_DEFAULT &&
+       Encryption::is_online_encryption_on())) {
     DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
+
+    return check_tablespace_key(m_create_info->encryption_key_id);
   }
   return DB_SUCCESS;
 }
@@ -16578,6 +16631,7 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
   int error;
   Tablespace tablespace;
   uint32_t fsp_flags = 0;
+  fil_encryption_t keyring_encryption_mode{FIL_ENCRYPTION_DEFAULT};
 
   DBUG_TRACE;
   assert(hton == innodb_hton_ptr);
@@ -16623,14 +16677,14 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
   bool zipped = (zip_size != UNIV_PAGE_SIZE);
   page_size_t page_size(zip_size, UNIV_PAGE_SIZE, zipped);
   bool atomic_blobs = page_size.is_compressed();
-  KeyringEncryptionKeyIdInfo create_info_encryption_key_id;
+  KeyringEncryptionKeyIdInfo keyring_encryption_key_id;
   bool encrypted = false;
+  dd::String_type encrypt;
   if (dd_space->options().exists("encryption")) {
-    dd::String_type encrypt;
     (void)dd_space->options().get("encryption", &encrypt);
 
     /* Validate Encryption option provided */
-    if (Encryption::validate(encrypt.c_str()) != DB_SUCCESS) {
+    if (Encryption::validate_for_tablespace(encrypt.c_str()) != DB_SUCCESS) {
       /* Incorrect encryption option */
       my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
       err = DB_UNSUPPORTED;
@@ -16662,11 +16716,16 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
                      encrypted); /* If tablespace is to be Encrypted */
   tablespace.set_flags(fsp_flags);
 
-  create_info_encryption_key_id.was_encryption_key_id_set =
-      false;  // TODO: Make encryption key id also tablespace argument
+  keyring_encryption_key_id = {
+      alter_info->encryption_key_id.was_encryption_key_id_set,
+      alter_info->encryption_key_id.id};
 
-  err = dict_build_tablespace(trx, &tablespace, FIL_ENCRYPTION_DEFAULT,
-                              create_info_encryption_key_id);
+  keyring_encryption_mode =
+      get_encryption_mode(encrypt.c_str(), alter_info->explicit_encryption);
+  ut_ad(keyring_encryption_mode != FIL_ENCRYPTION_ON);
+
+  err = dict_build_tablespace(trx, &tablespace, keyring_encryption_mode,
+                              keyring_encryption_key_id);
 
   if (err == DB_SUCCESS) {
     /* Update the fil_space_t with autoextend_size value. */
@@ -16828,7 +16887,7 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
 
   /* Validate new encryption option provided */
   const char *encrypt = newenc.data();
-  if (Encryption::validate(encrypt) != DB_SUCCESS) {
+  if (Encryption::validate_for_tablespace(encrypt) != DB_SUCCESS) {
     /* Incorrect encryption option */
     my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
     error = convert_error_code_to_mysql(DB_ERROR, 0, nullptr);

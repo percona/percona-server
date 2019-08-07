@@ -52,7 +52,7 @@ struct Tablespace_options {
   LEX_STRING ts_comment = {nullptr, 0};  // FIXME: Rename to comment?
   LEX_CSTRING engine_name = {nullptr, 0};
   LEX_STRING encryption = {nullptr, 0};
-
+  KeyringEncryptionKeyIdInfo encryption_key_id;
   LEX_CSTRING engine_attribute = NULL_CSTR;
 };
 

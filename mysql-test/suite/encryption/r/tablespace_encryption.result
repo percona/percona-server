@@ -1,0 +1,58 @@
+CREATE TABLESPACE ts1 ENCRYPTION_KEY_ID=3;
+CREATE TABLE t1_in_ts1 (a VARCHAR(255)) TABLESPACE=ts1;
+CREATE TABLESPACE ts2 ENCRYPTION_KEY_ID=5;
+CREATE TABLE t1_in_ts2 (a VARCHAR(255)) TABLESPACE=ts2;
+CREATE TABLESPACE ts3;
+CREATE TABLE t1_in_ts3 (a VARCHAR(255)) TABLESPACE=ts3;
+CREATE TABLESPACE ts4 ENCRYPTION='N';
+CREATE TABLE t1_in_ts4 (a VARCHAR(255)) TABLESPACE=ts4;
+CREATE TABLESPACE ts5 ENCRYPTION='KEYRING';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE ts4 ENCRYPTION='KEYRING';
+ERROR HY000: Invalid encryption option.
+INSERT t1_in_ts1 VALUES (REPEAT('foobarsecret', 12));
+INSERT t1_in_ts2 VALUES (REPEAT('tempsecret', 12));
+INSERT t1_in_ts3 VALUES (REPEAT('dummysecret', 12));
+INSERT t1_in_ts4 VALUES (REPEAT('soooosecret', 12));
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+include/assert.inc [table ts4 should not be encrypted]
+include/assert.inc [Successful rotation of percona_innodb-0 to version 2]
+include/assert.inc [None of the tablespaces should get re-encrypted with version 2 as innodb_encryption_rotate_key_age is 2]
+include/assert.inc [Successful rotation of percona_innodb-0 to version 3]
+include/assert.inc [Table ts1 should not get re-encrypted as key 3 is still in version 1]
+include/assert.inc [Tablespace ts2 should not get re-encrypted as key 5 is still in version 1]
+include/assert.inc [Table ts4 should stay unencrypted]
+# Now, let's rotate key 5 twice
+include/assert.inc [Successful rotation of percona_innodb-5 to version 2]
+include/assert.inc [Successful rotation of percona_innodb-5 to version 3]
+CREATE TABLESPACE ts5 ENCRYPTION_KEY_ID=5;
+CREATE TABLE t1_in_ts5 (a varchar(255)) TABLESPACE=ts5;
+include/assert.inc [Tablespace ts5 should be encrypted with latest version of percona_innodb-5, i.e. version 3]
+# Setting innodb_encryption_rotate_key_age to 1. Now each key rotation should result
+# in re-encryption of the table
+SET GLOBAL innodb_encryption_rotate_key_age = 1;
+include/assert.inc [Successful rotation of percona_innodb-0 to version 4]
+include/assert.inc [Table ts2 should not get re-encrypted as key 5 is still in version 3]
+# Rotate key 5 to version 4 => this should trigger table ts2 re-encryption
+include/assert.inc [Successful rotation of percona_innodb-5 to version 4]
+# Now turn the re-encryption off by setting innodb_encryption_rotate_key_age to 0
+SET GLOBAL innodb_encryption_rotate_key_age = 0;
+# Rotating key should not cause any re-encryption
+include/assert.inc [Successful rotation of percona_innodb-0 to version 5]
+# Rotate key 5 to version 5 => this should trigger table ts2 re-encryption
+include/assert.inc [Successful rotation of percona_innodb-5 to version 5]
+include/assert.inc [All tables should be still encrypted with key version 4 at most.]
+# Make sure ts4 is still unencrypted
+include/assert.inc [Tablespace ts4 should stay unencrypted]
+# Now turn off the encryption.
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_rotate_key_age = 2;
+SET GLOBAL default_table_encryption=OFF;
+SET GLOBAL innodb_encryption_threads=0;
+DROP TABLE t1_in_ts1, t1_in_ts2, t1_in_ts3, t1_in_ts4, t1_in_ts5;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;
+DROP TABLESPACE ts4;
+DROP TABLESPACE ts5;

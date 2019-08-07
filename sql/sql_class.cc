@@ -65,6 +65,7 @@ using std::min;
 using std::max;
 
 ulong kill_idle_transaction_timeout= 0;
+PSI_mutex_key key_LOCK_bloom_filter;
 
 /*
   The following is used to initialise Table_ident with a internal

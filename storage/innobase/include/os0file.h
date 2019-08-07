@@ -59,6 +59,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include <functional>
 #include <stack>
+#include "keyring_encryption_key_info.h"
 
 /** File node of a tablespace or the log data space */
 struct fil_node_t;
@@ -242,12 +243,6 @@ static const ulint OS_FILE_ACCESS_VIOLATION = 81;
 static const ulint OS_FILE_NAME_TOO_LONG = 82;
 static const ulint OS_FILE_ERROR_MAX = 100;
 /* @} */
-
-static const uint ENCRYPTION_KEY_VERSION_INVALID = (~(uint)0);
-
-static const uint FIL_DEFAULT_ENCRYPTION_KEY = 0;
-
-static const uint ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED = 0;
 
 /** Encryption key length */
 static const ulint ENCRYPTION_KEY_LEN = 32;
@@ -506,6 +501,8 @@ struct Encryption {
 
   static bool get_tablespace_key(uint key_id, uint tablespace_key_version,
                                  byte **tablespace_key, size_t *key_len);
+
+  static bool create_tablespace_key(EncryptionKeyId key_id);
 
   /** Get master key by key id.
   @param[in]	master_key_id	master key id

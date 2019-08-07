@@ -957,7 +957,7 @@ class create_table_info_t {
                  FIL_ENCRYPTION_(ON/DEFAULT/OFF)
   @return on success DB_SUCCESS else DB_UNSPPORTED on failure */
   dberr_t enable_keyring_encryption(
-      dict_table_t *table, fil_encryption_t &rotated_keys_encryption_option);
+      bool &encrypted, fil_encryption_t &rotated_keys_encryption_option);
 
  private:
   /** Parses the table name into normal name and either temp path or

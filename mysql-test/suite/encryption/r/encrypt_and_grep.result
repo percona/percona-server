@@ -53,8 +53,8 @@ include/assert.inc [All encrypted tables should have encrypted flag set, apart f
 # restart:--early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring KEYRING_PLUGIN_OPT --default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
 # Now turn off encryption and wait for threads to decrypt everything
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-# Only three tables should stayed encrypted - the ones with explicite encryption
-include/assert.inc [Three tables should stayed encrypted - the ones with explicite encryption t1, t4 and t6]
+#Four tables should stayed encrypted - the ones with explicit encryption
+include/assert.inc [Four tables should stayed encrypted and tablespace - the ones with explicit encryption t1, t4, ts_rk_encrypted and t6]
 # t1 yes on expecting NOT FOUND
 # t2 ... default expecting FOUND
 # t3 no  on expecting FOUND

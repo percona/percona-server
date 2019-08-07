@@ -1831,7 +1831,7 @@ static dict_table_t *fts_create_one_common_table(trx_t *trx,
 
   error =
       row_create_table_for_mysql(new_table, NULL, trx, FIL_ENCRYPTION_DEFAULT,
-                                 CreateInfoEncryptionKeyId());
+                                 KeyringEncryptionKeyIdInfo());
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -2027,7 +2027,7 @@ static dict_table_t *fts_create_one_index_table(trx_t *trx,
 
   error =
       row_create_table_for_mysql(new_table, NULL, trx, FIL_ENCRYPTION_DEFAULT,
-                                 CreateInfoEncryptionKeyId());
+                                 KeyringEncryptionKeyIdInfo());
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(

@@ -1912,6 +1912,7 @@ void warn_about_deprecated_national(THD *thd)
         ts_option_undo_buffer_size
         ts_option_wait
 	ts_option_encryption
+        ts_option_encryption_key_id
 
 %type <explain_format_type> opt_explain_format_type
 
@@ -5284,6 +5285,7 @@ tablespace_option:
         | ts_option_comment
         | ts_option_file_block_size
 	| ts_option_encryption
+        | ts_option_encryption_key_id
         ;
 
 opt_alter_tablespace_options:
@@ -5313,6 +5315,7 @@ alter_tablespace_option:
         | ts_option_engine
         | ts_option_wait
 	| ts_option_encryption
+       | ts_option_encryption_key_id
         ;
 
 opt_undo_tablespace_options:
@@ -5493,6 +5496,13 @@ ts_option_encryption:
           ENCRYPTION_SYM opt_equal TEXT_STRING_sys
           {
             $$= NEW_PTN PT_alter_tablespace_option_encryption($3);
+          }
+        ;
+
+ts_option_encryption_key_id:
+          ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
+          {
+            $$= NEW_PTN PT_alter_tablespace_option_encryption_key_id($3);
           }
         ;
 

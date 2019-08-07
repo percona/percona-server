@@ -68,7 +68,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @return DB_SUCCESS or error code */
 dberr_t dict_build_table_def(
     dict_table_t *table, trx_t *trx, fil_encryption_t mode,
-    const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   char db_buf[NAME_LEN + 1];
   char tbl_buf[NAME_LEN + 1];
 
@@ -99,7 +99,7 @@ dberr_t dict_build_table_def(
   }
 
   dberr_t err = dict_build_tablespace_for_table(table, trx, mode,
-                                                create_info_encryption_key_id);
+                                                keyring_encryption_key_id);
 
   return (err);
 }
@@ -110,7 +110,7 @@ dberr_t dict_build_table_def(
 @return DB_SUCCESS or error code. */
 dberr_t dict_build_tablespace(
     trx_t *trx, Tablespace *tablespace, fil_encryption_t mode,
-    const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;
@@ -156,7 +156,7 @@ dberr_t dict_build_tablespace(
 
   err = fil_ibd_create(space, tablespace->name(), datafile->filepath(),
                        tablespace->flags(), FIL_IBD_FILE_INITIAL_SIZE, mode,
-                       create_info_encryption_key_id);
+                       keyring_encryption_key_id);
 
   DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
                     crash_injection_after_create_counter++);
@@ -241,7 +241,7 @@ static ibt::Tablespace *determine_session_temp_tblsp(
 @return DB_SUCCESS or error code */
 dberr_t dict_build_tablespace_for_table(
     dict_table_t *table, trx_t *trx, fil_encryption_t mode,
-    const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   space_id_t space = 0;
@@ -332,7 +332,7 @@ dberr_t dict_build_tablespace_for_table(
 
     err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
                          FIL_IBD_FILE_INITIAL_SIZE, mode,
-                         create_info_encryption_key_id);
+                         keyring_encryption_key_id);
 
     ut_free(filepath);
 

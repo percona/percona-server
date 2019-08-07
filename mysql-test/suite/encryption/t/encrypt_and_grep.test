@@ -121,14 +121,14 @@ ALTER TABLE t6 ENCRYPTION='KEYRING', ALGORITHM=INPLACE;
 
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
---echo # Only three tables should stayed encrypted - the ones with explicite encryption
+--echo #Four tables should stayed encrypted - the ones with explicit encryption
 --let $wait_timeout= 600
---let $wait_condition=SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--let $wait_condition=SELECT COUNT(*) = 4 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
---let $assert_text= Three tables should stayed encrypted - the ones with explicite encryption t1, t4 and t6
+--let $assert_text=Four tables should stayed encrypted and tablespace - the ones with explicit encryption t1, t4, ts_rk_encrypted and t6
 
---let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE ((FLAG & 8192) = 8192)]" = 3
+--let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE ((FLAG & 8192) = 8192)]" = 4
 --source include/assert.inc
 
 --source include/shutdown_mysqld.inc

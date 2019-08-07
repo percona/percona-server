@@ -5460,7 +5460,7 @@ static bool dd_create_hardcoded(space_id_t space_id, const char *filename,
 
   dberr_t err = fil_ibd_create(space_id, dict_sys_t::s_dd_space_name, filename,
                                flags, pages, FIL_ENCRYPTION_DEFAULT,
-                               CreateInfoEncryptionKeyId());
+                               KeyringEncryptionKeyIdInfo());
 
   if (err == DB_SUCCESS) {
     mtr_t mtr;
@@ -11221,39 +11221,58 @@ dberr_t create_table_info_t::enable_master_key_encryption(dict_table_t *table) {
   return (err);
 }
 
-dberr_t create_table_info_t::enable_keyring_encryption(
-    dict_table_t *table, fil_encryption_t &keyring_encryption_option) {
-  if (Encryption::none_explicitly_specified(m_create_info->used_fields,
-                                            m_create_info->encrypt_type.str)) {
-    keyring_encryption_option = FIL_ENCRYPTION_OFF;
-  } else if (Encryption::is_keyring(m_create_info->encrypt_type.str) ||
-             (srv_default_table_encryption ==
-              DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING)) {
-    // Check if keyring is up and the key exists in keyring was already done in
-    // encryption option validation
-    keyring_encryption_option =
-        Encryption::is_keyring(m_create_info->encrypt_type.str)
-            ? FIL_ENCRYPTION_ON
-            : FIL_ENCRYPTION_DEFAULT;
-    DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
+static fil_encryption_t get_encryption_mode(const char *encrypt_type,
+                                            bool explicit_encryption) {
+  if (explicit_encryption && innobase_strcasecmp(encrypt_type, "n") == 0) {
+    return FIL_ENCRYPTION_OFF;
+  }
+  if (Encryption::is_keyring(encrypt_type)) {
+    return FIL_ENCRYPTION_ON;
+  }
+  return FIL_ENCRYPTION_DEFAULT;
+}
 
-    uint tablespace_key_version;
-    byte *tablespace_key;
-    Encryption::get_latest_tablespace_key_or_create_new_one(
-        m_create_info->encryption_key_id, &tablespace_key_version,
-        &tablespace_key);
-    if (tablespace_key == NULL) {
-      my_printf_error(
-          ER_ILLEGAL_HA_CREATE_OPTION,
-          "Seems that keyring is down. It is not possible to create encrypted "
-          "tables "
-          " without keyring. Please install a keyring and try again.",
-          MYF(0));
-      return (DB_UNSUPPORTED);
-    } else
-      my_free(tablespace_key);
+static dberr_t check_tablespace_key(EncryptionKeyId encryption_key_id) {
+  uint tablespace_key_version;
+  byte *tablespace_key;
+  Encryption::get_latest_tablespace_key_or_create_new_one(
+      encryption_key_id, &tablespace_key_version, &tablespace_key);
+  if (tablespace_key == NULL) {
+    my_printf_error(
+        ER_ILLEGAL_HA_CREATE_OPTION,
+        "Seems that keyring is down. It is not possible to create encrypted "
+        "tables "
+        " without keyring. Please install a keyring and try again.",
+        MYF(0));
+    return (DB_UNSUPPORTED);
+  }
+  my_free(tablespace_key);
+  return DB_SUCCESS;
+}
+
+static dberr_t enable_keyring_encryption(
+    const char *encrypt_type, bool explicit_encryption, EncryptionKeyId key_id,
+    fil_encryption_t &keyring_encryption_option, bool &encrypted) {
+  encrypted = false;
+  keyring_encryption_option =
+      get_encryption_mode(encrypt_type, explicit_encryption);
+
+  if (keyring_encryption_option == FIL_ENCRYPTION_ON ||
+      (keyring_encryption_option == FIL_ENCRYPTION_DEFAULT &&
+       Encryption::is_online_encryption_on())) {
+    encrypted = true;
+
+    return check_tablespace_key(key_id);
   }
   return DB_SUCCESS;
+}
+
+dberr_t create_table_info_t::enable_keyring_encryption(
+    bool &encrypted, fil_encryption_t &keyring_encryption_option) {
+  return ::enable_keyring_encryption(
+      m_create_info->encrypt_type.str,
+      m_create_info->used_fields & HA_CREATE_USED_ENCRYPT,
+      m_create_info->encryption_key_id, keyring_encryption_option, encrypted);
 }
 
 /** Create a table definition to an InnoDB database.
@@ -11282,6 +11301,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
   dd::Object_id dd_space_id = dd::INVALID_OBJECT_ID;
   ulint actual_n_cols;
   fil_encryption_t keyring_encryption_option = FIL_ENCRYPTION_DEFAULT;
+  bool keyring_encrypted{false};
 
   DBUG_ENTER("create_table_def");
   DBUG_PRINT("enter", ("table_name: %s", m_table_name));
@@ -11557,12 +11577,17 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
 
   err = (Encryption::is_master_key_encryption(m_create_info->encrypt_type.str))
             ? enable_master_key_encryption(table)
-            : enable_keyring_encryption(table, keyring_encryption_option);
+            : enable_keyring_encryption(keyring_encrypted,
+                                        keyring_encryption_option);
 
   if (err != DB_SUCCESS) {
     dict_mem_table_free(table);
     mem_heap_free(heap);
     goto error_ret;
+  }
+
+  if (keyring_encrypted) {
+    DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
   }
 
   if (table->is_temporary()) {
@@ -11578,10 +11603,10 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
       dict_table_assign_new_id(table, m_trx);
 
       /* Create temp tablespace if configured. */
-      CreateInfoEncryptionKeyId create_info_encryption_key_id;
-      create_info_encryption_key_id.was_encryption_key_id_set = false;
+      KeyringEncryptionKeyIdInfo keyring_encryption_key_id;
+      keyring_encryption_key_id.was_encryption_key_id_set = false;
       err = dict_build_tablespace_for_table(
-          table, m_trx, FIL_ENCRYPTION_DEFAULT, create_info_encryption_key_id);
+          table, m_trx, FIL_ENCRYPTION_DEFAULT, keyring_encryption_key_id);
 
       if (err == DB_SUCCESS) {
         /* Temp-table are maintained in memory and so
@@ -11636,14 +11661,14 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
       algorithm = NULL;
     }
 
-    CreateInfoEncryptionKeyId create_info_encryption_key_id(
+    KeyringEncryptionKeyIdInfo keyring_encryption_key_id(
         m_create_info->was_encryption_key_id_set,
         m_create_info->encryption_key_id);
 
     if (err == DB_SUCCESS) {
       err = row_create_table_for_mysql(table, algorithm, m_trx,
                                        keyring_encryption_option,
-                                       create_info_encryption_key_id);
+                                       keyring_encryption_key_id);
     }
 
     if (err == DB_IO_NO_PUNCH_HOLE_FS) {
@@ -15248,6 +15273,7 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
   int error;
   Tablespace tablespace;
   uint32_t fsp_flags = 0;
+  fil_encryption_t keyring_encryption_option{FIL_ENCRYPTION_DEFAULT};
 
   DBUG_ENTER("innodb_create_tablespace");
   DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -15289,10 +15315,10 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
   bool zipped = (zip_size != UNIV_PAGE_SIZE);
   page_size_t page_size(zip_size, UNIV_PAGE_SIZE, zipped);
   bool atomic_blobs = page_size.is_compressed();
-  CreateInfoEncryptionKeyId create_info_encryption_key_id;
+  KeyringEncryptionKeyIdInfo keyring_encryption_key_id;
   bool encrypted = false;
+  dd::String_type encrypt;
   if (dd_space->options().exists("encryption")) {
-    dd::String_type encrypt;
     (void)dd_space->options().get("encryption", &encrypt);
 
     /* Validate Encryption option provided */
@@ -15304,7 +15330,7 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
     }
 
     /* If encryption is to be done */
-    if (!Encryption::is_none(encrypt.c_str())) {
+    if (Encryption::is_master_key_encryption(encrypt.c_str())) {
       /* Check if keyring is ready. */
       if (!Encryption::check_keyring()) {
         my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
@@ -15318,6 +15344,13 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
                     DBUG_SUICIDE(););
   }
 
+  if (!encrypted && (err = enable_keyring_encryption(
+                         encrypt.c_str(), alter_info->explicit_encryption,
+                         alter_info->encryption_key_id.id,
+                         keyring_encryption_option, encrypted)) != DB_SUCCESS) {
+    goto error_exit;
+  }
+
   /* Create the filespace flags */
   fsp_flags =
       fsp_flags_init(page_size,    /* page sizes and a flag if compressed */
@@ -15328,11 +15361,12 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
                      encrypted); /* If tablespace is to be Encrypted */
   tablespace.set_flags(fsp_flags);
 
-  create_info_encryption_key_id.was_encryption_key_id_set =
-      false;  // TODO: Make encryption key id also tablespace argument
+  keyring_encryption_key_id = {
+      alter_info->encryption_key_id.was_encryption_key_id_set,
+      alter_info->encryption_key_id.id};
 
-  err = dict_build_tablespace(trx, &tablespace, FIL_ENCRYPTION_DEFAULT,
-                              create_info_encryption_key_id);
+  err = dict_build_tablespace(trx, &tablespace, keyring_encryption_option,
+                              keyring_encryption_key_id);
 
   if (err == DB_SUCCESS) {
     err = btr_sdi_create_index(tablespace.space_id(), true);

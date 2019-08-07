@@ -2886,7 +2886,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
 }
 
 /* Enable UNDO tablespace encryption */
-bool srv_enable_undo_encryption(bool is_boot) {
+bool srv_enable_undo_encryption(THD *thd, bool is_boot) {
   /* Traverse over all UNDO tablespaces and mark them encrypted. */
   undo::spaces->s_lock();
   for (auto undo_space : undo::spaces->m_spaces) {
@@ -2929,6 +2929,10 @@ bool srv_enable_undo_encryption(bool is_boot) {
     /* Fill up encryption info to be set */
     if (!Encryption::fill_encryption_info(key, iv, encrypt_info, is_boot)) {
       ib::error(ER_IB_MSG_1052, undo_space->space_name());
+      if (thd != nullptr) {
+        ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1052,
+                    undo_space->space_name());
+      }
 
       mtr_commit(&mtr);
       undo_space->rsegs()->s_unlock();
@@ -2940,6 +2944,10 @@ bool srv_enable_undo_encryption(bool is_boot) {
     if (!fsp_header_write_encryption(space->id, new_flags, encrypt_info, true,
                                      false, &mtr)) {
       ib::error(ER_IB_MSG_1053, undo_space->space_name());
+      if (thd != nullptr) {
+        ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1053,
+                    undo_space->space_name());
+      }
 
       mtr_commit(&mtr);
       undo_space->rsegs()->s_unlock();
@@ -2953,6 +2961,10 @@ bool srv_enable_undo_encryption(bool is_boot) {
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_1054, undo_space->space_name(), int{err},
                 ut_strerr(err));
+      if (thd != nullptr) {
+        ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1054,
+                    undo_space->space_name(), int{err}, ut_strerr(err));
+      }
 
       mtr_commit(&mtr);
       undo_space->rsegs()->s_unlock();
@@ -3052,7 +3064,7 @@ loop:
 
             if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
               ib::warn(ER_IB_MSG_1285, space->name, "srv_undo_log_encrypt");
-              srv_enable_undo_encryption(false);
+              srv_enable_undo_encryption(nullptr, false);
             }
           }
         }

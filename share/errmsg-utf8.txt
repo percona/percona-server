@@ -19324,6 +19324,9 @@ ER_REDO_ENCRYPTION_CANT_PARSE_KEY
 ER_REDO_ENCRYPTION_KEYRING
   eng "Redo log cannot be encrypted if the keyring plugin is not loaded."
 
+ER_UNDO_NO_KEYRING
+  eng "Undo log can't be encrypted if the keyring plugin is not loaded."
+
 #
 # End of Percona Server 8.0 error messages
 #

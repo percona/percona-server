@@ -70,6 +70,7 @@
 #include "dur_prop.h"  // durability_properties
 #include "lex_string.h"
 #include "map_helpers.h"
+#include "mutex_lock.h"
 #include "my_base.h"
 #include "my_command.h"
 #include "my_dbug.h"
@@ -158,6 +159,7 @@ extern bool opt_log_slow_admin_statements;
 extern ulong opt_log_slow_sp_statements;
 
 extern ulong kill_idle_transaction_timeout;
+extern PSI_mutex_key key_LOCK_bloom_filter;
 
 typedef struct user_conn USER_CONN;
 struct MYSQL_LOCK;
@@ -894,20 +896,28 @@ class Bloom_filter final {
 
   typedef std::bitset<SIZE> Bit_set;
 
-  /** The bit set, which is allocated in a MEM_ROOT */
   Bit_set *bit_set;
+  // Protects the bit set from concurrent assignment
+  mysql_mutex_t LOCK_bit_set;
 
   // Non-copyable
   Bloom_filter(const Bloom_filter &);
   Bloom_filter &operator=(const Bloom_filter &);
 
  public:
-  Bloom_filter() : bit_set(nullptr) {}
+  Bloom_filter() : bit_set(nullptr) {
+    mysql_mutex_init(key_LOCK_bloom_filter, &LOCK_bit_set, MY_MUTEX_INIT_FAST);
+  }
 
-  ~Bloom_filter() = default;
+  ~Bloom_filter() {
+    clear();
+    mysql_mutex_destroy(&LOCK_bit_set);
+  }
 
   void clear() noexcept {
-    if (bit_set != nullptr) bit_set->reset();
+    MUTEX_LOCK(lock, &LOCK_bit_set);
+    delete bit_set;
+    bit_set = NULL;
   }
 
   /**
@@ -920,13 +930,10 @@ class Bloom_filter final {
      @return if true, the key might be a member of the set. If false, the key
      is definitely not a member of the set.
   */
-  bool test_and_set(MEM_ROOT *mem_root, ulong key) {
+  bool test_and_set(ulong key) {
+    MUTEX_LOCK(lock, &LOCK_bit_set);
     if (bit_set == nullptr) {
-      void *bit_set_place = alloc_root(mem_root, sizeof(Bit_set));
-      // FIXME: memory allocation failure is eaten silently. Nonexact stats are
-      // the least of the concerns then.
-      if (bit_set_place == nullptr) return false;
-      bit_set = new (bit_set_place) Bit_set();
+      bit_set = new Bit_set();
     }
     // Duplicating ut_hash_ulint calculation
     const ulong pos = (key ^ 1653893711) % SIZE;
@@ -1533,8 +1540,7 @@ class THD : public MDL_context_owner,
   }
 
   void access_distinct_page(ulong page_id) {
-    if (approx_distinct_pages.test_and_set(&main_mem_root, page_id))
-      innodb_page_access++;
+    if (approx_distinct_pages.test_and_set(page_id)) innodb_page_access++;
   }
 
   bool innodb_slow_log_enabled() const noexcept {

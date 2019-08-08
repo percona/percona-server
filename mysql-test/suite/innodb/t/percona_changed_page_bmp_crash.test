@@ -53,7 +53,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 #
 
 --echo 2nd restart
---let $restart_parameters=restart:-#d,crash_before_bitmap_write
+--let $restart_parameters=restart:--debug="+d,crash_before_bitmap_write"
 --source include/restart_mysqld.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error CR_SERVER_LOST

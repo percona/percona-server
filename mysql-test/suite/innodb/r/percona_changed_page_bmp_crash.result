@@ -27,7 +27,7 @@ ib_modified_log_1_0.xdb
 # restart
 include/assert.inc [There should not be a hole in the tracked LSN range]
 2nd restart
-# restart:-#d,crash_before_bitmap_write
+# restart:--debug=+d,crash_before_bitmap_write
 INSERT INTO t1 SELECT x FROM t1;
 ERROR HY000: Lost connection to MySQL server during query
 include/assert.inc [There should not be a hole in the tracked LSN range]

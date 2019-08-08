@@ -20,7 +20,7 @@ CREATE TABLE t1 (x INT) ENGINE=InnoDB;
 
 # Setup an error on bitmap write
 --echo 2nd restart
---let $restart_parameters= restart:-#d,bitmap_page_write_error
+--let $restart_parameters= restart:--debug="+d,bitmap_page_write_error"
 --source include/restart_mysqld.inc
 
 # Generate some log data
@@ -127,7 +127,7 @@ RESET CHANGED_PAGE_BITMAPS;
 
 # Setup an error on the 2nd bitmap page write, so that bitmap contains an incomplete run
 --echo 5th restart
---let $restart_parameters= restart:-#d,bitmap_page_2_write_error
+--let $restart_parameters= restart:--debug="+d,bitmap_page_2_write_error"
 --source include/restart_mysqld.inc
 
 --connect(con2,localhost,root,,)
@@ -191,7 +191,7 @@ SET GLOBAL innodb_file_per_table=ON;
 CREATE TABLE t2 (a INT) ENGINE=InnoDB;
 
 --echo # 6th restart
---let $restart_parameters= restart:-#d,bitmap_page_2_write_error
+--let $restart_parameters= restart:--debug="+d,bitmap_page_2_write_error"
 --source include/restart_mysqld.inc
 
 # Generate log data that is larger than the log capacity
@@ -254,7 +254,7 @@ RESET CHANGED_PAGE_BITMAPS;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 
 --echo 9th restart
---let $restart_parameters= restart:-#d,bitmap_page_write_error
+--let $restart_parameters= restart:--debug="+d,bitmap_page_write_error"
 --source include/restart_mysqld.inc
 
 --connect(con2,localhost,root,,)

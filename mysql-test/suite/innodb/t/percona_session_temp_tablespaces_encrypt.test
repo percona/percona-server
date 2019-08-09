@@ -98,6 +98,8 @@ INSERT INTO t6 SELECT * FROM t6;
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
 
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
 connection default;
 disconnect con1;
 disconnect con2;

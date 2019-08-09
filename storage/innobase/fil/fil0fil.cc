@@ -9375,7 +9375,7 @@ dberr_t fil_temp_update_encryption(fil_space_t *space) {
 /** Rotate the tablespace key by new master key.
 @param[in]	space	tablespace object
 @return true if the re-encrypt suceeds */
-static bool encryption_rotate_low(fil_space_t *space) {
+bool encryption_rotate_low(fil_space_t *space) {
   bool success = true;
   if (space->encryption_type == Encryption::AES) {
     mtr_t mtr;
@@ -9442,9 +9442,12 @@ bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
     }
 
     /* Skip unencypted tablespaces. Encrypted redo log
-    tablespaces is handled in function log_rotate_encryption. */
+    tablespaces is handled in function log_rotate_encryption.
+    Skip session temporary tablespaces. They are handled separately
+    by ibt::Tablespace_pool::rotate_encryption_keys() */
 
-    if (fsp_is_system_tablespace(space->id) || space->purpose == FIL_TYPE_LOG) {
+    if (fsp_is_system_tablespace(space->id) || space->purpose == FIL_TYPE_LOG ||
+        fsp_is_session_temporary(space->id)) {
       continue;
     }
 

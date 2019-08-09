@@ -4354,6 +4354,9 @@ bool innobase_encryption_key_rotation() {
     return (ret);
   }
 
+  /* Rotate encrypted session temporary tablespaces */
+  ibt::tbsp_pool->rotate_encryption_keys();
+
   my_free(master_key);
 
   /* Release the mutex. */

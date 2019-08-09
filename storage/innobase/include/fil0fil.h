@@ -2312,6 +2312,11 @@ void fil_space_set_corrupt(space_id_t space_id);
 
 using space_id_vec = std::vector<space_id_t>;
 
+/** Rotate the tablespace key by new master key.
+@param[in]	space	tablespace object
+@return true if the re-encrypt suceeds */
+bool encryption_rotate_low(fil_space_t *space);
+
 #ifndef UNIV_HOTBACKUP
 
 /** Allows fil system to do periodical cleanup. */

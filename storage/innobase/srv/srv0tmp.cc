@@ -70,9 +70,12 @@ Tablespace::Tablespace()
     : m_space_id(++m_last_used_space_id), m_inited(), m_thread_id() {
   ut_ad(m_space_id <= dict_sys_t::s_max_temp_space_id);
   m_purpose = TBSP_NONE;
+  mutex_create(LATCH_ID_TEMP_POOL_TBLSP, &m_mutex);
 }
 
 Tablespace::~Tablespace() {
+  mutex_destroy(&m_mutex);
+
   if (!m_inited) {
     return;
   }
@@ -140,7 +143,10 @@ bool Tablespace::truncate() {
     return false;
   }
 
+  acquire();
+
   if (!fil_truncate_tablespace(m_space_id, FIL_IBT_FILE_INITIAL_SIZE)) {
+    release();
     return false;
   }
 
@@ -152,6 +158,8 @@ bool Tablespace::truncate() {
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
   fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr);
   mtr_commit(&mtr);
+
+  release();
 
   return true;
 }
@@ -192,6 +200,9 @@ void Tablespace::decrypt() {
   ut_a(err == DB_SUCCESS);
 
   rw_lock_x_unlock(&space->latch);
+}
+
+void Tablespace::rotate_encryption_key() {
 }
 
 uint32_t Tablespace::file_id() const {

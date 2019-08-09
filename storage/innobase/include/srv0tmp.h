@@ -163,7 +163,15 @@ class Tablespace {
     return (false);
   }
 
+  /** Re-encrypt encrypted session temporary tablespace with the
+  new master key */
+  void rotate_encryption_key();
+
  private:
+  void acquire() { mutex_enter(&m_mutex); }
+
+  void release() { mutex_exit(&m_mutex); }
+
   /** Remove encryption information from tablespace in-memory structure.
   On-disk changes are not necessary */
   void decrypt();
@@ -190,6 +198,9 @@ class Tablespace {
 
   /** Purpose for this tablespace */
   enum tbsp_purpose m_purpose;
+
+  /** Used only to synchronize truncate and rotate key operations */
+  ib_mutex_t m_mutex;
 };
 
 /** Pool of session temporary tablespaces. Each session gets at max two
@@ -252,6 +263,17 @@ class Tablespace_pool {
     acquire();
 
     std::for_each(begin(*m_active), end(*m_active), f);
+
+    release();
+  }
+
+  /** Re-encrypt encrypted session temporary tablespaces in the pool
+  with the new master key */
+  void rotate_encryption_keys() {
+    acquire();
+
+    std::for_each(begin(*m_active), end(*m_active),
+                  [](ibt::Tablespace *ts) { ts->rotate_encryption_key(); });
 
     release();
   }

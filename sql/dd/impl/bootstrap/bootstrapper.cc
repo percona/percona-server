@@ -744,8 +744,8 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
     return true;
 
   // first table in ddse_tablespaces is mysql.ibd
-  dd::Properties *p = dd::Properties_impl::parse_properties(
-      ddse_tablespaces.begin()->get_options());
+  std::unique_ptr<dd::Properties> p(dd::Properties_impl::parse_properties(
+      ddse_tablespaces.begin()->get_options()));
 
   DBUG_ASSERT(memcmp(ddse_tablespaces.begin()->get_name(),
                      MYSQL_TABLESPACE_NAME.str,

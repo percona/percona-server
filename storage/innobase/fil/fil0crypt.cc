@@ -3204,6 +3204,9 @@ redo_log_keys::load_latest_key(THD *thd, bool generate) {
 
 	if (it != m_keys.end() && it->second.present) {
 		ut_ad(memcmp(it->second.key, rkey2, 32) == 0);
+		my_free(rkey);
+		my_free(rkey2);
+		my_free(key_type);
 		return(&it->second);
 	}
 

@@ -3149,6 +3149,18 @@ stmt_has_updated_trans_table(Ha_trx_info* ha_list)
   return (FALSE);
 }
 
+bool
+trans_has_noop_dml(Ha_trx_info* ha_list)
+{
+  const Ha_trx_info *ha_info;
+  for (ha_info= ha_list; ha_info; ha_info= ha_info->next())
+  {
+    if (ha_info->is_trx_noop_read_write())
+      return (TRUE);
+  }
+  return (FALSE);
+}
+
 /**
   This function checks if a transaction, either a multi-statement
   or a single statement transaction is about to commit or not.
@@ -7543,7 +7555,11 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     close_on_error= TRUE;
     goto end;
   }
-  else
+  /*
+    Make sure that the log_file is initialized before writing
+    Rotate_log_event into it.
+  */
+  if (log_file.alloced_buffer)
   {
     /*
       We log the whole file name for log file as the user may decide

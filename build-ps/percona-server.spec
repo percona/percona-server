@@ -198,6 +198,17 @@ BuildRequires:  pkgconfig(systemd)
 %endif
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap-devel
+%if 0%{?rhel} >= 8
+BuildRequires:  cmake >= 3.6.1
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
+BuildRequires:  libtirpc-devel
+BuildRequires:  rpcgen
+%else
+BuildRequires:  cmake3 >= 3.6.1
+BuildRequires:  devtoolset-8-gcc
+BuildRequires:  devtoolset-8-gcc-c++
+%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
@@ -494,6 +505,7 @@ mkdir debug
            -DWITH_LZ4=bundled \
            -DWITH_ZLIB=bundled \
            -DWITH_READLINE=system \
+           -DWITH_LIBEVENT=bundled \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
@@ -537,6 +549,7 @@ mkdir release
            -DWITH_RAPIDJSON=bundled \
            -DWITH_ICU=bundled \
            -DWITH_READLINE=system \
+           -DWITH_LIBEVENT=bundled \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \
@@ -889,6 +902,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
@@ -907,6 +921,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
@@ -977,7 +992,6 @@ fi
 %attr(644, root, root) %{_datadir}/percona-server/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/percona-server/install_rewriter.sql
 %attr(644, root, root) %{_datadir}/percona-server/uninstall_rewriter.sql
-%attr(644, root, root) %{_datadir}/percona-server/magic
 %if 0%{?systemd}
 %attr(644, root, root) %{_unitdir}/mysqld.service
 %attr(644, root, root) %{_unitdir}/mysqld@.service
@@ -1083,6 +1097,7 @@ fi
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysqltest
+%attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
@@ -1154,6 +1169,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlx_global_reset.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_runtime_error.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_reset_connection.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_runtime_error.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_reset_connection.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
@@ -1252,6 +1271,7 @@ fi
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %{_bindir}/mysqlrouter
+%{_bindir}/mysqlrouter_passwd
 %{_bindir}/mysqlrouter_plugin_info
 %if 0%{?systemd}
 %{_unitdir}/mysqlrouter.service
@@ -1261,6 +1281,7 @@ fi
 %endif
 %{_libdir}/libmysqlharness.so.*
 %{_libdir}/libmysqlrouter.so.*
+%{_libdir}/libmysqlrouter_http.so.*
 %dir %{_libdir}/mysqlrouter
 %{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter

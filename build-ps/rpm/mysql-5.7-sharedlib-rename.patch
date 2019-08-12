@@ -11,10 +11,10 @@
  SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)
 --- client/CMakeLists.txt	2018-08-18 03:29:59.708213642 -0400
 +++ client/CMakeLists.txt	2018-08-18 03:29:59.712547041 -0400
-@@ -36,14 +36,14 @@
- INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+@@ -32,14 +32,14 @@
+ ADD_SUBDIRECTORY(dump)
  
- MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc)
+ MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc ${CMAKE_SOURCE_DIR}/sql/net_ns.cc)
 -TARGET_LINK_LIBRARIES(mysql perconaserverclient)
 +TARGET_LINK_LIBRARIES(mysql mysqlclient)
  IF(UNIX)
@@ -23,17 +23,17 @@
  
  IF(NOT WITHOUT_SERVER)
    MYSQL_ADD_EXECUTABLE(mysql_upgrade upgrade/program.cc)
--  TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base mysqlcheck_core)
-+  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
-   ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema GenBootstrapPriv)
+-  TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base)
++  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base)
  ENDIF()
  
-@@ -52,24 +52,24 @@
+ SET(MYSQLTEST_SRC
+@@ -51,24 +51,24 @@
  )
  
  MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
--TARGET_LINK_LIBRARIES(mysqltest perconaserverclient regex)
-+TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
+-TARGET_LINK_LIBRARIES(mysqltest perconaserverclient)
++TARGET_LINK_LIBRARIES(mysqltest mysqlclient)
  ADD_DEPENDENCIES(mysqltest GenError GenClientError)
  
  ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
@@ -58,8 +58,8 @@
  
  MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
  SET(MYSQLBINLOG_LIB_SOURCES
-@@ -101,20 +101,20 @@
- )
+@@ -100,20 +100,20 @@
+ TARGET_INCLUDE_DIRECTORIES(mysqlbinlog_lib PRIVATE ${CMAKE_SOURCE_DIR}/sql)
  
  TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
 -TARGET_LINK_LIBRARIES(mysqlbinlog perconaserverclient binlogevents_static)
@@ -377,19 +377,17 @@
  ADD_TEST(NAME check_testcase_files
 --- testclients/CMakeLists.txt	2018-08-18 03:34:01.038478951 -0400
 +++ testclients/CMakeLists.txt	2018-08-18 03:34:01.042812350 -0400
-@@ -21,11 +21,11 @@
+@@ -21,9 +21,9 @@
  # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  
  MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.cc COMPONENT Test)
 -TARGET_LINK_LIBRARIES(mysql_client_test perconaserverclient)
 +TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient)
- SET_TARGET_PROPERTIES(mysql_client_test PROPERTIES LINKER_LANGUAGE CXX)
  
  IF(WITH_UNIT_TESTS)
    MYSQL_ADD_EXECUTABLE(bug25714 bug25714.cc SKIP_INSTALL)
 -  TARGET_LINK_LIBRARIES(bug25714 perconaserverclient)
 +  TARGET_LINK_LIBRARIES(bug25714 mysqlclient)
-   SET_TARGET_PROPERTIES(bug25714 PROPERTIES LINKER_LANGUAGE CXX)
  ENDIF()
 --- plugin/percona-pam-for-mysql/CMakeLists.txt 2018-08-21 07:01:38.155232659 -0400
 +++ plugin/percona-pam-for-mysql/CMakeLists.txt 2018-08-21 07:02:18.194400527 -0400
@@ -457,8 +455,8 @@
  
 --- router/CMakeLists.txt       2018-12-11 10:52:17.122381407 +0200
 +++ router/CMakeLists.txt       2018-12-11 10:52:17.122381407 +0200
-@@ -95,7 +95,7 @@
- INCLUDE(cmake/Plugin.cmake)
+@@ -112,7 +112,7 @@
+ INCLUDE(cmake/fuzzer.cmake)
  
  # Set the proper paths for the mysqlclient library
 -SET(MySQL_CLIENT_LIB perconaserverclient)
@@ -466,4 +464,3 @@
  SET(MySQL_VERSION_HEADER ${CMAKE_BINARY_DIR}/include/mysql_version.h)
  SET(MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include)
  LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
-

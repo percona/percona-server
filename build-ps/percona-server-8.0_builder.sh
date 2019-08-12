@@ -290,7 +290,7 @@ install_deps() {
         yum -y install http://www.percona.com/downloads/percona-release/redhat/0.1-4/percona-release-0.1-4.noarch.rpm || true
         yum -y install epel-release
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc
-        yum -y install time zlib-devel libaio-devel bison cmake pam-devel libeatmydata jemalloc-devel
+        yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel
         yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
         if [ "${RHEL}" -lt 8 ]; then
@@ -298,17 +298,17 @@ install_deps() {
                 echo "waiting"
                 sleep 1
             done
-            yum -y install  gcc-c++ devtoolset-7-gcc-c++ devtoolset-7-binutils
-            yum -y install ccache devtoolset-7-libasan-devel devtoolset-7-libubsan-devel devtoolset-7-valgrind devtoolset-7-valgrind-devel
-            yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make
+            yum -y install  gcc-c++ devtoolset-8-gcc-c++ devtoolset-8-binutils devtoolset-8-gcc devtoolset-8-gcc-c++
+            yum -y install ccache devtoolset-8-libasan-devel devtoolset-8-libubsan-devel devtoolset-8-valgrind devtoolset-8-valgrind-devel
+            yum -y install libasan libicu-devel libtool libzstd-devel lz4-devel make pkg-config
             yum -y install re2-devel redhat-lsb-core lz4-static
-            source /opt/rh/devtoolset-7/enable
+            source /opt/rh/devtoolset-8/enable
         else
 	    yum -y install perl.x86_64
-            yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize
-            yum -y install automake autoconf cmake jemalloc jemalloc-devel
+            yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config
+            yum -y install automake autoconf cmake cmake3 jemalloc jemalloc-devel
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
-	    yum -y install rpcgen libtirpc-devel re2-devel
+	    yum -y install rpcgen libtirpc-devel re2-devel libtirpc-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56
@@ -335,7 +335,7 @@ install_deps() {
         wget -q -O - http://jenkins.percona.com/apt-repo/CD2EFD2A.pub | sudo apt-key add -
 
         apt-get update
-        apt-get -y install psmisc
+        apt-get -y install psmisc pkg-config
         apt-get -y install libsasl2-modules:amd64 || apt-get -y install libsasl2-modules
         apt-get -y install dh-systemd || true
         apt-get -y install curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
@@ -436,8 +436,8 @@ build_srpm(){
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/*.spec' --strip=2
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.bz2
-    wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
@@ -547,12 +547,12 @@ build_rpm(){
     mkdir -vp rpmbuild/{SOURCES,SPECS,BUILD,SRPMS,RPMS}
     #
     mv *.src.rpm rpmbuild/SRPMS
-    source /opt/rh/devtoolset-7/enable
+    source /opt/rh/devtoolset-8/enable
     build_mecab_lib
     build_mecab_dict
 
     cd ${WORKDIR}
-    source /opt/rh/devtoolset-7/enable
+    source /opt/rh/devtoolset-8/enable
     #
     if [ ${ARCH} = x86_64 ]; then
         rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --rebuild rpmbuild/SRPMS/${SRCRPM}
@@ -706,7 +706,7 @@ build_tarball(){
     if [ -f /etc/redhat-release ]; then
       export OS_RELEASE="centos$(lsb_release -sr | awk -F'.' '{print $1}')"
       RHEL=$(rpm --eval %rhel)
-      source /opt/rh/devtoolset-7/enable
+      source /opt/rh/devtoolset-8/enable
     fi
     #
 
@@ -801,7 +801,7 @@ MYSQL_VERSION_MINOR=0
 MYSQL_VERSION_PATCH=12
 MYSQL_VERSION_EXTRA=-1
 PRODUCT_FULL=Percona-Server-8.0.12.1
-BOOST_PACKAGE_NAME=boost_1_68_0
+BOOST_PACKAGE_NAME=boost_1_69_0
 PERCONAFT_BRANCH=Percona-Server-5.7.22-22
 TOKUBACKUP_BRANCH=Percona-Server-5.7.22-22
 parse_arguments PICK-ARGS-FROM-ARGV "$@"

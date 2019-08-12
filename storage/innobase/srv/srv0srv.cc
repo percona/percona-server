@@ -2817,15 +2817,9 @@ DECLARE_THREAD(srv_master_thread)(
 
 	srv_slot_t*	slot;
 	ulint		old_activity_count = srv_get_activity_count();
-<<<<<<< HEAD
 	ulint		old_ibuf_merge_activity_count
 		= srv_get_ibuf_merge_activity_count();
-	ib_time_t	last_print_time;
-||||||| merged common ancestors
-	ib_time_t	last_print_time;
-=======
 	ib_time_monotonic_t	last_print_time;
->>>>>>> mysql-5.7.27
 
 	ut_ad(!srv_read_only_mode);
 

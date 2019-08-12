@@ -38,6 +38,7 @@ class ha_rockspart : public native_part::Partition_base {
   int open(const char *name, int mode, uint test_if_locked) override;
   int create(const char *name, TABLE *form,
              HA_CREATE_INFO *create_info) override;
+  enum row_type get_partition_row_type(uint part_id) override;
 
  private:
   handler *get_file_handler(TABLE_SHARE *share, MEM_ROOT *alloc) override;

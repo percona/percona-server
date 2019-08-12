@@ -26,10 +26,10 @@ VARIABLE_NAME	VARIABLE_VALUE
 innodb_redo_log_encrypt	OFF
 set global innodb_redo_log_encrypt='MASTER_KEY';
 Warnings:
-Warning	3236	InnoDB: Can't set redo log tablespace to be encrypted.
+Warning	11008	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 set global innodb_redo_log_encrypt='KEYRING_KEY';
 Warnings:
-Warning	3236	InnoDB: Redo log key generation failed.
+Warning	11008	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 select * from performance_schema.global_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_redo_log_encrypt	OFF

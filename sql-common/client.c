@@ -802,7 +802,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
             if (is_charset == 1) {
               char charset_name[MY_CS_NAME_SIZE * 8]; // MY_CS_BUFFER_SIZE
               size_t length = data->length > (sizeof(charset_name) - 1)
-                                  ? sizeof(charset_name - 1)
+                                  ? (sizeof(charset_name) - 1)
                                   : data->length;
               saved_cs = mysql->charset;
 
@@ -2500,11 +2500,7 @@ const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused))) {
   DBUG_RETURN(NULL);
 }
 
-  /*
-    Check the server's (subject) Common Name against the
-    hostname we connected to
 
-<<<<<<< HEAD
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
 #include <openssl/x509v3.h>
@@ -2700,47 +2696,23 @@ error:
 /*
   Check the server's (subject) Common Name against the
   hostname we connected to
-||||||| merged common ancestors
-/*
-  Check the server's (subject) Common Name against the
-  hostname we connected to
-=======
-    SYNOPSIS
-    ssl_verify_server_cert()
-      vio              pointer to a SSL connected vio
-      server_hostname  name of the server that we connected to
-      errptr           if we fail, we'll return (a pointer to a string
-                       describing) the reason here
->>>>>>> mysql-5.7.27
 
-    RETURN VALUES
-     0 Success
-     1 Failed to validate server
+  SYNOPSIS
+  ssl_verify_server_cert()
+    vio              pointer to a SSL connected vio
+    server_hostname  name of the server that we connected to
+    errptr           if we fail, we'll return (a pointer to a string
+                     describing) the reason here
 
-<<<<<<< HEAD
   RETURN VALUES
    0 Success
    1 Failed to validate server
 
 */
-||||||| merged common ancestors
-  RETURN VALUES
-   0 Success
-   1 Failed to validate server
-
- */
-
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-=======
-   */
-
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
->>>>>>> mysql-5.7.27
 
 static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
                                   const char **errptr) {
   SSL *ssl;
-<<<<<<< HEAD
   X509 *server_cert= NULL;
 #ifndef HAVE_X509_CHECK_FUNCTIONS
   const char *cn= NULL;
@@ -2748,27 +2720,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   ASN1_STRING *cn_asn1= NULL;
   X509_NAME_ENTRY *cn_entry= NULL;
   X509_NAME *subject= NULL;
-||||||| merged common ancestors
-  X509 *server_cert= NULL;
-  int ret_validation= 1;
-
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
-  char *cn= NULL;
-  int cn_loc= -1;
-  ASN1_STRING *cn_asn1= NULL;
-  X509_NAME_ENTRY *cn_entry= NULL;
-  X509_NAME *subject= NULL;
-=======
-  X509 *server_cert = NULL;
-  int ret_validation = 1;
-
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
-  char *cn = NULL;
-  int cn_loc = -1;
-  ASN1_STRING *cn_asn1 = NULL;
-  X509_NAME_ENTRY *cn_entry = NULL;
-  X509_NAME *subject = NULL;
->>>>>>> mysql-5.7.27
 #endif
 #ifndef HAVE_YASSL
   ASN1_OCTET_STRING *server_ip_address= NULL;
@@ -2805,7 +2756,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
       are what we expect.
     */
 
-<<<<<<< HEAD
 #ifndef HAVE_YASSL
   /* Checking if the provided server_hostname is a V4/V6 IP address */
   server_ip_address= a2i_IPADDRESS(server_hostname);
@@ -2817,41 +2767,7 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
 #else
     ipout= (const unsigned char *) ASN1_STRING_get0_data(server_ip_address);
 #endif
-||||||| merged common ancestors
-  /*
-     Use OpenSSL certificate matching functions instead of our own if we
-     have OpenSSL. The X509_check_* functions return 1 on success.
-  */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
-  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname),
-                       0, 0) != 1) &&
-      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
-    *errptr = "Failed to verify the server certificate via X509 certificate "
-              "matching functions";
-    goto error;
-
-  } else {
-    /* Success */
-    ret_validation = 0;
-=======
-    /*
-       Use OpenSSL certificate matching functions instead of our own if we
-       have OpenSSL. The X509_check_* functions return 1 on success.
-    */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
-  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
-                       0) != 1) &&
-      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
-    *errptr = "Failed to verify the server certificate via X509 certificate "
-              "matching functions";
-    goto error;
-
-  } else {
-    /* Success */
-    ret_validation = 0;
->>>>>>> mysql-5.7.27
   }
-<<<<<<< HEAD
 #endif
 
 #ifdef HAVE_X509_CHECK_FUNCTIONS
@@ -2860,39 +2776,16 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   else
     ret_validation= X509_check_ip(server_cert, ipout, iplen, 0) != 1;
 #else
-||||||| merged common ancestors
-#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-=======
-#else /* OPENSSL_VERSION_NUMBER < 0x10002000L */
->>>>>>> mysql-5.7.27
   /*
     YaSSL will always return NULL for any call to 'X509_get_ext_d2i()'
     and therefore the whole SAN block will be skipped and only 'CN'
     will be checked.
   */
-<<<<<<< HEAD
 #ifndef HAVE_YASSL
   ret_validation= ssl_verify_server_cert_san(server_cert,
     iplen != 0 ? (const char*)ipout : server_hostname, iplen, errptr);
   if (*errptr != NULL)
-||||||| merged common ancestors
-
-  subject= X509_get_subject_name((X509 *) server_cert);
-  // Find the CN location in the subject
-  cn_loc= X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0)
-  {
-    *errptr= "Failed to get CN location in the certificate subject";
-=======
-
-  subject = X509_get_subject_name((X509 *)server_cert);
-  // Find the CN location in the subject
-  cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0) {
-    *errptr = "Failed to get CN location in the certificate subject";
->>>>>>> mysql-5.7.27
     goto error;
-<<<<<<< HEAD
 #endif
   if (ret_validation != 0)
   {
@@ -2904,28 +2797,7 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
       *errptr= "Failed to get CN location in the certificate subject";
       goto error;
     }
-||||||| merged common ancestors
-  }
 
-  // Get the CN entry for given location
-  cn_entry= X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == NULL)
-  {
-    *errptr= "Failed to get CN entry using CN location";
-    goto error;
-  }
-=======
-  }
-
-  // Get the CN entry for given location
-  cn_entry = X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == NULL) {
-    *errptr = "Failed to get CN entry using CN location";
-    goto error;
-  }
->>>>>>> mysql-5.7.27
-
-<<<<<<< HEAD
     // Get the CN entry for given location
     cn_entry= X509_NAME_get_entry(subject, cn_loc);
     if (cn_entry == NULL)
@@ -2941,25 +2813,8 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
       *errptr= "Failed to get CN from CN entry";
       goto error;
     }
-||||||| merged common ancestors
-  // Get CN from common name entry
-  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == NULL)
-  {
-    *errptr= "Failed to get CN from CN entry";
-    goto error;
-  }
-=======
-  // Get CN from common name entry
-  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == NULL) {
-    *errptr = "Failed to get CN from CN entry";
-    goto error;
-  }
->>>>>>> mysql-5.7.27
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-<<<<<<< HEAD
     cn= (const char *) ASN1_STRING_data(cn_asn1);
 #else
     cn= (const char *) ASN1_STRING_get0_data(cn_asn1);
@@ -2969,70 +2824,23 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
       *errptr= "Failed to get data from CN";
       goto error;
     }
-||||||| merged common ancestors
-  cn= (char *) ASN1_STRING_data(cn_asn1);
-#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  cn= (char *) ASN1_STRING_get0_data(cn_asn1);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-=======
-  cn = (char *)ASN1_STRING_data(cn_asn1);
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  cn = (char *)ASN1_STRING_get0_data(cn_asn1);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.7.27
 
-<<<<<<< HEAD
     // There should not be any NULL embedded in the CN
     if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn))
     {
       *errptr= "NULL embedded in the certificate CN";
       goto error;
     }
-||||||| merged common ancestors
-  // There should not be any NULL embedded in the CN
-  if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn))
-  {
-    *errptr= "NULL embedded in the certificate CN";
-    goto error;
-  }
-=======
-  // There should not be any NULL embedded in the CN
-  if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn)) {
-    *errptr = "NULL embedded in the certificate CN";
-    goto error;
-  }
->>>>>>> mysql-5.7.27
 
-<<<<<<< HEAD
     DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
     if (!strcmp(cn, server_hostname))
     {
       /* Success */
       ret_validation= 0;
     }
-||||||| merged common ancestors
-  DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
-  if (!strcmp(cn, server_hostname))
-  {
-    /* Success */
-    ret_validation= 0;
-=======
-  DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
-  if (!strcmp(cn, server_hostname)) {
-    /* Success */
-    ret_validation = 0;
->>>>>>> mysql-5.7.27
   }
-<<<<<<< HEAD
 #endif
   *errptr= ret_validation != 0 ? "SSL certificate validation failure" : "";
-||||||| merged common ancestors
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
-  *errptr= "SSL certificate validation failure";
-=======
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
-  *errptr = "SSL certificate validation failure";
->>>>>>> mysql-5.7.27
 
 error:
 #ifndef HAVE_YASSL

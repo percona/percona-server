@@ -316,6 +316,15 @@ struct redo_log_key final {
   bool persisted() const noexcept { return version != 0; }
 };
 
+/**
+Exclude tablespace from encryption threads rotation
+@param[in] space tablespace to exclude
+@return false tablespace cannot be excluded because there are encryption
+              threads currently operating on it.
+        true  success
+*/
+bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space);
+
 /*********************************************************************
 Init space crypt */
 void fil_space_crypt_init();

@@ -7523,56 +7523,62 @@ static ST_FIELD_INFO innodb_tablespaces_encryption_fields_info[] = {
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_ENCRYPTION_SCHEME 2
+#define TABLESPACES_ENCRYPTION_EXCLUDED 2
+    {STRUCT_FLD(field_name, "EXCLUDED"), STRUCT_FLD(field_length, 1),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define TABLESPACES_ENCRYPTION_ENCRYPTION_SCHEME 3
     {STRUCT_FLD(field_name, "ENCRYPTION_SCHEME"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_KEYSERVER_REQUESTS 3
+#define TABLESPACES_ENCRYPTION_KEYSERVER_REQUESTS 4
     {STRUCT_FLD(field_name, "KEYSERVER_REQUESTS"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_MIN_KEY_VERSION 4
+#define TABLESPACES_ENCRYPTION_MIN_KEY_VERSION 5
     {STRUCT_FLD(field_name, "MIN_KEY_VERSION"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_CURRENT_KEY_VERSION 5
+#define TABLESPACES_ENCRYPTION_CURRENT_KEY_VERSION 6
     {STRUCT_FLD(field_name, "CURRENT_KEY_VERSION"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_KEY_ROTATION_PAGE_NUMBER 6
+#define TABLESPACES_ENCRYPTION_KEY_ROTATION_PAGE_NUMBER 7
     {STRUCT_FLD(field_name, "KEY_ROTATION_PAGE_NUMBER"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
      STRUCT_FLD(old_name, ""), STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_KEY_ROTATION_MAX_PAGE_NUMBER 7
+#define TABLESPACES_ENCRYPTION_KEY_ROTATION_MAX_PAGE_NUMBER 8
     {STRUCT_FLD(field_name, "KEY_ROTATION_MAX_PAGE_NUMBER"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
      STRUCT_FLD(old_name, ""), STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_CURRENT_KEY_ID 8
+#define TABLESPACES_ENCRYPTION_CURRENT_KEY_ID 9
     {STRUCT_FLD(field_name, "CURRENT_KEY_ID"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_ROTATING_OR_FLUSHING 9
+#define TABLESPACES_ENCRYPTION_ROTATING_OR_FLUSHING 10
     {STRUCT_FLD(field_name, "ROTATING_OR_FLUSHING"),
      STRUCT_FLD(field_length, 1), STRUCT_FLD(field_type, MYSQL_TYPE_LONG),
      STRUCT_FLD(value, 0), STRUCT_FLD(field_flags, MY_I_S_UNSIGNED),
@@ -7607,6 +7613,10 @@ static int i_s_dict_fill_tablespaces_encryption(THD *thd, fil_space_t *space,
   OK(fields[TABLESPACES_ENCRYPTION_SPACE]->store(space->id, true));
 
   OK(field_store_string(fields[TABLESPACES_ENCRYPTION_NAME], space->name));
+
+  OK(field_store_string(
+      fields[TABLESPACES_ENCRYPTION_EXCLUDED],
+      space->crypt_data->is_encryption_disabled() ? "Y" : "N"));
 
   OK(fields[TABLESPACES_ENCRYPTION_ENCRYPTION_SCHEME]->store(status.scheme,
                                                              true));

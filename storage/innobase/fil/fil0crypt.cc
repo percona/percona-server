@@ -548,6 +548,7 @@ Write crypt data to a page (0)
 @param[in,out]	page0	first page of the tablespace
 @param[in,out]	mtr	mini-transaction */
 
+// TODO: Should be marked as const when PS-5738 is implemented
 void fil_space_crypt_t::write_page0(
     const fil_space_t *space, byte *page, mtr_t *mtr, uint a_min_key_version,
     uint a_type, Encryption_rotation current_encryption_rotation) {
@@ -846,6 +847,65 @@ static inline void fil_crypt_read_crypt_data(fil_space_t *space) {
     fil_unlock_shard_by_id(space->id);
   }
   mtr.commit();
+}
+
+/**
+Write crypt data belonging to space to page0
+@param space tablespace with crypt data to write
+*/
+static void fil_crypt_write_crypt_data_to_page0(fil_space_t *space) {
+  mtr_t mtr;
+  mtr.start();
+
+  if (buf_block_t *block = buf_page_get_gen(
+          page_id_t(space->id, 0), page_size_t(space->flags), RW_X_LATCH, NULL,
+          Page_fetch::NORMAL, UT_LOCATION_HERE, &mtr)) {
+    space->crypt_data->write_page0(
+        space, block->frame, &mtr, space->crypt_data->min_key_version,
+        space->crypt_data->type, space->crypt_data->encryption_rotation);
+  }
+  mtr.commit();
+}
+
+bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space) {
+  // We acquire fil_crypt_threads_mutex to stop encryption threads from
+  // generating crypt_data for tablespaces that they are about to encrypt.
+  // Generating crypt_data is the fist step in encryption process.
+  mutex_enter(&fil_crypt_threads_mutex);
+
+  if (space->crypt_data == nullptr) {
+    space->crypt_data = fil_space_create_crypt_data(
+        FIL_ENCRYPTION_OFF, FIL_DEFAULT_ENCRYPTION_KEY, server_uuid);
+    fil_crypt_write_crypt_data_to_page0(space);
+    mutex_exit(&fil_crypt_threads_mutex);
+    return true;
+  }
+
+  mutex_exit(&fil_crypt_threads_mutex);
+
+  // crypt_data already existed.
+  fil_space_crypt_t *crypt_data = space->crypt_data;
+
+  if (crypt_data->encryption == FIL_ENCRYPTION_OFF) {
+    // nothing to do
+    return true;
+  }
+
+  // if there are any encryption threads "running" on this tablespace we cannot
+  // exclude it from rotation.
+  if (crypt_data->rotate_state.active_threads != 0 ||
+      crypt_data->rotate_state.starting || crypt_data->rotate_state.flushing) {
+    return false;
+  }
+
+  ut_ad(crypt_data->type == CRYPT_SCHEME_UNENCRYPTED);
+
+  crypt_data->encryption = FIL_ENCRYPTION_OFF;
+  crypt_data->key_id = FIL_DEFAULT_ENCRYPTION_KEY;
+
+  fil_crypt_write_crypt_data_to_page0(space);
+
+  return true;
 }
 
 /***********************************************************************
@@ -1422,6 +1482,16 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
     crypt_data->rotate_state.create_flush_observer(state->space->id);
 
   mutex_enter(&crypt_data->mutex);
+
+  // It is possible that tablespace was excluded from rotation in the meantime.
+  // I.e. fil_crypt_exclude_tablespace_from_rotation was called. Check it here.
+  if (crypt_data->is_encryption_disabled()) {
+    mutex_exit(&crypt_data->mutex);
+    crypt_data->rotate_state.destroy_flush_observer();
+    mutex_exit(&crypt_data->start_rotate_mutex);
+    return false;
+  }
+
   ut_ad(key_state->key_id == crypt_data->key_id);
 
   if (crypt_data->rotate_state.active_threads == 0) {
@@ -1465,6 +1535,7 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
 
   mutex_exit(&crypt_data->mutex);
   mutex_exit(&crypt_data->start_rotate_mutex);
+
   return true;
 }
 

@@ -9198,6 +9198,11 @@ ER_DA_UNDO_NO_KEYRING
 ER_DA_ENCRYPTION_TABLE_CHECK_FAILED
   eng "Table %s is encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?";
 
+ER_EXCLUDE_ENCRYPTION_THREADS_RUNNING
+  eng "Tablespace %s cannot be excluded from encryption threads as it is being currently encrypted/decrypted by encryption threads. Please try again later."
+
+ER_EXPLICIT_DECRYPTION_OF_ONLINE_ENCRYPTED_TABLESPACE
+  eng "Tablespace %s is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENECRYPTED to decypt the tablespace"
 
 #
 # End of Percona Server 8.0 client messages

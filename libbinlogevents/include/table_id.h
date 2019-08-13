@@ -39,6 +39,7 @@ private:
 public:
   Table_id() : m_id(0) {}
   explicit Table_id(unsigned long long id) : m_id(id) {}
+  Table_id(const Table_id& tid) : m_id(tid.m_id) {}
 
   unsigned long long id() const { return m_id; }
   bool is_valid() const { return m_id <= TABLE_ID_MAX; }

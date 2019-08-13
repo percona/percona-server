@@ -1570,12 +1570,12 @@ fil_crypt_get_page_throttle_func(
 
 	state->crypt_stat.pages_read_from_disk++;
 
-	uintmax_t start = ut_time_us(NULL);
+	ib_time_monotonic_us_t start = ut_time_monotonic_us();
 	block = buf_page_get_gen(page_id, page_size,
 				 RW_X_LATCH,
 				 NULL, BUF_GET_POSSIBLY_FREED,
 				 file, line, mtr);
-	uintmax_t end = ut_time_us(NULL);
+	ib_time_monotonic_us_t end = ut_time_monotonic_us();
 
 	if (end < start) {
 		end = start; // safety...
@@ -2482,11 +2482,11 @@ fil_crypt_flush_space(
 
 	ulint number_of_pages_flushed_now = 0;
 	log_free_check();
-	uintmax_t start = ut_time_us(NULL);
+	const ib_time_monotonic_us_t start = ut_time_monotonic_us();
 
 	crypt_data->rotate_state.flush_observer->flush();
 
-	uintmax_t end = ut_time_us(NULL);
+	const ib_time_monotonic_us_t end = ut_time_monotonic_us();
 
 	number_of_pages_flushed_now = crypt_data->rotate_state.flush_observer->get_number_of_pages_flushed()
 					- number_of_pages_flushed_so_far;

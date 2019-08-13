@@ -3908,7 +3908,7 @@ static void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirnam
   DBUG_ENTER("do_force_rmdir");
 
   char dir_name[FN_REFLEN];
-  strncpy(dir_name, ds_dirname->str, sizeof(dir_name));
+  my_strncpy_trunc(dir_name, ds_dirname->str, sizeof(dir_name));
 
   /* Note that my_dir sorts the list if not given any flags */
   MY_DIR *dir_info= my_dir(ds_dirname->str, MYF(MY_DONT_SORT | MY_WANT_STAT));

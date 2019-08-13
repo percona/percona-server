@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3999,7 +3999,7 @@ fts_query(
 	bool		boolean_mode;
 	trx_t*		query_trx;
 	CHARSET_INFO*	charset;
-	ulint		start_time_ms;
+	ib_time_monotonic_ms_t		start_time_ms;
 	bool		will_be_ignored = false;
 
 	boolean_mode = flags & FTS_BOOL;
@@ -4009,7 +4009,7 @@ fts_query(
 	query_trx = trx_allocate_for_background();
 	query_trx->op_info = "FTS query";
 
-	start_time_ms = ut_time_ms();
+	start_time_ms = ut_time_monotonic_ms();
 
 	query.trx = query_trx;
 	query.index = index;
@@ -4198,7 +4198,7 @@ fts_query(
 	ut_free(lc_query_str);
 
 	if (fts_enable_diag_print && (*result)) {
-		ulint	diff_time = ut_time_ms() - start_time_ms;
+		uint64_t diff_time = ut_time_monotonic_ms() - start_time_ms;
 
 		ib::info() << "FTS Search Processing time: "
 			<< diff_time / 1000 << " secs: " << diff_time % 1000

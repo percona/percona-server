@@ -198,8 +198,8 @@ void init_user_stats(USER_STATS *user_stats,
   DBUG_PRINT("info",
              ("Add user_stats entry for user %s - priv_user %s",
               user, priv_user));
-  strncpy(user_stats->user, user, sizeof(user_stats->user));
-  strncpy(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
+  my_strncpy_trunc(user_stats->user, user, sizeof(user_stats->user));
+  my_strncpy_trunc(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
 
   user_stats->user_len=               strlen(user_stats->user);
   user_stats->priv_user_len=          strlen(user_stats->priv_user);

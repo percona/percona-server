@@ -109,6 +109,31 @@ static inline char *my_stpncpy(char *dst, const char *src, size_t n)
 #endif
 }
 
+/**
+   Copies strlen(src) characters of source to destination.
+   If strlen(src) is equal or bigger than num then dst will be truncated.
+   The null-character is always appended at the end of destination.
+   Destination is not padded with zeros until a total of num characters.
+
+   @param dst   Destination
+   @param src   Source
+   @param n     Maximum number of characters to copy.
+
+   @return pointer to Destination is returned.
+*/
+static inline char *my_strncpy_trunc(char *dst, const char *src, size_t num)
+{
+  size_t len= strlen(src);
+  if (unlikely(len >= num)) {
+    len= num - 1;
+    memcpy(dst, src, len);
+    dst[len]= '\0';
+  } else {
+    memcpy(dst, src, len + 1);
+  }
+  return dst;
+}
+
 static inline longlong my_strtoll(const char *nptr, char **endptr, int base)
 {
 #if defined _WIN32

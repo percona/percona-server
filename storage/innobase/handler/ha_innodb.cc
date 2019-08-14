@@ -21485,11 +21485,7 @@ update_innodb_redo_log_encrypt(
 	    && existing_redo_encryption_mode != target) {
 		ib_senderrf(
 			thd, IB_LOG_LEVEL_WARN,
-			ER_REDO_ENCRYPTION_ERROR, 
-			" Redo log encryption mode"
-			" can't be switched without stopping the server and"
-			" recreating the redo logs. Current mode is %s,"
-			" requested %s.",
+			ER_REDO_ENCRYPTION_CANT_BE_CHANGED, 
 			log_encrypt_name(existing_redo_encryption_mode),
 			log_encrypt_name(static_cast<redo_log_encrypt_enum>(target)));
 

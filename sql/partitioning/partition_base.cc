@@ -2406,14 +2406,14 @@ int Partition_base::rnd_next_in_part(uint part_id, uchar *buf) {
   Partition_helper::return_top_record()).
 */
 
-void Partition_base::position_in_last_part(uchar *ref, const uchar *record) {
+void Partition_base::position_in_last_part(uchar *ref_value, const uchar *record) {
   handler *file = m_file[m_last_part];
   file->position(record);
-  memcpy(ref, file->ref, file->ref_length);
+  memcpy(ref_value, file->ref, file->ref_length);
   /* MyISAM partitions can have different ref_length depending on MAX_ROWS! */
   uint pad_length = ref_length - PARTITION_BYTES_IN_POS - file->ref_length;
   if (pad_length)
-    memset((ref + PARTITION_BYTES_IN_POS + file->ref_length), 0, pad_length);
+    memset((ref_value + PARTITION_BYTES_IN_POS + file->ref_length), 0, pad_length);
 }
 
 /**

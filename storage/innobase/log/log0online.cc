@@ -1514,8 +1514,8 @@ static bool log_online_setup_bitmap_file_range(
 
     if (file_seq_num > bitmap_files->files[array_pos].seq_num) {
       bitmap_files->files[array_pos].seq_num = file_seq_num;
-      strncpy(bitmap_files->files[array_pos].name,
-              bitmap_dir->dir_entry[i].name, FN_REFLEN);
+      memcpy(bitmap_files->files[array_pos].name,
+             bitmap_dir->dir_entry[i].name, FN_REFLEN);
       bitmap_files->files[array_pos].name[FN_REFLEN - 1] = '\0';
       bitmap_files->files[array_pos].start_lsn = file_start_lsn;
     }

@@ -424,9 +424,9 @@ class Partition_base : public handler,
   }
 
   int read_range_first(const key_range *start_key, const key_range *end_key,
-                       bool eq_range, bool sorted) override {
-    return Partition_helper::ph_read_range_first(start_key, end_key, eq_range,
-                                                 sorted);
+                       bool eq_range_value, bool sorted) override {
+    return Partition_helper::ph_read_range_first(start_key, end_key,
+                                                 eq_range_value, sorted);
   }
   int read_range_next() override {
     return Partition_helper::ph_read_range_next();

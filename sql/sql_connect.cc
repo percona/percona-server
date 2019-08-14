@@ -177,7 +177,8 @@ USER_STATS::USER_STATS(const char *priv_user_, uint total_ssl_connections_,
     : total_ssl_connections(total_ssl_connections_),
       priv_user_len(strlen(priv_user_)),
       denied_connections(denied_connections_) {
-  strncpy(priv_user, priv_user_, sizeof(priv_user));
+  strncpy(priv_user, priv_user_, sizeof(priv_user) - 1);
+  priv_user[sizeof(priv_user) - 1] = '\0';
 }
 
 void init_global_user_stats(void) {

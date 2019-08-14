@@ -1278,7 +1278,7 @@ fi
 %endif
 %{_libdir}/libmysqlharness.so.*
 %{_libdir}/libmysqlrouter.so.*
-%{_libdir}/libmysqlrouter_http.so.*
+%{_libdir}/libmysqlrouter_http.so*
 %dir %{_libdir}/mysqlrouter
 %{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter

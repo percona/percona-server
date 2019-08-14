@@ -14,7 +14,7 @@ if (`SELECT @@global.innodb_ft_min_token_size <> 3`)
 SET innodb_ft_ignore_stopwords = 0;
 
 CREATE TABLE articles (
-  id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   body TEXT,
   PRIMARY KEY (id),
   FULLTEXT KEY ftx (body) WITH PARSER ngram

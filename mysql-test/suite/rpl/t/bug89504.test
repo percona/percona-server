@@ -12,7 +12,7 @@ CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB rea
 --source include/have_semisync_plugin.inc
 
 --replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN
---error ER_PLUGIN_INSTALL_ERROR
+--error ER_DA_PLUGIN_INSTALL_ERROR
 eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
 
 --let $restart_parameters=

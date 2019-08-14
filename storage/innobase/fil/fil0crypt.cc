@@ -825,7 +825,11 @@ static inline void fil_crypt_read_crypt_data(fil_space_t *space) {
           buf_page_get(page_id_t(space->id, 0), page_size, RW_S_LATCH, &mtr)) {
     fil_lock_shard_by_id(space->id);
     if (!space->crypt_data) {
-      space->crypt_data = fil_space_read_crypt_data(page_size, block->frame);
+      fil_space_crypt_t *crypt_data =
+          fil_space_read_crypt_data(page_size, block->frame);
+      if (crypt_data != nullptr) {
+        space->crypt_data = crypt_data;
+      }
     }
     fil_unlock_shard_by_id(space->id);
   }

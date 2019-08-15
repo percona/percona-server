@@ -78,7 +78,7 @@ You should also consider the following:
 
 * The`XA protocol <https://dev.mysql.com/doc/refman/8.0/en/xa.html>`_ support,
   which allows distributed transactions combining multiple separate
-  transactional resources, is an experimental feature in MyRocks: the 
+  transactional resources, is an experimental feature in MyRocks: the
   implementation is less tested, it may lack some functionality and be not as
   stable as in case of InnoDB.
 
@@ -96,3 +96,19 @@ You should also consider the following:
   may result in two unique rows inserted and does not generate a`DUP_ENTRY`
   error. MyRocks key encoding and comparison does not account for this
   character set attribute.
+
+* |Percona Server| 8.0.16 does not support encryption for the MyRocks storage engine. At this time, during an ``ALTER TABLE`` operation, MyRocks mistakenly detects all InnoDB tables as encrypted. Therefore, any attempt to ``ALTER`` an InnoDB table to MyRocks fails.
+
+As a workaround, we recommend a manual move of the table. The following  steps are the same as the ``ALTER TABLE ... ENGINE=...`` process:
+
+    * Use ``SHOW CREATE TABLE ... `` to return the InnoDB table definition.
+    * With the table definition as the source, perform a ``CREATE TABLE ... ENGINE=RocksDB``.
+    * In the new table, use ``INSERT INTO <new table> SELECT * FROM <old table>``.
+
+  .. note::
+    With MyRocks and with large tables, it is recommended to set the session variable ``rocksdb_bulk_load=1`` during the load to prevent running out of memory. This recommendation is because of the MyRocks large transaction limitation.
+
+  .. seealso::
+
+    MyRocks Data Loading
+    https://www.percona.com/doc/percona-server/8.0/myrocks/data_loading.html

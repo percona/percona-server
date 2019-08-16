@@ -23,7 +23,7 @@ Encryption Features General Availability (GA)
 - InnoDB Undo Tablespace Encryption
 - InnoDB System Tablespace Encryption (InnoDB System Tablespace Encryption)
 - :variable:`default_table_encryption`=OFF/ON (General Tablespace Encryption)
-- Keyring options and `table_encryption_privilege_check`=OFF/ON + keyring options (Verifying the Encryption Settings)
+- :variable:`table_encryption_privilege_check`=OFF/ON (Verifying the Encryption Settings)
 - InnoDB redo log encryption (for master key encryption only) (Redo Log Encryption)
 - InnoDB merge file encryption (Verifying the Encryption Setting)
 - Percona Parallel doublewrite buffer encryption (InnoDB Tablespace Encryption)

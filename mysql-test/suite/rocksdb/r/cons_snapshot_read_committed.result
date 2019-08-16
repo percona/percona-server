@@ -1,5 +1,8 @@
 connect  con1,localhost,root,,;
 connect  con2,localhost,root,,;
+connection con2;
+select VALUE into @begin_num_snapshots from information_schema.rocksdb_dbstats
+where stat_type='DB_NUM_SNAPSHOTS';
 connection con1;
 CREATE TABLE t1 (a INT, pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
@@ -8,15 +11,19 @@ Warnings:
 Warning	138	RocksDB: Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine. Snapshot has not been taken.
 Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
 connection con2;
-select * from information_schema.rocksdb_dbstats where stat_type='DB_NUM_SNAPSHOTS';
-STAT_TYPE	VALUE
-DB_NUM_SNAPSHOTS	0
+select VALUE into @num_snapshots_before from information_schema.rocksdb_dbstats
+where stat_type='DB_NUM_SNAPSHOTS';
+select @num_snapshots_before - @begin_num_snapshots;
+@num_snapshots_before - @begin_num_snapshots
+0
 connection con1;
 COMMIT;
 connection con2;
-select * from information_schema.rocksdb_dbstats where stat_type='DB_NUM_SNAPSHOTS';
-STAT_TYPE	VALUE
-DB_NUM_SNAPSHOTS	0
+select VALUE into @num_snapshots_after from information_schema.rocksdb_dbstats
+where stat_type='DB_NUM_SNAPSHOTS';
+select @num_snapshots_after - @begin_num_snapshots;
+@num_snapshots_after - @begin_num_snapshots
+0
 connection con1;
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
 Warnings:

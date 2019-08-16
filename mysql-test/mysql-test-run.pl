@@ -218,7 +218,7 @@ our $DEFAULT_SUITES =
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl,tokudb.perfschema,"
   ."rocksdb,rocksdb.rpl,rocksdb.sys_vars,"
-  ."percona-pam-for-mysql";
+  ."keyring_vault,percona-pam-for-mysql";
 
 our $opt_big_test                  = 0;
 our $opt_check_testcases           = 1;

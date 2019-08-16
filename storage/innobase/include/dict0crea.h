@@ -137,18 +137,15 @@ dict_recreate_index_tree(
 					committed and restarted in this call. */
 
 /** Drop the index tree associated with a row in SYS_INDEXES table.
-@param[in,out]	rec		SYS_INDEXES record
-@param[in,out]	pcur		persistent cursor on rec
-@param[in,out]	mtr		mini-transaction
-@param[in]	is_truncate	true for drop index operations from truncate
-				(used for skipping AHI checks)
+@param[in,out]	rec	SYS_INDEXES record
+@param[in,out]	pcur	persistent cursor on rec
+@param[in,out]	mtr	mini-transaction
 @return	whether freeing the B-tree was attempted */
 bool
 dict_drop_index_tree(
 	rec_t*		rec,
 	btr_pcur_t*	pcur,
-	mtr_t*		mtr,
-	bool		is_truncate);
+	mtr_t*		mtr);
 
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.

@@ -336,25 +336,23 @@ btr_create(
 @param[in]	page_id		root page id
 @param[in]	page_size	page size
 @param[in]	index_id	PAGE_INDEX_ID contents
-@param[in,out]	mtr		mini-transaction
-@param[in]	is_truncate	true for drop index during
-				truncate operation */
+@param[in,out]	mtr		mini-transaction */
 void
 btr_free_if_exists(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	index_id_t		index_id,
-	mtr_t*			mtr,
-	bool			is_truncate);
+	mtr_t*			mtr);
 
 /** Free an index tree in a temporary tablespace or during TRUNCATE TABLE.
 @param[in]	page_id		root page id
-@param[in]	page_size	page size */
+@param[in]	page_size	page size
+@param[in]	is_intrinsic	true for intrinsic tables else false */
 void
 btr_free(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	bool			is_truncate);
+	bool			is_intrinsic);
 
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts

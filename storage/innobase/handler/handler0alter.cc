@@ -8981,7 +8981,7 @@ foreign_fail:
 
 		if (btr_search_enabled) {
 			btr_search_disable(false);
-			btr_search_enable();
+			btr_search_enable(false);
 		}
 
 		char	tb_name[FN_REFLEN];

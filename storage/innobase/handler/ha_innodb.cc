@@ -19635,7 +19635,7 @@ innodb_adaptive_hash_index_update(
 						from check function */
 {
 	if (*(my_bool*) save) {
-		btr_search_enable();
+		btr_search_enable(true);
 	} else {
 		btr_search_disable(true);
 	}

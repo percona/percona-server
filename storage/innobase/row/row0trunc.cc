@@ -944,7 +944,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 {
 	rec_t*	rec = btr_pcur_get_rec(pcur);
 
-	bool	freed = dict_drop_index_tree(rec, pcur, mtr, true);
+	bool	freed = dict_drop_index_tree(rec, pcur, mtr);
 
 #ifdef UNIV_DEBUG
 	{
@@ -2922,7 +2922,7 @@ truncate_t::drop_indexes(
 			const page_id_t	root_page_id(space_id, root_page_no);
 
 			btr_free_if_exists(
-				root_page_id, page_size, it->m_id, &mtr, true);
+				root_page_id, page_size, it->m_id, &mtr);
 		}
 
 		/* If tree is already freed then we might return immediately

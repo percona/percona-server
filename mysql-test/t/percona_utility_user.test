@@ -1,9 +1,6 @@
 --source include/have_plugin_auth.inc
 --source include/not_embedded.inc
-
---disable_warnings
-DROP DATABASE IF EXISTS mysqltest;
---enable_warnings
+--source include/count_sessions.inc
 
 call mtr.add_suppression("Did not write failed .* ");
 
@@ -11,7 +8,6 @@ SELECT user FROM mysql.user WHERE user LIKE 'frank';
 
 --error ER_CANNOT_USER 
 CREATE USER 'frank'@'localhost' IDENTIFIED BY 'password';
-FLUSH PRIVILEGES;
 
 connect (frank,localhost,frank,password,mysql);
 disconnect frank;
@@ -71,7 +67,6 @@ DROP USER 'frank'@'%';
 CREATE USER 'mysqltest_1'@'localhost';
 
 connect (frank,localhost,frank,password,mysql);
-connection frank;
 
 SELECT user FROM mysql.user WHERE user LIKE 'frank';
 
@@ -91,28 +86,28 @@ SET PASSWORD FOR 'frankjr'@'localhost' = PASSWORD('');
 
 DROP USER 'frankjr'@'localhost';
 
-# Allowed because --utility-user-priviliges has CREATE
+# Allowed because --utility-user-privileges has CREATE
 CREATE DATABASE mysqltest;
 
-# Allowed because --utility-user-priviliges has CREATE
+# Allowed because --utility-user-privileges has CREATE
 CREATE TABLE mysqltest.t1 (a INT, b INT);
 
-# Allowed because --utility-user-priviliges has SHOW DATABASES
+# Allowed because --utility-user-privileges has SHOW DATABASES
 SHOW TABLES IN mysqltest;
 
-# NOT allowed because --utility-user-priviliges does not have INSERT
+# NOT allowed because --utility-user-privileges does not have INSERT
 --error ER_TABLEACCESS_DENIED_ERROR
 INSERT INTO mysqltest.t1(a, b) VALUES (1, 1);
 
-# NOT allowed because --utility-user-priviliges does not have SELECT
+# NOT allowed because --utility-user-privileges does not have SELECT
 --error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM mysqltest.t1;
 
-# NOT allowed because --utility-user-priviliges does not have ALTER
+# NOT allowed because --utility-user-privileges does not have ALTER
 --error ER_TABLEACCESS_DENIED_ERROR
 ALTER TABLE mysqltest.t1 DROP COLUMN b;
 
-# Allowed because --utility-user-priviliges has DROP
+# Allowed because --utility-user-privileges has DROP
 DROP DATABASE mysqltest;
 
 SET PASSWORD FOR 'mysqltest_1'@'localhost' = PASSWORD('newpass');
@@ -149,6 +144,8 @@ GRANT PROXY ON frank TO plug;
 --replace_column 1 xx 7 xx
 SELECT * FROM mysql.proxies_priv;
 
+REVOKE PROXY ON frank FROM plug;
+
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR : this should fail : no grant
 connect(plug_con,localhost,plug,frank);
@@ -157,3 +154,39 @@ connect(plug_con,localhost,plug,frank);
 connection default;
 
 DROP USER plug;
+
+# Ensure invisibility of the utility user
+
+# Restart to reset the global counters
+--source include/restart_mysqld.inc
+
+SHOW GLOBAL STATUS LIKE "Connections";
+SHOW GLOBAL STATUS LIKE "Threads%";
+
+connect (frank,localhost,frank,password,mysql);
+
+# Invisibility issue: this is the thread_id, will increase with each connection
+SHOW GLOBAL STATUS LIKE "Connections";
+# Invisibility issue: Threads_connected includes the utility user too
+# This is kept as is because this counter is used for logic within thread pool handling
+# E.g. fixing this would cause issues in threadpool_unix
+# Other Thread_ counters are fine.
+SHOW GLOBAL STATUS LIKE "Threads%";
+
+SHOW PROCESSLIST;
+
+SELECT * FROM performance_schema.users WHERE USER="frank";
+
+SELECT COUNT(*) from performance_schema.events_statements_current WHERE SQL_TEXT LIKE "%performance_schema.event_statements%";
+
+SELECT CURRENT_CONNECTIONS, TOTAL_CONNECTIONS FROM performance_schema.hosts WHERE HOST="localhost";
+SELECT * FROM performance_schema.accounts WHERE USER="frank";
+SELECT * FROM performance_schema.session_account_connect_attrs;
+SELECT COUNT(DISTINCT PROCESSLIST_ID) FROM performance_schema.session_connect_attrs;
+
+connection default;
+disconnect frank;
+
+REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';
+
+--source include/wait_until_count_sessions.inc

@@ -885,4 +885,6 @@ class ACL_temporary_lock_state {
   const long m_daynr_locked;
 };
 
+extern ACL_USER acl_utility_user;
+
 #endif /* SQL_USER_CACHE_INCLUDED */

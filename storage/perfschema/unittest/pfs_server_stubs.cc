@@ -83,6 +83,10 @@ int log_message(int, ...) {
   return 0;
 }
 
+bool acl_is_utility_user(const char *, const char *, const char *) {
+  return false;
+}
+
 void reset_status_by_thd() {}
 
 thread_local THD *current_thd;

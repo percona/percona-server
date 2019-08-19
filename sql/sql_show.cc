@@ -2875,6 +2875,9 @@ class List_process_list : public Do_THD_Impl {
       const LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
       const LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
 
+      const bool is_utility_user = acl_is_utility_user(
+          inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
+
       /*
         Since we only access a cached value of connection_alive, which is
         also an atomic, we do not need to lock LOCK_thd_protocol here. We
@@ -2883,7 +2886,8 @@ class List_process_list : public Do_THD_Impl {
       */
       if (!inspect_thd->is_connected(true) ||
           (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                      strcmp(inspect_sctx_user.str, m_user)))) {
+                      strcmp(inspect_sctx_user.str, m_user))) ||
+          is_utility_user) {
         return;
       }
 
@@ -3154,6 +3158,9 @@ class Fill_process_list : public Do_THD_Impl {
       const LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
       const LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
 
+      const bool is_utility_user = acl_is_utility_user(
+          inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
+
       const char *client_priv_user =
           m_client_thd->security_context()->priv_user().str;
       const char *user =
@@ -3170,7 +3177,8 @@ class Fill_process_list : public Do_THD_Impl {
       */
       if (!inspect_thd->is_connected(true) ||
           (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                    strcmp(inspect_sctx_user.str, user)))) {
+                    strcmp(inspect_sctx_user.str, user))) ||
+          is_utility_user) {
         return;
       }
 

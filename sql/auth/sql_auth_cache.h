@@ -816,4 +816,6 @@ class Acl_restrictions {
   malloc_unordered_map<std::string, Restrictions> m_restrictions_map;
 };
 
+extern ACL_USER acl_utility_user;
+
 #endif /* SQL_USER_CACHE_INCLUDED */

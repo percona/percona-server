@@ -1,0 +1,251 @@
+--source include/have_plugin_auth.inc
+--source include/count_sessions.inc
+
+call mtr.add_suppression("Did not write failed .* ");
+call mtr.add_suppression("Wrong password");
+
+SELECT user FROM mysql.user WHERE user LIKE 'frank';
+
+--error ER_CANNOT_USER 
+CREATE USER 'frank'@'localhost' IDENTIFIED BY 'password';
+
+connect (frank,localhost,frank,password,mysql);
+disconnect frank;
+connection default;
+
+--error ER_CANNOT_USER 
+CREATE USER 'frank'@'%' IDENTIFIED BY 'password';
+
+connect (frank,localhost,frank,password,mysql);
+disconnect frank;
+connection default;
+
+--error ER_PASSWORD_NO_MATCH
+SET PASSWORD FOR 'frank'@'localhost' = '';
+
+--error ER_PASSWORD_NO_MATCH
+SET PASSWORD FOR 'frank'@'%' = '';
+
+--error ER_NONEXISTING_GRANT
+GRANT ALL ON mysql.* TO 'frank'@'localhost';
+ 
+--error ER_NONEXISTING_GRANT
+GRANT ALL ON mysql.* TO 'frank'@'%';
+ 
+--error ER_NONEXISTING_GRANT
+GRANT USAGE ON mysql.* TO 'frank'@'localhost';
+ 
+--error ER_NONEXISTING_GRANT
+GRANT USAGE ON mysql.* TO 'frank'@'%';
+ 
+GRANT PROXY ON 'frank'@'%' TO 'root'@'localhost';
+ 
+--error ER_NONEXISTING_GRANT
+GRANT PROXY ON 'root'@'localhost' TO 'frank'@'localhost';
+ 
+--error ER_NONEXISTING_GRANT
+GRANT PROXY ON 'root'@'localhost' TO 'frank'@'%';
+ 
+--error ER_NONEXISTING_GRANT 
+SHOW GRANTS FOR 'frank'@'localhost';
+
+--error ER_NONEXISTING_GRANT 
+SHOW GRANTS FOR 'frank'@'%';
+
+--error ER_REVOKE_GRANTS
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frank'@'localhost';
+
+--error ER_NONEXISTING_GRANT 
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frank'@'%';
+
+--error ER_CANNOT_USER 
+DROP USER 'frank'@'localhost';
+
+--error ER_CANNOT_USER 
+DROP USER 'frank'@'%';
+
+CREATE USER 'mysqltest_1'@'localhost';
+
+connect (frank,localhost,frank,password,mysql);
+
+SELECT user FROM mysql.user WHERE user LIKE 'frank';
+
+SELECT USER();
+
+SELECT CURRENT_USER();
+
+SHOW DATABASES;
+
+CREATE USER 'frankjr'@'localhost' IDENTIFIED BY 'password';
+
+GRANT ALL ON mysql.* TO 'frankjr'@'localhost';
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frankjr'@'localhost';
+
+SET PASSWORD FOR 'frankjr'@'localhost' = '';
+
+DROP USER 'frankjr'@'localhost';
+
+# Allowed because --utility-user-privileges has CREATE
+CREATE DATABASE mysqltest;
+
+# Allowed because --utility-user-privileges has CREATE
+CREATE TABLE mysqltest.t1 (a INT, b INT);
+
+# Allowed because --utility-user-privileges has SHOW DATABASES
+SHOW TABLES IN mysqltest;
+
+# NOT allowed because --utility-user-privileges does not have INSERT
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqltest.t1(a, b) VALUES (1, 1);
+
+# NOT allowed because --utility-user-privileges does not have SELECT
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysqltest.t1;
+
+# NOT allowed because --utility-user-privileges does not have ALTER
+--error ER_TABLEACCESS_DENIED_ERROR
+ALTER TABLE mysqltest.t1 DROP COLUMN b;
+
+# Allowed because --utility-user-privileges has DROP
+DROP DATABASE mysqltest;
+
+SET PASSWORD FOR 'mysqltest_1'@'localhost' = 'newpass';
+
+SET @testtemp= @@global.innodb_fast_shutdown;
+SET @@global.innodb_fast_shutdown= 2;
+SELECT @@global.innodb_fast_shutdown;
+SET @@global.innodb_fast_shutdown= 0;
+SELECT @@global.innodb_fast_shutdown;
+SET @@global.innodb_fast_shutdown= @testtemp;
+
+connection default;
+disconnect frank;
+
+#
+# cleanup from above tests
+#
+DROP USER 'mysqltest_1'@'localhost';
+
+#
+# Try to impersonate a proxied utility_user
+#
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'frank';
+
+SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(plug_con,localhost,plug,fg rank);
+--enable_query_log
+
+GRANT PROXY ON frank TO plug;
+REVOKE PROXY ON frank FROM plug;
+
+--replace_column 1 xx 7 xx
+SELECT * FROM mysql.proxies_priv;
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(plug_con,localhost,plug,frank);
+--enable_query_log
+
+connection default;
+
+DROP USER plug;
+
+--echo #
+--echo # 5.6 tests
+--echo #
+
+--echo #
+--echo # Interaction with ALTER USER
+--echo #
+--error ER_CANNOT_USER
+ALTER USER 'frank'@'localhost' PASSWORD EXPIRE;
+
+--echo #
+--echo # 5.7 tests
+--echo #
+
+--echo #
+--echo # Interaction with offline mode
+--echo #
+connect (frank,localhost,frank,password,mysql);
+connection frank;
+
+SELECT USER(), CURRENT_USER();
+
+connection default;
+SET @global_saved_tmp = @@global.offline_mode;
+SET @@global.offline_mode = ON;
+
+connection frank;
+
+--echo Existing utility user connection should not disconnect
+SELECT USER(), CURRENT_USER();
+
+disconnect frank;
+
+--echo Utility user should be able to connecect
+connect (frank,localhost,frank,password,mysql);
+connection frank;
+
+SELECT USER(), CURRENT_USER();
+
+disconnect frank;
+connection default;
+
+SET @@global.offline_mode = @global_saved_tmp;
+
+--echo #
+--echo # Interaction with SHOW CREATE USER
+--echo #
+--error ER_CANNOT_USER
+SHOW CREATE USER 'frank'@'localhost';
+
+# Ensure invisibility of the utility user
+
+# Restart to reset the global counters
+--source include/restart_mysqld.inc
+
+SHOW GLOBAL STATUS LIKE "Connections";
+SHOW GLOBAL STATUS LIKE "Threads%";
+
+connect (frank,localhost,frank,password,mysql);
+
+# Invisibility issue: this is the thread_id, will increase with each connection
+SHOW GLOBAL STATUS LIKE "Connections";
+# Invisibility issue: Threads_connected includes the utility user too
+# This is kept as is because this counter is used for logic within thread pool handling
+# E.g. fixing this would cause issues in threadpool_unix
+# Other Thread_ counters are fine.
+SHOW GLOBAL STATUS LIKE "Threads%";
+
+SELECT * FROM performance_schema.processlist;
+
+SELECT * FROM performance_schema.users WHERE USER="frank";
+
+SELECT COUNT(*) from performance_schema.events_statements_current WHERE SQL_TEXT LIKE "%performance_schema.event_statements%";
+
+SELECT CURRENT_CONNECTIONS, TOTAL_CONNECTIONS FROM performance_schema.hosts WHERE HOST="localhost";
+SELECT * FROM performance_schema.accounts WHERE USER="frank";
+SELECT * FROM performance_schema.session_account_connect_attrs;
+SELECT COUNT(DISTINCT PROCESSLIST_ID) FROM performance_schema.session_connect_attrs;
+
+# PS-5952: Utility user visible in performance_schema.threads
+SELECT COUNT(*) from performance_schema.threads where type='FOREGROUND';
+
+
+# PS-5956: Root session must not be allowed to kill Utility user session
+--let conn_id=`select connection_id()`
+
+connection default;
+
+--error ER_KILL_DENIED_ERROR
+--eval KILL $conn_id
+
+disconnect frank;
+
+REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';
+--source include/wait_until_count_sessions.inc

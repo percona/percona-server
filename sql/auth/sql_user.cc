@@ -1288,6 +1288,8 @@ bool set_and_validate_user_attributes(
   char new_password[MAX_FIELD_WIDTH]{0};
   unsigned int new_password_length = 0;
 
+  assert(!acl_is_utility_user(Str->user.str, Str->host.str, nullptr));
+
   what_to_set.m_what = NONE_ATTR;
   what_to_set.m_user_attributes = acl_table::USER_ATTRIBUTE_NONE;
   assert(assert_acl_cache_read_lock(thd) || assert_acl_cache_write_lock(thd));
@@ -2011,6 +2013,12 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
       return true;
     }
 
+  /* trying to change the password of the utility user? */
+  if (acl_is_utility_user(acl_user->user, acl_user->host.get_host(), nullptr)) {
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+    return true;
+  }
+
     assert(acl_user->plugin.length != 0);
     is_role = acl_user->is_role;
 
@@ -2386,6 +2394,17 @@ static int handle_grant_data(THD *thd, Table_ref *tables, bool drop,
   Acl_table_intact table_intact(thd);
   DBUG_TRACE;
 
+  /* Handle special utility user */
+  if (acl_utility_user.user) {
+    if (user_from && acl_is_utility_user(user_from->user.str,
+                                         user_from->host.str, nullptr)) {
+	    return -1;
+    } else if (user_to && acl_is_utility_user(user_to->user.str,
+                                              user_to->host.str, nullptr)) {
+	    return -1;
+    }
+  }
+
   if (drop) {
     /*
       Tables are defined by open_grant_tables()
@@ -2737,6 +2756,12 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       return true;
     }
     while ((tmp_user_name = user_list++)) {
+    if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
+                            nullptr)) {
+      log_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
+      result = true;
+      continue;
+    }
       bool history_check_done = false;
       I_multi_factor_auth *mfa = nullptr;
       /*
@@ -3031,6 +3056,12 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
 
     get_mandatory_roles(&mandatory_roles);
     while ((user = user_list++) != nullptr) {
+      if (acl_is_utility_user(user->user.str, user->host.str, nullptr)) {
+        log_user(thd, &wrong_users, user, wrong_users.length() > 0);
+        result = true;
+        continue;
+      }
+
       if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
                        [&](Role_id &id) -> bool {
                          const Role_id id2(user->user, user->host);
@@ -3389,6 +3420,14 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
         /* do not write INITIATE REGISTRATION step to binlog. */
         if (tmp_lex_mfa->init_registration) write_to_binlog = false;
       }
+
+      if (acl_is_utility_user(tmp_user_from->user.str, tmp_user_from->host.str,
+                              nullptr)) {
+        log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);
+        result = 1;
+        continue;
+      }
+
       /* add the defaults where needed */
       if (!(user_from = get_current_user(thd, tmp_user_from))) {
         log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);

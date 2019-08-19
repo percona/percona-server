@@ -2878,6 +2878,9 @@ class List_process_list : public Do_THD_Impl {
       const LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
       const LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
 
+      const bool is_utility_user = acl_is_utility_user(
+          inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
+
       {
         MUTEX_LOCK(grd, &inspect_thd->LOCK_thd_protocol);
 
@@ -2885,7 +2888,8 @@ class List_process_list : public Do_THD_Impl {
                inspect_thd->get_protocol()->connection_alive()) &&
              !inspect_thd->system_thread) ||
             (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                        strcmp(inspect_sctx_user.str, m_user)))) {
+                        strcmp(inspect_sctx_user.str, m_user))) ||
+            is_utility_user) {
           return;
         }
       }
@@ -3146,6 +3150,9 @@ class Fill_process_list : public Do_THD_Impl {
       const LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
       const LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
 
+      const bool is_utility_user = acl_is_utility_user(
+          inspect_sctx_user.str, inspect_sctx_host.str, inspect_sctx->ip().str);
+
       const char *client_priv_user =
           m_client_thd->security_context()->priv_user().str;
       const char *user =
@@ -3159,7 +3166,8 @@ class Fill_process_list : public Do_THD_Impl {
         if ((!inspect_thd->get_protocol()->connection_alive() &&
              !inspect_thd->system_thread) ||
             (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                      strcmp(inspect_sctx_user.str, user))))
+                      strcmp(inspect_sctx_user.str, user))) ||
+            is_utility_user)
           return;
       }
 

@@ -1,0 +1,171 @@
+call mtr.add_suppression("Did not write failed .* ");
+call mtr.add_suppression("Wrong password");
+SELECT user FROM mysql.user WHERE user LIKE 'frank';
+user
+CREATE USER 'frank'@'localhost' IDENTIFIED BY 'password';
+ERROR HY000: Operation CREATE USER failed for 'frank'@'localhost'
+CREATE USER 'frank'@'%' IDENTIFIED BY 'password';
+ERROR HY000: Operation CREATE USER failed for 'frank'@'%'
+SET PASSWORD FOR 'frank'@'localhost' = '';
+ERROR 42000: Can't find any matching row in the user table
+SET PASSWORD FOR 'frank'@'%' = '';
+ERROR 42000: Can't find any matching row in the user table
+GRANT ALL ON mysql.* TO 'frank'@'localhost';
+ERROR 42000: There is no such grant defined for user 'frank' on host 'localhost'
+GRANT ALL ON mysql.* TO 'frank'@'%';
+ERROR 42000: There is no such grant defined for user 'frank' on host '%'
+GRANT USAGE ON mysql.* TO 'frank'@'localhost';
+ERROR 42000: There is no such grant defined for user 'frank' on host 'localhost'
+GRANT USAGE ON mysql.* TO 'frank'@'%';
+ERROR 42000: There is no such grant defined for user 'frank' on host '%'
+GRANT PROXY ON 'frank'@'%' TO 'root'@'localhost';
+GRANT PROXY ON 'root'@'localhost' TO 'frank'@'localhost';
+ERROR 42000: There is no such grant defined for user 'frank' on host 'localhost'
+GRANT PROXY ON 'root'@'localhost' TO 'frank'@'%';
+ERROR 42000: There is no such grant defined for user 'frank' on host '%'
+SHOW GRANTS FOR 'frank'@'localhost';
+ERROR 42000: There is no such grant defined for user 'frank' on host 'localhost'
+SHOW GRANTS FOR 'frank'@'%';
+ERROR 42000: There is no such grant defined for user 'frank' on host '%'
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frank'@'localhost';
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frank'@'%';
+ERROR 42000: There is no such grant defined for user 'frank' on host '%'
+DROP USER 'frank'@'localhost';
+ERROR HY000: Operation DROP USER failed for 'frank'@'localhost'
+DROP USER 'frank'@'%';
+ERROR HY000: Operation DROP USER failed for 'frank'@'%'
+CREATE USER 'mysqltest_1'@'localhost';
+SELECT user FROM mysql.user WHERE user LIKE 'frank';
+user
+SELECT USER();
+USER()
+frank@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+frank@%
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+CREATE USER 'frankjr'@'localhost' IDENTIFIED BY 'password';
+GRANT ALL ON mysql.* TO 'frankjr'@'localhost';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frankjr'@'localhost';
+SET PASSWORD FOR 'frankjr'@'localhost' = '';
+DROP USER 'frankjr'@'localhost';
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.t1 (a INT, b INT);
+SHOW TABLES IN mysqltest;
+Tables_in_mysqltest
+t1
+INSERT INTO mysqltest.t1(a, b) VALUES (1, 1);
+ERROR 42000: INSERT command denied to user 'frank'@'localhost' for table 't1'
+SELECT * FROM mysqltest.t1;
+ERROR 42000: SELECT command denied to user 'frank'@'localhost' for table 't1'
+ALTER TABLE mysqltest.t1 DROP COLUMN b;
+ERROR 42000: ALTER command denied to user 'frank'@'localhost' for table 't1'
+DROP DATABASE mysqltest;
+SET PASSWORD FOR 'mysqltest_1'@'localhost' = 'newpass';
+SET @testtemp= @@global.innodb_fast_shutdown;
+SET @@global.innodb_fast_shutdown= 2;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+2
+SET @@global.innodb_fast_shutdown= 0;
+SELECT @@global.innodb_fast_shutdown;
+@@global.innodb_fast_shutdown
+0
+SET @@global.innodb_fast_shutdown= @testtemp;
+DROP USER 'mysqltest_1'@'localhost';
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'frank';
+SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
+plugin	authentication_string
+test_plugin_server	frank
+ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
+GRANT PROXY ON frank TO plug;
+REVOKE PROXY ON frank FROM plug;
+SELECT * FROM mysql.proxies_priv;
+Host	User	Proxied_host	Proxied_user	With_grant	Grantor	Timestamp
+xx	root			1		xx
+xx	root	%	frank	0	root@localhost	xx
+ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
+DROP USER plug;
+#
+# 5.6 tests
+#
+#
+# Interaction with ALTER USER
+#
+ALTER USER 'frank'@'localhost' PASSWORD EXPIRE;
+ERROR HY000: Operation ALTER USER failed for 'frank'@'localhost'
+#
+# 5.7 tests
+#
+#
+# Interaction with offline mode
+#
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+frank@localhost	frank@%
+SET @global_saved_tmp = @@global.offline_mode;
+SET @@global.offline_mode = ON;
+Existing utility user connection should not disconnect
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+frank@localhost	frank@%
+Utility user should be able to connecect
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+frank@localhost	frank@%
+SET @@global.offline_mode = @global_saved_tmp;
+#
+# Interaction with SHOW CREATE USER
+#
+SHOW CREATE USER 'frank'@'localhost';
+ERROR HY000: Operation SHOW CREATE USER failed for 'frank'@'localhost'
+# restart
+SHOW GLOBAL STATUS LIKE "Connections";
+Variable_name	Value
+Connections	8
+SHOW GLOBAL STATUS LIKE "Threads%";
+Variable_name	Value
+Threads_cached	0
+Threads_connected	1
+Threads_created	1
+Threads_running	2
+SHOW GLOBAL STATUS LIKE "Connections";
+Variable_name	Value
+Connections	9
+SHOW GLOBAL STATUS LIKE "Threads%";
+Variable_name	Value
+Threads_cached	0
+Threads_connected	2
+Threads_created	2
+Threads_running	2
+SELECT * FROM performance_schema.processlist;
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
+SELECT * FROM performance_schema.users WHERE USER="frank";
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+SELECT COUNT(*) from performance_schema.events_statements_current WHERE SQL_TEXT LIKE "%performance_schema.event_statements%";
+COUNT(*)
+0
+SELECT CURRENT_CONNECTIONS, TOTAL_CONNECTIONS FROM performance_schema.hosts WHERE HOST="localhost";
+CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+1	1
+SELECT * FROM performance_schema.accounts WHERE USER="frank";
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+SELECT * FROM performance_schema.session_account_connect_attrs;
+PROCESSLIST_ID	ATTR_NAME	ATTR_VALUE	ORDINAL_POSITION
+SELECT COUNT(DISTINCT PROCESSLIST_ID) FROM performance_schema.session_connect_attrs;
+COUNT(DISTINCT PROCESSLIST_ID)
+1
+SELECT COUNT(*) from performance_schema.threads where type='FOREGROUND';
+COUNT(*)
+3
+KILL 9;
+ERROR HY000: You are not owner of thread 9
+REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';

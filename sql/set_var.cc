@@ -207,8 +207,10 @@ void sys_var_end() {
 bool check_priv(THD *thd, bool static_variable) {
   Security_context *sctx = thd->security_context();
   /* for dynamic variables user needs SUPER_ACL or SYSTEM_VARIABLES_ADMIN */
+  const bool is_utility_user = acl_is_utility_user(
+      sctx->priv_user().str, sctx->host().str, sctx->ip().str);
   if (!static_variable) {
-    if (!sctx->check_access(SUPER_ACL) &&
+    if (!is_utility_user && !sctx->check_access(SUPER_ACL) &&
         !(sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
               .first)) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),

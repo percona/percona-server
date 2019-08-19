@@ -248,6 +248,11 @@ static void increment_count_by_name(const std::string &name,
                                     const char *role_name,
                                     user_stats_t *users_or_clients,
                                     const THD &thd) {
+  if (acl_is_utility_user(thd.security_context()->user().str,
+                          thd.security_context()->host().str,
+                          thd.security_context()->ip().str))
+    return;
+
   const auto ssl_connections = thd.is_ssl() ? 1 : 0;
   const auto &it = users_or_clients->find(name);
   if (it == users_or_clients->cend()) {
@@ -264,6 +269,11 @@ static void increment_count_by_name(const std::string &name,
 
 static void increment_count_by_id(my_thread_id id, thread_stats_t *thread_stats,
                                   const THD &thd) {
+  if (acl_is_utility_user(thd.security_context()->user().str,
+                          thd.security_context()->host().str,
+                          thd.security_context()->ip().str))
+    return;
+
   const auto ssl_connections = thd.is_ssl() ? 1 : 0;
   const auto &it = thread_stats->find(id);
   if (it == thread_stats->cend()) {
@@ -285,6 +295,11 @@ static void increment_connection_count(const THD &thd, bool use_lock) {
   const char *user_string =
       get_valid_user_string(thd.m_main_security_ctx.user().str);
   const char *client_string = get_client_host(thd);
+
+  if (acl_is_utility_user(thd.security_context()->user().str,
+                          thd.security_context()->host().str,
+                          thd.security_context()->ip().str))
+    return;
 
   if (use_lock) mysql_mutex_lock(&LOCK_global_user_client_stats);
 

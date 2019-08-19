@@ -234,6 +234,10 @@ int table_threads::make_row(PFS_thread *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
+  if (pfs->m_disable_instrumentation) {
+    return HA_ERR_RECORD_DELETED;
+  }
+
   m_row.m_thread_internal_id = pfs->m_thread_internal_id;
   m_row.m_parent_thread_internal_id = pfs->m_parent_thread_internal_id;
   m_row.m_processlist_id = pfs->m_processlist_id;
@@ -322,7 +326,7 @@ int table_threads::make_row(PFS_thread *pfs) {
   }
   m_row.m_connection_type = pfs->m_connection_type;
 
-  m_row.m_enabled = pfs->m_enabled;
+  m_row.m_enabled = !pfs->m_disable_instrumentation && pfs->m_enabled;
   m_row.m_history = pfs->m_history;
   m_row.m_psi = pfs;
 

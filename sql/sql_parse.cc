@@ -6705,8 +6705,13 @@ static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query) {
       slayage if both are string-equal.
     */
 
-    if (sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first ||
+    const bool is_utility_connection = acl_is_utility_user(
+        tmp->m_security_ctx->user().str, tmp->m_security_ctx->host().str,
+        tmp->m_security_ctx->ip().str);
+
+    if (((sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first) &&
+         !is_utility_connection) ||
         sctx->user_matches(tmp->security_context())) {
       /*
         Process the kill:
@@ -6774,6 +6779,11 @@ class Kill_non_super_conn : public Do_THD_Impl {
   void operator()(THD *thd_to_kill) override {
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
+    Security_context *sctx = thd_to_kill->security_context();
+
+    const bool is_utility_user =
+        acl_is_utility_user(sctx->user().str, sctx->host().str, sctx->ip().str);
+
     /* Kill only if non-privileged thread and non slave thread.
        If an account has not yet been assigned to the security context of the
        thread we cannot tell if the account is super user or not. In this case
@@ -6789,7 +6799,7 @@ class Kill_non_super_conn : public Do_THD_Impl {
         m_is_client_regular_user && thd_to_kill->is_system_user();
     if (!thd_to_kill->is_connection_admin() &&
         thd_to_kill->killed != THD::KILL_CONNECTION &&
-        !thd_to_kill->slave_thread && !has_higher_privilege)
+        !thd_to_kill->slave_thread && !has_higher_privilege && !is_utility_user)
       thd_to_kill->awake(THD::KILL_CONNECTION);
 
     mysql_mutex_unlock(&thd_to_kill->LOCK_thd_data);

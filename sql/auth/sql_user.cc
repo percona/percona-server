@@ -832,6 +832,8 @@ bool set_and_validate_user_attributes(
   bool current_password_empty = false;
   bool new_password_empty = false;
 
+  DBUG_ASSERT(!acl_is_utility_user(Str->user.str, Str->host.str, nullptr));
+
   what_to_set.m_what = NONE_ATTR;
   what_to_set.m_user_attributes = acl_table::USER_ATTRIBUTE_NONE;
   DBUG_ASSERT(assert_acl_cache_read_lock(thd) ||
@@ -1356,6 +1358,12 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
     DBUG_RETURN(true);
   }
 
+  /* trying to change the password of the utility user? */
+  if (acl_is_utility_user(acl_user->user, acl_user->host.get_host(), nullptr)) {
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+    DBUG_RETURN(true);
+  }
+
   DBUG_ASSERT(acl_user->plugin.length != 0);
   is_role = acl_user->is_role;
 
@@ -1697,6 +1705,17 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   Acl_table_intact table_intact(thd);
   DBUG_ENTER("handle_grant_data");
 
+  /* Handle special utility user */
+  if (acl_utility_user.user) {
+    if (user_from && acl_is_utility_user(user_from->user.str,
+                                         user_from->host.str, nullptr)) {
+      DBUG_RETURN(-1);
+    } else if (user_to && acl_is_utility_user(user_to->user.str,
+                                              user_to->host.str, nullptr)) {
+      DBUG_RETURN(-1);
+    }
+  }
+
   if (drop) {
     /*
       Tables are defined by open_grant_tables()
@@ -1928,6 +1947,13 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   }
 
   while ((tmp_user_name = user_list++)) {
+    if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
+                            nullptr)) {
+      log_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
+      result = true;
+      continue;
+    }
+
     bool history_check_done = false;
     /*
       Ignore the current user as it already exists.
@@ -2159,6 +2185,13 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
   thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   while ((tmp_user_name = user_list++)) {
+    if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
+                            nullptr)) {
+      log_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
+      result = true;
+      continue;
+    }
+
     if (!(user_name = get_current_user(thd, tmp_user_name))) {
       result = 1;
       continue;
@@ -2460,6 +2493,13 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
     bool history_check_done = false;
     TABLE *history_tbl = nullptr;
     bool dummy_row_existed = false;
+
+    if (acl_is_utility_user(tmp_user_from->user.str, tmp_user_from->host.str,
+                            nullptr)) {
+      result = true;
+      log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);
+      continue;
+    }
 
     /* add the defaults where needed */
     if (!(user_from = get_current_user(thd, tmp_user_from))) {

@@ -1141,9 +1141,8 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     @retval 1 Error generating hash. Don't reply on outbuf/buflen
 */
 
-static int caching_sha2_password_generate(char *outbuf, unsigned int *buflen,
-                                          const char *inbuf,
-                                          unsigned int inbuflen) {
+int caching_sha2_password_generate(char *outbuf, unsigned int *buflen,
+                                   const char *inbuf, unsigned int inbuflen) {
   DBUG_ENTER("caching_sha2_password_generate");
   std::string digest;
   std::string source(inbuf, inbuflen);

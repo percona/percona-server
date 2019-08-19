@@ -377,6 +377,7 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
 
   /** Thread instrumentation flag. */
   bool m_enabled;
+  bool m_disable_instrumentation;
   /** Thread history instrumentation flag. */
   bool m_history;
 

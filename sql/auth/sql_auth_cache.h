@@ -901,4 +901,6 @@ class ACL_USER_visitor {
 
 void acl_users_accept(ACL_USER_visitor *visitor);
 
+extern ACL_USER acl_utility_user;
+
 #endif /* SQL_USER_CACHE_INCLUDED */

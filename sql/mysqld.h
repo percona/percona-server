@@ -409,6 +409,11 @@ extern char *opt_protocol_compression_algorithms;
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
 
+extern char *utility_user;
+extern char *utility_user_password;
+extern char *utility_user_schema_access;
+extern ulonglong utility_user_privileges;
+
 extern bool persisted_globals_load;
 extern bool opt_keyring_operations;
 extern bool opt_table_encryption_privilege_check;

@@ -232,6 +232,41 @@ opt_always_activate_roles_on_login is set to true.
 
  */
 
+static const char *command_array[] = {"SELECT",
+                                      "INSERT",
+                                      "UPDATE",
+                                      "DELETE",
+                                      "CREATE",
+                                      "DROP",
+                                      "RELOAD",
+                                      "SHUTDOWN",
+                                      "PROCESS",
+                                      "FILE",
+                                      "GRANT",
+                                      "REFERENCES",
+                                      "INDEX",
+                                      "ALTER",
+                                      "SHOW DATABASES",
+                                      "SUPER",
+                                      "CREATE TEMPORARY TABLES",
+                                      "LOCK TABLES",
+                                      "EXECUTE",
+                                      "REPLICATION SLAVE",
+                                      "REPLICATION CLIENT",
+                                      "CREATE VIEW",
+                                      "SHOW VIEW",
+                                      "CREATE ROUTINE",
+                                      "ALTER ROUTINE",
+                                      "CREATE USER",
+                                      "EVENT",
+                                      "TRIGGER",
+                                      "CREATE TABLESPACE",
+                                      NullS};
+
+TYPELIB utility_user_privileges_typelib = {array_elements(command_array) - 1,
+                                           "utility_user_privileges_typelib",
+                                           command_array, nullptr};
+
 bool operator==(const Role_id &a, const std::string &b) {
   std::string tmp;
   a.auth_str(&tmp);
@@ -3545,6 +3580,13 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
     /* go through users in user_list */
     grant_version++;
     while ((target_user = str_list++)) {
+      if (acl_is_utility_user(target_user->user.str, target_user->host.str,
+                              nullptr)) {
+        my_error(ER_NONEXISTING_GRANT, MYF(0), target_user->user.str,
+                 target_user->host.str);
+        error = true;
+        continue;
+      }
       if (!(user = get_current_user(thd, target_user))) {
         error = true;
         continue;
@@ -4848,7 +4890,8 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   if (!acl_cache_lock.lock()) return true;
 
   acl_user = find_acl_user(lex_user->host.str, lex_user->user.str, true);
-  if (!acl_user) {
+  if (!acl_user || (acl_is_utility_user(acl_user->user,
+                                        acl_user->host.get_host(), nullptr))) {
     my_error(ER_NONEXISTING_GRANT, MYF(0), lex_user->user.str,
              lex_user->host.str);
     return true;

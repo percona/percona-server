@@ -4163,6 +4163,13 @@ int acl_authenticate(THD *thd, enum_server_command command) {
           login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
           goto end;
         }
+        if (acl_is_utility_user(acl_proxy_user->user,
+                                acl_proxy_user->host.get_host(), nullptr)) {
+          if (!thd->is_error())
+            login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+          goto end;
+        }
+
         acl_user = acl_proxy_user->copy(thd->mem_root);
         *(mpvio.restrictions) = acl_restrictions->find_restrictions(acl_user);
 
@@ -4226,8 +4233,9 @@ int acl_authenticate(THD *thd, enum_server_command command) {
 
       if (!thd->is_error() &&
           !(sctx->check_access(SUPER_ACL) ||
-            sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN"))
-                .first)) {
+            sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first ||
+            acl_is_utility_user(sctx->user().str, sctx->host().str,
+                                sctx->ip().str))) {
         if (mysqld_offline_mode()) {
           my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
           goto end;

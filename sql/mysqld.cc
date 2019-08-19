@@ -1575,7 +1575,14 @@ SHOW_COMP_OPTION have_snapshot_cloning;
 
 char *enforce_storage_engine = nullptr;
 
+char *utility_user = nullptr;
+char *utility_user_password = nullptr;
+char *utility_user_schema_access = nullptr;
+
 char *opt_libcoredumper_path = NULL;
+/* Plucking this from sql/sql_acl.cc for an array of privilege names */
+extern TYPELIB utility_user_privileges_typelib;
+ulonglong utility_user_privileges = 0;
 
 /* Thread specific variables */
 
@@ -11234,6 +11241,26 @@ struct my_option my_long_options[] = {
      "server if required; FORCE to force upgrade server.",
      &opt_upgrade_mode, &opt_upgrade_mode, &upgrade_mode_typelib, GET_ENUM,
      REQUIRED_ARG, UPGRADE_AUTO, 0, 0, nullptr, 0, nullptr},
+
+    {"utility_user", 0,
+     "Specifies a MySQL user that will be added to the "
+     "internal list of users and recognized as the utility user.",
+     &utility_user, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"utility_user_password", 0,
+     "Specifies the password required for the "
+     "utility user.",
+     &utility_user_password, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"utility_user_privileges", 0,
+     "Specifies the privileges that the utility "
+     "user will have in a comma delimited list. See the manual for a complete "
+     "list of privileges.",
+     &utility_user_privileges, 0, &utility_user_privileges_typelib, GET_SET,
+     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"utility_user_schema_access", 0,
+     "Specifies the schemas that the utility "
+     "user has access to in a comma delimited list.",
+     &utility_user_schema_access, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
+     0},
 
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};

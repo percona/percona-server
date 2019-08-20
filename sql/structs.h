@@ -266,40 +266,6 @@ typedef struct st_user_stats {
   ulonglong empty_queries;
 } USER_STATS;
 
-/* Lookup function for my_hash tables with USER_STATS entries */
-extern "C" uchar *get_key_user_stats(USER_STATS *user_stats, size_t *length,
-                                my_bool not_used MY_ATTRIBUTE((unused)));
-
-/* Free all memory for a my_hash table with USER_STATS entries */
-extern void free_user_stats(USER_STATS* user_stats);
-
-/* Intialize an instance of USER_STATS */
-extern void
-init_user_stats(USER_STATS *user_stats,
-                const char *user,
-                const char *priv_user,
-                uint total_connections,
-                uint total_ssl_connections,
-                uint concurrent_connections,
-                time_t connected_time,
-                double busy_time,
-                double cpu_time,
-                ulonglong bytes_received,
-                ulonglong bytes_sent,
-                ulonglong binlog_bytes_written,
-                ha_rows rows_fetched,
-                ha_rows rows_updated,
-                ha_rows rows_read,
-                ulonglong select_commands,
-                ulonglong update_commands,
-                ulonglong other_commands,
-                ulonglong commit_trans,
-                ulonglong rollback_trans,
-                ulonglong denied_connections,
-                ulonglong lost_connections,
-                ulonglong access_denied_errors,
-                ulonglong empty_queries);
-
 typedef struct st_thread_stats {
   my_thread_id id;
   uint total_connections;
@@ -318,39 +284,6 @@ typedef struct st_thread_stats {
   ulonglong access_denied_errors;
   ulonglong empty_queries;
 } THREAD_STATS;
-
-/* Lookup function for my_hash tables with THREAD_STATS entries */
-extern "C" uchar *get_key_thread_stats(THREAD_STATS *thread_stats, size_t *length,
-                                my_bool not_used MY_ATTRIBUTE((unused)));
-
-/* Free all memory for a my_hash table with THREAD_STATS entries */
-extern void free_thread_stats(THREAD_STATS* thread_stats);
-
-/* Intialize an instance of THREAD_STATS */
-extern void
-init_thread_stats(THREAD_STATS *thread_stats,
-                my_thread_id id,
-                uint total_connections,
-                uint total_ssl_connections,
-                uint concurrent_connections,
-                time_t connected_time,
-                double busy_time,
-                double cpu_time,
-                ulonglong bytes_received,
-                ulonglong bytes_sent,
-                ulonglong binlog_bytes_written,
-                ha_rows rows_fetched,
-                ha_rows rows_updated,
-                ha_rows rows_read,
-                ulonglong select_commands,
-                ulonglong update_commands,
-                ulonglong other_commands,
-                ulonglong commit_trans,
-                ulonglong rollback_trans,
-                ulonglong denied_connections,
-                ulonglong lost_connections,
-                ulonglong access_denied_errors,
-                ulonglong empty_queries);
 
 typedef struct st_table_stats {
   char table[NAME_LEN * 2 + 2];  // [db] + '.' + [table] + '\0'

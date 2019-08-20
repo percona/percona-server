@@ -2567,27 +2567,21 @@ page_cleaner_flush_pages_if_needed(void)
 /*********************************************************************//**
 Puts the page_cleaner thread to sleep if it has finished work in less
 than a second */
-static
-void
-page_cleaner_sleep_if_needed(
-/*=========================*/
-	ulint	next_loop_time)	/*!< in: time when next loop iteration
-				should start */
-{
+static void
+page_cleaner_sleep_if_needed(ut_monotonic_time next_loop_time) {
 	/* No sleep if we are cleaning the buffer pool during the shutdown
 	with everything else finished */
 	if (srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE)
 		return;
 
-	ulint	cur_time = ut_time_ms();
+	const ut_monotonic_time cur_time = ut_monotonic_time_ms();
 
-	if (next_loop_time > cur_time) {
+	if (next_loop_time.ms > cur_time.ms) {
 		/* Get sleep interval in micro seconds. We use
 		ut_min() to avoid long sleep in case of
 		wrap around. */
-		os_thread_sleep(ut_min(1000000,
-				(next_loop_time - cur_time)
-				 * 1000));
+		os_thread_sleep(ut_min(
+		    1000000, (next_loop_time.ms - cur_time.ms) * 1000));
 	}
 }
 
@@ -2630,14 +2624,11 @@ buf_get_total_LRU_list_length(void)
 /*********************************************************************//**
 Adjust the desired page cleaner thread sleep time for LRU flushes.  */
 MY_ATTRIBUTE((nonnull))
-static
-void
+static void
 page_cleaner_adapt_lru_sleep_time(
-/*==============================*/
-	ulint*	lru_sleep_time,	/*!< in/out: desired page cleaner thread sleep
-				time for LRU flushes  */
-	ulint	lru_n_flushed) /*!< in: number of flushed in previous batch */
-
+	ut_monotonic_time	* lru_sleep_time, /*!< in/out: desired page cleaner thread
+					sleep time for LRU flushes  */
+	ulint	lru_n_flushed)  /*!< in: number of flushed in previous batch */
 {
         ulint free_len = buf_get_total_free_list_length();
         ulint max_free_len = ut_min(buf_get_total_LRU_list_length(),
@@ -2647,19 +2638,18 @@ page_cleaner_adapt_lru_sleep_time(
 
 		/* Free lists filled less than 1%
 		and iteration was able to flush, no sleep */
-		*lru_sleep_time = 0;
+		lru_sleep_time->ms = 0;
 	} else if (free_len > max_free_len / 5
 		   || (free_len < max_free_len / 100 && lru_n_flushed == 0)) {
 
 		/* Free lists filled more than 20%
 		or no pages flushed in previous batch, sleep a bit more */
-		*lru_sleep_time += 1;
-		if (*lru_sleep_time > srv_cleaner_max_lru_time)
-			*lru_sleep_time = srv_cleaner_max_lru_time;
-	} else if (free_len < max_free_len / 20 && *lru_sleep_time >= 50) {
-
+		lru_sleep_time->ms += 1;
+		if (lru_sleep_time->ms > srv_cleaner_max_lru_time)
+			lru_sleep_time->ms = srv_cleaner_max_lru_time;
+	} else if (free_len < max_free_len / 20 && lru_sleep_time->ms >= 50) {
 		/* Free lists filled less than 5%, sleep a bit less */
-		*lru_sleep_time -= 50;
+		lru_sleep_time->ms -= 50;
 	} else {
 
 		/* Free lists filled between 5% and 20%, no change */
@@ -2701,10 +2691,11 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 			os_thread_create */
 {
 	my_thread_init();
-	ulint	next_loop_time = ut_time_ms() + 1000;
+	ut_monotonic_time next_loop_time = ut_monotonic_time_ms();
+	next_loop_time.ms += 1000;
 	ulint	n_flushed = 0;
 	ulint	last_activity = srv_get_activity_count();
-	ulint	last_activity_time = ut_time_ms();
+	ut_monotonic_time last_activity_time = ut_monotonic_time_ms();
 
 	ut_ad(!srv_read_only_mode);
 
@@ -2724,8 +2715,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	buf_page_cleaner_is_active = TRUE;
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
-
-		ulint	page_cleaner_sleep_time;
+		ulint page_cleaner_sleep_time;
 		ibool	server_active;
 
 		srv_current_thread_priority = srv_cleaner_thread_priority;
@@ -2739,19 +2729,20 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 			page_cleaner_sleep_if_needed(next_loop_time);
 		}
 
-		page_cleaner_sleep_time
-			= page_cleaner_adapt_flush_sleep_time();
+		page_cleaner_sleep_time =
+		    page_cleaner_adapt_flush_sleep_time();
 
-		next_loop_time = ut_time_ms() + page_cleaner_sleep_time;
+		next_loop_time.ms =
+		    ut_monotonic_time_ms().ms + page_cleaner_sleep_time;
 
 		server_active = srv_check_activity(last_activity);
-		if (server_active
-		    || ut_time_ms() - last_activity_time < 1000) {
-
+		if (server_active ||
+		    ut_monotonic_time_ms().ms - last_activity_time.ms <
+			1000) {
 			if (server_active) {
 
 				last_activity = srv_get_activity_count();
-				last_activity_time = ut_time_ms();
+				last_activity_time = ut_monotonic_time_ms();
 			}
 
 			/* Flush pages from flush_list if required */
@@ -2869,8 +2860,10 @@ DECLARE_THREAD(buf_flush_lru_manager_thread)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
-	ulint	next_loop_time = ut_time_ms() + 1000;
-	ulint	lru_sleep_time = srv_cleaner_max_lru_time;
+	ut_monotonic_time next_loop_time = ut_monotonic_time_ms();
+	next_loop_time.ms += 1000;
+	ut_monotonic_time lru_sleep_time;
+	lru_sleep_time.ms = srv_cleaner_max_lru_time;
 	ulint	lru_n_flushed = 1;
 
 #ifdef UNIV_PFS_THREAD
@@ -2901,7 +2894,8 @@ DECLARE_THREAD(buf_flush_lru_manager_thread)(
 
 		page_cleaner_adapt_lru_sleep_time(&lru_sleep_time, lru_n_flushed);
 
-		next_loop_time = ut_time_ms() + lru_sleep_time;
+		next_loop_time.ms =
+		    ut_monotonic_time_ms().ms + lru_sleep_time.ms;
 
 		lru_n_flushed = buf_flush_LRU_tail();
 	}

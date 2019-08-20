@@ -9,7 +9,9 @@
 ``LOCK TABLES FOR BACKUP``
 ---------------------------
 
-``LOCK TABLES FOR BACKUP`` uses a new MDL lock type to block updates to non-transactional tables and DDL statements for all tables. More specifically, if there's an active ``LOCK TABLES FOR BACKUP`` lock, all DDL statements and all updates to MyISAM, CSV, MEMORY and ARCHIVE tables will be blocked in the ``Waiting for backup lock`` status as visible in ``PERFORMANCE_SCHEMA`` or ``PROCESSLIST``. ``SELECT`` queries for all tables and ``INSERT/REPLACE/UPDATE/DELETE`` against |InnoDB|, Blackhole and Federated tables are not affected by ``LOCK TABLES FOR BACKUP``. Blackhole tables obviously have no relevance for backups, and Federated tables are ignored by both logical and physical backup tools.
+``LOCK TABLES FOR BACKUP`` uses a new MDL lock type to block updates to non-transactional tables and DDL statements for all tables. If there is an active ``LOCK TABLES FOR BACKUP`` lock then all DDL statements and all updates to MyISAM, CSV, MEMORY, ARCHIVE, |TokuDB|, and |MyRocks| tables will be blocked in the ``Waiting for backup lock`` status, visible in ``PERFORMANCE_SCHEMA`` or ``PROCESSLIST``.
+
+``LOCK TABLES FOR BACKUP`` has no effect on ``SELECT`` queries for all mentioned storage engines. Against |InnoDB|, Blackhole and Federated tables, the ``LOCK TABLES FOR BACKUP`` is not applicable to the ``INSERT``, ``REPLACE``, ``UPDATE``, ``DELETE`` statements: Blackhole tables obviously have no relevance to backups, and Federated tables are ignored by both logical and physical backup tools. 
 
 Unlike ``FLUSH TABLES WITH READ LOCK``, ``LOCK TABLES FOR BACKUP`` does not flush tables, i.e. storage engines are not forced to close tables and tables are not expelled from the table cache. As a result, ``LOCK TABLES FOR BACKUP`` only waits for conflicting statements to complete (i.e. DDL and updates to non-transactional tables). It never waits for SELECTs, or UPDATEs to |InnoDB| tables to complete, for example.
 

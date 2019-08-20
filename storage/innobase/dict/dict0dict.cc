@@ -1833,7 +1833,7 @@ dict_table_rename_in_cache(
 
 			ulint	db_len;
 			char*	old_id;
-			char    old_name_cs_filename[MAX_TABLE_NAME_LEN+20];
+			char    old_name_cs_filename[MAX_FULL_NAME_LEN + 1];
 			uint    errors = 0;
 
 			/* All table names are internally stored in charset
@@ -1850,7 +1850,7 @@ dict_table_rename_in_cache(
 			in old_name_cs_filename */
 
 			strncpy(old_name_cs_filename, old_name,
-				MAX_TABLE_NAME_LEN);
+				sizeof(old_name_cs_filename));
 			if (strstr(old_name, TEMP_TABLE_PATH_PREFIX) == NULL) {
 
 				innobase_convert_to_system_charset(
@@ -1872,7 +1872,7 @@ dict_table_rename_in_cache(
 					/* Old name already in
 					my_charset_filename */
 					strncpy(old_name_cs_filename, old_name,
-						MAX_TABLE_NAME_LEN);
+						sizeof(old_name_cs_filename));
 				}
 			}
 
@@ -1898,7 +1898,7 @@ dict_table_rename_in_cache(
 
 				/* This is a generated >= 4.0.18 format id */
 
-				char	table_name[MAX_TABLE_NAME_LEN] = "";
+				char	table_name[MAX_TABLE_NAME_LEN + 1] = "";
 				uint	errors = 0;
 
 				if (strlen(table->name) > strlen(old_name)) {
@@ -5837,7 +5837,8 @@ dict_table_set_corrupt_by_space(
 	dict_table_t*	table;
 	ibool		found = FALSE;
 
-	ut_a(space_id != 0 && space_id < SRV_LOG_SPACE_FIRST_ID);
+	ut_a(space_id != 0);
+	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 
 	if (need_mutex)
 		mutex_enter(&(dict_sys->mutex));

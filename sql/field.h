@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2196,15 +2196,10 @@ protected:
   uint8 dec; // Number of fractional digits
 
   /**
-    Adjust number of decimal digits from NOT_FIXED_DEC to DATETIME_MAX_DECIMALS,
-    and store it in the data member. Then return a modified value required by Field's
-    constructor.
+    Adjust number of decimal digits from NOT_FIXED_DEC to DATETIME_MAX_DECIMALS
   */
   uint8 normalize_dec(uint8 dec_arg)
-  { 
-    dec= dec_arg == NOT_FIXED_DEC ? DATETIME_MAX_DECIMALS : dec_arg; 
-    return dec ? dec + 1 : dec;
-  }
+  { return dec_arg == NOT_FIXED_DEC ? DATETIME_MAX_DECIMALS : dec_arg; }
 
   /**
     Low level routine to store a MYSQL_TIME value into a field.
@@ -2354,7 +2349,7 @@ public:
                  enum utype unireg_check_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field(ptr_arg,
-           len_arg + normalize_dec(dec_arg),
+           len_arg + ((dec= normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
            null_ptr_arg, null_bit_arg,
            unireg_check_arg, field_name_arg)
     { flags|= BINARY_FLAG; }
@@ -2368,7 +2363,7 @@ public:
   Field_temporal(bool maybe_null_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field((uchar *) 0, 
-           len_arg + normalize_dec(dec_arg),
+           len_arg + ((dec= normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
            maybe_null_arg ? (uchar *) "" : 0, 0,
            NONE, field_name_arg)
     { flags|= BINARY_FLAG; }
@@ -3359,6 +3354,8 @@ protected:
   */
   String value;
 
+  String old_value;
+
   /**
     Store ptr and length.
   */
@@ -3447,6 +3444,7 @@ public:
   void reset_fields()
   {
     memset(static_cast<void*>(&value), 0, sizeof(value));
+    memset(static_cast<void*>(&old_value), 0, sizeof(value));
   }
   uint32 get_field_buffer_size(void) { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
@@ -3520,7 +3518,11 @@ public:
                               uint param_data, bool low_byte_first);
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
-  void free() { value.free(); }
+  void free()
+  {
+    value.free();
+    old_value.free();
+  }
   inline void clear_temporary() {
     memset(static_cast<void*>(&value), 0, sizeof(value));
   }
@@ -3532,6 +3534,12 @@ public:
   uint is_equal(Create_field *new_field);
   inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
   inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }
+  void keep_old_value()
+  {
+    // Transfer ownership of the current BLOB value to old_value
+    old_value.takeover(value);
+  }
+
 private:
   int do_save_field_metadata(uchar *first_byte);
 };

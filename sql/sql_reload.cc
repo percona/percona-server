@@ -176,7 +176,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       if (active_mi != NULL)
       {
         mysql_mutex_lock(&active_mi->data_lock);
-        if (rotate_relay_log(active_mi))
+        if (rotate_relay_log(active_mi, true/*need_log_space_lock=true*/))
           *write_to_binlog= -1;
         mysql_mutex_unlock(&active_mi->data_lock);
       }
@@ -413,7 +413,39 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
   }
  if (*write_to_binlog != -1)
-   *write_to_binlog= tmp_write_to_binlog;
+ {
+   if (thd == NULL || thd->security_ctx == NULL)
+   {
+     *write_to_binlog=
+       opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+   else if ((thd->security_ctx->master_access & SUPER_ACL) != 0)
+   {
+     /*
+       For users with 'SUPER' privilege 'FLUSH XXX' statements must not be
+       binlogged if 'super_read_only' is set to 'ON'.
+     */
+     if (opt_super_readonly)
+       *write_to_binlog= 0;
+     else
+       *write_to_binlog=
+         opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+   else
+   {
+     /*
+       For users without 'SUPER' privilege 'FLUSH XXX' statements must not be
+       binlogged if 'read_only' or 'super_read_only' is set to 'ON'.
+       Checking only 'opt_readonly' here as in 'super_read_only' mode this
+       variable is implicitly set to 'true'.
+     */
+     if (opt_readonly)
+       *write_to_binlog= 0;
+     else
+       *write_to_binlog=
+         opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+ }
  /*
    If the query was killed then this function must fail.
  */

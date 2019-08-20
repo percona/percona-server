@@ -17,7 +17,7 @@ Version Specific Information
     Improved ``NUMA`` support implemented. This feature was ported from Twitter's |MySQL| patches.
  * :rn:`5.6.27-75.0`
     Variables :variable:`innodb_buffer_pool_populate` and :variable:`numa_interleave` have been mapped to the upstream implementation of the new `innodb_numa_interleave <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_numa_interleave>`_ variable.
- * :rn:` 5.6.40-83.2`
+ * :rn:`5.6.40-83.2`
     Variables :variable:`innodb_buffer_pool_populate` and :variable:`numa_interleave` were reverted to their original implementation due to upstream variant being less effective in memory allocation. Now buffer pool is allocated with MAP_POPULATE, forcing NUMA interleaved allocation at the buffer pool initialization time.
 
 System Variables

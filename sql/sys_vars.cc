@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +61,9 @@
 #include "my_aes.h" // my_aes_opmode_names
 
 #include "log_event.h"
+#ifdef _WIN32
+#include "named_pipe.h"
+#endif
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -636,7 +639,6 @@ static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
-
 
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
@@ -1591,6 +1593,13 @@ static Sys_var_enum Sys_binlog_error_action(
        "continue, or abort.", GLOBAL_VAR(binlog_error_action),
        CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(IGNORE_ERROR));
 
+static Sys_var_mybool Sys_binlog_skip_flush_commands(
+       "binlog_skip_flush_commands",
+       "If set to TRUE, FLUSH <XXX> commands will not be be written "
+       "to the binary log",
+       GLOBAL_VAR(opt_binlog_skip_flush_commands),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static Sys_var_enum Sys_binlogging_impossible_mode(
        "binlogging_impossible_mode",
        "On a fatal error when statements cannot be binlogged the behaviour can "
@@ -2083,6 +2092,37 @@ static Sys_var_mybool Sys_named_pipe(
        "named_pipe", "Enable the named pipe (NT)",
        READ_ONLY GLOBAL_VAR(opt_enable_named_pipe), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
+#ifndef EMBEDDED_LIBRARY
+static PolyLock_rwlock PLock_named_pipe_full_access_group(
+         &LOCK_named_pipe_full_access_group);
+static bool check_named_pipe_full_access_group(sys_var *self, THD *thd,
+                                               set_var *var)
+{
+  if (!var->value) return false;  // DEFAULT is ok
+
+  if (!is_valid_named_pipe_full_access_group(
+        var->save_result.string_value.str))
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), self->name.str,
+             var->save_result.string_value.str);
+    return true;
+  }
+  return false;
+}
+static bool fix_named_pipe_full_access_group(sys_var *, THD *, enum_var_type)
+{
+  return update_named_pipe_full_access_group(named_pipe_full_access_group);
+}
+static Sys_var_charptr Sys_named_pipe_full_access_group(
+  "named_pipe_full_access_group",
+  "Name of Windows group granted full access to the named pipe",
+  GLOBAL_VAR(named_pipe_full_access_group),
+  CMD_LINE(REQUIRED_ARG, OPT_NAMED_PIPE_FULL_ACCESS_GROUP), IN_FS_CHARSET,
+  DEFAULT(DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP),
+  &PLock_named_pipe_full_access_group, NOT_IN_BINLOG,
+  ON_CHECK(check_named_pipe_full_access_group),
+  ON_UPDATE(fix_named_pipe_full_access_group));
+#endif /* EMBEDDED_LIBRARY */
 #endif
 
 
@@ -4242,7 +4282,7 @@ static Sys_var_mybool Sys_slow_query_log(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_log_state));
 
-const char *log_slow_filter_name[]= { "qc_miss", "full_scan", "full_join",
+static const char *log_slow_filter_name[]= { "qc_miss", "full_scan", "full_join",
                                       "tmp_table", "tmp_table_on_disk", "filesort", "filesort_on_disk", 0};
 static Sys_var_set Sys_log_slow_filter(
        "log_slow_filter",
@@ -4273,7 +4313,7 @@ static Sys_var_double sys_slow_query_log_always_write_time(
        VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(update_slow_query_log_always_write_time));
-const char* log_slow_verbosity_name[] = { 
+static const char* log_slow_verbosity_name[] = {
   "microtime", "query_plan", "innodb", 
   "profiling", "profiling_use_getrusage", 
   "minimal", "standard", "full", 0
@@ -4291,12 +4331,12 @@ static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong wh
 static void update_log_slow_verbosity(ulonglong* value_ptr)
 {
   ulonglong &value    = *value_ptr;
-  ulonglong microtime= ULL(1) << SLOG_V_MICROTIME;
-  ulonglong query_plan= ULL(1) << SLOG_V_QUERY_PLAN;
-  ulonglong innodb= ULL(1) << SLOG_V_INNODB;
-  ulonglong minimal= ULL(1) << SLOG_V_MINIMAL;
-  ulonglong standard= ULL(1) << SLOG_V_STANDARD;
-  ulonglong full= ULL(1) << SLOG_V_FULL;
+  static const ulonglong microtime= ULL(1) << SLOG_V_MICROTIME;
+  static const ulonglong query_plan= ULL(1) << SLOG_V_QUERY_PLAN;
+  static const ulonglong innodb= ULL(1) << SLOG_V_INNODB;
+  static const ulonglong minimal= ULL(1) << SLOG_V_MINIMAL;
+  static const ulonglong standard= ULL(1) << SLOG_V_STANDARD;
+  static const ulonglong full= ULL(1) << SLOG_V_FULL;
   value= update_log_slow_verbosity_replace(value,minimal,microtime);
   value= update_log_slow_verbosity_replace(value,standard,microtime | query_plan);
   value= update_log_slow_verbosity_replace(value,full,microtime | query_plan | innodb);
@@ -4357,7 +4397,7 @@ static Sys_var_mybool Sys_slow_query_log_timestamp_always(
        "Timestamp is printed for all records of the slow log even if they are same time.",
        GLOBAL_VAR(opt_slow_query_log_timestamp_always), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
-const char *slow_query_log_use_global_control_name[]= { "log_slow_filter", "log_slow_rate_limit", "log_slow_verbosity", "long_query_time", "min_examined_row_limit", "all", 0};
+static const char *slow_query_log_use_global_control_name[]= { "log_slow_filter", "log_slow_rate_limit", "log_slow_verbosity", "long_query_time", "min_examined_row_limit", "all", 0};
 static bool update_slow_query_log_use_global_control(sys_var */*self*/, THD */*thd*/,
                                                enum_var_type /*type*/)
 {
@@ -4381,7 +4421,7 @@ static Sys_var_set Sys_slow_query_log_use_global_control(
        slow_query_log_use_global_control_name, DEFAULT(0),
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_slow_query_log_use_global_control));
-const char *slow_query_log_timestamp_precision_name[]= { "second", "microsecond", 0 };
+static const char *slow_query_log_timestamp_precision_name[]= { "second", "microsecond", 0 };
 static Sys_var_enum Sys_slow_query_log_timestamp_precision(
        "slow_query_log_timestamp_precision",
        "Select the timestamp precision for use in the slow query log.  "
@@ -4389,7 +4429,7 @@ static Sys_var_enum Sys_slow_query_log_timestamp_precision(
        GLOBAL_VAR(opt_slow_query_log_timestamp_precision), CMD_LINE(REQUIRED_ARG),
        slow_query_log_timestamp_precision_name, DEFAULT(SLOG_SECOND));
 
-const char* slow_query_log_rate_name[]= {"session", "query", 0};
+static const char* slow_query_log_rate_name[]= {"session", "query", 0};
 static Sys_var_enum Sys_slow_query_log_rate_type(
        "log_slow_rate_type",
        "Choose the log_slow_rate_limit behavior: session or query. "

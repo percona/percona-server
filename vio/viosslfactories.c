@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -336,7 +336,12 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
-  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+  long ssl_ctx_options= (SSL_OP_NO_SSLv2 |
+                         SSL_OP_NO_SSLv3
+#ifndef HAVE_YASSL
+                         | SSL_OP_NO_TICKET
+#endif
+                        );
   int ret_set_cipherlist= 0;
   char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
 #if defined(OPENSSL_EC_NAMED_CURVE) && (OPENSSL_VERSION_NUMBER < 0x10002000L)

@@ -39,7 +39,6 @@ Created 5/11/1994 Heikki Tuuri
 #include <ctype.h>
 
 #ifndef UNIV_HOTBACKUP
-# include "btr0types.h"
 # include "trx0trx.h"
 # include "ha_prototypes.h"
 # include "mysql_com.h" /* NAME_LEN */
@@ -222,6 +221,23 @@ ut_time_ms(void)
 	return((ulint) tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/** Returns the number of milliseconds since some epoch using monotonic clock.
+The value may wrap around.  This should not be used as an accurate Time Of Day.
+It is only intended to be used as a means of calculating transient elapsed or
+projected time that will not be influenced by changes to the systems real time
+clock.  Returns a small structure that contains the result so as to poison the
+code and reveal any changes that might later be introduced by upstream.
+*/
+ut_monotonic_time
+ut_monotonic_time_ms(void) {
+	timespec	  tp;
+	ut_monotonic_time ret;
+	clock_gettime(CLOCK_MONOTONIC, &tp);
+
+	ret.ms = (ulint) tp.tv_sec * 1000 + tp.tv_nsec / 1000000;
+	return ret;
+}
 
 /**********************************************************//**
 Returns the difference of two times in seconds.

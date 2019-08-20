@@ -611,7 +611,7 @@ static void init_instr_class(PFS_instr_class *klass,
 {
   DBUG_ASSERT(name_length <= PFS_MAX_INFO_NAME_LENGTH);
   memset(klass, 0, sizeof(PFS_instr_class));
-  strncpy(klass->m_name, name, name_length);
+  memcpy(klass->m_name, name, name_length);
   klass->m_name_length= name_length;
   klass->m_flags= flags;
   klass->m_enabled= true;

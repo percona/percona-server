@@ -98,7 +98,7 @@ static const char* bmp_file_name_stem = "ib_modified_log_";
 /** File name template for bitmap files.  The 1st format tag is a directory
 name, the 2nd tag is the stem, the 3rd tag is a file sequence number, the 4th
 tag is the start LSN for the file. */
-static const char* bmp_file_name_template = "%s%s%lu_%llu.xdb";
+static const char* bmp_file_name_template = "%s%s%lu_" LSN_PF ".xdb";
 
 /* On server startup with empty database srv_start_lsn == 0, in
 which case the first LSN of actual log records will be this. */
@@ -596,9 +596,8 @@ log_online_is_bitmap_file(
 
 	return ((file_info->type == OS_FILE_TYPE_FILE
 		 || file_info->type == OS_FILE_TYPE_LINK)
-		&& (sscanf(file_info->name, "%[a-z_]%lu_%llu.xdb", stem,
-			   bitmap_file_seq_num,
-			   (unsigned long long *)bitmap_file_start_lsn) == 3)
+		&& (sscanf(file_info->name, "%[a-z_]%lu_" LSN_PF ".xdb", stem,
+			   bitmap_file_seq_num, bitmap_file_start_lsn) == 3)
 		&& (!strcmp(stem, bmp_file_name_stem)));
 }
 
@@ -1468,7 +1467,7 @@ log_online_setup_bitmap_file_range(
 		if (file_seq_num > bitmap_files->files[array_pos].seq_num) {
 
 			bitmap_files->files[array_pos].seq_num = file_seq_num;
-			strncpy(bitmap_files->files[array_pos].name,
+			memcpy(bitmap_files->files[array_pos].name,
 				bitmap_dir_file_info.name, FN_REFLEN);
 			bitmap_files->files[array_pos].name[FN_REFLEN - 1]
 				= '\0';

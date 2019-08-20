@@ -1,0 +1,12 @@
+SHOW GLOBAL STATUS LIKE 'Audit_log_buffer_size_overflow';
+Variable_name	Value
+Audit_log_buffer_size_overflow	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_buffer_size_overflow';
+Variable_name	Value
+Audit_log_buffer_size_overflow	1
+SHOW GLOBAL STATUS LIKE 'Audit_log_buffer_size_overflow';
+Variable_name	Value
+Audit_log_buffer_size_overflow	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_buffer_size_overflow';
+Variable_name	Value
+Audit_log_buffer_size_overflow	1

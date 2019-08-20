@@ -188,7 +188,6 @@ static int  create_worker(thread_group_t *thread_group);
 static void *worker_main(void *param);
 static void check_stall(thread_group_t *thread_group);
 static void connection_abort(connection_t *connection);
-void tp_post_kill_notification(THD *thd);
 static void set_wait_timeout(connection_t *connection);
 static void set_next_timeout_check(ulonglong abstime);
 static void print_pool_blocked_message(bool);

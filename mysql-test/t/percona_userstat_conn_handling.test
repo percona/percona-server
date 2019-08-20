@@ -28,6 +28,12 @@ connection default;
 --let $assert_cond= "$query_result" = 2
 --source include/assert.inc
 
+# Test total connections number
+--let $assert_text= I_S.USER_STATISTICS TOTAL_CONNECTIONS: two connections
+--let $query_result= query_get_value(SELECT TOTAL_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', TOTAL_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 2
+--source include/assert.inc
+
 # Check if number of concurrent connections decreased
 disconnect conn2;
 connection default;
@@ -39,6 +45,12 @@ let $count_sessions= 2;
 --let $assert_cond= "$query_result" = 1
 --source include/assert.inc
 
+# Test total connections number unchanged
+--let $assert_text= I_S.USER_STATISTICS TOTAL_CONNECTIONS: two connections after disconnect
+--let $query_result= query_get_value(SELECT TOTAL_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', TOTAL_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 2
+--source include/assert.inc
+
 # Number of concurrent connections shouldn't be affected by different users
 connect (conn3,localhost,mysqltest_2,,);
 SELECT 1;
@@ -47,6 +59,12 @@ connection default;
 --let $assert_text= I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: connections from other users
 --let $query_result= query_get_value(SELECT CONCURRENT_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', CONCURRENT_CONNECTIONS, 1)
 --let $assert_cond= "$query_result" = 1
+--source include/assert.inc
+
+# Test total connections number
+--let $assert_text= I_S.USER_STATISTICS TOTAL_CONNECTIONS: connections from other users
+--let $query_result= query_get_value(SELECT TOTAL_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', TOTAL_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 2
 --source include/assert.inc
 
 
@@ -76,6 +94,18 @@ connection default;
 
 --let $assert_text= I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: wrong password connection
 --let $query_result= query_get_value(SELECT COUNT(1) cnt FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_2' AND CONCURRENT_CONNECTIONS=0, cnt, 1)
+--let $assert_cond= "$query_result" = 1
+--source include/assert.inc
+
+# Failed connection attempt should keep number of total connections intact
+--let $assert_text= I_S.USER_STATISTICS TOTAL_CONNECTIONS: failed connection
+--let $query_result= query_get_value(SELECT TOTAL_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_2', TOTAL_CONNECTIONS, 1)
+--let $assert_cond= "$query_result" = 1
+--source include/assert.inc
+
+# Denied connections should record the failure
+--let $assert_text= I_S.USER_STATISTICS DENIED_CONNECTIONS: failed connection
+--let $query_result= query_get_value(SELECT DENIED_CONNECTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_2', DENIED_CONNECTIONS, 1)
 --let $assert_cond= "$query_result" = 1
 --source include/assert.inc
 
@@ -141,6 +171,19 @@ connection default;
 --let $assert_text= I_S.CLIENT_STATISTICS CONCURRENT_CONNECTIONS: two connections after userstat=1
 --let $query_result= query_get_value(SELECT CONCURRENT_CONNECTIONS FROM INFORMATION_SCHEMA.CLIENT_STATISTICS WHERE CLIENT LIKE 'localhost', CONCURRENT_CONNECTIONS, 1)
 --let $assert_cond= "$query_result" = 2
+--source include/assert.inc
+
+# verify access_denied works
+connection conn1;
+--disable_query_log
+--error ER_DBACCESS_DENIED_ERROR
+CREATE DATABASE foo;
+--enable_query_log
+
+connection default;
+--let $assert_text= I_S.USER_STATISTICS ACCESS_DENIED: counts previous error
+--let $query_result= query_get_value(SELECT ACCESS_DENIED FROM INFORMATION_SCHEMA.USER_STATISTICS WHERE USER LIKE 'mysqltest_1', ACCESS_DENIED, 1)
+--let $assert_cond= "$query_result" = 1
 --source include/assert.inc
 
 disconnect conn2;

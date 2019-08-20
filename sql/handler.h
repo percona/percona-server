@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -964,6 +964,17 @@ struct handlerton
                                     bool is_sql_layer_system_table);
 
   /**
+    Check if the given database name is reserved.
+
+    @param  hton          Handlerton for SE.
+    @param  name          Database name.
+
+    @retval true          Database name is reserved by SE.
+    @retval false         Database name is not reserved.
+  */
+  bool (*is_reserved_db_name)(handlerton *hton, const char *name);
+
+  /**
     Creates a new compression dictionary with the specified data for this SE.
 
     @param hton                       handletron object.
@@ -1145,6 +1156,7 @@ public:
   inplace_alter_handler_ctx() {}
 
   virtual ~inplace_alter_handler_ctx() {}
+  virtual void set_shared_data(const inplace_alter_handler_ctx *ctx) {};
 };
 
 
@@ -3766,5 +3778,6 @@ inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
 void print_keydup_error(TABLE *table, KEY *key, myf errflag);
 void warn_fk_constraint_violation(THD *thd, TABLE *table, int error);
+bool ha_check_reserved_db_name(const char *name);
 
 #endif /* HANDLER_INCLUDED */

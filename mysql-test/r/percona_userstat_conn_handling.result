@@ -12,15 +12,20 @@ SELECT 1;
 1
 1
 include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: two connections]
+include/assert.inc [I_S.USER_STATISTICS TOTAL_CONNECTIONS: two connections]
 include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: handle disconnects]
+include/assert.inc [I_S.USER_STATISTICS TOTAL_CONNECTIONS: two connections after disconnect]
 SELECT 1;
 1
 1
 include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: connections from other users]
+include/assert.inc [I_S.USER_STATISTICS TOTAL_CONNECTIONS: connections from other users]
 include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: no connections - zero concurrency]
 set password for mysqltest_2@"localhost" = password('foo');
 ERROR 28000: Access denied for user 'mysqltest_2'@'localhost' (using password: NO)
 include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: wrong password connection]
+include/assert.inc [I_S.USER_STATISTICS TOTAL_CONNECTIONS: failed connection]
+include/assert.inc [I_S.USER_STATISTICS DENIED_CONNECTIONS: failed connection]
 SELECT 1;
 1
 1
@@ -43,6 +48,8 @@ SELECT 1;
 1
 1
 include/assert.inc [I_S.CLIENT_STATISTICS CONCURRENT_CONNECTIONS: two connections after userstat=1]
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'foo'
+include/assert.inc [I_S.USER_STATISTICS ACCESS_DENIED: counts previous error]
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
 SET GLOBAL userstat= @userstat_old;

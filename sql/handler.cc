@@ -1266,6 +1266,7 @@ int ha_prepare(THD *thd)
     {
       int err;
       handlerton *ht= ha_info->ht();
+      DBUG_ASSERT(!thd->status_var_aggregated);
       status_var_increment(thd->status_var.ha_prepare_count);
       if (ht->prepare)
       {
@@ -1530,6 +1531,10 @@ end:
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
     thd->transaction.cleanup();
+
+  if (!error)
+    thd->diff_commit_trans++;
+
   DBUG_RETURN(error);
 }
 
@@ -1570,6 +1575,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error=1;
       }
+      DBUG_ASSERT(!thd->status_var_aggregated);
       status_var_increment(thd->status_var.ha_commit_count);
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
@@ -1632,6 +1638,7 @@ int ha_rollback_low(THD *thd, bool all)
         my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
         error= 1;
       }
+      DBUG_ASSERT(!thd->status_var_aggregated);
       status_var_increment(thd->status_var.ha_rollback_count);
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
@@ -2133,6 +2140,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
+    DBUG_ASSERT(!thd->status_var_aggregated);
     status_var_increment(thd->status_var.ha_savepoint_rollback_count);
     trans->no_2pc|= ht->prepare == 0;
   }
@@ -2150,6 +2158,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
+    DBUG_ASSERT(!thd->status_var_aggregated);
     status_var_increment(thd->status_var.ha_rollback_count);
     ha_info_next= ha_info->next();
     ha_info->reset(); /* keep it conveniently zero-filled */
@@ -2191,6 +2200,7 @@ int ha_prepare_low(THD *thd, bool all)
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error= 1;
       }
+      DBUG_ASSERT(!thd->status_var_aggregated);
       status_var_increment(thd->status_var.ha_prepare_count);
     }
     DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
@@ -2229,6 +2239,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_GET_ERRNO, MYF(0), err);
       error=1;
     }
+    DBUG_ASSERT(!thd->status_var_aggregated);
     status_var_increment(thd->status_var.ha_savepoint_count);
   }
   /*
@@ -5728,7 +5739,10 @@ int ha_discover(THD *thd, const char *db, const char *name,
     error= 0;
 
   if (!error)
+  {
+    DBUG_ASSERT(!thd->status_var_aggregated);
     status_var_increment(thd->status_var.ha_discover_count);
+  }
   DBUG_RETURN(error);
 }
 
@@ -6459,7 +6473,10 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   is_mrr_assoc= !MY_TEST(mode & HA_MRR_NO_ASSOCIATION);
 
   if (is_mrr_assoc)
+  {
+    DBUG_ASSERT(!thd->status_var_aggregated);
     status_var_increment(table->in_use->status_var.ha_multi_range_read_init_count);
+  }
  
   rowids_buf_end= buf->buffer_end;
   elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
@@ -8348,4 +8365,40 @@ void warn_fk_constraint_violation(THD *thd,TABLE *table, int error)
                  ER_NO_REFERENCED_ROW_2, str.c_ptr_safe());
     break;
   }
+}
+
+
+/**
+  Checks if the file name is reserved word used by SE by invoking
+  the handlerton method.
+
+  @param  unused1       thread handler which is unused.
+  @param  plugin        SE plugin.
+  @param  name          Database name.
+
+  @retval true          If the name is reserved word.
+  @retval false         If the name is not reserved word.
+*/
+static my_bool is_reserved_db_name_handlerton(THD *unused1, plugin_ref plugin,
+                                              void *name)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+  if (hton->state == SHOW_OPTION_YES && hton->is_reserved_db_name)
+    return (hton->is_reserved_db_name(hton, (const char *)name));
+  return false;
+}
+
+
+/**
+   Check if the file name is reserved word used by SE.
+
+   @param  name    Database name.
+
+   @retval true    If the name is a reserved word.
+   @retval false   If the name is not a reserved word.
+*/
+bool ha_check_reserved_db_name(const char* name)
+{
+  return (plugin_foreach(NULL, is_reserved_db_name_handlerton,
+                         MYSQL_STORAGE_ENGINE_PLUGIN, (char *)name));
 }

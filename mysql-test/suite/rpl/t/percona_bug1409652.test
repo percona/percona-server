@@ -1,7 +1,12 @@
+--source include/master-slave.inc
+
+--echo #
+--echo # Bug 75480: Selecting wrong pos with SHOW BINLOG EVENTS causes
+--echo # a potentially misleading message in the server error log
+--echo #
+
 # without fix this test will fail with
 # 'Found warnings/errors in server log file!' error
-
-source include/master-slave.inc;
 
 connection master;
 
@@ -15,10 +20,63 @@ INSERT INTO t (a, b) VALUES (5, 5);
 INSERT INTO t (a, b) VALUES (6, 6);
 INSERT INTO t (a, b) VALUES (7, 7);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
---error 1220
-SHOW BINLOG EVENTS FROM 5;
+# 'mix', 'row', and 'stmt' generate different outputs
+--disable_query_log
+--disable_result_log
+
+--let $binlog_end_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $end_pos= 0
+--let $row_number= 2
+
+# no error for binlog position 0
+SHOW BINLOG EVENTS FROM 0 LIMIT 1;
+
+# no error for binlog position 1 (Incorrect and should be fixed by PS-5237)
+SHOW BINLOG EVENTS FROM 1 LIMIT 1;
+
+# no error for binlog position 3 (Incorrect and should be fixed by PS-5237)
+SHOW BINLOG EVENTS FROM 3 LIMIT 1;
+
+# no error for binlog position 4
+SHOW BINLOG EVENTS FROM 4 LIMIT 1;
+
+# expect error for binlog position 5
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
+SHOW BINLOG EVENTS FROM 5 LIMIT 1;
+
+while ($end_pos < $binlog_end_pos)
+{
+  --let $start_pos= query_get_value(SHOW BINLOG EVENTS, Pos, $row_number)
+  --let $end_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, $row_number)
+  --inc $row_number
+  --let $start_pos_prev= $start_pos
+  --dec $start_pos_prev
+  --let $start_pos_next= $start_pos
+  --inc $start_pos_next
+
+  # expect error for $start_pos - 1
+  --error ER_ERROR_WHEN_EXECUTING_COMMAND
+  --eval SHOW BINLOG EVENTS FROM $start_pos_prev LIMIT 1
+
+  # no error for $start_pos
+  --eval SHOW BINLOG EVENTS FROM $start_pos LIMIT 1
+
+  # expect error for $start_pos + 1
+  --error ER_ERROR_WHEN_EXECUTING_COMMAND
+  --eval SHOW BINLOG EVENTS FROM $start_pos_next LIMIT 1
+}
+
+# no error for $binlog_end_pos
+--eval SHOW BINLOG EVENTS FROM $binlog_end_pos LIMIT 1
+
+# no error for $binlog_end_pos + 1 (Incorrect and should be fixed by PS-5213)
+--inc $binlog_end_pos
+--eval SHOW BINLOG EVENTS FROM $binlog_end_pos LIMIT 1
+
+--enable_query_log
+--enable_result_log
 
 connection master;
 

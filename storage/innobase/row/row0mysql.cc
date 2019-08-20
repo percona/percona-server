@@ -417,7 +417,7 @@ column_zip_free(
 }
 
 /** Configure the zlib allocator to use the given memory heap. */
-UNIV_INTERN
+static
 void
 column_zip_set_alloc(
 	void*		stream,	/*!< in/out: zlib stream */
@@ -660,7 +660,8 @@ row_decompress_column(
 
 	err = inflate(&d_stream, Z_FINISH);
 	if (err == Z_NEED_DICT) {
-		ut_a(dict_data != 0 && dict_data_len != 0);
+		ut_a(dict_data != NULL);
+		ut_a(dict_data_len != 0);
 		err = inflateSetDictionary(&d_stream, dict_data,
 			dict_data_len);
 		ut_a(err == Z_OK);
@@ -5551,8 +5552,8 @@ row_rename_table_for_mysql(
 
 	if (!new_is_tmp) {
 		/* Rename all constraints. */
-		char	new_table_name[MAX_TABLE_NAME_LEN] = "";
-		char	old_table_utf8[MAX_TABLE_NAME_LEN] = "";
+		char	new_table_name[MAX_TABLE_NAME_LEN + 1] = "";
+		char	old_table_utf8[MAX_TABLE_NAME_LEN + 1] = "";
 		uint	errors = 0;
 
 		strncpy(old_table_utf8, old_name, MAX_TABLE_NAME_LEN);

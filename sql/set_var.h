@@ -378,5 +378,9 @@ int sys_var_init();
 int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags);
 void sys_var_end(void);
 
+extern void init_log_slow_verbosity();
+extern void init_slow_query_log_use_global_control();
+extern void init_log_slow_sp_statements();
+
 #endif
 

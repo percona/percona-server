@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -1409,6 +1409,17 @@ normalize_table_name_low(
 	ibool           set_lower_case); /* in: TRUE if we want to set
 					 name to lower case */
 
+/*****************************************************************//**
+Checks if the filename name is reserved in InnoDB.
+@return true if the name is reserved */
+static
+bool
+innobase_check_reserved_file_name(
+/*===================*/
+        handlerton*     hton,           /*!< in: handlerton of Innodb */
+        const char*     name);          /*!< in: Name of the database */
+
+
 /** Creates a new compression dictionary. */
 static
 handler_create_zip_dict_result
@@ -1795,9 +1806,9 @@ UNIV_INTERN
 ulong
 thd_flush_log_at_trx_commit(
 /*================================*/
-	void*	thd)
+	THD*	thd)
 {
-	return(THDVAR((THD*) thd, flush_log_at_trx_commit));
+	return(THDVAR(thd, flush_log_at_trx_commit));
 }
 
 /******************************************************************//**
@@ -3486,6 +3497,7 @@ innobase_init(
 	innobase_hton->purge_archive_logs = innobase_purge_archive_logs;
 
 	innobase_hton->data = &innodb_api_cb;
+	innobase_hton->is_reserved_db_name= innobase_check_reserved_file_name;
 	innobase_hton->flush_changed_page_bitmaps
 		= innobase_flush_changed_page_bitmaps;
 	innobase_hton->purge_changed_page_bitmaps
@@ -14837,21 +14849,6 @@ ha_innobase::get_auto_increment(
 
 		current = *first_value > col_max_value ? autoinc : *first_value;
 
-		/* If the increment step of the auto increment column
-		decreases then it is not affecting the immediate
-		next value in the series. */
-		if (prebuilt->autoinc_increment > increment) {
-
-			current = autoinc - prebuilt->autoinc_increment;
-
-			current = innobase_next_autoinc(
-				current, 1, increment, 1, col_max_value);
-
-			dict_table_autoinc_initialize(prebuilt->table, current);
-
-			*first_value = current;
-		}
-
 		/* Compute the last value in the interval */
 		next_value = innobase_next_autoinc(
 			current, *nb_reserved_values, increment, offset,
@@ -17183,7 +17180,7 @@ innodb_sched_priority_master_update(
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "Failed to set the master thread "
-				    "priority to %lu,  "
+				    "priority to %lu, "
 				    "the current priority is %lu", priority,
 				    actual_priority);
 	} else {
@@ -18787,14 +18784,14 @@ static MYSQL_SYSVAR_ULONG(saved_page_number_debug,
   NULL, innodb_save_page_no, 0, 0, UINT_MAX32, 0);
 #endif /* UNIV_DEBUG */
 
-const char *corrupt_table_action_names[]=
+static const char *corrupt_table_action_names[]=
 {
   "assert", /* 0 */
   "warn", /* 1 */
   "salvage", /* 2 */
   NullS
 };
-TYPELIB corrupt_table_action_typelib=
+static TYPELIB corrupt_table_action_typelib=
 {
   array_elements(corrupt_table_action_names) - 1, "corrupt_table_action_typelib",
   corrupt_table_action_names, NULL
@@ -19590,4 +19587,31 @@ ib_warn_row_too_big(const dict_table_t*	table)
 		, prefix ? "or using ROW_FORMAT=DYNAMIC or"
 		" ROW_FORMAT=COMPRESSED ": ""
 		, prefix ? DICT_MAX_FIXED_COL_LEN : 0);
+}
+
+/*****************************************************************//**
+Checks if the file name is reserved in InnoDB. Currently
+redo log files(ib_logfile*) is reserved.
+@return true if the name is reserved */
+static
+bool
+innobase_check_reserved_file_name(
+/*===================*/
+	handlerton*     hton,		/*!< in: handlerton of Innodb */
+	const char*	name)		/*!< in: Name of the database */
+{
+	CHARSET_INFO *ci= system_charset_info;
+	size_t logname_size = strlen(ib_logfile_basename);
+
+	/* Name is smaller than reserved name */
+	if (strlen(name) < logname_size) {
+		return (false);
+	}
+	/* Do case insensitive comparison for name. */
+	for (uint i=0; i < logname_size; i++) {
+		if (my_tolower(ci, name[i]) != ib_logfile_basename[i]){
+			return (false);
+		}
+	}
+	return (true);
 }

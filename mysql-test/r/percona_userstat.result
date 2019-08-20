@@ -109,7 +109,9 @@ INFORMATION_SCHEMA.USER_STATISTICS
 ;
 select_must_be_true_6	update_must_be_true_6	other_must_be_true_6	rows_must_be_true_6
 1	1	1	1
+#
 # Bug lp:1659992 "Function over userstat tables cause mysql to crash"
+#
 CREATE FUNCTION utility_get_global_variable(in_name VARCHAR(64)) RETURNS VARCHAR(1024) CHARSET utf8 DETERMINISTIC SQL SECURITY INVOKER
 BEGIN
 DECLARE var_value VARCHAR(1024);
@@ -124,4 +126,25 @@ SELECT *
 FROM INFORMATION_SCHEMA.TABLE_STATISTICS s
 WHERE utility_get_global_variable('userstat') = 'ON';
 DROP FUNCTION utility_get_global_variable;
+#
+# Bug PS-4996: statistics commit counter doesn't work
+#
+SET autocommit=0;
+START TRANSACTION;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (42);
+COMMIT;
+START TRANSACTION;
+INSERT INTO t1 VALUES (42);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SELECT COMMIT_TRANSACTIONS, ROLLBACK_TRANSACTIONS FROM INFORMATION_SCHEMA.THREAD_STATISTICS;
+COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS
+0	0
+SELECT COMMIT_TRANSACTIONS, ROLLBACK_TRANSACTIONS FROM INFORMATION_SCHEMA.USER_STATISTICS;
+COMMIT_TRANSACTIONS	ROLLBACK_TRANSACTIONS
+5	1
+SET autocommit=1;
+DROP TABLE t1;
 SET GLOBAL userstat= @userstat_old;

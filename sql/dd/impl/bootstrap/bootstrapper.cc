@@ -166,6 +166,9 @@ bool update_system_tables(THD *thd) {
       std::unique_ptr<Properties> table_def_properties(
           Properties::parse_properties(def));
       table_def->set_actual_table_definition(*table_def_properties);
+      if (bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
+        table_def->set_actual_encrypted();
+      }
     }
   }
 
@@ -1151,7 +1154,7 @@ bool create_dd_schema(THD *thd) {
 bool initialize_dd_properties(THD *thd) {
   // Create the dd_properties table.
   if (bootstrap::DD_bootstrap_ctx::instance().is_dd_encrypted()) {
-    dd::tables::DD_properties::instance().set_encrypted();
+    dd::tables::DD_properties::instance().set_target_encrypted();
   }
   const Object_table_definition *dd_properties_def =
       dd::tables::DD_properties::instance().target_table_definition();
@@ -1687,6 +1690,25 @@ bool sync_meta_data(THD *thd) {
   return false;
 }
 
+// Helper guard used in update_properties, to be sure
+// that encryption will get set back before
+// update_properties exits.
+struct Target_encryption_guard {
+ public:
+  Target_encryption_guard(const Object_table *object_table)
+      : m_object_table(object_table),
+        set_encryption(object_table->is_target_encrypted()) {}
+  ~Target_encryption_guard() {
+    if (set_encryption) {
+      m_object_table->set_target_encrypted();
+    }
+  }
+
+ private:
+  const Object_table *m_object_table;
+  bool set_encryption;
+};
+
 bool update_properties(THD *thd, const std::set<String_type> *create_set,
                        const std::set<String_type> *remove_set,
                        const String_type &target_table_schema_name) {
@@ -1706,6 +1728,22 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
         will have a corresponding Object_table.
       */
       assert((*it)->entity() != nullptr);
+
+      /*
+        Percona Server supports mysql.ibd encryption in earlier versions than
+        upstream. Upstream started supporting it since 8.0.16. Upstream when
+        ALTER TABLESPACE mysql ENCRYPTION='Y' is issued does not update
+        dd_properties table that is updated here. To be in sync with upstream we
+        also do not want to update dd_properties. Since dd_properties are
+        updated based on target definition we unset the encryption from target
+        definition for the time of updating dd_properties. The exact field that
+        contains system tables properties in dd_properties is SYSTEM_TABLES.
+      */
+      Target_encryption_guard target_encryption_guard((*it)->entity());
+      if ((*it)->entity()->is_target_encrypted()) {
+        (*it)->entity()->unset_target_encrypted();
+      }
+
       const Object_table_definition *table_def =
           (*it)->entity()->target_table_definition();
 

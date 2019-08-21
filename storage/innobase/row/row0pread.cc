@@ -173,7 +173,8 @@ dberr_t Parallel_reader::Ctx::split() {
 Parallel_reader::Parallel_reader(size_t max_threads)
     : m_max_threads(max_threads),
       m_ctxs(),
-      m_read_aheadq(ut_2_power_up(MAX_READ_AHEAD_REQUESTS)) {
+      m_read_aheadq(ut_2_power_up(MAX_READ_AHEAD_REQUESTS)),
+      m_trx_for_slow_log(innobase_get_trx_for_slow_log()) {
   m_n_completed = 0;
 
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);
@@ -1004,8 +1005,15 @@ void Parallel_reader::read_ahead_worker(page_no_t n_pages) {
       page_id_t page_id(scan_ctx->m_config.m_index->space,
                         read_ahead_request.m_page_no);
 
+      /* Unfortunately we cannot pass 'innobase_get_trx_for_slow_log()' here
+      directly as this method 'Parallel_reader::read_ahead_worker()' is
+      invoked in threads spawned for parallel reads where there is no
+      'current_thd'. Instead, we capture the value returned by
+      'innobase_get_trx_for_slow_log()' in the 'm_trx_for_slow_log' member at
+      the point of 'Parallel_reader' construction and use it here. */
+
       buf_phy_read_ahead(page_id, scan_ctx->m_config.m_page_size, n_pages,
-                         scan_ctx->m_trx);
+                         m_trx_for_slow_log);
 
       ++dequeue_count;
     }

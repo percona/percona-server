@@ -139,6 +139,7 @@ START SLAVE IO_THREAD;
 --source include/wait_for_slave_io_error.inc
 --enable_connect_log
 
+--source include/sync_slave_sql_with_io.inc
 # Here we should see only table1_to_encrypt and its contents,
 # because it was logged with the initial key
 --sorted_result

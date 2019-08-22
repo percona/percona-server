@@ -155,7 +155,7 @@ public:
   }
 private:
   ulong m_id;
-  bool  m_daemon_allowed;
+  const bool  m_daemon_allowed;
 };
 
 

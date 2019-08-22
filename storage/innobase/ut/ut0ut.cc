@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,7 +43,6 @@ Created 5/11/1994 Heikki Tuuri
 #endif
 
 #ifndef UNIV_HOTBACKUP
-# include "btr0types.h"
 # include "trx0trx.h"
 #endif /* !UNIV_HOTBACKUP */
 
@@ -138,103 +137,54 @@ ut_time(void)
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************//**
-Returns system time.
-Upon successful completion, the value 0 is returned; otherwise the
-value -1 is returned and the global variable errno is set to indicate the
-error.
-@return 0 on success, -1 otherwise */
-int
-ut_usectime(
-/*========*/
-	ulint*	sec,	/*!< out: seconds since the Epoch */
-	ulint*	ms)	/*!< out: microseconds since the Epoch+*sec */
-{
-	struct timeval	tv;
-	int		ret;
-	int		errno_gettimeofday;
-	int		i;
 
-	for (i = 0; i < 10; i++) {
-
-		ret = ut_gettimeofday(&tv, NULL);
-
-		if (ret == -1) {
-			errno_gettimeofday = errno;
-			ib::error() << "gettimeofday(): "
-				<< strerror(errno_gettimeofday);
-			os_thread_sleep(100000);  /* 0.1 sec */
-			errno = errno_gettimeofday;
-		} else {
-			break;
-		}
-	}
-
-	if (ret != -1) {
-		*sec = (ulint) tv.tv_sec;
-		*ms  = (ulint) tv.tv_usec;
-	}
-
-	return(ret);
-}
-
-/**********************************************************//**
-Returns the number of microseconds since epoch. Similar to
-time(3), the return value is also stored in *tloc, provided
-that tloc is non-NULL.
-@return us since epoch */
-uintmax_t
-ut_time_us(
-/*=======*/
-	uintmax_t*	tloc)	/*!< out: us since epoch, if non-NULL */
-{
-	struct timeval	tv;
+/** Returns the number of microseconds since epoch. Uses the monotonic clock.
+ For windows it return normal time.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_us_t ut_time_monotonic_us(void) {
 	uintmax_t	us;
-
+#ifdef HAVE_CLOCK_GETTIME
+	struct timespec tp;
+	clock_gettime(CLOCK_MONOTONIC,&tp);
+	us = static_cast<uintmax_t>(tp.tv_sec) *1000000 + tp.tv_nsec / 1000;
+#else
+	struct timeval	tv;
 	ut_gettimeofday(&tv, NULL);
-
 	us = static_cast<uintmax_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
-
-	if (tloc != NULL) {
-		*tloc = us;
-	}
-
+#endif /* HAVE_CLOCK_GETTIME */
 	return(us);
 }
 
-/**********************************************************//**
-Returns the number of milliseconds since some epoch.  The
-value may wrap around.  It should only be used for heuristic
-purposes.
-@return ms since epoch */
-ulint
-ut_time_ms(void)
-/*============*/
-{
+/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
+ For windows,MacOS it return normal time.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_ms_t ut_time_monotonic_ms(void) {
+#ifdef HAVE_CLOCK_GETTIME
+	struct timespec tp;
+	clock_gettime(CLOCK_MONOTONIC,&tp);
+	return ((ulint) tp.tv_sec * 1000 + tp.tv_nsec / 1000 / 1000);
+#else
 	struct timeval	tv;
-
 	ut_gettimeofday(&tv, NULL);
-
 	return((ulint) tv.tv_sec * 1000 + tv.tv_usec / 1000);
+#endif /* HAVE_CLOCK_GETTIME */
 }
+
+/** Returns the number of seconds since epoch. Uses the monotonic clock.
+ For windows it return normal time.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_us_t ut_time_monotonic(void) {
+#ifdef HAVE_CLOCK_GETTIME
+	struct timespec tp;
+	clock_gettime(CLOCK_MONOTONIC,&tp);
+	return tp.tv_sec;
+#else
+	return(time(NULL));
+#endif /* HAVE_CLOCK_GETTIME */
+
+}
+
 #endif /* !UNIV_HOTBACKUP */
-
-/** Returns the number of milliseconds since some epoch using monotonic clock.
-The value may wrap around.  This should not be used as an accurate Time Of Day.
-It is only intended to be used as a means of calculating transient elapsed or
-projected time that will not be influenced by changes to the systems real time
-clock.  Returns a small structure that contains the result so as to poison the
-code and reveal any changes that might later be introduced by upstream.
-*/
-ut_monotonic_time
-ut_monotonic_time_ms(void) {
-	timespec	  tp;
-	ut_monotonic_time ret;
-	clock_gettime(CLOCK_MONOTONIC, &tp);
-
-	ret.ms = (ulint) tp.tv_sec * 1000 + tp.tv_nsec / 1000000;
-	return ret;
-}
 
 /**********************************************************//**
 Returns the difference of two times in seconds.

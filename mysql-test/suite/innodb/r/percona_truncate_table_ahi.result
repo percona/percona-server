@@ -1,0 +1,40 @@
+CREATE TABLE t1(a INT, b INT, KEY k1(b));
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+CREATE TABLE t2 AS SELECT * FROM t1;
+FLUSH TABLES;
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1280
+SET DEBUG='+d, simulate_long_ahi';
+SET DEBUG_SYNC = 'truncate_table SIGNAL truncate_started WAIT_FOR resume_truncate';
+TRUNCATE TABLE t1;;
+#connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR truncate_started';
+SET DEBUG_SYNC = 'open_dict_table SIGNAL resume_truncate';
+SET @t_start:=unix_timestamp(now(6));
+SELECT * FROM t2;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+SET @t_end:=unix_timestamp(now(6));
+SET @duration:=@t_end-@t_start;
+include/assert.inc [The time taken for SELECT should be less than 5 seconds]
+# connection default
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+DROP TABLE t2;
+SET GLOBAL innodb_limit_optimistic_insert_debug=default;
+SET GLOBAL innodb_adaptive_hash_index = default;

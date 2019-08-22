@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,7 +35,10 @@ Created 2012-09-23 Sunny Bains
 #include <list>
 
 /** The number of microsecnds in a second. */
-static const ulint MICROSECS_IN_A_SECOND = 1000000;
+static const uint64_t MICROSECS_IN_A_SECOND = 1000000;
+
+/** The number of nanoseconds in a second. */
+static const uint64_t NANOSECS_IN_A_SECOND = 1000 * MICROSECS_IN_A_SECOND;
 
 /**
 Do a timed wait on condition variable.
@@ -137,6 +140,70 @@ os_event::wait_low(
 	mutex.exit();
 }
 
+#ifndef _WIN32
+
+struct timespec os_event::get_wait_timelimit(ulint time_in_usec) {
+    for (int i = 0;; i++) {
+	ut_a(i < 10);
+	if (cond_attr_has_monotonic_clock) {
+	    struct timespec tp;
+	    if (clock_gettime(CLOCK_MONOTONIC, &tp) == -1) {
+		int errno_clock_gettime = errno;
+
+#ifndef UNIV_NO_ERR_MSGS
+		ib::error() << "clock_gettime() failed: " <<
+			strerror(errno_clock_gettime);
+#endif /* !UNIV_NO_ERR_MSGS */
+
+		os_thread_sleep(100000); /* 0.1 sec */
+		errno = errno_clock_gettime;
+
+	    } else {
+		const uint64_t increased = tp.tv_nsec +
+				       time_in_usec * 1000;
+		if (increased >= NANOSECS_IN_A_SECOND) {
+		  tp.tv_sec += increased / NANOSECS_IN_A_SECOND;
+		  tp.tv_nsec = increased % NANOSECS_IN_A_SECOND;
+		} else {
+		  tp.tv_nsec = increased;
+		}
+		return (tp);
+	      }
+
+	} else {
+	    struct timeval tv;
+	    if (gettimeofday(&tv, NULL) == -1) {
+		const int errno_gettimeofday = errno;
+
+#ifndef UNIV_NO_ERR_MSGS
+		ib::error( ) << "clock_gettime() failed: " <<
+			strerror(errno_gettimeofday);
+#endif /* !UNIV_NO_ERR_MSGS */
+
+		os_thread_sleep(100000); /* 0.1 sec */
+		errno = errno_gettimeofday;
+
+	    } else {
+		uint64_t increased = tv.tv_usec + uint64_t(time_in_usec);
+
+		if (increased >= MICROSECS_IN_A_SECOND) {
+		    tv.tv_sec += increased / MICROSECS_IN_A_SECOND;
+		    tv.tv_usec = increased % MICROSECS_IN_A_SECOND;
+		} else {
+		    tv.tv_usec = increased;
+		}
+
+		struct timespec abstime;
+		abstime.tv_sec = tv.tv_sec;
+		abstime.tv_nsec = tv.tv_usec * 1000;
+		return (abstime);
+	    }
+	}
+    }
+}
+
+#endif /* !_WIN32 */
+
 /**
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded.
@@ -163,26 +230,7 @@ os_event::wait_time_low(
 	struct timespec	abstime;
 
 	if (time_in_usec != OS_SYNC_INFINITE_TIME) {
-		struct timeval	tv;
-		int		ret;
-		ulint		sec;
-		ulint		usec;
-
-		ret = ut_usectime(&sec, &usec);
-		ut_a(ret == 0);
-
-		tv.tv_sec = sec;
-		tv.tv_usec = usec;
-
-		tv.tv_usec += time_in_usec;
-
-		if ((ulint) tv.tv_usec >= MICROSECS_IN_A_SECOND) {
-			tv.tv_sec += tv.tv_usec / MICROSECS_IN_A_SECOND;
-			tv.tv_usec %= MICROSECS_IN_A_SECOND;
-		}
-
-		abstime.tv_sec  = tv.tv_sec;
-		abstime.tv_nsec = tv.tv_usec * 1000;
+		abstime = os_event::get_wait_timelimit(time_in_usec);
 	} else {
 		abstime.tv_nsec = 999999999;
 		abstime.tv_sec = (time_t) ULINT_MAX;
@@ -220,6 +268,7 @@ os_event::wait_time_low(
 /** Constructor */
 os_event::os_event(void) UNIV_NOTHROW
 {
+	os_event_global_init();
 	init();
 
 	/* We return this value in os_event_reset(),
@@ -340,4 +389,51 @@ os_event_destroy(
 		UT_DELETE(event);
 		event = NULL;
 	}
+}
+
+#ifndef _WIN32
+pthread_condattr_t os_event::cond_attr;
+bool os_event::cond_attr_has_monotonic_clock (false);
+#endif /* !_WIN32 */
+lock_word_t os_event::global_initialized (false);
+
+
+void os_event_global_init(void) {
+	if (os_atomic_val_compare_and_swap(&os_event::global_initialized, false, true)) return;
+
+#ifndef _WIN32
+	int ret = pthread_condattr_init(&os_event::cond_attr);
+	ut_a(ret == 0);
+
+#ifdef UNIV_LINUX /* MacOS does not have support. */
+#ifdef HAVE_CLOCK_GETTIME
+	ret = pthread_condattr_setclock(&os_event::cond_attr, CLOCK_MONOTONIC);
+	if (ret == 0) {
+	  os_event::cond_attr_has_monotonic_clock = true;
+  }
+#endif /* HAVE_CLOCK_GETTIME */
+
+#ifndef UNIV_NO_ERR_MSGS
+  if (!os_event::cond_attr_has_monotonic_clock) {
+    ib::warn() << "CLOCK_MONOTONIC is unsupported, so do not change the" <<
+	          " system time when MySQL is running !";
+  }
+#endif /* !UNIV_NO_ERR_MSGS */
+
+#endif /* UNIV_LINUX */
+#endif /* !_WIN32 */
+	os_event::global_initialized = true;
+}
+
+void os_event_global_destroy(void) {
+	ut_a(os_event::global_initialized);
+#ifndef _WIN32
+	os_event::cond_attr_has_monotonic_clock = false;
+#ifdef UNIV_DEBUG
+	const int ret =
+#endif /* UNIV_DEBUG */
+		pthread_condattr_destroy(&os_event::cond_attr);
+	ut_ad(ret == 0);
+#endif /* !_WIN32 */
+	os_event::global_initialized = false;
 }

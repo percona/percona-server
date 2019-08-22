@@ -398,15 +398,8 @@ fil_space_merge_crypt_data(
 @param[in]	page		first page of the tablespace
 @return crypt data from page 0
 @retval	NULL	if not present or not valid */
-//UNIV_INTERN
-//fil_space_crypt_t*
-//fil_space_read_crypt_data(const page_size_t& page_size, const byte* page)
-	//MY_ATTRIBUTE((nonnull, warn_unused_result));
-
 fil_space_crypt_t*
 fil_space_read_crypt_data(const page_size_t& page_size, const byte* page);
-  
-//bool fil_space_read_crypt_data(const page_size_t& page_size, const byte* page, ulint space_id);
 
 /**
 Free a crypt data object
@@ -428,44 +421,6 @@ fil_parse_write_crypt_data(
 	const byte*		end_ptr,
 	const buf_block_t*	block,
 	ulint 		        len)
-	MY_ATTRIBUTE((warn_unused_result));
-
-/** Encrypt a buffer.
-@param[in,out]		crypt_data	Crypt data
-@param[in]		space		space_id
-@param[in]		offset		Page offset
-@param[in]		lsn		Log sequence number
-@param[in]		src_frame	Page to encrypt
-@param[in]		page_size	Page size
-@param[in,out]		dst_frame	Output buffer
-@return encrypted buffer or NULL */
-byte*
-fil_encrypt_buf(
-	fil_space_crypt_t*	crypt_data,
-	ulint			space,
-	ulint			offset,
-	lsn_t			lsn,
-	const byte*		src_frame,
-	const page_size_t&	page_size,
-	byte*			dst_frame)
-	MY_ATTRIBUTE((warn_unused_result));
-
-/**
-Encrypt a page.
-
-@param[in]		space		Tablespace
-@param[in]		offset		Page offset
-@param[in]		lsn		Log sequence number
-@param[in]		src_frame	Page to encrypt
-@param[in,out]		dst_frame	Output buffer
-@return encrypted buffer or NULL */
-byte*
-fil_space_encrypt(
-	const fil_space_t* space,
-	ulint		offset,
-	lsn_t		lsn,
-	byte*		src_frame,
-	byte*		dst_frame)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -524,18 +479,11 @@ encrypted, or corrupted.
 
 @param[in,out]	page		page frame (checksum is temporarily modified)
 @param[in]	page_size	page size
-@param[in]	space		tablespace identifier
-@param[in]	offset		page number
 @return true if page is encrypted AND OK, false otherwise */
 bool
-fil_space_verify_crypt_checksum(
-	byte* 			page,
-	//const ulint	        page_size,
-	ulint	        page_size,
-        bool                    is_zip_compressed,
-        bool                    is_new_schema_compressed, 
-	//ulint			space_id,
-	ulint			offset)
+fil_space_verify_crypt_checksum(byte *page, ulint page_size,
+				bool is_zip_compressed,
+				bool is_new_schema_compressed)
 	MY_ATTRIBUTE((warn_unused_result));
 
 
@@ -611,6 +559,58 @@ void
 fil_space_get_scrub_status(
 	const fil_space_t*		space,
 	fil_space_scrub_status_t*	status);
+
+struct redo_log_key {
+	uint  version;
+	char  key[ENCRYPTION_KEY_LEN];
+	ulint read_count;
+	ulint write_count;
+	bool  present;
+
+	bool
+	persisted() const {
+		return version != 0;
+	}
+};
+
+/** Handles the fetching/generation/storing/etc of keyring redo log keys.
+
+ This class is *NOT* thread safe, as thread safety is not required.
+ Data is only accessed/modified on the following points:
+ * When the redo space is created, at startup
+ * During redo log recovery, at startup
+ * When the server UUID is generated, at startup
+ * When the user requests a new key version, checked periodically in the
+   master thread
+
+ As these can't happen in parallel, no lock is used. */
+class redo_log_keys {
+       public:
+	MY_NODISCARD redo_log_key*
+	load_latest_key(THD* thd, bool generate);
+	MY_NODISCARD redo_log_key*
+	load_key_version(THD* thd, uint version);
+
+	MY_NODISCARD redo_log_key*
+	generate_and_store_new_key(THD* thd);
+
+	/* These two methods are used during bootstrap encryption,
+	when wo do not yet have an uuid */
+	MY_NODISCARD redo_log_key*
+	generate_new_key_without_storing();
+	MY_NODISCARD bool
+	store_used_keys();
+
+	void
+	unload_old_keys();
+
+       private:
+	typedef std::map<ulint, redo_log_key> key_map;
+	typedef key_map::iterator	     key_iterator;
+	key_map				      m_keys;
+};
+
+extern redo_log_keys redo_log_key_mgr;
 
 //#include "fil0crypt.ic"
 #endif /* !UNIV_INNOCHECKSUM */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3144,6 +3144,18 @@ stmt_has_updated_trans_table(Ha_trx_info* ha_list)
   for (ha_info= ha_list; ha_info; ha_info= ha_info->next())
   {
     if (ha_info->is_trx_read_write() && ha_info->ht() != binlog_hton)
+      return (TRUE);
+  }
+  return (FALSE);
+}
+
+bool
+trans_has_noop_dml(Ha_trx_info* ha_list)
+{
+  const Ha_trx_info *ha_info;
+  for (ha_info= ha_list; ha_info; ha_info= ha_info->next())
+  {
+    if (ha_info->is_trx_noop_read_write())
       return (TRUE);
   }
   return (FALSE);
@@ -7543,7 +7555,11 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     close_on_error= TRUE;
     goto end;
   }
-  else
+  /*
+    Make sure that the log_file is initialized before writing
+    Rotate_log_event into it.
+  */
+  if (log_file.alloced_buffer)
   {
     /*
       We log the whole file name for log file as the user may decide
@@ -11601,6 +11617,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         !get_transaction()->xid_state()->has_state(XID_STATE::XA_NOTR))
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_XA);
 
+    DBUG_EXECUTE_IF("make_stmt_only_engines",
+                    {
+                      flags_write_all_set= HA_BINLOG_STMT_CAPABLE;
+                    };);
+
     /* both statement-only and row-only engines involved */
     if ((flags_write_all_set & (HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE)) == 0)
     {
@@ -11630,7 +11651,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         */
         my_error((error= ER_BINLOG_ROW_MODE_AND_STMT_ENGINE), MYF(0));
       }
-      else if ((unsafe_flags= lex->get_stmt_unsafe_flags()) != 0)
+      else if (variables.binlog_format == BINLOG_FORMAT_MIXED &&
+          ((unsafe_flags= lex->get_stmt_unsafe_flags()) != 0))
       {
         /*
           3. Error: Cannot execute statement: binlogging of unsafe
@@ -11643,6 +11665,19 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           if (unsafe_flags & (1 << unsafe_type))
             my_error((error= ER_BINLOG_UNSAFE_AND_STMT_ENGINE), MYF(0),
                      ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+      }
+      else if (is_write && ((unsafe_flags= lex->get_stmt_unsafe_flags()) != 0))
+      {
+        /*
+          7. Warning: Unsafe statement logged as statement due to
+             binlog_format = STATEMENT
+        */
+        binlog_unsafe_warning_flags|= unsafe_flags;
+        DBUG_PRINT("info", ("Scheduling warning to be issued by "
+                            "binlog_query: '%s'",
+                            ER(ER_BINLOG_UNSAFE_STATEMENT)));
+        DBUG_PRINT("info", ("binlog_unsafe_warning_flags: 0x%x",
+                            binlog_unsafe_warning_flags));
       }
       /* log in statement format! */
     }

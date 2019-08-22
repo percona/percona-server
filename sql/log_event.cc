@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2016, MariaDB
 
@@ -1037,10 +1037,8 @@ bool Log_event::write_footer(IO_CACHE* file)
     if (event_encrypter.encrypt_and_write(file, buf, BINLOG_CHECKSUM_LEN))
       return true;
   }
-  if (event_encrypter.is_encryption_enabled() &&
-      event_encrypter.finish(file))
-    return true;
-  return false;
+  return event_encrypter.is_encryption_enabled() &&
+      event_encrypter.finish(file);
 }
 
 
@@ -1146,7 +1144,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
 
   write_header_to_memory(header);
 
-  bool is_format_decription_and_need_checksum= need_checksum() &&
+  const bool is_format_description_and_need_checksum= need_checksum() &&
        ((common_header->flags & LOG_EVENT_BINLOG_IN_USE_F) != 0);
 
   /*
@@ -1160,7 +1158,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
     in case binlog encryption is turned on. 
   */
 
-  if (is_format_decription_and_need_checksum)
+  if (is_format_description_and_need_checksum)
   {
     common_header->flags&= ~LOG_EVENT_BINLOG_IN_USE_F;
     int2store(header + FLAGS_OFFSET, common_header->flags);
@@ -1168,7 +1166,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
   crc= my_checksum(crc, header, LOG_EVENT_HEADER_LEN);
 
   // restore IN_USE flag after calculating the checksum
-  if (is_format_decription_and_need_checksum)
+  if (is_format_description_and_need_checksum)
   {
     common_header->flags|= LOG_EVENT_BINLOG_IN_USE_F;
     int2store(header + FLAGS_OFFSET, common_header->flags);
@@ -5763,8 +5761,35 @@ bool Format_description_log_event::write(IO_CACHE* file)
     created= get_time();
   int4store(buff + ST_CREATED_OFFSET, static_cast<uint32>(created));
   buff[ST_COMMON_HEADER_LEN_OFFSET]= LOG_EVENT_HEADER_LEN;
-  memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1,  &post_header_len.front(),
-         Binary_log_event::LOG_EVENT_TYPES);
+
+  size_t number_of_events;
+  int post_header_len_size = static_cast<int>(post_header_len.size());
+
+  if (post_header_len_size == Binary_log_event::LOG_EVENT_TYPES)
+    // Replicating between master and slave with same version.
+    // number_of_events will be same as Binary_log_event::LOG_EVENT_TYPES
+    number_of_events = Binary_log_event::LOG_EVENT_TYPES;
+  else if (post_header_len_size > Binary_log_event::LOG_EVENT_TYPES)
+    /*
+      Replicating between new master and old slave.
+      In that case there won't be any memory issues, as there won't be
+      any out of memory read.
+    */
+    number_of_events = Binary_log_event::LOG_EVENT_TYPES;
+  else
+    /*
+      Replicating between old master and new slave.
+      In that case it might lead to different number_of_events on master and
+      slave. When the relay log is rotated, the FDE from master is used to
+      create the FDE event on slave, which is being written here. In that case
+      we might end up reading more bytes as
+      post_header_len.size() < Binary_log_event::LOG_EVENT_TYPES;
+      casuing memory issues.
+    */
+    number_of_events = post_header_len_size;
+
+  memcpy((char*) buff + ST_COMMON_HEADER_LEN_OFFSET + 1,  &post_header_len.front(),
+          number_of_events);
   /*
     if checksum is requested
     record the checksum-algorithm descriptor next to
@@ -11287,19 +11312,22 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
-
+    DBUG_EXECUTE_IF("rows_log_event_before_open_table",
+                    {
+                      const char action[] = "now SIGNAL before_open_table WAIT_FOR go_ahead_sql";
+                      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));
+                    };);
     if (open_and_lock_tables(thd, rli->tables_to_lock, 0))
     {
-      uint actual_error= thd->get_stmt_da()->mysql_errno();
-      if (thd->is_slave_error || thd->is_fatal_error)
+      if (thd->is_error())
       {
+        uint actual_error= thd->get_stmt_da()->mysql_errno();
         if (ignored_error_code(actual_error))
         {
           if (log_warnings > 1)
             rli->report(WARNING_LEVEL, actual_error,
                         "Error executing row event: '%s'",
-                        (actual_error ? thd->get_stmt_da()->message_text() :
-                         "unexpected success or fatal error"));
+                        thd->get_stmt_da()->message_text());
           thd->get_stmt_da()->reset_condition_info(thd);
           clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
           error= 0;
@@ -11309,13 +11337,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         {
           rli->report(ERROR_LEVEL, actual_error,
                       "Error executing row event: '%s'",
-                      (actual_error ? thd->get_stmt_da()->message_text() :
-                       "unexpected success or fatal error"));
+                      thd->get_stmt_da()->message_text());
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
-          DBUG_RETURN(actual_error);
         }
       }
+      DBUG_RETURN(1);
     }
 
     /*

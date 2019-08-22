@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -291,12 +291,9 @@ static void option_deprecation_warning(MYSQL_THD thd, const char* name)
                         ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
                         name);
   }
-  else
-  {
-    log_message(MY_WARNING_LEVEL,
-                ER_DEFAULT(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                name);
-  }
+  log_message(MY_WARNING_LEVEL,
+              ER_DEFAULT(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+              name);
 }
 
 /*
@@ -529,15 +526,19 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
   }
 
   configure_compatibility_manager();
-  DBUG_EXECUTE_IF("group_replication_compatibility_rule_error",
+  DBUG_EXECUTE_IF("group_replication_compatibility_rule_error_major",
                   {
-                    //Mark this member as being another version
-                    Member_version other_version= plugin_version + (0x000001);
-                    compatibility_mgr->set_local_version(other_version);
-                    Member_version local_member_version(plugin_version);
-                    //Add an incomparability with the real plugin version
-                    compatibility_mgr->add_incompatibility(other_version,
-                                                           local_member_version);
+                    Member_version other_version= plugin_version + (0x010000);
+                    Member_version current_version= plugin_version;
+                    compatibility_mgr->add_incompatibility(current_version,
+                                                           other_version);
+                  };);
+  DBUG_EXECUTE_IF("group_replication_compatibility_rule_error_minor",
+                  {
+                    Member_version other_version= plugin_version;
+                    Member_version current_version= plugin_version + (0x000100);
+                    compatibility_mgr->add_incompatibility(current_version,
+                                                           other_version);
                   };);
   DBUG_EXECUTE_IF("group_replication_compatibility_higher_minor_version",
                   {
@@ -613,17 +614,6 @@ err:
     {
       set_read_mode_state(sql_command_interface, read_only_mode,
                           super_read_only_mode);
-    }
-
-    /*
-      Abort right away if the exit state action was set to ABORT_SERVER (and we
-      are starting GROUP_REPLICATION on boot).
-    */
-    if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER &&
-        start_group_replication_at_boot_var)
-    {
-      abort_plugin_process("Fatal error during execution of Group Replication "
-                           "group joining process");
     }
 
     if (certification_latch != NULL)

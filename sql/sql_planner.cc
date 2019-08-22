@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4329,7 +4329,7 @@ void Optimize_table_order::advance_sj_state(
         join->positions[pos->sjm_scan_last_inner].table->emb_sj_nest)
       /*
         Prevent that inner tables of different semijoin nests are
-        interleaved for MatScan.
+        interleaved for MaterializeScan.
       */
       pos->sjm_scan_need_tables= 0;
     else
@@ -4341,6 +4341,7 @@ void Optimize_table_order::advance_sj_state(
       Opt_trace_object(trace).add_alnum("strategy", "MaterializeScan").
         add_alnum("choice", "deferred");
     }
+
   }
   else if (sjm_strategy == SJ_OPT_MATERIALIZE_LOOKUP)
   {

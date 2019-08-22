@@ -24,6 +24,7 @@ Modified           Jan Lindström jan.lindstrom@mariadb.com
 *******************************************************/
 
 #include "fil0fil.h"
+#include "system_key.h"
 #include "mtr0types.h"
 #include "mach0data.h"
 #include "page0size.h"
@@ -832,8 +833,11 @@ fil_crypt_read_crypt_data(fil_space_t* space) {
 					      page_size, RW_S_LATCH, &mtr)) {
 		mutex_enter(&fil_system->mutex);
 		if (!space->crypt_data) {
-			space->crypt_data = fil_space_read_crypt_data(
-				page_size, block->frame);
+			fil_space_crypt_t *crypt_data =
+				fil_space_read_crypt_data(page_size, block->frame);
+			if (crypt_data != NULL) {
+				space->crypt_data = crypt_data;
+			}
 		}
 		mutex_exit(&fil_system->mutex);
 	}
@@ -891,14 +895,15 @@ fil_crypt_start_encrypting_space(
 	crypt_data->rotate_state.active_threads = 1;
 
 	if (space->encryption_type == Encryption::AES) {// We are re-encrypting space from MK encryption to RK encryption
+		// TODO: assert that space->encryption_key is all zeroes here
 		crypt_data->encryption_rotation = Encryption::MASTER_KEY_TO_KEYRING;
-		ut_ad(space->encryption_key != NULL && space->encryption_iv != NULL);
 		crypt_data->set_tablespace_key(space->encryption_key);
 		crypt_data->set_tablespace_iv(space->encryption_iv); //space key and encryption are always initalized for MK encrypted tables
 	}
 
 	crypt_data->encrypting_with_key_version = crypt_data->key_get_latest_version();
-	ut_ad(crypt_data->encrypting_with_key_version != 0 && crypt_data->encrypting_with_key_version != ENCRYPTION_KEY_VERSION_INVALID);
+	ut_ad(crypt_data->encrypting_with_key_version != 0);
+	ut_ad(crypt_data->encrypting_with_key_version != ENCRYPTION_KEY_VERSION_INVALID);
 
 	if (crypt_data->key_found == false || crypt_data->load_needed_keys_into_local_cache() == false) {
 		// This should not happen, we have locked the keyring before encryption threads could have even started
@@ -1568,12 +1573,12 @@ fil_crypt_get_page_throttle_func(
 
 	state->crypt_stat.pages_read_from_disk++;
 
-	uintmax_t start = ut_time_us(NULL);
+	ib_time_monotonic_us_t start = ut_time_monotonic_us();
 	block = buf_page_get_gen(page_id, page_size,
 				 RW_X_LATCH,
 				 NULL, BUF_GET_POSSIBLY_FREED,
 				 file, line, mtr);
-	uintmax_t end = ut_time_us(NULL);
+	ib_time_monotonic_us_t end = ut_time_monotonic_us();
 
 	if (end < start) {
 		end = start; // safety...
@@ -2156,10 +2161,13 @@ public:
 	{}
 	
 	bool lock_x_dict_operation_lock(fil_space_t *space) {
-		ut_ad(!dict_operation_locked && trx == NULL &&
-			!dict_sys_mutex_entered && heap == NULL &&
-			heap_alloc == NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(!dict_operation_locked);
+		ut_ad(trx == NULL);
+		ut_ad(!dict_sys_mutex_entered);
+		ut_ad(heap == NULL);
+		ut_ad(heap_alloc == NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		// This should only wait in rare cases
 		while (!rw_lock_x_lock_nowait(dict_operation_lock)) {
@@ -2173,10 +2181,13 @@ public:
 	}
 
 	bool allocate_trx() {
-		ut_ad(dict_operation_locked && trx == NULL &&
-			!dict_sys_mutex_entered && heap == NULL &&
-			heap_alloc == NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx == NULL);
+		ut_ad(!dict_sys_mutex_entered);
+		ut_ad(heap == NULL);
+		ut_ad(heap_alloc == NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		trx = trx_allocate_for_background();
 		if(trx == NULL)
@@ -2187,20 +2198,26 @@ public:
 	}
 
 	void enter_dict_sys_mutex() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			!dict_sys_mutex_entered && heap == NULL &&
-			heap_alloc == NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(!dict_sys_mutex_entered);
+		ut_ad(heap == NULL);
+		ut_ad(heap_alloc == NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		dict_mutex_enter_for_mysql();
 		dict_sys_mutex_entered = true;
 	}
 
 	bool create_heap() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap == NULL &&
-			heap_alloc == NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap == NULL);
+		ut_ad(heap_alloc == NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		// TODO: consider moving expensive operation out of dict_sys->mutex
 		heap = mem_heap_create(1024); 
@@ -2208,40 +2225,52 @@ public:
 	}
 
 	bool create_allocator() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap != NULL &&
-			heap_alloc == NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap != NULL);
+		ut_ad(heap_alloc == NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		heap_alloc = ib_heap_allocator_create(heap);
 		return heap_alloc != NULL;
 	}
 
 	bool create_table_ids_vector() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap != NULL &&
-			heap_alloc != NULL && table_ids == NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap != NULL);
+		ut_ad(heap_alloc != NULL);
+		ut_ad(table_ids == NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		table_ids = ib_vector_create(heap_alloc, sizeof(table_id_t), 128);
 		return table_ids != NULL;
 	}
 
 	bool create_table_ids_to_revert_vector() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap != NULL &&
-			heap_alloc != NULL && table_ids != NULL &&
-			table_ids_to_revert == NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap != NULL);
+		ut_ad(heap_alloc != NULL);
+		ut_ad(table_ids != NULL);
+		ut_ad(table_ids_to_revert == NULL);
 
 		table_ids_to_revert = ib_vector_create(heap_alloc, sizeof(table_id_t), 128);
 		return table_ids_to_revert != NULL;
 	}
 
 	bool is_table_ids_empty() const {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap != NULL &&
-			heap_alloc != NULL && table_ids != NULL &&
-			table_ids_to_revert != NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap != NULL);
+		ut_ad(heap_alloc != NULL);
+		ut_ad(table_ids != NULL);
+		ut_ad(table_ids_to_revert != NULL);
 
 		return ib_vector_is_empty(table_ids);
 	}
@@ -2274,10 +2303,13 @@ public:
 	}
 
 	void commit() {
-		ut_ad(dict_operation_locked && trx != NULL &&
-			dict_sys_mutex_entered && heap != NULL &&
-			heap_alloc != NULL && table_ids != NULL &&
-			table_ids_to_revert != NULL);
+		ut_ad(dict_operation_locked);
+		ut_ad(trx != NULL);
+		ut_ad(dict_sys_mutex_entered);
+		ut_ad(heap != NULL);
+		ut_ad(heap_alloc != NULL);
+		ut_ad(table_ids != NULL);
+		ut_ad(table_ids_to_revert != NULL);
 
 		fts_sql_commit(trx);
 		do_rollback = false;
@@ -2453,11 +2485,11 @@ fil_crypt_flush_space(
 
 	ulint number_of_pages_flushed_now = 0;
 	log_free_check();
-	uintmax_t start = ut_time_us(NULL);
+	const ib_time_monotonic_us_t start = ut_time_monotonic_us();
 
 	crypt_data->rotate_state.flush_observer->flush();
 
-	uintmax_t end = ut_time_us(NULL);
+	const ib_time_monotonic_us_t end = ut_time_monotonic_us();
 
 	number_of_pages_flushed_now = crypt_data->rotate_state.flush_observer->get_number_of_pages_flushed()
 					- number_of_pages_flushed_so_far;
@@ -3088,18 +3120,11 @@ encrypted, or corrupted.
 
 @param[in,out]	page		page frame (checksum is temporarily modified)
 @param[in]	page_size	page size
-@param[in]	space		tablespace identifier
-@param[in]	offset		page number
 @return true if page is encrypted AND OK, false otherwise */
 bool
-fil_space_verify_crypt_checksum(
-	byte* 		page,
-	ulint		page_size,
-	bool		is_zip_compressed,
-	bool                    is_new_schema_compressed, 
-	ulint			offset) {
-
-
+fil_space_verify_crypt_checksum(byte *page, ulint page_size,
+				bool is_zip_compressed,
+				bool is_new_schema_compressed) {
 	if (is_new_schema_compressed) {
 		page_size = static_cast<uint16_t>(mach_read_from_2(page + FIL_PAGE_COMPRESS_SIZE_V1));
 	}
@@ -3144,3 +3169,201 @@ fil_space_verify_crypt_checksum(
 
 	return(encrypted);
 }
+
+redo_log_key*
+redo_log_keys::load_latest_key(THD *thd, bool generate) {
+	size_t klen = 0;
+	char*   key_type = NULL;
+	byte*   rkey = NULL;
+
+	if (my_key_fetch(PERCONA_REDO_KEY_NAME, &key_type, NULL,
+			 reinterpret_cast<void **>(&rkey), &klen) ||
+	    rkey == NULL || strncmp(key_type, "AES", 4) != 0) {
+		/* There is no key yet, we'll try to generate one */
+		my_free(rkey);
+		if (!generate) {
+			return(NULL);
+		}
+		return(generate_and_store_new_key(thd));
+	}
+
+
+	uint       version = 0;
+	byte*       rkey2 = NULL;
+	size_t     klen2 = 0;
+	const bool err =
+	    (parse_system_key(rkey, klen, &version, &rkey2, &klen2) ==
+	     reinterpret_cast<uchar *>(NullS));
+	if (err) {
+		my_free(rkey);
+		my_free(rkey2);
+		my_free(key_type);
+		return(NULL);
+	}
+
+	ut_ad(klen2 == ENCRYPTION_KEY_LEN);
+
+	key_iterator it = m_keys.find(version);
+
+	if (it != m_keys.end() && it->second.present) {
+		ut_ad(memcmp(it->second.key, rkey2, 32) == 0);
+		my_free(rkey);
+		my_free(rkey2);
+		my_free(key_type);
+		return(&it->second);
+	}
+
+	redo_log_key* rk = &m_keys[version];
+	rk->version = version;
+	rk->present = true;
+	memcpy(rk->key, rkey2, ENCRYPTION_KEY_LEN);
+
+	my_free(rkey);
+	my_free(rkey2);
+	my_free(key_type);
+
+	return(rk);
+}
+
+redo_log_key*
+redo_log_keys::load_key_version(THD* thd, uint version) {
+	key_iterator it = m_keys.find(version);
+
+	if (it != m_keys.end() && it->second.present) {
+		return(&it->second);
+	}
+
+	size_t klen = 0;
+	char*  key_type = NULL;
+	byte*  rkey = NULL;
+
+	std::ostringstream percona_redo_with_ver_ss;
+	percona_redo_with_ver_ss << PERCONA_REDO_KEY_NAME << ':' << version;
+	if (my_key_fetch(percona_redo_with_ver_ss.str().c_str(), &key_type,
+			 NULL, reinterpret_cast<void **>(&rkey), &klen) ||
+	    rkey == NULL || strncmp(key_type, "AES", 4) != 0) {
+		my_free(rkey);
+		my_free(key_type);
+		ib::error() << "Failed to load redo key version " << version;
+		if (thd) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Failed to load redo key version %u",
+				    version);
+		}
+		return(NULL);
+	}
+
+	ut_ad(klen == ENCRYPTION_KEY_LEN);
+
+	redo_log_key *rk = &m_keys[version];
+	rk->version = version;
+	rk->present = true;
+	memcpy(rk->key, rkey, ENCRYPTION_KEY_LEN);
+
+	my_free(rkey);
+	my_free(key_type);
+
+	return(rk);
+}
+
+redo_log_key*
+redo_log_keys::generate_and_store_new_key(THD* thd) {
+	if (my_key_generate(PERCONA_REDO_KEY_NAME, "AES", NULL,
+			    ENCRYPTION_KEY_LEN)) {
+		ib::error() << "Redo log key generation failed.";
+		if (thd) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Redo log key generation failed.");
+		}
+		return(NULL);
+	}
+
+	char*  redo_key_type = NULL;
+	byte*  rkey = NULL;
+	size_t klen = 0;
+
+	if (my_key_fetch(PERCONA_REDO_KEY_NAME, &redo_key_type, NULL,
+			 reinterpret_cast<void **>(&rkey), &klen)) {
+		ib::error() << "Couldn't fetch newly generated redo key.";
+		if (thd) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Couldn't fetch newly generated redo key.");
+		}
+		my_free(redo_key_type);
+		my_free(rkey);
+		return(NULL);
+	}
+
+	DBUG_ASSERT(rkey != NULL);
+	byte*  rkey2 = NULL;
+	size_t klen2 = 0;
+	uint   version = 0;
+
+	bool err = (parse_system_key(rkey, klen, &version, &rkey2, &klen2) ==
+		    reinterpret_cast<uchar *>(NullS));
+
+	ut_ad(klen2 == ENCRYPTION_KEY_LEN);
+
+	if (err) {
+		ib::error() << "Couldn't parse system key: " << rkey;
+		if (thd) {
+			ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_ERROR,
+				    "Couldn't parse system key: %s", rkey);
+		}
+		my_free(redo_key_type);
+		my_free(rkey);
+		return(NULL);
+	}
+
+	redo_log_key* rk = &m_keys[version];
+	rk->version = version;
+	memcpy(rk->key, rkey2, ENCRYPTION_KEY_LEN);
+	rk->present = true;
+
+	my_free(redo_key_type);
+	my_free(rkey);
+	my_free(rkey2);
+
+	return(rk);
+}
+
+redo_log_key*
+redo_log_keys::generate_new_key_without_storing() {
+	ut_ad(m_keys.empty());
+	Encryption::random_value(reinterpret_cast<byte *>(&m_keys[0].key));
+	return(&m_keys[0]);
+}
+
+bool
+redo_log_keys::store_used_keys() {
+	/* This is a for loop, but it really only should store a key
+	   with current version 0 */
+	for (key_iterator it = m_keys.begin(); it != m_keys.end(); ++it) {
+		if (!it->second.persisted()) {
+			ut_ad(it->first == 0);
+			if (my_key_store(PERCONA_REDO_KEY_NAME, "AES", NULL,
+					 it->second.key,
+					 ENCRYPTION_KEY_LEN)) {
+				return(false);
+			}
+		}
+	}
+
+	return(true);
+}
+
+void
+redo_log_keys::unload_old_keys() {
+	if (m_keys.size() == 0) {
+		return;
+	}
+	redo_log_key* last = &(--m_keys.end())->second;
+	for (key_iterator it = m_keys.begin(); it != m_keys.end(); ++it) {
+		if (&it->second != last) {
+			it->second.present = false;
+			memset(it->second.key, 0, ENCRYPTION_KEY_LEN);
+		}
+	}
+}
+
+redo_log_keys redo_log_key_mgr;

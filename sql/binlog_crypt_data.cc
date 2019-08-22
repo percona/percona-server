@@ -112,7 +112,8 @@ bool Binlog_crypt_data::init_with_loaded_key(uint sch, const uchar* nonce)
 {
   scheme= sch;
 #ifdef MYSQL_SERVER
-  DBUG_ASSERT(key != NULL && nonce != NULL);
+  DBUG_ASSERT(key != NULL);
+  DBUG_ASSERT(nonce != NULL);
   memcpy(this->nonce, nonce, BINLOG_NONCE_LENGTH);
 #endif
   enabled= true;
@@ -144,7 +145,8 @@ bool Binlog_crypt_data::init(uint sch, uint kv, const uchar* nonce)
 
 void Binlog_crypt_data::set_iv(uchar* iv, uint32 offs) const
 {
-  DBUG_ASSERT(key != NULL && key_length == 16);
+  DBUG_ASSERT(key != NULL);
+  DBUG_ASSERT(key_length == 16);
 
   uchar iv_plain[BINLOG_IV_LENGTH];
   memcpy(iv_plain, nonce, BINLOG_NONCE_LENGTH);

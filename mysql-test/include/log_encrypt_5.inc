@@ -46,7 +46,7 @@ let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
 
---let $restart_parameters= restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 $KEYRING_PLUGIN_OPT
+--let $restart_parameters= restart: --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --datadir=$MYSQLD_DATADIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 $KEYRING_PLUGIN_OPT --loose-keyring_file_data=$MYSQL_TMP_DIR/mydummy_keyring
 --replace_regex /\.dll/.so/
 --source include/start_mysqld_no_echo.inc
 

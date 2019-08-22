@@ -506,8 +506,7 @@ dict_build_tablespace_for_table(
 
 		/* Determine the tablespace flags. */
 		bool	is_temp = dict_table_is_temporary(table);
-		bool	is_encrypted = (srv_tmp_tablespace_encrypt && is_temp)
-					|| dict_table_is_encrypted(table);
+		bool	is_encrypted = dict_table_is_encrypted(table);
 		bool	has_data_dir = DICT_TF_HAS_DATA_DIR(table->flags);
 		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags,
 							 is_temp,
@@ -1202,7 +1201,8 @@ dict_drop_index_tree_in_mem(
 	tablespace and the .ibd file is missing do nothing,
 	else free the all the pages */
 	if (root_page_no != FIL_NULL && found) {
-		btr_free(page_id_t(space, root_page_no), page_size);
+		btr_free(page_id_t(space, root_page_no), page_size,
+			 dict_table_is_intrinsic(index->table));
 	}
 }
 
@@ -1345,7 +1345,8 @@ dict_truncate_index_tree_in_mem(
 	tablespace objects. */
 
 	if (truncate) {
-		btr_free(page_id_t(space, root_page_no), page_size);
+		btr_free(page_id_t(space, root_page_no), page_size,
+			 dict_table_is_intrinsic(index->table));
 	}
 
 	mtr_start(&mtr);
@@ -2887,7 +2888,7 @@ InnoDB system table.
 @return	error code or DB_SUCCESS */
 dberr_t
 dict_create_add_zip_dict_reference(
-	ulint		table_id,	/*!< in: table id */
+	table_id_t	table_id,	/*!< in: table id */
 	ulint		column_pos,	/*!< in: column position */
 	ulint		dict_id,	/*!< in: dict id */
 	trx_t*		trx)		/*!< in/out: transaction */
@@ -2913,10 +2914,10 @@ dict_create_add_zip_dict_reference(
 @return	error code or DB_SUCCESS */
 dberr_t
 dict_create_get_zip_dict_id_by_reference(
-	ulint	table_id,	/*!< in: table id */
-	ulint	column_pos,	/*!< in: column position */
-	ulint*	dict_id,	/*!< out: dict id */
-	trx_t*	trx)		/*!< in/out: transaction */
+	table_id_t	table_id,	/*!< in: table id */
+	ulint		column_pos,	/*!< in: column position */
+	ulint*		dict_id,	/*!< out: dict id */
+	trx_t*		trx)		/*!< in/out: transaction */
 {
 	ut_ad(dict_id);
 
@@ -3247,8 +3248,8 @@ the data dictionary tables in the database.
 @return	error code or DB_SUCCESS */
 dberr_t
 dict_create_remove_zip_dict_references_for_table(
-	ulint	table_id,	/*!< in: table id */
-	trx_t*	trx)		/*!< in/out: transaction */
+	table_id_t	table_id,	/*!< in: table id */
+	trx_t*		trx)		/*!< in/out: transaction */
 {
 	pars_info_t* info = pars_info_create();
 

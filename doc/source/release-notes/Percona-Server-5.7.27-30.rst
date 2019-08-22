@@ -33,7 +33,9 @@ Bugs Fixed
 
 - A multi-table ``DELETE`` with a foreign key breaks replication. Bug fixed :psbug:`3845`.
 
+
 - A ``TRUNCATE`` with any table and interfacing with Adaptive Hash Index (AHI) can cause server stalls due to the interaction with AHI, whether the AHI is enabled or not. Bug fixed :psbug:`5576`. (Upstream :mysqlbug:`94610`)
+
 
 - In specific configurations and with :variable:`log_slow_verbosity` set to log InnoDB statistics, memory usage increases while running a stored procedure.  Bug fixed :psbug:`5581`.
 

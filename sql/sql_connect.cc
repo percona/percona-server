@@ -162,7 +162,7 @@ void free_user_stats(USER_STATS* user_stats)
 }
 
 /* Free all memory for a my_hash table with THREAD_STATS entries */
-void free_thread_stats(THREAD_STATS* thread_stats)
+static void free_thread_stats(THREAD_STATS* thread_stats)
 {
   my_free((char *) thread_stats);
 }
@@ -198,8 +198,8 @@ void init_user_stats(USER_STATS *user_stats,
   DBUG_PRINT("info",
              ("Add user_stats entry for user %s - priv_user %s",
               user, priv_user));
-  strncpy(user_stats->user, user, sizeof(user_stats->user));
-  strncpy(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
+  my_strncpy_trunc(user_stats->user, user, sizeof(user_stats->user));
+  my_strncpy_trunc(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
 
   user_stats->user_len=               strlen(user_stats->user);
   user_stats->priv_user_len=          strlen(user_stats->priv_user);
@@ -313,7 +313,7 @@ void init_global_thread_stats(void)
 		   (my_hash_free_key) free_thread_stats, 0,
 		   key_memory_userstat_thread_stats))
   {
-    sql_print_error("Initializing global_client_stats failed.");
+    sql_print_error("Initializing global_thread_stats failed.");
     exit(1);
   }
 }

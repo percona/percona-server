@@ -32,7 +32,7 @@ struct Valid_percona_system_key
 */
 struct Valid_percona_system_key valid_percona_system_keys[] = { {PERCONA_BINLOG_KEY_NAME, 16, FALSE},
                                                                 {PERCONA_INNODB_KEY_NAME, 32, TRUE},
-								{PERCONA_REDO_KEY_NAME, 16, FALSE}};
+								{PERCONA_REDO_KEY_NAME, 32, FALSE}};
 const size_t valid_percona_system_keys_size = array_elements(valid_percona_system_keys);
 
 my_bool is_valid_percona_system_key(const char *key_name, size_t *key_length)

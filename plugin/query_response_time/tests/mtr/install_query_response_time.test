@@ -16,6 +16,8 @@ eval INSTALL PLUGIN QUERY_RESPONSE_TIME_AUDIT SONAME '$PLUGIN_QUERY_RESPONSE_TIM
 --source include/assert.inc
 
 UNINSTALL PLUGIN QUERY_RESPONSE_TIME_AUDIT;
+# disconnect required after https://github.com/mysql/mysql-server/commit/6a893b8b
+--source include/disconnect_connections.inc
 
 --let $assert_text= QUERY_RESPONSE_TIME_AUDIT must not be present after uninstall
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = \'QUERY_RESPONSE_TIME_AUDIT\']" = 0

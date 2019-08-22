@@ -2200,10 +2200,10 @@ dict_create_zip_dict(
 @retval	DB_RECORD_NOT_FOUND	if not found */
 dberr_t
 dict_get_dictionary_id_by_key(
-	ulint	table_id,	/*!< in: table id */
-	ulint	column_pos,	/*!< in: column position */
-	ulint*	dict_id,	/*!< out: zip_dict id */
-	bool	dict_locked);	/*!< in: true if data dictionary locked */
+	table_id_t	table_id,	/*!< in: table id */
+	ulint		column_pos,	/*!< in: column position */
+	ulint*		dict_id,	/*!< out: zip_dict id */
+	bool		dict_locked);	/*!< in: true if data dictionary locked */
 
 
 /** Get compression dictionary info (name and data) for the given id.
@@ -2213,7 +2213,7 @@ Must be freed with mem_free().
 @retval	DB_RECORD_NOT_FOUND	if not found */
 dberr_t
 dict_get_dictionary_info_by_id(
-	ulint	dict_id,	/*!< in: table name */
+	ulint	dict_id,	/*!< in: dictionary id */
 	char**	name,		/*!< out: dictionary name */
 	ulint*	name_len,	/*!< out: dictionary name length*/
 	char**	data,		/*!< out: dictionary data */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,14 @@ static pax_msg *init_pax_msg(pax_msg *p, int refcnt, synode_no synode, site_def 
 	p->to = VOID_NODE_NO;
 	p->op = initial_op;
 	init_ballot(&p->reply_to, 0, nodeno);
-	init_ballot(&p->proposal, 0, nodeno);
+	/*
+	 -1 ensures ballot (-1,nodeno) is less than any ballot used by any
+	 proposer.
+	 Leader will use reserved ballot (0,_) for its initial 2-phase Paxos
+	 round.
+	 Remaining rounds will use ballot (1+,_) and the vanilla 3-phase Paxos.
+	 */
+	init_ballot(&p->proposal, -1, nodeno);
 	p->synode = synode;
 	p->msg_type = normal;
 	p->receivers = NULL;
@@ -92,9 +99,15 @@ pax_msg *clone_pax_msg_no_app(pax_msg *msg)
 
 pax_msg *clone_pax_msg(pax_msg *msg)
 {
-	pax_msg * p = clone_pax_msg_no_app(msg);
-	copy_app_data(&p->a, msg->a);
-	return p;
+  pax_msg * p = clone_pax_msg_no_app(msg);
+  /*
+    Need to increase the refcnt so that the msg is deleted
+    in safe_app_data_copy if there is a failure.
+  */
+  p->refcnt = 1;
+  safe_app_data_copy(&p, msg->a);
+  if (p) p->refcnt = 0;
+  return p;
 }
 
 

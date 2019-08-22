@@ -1192,17 +1192,28 @@ btr_create(
 /** Free a B-tree except the root page. The root page MUST be freed after
 this by calling btr_free_root.
 @param[in,out]	block		root page
-@param[in]	log_mode	mtr logging mode */
+@param[in]	log_mode	mtr logging mode
+@param[in]	is_ahi_allowed	false for intrinsic tables because AHI
+				is disallowed. See dict_index_t->disable_ahi,
+				true for other tables */
 static
 void
 btr_free_but_not_root(
 	buf_block_t*	block,
-	mtr_log_t	log_mode)
+	mtr_log_t	log_mode,
+	bool		is_ahi_allowed)
+
 {
 	ibool	finished;
 	mtr_t	mtr;
 
 	ut_ad(page_is_root(block->frame));
+	bool ahi = false;
+	if (is_ahi_allowed) {
+		ut_ad(mutex_own(&dict_sys->mutex));
+		ahi = btr_search_enabled;
+	}
+
 leaf_loop:
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, log_mode);
@@ -1227,7 +1238,7 @@ leaf_loop:
 	fsp0fsp. */
 
 	finished = fseg_free_step(root + PAGE_HEADER + PAGE_BTR_SEG_LEAF,
-				  true, &mtr);
+				  ahi, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -1253,7 +1264,7 @@ top_loop:
 #endif /* UNIV_BTR_DEBUG */
 
 	finished = fseg_free_step_not_header(
-		root + PAGE_HEADER + PAGE_BTR_SEG_TOP, true, &mtr);
+		root + PAGE_HEADER + PAGE_BTR_SEG_TOP, ahi, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -1281,7 +1292,7 @@ btr_free_if_exists(
 		return;
 	}
 
-	btr_free_but_not_root(root, mtr->get_log_mode());
+	btr_free_but_not_root(root, mtr->get_log_mode(), true);
 	mtr->set_named_space(page_id.space());
 	btr_free_root(root, mtr);
 	btr_free_root_invalidate(root, mtr);
@@ -1289,11 +1300,13 @@ btr_free_if_exists(
 
 /** Free an index tree in a temporary tablespace or during TRUNCATE TABLE.
 @param[in]	page_id		root page id
-@param[in]	page_size	page size */
+@param[in]	page_size	page size
+@param[in]	is_intrinsic	true for intrinsic tables else false */
 void
 btr_free(
 	const page_id_t&	page_id,
-	const page_size_t&	page_size)
+	const page_size_t&	page_size,
+	bool			is_intrinsic)
 {
 	mtr_t		mtr;
 	mtr.start();
@@ -1304,7 +1317,7 @@ btr_free(
 
 	ut_ad(page_is_root(block->frame));
 
-	btr_free_but_not_root(block, MTR_LOG_NO_REDO);
+	btr_free_but_not_root(block, MTR_LOG_NO_REDO, !is_intrinsic);
 	btr_free_root(block, &mtr);
 	mtr.commit();
 }

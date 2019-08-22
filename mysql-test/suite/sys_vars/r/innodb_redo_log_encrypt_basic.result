@@ -1,47 +1,51 @@
 SET @start_global_value = @@global.innodb_redo_log_encrypt;
 SELECT @start_global_value;
 @start_global_value
-off
+OFF
 select @@global.innodb_redo_log_encrypt in (0, 1);
 @@global.innodb_redo_log_encrypt in (0, 1)
 1
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'off'
+Warning	1292	Truncated incorrect DOUBLE value: 'OFF'
 select @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 select @@session.innodb_redo_log_encrypt;
 ERROR HY000: Variable 'innodb_redo_log_encrypt' is a GLOBAL variable
 show global variables like 'innodb_redo_log_encrypt';
 Variable_name	Value
-innodb_redo_log_encrypt	off
+innodb_redo_log_encrypt	OFF
 show session variables like 'innodb_redo_log_encrypt';
 Variable_name	Value
-innodb_redo_log_encrypt	off
+innodb_redo_log_encrypt	OFF
 select * from performance_schema.global_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_redo_log_encrypt	off
+innodb_redo_log_encrypt	OFF
 select * from performance_schema.session_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_redo_log_encrypt	off
+innodb_redo_log_encrypt	OFF
 set global innodb_redo_log_encrypt='MASTER_KEY';
+Warnings:
+Warning	11008	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 set global innodb_redo_log_encrypt='KEYRING_KEY';
+Warnings:
+Warning	11008	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 select * from performance_schema.global_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_redo_log_encrypt	keyring_key
+innodb_redo_log_encrypt	OFF
 select * from performance_schema.session_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_redo_log_encrypt	keyring_key
+innodb_redo_log_encrypt	OFF
 set @@global.innodb_redo_log_encrypt=0;
 select @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF
 select * from performance_schema.global_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_redo_log_encrypt	off
+innodb_redo_log_encrypt	OFF
 select * from performance_schema.session_variables where variable_name='innodb_redo_log_encrypt';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_redo_log_encrypt	off
+innodb_redo_log_encrypt	OFF
 set session innodb_redo_log_encrypt='some';
 ERROR HY000: Variable 'innodb_redo_log_encrypt' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_redo_log_encrypt='some';
@@ -50,6 +54,8 @@ set global innodb_redo_log_encrypt=1.1;
 ERROR 42000: Incorrect argument type to variable 'innodb_redo_log_encrypt'
 set global innodb_redo_log_encrypt='foo';
 ERROR 42000: Variable 'innodb_redo_log_encrypt' can't be set to the value of 'foo'
+set global innodb_redo_log_encrypt=3;
+ERROR 42000: Variable 'innodb_redo_log_encrypt' can't be set to the value of '3'
 set global innodb_redo_log_encrypt=-2;
 ERROR 42000: Variable 'innodb_redo_log_encrypt' can't be set to the value of '-2'
 set global innodb_redo_log_encrypt=1e1;
@@ -59,4 +65,4 @@ ERROR 42000: Variable 'innodb_redo_log_encrypt' can't be set to the value of '5'
 SET @@global.innodb_redo_log_encrypt = @start_global_value;
 SELECT @@global.innodb_redo_log_encrypt;
 @@global.innodb_redo_log_encrypt
-off
+OFF

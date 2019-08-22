@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -362,8 +362,15 @@ bool SELECT_LEX::prepare(THD *thd)
 
   sj_candidates= NULL;
 
+  /*
+    When reaching the top-most query block, or the next-to-top query block for
+    the SQL command SET and for SP instructions (indicated with SQLCOM_END),
+    apply local transformations to this query block and all underlying query
+    blocks.
+  */
   if (outer_select() == NULL ||
-      (parent_lex->sql_command == SQLCOM_SET_OPTION &&
+      ((parent_lex->sql_command == SQLCOM_SET_OPTION ||
+       parent_lex->sql_command == SQLCOM_END) &&
        outer_select()->outer_select() == NULL))
   {
     /*
@@ -2445,7 +2452,22 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
           is_distinct() ||
           is_ordered() ||
           get_table_list()->next_local != NULL))
+    {
       order_list.push_back(&derived_select->order_list);
+      /*
+        If at outer-most level (not within another derived table), ensure
+        the ordering columns are marked in read_set, since columns selected
+        from derived tables are not marked in initial resolving.
+      */
+      if (!thd->derived_tables_processing)
+      {
+        Mark_field mf(thd->mark_used_columns);
+        for (ORDER *o = derived_select->order_list.first; o != NULL;
+             o = o->next)
+          o->item[0]->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
+                           pointer_cast<uchar *>(&mf));
+      }
+    }
     else
     {
       derived_select->empty_order_list(this);

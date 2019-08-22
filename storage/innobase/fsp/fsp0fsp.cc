@@ -919,7 +919,7 @@ fsp_header_fill_encryption_info(
 
 	/* Write master key id. */
 	mach_write_to_4(ptr, key_version);
-	ptr += sizeof(ulint);
+	ptr += 4;
 
 	/* Write server uuid. */
 	memcpy(ptr, Encryption::uuid, ENCRYPTION_SERVER_UUID_LEN);
@@ -1139,7 +1139,8 @@ fsp_enable_encryption(
 
 	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 
-	if (!fsp_header_fill_encryption_info(space->encryption_key, space->encryption_iv, encrypt_info)) {
+	if (!fsp_header_fill_encryption_info(
+		space->encryption_key, space->encryption_iv, encrypt_info)) {
 		return(false);
 	}
 
@@ -1161,12 +1162,17 @@ fsp_enable_encryption(
 			 space->flags, MLOG_4BYTES, &mtr);
 
 	ulint offset = fsp_header_get_encryption_offset(page_size);
-	ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
+	ut_ad(offset != 0);
+	ut_ad(offset < UNIV_PAGE_SIZE);
 
 	mlog_write_string(page + offset,
 			  encrypt_info,
 			  ENCRYPTION_INFO_SIZE_V2,
 			  &mtr);
+
+	fsp_flags_set_encryption(space->flags);
+	mlog_write_ulint(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS,
+			 space->flags, MLOG_4BYTES, &mtr);
 
 	mtr_commit(&mtr);
 

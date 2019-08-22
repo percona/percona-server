@@ -465,23 +465,36 @@ create_log_files(
 	ut_a(fil_validate());
 	ut_a(log_space != NULL);
 
-      /* Once the redo log is set to be encrypted,
-        initialize encryption information. */
-       if (srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF) {
-               if (!Encryption::check_keyring()) {
-                       ib::error()
-                               << "Redo log encryption is enabled,"
-                               << " but keyring plugin is not loaded.";
+	/* Once the redo log is set to be encrypted,
+	   initialize encryption information. */
+	if (srv_redo_log_encrypt != REDO_LOG_ENCRYPT_OFF) {
+		if (!Encryption::check_keyring()) {
+			ib::error()
+				<< "Redo log encryption is enabled,"
+				<< " but keyring plugin is not loaded.";
 
-                       return(DB_ERROR);
-               }
+			return(DB_ERROR);
+		}
 
-               log_space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
-               err = fil_set_encryption(log_space->id,
-                                        Encryption::AES,
-                                        NULL,
-                                        NULL);
-               ut_ad(err == DB_SUCCESS);
+		Encryption::Type alg = srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK
+		       ? Encryption::KEYRING : Encryption::AES;
+
+		log_space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+
+		redo_log_key* mkey = redo_log_key_mgr.generate_new_key_without_storing();
+		err = fil_set_encryption(log_space->id,
+					 alg,
+					 reinterpret_cast<byte*>(mkey->key),
+					 NULL);
+
+		if (err != DB_SUCCESS) {
+			ib::error() << "Failed to encrypt redo log tablespace.";
+			return(DB_ERROR);
+		}
+
+		log_space->encryption_redo_key = mkey;
+		log_space->encryption_key_version = REDO_LOG_ENCRYPT_NO_VERSION;
+		ut_ad(err == DB_SUCCESS);
        }
 
 
@@ -524,8 +537,8 @@ create_log_files(
 	if redo log is set with encryption. */
 	if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags)) {
 		if (!log_write_encryption(log_space->encryption_key,
-					  log_space->encryption_iv
-					  )) {
+					  log_space->encryption_iv,
+					  static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt))) {
 			return(DB_ERROR);
 		}
 	}

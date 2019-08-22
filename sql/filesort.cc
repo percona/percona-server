@@ -428,6 +428,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     if (num_rows == HA_POS_ERROR)
       goto err;
   }
+  DEBUG_SYNC(thd, "after_find_all_keys");
 
   num_chunks= static_cast<size_t>(my_b_tell(&chunk_file)) /
     sizeof(Merge_chunk);

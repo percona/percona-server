@@ -235,10 +235,9 @@ private:
 
 public:
 
-  void aggregate_status_stats(const STATUS_VAR *status_vars,
-                              bool already_aggregated)
+  void aggregate_status_stats(const STATUS_VAR *status_vars)
   {
-    m_status_stats.aggregate_from(status_vars, already_aggregated);
+    m_status_stats.aggregate_from(status_vars);
   }
 
   /**

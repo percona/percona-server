@@ -65,6 +65,7 @@ using std::min;
 using std::max;
 
 ulong kill_idle_transaction_timeout= 0;
+PSI_mutex_key key_LOCK_bloom_filter;
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -2769,26 +2770,6 @@ const char *get_client_host(THD *client)
     client->security_context()->host().length ?
     client->security_context()->host().str : "";
 }
-
-char *THD::get_client_host_port(THD *client)
-{
-  Security_context *client_sctx= client->security_context();
-  char *client_host= NULL;
-
-  if (client->peer_port && (client_sctx->host().length
-                            || client_sctx->ip().length) &&
-      security_context()->host_or_ip().length)
-  {
-    if ((client_host= (char *) this->alloc(LIST_PROCESS_HOST_LEN+1)))
-      my_snprintf((char *) client_host, LIST_PROCESS_HOST_LEN,
-                  "%s:%u", client_sctx->host_or_ip().str, client->peer_port);
-  }
-  else
-    client_host= this->mem_strdup(get_client_host(client));
-
-  return client_host;
-}
-
 
 /*
   Register an item tree tree transformation, performed by the query

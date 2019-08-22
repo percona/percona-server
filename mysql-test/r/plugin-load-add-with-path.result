@@ -39,8 +39,8 @@ COUNT(*)
 # Test for loading plugins with 'INSTALL PLUGIN'
 ###
 # restart:PLUGIN_AUTH_OPT
-INSTALL PLUGIN example SONAME 'EXAMPLE_PLUGIN';
-INSTALL PLUGIN example SONAME 'EXAMPLE_PLUGIN_DIR/EXAMPLE_PLUGIN';
+INSTALL PLUGIN example SONAME 'MODIFIED_EXAMPLE_PLUGIN';
+INSTALL PLUGIN example SONAME 'MYSQL_TMP_DIR/MODIFIED_EXAMPLE_PLUGIN';
 ERROR HY000: No paths allowed for shared library
 INSTALL PLUGIN test_plugin_server SONAME 'auth_test_plugin.so';
 INSTALL PLUGIN cleartext_plugin_server SONAME 'auth_test_plugin.so';

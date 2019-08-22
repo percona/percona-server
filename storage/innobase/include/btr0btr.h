@@ -346,11 +346,13 @@ btr_free_if_exists(
 
 /** Free an index tree in a temporary tablespace or during TRUNCATE TABLE.
 @param[in]	page_id		root page id
-@param[in]	page_size	page size */
+@param[in]	page_size	page size
+@param[in]	is_intrinsic	true for intrinsic tables else false */
 void
 btr_free(
 	const page_id_t&	page_id,
-	const page_size_t&	page_size);
+	const page_size_t&	page_size,
+	bool			is_intrinsic);
 
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts

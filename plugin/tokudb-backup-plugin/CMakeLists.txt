@@ -10,6 +10,13 @@ int main() { return 0; }
 " TOKUDB_OK)
 ENDIF()
 
+IF (NOT DEFINED WITH_TOKUDB_BACKUP_PLUGIN)
+  IF (WITHOUT_TOKUDB_BACKUP_PLUGIN)
+    MESSAGE(STATUS "Skipping tokudb-backup-plugin")
+    RETURN()
+  ENDIF ()
+ENDIF ()
+
 include(CheckSymbolExists)
 check_symbol_exists(O_DIRECT "fcntl.h" HAVE_O_DIRECT)
 check_symbol_exists(CLOCK_REALTIME "time.h" HAVE_CLOCK_MONOTONIC)

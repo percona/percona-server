@@ -21,9 +21,9 @@ Bugs Fixed
 
 - Parallel doublewrite buffer writes must crash the server on an I/O error occurs. Bug fixed :psbug:`5678`.
 
-- On a server with two million or more tables using foreign keys and AUTOINC columns, the shutdown may take a measurable length of time. Bug fixed :psbug:`5639`. (Upstream :mysql:`95895`)
+- On a server with two million or more tables using foreign keys and AUTOINC columns, the shutdown may take a measurable length of time. Bug fixed :psbug:`5639`. (Upstream :mysqlbug:`95895`)
 
-- If large pages are enabled on the MySQL side, the maximum size for :variable:`innodb_buffer_pool_chunk_size` is effectively limited to 4GB. Bug fixed :psbug:`5517`. (Upstream :mysql:`94747`)
+- If large pages are enabled on the MySQL side, the maximum size for :variable:`innodb_buffer_pool_chunk_size` is effectively limited to 4GB. Bug fixed :psbug:`5517`. (Upstream :mysqlbug:`94747`)
 
 - The TokuDB hot backup library continually dumps TRACE information to the Server error log. The user cannot enable or disable the dump of this information. Bug fixed :psbug:`4850`.
 
@@ -33,7 +33,9 @@ Bugs Fixed
 
 - A multi-table ``DELETE`` with a foreign key breaks replication. Bug fixed :psbug:`3845`.
 
-- A ``TRUNCATE`` with any table and interfacing with Adaptive Hash Index (AHI) can cause server stalls due to the interaction with AHI, whether the AHI is enabled or not. Bug fixed :psbug:`5576`. (Upstream :mysql:`94610`)
+
+- A ``TRUNCATE`` with any table and interfacing with Adaptive Hash Index (AHI) can cause server stalls due to the interaction with AHI, whether the AHI is enabled or not. Bug fixed :psbug:`5576`. (Upstream :mysqlbug:`94610`)
+
 
 - In specific configurations and with :variable:`log_slow_verbosity` set to log InnoDB statistics, memory usage increases while running a stored procedure.  Bug fixed :psbug:`5581`.
 

@@ -7,10 +7,10 @@ CREATE DATABASE tde_db;
 USE tde_db;
 SET GLOBAL innodb_redo_log_encrypt = MASTER_KEY;
 Warnings:
-Warning	49014	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
+Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	49014	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
+Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t4;

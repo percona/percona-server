@@ -24004,7 +24004,7 @@ innodb_encrypt_tables_validate(
 	bool legit_value= false;
 	uint use = 0;
 	for (;
-	    use < array_elements(srv_encrypt_tables_names);
+	    use < array_elements(srv_encrypt_tables_names) - 1;
 	    use++) {
 		if (!innobase_strcasecmp(
 		    innodb_encrypt_tables_input,
@@ -24045,7 +24045,7 @@ innodb_redo_log_encrypt_validate(
 
 	bool legit_value = false;
 	uint use = 0;
-	for (; use < array_elements(redo_log_encrypt_names); use++) {
+	for (; use < array_elements(redo_log_encrypt_names) - 1; use++) {
 		if (innobase_strcasecmp(redo_log_encrypt_input,
 					redo_log_encrypt_names[use]) == 0) {
 			legit_value = true;

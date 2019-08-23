@@ -50,6 +50,8 @@ set session innodb_redo_log_encrypt='some';
 ERROR HY000: Variable 'innodb_redo_log_encrypt' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_redo_log_encrypt='some';
 ERROR HY000: Variable 'innodb_redo_log_encrypt' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_redo_log_encrypt=NULL;
+ERROR 42000: Variable 'innodb_redo_log_encrypt' can't be set to the value of 'NULL'
 set global innodb_redo_log_encrypt=1.1;
 ERROR 42000: Incorrect argument type to variable 'innodb_redo_log_encrypt'
 set global innodb_redo_log_encrypt='foo';

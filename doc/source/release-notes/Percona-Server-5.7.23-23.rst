@@ -81,6 +81,9 @@ Bugs Fixed
   :psbug:`3702`.
 * Setting the global variable :variable:`version_suffix` to NULL could
   lead to a server crash. Bug fixed :psbug:`4785`.
+* When more space was added to the data partition after the error that the disk
+  partition was full, |MyRocks| could ignore data update commands. Bug fixed
+  :psbug:`4706`.
 
 Other Bugs Fixed
 ================

@@ -2521,8 +2521,6 @@ void fil_crypt_thread() {
   //#ifdef UNIV_PFS_THREAD
   // pfs_register_thread(page_cleaner_thread_key);
   //#endif
-  my_thread_init();
-
   THD *thd = create_thd(false, true, true, 0);
 
   mutex_enter(&fil_crypt_threads_mutex);
@@ -2653,7 +2651,6 @@ void fil_crypt_thread() {
 
   thr.thd = nullptr;
   destroy_thd(thd);
-  my_thread_end();
 }
 
 /*********************************************************************
@@ -2672,9 +2669,10 @@ void fil_crypt_set_thread_cnt(const uint new_cnt) {
     uint add = new_cnt - srv_n_fil_crypt_threads;
     srv_n_fil_crypt_threads = new_cnt;
     for (uint i = 0; i < add; i++) {
-      os_thread_create(PSI_NOT_INSTRUMENTED, fil_crypt_thread);
+      auto thread = os_thread_create(PSI_NOT_INSTRUMENTED, fil_crypt_thread);
       ib::info() << "Creating #" << i + 1 << " encryption thread"
                  << " total threads " << new_cnt << ".";
+      thread.start();
     }
   } else if (new_cnt < srv_n_fil_crypt_threads) {
     srv_n_fil_crypt_threads = new_cnt;

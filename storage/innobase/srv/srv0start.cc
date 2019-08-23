@@ -1394,10 +1394,11 @@ dberr_t srv_undo_tablespaces_upgrade() {
   for (const auto space_id : *trx_sys_undo_spaces) {
     undo::Tablespace undo_space(space_id);
 
-    fil_space_close(undo_space.id());
-
-    os_file_delete_if_exists(innodb_data_file_key, undo_space.file_name(),
-                             NULL);
+    dberr_t err =
+        fil_delete_tablespace(undo_space.id(), BUF_REMOVE_ALL_NO_WRITE);
+    if (err != DB_SUCCESS) {
+      ib::warn(ER_XB_UNDO_DELETE_FAILURE, undo_space.file_name());
+    }
   }
 
   /* Remove the tracking of these undo tablespaces from TRX_SYS page and

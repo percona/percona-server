@@ -19271,6 +19271,9 @@ ER_PARALLEL_DOUBLEWRITE_WRITE_ERROR
 ER_XB_MSG_6
   eng "Key rotation of encrypted session temporary tablespace %s failed"
 
+ER_XB_UNDO_DELETE_FAILURE
+  eng "Deletion of 5.7 undo tablespace %s failed"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

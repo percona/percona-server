@@ -24572,7 +24572,7 @@ static int innodb_redo_log_encrypt_validate(THD *thd, SYS_VAR *var, void *save,
 
   bool legit_value = false;
   uint use = 0;
-  for (; use < array_elements(redo_log_encrypt_names); use++) {
+  for (; use < array_elements(redo_log_encrypt_names) - 1; use++) {
     if (innobase_strcasecmp(redo_log_encrypt_input,
                             redo_log_encrypt_names[use]) == 0) {
       legit_value = true;

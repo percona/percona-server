@@ -2732,6 +2732,7 @@ void fil_crypt_threads_init() {
     mutex_create(LATCH_ID_FIL_CRYPT_THREADS_MUTEX, &fil_crypt_threads_mutex);
     mutex_create(LATCH_ID_FIL_CRYPT_THREADS_SET_CNT_MUTEX,
                  &fil_crypt_threads_set_cnt_mutex);
+    mutex_create(LATCH_ID_FIL_CRYPT_LIST_MUTEX, &fil_crypt_list_mutex);
 
     uint cnt = srv_n_fil_crypt_threads;
     srv_n_fil_crypt_threads = 0;
@@ -2752,6 +2753,7 @@ void fil_crypt_threads_cleanup() {
   os_event_destroy(fil_crypt_threads_event);
   mutex_free(&fil_crypt_threads_mutex);
   mutex_free(&fil_crypt_threads_set_cnt_mutex);
+  mutex_free(&fil_crypt_list_mutex);
   fil_crypt_threads_inited = false;
 }
 

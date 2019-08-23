@@ -72,6 +72,8 @@ SET GLOBAL innodb_fast_shutdown=0;
 SHOW CREATE TABLE test.tab1;
 SELECT * FROM tab1;
 
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
 --source include/shutdown_mysqld.inc
 
 --echo # Now let's test what happens when encryption key is missing and we try to start 8.0 server on 5.7 directory

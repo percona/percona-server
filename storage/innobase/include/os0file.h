@@ -355,6 +355,10 @@ static const char ENCRYPTION_KEY_MAGIC_V1[] = "lCA";
 version. */
 static const char ENCRYPTION_KEY_MAGIC_V2[] = "lCB";
 
+/** Encryption magic bytes for 5.7.28+, it's for checking the encryption information
+version. */
+static const char ENCRYPTION_KEY_MAGIC_V3[] = "lCC";
+
 static const char ENCRYPTION_KEY_MAGIC_PS_V1[] = "PSA";
 
 /** Encryption magic bytes for rotated redo log encryption, it's for checking the 
@@ -433,6 +437,9 @@ struct Encryption {
 
 		/** Version in > 5.7.11 */
 		ENCRYPTION_VERSION_2 = 1,
+
+		/** Version in > 5.7.29 */
+		ENCRYPTION_VERSION_3 = 2,
 	};
 
 	/** Default constructor */

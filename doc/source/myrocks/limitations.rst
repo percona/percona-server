@@ -96,3 +96,6 @@ You should also consider the following:
   may result in two unique rows inserted and does not generate a`DUP_ENTRY`
   error. MyRocks key encoding and comparison does not account for this
   character set attribute.
+
+*  In version 8.0.13-3 and later, MyRocks does not support `explict DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__.
+

@@ -77,6 +77,9 @@ known to be unique.
 **Group Replication**: |TokuDB| storage engine doesn't support `Group Replication
 <https://dev.mysql.com/doc/refman/8.0/en/group-replication.html>`_.
 
+As of 8.0.17, InnoDB supports `multi-valued indexes <https://dev.mysql.com/doc/refman/8.0/en/create-index.html#create-index-multi-valued>`__. TokuDB does not support this feature.
+
+
 .. _tokudb_lock_visualization:
 
 Lock Visualization in TokuDB

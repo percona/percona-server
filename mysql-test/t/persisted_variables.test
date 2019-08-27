@@ -384,7 +384,9 @@ SELECT @@global.general_log, @@global.autocommit,
 
 SELECT @@global.innodb_buffer_pool_size;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
-SET PERSIST innodb_buffer_pool_size=10*1024*1024;
+# In Percona Server, resize to 20MB instead of 10MB to stay compatible
+# with innodb_empty_free_list_algorithm=backoff
+SET PERSIST innodb_buffer_pool_size=20*1024*1024;
 SELECT @@global.innodb_buffer_pool_size;
 
 --echo # Restart server

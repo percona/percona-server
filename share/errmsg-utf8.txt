@@ -19268,6 +19268,12 @@ ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD
 ER_PARALLEL_DOUBLEWRITE_WRITE_ERROR
   eng "Parallel doublewrite buffer write failed, crashing the server to avoid data loss"
 
+ER_XB_MSG_6
+  eng "Key rotation of encrypted session temporary tablespace %s failed"
+
+ER_XB_UNDO_DELETE_FAILURE
+  eng "Deletion of 5.7 undo tablespace %s failed"
+
 #
 # End of Percona Server 8.0 server error log messages
 #
@@ -19323,6 +19329,9 @@ ER_REDO_ENCRYPTION_CANT_PARSE_KEY
 
 ER_REDO_ENCRYPTION_KEYRING
   eng "Redo log cannot be encrypted if the keyring plugin is not loaded."
+
+ER_UNDO_NO_KEYRING
+  eng "Undo log can't be encrypted if the keyring plugin is not loaded."
 
 #
 # End of Percona Server 8.0 error messages

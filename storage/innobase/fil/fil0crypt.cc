@@ -825,7 +825,11 @@ static inline void fil_crypt_read_crypt_data(fil_space_t *space) {
           buf_page_get(page_id_t(space->id, 0), page_size, RW_S_LATCH, &mtr)) {
     fil_lock_shard_by_id(space->id);
     if (!space->crypt_data) {
-      space->crypt_data = fil_space_read_crypt_data(page_size, block->frame);
+      fil_space_crypt_t *crypt_data =
+          fil_space_read_crypt_data(page_size, block->frame);
+      if (crypt_data != nullptr) {
+        space->crypt_data = crypt_data;
+      }
     }
     fil_unlock_shard_by_id(space->id);
   }
@@ -2997,6 +3001,9 @@ redo_log_key *redo_log_keys::load_latest_key(THD *thd, bool generate) {
 
   if (it != m_keys.end() && it->second.present) {
     ut_ad(memcmp(it->second.key, rkey2, ENCRYPTION_KEY_LEN) == 0);
+    my_free(rkey);
+    my_free(rkey2);
+    my_free(key_type);
     return &it->second;
   }
 

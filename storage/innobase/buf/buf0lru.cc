@@ -668,9 +668,6 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
 
     err = buf_flush_or_remove_pages(buf_pool, id, observer, flush, trx);
 
-    ut_ad(err == DB_INTERRUPTED || err == DB_FAIL ||
-          buf_pool_get_dirty_pages_count(buf_pool, id, observer) == 0);
-
     mutex_exit(&buf_pool->LRU_list_mutex);
 
     ut_ad(buf_flush_validate(buf_pool));
@@ -692,6 +689,9 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
     ut_ad(buf_flush_validate(buf_pool));
 
   } while (err == DB_FAIL);
+
+  ut_ad(err == DB_INTERRUPTED || !strict ||
+        buf_pool_get_dirty_pages_count(buf_pool, id, observer) == 0);
 }
 
 /** Remove all pages that belong to a given tablespace inside a specific

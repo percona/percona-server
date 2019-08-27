@@ -4044,7 +4044,7 @@ static void innobase_post_recover() {
       srv_undo_log_encrypt = false;
     } else {
       /* Enable encryption for UNDO tablespaces */
-      if (srv_enable_undo_encryption(true)) {
+      if (srv_enable_undo_encryption(nullptr, true)) {
         ut_ad(false);
         srv_undo_log_encrypt = false;
       }
@@ -4353,6 +4353,9 @@ bool innobase_encryption_key_rotation() {
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
     return (ret);
   }
+
+  /* Rotate encrypted session temporary tablespaces */
+  ibt::tbsp_pool->rotate_encryption_keys();
 
   my_free(master_key);
 
@@ -7417,6 +7420,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
   if (ib_table == NULL) {
+    DEBUG_SYNC_C("ha_innobase_open");
+
     mutex_enter(&dict_sys->mutex);
     ib_table = dict_table_check_if_in_cache_low(norm_name);
     if (ib_table != nullptr) {
@@ -20494,7 +20499,7 @@ static void innodb_adaptive_hash_index_update(
                       from check function */
 {
   if (*(bool *)save) {
-    btr_search_enable();
+    btr_search_enable(true);
   } else {
     btr_search_disable(true);
   }
@@ -21170,13 +21175,20 @@ static void update_innodb_undo_log_encrypt(THD *thd MY_ATTRIBUTE((unused)),
   /* There would be at least 2 UNDO tablespaces */
   ut_ad(undo::spaces->size() >= FSP_IMPLICIT_UNDO_TABLESPACES);
 
+  if (!Encryption::check_keyring()) {
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_UNDO_NO_KEYRING);
+    ib::error(ER_UNDO_NO_KEYRING);
+    return;
+  }
+
   if (srv_read_only_mode) {
     ib::error(ER_IB_MSG_1051);
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1051);
     return;
   }
 
   /* Enable encryption for UNDO tablespaces */
-  bool ret = srv_enable_undo_encryption(false);
+  bool ret = srv_enable_undo_encryption(thd, false);
 
   if (ret == false) {
     /* At this point, all UNDO tablespaces have been encrypted. */
@@ -22504,8 +22516,8 @@ static MYSQL_SYSVAR_ULONG(cleaner_max_flush_time, srv_cleaner_max_flush_time,
 static MYSQL_SYSVAR_ENUM(
     cleaner_lsn_age_factor, srv_cleaner_lsn_age_factor, PLUGIN_VAR_OPCMDARG,
     "The formula for LSN age factor for page cleaner adaptive flushing. "
-    "LEGACY: Original Oracle MySQL 5.6 formula. "
-    "HIGH_CHECKPOINT: (the default) Percona Server 5.6 formula.",
+    "LEGACY: Original Oracle MySQL formula. "
+    "HIGH_CHECKPOINT: (the default) Percona Server formula.",
     nullptr, nullptr, SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT,
     &innodb_cleaner_lsn_age_factor_typelib);
 
@@ -22513,16 +22525,10 @@ static MYSQL_SYSVAR_ENUM(
     empty_free_list_algorithm, srv_empty_free_list_algorithm,
     PLUGIN_VAR_OPCMDARG,
     "The algorithm to use for empty free list handling.  Allowed values: "
-    "LEGACY: (default) Original Oracle MySQL 5.6 handling with single page "
-    "flushes; "
-    "BACKOFF: Wait until cleaner produces a free page.",
-    innodb_srv_empty_free_list_algorithm_validate, NULL,
-    SRV_EMPTY_FREE_LIST_LEGACY,
-    // Default changed until separate LRU flusher is merged. With a single page
-    // cleaner otherwise it is possible to loop forever in a query
-    // thread while the cleaner is waiting for the page latch held by that
-    // thread. See sys_vars.log_slow_admin_statements_func in 5.7.5.
-    &innodb_empty_free_list_algorithm_typelib);
+    "LEGACY: Original Oracle MySQL handling with single page flushes; "
+    "BACKOFF: (the default) Wait until cleaner produces a free page.",
+    innodb_srv_empty_free_list_algorithm_validate, nullptr,
+    SRV_EMPTY_FREE_LIST_BACKOFF, &innodb_empty_free_list_algorithm_typelib);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_instances, srv_buf_pool_instances,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -24566,7 +24572,7 @@ static int innodb_redo_log_encrypt_validate(THD *thd, SYS_VAR *var, void *save,
 
   bool legit_value = false;
   uint use = 0;
-  for (; use < array_elements(redo_log_encrypt_names); use++) {
+  for (; use < array_elements(redo_log_encrypt_names) - 1; use++) {
     if (innobase_strcasecmp(redo_log_encrypt_input,
                             redo_log_encrypt_names[use]) == 0) {
       legit_value = true;

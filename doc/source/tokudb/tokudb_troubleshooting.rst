@@ -152,6 +152,12 @@ lock conflict with some other transaction:
 
    SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCK_WAITS;
 
+Supporting explicit DEFAULT value expressions as of 8.0.13-3
+--------------------------------------------------------------------------------
+
+TokuDB does not support `explicit DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__ as of verion 8.0.13-3.
+
+
 The :variable:`tokudb_lock_timeout_debug` session variable
 --------------------------------------------------------------------------------
 

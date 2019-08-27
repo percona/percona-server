@@ -99,6 +99,8 @@ You should also consider the following:
   error. MyRocks key encoding and comparison does not account for this
   character set attribute.
 
+*  In version 8.0.13-3 and later, MyRocks does not support `explict DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__.
+
 * |Percona Server| 8.0.16 does not support encryption for the MyRocks storage engine. At this time, during an ``ALTER TABLE`` operation, MyRocks mistakenly detects all InnoDB tables as encrypted. Therefore, any attempt to ``ALTER`` an InnoDB table to MyRocks fails.
 
 As a workaround, we recommend a manual move of the table. The following  steps are the same as the ``ALTER TABLE ... ENGINE=...`` process:
@@ -114,3 +116,4 @@ As a workaround, we recommend a manual move of the table. The following  steps a
 
     MyRocks Data Loading
     https://www.percona.com/doc/percona-server/8.0/myrocks/data_loading.html
+

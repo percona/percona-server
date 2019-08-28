@@ -1,0 +1,46 @@
+CREATE TABLE t1(id INT);
+INSERT INTO t1 VALUES (1);
+
+SELECT id AS foobar FROM t1 GROUP BY id LIMIT 1 INTO @id_var1 FOR UPDATE;
+SELECT id AS foobar FROM t1 GROUP BY id LIMIT 1 FOR UPDATE INTO @id_var2;
+SELECT id AS foobar FROM t1 GROUP BY id LIMIT 1 INTO @id_var3;
+
+SELECT @id_var1, @id_var2, @id_var3;
+
+--error ER_PARSE_ERROR
+SELECT id AS foobar FROM t1 GROUP BY id LIMIT 1 INTO @id_var4 FOR UPDATE INTO @id_var5;
+
+--error ER_PARSE_ERROR
+SELECT id AS foobar FROM t1 GROUP BY id LIMIT 1 FOR UPDATE INTO @id_var2 FOR UPDATE;
+
+# This fails with a different error message in 5.7... but fails
+--error ER_PARSE_ERROR
+SELECT 1 FROM t1 INTO @var5 UNION SELECT 2 FROM t1 WHERE id = 2;
+
+SELECT 1 FROM t1 WHERE id = 2 UNION SELECT 2 FROM t1 INTO @var5;
+
+SELECT 1 FROM t1 WHERE id = 2 UNION SELECT 2 FROM t1 FOR UPDATE INTO @var6;
+
+SELECT 1 FROM t1 WHERE id = 2 UNION SELECT 2 FROM t1 INTO @var7 FOR UPDATE;
+
+SELECT @var5, @var6, @var7;
+
+WITH
+  qt1 AS (SELECT id FROM t1),
+  qt2 AS (SELECT id AS id2 FROM t1)
+SELECT id FROM qt1 JOIN qt2
+WHERE qt1.id = qt2.id2 FOR UPDATE INTO @var8;
+
+WITH
+  qt1 AS (SELECT id FROM t1),
+  qt2 AS (SELECT id AS id2 FROM t1)
+SELECT id FROM qt1 JOIN qt2
+WHERE qt1.id = qt2.id2 INTO @var9 FOR UPDATE;
+
+WITH
+  qt1 AS (SELECT id FROM t1),
+  qt2 AS (SELECT id AS id2 FROM t1)
+SELECT id FROM qt1 JOIN qt2
+WHERE qt1.id = qt2.id2 INTO @var10;
+
+DROP TABLE t1;

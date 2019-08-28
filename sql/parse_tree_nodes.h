@@ -917,6 +917,9 @@ class PT_query_expression_body : public Parse_tree_node {
   virtual bool is_union() const = 0;
   virtual void set_containing_qe(PT_query_expression *) {}
   virtual bool has_into_clause() const = 0;
+
+  /* @returns false if couldn't set, and parse error should be reported */
+  virtual bool set_into(PT_into_destination *) { return false; }
 };
 
 class PT_internal_variable_name : public Parse_tree_node {
@@ -1758,6 +1761,8 @@ class PT_window_list : public Parse_tree_node {
 class PT_query_primary : public Parse_tree_node {
  public:
   virtual bool has_into_clause() const = 0;
+  /* @returns false if couldn't set, and parse error should be reported */
+  virtual bool set_into(PT_into_destination *) { return false; }
   virtual bool is_union() const = 0;
 };
 
@@ -1822,6 +1827,12 @@ class PT_query_specification : public PT_query_primary {
 
   virtual bool has_into_clause() const { return opt_into1 != NULL; }
 
+  bool set_into(PT_into_destination *into) override {
+    if (opt_into1 != NULL) return false;
+    opt_into1 = into;
+    return true;
+  }
+
   virtual bool is_union() const { return false; }
 };
 
@@ -1873,6 +1884,8 @@ class PT_query_expression : public Parse_tree_node {
   bool is_union() const { return m_body->is_union(); }
 
   bool has_into_clause() const { return m_body->has_into_clause(); }
+
+  bool set_into(PT_into_destination *into) { return m_body->set_into(into); }
 
   /**
     Callback for deeper nested query expressions. It's mandatory for any
@@ -2018,6 +2031,10 @@ class PT_query_expression_body_primary : public PT_query_expression_body {
     return m_query_primary->has_into_clause();
   }
 
+  bool set_into(PT_into_destination *into) override {
+    return m_query_primary->set_into(into);
+  }
+
  private:
   PT_query_primary *m_query_primary;
 };
@@ -2042,6 +2059,14 @@ class PT_union : public PT_query_expression_body {
 
   virtual bool has_into_clause() const {
     return m_lhs->has_into_clause() || m_rhs->has_into_clause();
+  }
+
+  bool set_into(PT_into_destination *into) override {
+    /* INTO is only supported at the right-hand side.
+       Also, when parsing an union expression, and encountering
+       an into statement, the parser is already working on the
+       RHS. */
+    return m_rhs->set_into(into);
   }
 
  private:
@@ -2071,6 +2096,10 @@ class PT_nested_query_expression : public PT_query_primary {
   bool is_union() const { return m_qe->is_union(); }
 
   bool has_into_clause() const { return m_qe->has_into_clause(); }
+
+  bool set_into(PT_into_destination *into) override {
+    return m_qe->set_into(into);
+  }
 
  private:
   PT_query_expression *m_qe;

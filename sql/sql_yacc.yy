@@ -444,7 +444,7 @@ void warn_about_deprecated_national(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-%expect 107
+%expect 109
 
 /*
    MAINTAINER:
@@ -9054,6 +9054,17 @@ query_expression:
           {
             $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
           }
+        | query_expression_body
+          opt_order_clause
+          opt_limit_clause
+          into_clause
+          opt_locking_clause_list
+          {
+            if(!$1->set_into($4)) {
+              YYTHD->syntax_error_at(@4);
+            }
+            $$= NEW_PTN PT_query_expression($1, $2, $3, $5);
+          }
         | with_clause
           query_expression_body
           opt_order_clause
@@ -9061,6 +9072,18 @@ query_expression:
           opt_locking_clause_list
           {
             $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $5);
+          }
+        | with_clause
+          query_expression_body
+          opt_order_clause
+          opt_limit_clause
+          into_clause
+          opt_locking_clause_list
+          {
+            if(!$2->set_into($5)) {
+              YYTHD->syntax_error_at(@5);
+            }
+            $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $6);
           }
         | query_expression_parens
           order_clause

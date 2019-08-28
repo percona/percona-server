@@ -770,15 +770,15 @@ FROM t1 WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1
 INTO @var17727401_2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401_2' at line 3
 SELECT (SELECT 1 FROM t1 INTO @var17727401);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 FROM t1 INTO @var17727401)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 INTO @var17727401) a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401) a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 FROM t1 INTO @var17727401) a' at line 1
 SELECT EXISTS(SELECT 1 FROM t1 INTO @var17727401);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 FROM t1 INTO @var17727401)' at line 1
 SELECT 1 FROM t1 INTO @var17727401 UNION SELECT 1 FROM t1 INTO t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 INTO t1' at line 1
 (SELECT 1 FROM t1 INTO @var17727401) UNION (SELECT 1 FROM t1 INTO t1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1 FROM t1 INTO t1)' at line 1
+ERROR HY000: Incorrect usage of UNION and INTO
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 INTO @var17727401;
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
@@ -1504,7 +1504,7 @@ a	a	a
 SELECT * FROM (t1 INNER JOIN t2 ON (t1.a = t2.a));
 a	a
 SELECT 1 FROM (SELECT 1 FROM t1 INTO @v) a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v) a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 FROM t1 INTO @v) a' at line 1
 SELECT 1 FROM (t1);
 1
 1
@@ -1657,11 +1657,11 @@ SELECT 1 FROM t1 INTO @v;
 SELECT 1 FROM t1 INTO @v UNION SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
 (SELECT 1 FROM t1 INTO @v) UNION SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
+ERROR HY000: Incorrect usage of UNION and INTO
 SELECT 1 FROM t1 INTO @v UNION (SELECT 1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1)' at line 1
 ((SELECT 1 FROM t1 INTO @v) UNION (SELECT 1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1))' at line 1
+ERROR HY000: Incorrect usage of UNION and INTO
 SELECT 1 INTO @v UNION SELECT 1;
 ERROR HY000: Incorrect usage of UNION and INTO
 (SELECT 1 INTO @v) UNION SELECT 1;

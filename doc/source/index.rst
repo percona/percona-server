@@ -116,6 +116,8 @@ Management Improvements
    management/extended_show_grants
    management/data_at_rest_encryption
    management/ssl-improvement
+   management/utility_user
+
 
 Diagnostics Improvements
 ================================================================================

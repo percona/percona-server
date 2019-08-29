@@ -540,6 +540,8 @@ sub main {
   mtr_report("Collecting tests");
   my $tests = collect_test_cases($opt_reorder, $opt_suites,
                                  \@opt_cases,  $opt_skip_test_list);
+  my $all_tests;
+  @$all_tests = @$tests;
   mark_time_used('collect');
 
   check_secondary_engine_option($tests) if $secondary_engine_support;
@@ -705,10 +707,23 @@ sub main {
   }
 
   if (@$completed != $num_tests) {
-    # Not all tests completed, failure
+    # Not all tests completed
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-    mtr_error("Not all tests completed");
+    mtr_report("Not all tests completed. This means that a test scheduled for a worker did not report anything, the worker most likely crashed.");
+
+    my %comp;
+
+    foreach ( @$completed ) {
+      $comp{$_->{name}} = 1;
+    }
+    for (my $i = 0 ; $i <= @$all_tests ; $i++) {
+      my $t = $all_tests->[$i];
+      if (exists $t->{name} && !exists $comp{$t->{name}}) {
+        mtr_report("Missing result for testcase: ", $t->{name});
+      }
+    }
+
   }
 
   mark_time_used('init');

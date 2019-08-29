@@ -44,3 +44,9 @@ void sql_print_warning(const char *format, ...)
 {
   /* Do not pollute the unit test output with annoying messages. */
 }
+
+my_bool
+acl_is_utility_user(const char *, const char *, const char *)
+{
+  return FALSE;
+}

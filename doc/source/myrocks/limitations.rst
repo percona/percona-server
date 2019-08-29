@@ -25,6 +25,8 @@ The MyRocks storage engine lacks the following features compared to InnoDB:
 
 * `Group Replication <https://dev.mysql.com/doc/refman/5.7/en/group-replication.html>`_
 
+* `Generated Columns <https://dev.mysql.com/doc/refman/5.7/en/create-table-generated-columns.html>`__
+
 You should also consider the following:
 
 * :file:`*_bin` (e.g. ``latin1_bin``) or binary collation should be used

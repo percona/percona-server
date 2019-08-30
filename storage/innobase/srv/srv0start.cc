@@ -2143,6 +2143,10 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
   srv_boot();
 
+  extern ib_mutex_t master_key_id_mutex;
+  /* Create mutex to protect encryption master_key_id. */
+  mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
+
   ib::info(ER_IB_MSG_1126) << (ut_crc32_cpu_enabled ? "Using" : "Not using")
                            << " CPU crc32 instructions";
 

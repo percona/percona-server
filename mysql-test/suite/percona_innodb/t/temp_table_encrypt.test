@@ -3,6 +3,7 @@
 call mtr.add_suppression("\\[InnoDB\\] Check keyring fail, please check the keyring is loaded.");
 call mtr.add_suppression("\\[InnoDB\\] Can't set temporary tablespace to be encrypted because keyring plugin is not available.");
 call mtr.add_suppression("\\[InnoDB\\] Unable to encrypt a session temp tablespace. Probably due to missing keyring plugin");
+call mtr.add_suppression("Failed to compress the gtid_executed table.");
 
 --echo #
 --echo # PS-4727: instrinsic temp table behaviour shouldn't depend on innodb_encrypt_tables

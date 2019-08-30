@@ -5,34 +5,12 @@
 # Creating custom global configuration file for keyring component: component_keyring_file
 # Re-starting mysql server with manifest file
 # ----------------------------------------------------------------------
-# Stop the instance which was created by MTR
 # create bootstrap file
-# Bootstrap new instance with default_table_encryption=ON
-# Start the instance with default_table_encryption=ON
-# restart: --datadir=MYSQLD_DATADIR1 --default_table_encryption=ON
-CREATE DATABASE db1;
-USE db1;
-CREATE TABLE t1(a INT);
-INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5);
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
-SELECT * FROM t1;
-a
-1
-2
-3
-4
-5
-CREATE TEMPORARY TABLE t2 (a INT);
-INSERT INTO t2 (a) VALUES (1),(2),(3),(4),(5);
-SELECT SPACE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE ID = connection_id() ORDER BY SPACE;
-SPACE	PURPOSE
-4243767289	USER ENCRYPTED
-4243767290	INTRINSIC ENCRYTPED
-DROP DATABASE db1;
+# Bootstrap new instance with encrypted mysql.ibd
+# Check Encryption header of mysql.ibd
+# restart
+include/assert.inc [Mysql.ibd should be encrypted]
+# Check Encryption header of mysql.ibd after shutdown
 # Start default MTR instance
 # restart
 # ----------------------------------------------------------------------

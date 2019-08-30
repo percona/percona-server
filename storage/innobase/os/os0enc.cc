@@ -472,6 +472,8 @@ bool Encryption::fill_encryption_info(
           0);
   }
 
+  default_master_key_used = (master_key_id == DEFAULT_MASTER_KEY_ID);
+
   /* Encryption info to be filled in following format
     --------------------------------------------------------------------------
    | Magic bytes | master key id | server uuid | tablespace key|iv | checksum |

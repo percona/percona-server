@@ -44,7 +44,7 @@ SELECT @@innodb_temp_tablespace_encrypt;
 include/assert.inc [Temporary tablespace should be unencrypted]
 # startup failure when innodb_temp_tablespace =ON and no keyring plugin
 Pattern found.
-# restart:<hidden args>
+# restart
 CREATE TABLE t1 (a INT, b BLOB);
 INSERT INTO t1 VALUES (1, 'hello'), (2, 'hi'), (3, 'satya');
 SET GLOBAL default_table_encryption=ON;

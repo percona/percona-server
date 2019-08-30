@@ -1,0 +1,8 @@
+# create bootstrap file
+# Bootstrap new instance with encrypted mysql.ibd
+# Check Encryption header of mysql.ibd
+# restart:<hidden args>
+include/assert.inc [Mysql.ibd should be encrypted]
+# Check Encryption header of mysql.ibd after shutdown
+# Start default MTR instance
+# restart

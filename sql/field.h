@@ -566,10 +566,25 @@ public:
   virtual bool send_text(Protocol *protocol)= 0;
 };
 
-class Field: public Proto_field
+/*
+  An auxiliary class to solve the issue with gcc-9 '-Wdeprecated-copy'
+  warning.
+  Similarly to 'boost::noncopyable' this class has its assignment operator
+  private and undefined. However, in contrast, it has public well-defined
+  empty copy constructor.
+*/
+class nonassignable
 {
-  Field(const Item &);				/* Prevent use of these */
-  void operator=(Field &);
+protected:
+  nonassignable() {}
+  ~nonassignable() {}
+  nonassignable(const nonassignable&) {}
+private:  /* emphasize the following member is private */
+  nonassignable& operator=(const nonassignable&);
+};
+
+class Field: private nonassignable, public Proto_field
+{
 public:
 
   bool has_insert_default_function() const

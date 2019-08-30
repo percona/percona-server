@@ -34,3 +34,10 @@ variable_value > 0
 1
 DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
+CREATE TABLE t (a INT, b TEXT) ENGINE=InnoDB ENCRYPTION='y';
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL paused WAIT_FOR unpause';
+ALTER TABLE t ADD PRIMARY KEY (a);
+SET DEBUG_SYNC= 'now WAIT_FOR paused';
+SET DEBUG_SYNC= 'now SIGNAL unpause';
+DROP TABLE t;
+SET DEBUG_SYNC= 'RESET';

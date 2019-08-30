@@ -1,0 +1,15 @@
+--echo #
+--echo # Bug #28986737 / #93388 "Renaming and replacing mysql.user table can lead to a server crash"
+--echo # fixed in 5.5.64, 5.6.44, 5.7.26, 8.0.16
+--echo # A damaged mysql.user table could cause a server exit.
+--echo #
+
+CALL mtr.add_suppression("\\[ERROR\\] \\[FATAL\\] mysql\\.user table is damaged\\. Please run mysql_upgrade\\.");
+
+RENAME TABLE mysql.user TO mysql.user_bak;
+CREATE TABLE mysql.user(dummy INT) ENGINE=MyISAM;
+--error ER_UNKNOWN_ERROR
+FLUSH PRIVILEGES;
+
+DROP TABLE mysql.user;
+RENAME TABLE mysql.user_bak TO mysql.user;

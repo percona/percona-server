@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -934,7 +934,7 @@ dict_stats_update_transient(
 	table->stat_sum_of_other_index_sizes = sum_of_index_sizes
 		- index->stat_index_size;
 
-	table->stats_last_recalc = ut_time();
+	table->stats_last_recalc = ut_time_monotonic();
 
 	table->stat_modified_counter = 0;
 
@@ -2253,7 +2253,7 @@ dict_stats_update_persistent(
 			+= index->stat_index_size;
 	}
 
-	table->stats_last_recalc = ut_time();
+	table->stats_last_recalc = ut_time_monotonic();
 
 	table->stat_modified_counter = 0;
 
@@ -3074,6 +3074,7 @@ dict_stats_update_for_index(
 		if (dict_stats_persistent_storage_check(false)) {
 			dict_table_stats_lock(index->table, RW_X_LATCH);
 			dict_stats_analyze_index(index);
+			index->table->stat_sum_of_other_index_sizes += index->stat_index_size;
 			dict_table_stats_unlock(index->table, RW_X_LATCH);
 			dict_stats_save(index->table, &index->id);
 			DBUG_VOID_RETURN;

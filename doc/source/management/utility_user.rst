@@ -10,7 +10,7 @@ This user has a mixed and special scope of abilities and protection:
 
   * Utility user will not appear in the mysql.user table and can not be modified by any other user, including root.
 
-  * Utility user will not appear in :table:`USER_STATISTICS`, :table:`CLIENT_STATISTICS` or :table:`THREAD_STATISTICS` tables.
+  * Utility user will not appear in :table:`USER_STATISTICS`, :table:`CLIENT_STATISTICS` or :table:`THREAD_STATISTICS` tables or in any `performance_schema tables <https://dev.mysql.com/doc/dev/mysql-server/latest/group__performance__schema__tables.html>`__.
 
   * Utility user's queries may appear in the general and slow logs.
 
@@ -40,15 +40,15 @@ As a result of these requirements, it is strongly recommended that a very unique
 
 Option :variable:`utility_user_password` specifies the password for the utility user and MUST be specified or the server will shut down gracefully with an error.
 
- Example: :option:`--utility_user_password` =`Passw0rD`;
+ Example: :option:`--utility_user_password` =`Passw0rD`
 
 Option :variable:`utility_user_schema_access` specifies the name(s) of the schema(s) that the utility user will have access to read write and modify. If a particular schema named here does not exist on start up it will be ignored. If a schema by the name of any of those listed in this option is created after the server is started, the utility user will have full access to it.
 
- Example: :option:`--utility_user_schema_access` =schema1,schema2,schema3 ;
+ Example: :option:`--utility_user_schema_access` =schema1,schema2,schema3
 
 Option :variable:`utility_user_privileges` allows a comma-separated list of extra access privileges to grant to the utility user.
 
- Example: :option:`--utility-user-privileges` ="CREATE, DROP, LOCK TABLES"
+ Example: :option:`--utility-user-privileges` ="CREATE,DROP,LOCK TABLES"
 
 Version Specific Information
 ============================
@@ -101,4 +101,4 @@ Specifies the schemas that the utility user has access to in a comma delimited l
    :vartype: String
    :default: NULL
 
-This variable can be used to specify a comma-separated list of extra access privileges to grant to the utility user. Supported values for the privileges list are: ``SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS,FILE, GRANT, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES,EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE``
+This variable can be used to specify a comma-separated list of extra access privileges to grant to the utility user. Supported values for the privileges list are: ``SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, GRANT, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE``

@@ -2,27 +2,28 @@ call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, 
 # restart:<hidden args>
 CREATE TEMPORARY TABLE t01 (a TEXT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES ('Lorem ipsum dolor sit amet, consectetur adipiscing elit');
-Pattern found.
 CREATE TEMPORARY TABLE t04 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
 INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
-Pattern found.
 DROP TABLE t04;
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 CREATE TEMPORARY TABLE t02 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 CREATE TEMPORARY TABLE t03 (a TEXT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t03 VALUES ('Curabitur laoreet, velit non interdum venenatis');
-Pattern not found.
 SET GLOBAL innodb_encrypt_tables=ON;
 CREATE TEMPORARY TABLE t04 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
 SET GLOBAL innodb_encrypt_tables=OFF;
 INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
-Pattern not found.
-CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='y';
-INSERT INTO t05 VALUES (1), (2), (3);
-CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='n';
-ERROR HY000: InnoDB: Tablespace `innodb_temporary` can contain only an ENCRYPTED tables.
+DROP TABLE t04;
+CREATE TEMPORARY TABLE t05 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='y';
+INSERT INTO t05 VALUES ('Quisque malesuada placerat nisl');
+DROP TABLE t05;
+CREATE TEMPORARY TABLE t06 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='n';
+INSERT INTO t06 VALUES ('Sed in libero ut nibh placerat accumsan');
+DROP TABLE t06;
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
 CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
+ERROR HY000: InnoDB: Tablespace `innodb_temporary` cannot contain an ENCRYPTED table.
+CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB;
 INSERT INTO t07 VALUES (1), (2), (3);
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 CREATE TABLE t10 (a INT AUTO_INCREMENT PRIMARY KEY, b INT);
@@ -66,3 +67,24 @@ SELECT * FROM t1 WHERE a IN(SELECT MAX(a) FROM t1);
 a
 11061
 DROP TABLE t1;
+# innodb temp table encrypt is ON:
+CREATE TEMPORARY TABLE t1 (a INT);
+ERROR HY000: InnoDB: Tablespace `innodb_temporary` can contain only an ENCRYPTED tables.
+CREATE TEMPORARY TABLE tmp1 (a TEXT) ENCRYPTION='y';
+INSERT INTO tmp1 VALUES ('Maecenas condimentum leo eu lorem aliquam malesuada');
+CREATE TEMPORARY TABLE tmp2 (a TEXT) ENCRYPTION='y';
+CREATE TEMPORARY TABLE t1 (a INT) KEY_BLOCK_SIZE=8 ENCRYPTION='y';
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1 (a INT) KEY_BLOCK_SIZE=8 ENCRYPTION='n';
+DROP TABLE t1;
+SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
+CREATE TEMPORARY TABLE t1 (a INT) ENCRYPTION='y';
+ERROR HY000: InnoDB: Tablespace `innodb_temporary` cannot contain an ENCRYPTED table.
+INSERT INTO tmp2 VALUES ('Nam vestibulum mauris massa');
+CREATE TEMPORARY TABLE tmp3 (a TEXT);
+INSERT INTO tmp3 VALUES ('Sed sodales ligula sed enim condimentum');
+CREATE TEMPORARY TABLE t1 (a INT) ROW_FORMAT=COMPRESSED ENCRYPTION='y';
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1 (a INT) ROW_FORMAT=COMPRESSED ENCRYPTION='n';
+DROP TABLE t1;
+SET GLOBAL innodb_temp_tablespace_encrypt = ON;

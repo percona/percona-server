@@ -94,3 +94,12 @@ const char **ha_tokupart::bas_ext() const {
     TOKUDB_HANDLER_DBUG_ENTER("");
     DBUG_RETURN(&null_ext);
 }
+
+/** Get partition row type
+@param[in] Id of partition for which row type to be retrieved
+@return Partition row type */
+enum row_type ha_tokupart::get_partition_row_type(
+        uint part_id)
+{
+  return get_row_type();
+}

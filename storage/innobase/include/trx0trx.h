@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -93,11 +93,11 @@ trx_set_detailed_error_from_file(
 	trx_t*	trx,	/*!< in: transaction struct */
 	FILE*	file);	/*!< in: file to read message from */
 /****************************************************************//**
-Retrieves the error_info field from a trx.
+Retrieves the index causing the error from a trx.
 @return the error info */
 UNIV_INLINE
 const dict_index_t*
-trx_get_error_info(
+trx_get_error_index(
 /*===============*/
 	const trx_t*	trx);	/*!< in: trx object */
 /********************************************************************//**
@@ -924,7 +924,7 @@ class trx_stats {
 	@return value to be passed to end_io_read
 	*/
 	MY_NODISCARD
-	static ib_uint64_t
+	static ib_time_monotonic_us_t
 	start_io_read(trx_t *trx, ulint bytes);
 
 	/**
@@ -936,7 +936,7 @@ class trx_stats {
 	@return value to be passed to end_io_read
 	*/
 	MY_NODISCARD
-	static ib_uint64_t
+	static ib_time_monotonic_us_t
 	start_io_read(const trx_t &trx, ulint bytes);
 
 	/**
@@ -946,7 +946,7 @@ class trx_stats {
 	@param	start_time	return value of start_io_read
 	*/
 	static void
-	end_io_read(trx_t *trx, ib_uint64_t start_time);
+	end_io_read(trx_t *trx, ib_time_monotonic_us_t start_time);
 
 	/**
 	Register end of an I/O read or wait.
@@ -954,7 +954,7 @@ class trx_stats {
 	@param	trx		transaction to account I/O to
 	@param	start_time	return value of start_io_read*/
 	static void
-	end_io_read(const trx_t &trx, ib_uint64_t start_time);
+	end_io_read(const trx_t &trx, ib_time_monotonic_us_t start_time);
 
 	/**
 	Register, if needed, a single untimed I/O read.
@@ -981,10 +981,7 @@ class trx_stats {
 		if (UNIV_LIKELY(!take_stats))
 			return;
 		ut_ad(lock_que_wait_ustarted == 0);
-		ulint sec, ms;
-		ut_usectime(&sec, &ms);
-		lock_que_wait_ustarted =
-		    static_cast<ib_uint64_t>(sec * 1000000 + ms);
+		lock_que_wait_ustarted = ut_time_monotonic_us();
 	}
 
 	/**
@@ -1034,7 +1031,7 @@ class trx_stats {
 	private:
 	// FIXME: only used for reclock-waiting threads, thus could be moved to
 	// e.g. que_thr_t if there's benefit
-	ib_uint64_t lock_que_wait_ustarted;
+	ib_time_monotonic_us_t lock_que_wait_ustarted;
 	bool	take_stats;
 };
 
@@ -1300,7 +1297,7 @@ struct trx_t {
 					doing the transaction is allowed to
 					set this field: this is NOT protected
 					by any mutex */
-	const dict_index_t*error_info;	/*!< if the error number indicates a
+	const dict_index_t*error_index;	/*!< if the error number indicates a
 					duplicate key error, a pointer to
 					the problematic index is stored here */
 	ulint		error_key_num;	/*!< if the index creation fails to a
@@ -1445,19 +1442,17 @@ trx_is_started(
 	       && trx->state != TRX_STATE_FORCED_ROLLBACK);
 }
 
-inline ib_uint64_t
+inline ib_time_monotonic_us_t
 trx_stats::start_io_read(const trx_t& trx, ulint bytes)
 {
 	if (bytes) {
 		thd_report_innodb_stat(trx.mysql_thd, trx.id,
 				       MYSQL_TRX_STAT_IO_READ_BYTES, bytes);
 	}
-	ulint sec, ms;
-	ut_usectime(&sec, &ms);
-	return static_cast<ib_uint64_t>(sec * 1000000 + ms);
+	return ut_time_monotonic_us();
 }
 
-inline ib_uint64_t
+inline ib_time_monotonic_us_t
 trx_stats::start_io_read(trx_t *trx, ulint bytes)
 {
 	if (UNIV_LIKELY_NULL(trx))
@@ -1466,19 +1461,17 @@ trx_stats::start_io_read(trx_t *trx, ulint bytes)
 }
 
 inline void
-trx_stats::end_io_read(const trx_t& trx, ib_uint64_t start_time)
+trx_stats::end_io_read(const trx_t& trx, ib_time_monotonic_us_t start_time)
 {
-	ulint sec, ms;
-	ut_usectime(&sec, &ms);
-	const ib_uint64_t finish_time
-		= static_cast<ib_uint64_t>(sec * 1000000 + ms);
+	const ib_time_monotonic_us_t finish_time
+		= ut_time_monotonic_us();
 	thd_report_innodb_stat(trx.mysql_thd, trx.id,
 			       MYSQL_TRX_STAT_IO_READ_WAIT_USECS,
 			       finish_time - start_time);
 }
 
 inline void
-trx_stats::end_io_read(trx_t *trx, ib_uint64_t start_time)
+trx_stats::end_io_read(trx_t *trx, ib_time_monotonic_us_t start_time)
 {
 	if (UNIV_UNLIKELY(start_time != 0))
 		end_io_read(*trx, start_time);
@@ -1512,9 +1505,7 @@ trx_stats::stop_lock_wait(const trx_t& trx)
 {
 	if (UNIV_LIKELY(!take_stats))
 		return;
-	ulint sec, ms;
-	ut_usectime(&sec, &ms);
-	const ib_uint64_t now = static_cast<ib_uint64_t>(sec * 1000000 + ms);
+	const ib_time_monotonic_us_t now = ut_time_monotonic_us();
 	thd_report_innodb_stat(trx.mysql_thd, trx.id,
 			       MYSQL_TRX_STAT_LOCK_WAIT_USECS,
 			       now - lock_que_wait_ustarted);

@@ -19,6 +19,8 @@ SET GLOBAL innodb_encrypt_tables=1.1;
 --error ER_WRONG_TYPE_FOR_VAR
 SET GLOBAL innodb_encrypt_tables=1e1;
 --error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_encrypt_tables=NULL;
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL innodb_encrypt_tables='foo';
 
 SELECT @@GLOBAL.innodb_encrypt_tables;

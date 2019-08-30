@@ -31,6 +31,10 @@ GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user2'@'%';
 
 # truncate audit log
 UNINSTALL PLUGIN audit_log;
+# disconnect required after https://github.com/mysql/mysql-server/commit/6a893b8b
+--source include/disconnect_connections.inc
+set names utf8;
+
 let $wait_condition=
     SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'audit_log';
 --source include/wait_condition.inc

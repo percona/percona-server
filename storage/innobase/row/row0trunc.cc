@@ -1857,6 +1857,8 @@ row_truncate_table_for_mysql(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
+	DEBUG_SYNC_C("truncate_table");
+
 	/* Step-4: Stop all the background process associated with table. */
 	dict_stats_wait_bg_to_stop_using_table(table, trx);
 	if (table->fts) {

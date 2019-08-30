@@ -41,8 +41,6 @@ void PFS_status_stats::reset()
 {
   m_has_stats= false;
   memset(&m_stats, 0, sizeof(m_stats));
-  memset(&m_stats_aggregated_in_global, 0,
-         sizeof(m_stats_aggregated_in_global));
 }
 
 void PFS_status_stats::aggregate(const PFS_status_stats *from)
@@ -53,28 +51,24 @@ void PFS_status_stats::aggregate(const PFS_status_stats *from)
     for (int i= 0; i < COUNT_GLOBAL_STATUS_VARS; i++)
     {
       m_stats[i] += from->m_stats[i];
-      m_stats_aggregated_in_global[i]+= from->m_stats_aggregated_in_global[i];
     }
   }
 }
 
-void PFS_status_stats::aggregate_from(const STATUS_VAR *from,
-                                      bool already_aggregated)
+void PFS_status_stats::aggregate_from(const STATUS_VAR *from)
 {
   ulonglong *from_var= (ulonglong*) from;
-  ulonglong *to_var=
-    already_aggregated ? m_stats_aggregated_in_global : m_stats;
 
   m_has_stats= true;
   for (int i= 0;
        i < COUNT_GLOBAL_STATUS_VARS;
        i++, from_var++)
   {
-    to_var[i]+= *from_var;
+    m_stats[i] += *from_var;
   }
 }
 
-void PFS_status_stats::aggregate_to(STATUS_VAR *to, bool include_aggregated)
+void PFS_status_stats::aggregate_to(STATUS_VAR *to)
 {
   if (m_has_stats)
   {
@@ -85,16 +79,6 @@ void PFS_status_stats::aggregate_to(STATUS_VAR *to, bool include_aggregated)
          i++, to_var++)
     {
       *to_var += m_stats[i];
-    }
-    if (include_aggregated)
-    {
-      to_var= (ulonglong *)to;
-      for (int i= 0;
-           i < COUNT_GLOBAL_STATUS_VARS;
-           i++, to_var++)
-      {
-        *to_var+= m_stats_aggregated_in_global[i];
-      }
     }
   }
 }

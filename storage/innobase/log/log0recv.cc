@@ -1723,7 +1723,7 @@ recv_parse_or_apply_log_rec_body(
 
 			if (memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V1,
 				ENCRYPTION_MAGIC_SIZE) == 0 ||
-			    memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2,
+			    memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_V2,
 				ENCRYPTION_MAGIC_SIZE) == 0) {
 
 				if (offset >= UNIV_PAGE_SIZE

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, 2016, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -346,9 +346,9 @@ static TYPELIB innodb_default_row_format_typelib = {
 };
 
 static const char* redo_log_encrypt_names[] = {
-	"off",
-	"master_key",
-	"keyring_key",
+	"OFF",
+	"MASTER_KEY",
+	"KEYRING_KEY",
 	NullS
 };
 
@@ -946,6 +946,19 @@ innodb_encrypt_tables_validate(
 						for update function */
 	struct st_mysql_value*		value);	/*!< in: incoming string */
 
+/** Validates the possible innodb_redo_log_encrypt_values.
+@param[in]	thd	current session
+@param[in]	var	the system variable innodb_support_xa
+@param[in,out]	var_ptr	the contents of the variable
+@param[in]	save	the to-be-updated value */
+static
+int
+innodb_redo_log_encrypt_validate(
+	THD *		     	thd,
+	struct st_mysql_sys_var *var,
+	void *		     	save,
+	struct st_mysql_value   *value);
+
 
 /** Update the session variable innodb_support_xa.
 @param[in]	thd	current session
@@ -1247,7 +1260,9 @@ static SHOW_VAR innodb_status_variables[]= {
   {"num_pages_decrypted",
    (char*) &export_vars.innodb_pages_decrypted,
    SHOW_LONGLONG, SHOW_SCOPE_GLOBAL },  
-  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
+  {"encryption_redo_key_version",
+  (char*) &export_vars.innodb_redo_key_version, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 /************************************************************************//**
@@ -2102,9 +2117,9 @@ thd_to_innodb_session(
 ulong
 thd_flush_log_at_trx_commit(
 /*================================*/
-	void*	thd)
+	THD*	thd)
 {
-	return(THDVAR((THD*) thd, flush_log_at_trx_commit));
+	return(THDVAR(thd, flush_log_at_trx_commit));
 }
 
 /** Obtain the InnoDB transaction of a MySQL thread.
@@ -3910,6 +3925,8 @@ static bool innobase_is_supported_system_table(const char *db,
 /* mutex protecting the master_key_id */
 ib_mutex_t	master_key_id_mutex;
 
+void srv_enable_undo_encryption_if_set();
+
 /** Fix the empty UUID of tablespaces like system, temp etc by generating
 a new master key and do key rotation. These tablespaces if encrypted
 during startup, will be encrypted with tablespace key which has empty UUID
@@ -3917,20 +3934,25 @@ during startup, will be encrypted with tablespace key which has empty UUID
 bool
 innobase_fix_tablespaces_empty_uuid()
 {
+	if (Encryption::master_key_id == 0) {
+		/* We have to call srv_enable_redo_encryption during every
+		 startup, to report errors generated in this function correctly.
+		 Without this call here, some illegal configurations, such as
+		 enabling encryption without a keyring are silently accepted,
+		 and result in errors later during the server run.
+		 These functions are also called later, when the 
+		 master key is correctly set up, later in this function. */
+		if (srv_enable_redo_encryption(NULL)) {
+			srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
+		} else {
+			log_rotate_default_key();
+		}
+	}
+
 	/* If we are in read only mode, we cannot do rotation but it
 	is OK */
 	if (srv_read_only_mode) {
 		return(false);
-	}
-
-	if (Encryption::master_key_id == 0 && srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
-		/* redo log can be encrypted with keyring_key, which has to be 
-		   initialized even when nothing's encrypted with master_key - in
-		   which case, master_key_id == 0, so this condition succeeds. 
-		   We call this function here, because otherwise, if the redo log
-		   is encrypted with master_key, log encryption has to be initialized
-		   after Encryption::create_master_key. */
-		log_enable_encryption_if_set();
 	}
 
 	/* We only need to handle the case when an encrypted tablespace
@@ -3963,7 +3985,11 @@ innobase_fix_tablespaces_empty_uuid()
 		return(true);
 	}
 
-	log_enable_encryption_if_set();
+	if (srv_enable_redo_encryption(NULL)) {
+		srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
+	} else {
+		log_rotate_default_key();
+	}
 
 	/** Check if sys, temp need rotation to fix the empty uuid */
 	/* Also, in future, it is possible to fix empty uuid for redo & undo
@@ -4688,6 +4714,8 @@ innobase_change_buffering_inited_ok:
 
 #endif /* HAVE_PSI_INTERFACE */
 
+	os_event_global_init();
+
 	/* Set buffer pool size to default for fast startup when mysqld is
 	run with --help --verbose options. */
 	ulint	srv_buf_pool_size_org = 0;
@@ -4844,9 +4872,12 @@ innobase_end(
 
 		innobase_space_shutdown();
 
+
 		mysql_mutex_destroy(&innobase_share_mutex);
 		mysql_mutex_destroy(&commit_cond_m);
 		mysql_cond_destroy(&commit_cond);
+
+		os_event_global_destroy();
 	}
 
 	DBUG_RETURN(err);
@@ -7352,6 +7383,9 @@ ha_innobase::open_dict_table(
 	dict_err_ignore_t	ignore_err)
 {
 	DBUG_ENTER("ha_innobase::open_dict_table");
+
+	DEBUG_SYNC_C("open_dict_table");
+
 	dict_table_t*	ib_table = dict_table_open_on_name(norm_name, FALSE,
 							   TRUE, ignore_err);
 
@@ -11053,8 +11087,7 @@ innodb_base_col_setup_for_stored(
 	for (uint i= 0; i < field->table->s->fields; ++i) {
 		const Field* base_field = field->table->field[i];
 
-		if (!innobase_is_s_fld(base_field)
-		    && !innobase_is_v_fld(base_field)
+		if (!innobase_is_v_fld(base_field)
 		    && bitmap_is_set(&field->gcol_info->base_columns_map,
 				     i)) {
 			ulint	z;
@@ -12274,6 +12307,12 @@ create_table_info_t::create_option_encryption_is_valid() const
 		create_option_tablespace_is_valid */
 		ut_a(space_id != ULINT_UNDEFINED);
 	} else if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		if (m_create_info->key_block_size != 0 ||
+		    m_create_info->row_type == ROW_TYPE_COMPRESSED) {
+			/* file-per-table temporary table does not
+			obey innodb_temp_tablespace_encrypt */
+			return (true);
+		}
 		space_id = srv_tmp_space.space_id();
 	} else if (!m_use_file_per_table) {
 		space_id = TRX_SYS_SPACE;
@@ -12285,6 +12324,9 @@ create_table_info_t::create_option_encryption_is_valid() const
 	ulint		fsp_flags = space->flags;
 
 	bool tablespace_is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
+	if (fsp_is_system_temporary(space_id)) {
+		tablespace_is_encrypted = srv_tmp_tablespace_encrypt;
+	}
 	const char *tablespace_name = m_create_info->tablespace != NULL ?
 		m_create_info->tablespace : space->name;
 
@@ -15836,7 +15878,7 @@ ha_innobase::info_low(
 		ut_a(m_prebuilt->trx);
 		ut_a(m_prebuilt->trx->magic_n == TRX_MAGIC_N);
 
-		err_index = trx_get_error_info(m_prebuilt->trx);
+		err_index = trx_get_error_index(m_prebuilt->trx);
 
 		if (err_index) {
 			errkey = innobase_get_mysql_key_number_for_index(
@@ -18388,22 +18430,6 @@ ha_innobase::get_auto_increment(
 
 		current = *first_value > col_max_value ? autoinc : *first_value;
 
-		/* If the increment step of the auto increment column
-		decreases then it is not affecting the immediate
-		next value in the series. */
-		if (m_prebuilt->autoinc_increment > increment) {
-
-			current = autoinc - m_prebuilt->autoinc_increment;
-
-			current = innobase_next_autoinc(
-				current, 1, increment, 1, col_max_value);
-
-			dict_table_autoinc_initialize(
-				m_prebuilt->table, current);
-
-			*first_value = current;
-		}
-
 		/* Compute the last value in the interval */
 		next_value = innobase_next_autoinc(
 			current, *nb_reserved_values, increment, offset,
@@ -18485,7 +18511,7 @@ ha_innobase::get_foreign_dup_key(
 	ut_a(m_prebuilt->trx != NULL);
 	ut_a(m_prebuilt->trx->magic_n == TRX_MAGIC_N);
 
-	err_index = trx_get_error_info(m_prebuilt->trx);
+	err_index = trx_get_error_index(m_prebuilt->trx);
 
 	if (err_index == NULL) {
 		return(false);
@@ -19609,7 +19635,7 @@ innodb_adaptive_hash_index_update(
 						from check function */
 {
 	if (*(my_bool*) save) {
-		btr_search_enable();
+		btr_search_enable(true);
 	} else {
 		btr_search_disable(true);
 	}
@@ -20647,7 +20673,7 @@ innodb_sched_priority_master_update(
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Failed to set the master thread "
-				    "priority to %lu,  "
+				    "priority to %lu, "
 				    "the current priority is %lu", priority,
 				    actual_priority);
 	} else {
@@ -21437,25 +21463,88 @@ innodb_temp_tablespace_encryption_update(
 @param[in]	save	immediate result from check function */
 static
 void
-innodb_redo_encryption_update(
+update_innodb_redo_log_encrypt(
 	THD*				thd,
 	struct st_mysql_sys_var*	var,
 	void*				var_ptr,
 	const void*			save)
 {
-	if (srv_read_only_mode) {
-		push_warning_printf(
-			thd, Sql_condition::SL_WARNING,
-			ER_WRONG_ARGUMENTS,
-			" Redo log cannot be"
-			" encrypted in innodb_read_only mode");
+	const ulong target = *static_cast<const ulong *>(save);
+
+	if (srv_redo_log_encrypt == target) {
+		/* No change */
 		return;
 	}
 
-	*static_cast<ulong*>(var_ptr) =
-		*static_cast<const ulong*>(save);
+	if (target == REDO_LOG_ENCRYPT_OFF) {
+  		srv_redo_log_encrypt = REDO_LOG_ENCRYPT_OFF;
+ 		return;
+	}
 
-	log_enable_encryption_if_set();
+	if (existing_redo_encryption_mode != REDO_LOG_ENCRYPT_OFF
+	    && existing_redo_encryption_mode != target) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_WARN,
+			ER_REDO_ENCRYPTION_CANT_BE_CHANGED, 
+			log_encrypt_name(existing_redo_encryption_mode),
+			log_encrypt_name(static_cast<redo_log_encrypt_enum>(target)));
+
+		ib::error() << 
+			" Redo log encryption mode"
+			" can't be switched without stopping the server and"
+			" recreating the redo logs. Current mode is "
+			<< log_encrypt_name(existing_redo_encryption_mode)
+			<< ", requested "
+			<< log_encrypt_name(static_cast<redo_log_encrypt_enum>(target))
+			<< ".";
+	    return;
+	}
+
+
+	if (srv_read_only_mode) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_WARN,
+			ER_REDO_ENCRYPTION_ERROR,
+			" Redo log cannot be"
+			" encrypted in innodb_read_only mode.");
+		ib::error() <<
+			" Redo log cannot be"
+			" encrypted in innodb_read_only mode.";
+		return;
+	}
+
+	ut_ad(strlen(server_uuid) > 0);
+
+	if (!Encryption::check_keyring()) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_WARN,
+			ER_REDO_ENCRYPTION_ERROR,
+			"Redo log cannot be encrypted"
+			" if the keyring plugin is not loaded.");
+		ib::error() << "Redo log cannot be encrypted,"
+			<< " if the keyring plugin is not loaded.";
+		return;
+	}
+
+	if (target == REDO_LOG_ENCRYPT_MK) {
+		if (srv_enable_redo_encryption_mk(thd)) {
+			return;
+		}
+
+		srv_redo_log_encrypt = target;
+		return;
+	}
+
+	if (target == REDO_LOG_ENCRYPT_RK) {
+		if (srv_enable_redo_encryption_rk(thd)) {
+			return;
+		}
+
+		srv_redo_log_encrypt = target;
+		return;
+	}
+
+	ut_ad(0);
 }
 
 static SHOW_VAR innodb_status_variables_export[]= {
@@ -22528,7 +22617,7 @@ static MYSQL_SYSVAR_ENUM(default_row_format, innodb_default_row_format,
 static MYSQL_SYSVAR_ENUM(redo_log_encrypt, srv_redo_log_encrypt,
   PLUGIN_VAR_OPCMDARG,
   "Enable or disable Encryption of REDO tablespace. Possible values: OFF, MASTER_KEY, KEYRING_KEY.",
-  NULL, innodb_redo_encryption_update, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
+  innodb_redo_log_encrypt_validate, update_innodb_redo_log_encrypt, REDO_LOG_ENCRYPT_OFF, &redo_log_encrypt_typelib);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
@@ -22588,14 +22677,14 @@ static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
 
 #endif /* UNIV_DEBUG */
 
-const char *corrupt_table_action_names[]=
+static const char *corrupt_table_action_names[]=
 {
   "assert", /* 0 */
   "warn", /* 1 */
   "salvage", /* 2 */
   NullS
 };
-TYPELIB corrupt_table_action_typelib=
+static TYPELIB corrupt_table_action_typelib=
 {
   array_elements(corrupt_table_action_names) - 1, "corrupt_table_action_typelib",
   corrupt_table_action_names, NULL
@@ -23218,7 +23307,7 @@ innobase_rename_vc_templ(
 given col_no.
 @param[in]	foreign		foreign key information
 @param[in]	update		updated parent vector.
-@param[in]	col_no		column position of the table
+@param[in]	col_no		base column position of the child table to check
 @return updated field from the parent update vector, else NULL */
 static
 dfield_t*
@@ -23231,9 +23320,14 @@ innobase_get_field_from_update_vector(
 	dict_index_t*	parent_index = foreign->referenced_index;
 	ulint		parent_field_no;
 	ulint		parent_col_no;
+	ulint		child_col_no;
 
 	for (ulint i = 0; i < foreign->n_fields; i++) {
-
+		child_col_no = dict_index_get_nth_col_no(
+			foreign->foreign_index, i);
+		if (child_col_no != col_no) {
+			continue;
+		}
 		parent_col_no = dict_index_get_nth_col_no(parent_index, i);
 		parent_field_no = dict_table_get_nth_col_pos(
 			parent_table, parent_col_no);
@@ -23242,8 +23336,7 @@ innobase_get_field_from_update_vector(
 			upd_field_t*	parent_ufield
 				= &update->fields[j];
 
-			if (parent_ufield->field_no == parent_field_no
-			    && parent_col_no == col_no) {
+			if (parent_ufield->field_no == parent_field_no) {
 				return(&parent_ufield->new_val);
 			}
 		}
@@ -23819,7 +23912,7 @@ innodb_buffer_pool_size_validate(
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Cannot update innodb_buffer_pool_size"
-				    " to less than 20MB per instance"
+				    " to less than 20MB per instance with"
 				    " innodb_empty_free_list_algorithm"
 				    " = backoff.");
 		return(1);
@@ -23911,7 +24004,7 @@ innodb_encrypt_tables_validate(
 	bool legit_value= false;
 	uint use = 0;
 	for (;
-	    use < array_elements(srv_encrypt_tables_names);
+	    use < array_elements(srv_encrypt_tables_names) - 1;
 	    use++) {
 		if (!innobase_strcasecmp(
 		    innodb_encrypt_tables_input,
@@ -23924,6 +24017,65 @@ innodb_encrypt_tables_validate(
 	if (legit_value == false)
 		return 1;
 	*static_cast<ulong*>(save)= use;
+
+	return 0;
+}
+
+/** Validates the possible innodb_redo_log_encrypt_values.
+@param[in]	thd	current session
+@param[in]	var	the system variable innodb_support_xa
+@param[in,out]	var_ptr	the contents of the variable
+@param[in]	save	the to-be-updated value */
+static
+int
+innodb_redo_log_encrypt_validate(
+	THD *		     	thd,
+	struct st_mysql_sys_var *var,
+	void *		     	save,
+	struct st_mysql_value   *value)
+{
+	const char	*redo_log_encrypt_input;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	int		len = sizeof(buff);
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	redo_log_encrypt_input = value->val_str(value, buff, &len);
+
+	bool legit_value = false;
+	uint use = 0;
+	for (; use < array_elements(redo_log_encrypt_names) - 1; use++) {
+		if (innobase_strcasecmp(redo_log_encrypt_input,
+					redo_log_encrypt_names[use]) == 0) {
+			legit_value = true;
+			break;
+		}
+	}
+
+	if (innobase_strcasecmp(redo_log_encrypt_input, "0") == 0) {
+		use = 0;
+		legit_value = true;
+	}
+
+	if (innobase_strcasecmp(redo_log_encrypt_input, "false") == 0) {
+		use = 0;
+		legit_value = true;
+	}
+
+	if (innobase_strcasecmp(redo_log_encrypt_input, "1") == 0) {
+		use = 1;
+		legit_value = true;
+	}
+
+	if (innobase_strcasecmp(redo_log_encrypt_input, "true") == 0) {
+		use = 1;
+		legit_value = true;
+	}
+
+	if (!legit_value)
+		return 1;
+	*static_cast<ulong *>(save) = use;
 
 	return 0;
 }

@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1323,6 +1323,7 @@ public:
   inplace_alter_handler_ctx() {}
 
   virtual ~inplace_alter_handler_ctx() {}
+  virtual void set_shared_data(const inplace_alter_handler_ctx *ctx) {};
 };
 
 
@@ -3884,6 +3885,11 @@ public:
     but we don't have a primary key
   */
   virtual void use_hidden_primary_key();
+
+/**
+  A helper function to mark a transaction as noop_read_write if it is started.
+*/
+  void mark_trx_noop_dml();
 
 protected:
   /* Service methods for use by storage engines. */

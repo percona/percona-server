@@ -94,8 +94,6 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_undo_tablespaces=2 --innodb_page_si
 let SEARCH_FILE= $MYSQL_TMP_DIR/wl9290.err;
 let SEARCH_PATTERN= InnoDB: Redo log was encrypted, but keyring plugin is not loaded;
 --source include/search_pattern.inc
-let SEARCH_PATTERN= Aborting;
---source include/search_pattern.inc
 
 --echo # Restart without keyring plugin possible if redo files removed
 --remove_file $MYSQLD_DATADIR1/ib_logfile0

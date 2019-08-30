@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3961,7 +3961,7 @@ ha_innopart::info_low(
 		ut_a(m_prebuilt->trx);
 		ut_a(m_prebuilt->trx->magic_n == TRX_MAGIC_N);
 
-		err_index = trx_get_error_info(m_prebuilt->trx);
+		err_index = trx_get_error_index(m_prebuilt->trx);
 
 		if (err_index != NULL) {
 			errkey = m_part_share->get_mysql_key(m_last_part,
@@ -4372,6 +4372,16 @@ ha_innopart::get_auto_increment(
 		first_value,
 		nb_reserved_values);
 	DBUG_VOID_RETURN;
+}
+
+/** Get partition row type
+@param[in] Id of partition for which row type to be retrieved
+@return Partition row type */
+enum row_type ha_innopart::get_partition_row_type(
+        uint part_id)
+{
+	set_partition(part_id);
+	return get_row_type();
 }
 
 /** Compares two 'refs'.

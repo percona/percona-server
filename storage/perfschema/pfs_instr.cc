@@ -1725,21 +1725,18 @@ void aggregate_thread_status(PFS_thread *thread,
 
   if (likely(safe_account != NULL))
   {
-    safe_account->aggregate_status_stats(&thd->status_var,
-                                         thd->status_var_aggregated);
+    safe_account->aggregate_status_stats(&thd->status_var);
     return;
   }
 
   if (safe_user != NULL)
   {
-    safe_user->aggregate_status_stats(&thd->status_var,
-                                      thd->status_var_aggregated);
+    safe_user->aggregate_status_stats(&thd->status_var);
   }
 
   if (safe_host != NULL)
   {
-    safe_host->aggregate_status_stats(&thd->status_var,
-                                      thd->status_var_aggregated);
+    safe_host->aggregate_status_stats(&thd->status_var);
   }
   return;
 }

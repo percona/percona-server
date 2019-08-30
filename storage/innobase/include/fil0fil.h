@@ -52,6 +52,8 @@ Created 10/25/1995 Heikki Tuuri
 /** Structure containing encryption specification */
 struct fil_space_crypt_t;
 
+struct redo_log_key;
+
 #define REDO_LOG_ENCRYPT_NO_VERSION 0
 
 #ifdef UNIV_HOTBACKUP
@@ -255,6 +257,8 @@ struct fil_space_t {
 
 	/** Encrypt key version*/
 	ulint			encryption_key_version;
+	/** Only used for redo log encryption: the currently active key handle */
+	redo_log_key*           encryption_redo_key;
 
 	/** Encrypt initial vector */
         byte			encryption_iv[ENCRYPTION_KEY_LEN];
@@ -1766,25 +1770,15 @@ fil_get_compression(
 @param[in] algorithm		Encryption algorithm
 @param[in] key			Encryption key
 @param[in] iv			Encryption iv
+@param[in] acquire_mutex	if true acquire fil_sys mutex, else false
 @return DB_SUCCESS or error code */
-/*
 dberr_t
 fil_set_encryption(
 	ulint			space_id,
 	Encryption::Type	algorithm,
 	byte*			key,
 	byte*			iv,
-        ulint                   key_version,
-        fil_encryption_t        encryption)
-	MY_ATTRIBUTE((warn_unused_result));
-*/
-dberr_t
-fil_set_encryption(
-	ulint			space_id,
-	Encryption::Type	algorithm,
-	byte*			key,
-	byte*			iv,
-        bool aquire_mutex = true)
+	bool			acquire_mutex = true)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -1859,11 +1853,13 @@ fil_names_clear(
 
 /** Enable encryption of temporary tablespace
 @param[in,out]	space	tablespace object
+@param[in]	enable	true to enable encryption, false to disable
 @return DB_SUCCESS on success, DB_ERROR on failure */
 MY_NODISCARD
 dberr_t
 fil_temp_update_encryption(
-	fil_space_t*	space);
+	fil_space_t*	space,
+	bool		enable);
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 /**

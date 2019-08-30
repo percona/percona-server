@@ -40,7 +40,7 @@ DROP TABLE tne_1;
 --source include/shutdown_mysqld.inc
 
 # Grep for message in server error log
-let SEARCH_PATTERN=Can\'t set redo log tablespace to be encrypted;
+let SEARCH_PATTERN=Redo log cannot be encrypted if the keyring plugin is not loaded.;
 --source include/search_pattern.inc
 
 # Create path for ibdata* & undo* files both DBs

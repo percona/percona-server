@@ -1646,11 +1646,6 @@ static inline void dict_allocate_mem_intrinsic_cache(dict_index_t *index);
 @param[in]      table_id        table id  */
 bool dict_table_is_system(table_id_t table_id);
 
-/** Change the table_id of SYS_* tables if they have been created after
-an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES
-*/
-void dict_table_change_id_sys_tables();
-
 /** Get the tablespace data directory if set, otherwise empty string.
 @return the data directory */
 [[nodiscard]] std::string dict_table_get_datadir(const dict_table_t *table);

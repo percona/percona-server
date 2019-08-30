@@ -124,6 +124,11 @@ static const size_t MAX_BLOCKS = 128;
 /** Block buffer size */
 #define BUFFER_BLOCK_SIZE ((ulint)(UNIV_PAGE_SIZE * 1.3))
 
+/** Set to true when default master key is used. This variable
+main purpose is to avoid extra Encryption::get_master_key() when there
+are no encrypted tablespaces */
+bool default_master_key_used = false;
+
 /** Determine if O_DIRECT is supported
 @retval true    if O_DIRECT is supported.
 @retval false   if O_DIRECT is not supported. */

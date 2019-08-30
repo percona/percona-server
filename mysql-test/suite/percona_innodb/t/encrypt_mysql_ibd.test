@@ -1,0 +1,50 @@
+--source include/not_parallel.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component_customized.inc
+
+let $MYSQLD_BASEDIR= `select @@basedir`;
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
+--source include/shutdown_mysqld.inc
+
+--let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
+--let ERROR_LOG=$MYSQL_TMP_DIR/percona_encrypt_mysql_ibd_err.log
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+--let BOOTSTRAP_CMD = $MYSQLD_CMD --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL $PLUGIN_DIR_OPT > $ERROR_LOG --default_table_encryption=ON 2>&1
+
+--echo # Bootstrap new instance with encrypted mysql.ibd
+--exec $BOOTSTRAP_CMD
+
+--echo # Check Encryption header of mysql.ibd
+--let IBD_FILE=$MYSQLD_DATADIR1/mysql.ibd
+--source include/ibd_encryption_check.inc
+
+--let $do_not_echo_parameters=1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1"
+--source include/start_mysqld.inc
+
+--let $assert_text = Mysql.ibd should be encrypted
+--let $assert_cond = "[SELECT ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = \"mysql\"]" = "Y"
+--source include/assert.inc
+
+--echo # Check Encryption header of mysql.ibd after shutdown
+--source include/shutdown_mysqld.inc
+
+--let IBD_FILE=$MYSQLD_DATADIR1/mysql.ibd
+--source include/ibd_encryption_check.inc
+
+--echo # Start default MTR instance
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+--remove_file $BOOTSTRAP_SQL
+--force-rmdir $MYSQL_TMP_DIR/datadir1
+--remove_file $ERROR_LOG
+
+--source suite/component_keyring_file/inc/setup_component_customized.inc

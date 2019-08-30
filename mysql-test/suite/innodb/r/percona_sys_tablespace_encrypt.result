@@ -76,6 +76,7 @@ DROP TABLESPACE tb01;
 # start unencrypted system with --innodb-sys-tablespace-encrypt=ON
 Pattern found.
 # Bootstrap new instance with encrypted system tablespace
+# Check Encryption header of ibdata1
 # Start encrypted system with --innodb-sys-tablespace-encrypt=OFF
 Pattern found.
 # Start encrypted system without early-plugin-load and only --plugin-load

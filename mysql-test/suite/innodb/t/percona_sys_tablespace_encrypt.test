@@ -139,6 +139,10 @@ EOF
 --echo # Bootstrap new instance with encrypted system tablespace
 --exec $BOOTSTRAP_CMD
 
+--echo # Check Encryption header of ibdata1
+--let IBD_FILE=$MYSQLD_DATADIR1/ibdata1
+--source include/ibd_encryption_check.inc
+
 --echo # Start encrypted system with --innodb-sys-tablespace-encrypt=OFF
 --error 1
 --exec $MYSQLD_CMD --datadir=$MYSQLD_DATADIR1 --innodb-sys-tablespace-encrypt=OFF $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_EARLY_LOAD $KEYRING_DATA > $ERROR_LOG 2>&1

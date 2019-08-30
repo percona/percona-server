@@ -6340,10 +6340,14 @@ static std::tuple<bool, bool> dict_mysql_ibd_page_0_has_encryption_flag_set() {
 bool dict_detect_encryption_of_mysql_ibd(dict_init_mode_t dict_init_mode,
                                          space_id_t mysql_plugin_space,
                                          bool &encrypt_mysql) {
+  enum_default_table_encryption default_enc =
+      static_cast<enum_default_table_encryption>(
+          global_system_variables.default_table_encryption);
+
   bool success = false;
   switch (dict_init_mode) {
     case DICT_INIT_CREATE_FILES:
-      encrypt_mysql = (srv_default_table_encryption == DEFAULT_TABLE_ENC_ON);
+      encrypt_mysql = (default_enc == DEFAULT_TABLE_ENC_ON);
       return true;
     case DICT_INIT_UPGRADE_57_FILES:
       encrypt_mysql = dict_is_mysql_plugin_space_encrypted(mysql_plugin_space);

@@ -4688,9 +4688,13 @@ bool innobase_fix_tablespaces_empty_uuid() {
   }
 
   /* We only need to handle the case when an encrypted tablespace
-  is created at startup. If it is 0, there is no encrypted tablespace,
-  If it is > 1, it means we already have fixed the UUID */
-  if (Encryption::get_master_key_id() != 1) {
+  is created at startup. If it is > 1, it means we already have fixed
+  the UUID */
+  if (Encryption::get_master_key_id() > 1) {
+    return (false);
+  }
+
+  if (!default_master_key_used) {
     return (false);
   }
 

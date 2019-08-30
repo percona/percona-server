@@ -25,6 +25,8 @@ The MyRocks storage engine lacks the following features compared to InnoDB:
 
 * `Group Replication <https://dev.mysql.com/doc/refman/5.7/en/group-replication.html>`_
 
+* `Generated Columns <https://dev.mysql.com/doc/refman/5.7/en/create-table-generated-columns.html>`__
+
 * `Partial Update of LOB in InnoDB <https://mysqlserverteam.com/mysql-8-0-optimizing-small-partial-update-of-lob-in-innodb/>`_
 
 You should also consider the following:

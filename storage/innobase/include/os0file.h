@@ -86,6 +86,11 @@ extern std::atomic<ulint> os_n_pending_writes;
 /* Flush after each os_fsync_threshold bytes */
 extern unsigned long long os_fsync_threshold;
 
+/** Set to true when default master key is used. This variable
+main purpose is to avoid extra Encryption::get_master_key() when there
+are no encrypted tablespaces */
+extern bool default_master_key_used;
+
 /** File offset in bytes */
 typedef uint64_t os_offset_t;
 

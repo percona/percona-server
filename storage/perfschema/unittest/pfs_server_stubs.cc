@@ -34,3 +34,8 @@ void compute_digest_md5(const sql_digest_storage *, unsigned char *)
 {
 }
 
+my_bool
+acl_is_utility_user(const char *, const char *, const char *)
+{
+  return FALSE;
+}

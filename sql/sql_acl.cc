@@ -2107,10 +2107,13 @@ acl_init_utility_user(my_bool check_no_resolve)
     {
       if (*cur_pos == ',' || *cur_pos == '\0')
       {
-        char *dbname= my_strndup(cur_db, cur_pos-cur_db, MYF(MY_FAE));
-        (void) push_dynamic(&acl_utility_user_schema_access, (uchar*) &dbname);
+	if (cur_pos - cur_db > 0)
+        {
+          char *dbname= my_strndup(cur_db, cur_pos-cur_db, MYF(MY_FAE));
+          (void) push_dynamic(&acl_utility_user_schema_access, (uchar*) &dbname);
+	}
         cur_db= cur_pos+1;
-        if(*cur_pos == '\0')
+        if (*cur_pos == '\0')
           break;
       }
       cur_pos++;

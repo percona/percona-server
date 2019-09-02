@@ -38,6 +38,7 @@
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "sql_error.h"
+#include "sql_acl.h"
 #include "sp_head.h"
 #include "pfs_digest.h"
 
@@ -2028,6 +2029,14 @@ static void set_thread_account_v1(const char *user, int user_len,
   pfs->m_session_lock.allocated_to_dirty();
 
   clear_thread_account(pfs);
+
+  if (acl_is_utility_user(user, host, NULL)) {
+    /* We do not want the utility user to show up in any PFS statistics,
+    so we keep this pfs session dirty. This fixes many, but not all tables.
+    The remaining seems to honor m_enabled, so we also set that to false. */
+    pfs->m_enabled= false;
+    return;
+  }
 
   if (host_len > 0)
     memcpy(pfs->m_hostname, host, host_len);

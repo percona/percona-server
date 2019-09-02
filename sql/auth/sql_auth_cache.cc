@@ -1606,11 +1606,13 @@ acl_init_utility_user(bool check_no_resolve)
     {
       if (*cur_pos == ',' || *cur_pos == '\0')
       {
-        acl_utility_user_schema_access.push_back(std::string(cur_db,
-                                                             cur_pos
-                                                             - cur_db));
+	if (cur_pos - cur_db > 0) {
+          acl_utility_user_schema_access.push_back(std::string(cur_db,
+                                                               cur_pos
+                                                               - cur_db));
+	}
         cur_db= cur_pos+1;
-        if(*cur_pos == '\0')
+        if (*cur_pos == '\0')
           break;
       }
       cur_pos++;

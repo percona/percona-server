@@ -160,6 +160,8 @@ const char *dict_sys_t::s_file_per_table_name = "innodb_file_per_table";
 const char *dict_sys_t::s_default_undo_space_name_1 = "innodb_undo_001";
 const char *dict_sys_t::s_default_undo_space_name_2 = "innodb_undo_002";
 
+constexpr space_id_t dict_sys_t::s_space_id;
+
 /** the dictionary persisting structure */
 dict_persist_t *dict_persist = NULL;
 
@@ -7481,13 +7483,20 @@ static bool dict_is_mysql_plugin_space_encrypted(
   return FSP_FLAGS_GET_ENCRYPTION(space->flags);
 }
 
-/** Detect if innodb_encrypt_tables is set either to ON or FORCE or
-ONLINE_TO_KEYRING*
-@return true if innodb_encrypt_tables is equal to ON or FORCE or
-ONLINE_TO_KEYRING* */
+/** @return true if default_table_encryption is ON or ONLINE_TO_KEYRING */
 static bool dict_should_be_keyring_encrypted() {
-  return srv_default_table_encryption == DEFAULT_TABLE_ENC_ON ||
-         srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING;
+  /* We cannot use srv_default_encryption here because it is
+  set by server using fix_default_table_encryption() handlerton API
+  after InnoDB initialization is done and we need the variable
+  as part of InnoDB initialization. So we directly use the server
+  global variable structure */
+
+  enum_default_table_encryption default_enc =
+      static_cast<enum_default_table_encryption>(
+          global_system_variables.default_table_encryption);
+
+  return (default_enc == DEFAULT_TABLE_ENC_ON ||
+          default_enc == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING);
 }
 
 /** Reads mysql.ibd's page0 from buffer if the tablespace is already loaded

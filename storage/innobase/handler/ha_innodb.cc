@@ -4404,9 +4404,13 @@ bool innobase_fix_tablespaces_empty_uuid() {
   }
 
   /* We only need to handle the case when an encrypted tablespace
-  is created at startup. If it is 0, there is no encrypted tablespace,
-  If it is > 1, it means we already have fixed the UUID */
-  if (Encryption::s_master_key_id != 1) {
+  is created at startup. If it is > 1, it means we already have fixed
+  the UUID */
+  if (Encryption::s_master_key_id > 1) {
+    return (false);
+  }
+
+  if (!default_master_key_used) {
     return (false);
   }
 
@@ -4441,6 +4445,7 @@ bool innobase_fix_tablespaces_empty_uuid() {
 
   space_ids.push_back(srv_sys_space.space_id());
   space_ids.push_back(srv_tmp_space.space_id());
+  space_ids.push_back(dict_sys_t::s_space_id);
 
 #ifdef UNIV_DEBUG
   /* Currently all session temp tablespaces that use empty uuid

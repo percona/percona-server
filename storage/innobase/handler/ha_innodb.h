@@ -1403,6 +1403,9 @@ bool innobase_build_index_translation(const TABLE *table,
                                       dict_table_t *ib_table,
                                       INNOBASE_SHARE *share);
 
+uint innodb_force_index_records_in_range(THD *thd);
+uint innodb_records_in_range(THD *thd);
+
 /** Free InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler. */
 void thd_free_innodb_session(THD *thd) noexcept;

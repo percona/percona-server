@@ -89,6 +89,7 @@ Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
 #endif /* __WIN__ */
 
 void vio_proxy_protocol_add(const struct st_vio_network *net);
+void vio_proxy_cleanup();
 void    vio_delete(Vio* vio);
 int vio_shutdown(Vio* vio, int how);
 int vio_cancel(Vio* vio, int how);

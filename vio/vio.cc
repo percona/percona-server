@@ -569,7 +569,10 @@ void vio_delete(Vio *vio) { internal_vio_delete(vio); }
   components below it when application finish
 
 */
-void vio_end() { vio_ssl_end(); }
+void vio_end() {
+  vio_ssl_end();
+  vio_proxy_cleanup();
+}
 
 struct vio_string {
   const char *m_str;

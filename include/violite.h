@@ -191,6 +191,7 @@ struct st_vio_network {
 };
 
 void vio_proxy_protocol_add(const st_vio_network &net) noexcept;
+void vio_proxy_cleanup() noexcept;
 /* setsockopt TCP_NODELAY at IPPROTO_TCP level, when possible */
 int vio_fastsend(MYSQL_VIO vio);
 /* setsockopt SO_KEEPALIVE at SOL_SOCKET level, when possible */

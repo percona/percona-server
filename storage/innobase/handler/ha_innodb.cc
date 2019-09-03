@@ -923,6 +923,24 @@ static PSI_file_info all_innodb_files[] = {
 #endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
 
+static MYSQL_THDVAR_UINT(records_in_range, PLUGIN_VAR_RQCMDARG,
+                         "Used to override the result of records_in_range(). "
+                         "Set to a positive number to override",
+                         NULL, NULL, 0,
+                         /* min */ 0, /* max */ INT_MAX, 0);
+
+static MYSQL_THDVAR_UINT(force_index_records_in_range, PLUGIN_VAR_RQCMDARG,
+                         "Used to override the result of records_in_range() "
+                         "when FORCE INDEX is used.",
+                         NULL, NULL, 0,
+                         /* min */ 0, /* max */ INT_MAX, 0);
+
+uint innodb_force_index_records_in_range(THD *thd) {
+  return THDVAR(thd, force_index_records_in_range);
+}
+
+uint innodb_records_in_range(THD *thd) { return THDVAR(thd, records_in_range); }
+
 /** Plugin update function to handle validation and then switch the
 innodb_doublewrite mode
 @param[in]  thd thread handle
@@ -22990,7 +23008,8 @@ static MYSQL_SYSVAR_ENUM(
     empty_free_list_algorithm, srv_empty_free_list_algorithm,
     PLUGIN_VAR_OPCMDARG,
     "The algorithm to use for empty free list handling.  Allowed values: "
-    "LEGACY: (the default) Original Oracle MySQL handling with single page flushes; "
+    "LEGACY: (the default) Original Oracle MySQL handling with single page "
+    "flushes; "
     "BACKOFF: Wait until cleaner produces a free page.",
     innodb_srv_empty_free_list_algorithm_validate, nullptr,
     SRV_EMPTY_FREE_LIST_LEGACY, &innodb_empty_free_list_algorithm_typelib);
@@ -24097,6 +24116,8 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(compressed_columns_zip_level),
     MYSQL_SYSVAR(compressed_columns_threshold),
     MYSQL_SYSVAR(ft_ignore_stopwords),
+    MYSQL_SYSVAR(records_in_range),
+    MYSQL_SYSVAR(force_index_records_in_range),
     nullptr};
 
 mysql_declare_plugin(innobase){

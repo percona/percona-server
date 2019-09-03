@@ -1197,3 +1197,6 @@ innobase_create_zip_dict_references(
 /** Free InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler. */
 void thd_free_innodb_session(THD* thd);
+
+uint innodb_force_index_records_in_range(THD* thd);
+uint innodb_records_in_range(THD* thd);

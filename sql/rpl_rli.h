@@ -834,6 +834,9 @@ public:
       mts_group_status == MTS_IN_GROUP;
   }
 
+  bool mts_workers_queue_empty() const;
+  bool cannot_safely_rollback() const;
+
   /**
      While a group is executed by a Worker the relay log can change.
      Coordinator notifies Workers about this event. Worker is supposed

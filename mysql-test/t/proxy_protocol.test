@@ -1,0 +1,11 @@
+SELECT @@proxy_protocol_networks;
+
+--echo # An unproxied client connection should be rejected if proxying enabled on the server
+--disable_query_log
+--error ER_BAD_HOST_ERROR,CR_SERVER_LOST
+connect (err,"127.0.0.1",root,,,$MASTER_MYPORT,);
+--enable_query_log
+
+--echo # PS-5327 proxy protocol-related memory leak at shutdown
+# Restart the server
+--source include/restart_mysqld.inc

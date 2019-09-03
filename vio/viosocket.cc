@@ -753,6 +753,8 @@ void vio_proxy_protocol_add(const struct st_vio_network &net) noexcept {
   memcpy(&vio_pp_networks[vio_pp_networks_nb - 1], &net, sizeof(net));
 }
 
+void vio_proxy_cleanup() noexcept { my_free(vio_pp_networks); }
+
 /* Check whether a connection from this source address must provide the proxy
    protocol header */
 static bool vio_client_must_be_proxied(const struct sockaddr *p_addr) noexcept {

@@ -314,7 +314,7 @@ be encrypted unless you use the ``ENCRYPTION`` clause explicitly.
 
 .. rubric:: KEYRING_ON
 
-:Availability: This value is **Alpha** quality
+:Availability: This value is **Experimental** quality
 
 New tables are created encrypted with the keyring as the default encryption. You
 may specify a numeric key identifier and use a specific ``percona-innodb-`` key
@@ -337,13 +337,13 @@ keyring, |Percona Server| will create it with version 1. If a new
 
 .. rubric:: FORCE_KEYRING
 	    
-:Availability: This value is **Alpha** quality
+:Availability: This value is **Experimental** quality
 
 New tables are created encrypted and keyring encryption is enforced.
 
 .. rubric:: ONLINE_TO_KEYRING
 
-:Availability: This value is **Alpha** quality
+:Availability: This value is **Experimental** quality
 
 All tables created or altered without the ``ENCRYPTION=NO`` clause 
 are encrypted with the latest version of the default encryption key. If a table
@@ -352,7 +352,7 @@ encrypted with the latest version of the default encryption key.
 
 .. rubric:: ONLINE_TO_KEYRING_FORCE
 
-:Availability: This value is **Alpha** quality
+:Availability: This value is **Experimental** quality
 
 It is only possible to apply the keyring encryption when creating or altering
 tables.
@@ -414,7 +414,7 @@ online DDL logs created by InnoDB for online DDL.
 InnoDB Undo Tablespace Encryption
 ================================================================================
 
-:Availability: This feature is **Alpha** quality
+:Availability: This feature is **Experimental** quality
 
 The encryption of InnoDB Undo tablespaces is only available when using
 separate undo tablespaces. Otherwise, the InnoDB undo log is part of
@@ -509,7 +509,7 @@ The variable turns on binary and relay logs encryption.
 Redo Log Encryption
 ================================================================================
 
-:Availability: This feature is **Alpha** quality
+:Availability: This feature is **Experimental** quality
 
 InnoDB redo log encryption is enabled by setting the variable
 :variable:`innodb_redo_log_encrypt`. This variable has three values:
@@ -575,6 +575,8 @@ Specifies if data scrubbing should be automatically applied to the redo log.
  
 Specifies the velocity of data scrubbing (writing dummy redo log records) in bytes per second.
 
+Implemented in version 5.7.27-30, the key rotation is redesigned to allow ``SELECT rotate_system_key("percona_redo)``. The currently used key version is available in the :variable:`innodb_redo_key_version` status. The feature is **Experimental**.
+
 
 Temporary file encryption
 =========================
@@ -586,7 +588,7 @@ option.
 Temporary files are currently used in |Percona Server| for the following
 purposes:
 
-This feature is considered **ALPHA** quality.
+This feature is considered **Experimental** quality.
 
 * filesort (for example, ``SELECT`` statements with ``SQL_BIG_RESULT`` hints),
 

@@ -3368,7 +3368,7 @@ static void buf_lru_manager_sleep_if_needed(
     ib_time_monotonic_ms_t next_loop_time) {
   /* If this is the server shutdown buffer pool flushing phase, skip the
   sleep to quit this thread faster */
-  if (srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE) return;
+  if (srv_shutdown_state.load() == SRV_SHUTDOWN_FLUSH_PHASE) return;
 
   const auto cur_time = ut_time_monotonic_ms();
 
@@ -3431,8 +3431,8 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
 
   /* On server shutdown, the LRU manager thread runs through cleanup
   phase to provide free pages for the master and purge threads.  */
-  while (srv_shutdown_state == SRV_SHUTDOWN_NONE ||
-         srv_shutdown_state == SRV_SHUTDOWN_CLEANUP) {
+  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE ||
+         srv_shutdown_state.load() == SRV_SHUTDOWN_CLEANUP) {
     ut_d(buf_flush_page_cleaner_disabled_loop());
 
     buf_lru_manager_sleep_if_needed(next_loop_time);

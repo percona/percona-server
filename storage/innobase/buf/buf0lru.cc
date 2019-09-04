@@ -1338,8 +1338,8 @@ loop:
 
   if (srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_BACKOFF &&
       buf_flush_page_cleaner_is_active() &&
-      (srv_shutdown_state == SRV_SHUTDOWN_NONE ||
-       srv_shutdown_state == SRV_SHUTDOWN_CLEANUP)) {
+      (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE ||
+       srv_shutdown_state.load() == SRV_SHUTDOWN_CLEANUP)) {
     /* Backoff to minimize the free list mutex contention while the free list
     is empty */
     const auto priority = srv_current_thread_priority;
@@ -1385,8 +1385,8 @@ loop:
     was requested, will perform a single page flush  */
     ut_ad((srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_LEGACY) ||
           !buf_flush_page_cleaner_is_active() ||
-          (srv_shutdown_state != SRV_SHUTDOWN_NONE &&
-           srv_shutdown_state != SRV_SHUTDOWN_CLEANUP));
+          (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
+           srv_shutdown_state.load() != SRV_SHUTDOWN_CLEANUP));
   }
   if (buf_pool->init_flush[BUF_FLUSH_LRU] && srv_use_doublewrite_buf &&
       buf_dblwr != NULL) {

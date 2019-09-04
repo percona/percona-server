@@ -1643,9 +1643,9 @@ void srv_init_log_online(void) {
 
     /* Create the thread that follows the redo log to output the
        changed page bitmap */
-    auto thread = os_thread_create(srv_log_tracking_thread_key,
-                                   srv_redo_log_follow_thread);
-    thread.start();
+    srv_threads.m_changed_page_tracker = os_thread_create(
+        srv_log_tracking_thread_key, srv_redo_log_follow_thread);
+    srv_threads.m_changed_page_tracker.start();
   }
 }
 
@@ -2596,9 +2596,9 @@ files_checked:
     find free pages in the buffer pool is diagnosed. */
     if (!srv_read_only_mode) {
       /* Create the thread which prints InnoDB monitor info */
-      auto thread = os_thread_create(srv_monitor_thread_key,
-                                     srv_monitor_thread);
-      thread.start();
+      srv_threads.m_monitor =
+          os_thread_create(srv_monitor_thread_key, srv_monitor_thread);
+      srv_threads.m_monitor.start();
       srv_start_state_set(SRV_START_STATE_MONITOR);
     }
 
@@ -3585,7 +3585,7 @@ static lsn_t srv_shutdown_log() {
 
     log_stop_background_threads(*log_sys);
 
-    /* Wake the log tracking thread which will then immediatelly quit because
+    /* Wake the log tracking thread which will then immediately quit because
     of srv_shutdown_state value */
     if (srv_thread_is_active(srv_threads.m_changed_page_tracker)) {
       os_event_reset(srv_redo_log_tracked_event);
@@ -3605,7 +3605,7 @@ static lsn_t srv_shutdown_log() {
 
   srv_shutdown_state.store(SRV_SHUTDOWN_LAST_PHASE);
 
-  /* Wake the log tracking thread which will then immediatelly quit because of
+  /* Wake the log tracking thread which will then immediately quit because of
   srv_shutdown_state value */
   if (srv_thread_is_active(srv_threads.m_changed_page_tracker)) {
     os_event_reset(srv_redo_log_tracked_event);

@@ -677,7 +677,7 @@ void log_request_checkpoint(log_t &log, bool sync) {
 bool log_make_latest_checkpoint(log_t &log) {
   const lsn_t lsn = log_get_lsn(log);
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_FLUSH_PHASE)
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_FLUSH_PHASE)
     log_preflush_pool_modified_pages(log, lsn);
 
   log_checkpointer_mutex_enter(log);

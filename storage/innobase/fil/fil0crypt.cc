@@ -2532,7 +2532,7 @@ void fil_crypt_thread() {
 
   /* Wait for server to be fully started */
   while (!mysqld_server_started) {
-    if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       return;
     }
     os_thread_sleep(1000000);

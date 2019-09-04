@@ -2040,7 +2040,7 @@ void srv_redo_log_follow_thread() {
     os_event_reset(srv_checkpoint_completed_event);
 
     if (srv_track_changed_pages &&
-        srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
+        srv_shutdown_state.load() < SRV_SHUTDOWN_LAST_PHASE) {
       if (!log_online_follow_redo_log_one_pass()) {
         /* TODO: sync with I_S log tracking status? */
         ib::error() << "Log tracking bitmap write "
@@ -2050,7 +2050,7 @@ void srv_redo_log_follow_thread() {
       os_event_set(srv_redo_log_tracked_event);
     }
 
-  } while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
+  } while (srv_shutdown_state.load() < SRV_SHUTDOWN_LAST_PHASE);
 
   log_online_read_shutdown();
   os_event_set(srv_redo_log_tracked_event);

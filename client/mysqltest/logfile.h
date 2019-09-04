@@ -35,7 +35,7 @@ class Logfile {
   Logfile();
   Logfile(const Logfile &) = default;
 
-  virtual ~Logfile() {}
+  virtual ~Logfile() { close(); }
 
   /// Return file name.
   ///

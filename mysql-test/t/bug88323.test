@@ -1,7 +1,7 @@
 --echo #
 --echo # handle_fatal_signal (sig=11) in Item_direct_view_ref::fix_fields
 --echo #
-CREATE PROCEDURE p1(IN i1 TEXT BINARY CHARACTER SET 'Binary' COLLATE 'Binary')NO SQL SHOW EVENTS;
+CREATE PROCEDURE p1(IN i1 TEXT CHARACTER SET 'Binary' COLLATE 'Binary')NO SQL SHOW EVENTS;
 XA BEGIN 'xid2';
 
 XA END 'xid2';

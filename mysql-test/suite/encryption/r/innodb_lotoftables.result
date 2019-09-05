@@ -3,7 +3,7 @@ SET GLOBAL innodb_fast_shutdown=0;
 SHOW VARIABLES LIKE 'innodb_encrypt%';
 Variable_name	Value
 innodb_encrypt_online_alter_logs	OFF
-innodb_encrypt_tables	ONLINE_FROM_KEYRING_TO_UNENCRYPTED
+default_table_encryption	ONLINE_FROM_KEYRING_TO_UNENCRYPTED
 innodb_encryption_rotate_key_age	1
 innodb_encryption_rotation_iops	100
 innodb_encryption_threads	0
@@ -53,7 +53,7 @@ use test;
 show status like 'innodb_pages0_read%';
 Variable_name	Value
 Innodb_pages0_read	8
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=4;
 #tables in innodb_encrypted_1 and innodb_encrypted_2 should be encrypted
 # should contain 100 tables
@@ -63,8 +63,8 @@ include/assert.inc [Should contain 100 tables]
 # should contain 100 unencrypted tables
 include/assert.inc [Should contain 100 unencrypted tables]
 # Success!
-# Restart mysqld --innodb_encrypt_tables=0 --innodb_encryption_threads=0
-# restart:--innodb_encrypt_tables=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb_encryption_threads=0
+# Restart mysqld --default_table_encryption=0 --innodb_encryption_threads=0
+# restart:--default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb_encryption_threads=0
 # Restart Success!
 show status like 'innodb_pages0_read%';
 Variable_name	Value
@@ -115,7 +115,7 @@ Innodb_pages0_read	508
 include/assert.inc [Should contain 200 tables]
 # should contain 100 unencrypted tables
 include/assert.inc [Should contain 100 unencrypted tables]
-SET GLOBAL innodb_encrypt_tables = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
 # should contain 100 unencrypted tables
 include/assert.inc [Should contain 100 unencrypted tables]

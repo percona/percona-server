@@ -1,5 +1,5 @@
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_encrypt_tables = KEYRING_ON;
+SET GLOBAL default_table_encryption = KEYRING_ON;
 create table t1(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed ENCRYPTION='KEYRING' encryption_key_id=2;
 create table t2(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed;
 create table t3(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb ENCRYPTION='KEYRING' encryption_key_id=2;
@@ -25,4 +25,4 @@ COMMIT;
 # Restart mysqld
 # restart:<hidden args>
 drop table t1,t2,t3,t4;
-SET GLOBAL innodb_encrypt_tables=OFF;
+SET GLOBAL default_table_encryption=OFF;

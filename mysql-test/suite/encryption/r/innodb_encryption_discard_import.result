@@ -270,7 +270,7 @@ restore: t7 .ibd and .cfg files
 restore: t8 .ibd and .cfg files
 # Disable rotation threads
 SET GLOBAL innodb_encryption_threads = 0;
-SET GLOBAL innodb_encrypt_tables = OFF;
+SET GLOBAL default_table_encryption = OFF;
 ALTER TABLE t1 IMPORT TABLESPACE;
 include/assert.inc [Make sure t1 has encrypted flag set after importing]
 include/assert.inc [Make sure t1 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1]
@@ -334,7 +334,7 @@ include/assert.inc [Make sure t8 is readable]
 # Now let's backup keyring file, change encryption key id of encrypt-able tables (all but t7) 
 # export and dicard them. Next restart the server with backuped keyring file and make sure that
 # server starts, but tables cannot be imported gracefully
-SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 # Wait max 2 min for key encryption threads to encrypt all spaces
 ALTER TABLE t1 encryption_key_id = 5;
 ALTER TABLE t2 encryption_key_id = 5;

@@ -15,11 +15,11 @@ Warning	1287	'VALUES function' is deprecated and will be removed in a future rel
 set DEBUG_SYNC = "now SIGNAL flushed";
 Warnings:
 Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
-select id, a, b, c from extra;
-id	a	b	c
-1	1	b1	cc1
-2	2	b2	cc2
-3	3	b3	c3
-4	4	b4	c4
-5	5	b5	c5
+select a, b, c from extra order by a;
+a	b	c
+1	b1	cc1
+2	b2	cc2
+3	b3	c3
+4	b4	c4
+5	b5	c5
 drop table extra;

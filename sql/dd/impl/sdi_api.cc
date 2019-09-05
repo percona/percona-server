@@ -98,7 +98,8 @@ bool Import_target::load(THD *thd, String_type *shared_buffer) {
   }
 
   if (!dd::has_primary_key(*m_table_object) &&
-      thd->variables.sql_require_primary_key) {
+      thd->variables.sql_require_primary_key &&
+      !m_table_object->is_temporary()) {
     my_error(ER_TABLE_WITHOUT_PK, MYF(0));
     return true;
   }

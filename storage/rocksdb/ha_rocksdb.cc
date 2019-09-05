@@ -7163,12 +7163,6 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
     DBUG_RETURN(HA_ERR_ROCKSDB_TABLE_INDEX_DIRECTORY_NOT_SUPPORTED);
   }
 
-  if (unlikely(create_info->encrypt_type.length)) {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-             "ENCRYPTION for the RocksDB storage engine");
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
-  }
-
   if (unlikely(create_info->tablespace)) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
              "TABLESPACEs for the RocksDB storage engine");

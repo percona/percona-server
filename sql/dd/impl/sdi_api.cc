@@ -98,7 +98,8 @@ bool Import_target::load(THD *thd, String_type *shared_buffer) {
   }
 
   if (!dd::has_primary_key(*m_table_object) &&
-      thd->variables.sql_require_primary_key) {
+      thd->variables.sql_require_primary_key &&
+      !m_table_object->is_temporary()) {
     // Need PK, but have none. Check for PKE. If there is none, error out.
     bool have_pke = false;
     const Table::Index_collection *inxs = m_table_object->indexes();

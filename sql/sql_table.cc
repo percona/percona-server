@@ -7599,7 +7599,8 @@ bool mysql_prepare_create_table(
   // been disabled and return error.
   if (!primary_key && !thd->is_dd_system_thread() &&
       !thd->is_initialize_system_thread() &&
-      thd->variables.sql_require_primary_key) {
+      thd->variables.sql_require_primary_key &&
+      !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
     my_error(ER_TABLE_WITHOUT_PK, MYF(0));
     DBUG_RETURN(true);
   }

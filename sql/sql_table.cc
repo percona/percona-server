@@ -8685,7 +8685,8 @@ bool mysql_prepare_create_table(
           TEMPORARY_TABLE_CREATION &&
       (file->ha_table_flags() &
        (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)) != 0 &&
-      thd->variables.sql_require_primary_key) {
+      thd->variables.sql_require_primary_key &&
+      !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
     my_error(ER_TABLE_WITHOUT_PK, MYF(0));
     return true;
   }

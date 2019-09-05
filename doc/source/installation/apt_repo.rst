@@ -10,16 +10,13 @@ Supported Releases:
 
 * Debian:
 
- * 7.0 (wheezy)
  * 8.0 (jessie)
  * 9.0 (stretch)
+ * 10.0 (buster)
 
 * Ubuntu:
 
- * 14.04LTS (trusty)
  * 16.04LTS (xenial) 
- * 17.04 (zesty)
- * 17.10 (artful)
  * 18.04 (bionic)
 
 Supported Platforms:

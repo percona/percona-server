@@ -157,6 +157,24 @@ END {
 
 sub env_or_val($$) { defined $ENV{$_[0]} ? $ENV{$_[0]} : $_[1] }
 
+# set_term_args(user_specified_string, term_exe_variable, term_args_arr, title)
+sub set_term_args {
+  my $term_cmd = $_[0];
+  if ($term_cmd =~ /^ *$/) {
+    mtr_error("MTR_TERM is defined, but empty");
+  }
+  my @term_args = split / /, $term_cmd;
+  $_[1] = shift @term_args;
+  foreach my $t_arg (@term_args) {
+    if ($t_arg eq "%title%") {
+      mtr_add_arg($_[2], "$_[3]");
+    } else {
+      mtr_add_arg($_[2], $t_arg);
+    }
+  }
+
+}
+
 my $path_config_file;           # The generated config file, var/my.cnf
 
 # Visual Studio produces executables in different sub-directories based on the
@@ -310,6 +328,8 @@ my $opt_callgrind;
 my $opt_helgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 600; # Default timeout for WAIT_FOR actions.
+my $opt_mtr_term_args = env_or_val(MTR_TERM => "xterm -title %title% -e");
+my $opt_lldb_cmd = env_or_val(MTR_LLDB => "lldb");
 
 sub testcase_timeout ($) {
   my ($tinfo)= @_;
@@ -6229,9 +6249,9 @@ sub gdb_arguments {
   }
 
   $$args= [];
-  mtr_add_arg($$args, "-title");
-  mtr_add_arg($$args, "$type");
-  mtr_add_arg($$args, "-e");
+
+  my $term_exe;
+  set_term_args($opt_mtr_term_args, $term_exe, $$args, $type);
 
   if ( $exe_libtool )
   {
@@ -6244,7 +6264,7 @@ sub gdb_arguments {
   mtr_add_arg($$args, "$gdb_init_file");
   mtr_add_arg($$args, "$$exe");
 
-  $$exe= "xterm";
+  $$exe= $term_exe;
 }
 
  #
@@ -6279,17 +6299,17 @@ sub lldb_arguments {
     return;
   }
 
-  mtr_tofile($lldb_start_file, "lldb -s $lldb_init_file $$exe\n");
-  chmod 0755, $lldb_start_file;
-
   $$args= [];
-  mtr_add_arg($$args, "-n");
-  mtr_add_arg($$args, "-W");
-  mtr_add_arg($$args, "-a");
-  mtr_add_arg($$args, "Terminal");
-  mtr_add_arg($$args, $lldb_start_file);
 
-  $$exe= "open";
+  my $term_exe;
+  set_term_args($opt_mtr_term_args, $term_exe, $$args, $type);
+
+  mtr_add_arg($$args, $opt_lldb_cmd);
+  mtr_add_arg($$args, "-s");
+  mtr_add_arg($$args, "$lldb_init_file");
+  mtr_add_arg($$args, "$$exe");
+
+  $$exe= $term_exe;
 }
 
 #
@@ -6795,6 +6815,21 @@ Options for debugging the product
                         the current test run. Defaults to
                         $opt_max_test_fail, set to 0 for no limit. Set
                         it's default with MTR_MAX_TEST_FAIL
+
+Environment variables controlling debugging parameters
+
+  MTR_TERM              Configures the terminal command to run the debugger.
+                        Defaults to xterm, but most other visual terminals
+                        can also be specified. Examples:
+                        MTR_TERM="gnome-terminal --title %title% --wait -x"
+                        MTR_TERM="urxwt -title %title% -e"
+                        Note: older version of gnome-terminal did not support
+                        --wait - those versions aren't compatible.
+  MTR_LLDB              Configures the lldb executable when debugging with
+                        lldb, the default is "lldb". This is useful for
+                        using lldb on a non default path, or on distributions
+                        with versioned lldb binaries. Example:
+                        MTR_LLDB=lldb-8.0
 
 Options for valgrind
 

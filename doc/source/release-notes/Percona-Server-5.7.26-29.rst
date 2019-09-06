@@ -1,19 +1,19 @@
 .. rn:: 5.7.26-29
-	
+
 ==========================
 |Percona Server| |release|
 ==========================
-	
+
 Percona is glad to announce the release of |Percona Server| |release| on
-May 27, 2018. Downloads are available `here
+May 27, 2019. Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.26-29/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
-	
+
 This release is based on `MySQL 5.7.26
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-26.html>`_
 and includes all the bug fixes in it. |Percona Server| |release| is
 now the current GA (Generally Available) release in the 5.7 series.
-	
+
 New Features
 ============
 
@@ -30,20 +30,20 @@ Bugs Fixed
 
 - a read-write workload on compressed InnoDB tables could cause an assertion
   error. Bug fixed :psbug:`3581`.
-	
+
 - using TokuDB or MyRocks native partitioning and ``index_merge`` access method
   could lead to a server crash. Bugs fixed :psbug:`5206`, :psbug:`5562`.
 
 - a stack buffer overrun could happen if the redo log encryption with
   key rotation was enabled. Bug fixed :psbug:`5305`.
 
-- TokuDB and MyRocks native partitioning handler objects were allocated from a 
+- TokuDB and MyRocks native partitioning handler objects were allocated from a
   wrong memory allocator. Memory was released only on shutdown and concurrent
   access to global memory allocator caused memory corruptions and therefore
   crashes. Bugs fixed :psbug:`5508`, :psbug:`5525`.
 
-- enabling redo log encryption resulted in redo log being written unencrypted. 
-  Bug fixed :psbug:`5547`. 
+- enabling redo log encryption resulted in redo log being written unencrypted.
+  Bug fixed :psbug:`5547`.
 
 - if there are multiple row versions in InnoDB, reading one row from PK may
   have O(N) complexity and reading from secondary keys may have O(N^2)
@@ -54,7 +54,7 @@ Bugs Fixed
   Bug fixed :psbug:`4933`.
 
 - the page cleaner could sleep for long time when the system clock was adjusted
-  to an earlier point in time. Bug fixed :psbug:`5221` (upstream :mysqlbug:`93708`). 
+  to an earlier point in time. Bug fixed :psbug:`5221` (upstream :mysqlbug:`93708`).
 
 - executing ``SHOW BINLOG EVENT`` from an invalid position could result in a
   segmentation fault on 32bit machines. Bug fixed :psbug:`5243`.
@@ -82,7 +82,7 @@ Bugs Fixed
 
 - when using the Docker image, if the root passwords set in the mounted
   ``.cnf`` file and the one specified with ``MYSQL_ROOT_PASSWORD``
-  are different, password from the ``MYSQL_ROOT_PASSWORD`` will be used. 
+  are different, password from the ``MYSQL_ROOT_PASSWORD`` will be used.
   Bug fixed :psbug:`5573`.
 
 - long running ``ALTER TABLE ADD INDEX`` could cause a ``semaphore wait > 600``
@@ -101,7 +101,6 @@ Other bugs fixed:
 
 This release also contains the fixes for the following security issues:
 CVE-2019-2632, CVE-2019-1559, CVE-2019-2628, CVE-2019-2581, CVE-2019-2683,
-CVE-2019-2592, CVE-2019-262, and CVE-2019-2614. 
+CVE-2019-2592, CVE-2019-262, and CVE-2019-2614.
 
 .. |release| replace:: 5.7.26-29
-

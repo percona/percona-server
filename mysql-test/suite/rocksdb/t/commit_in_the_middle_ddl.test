@@ -21,3 +21,4 @@ select count(*) from a force index(v);
 
 DROP TABLE a;
 
+--source suite/rocksdb/include/drop_table_sync.inc

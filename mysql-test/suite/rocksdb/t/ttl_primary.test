@@ -487,6 +487,9 @@ INSERT INTO t1 values (3, UNIX_TIMESTAMP());
 INSERT INTO t1 values (5, UNIX_TIMESTAMP());
 INSERT INTO t1 values (7, UNIX_TIMESTAMP());
 
+# wait for unix timestamp value changed to make sure ttl column b update
+let $wait_condition= SELECT UNIX_TIMESTAMP() != max(b) FROM t1;
+--source include/wait_condition.inc
 set global rocksdb_debug_ttl_rec_ts = 300;
 UPDATE t1 SET b=UNIX_TIMESTAMP() WHERE a < 4;
 set global rocksdb_debug_ttl_rec_ts = 0;

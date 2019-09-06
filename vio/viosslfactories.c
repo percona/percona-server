@@ -241,8 +241,6 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
   so we don't need the following callback functions.
 */
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-/* OpenSSL specific */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_key key_rwlock_openssl;
@@ -402,7 +400,6 @@ static void deinit_lock_callback_functions()
 {
   set_lock_callback_functions(FALSE);
 }
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 

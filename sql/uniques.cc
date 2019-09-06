@@ -934,7 +934,7 @@ bool Unique::get(TABLE *table) {
   if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0) != 0) return 1;
 
   MY_ATTRIBUTE((unused))
-  int reinit_res = reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
+  int reinit_res = reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0);
   DBUG_ASSERT(reinit_res == 0);
 
   Uniq_param uniq_param;

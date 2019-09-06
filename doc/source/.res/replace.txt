@@ -12,6 +12,7 @@
 
 .. |debian| replace:: Debian
 .. |debian-last| replace:: Debian 9.0 (stretch)
+.. |debian-tenth| replace:: Debian 10.0 (buster)
 .. |ubuntu| replace:: Ubuntu
 .. |ubuntu-last| replace:: Ubuntu 18.10 (Cosmic Cuttlefish)
 .. |ubuntu-lts| replace::  Ubuntu 18.04 LTS (bionic)

@@ -9,7 +9,7 @@ repositories and the `Percona downloads`_ page.
 
 Supported Releases:
 
-- |debian-last|
+- |debian-last|,  |debian-tenth|
 - |ubuntu| 16.04 (xenial) 
 - |ubuntu-lts|
   
@@ -120,7 +120,7 @@ Installing |Percona Server| using downloaded deb packages
 Download the packages of the desired series for your architecture from the
 `Percona downloads`_ page. The easiest way is to download bundle which contains
 all the packages. The following example will download |Percona Server|
-:rn:`8.0.13-3` release packages for |debian-last|:
+:rn:`8.0.13-3` release packages for |debian-last| and |debian-tenth|:
 
 .. code-block:: bash
 
@@ -217,10 +217,10 @@ Server| in :file:`/etc/mysql/my.cnf`.
 
 .. note:: 
 
-   |debian-last| and |ubuntu-lts| come with `systemd
+   |debian-last|, |debian-tenth|, and |ubuntu-lts| come with `systemd
    <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and
    service manager. You can invoke all the above commands with ``systemctl``
-   instead of ``service``. Currently both are supported.
+   instead of ``service``. Currently, both are supported.
      
 Uninstalling |Percona Server|
 =============================

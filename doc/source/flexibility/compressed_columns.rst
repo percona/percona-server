@@ -24,6 +24,7 @@ This feature provides:
   row compression method)
 
 .. To Reviewer: Is the following statement still relevant?
+
 This feature is based on a patch provided by Weixiang Zhai.
 
 Specifications

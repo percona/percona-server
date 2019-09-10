@@ -199,8 +199,7 @@ Installing |Percona Server| using downloaded rpm packages
 
   .. note::
 
-    For an RHEL 8 package installation, Percona Server requires the mysql module 
-to be disabled.
+    For an RHEL 8 package installation, Percona Server requires the mysql module to be disabled.
 
 3. Now you can install |Percona Server| 8.0 by running:
 

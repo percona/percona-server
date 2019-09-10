@@ -1412,7 +1412,7 @@ master and slave.
 
 .. note::
 
-In version 8.0.16-7 and later, the default value is changed to ``TRUE``.
+    In version 8.0.16-7 and later, the default value is changed to ``TRUE``.
 
 .. variable:: rocksdb_keep_log_file_num
 

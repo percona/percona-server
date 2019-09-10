@@ -19,7 +19,7 @@ of incompatible changes that could cause automatic upgrade to fail:
 - `Upgrade Paths <https://dev.mysql.com/doc/refman/8.0/en/upgrade-paths.html>`_
 - `Preparing your Installation for Upgrade <https://dev.mysql.com/doc/refman/8.0/en/upgrade-prerequisites.html>`_
 
-.. include:: ../.res/text/encrypt_binlog.removing.txt
+.. include:: ./.res/text/encrypt_binlog.removing.txt
 
 .. warning:: 
 

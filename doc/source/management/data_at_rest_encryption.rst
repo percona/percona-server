@@ -279,6 +279,8 @@ with a new master key by running the following ``ALTER INSTANCE`` statement:
 
    mysql> ALTER INSTANCE ROTATE INNODB MASTER KEY
 
+.. _data-at-rest-encryption.innodb_doublewrite_buffers_encryption:
+
 .. rubric:: Doublewrite Buffers
 
 The two types of doublewrite buffers used in |Percona Server| are encrypted
@@ -332,7 +334,7 @@ Enables the encryption of the parallel doublewrite buffer. For encryption, uses
 the key of the tablespace where the parallel doublewrite buffer is used.
 
 
-.. _innodb_general_tablespace_encryption:
+.. _data-at-rest-encryption.innodb_general_tablespace_encryption:
 
 InnoDB General Tablespace Encryption
 ================================================================================
@@ -575,6 +577,10 @@ tables should be encrypted again. If it is set to **1**, the encrypted table is
 re-encrypted on each key rotation. If it is set to **2**, the table is encrypted
 on every other key rotation.
 
+.. _data-at-rest-encryption.merge_file_encryption:
+
+.. rubric:: Merge File Encryption
+
 .. variable:: innodb_encrypt_online_alter_logs
 
    :cli: ``--innodb-encrypt-online-alter-logs``
@@ -628,6 +634,8 @@ System Variables
 
 The variable turns on binary and relay logs encryption.
 
+.. _data-at-rest-encryption.innodb_redo_log_encryption:
+
 Redo Log Encryption
 ==============================================================================
 
@@ -647,6 +655,8 @@ After starting the server, an attempt to encrypt the redo log fails in the follo
     * Server started with no keyring specified
     * Server started with a keyring, but a different redo log encryption method is specified
 
+.. _data-at-rest-encryption.undo_tablespace_encryption:
+
 Undo Tablespace Encryption
 ==============================================================================
 
@@ -660,7 +670,7 @@ This encryption is performed when the undo log data is written to disk using the
       https://dev.mysql.com/doc/refman/8.0/en/innodb-tablespace-encryption.html#innodb-tablespace-encryption-undo-log
 
 
-
+.. _data-at-rest-encryption.innodb_temporary_file_encryption:
 
 Temporary File Encryption
 ================================================================================

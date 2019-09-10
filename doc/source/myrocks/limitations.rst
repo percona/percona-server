@@ -105,12 +105,13 @@ You should also consider the following:
 
 As a workaround, we recommend a manual move of the table. The following  steps are the same as the ``ALTER TABLE ... ENGINE=...`` process:
 
-    * Use ``SHOW CREATE TABLE ... `` to return the InnoDB table definition.
-    * With the table definition as the source, perform a ``CREATE TABLE ... ENGINE=RocksDB``.
-    * In the new table, use ``INSERT INTO <new table> SELECT * FROM <old table>``.
+* Use ``SHOW CREATE TABLE`` to return the InnoDB table definition.
+* With the table definition as the source, perform a ``CREATE TABLE ... ENGINE=RocksDB``.
+* In the new table, use ``INSERT INTO <new table> SELECT * FROM <old table>``.
 
   .. note::
-    With MyRocks and with large tables, it is recommended to set the session variable ``rocksdb_bulk_load=1`` during the load to prevent running out of memory. This recommendation is because of the MyRocks large transaction limitation.
+
+    With MyRocks and working with large tables, it is recommended to set the session variable ``rocksdb_bulk_load=1`` during the load to prevent running out of memory. This recommendation is because of the MyRocks large transaction limitation.
 
   .. seealso::
 

@@ -99,6 +99,8 @@ const string colon(" : ");
 const string comma(" , ");
 const string open_brace("{ ");
 const string close_brace(" }");
+const string on("ON");
+const string off("OFF");
 
 const int file_version = 1;
 
@@ -312,6 +314,19 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
       setvar->var->saved_value_to_string(thd, setvar, (char *)str.ptr());
       utf8_str.copy(str.ptr(), str.length(), str.charset(), tocs, &dummy_err);
       var_value = utf8_str.c_ptr_quick();
+    }
+
+    /* Fix bool variable. If was provided as integer, convert to ON/OFF literal. */
+    if((system_var->show_type() == SHOW_MY_BOOL || system_var->show_type() == SHOW_BOOL)
+        && !(setvar->var->is_readonly() || setvar->var->is_persist_readonly())) {
+      int error;
+      const char *end = utf8_str.ptr() + utf8_str.length();
+      longlong value = tocs->cset->strtoll10(tocs, utf8_str.ptr(), &end, &error);
+      if(!error) {
+        const string &literal = value ? on : off;
+        utf8_str.copy(literal.c_str(), literal.length(), system_charset_info, tocs, &dummy_err);
+        var_value = utf8_str.c_ptr_quick();
+      }
     }
   } else {
     Persisted_variables_cache::get_variable_value(thd, system_var, &utf8_str,

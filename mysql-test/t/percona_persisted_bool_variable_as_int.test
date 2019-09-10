@@ -1,0 +1,35 @@
+--let $MYSQL_DATA_DIR=`select @@datadir`
+
+SET PERSIST_ONLY super_read_only = OFF;
+SHOW VARIABLES LIKE 'super_read_only';
+SELECT @@global.super_read_only;
+--source include/restart_mysqld.inc
+SHOW VARIABLES LIKE 'super_read_only';
+SELECT @@global.super_read_only;
+
+SET PERSIST_ONLY super_read_only = ON;
+SHOW VARIABLES LIKE 'super_read_only';
+SELECT @@global.super_read_only;
+--source include/restart_mysqld.inc
+SHOW VARIABLES LIKE 'super_read_only';
+SELECT @@global.super_read_only;
+
+SET PERSIST_ONLY super_read_only = 0;
+SHOW VARIABLES LIKE 'super_read_only';
+SELECT @@global.super_read_only;
+--source include/restart_mysqld.inc
+SHOW VARIABLES LIKE 'super_read_only';
+SELECT @@global.super_read_only;
+
+SET PERSIST_ONLY super_read_only = 1;
+SHOW VARIABLES LIKE 'super_read_only';
+SELECT @@global.super_read_only;
+--source include/restart_mysqld.inc
+SHOW VARIABLES LIKE 'super_read_only';
+SELECT @@global.super_read_only;
+
+# Cleanup
+--remove_file $MYSQL_DATA_DIR/mysqld-auto.cnf
+--echo # Restart server with defaults
+--source include/restart_mysqld.inc
+

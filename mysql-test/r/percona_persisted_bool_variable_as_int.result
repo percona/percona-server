@@ -1,0 +1,58 @@
+SET PERSIST_ONLY super_read_only = OFF;
+SHOW VARIABLES LIKE 'super_read_only';
+Variable_name	Value
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+# restart
+SHOW VARIABLES LIKE 'super_read_only';
+Variable_name	Value
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+SET PERSIST_ONLY super_read_only = ON;
+SHOW VARIABLES LIKE 'super_read_only';
+Variable_name	Value
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+# restart
+SHOW VARIABLES LIKE 'super_read_only';
+Variable_name	Value
+super_read_only	ON
+SELECT @@global.super_read_only;
+@@global.super_read_only
+1
+SET PERSIST_ONLY super_read_only = 0;
+SHOW VARIABLES LIKE 'super_read_only';
+Variable_name	Value
+super_read_only	ON
+SELECT @@global.super_read_only;
+@@global.super_read_only
+1
+# restart
+SHOW VARIABLES LIKE 'super_read_only';
+Variable_name	Value
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+SET PERSIST_ONLY super_read_only = 1;
+SHOW VARIABLES LIKE 'super_read_only';
+Variable_name	Value
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+# restart
+SHOW VARIABLES LIKE 'super_read_only';
+Variable_name	Value
+super_read_only	ON
+SELECT @@global.super_read_only;
+@@global.super_read_only
+1
+# Restart server with defaults
+# restart

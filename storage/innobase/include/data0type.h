@@ -222,6 +222,7 @@ temporary table */
 #define DATA_VIRTUAL 8192      /* Virtual column */
 #define DATA_MULTI_VALUE 16384 /* Multi-value Virtual column */
 
+#define DATA_COMPRESSED_57 16384 /* Used only for 5.7->8.0 upgrades */
 #define DATA_COMPRESSED                          \
   32768 /* this is ORed to the precise data      \
         type when the column has COLUMN_FORMAT = \

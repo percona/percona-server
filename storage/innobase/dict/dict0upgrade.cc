@@ -230,11 +230,10 @@ static bool dd_has_explicit_pk(const dd::Table *dd_table) {
 
 /** Match InnoDB column object and Server column object
 @param[in]	field	Server field object
-@param[in]	col	InnoDB column object
+@param[in,out]	col	InnoDB column object
 @retval		false	column definition matches
 @retval		true	column definition mismatch */
-static bool dd_upgrade_match_single_col(const Field *field,
-                                        const dict_col_t *col) {
+static bool dd_upgrade_match_single_col(const Field *field, dict_col_t *col) {
   ulint unsigned_type;
   ulint col_type = get_innobase_type_from_mysql_type(&unsigned_type, field);
 
@@ -289,8 +288,9 @@ static bool dd_upgrade_match_single_col(const Field *field,
   ulint is_virtual = (innobase_is_v_fld(field)) ? DATA_VIRTUAL : 0;
 
   const ulint compressed =
-      field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED ? DATA_COMPRESSED
-                                                              : 0;
+      field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED
+          ? DATA_COMPRESSED_57
+          : 0;
 
   ulint server_prtype =
       (static_cast<ulint>(field->type()) | nulls_allowed | unsigned_type |
@@ -306,6 +306,13 @@ static bool dd_upgrade_match_single_col(const Field *field,
            "etc) for col: "
         << field->field_name;
     failure = true;
+  }
+
+  /* Adjust the in-memory flag for compressed column. 8.0 uses a different
+  value */
+  if (compressed != 0) {
+    col->prtype &= ~DATA_COMPRESSED_57;
+    col->prtype |= DATA_COMPRESSED;
   }
 
   /* Numeric columns from 5.1 might have charset as my_charset_bin

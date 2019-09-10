@@ -9475,7 +9475,8 @@ bool mysqld_get_one_option(int optid,
       opt_specialflag |= SPECIAL_NO_HOST_CACHE;
       break;
     case (int)OPT_SKIP_RESOLVE:
-      if (argument && argument[0] == '0')
+      if (argument && (argument[0] == '0' ||
+          native_strcasecmp(argument, "OFF") == 0))
         opt_skip_name_resolve = 0;
       else {
         opt_skip_name_resolve = 1;

@@ -26,6 +26,11 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ifndef _TOKUDB_SYSVARS_H
 #define _TOKUDB_SYSVARS_H
 
+
+extern "C" {
+extern uint         force_recovery;
+}
+
 namespace tokudb {
 namespace sysvars {
 
@@ -56,7 +61,6 @@ enum row_format_t {
 #define DEFAULT_TOKUDB_CLEANER_PERIOD 1
 #define DEFAULT_TOKUDB_KILLED_TIME 4000     // milliseconds
 #define DEFAULT_TOKUDB_LOCK_TIMEOUT 4000    // milliseconds
-
 
 // globals
 extern ulonglong    cache_size;

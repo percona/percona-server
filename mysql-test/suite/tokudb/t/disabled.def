@@ -1,4 +1,5 @@
 mvcc-19: tokutek
 mvcc-20: tokutek
 mvcc-27: tokutek
+recovery: fails when ran together with other tests
 storage_engine_default: tokudb is not the default storage engine

@@ -201,7 +201,7 @@ int create(
                 name,
                 NULL,
                 DB_BTREE, DB_CREATE | DB_EXCL,
-                0);
+                S_IWUSR);
     }
     if (error == 0) {
         *status_db_ptr = status_db;
@@ -211,6 +211,11 @@ int create(
     }
     return error;
 }
+
+extern "C" {
+  extern uint         force_recovery;
+}
+
 
 int open(
     DB_ENV* env,
@@ -230,7 +235,7 @@ int open(
                 NULL,
                 DB_BTREE,
                 DB_THREAD,
-                0);
+                force_recovery ? 0 : S_IWUSR);
     }
     if (error == 0) {
         uint32_t pagesize = 0;

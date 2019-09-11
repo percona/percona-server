@@ -794,6 +794,9 @@ extern size_t my_b_vprintf(IO_CACHE *info, const char *fmt, va_list ap);
 extern bool open_cached_file(IO_CACHE *cache, const char *dir,
                              const char *prefix, size_t cache_size,
                              myf cache_myflags);
+extern bool open_cached_file_encrypted(IO_CACHE *cache, const char *dir,
+                                       const char *prefix, size_t cache_size,
+                                       myf cache_myflags, bool encrypted);
 extern bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 
@@ -1066,4 +1069,31 @@ size_t mysql_encryption_file_read(IO_CACHE *cache, uchar *buffer, size_t count,
 */
 size_t mysql_encryption_file_write(IO_CACHE *cache, const uchar *buffer,
                                    size_t count, myf flags);
+
+/**
+   This is a wrapper around mysql_file_pread. Read data from the specified
+   offset in a file and take care of decrypting the data if encryption is on.
+
+   @param cache The handler of a file cache to read.
+   @param[out] buffer The memory buffer to write to.
+   @param count The length of data in the file to be read in bytes.
+   @param offset The offset in the file to read from.
+   @param flags The bitmap of different flags
+                MY_WME | MY_FAE | MY_NABP | MY_FNABP |
+                MY_DONT_CHECK_FILESIZE and so on.
+
+   if (flags & (MY_NABP | MY_FNABP)) {
+     @retval 0 if count == 0
+     @retval 0 success
+     @retval MY_FILE_ERROR error
+   } else {
+     @retval 0 if count == 0
+     @retval The number of bytes read.
+     @retval MY_FILE_ERROR error
+   }
+*/
+
+size_t mysql_encryption_file_pread(IO_CACHE *cache, uchar *buffer, size_t count,
+                                   my_off_t offset, myf flags);
+
 #endif /* _my_sys_h */

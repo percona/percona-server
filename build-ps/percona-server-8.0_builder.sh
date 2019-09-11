@@ -302,10 +302,10 @@ install_deps() {
             source /opt/rh/devtoolset-8/enable
         else
 	    yum -y install perl.x86_64
-            yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel libtirpc-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config
+            yum -y install binutils gcc gcc-c++ tar rpm-build rsync bison glibc glibc-devel libstdc++-devel make openssl-devel pam-devel perl perl-JSON perl-Memoize pkg-config
             yum -y install automake autoconf cmake cmake3 jemalloc jemalloc-devel
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
-	    yum -y install rpcgen libtirpc-devel re2-devel libtirpc-devel
+	    yum -y install rpcgen re2-devel libtirpc-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56

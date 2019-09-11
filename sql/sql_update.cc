@@ -966,7 +966,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           break;
         }
       }
-    // TODO(laurynas) }
+    end_semi_consistent_read.rollback();
 
     table->auto_increment_field_not_null = false;
     dup_key_found = 0;

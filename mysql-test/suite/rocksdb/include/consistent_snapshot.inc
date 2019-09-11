@@ -2,28 +2,12 @@
 # TRANSACTION WITH CONSISTENT SNAPSHOT
 #
 
+set @save.rocksdb_pause_background_work = @@global.rocksdb_pause_background_work;
+set global rocksdb_pause_background_work = on;
 --enable_connect_log
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
-
-set @old_rocksdb_update_cf_options = @@global.rocksdb_update_cf_options;
-
-# record disable_auto_compactions for default column family
-select upper(value) = 'ON' into @default_disable_auto_compactions
-from information_schema.rocksdb_cf_options
-where cf_name='default' and option_type='disable_auto_compactions';
-
-# record disable_auto_compactions for system column family
-select upper(value) = 'ON' into @system_disable_auto_compactions
-from information_schema.rocksdb_cf_options
-where cf_name='__system__' and option_type='disable_auto_compactions';
-
-set @@global.rocksdb_update_cf_options =
-"default={disable_auto_compactions=true};"
-"__system__={disable_auto_compactions=true};";
-
-select @@global.rocksdb_update_cf_options;
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
@@ -140,18 +124,4 @@ disconnect con2;
 
 
 --source include/wait_until_count_sessions.inc
-# restore orignial disable_auto_compactions option for default and system
-# column family
-set @@global.rocksdb_update_cf_options =
-concat("default={disable_auto_compactions=",
-    @default_disable_auto_compactions,
-    "};__system__={disable_auto_compactions=",
-    @system_disable_auto_compactions, "};");
-
-# restore the value of rocksdb_update_cf_options to what is at the
-# beginning of this file. Note that the above
-# set @@global.rocksdb_update_cf_options command is still required,
-# since the original rocksdb_update_cf_options may not contain
-# disable_auto_compactions option. In that case, this command
-# does not restore disable_auto_compactions option.
-set @@global.rocksdb_update_cf_options = @old_rocksdb_update_cf_options;
+set global rocksdb_pause_background_work = @save.rocksdb_pause_background_work;

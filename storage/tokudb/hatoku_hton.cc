@@ -216,9 +216,24 @@ static int tokudb_set_product_name(void) {
   return r;
 }
 
+extern "C" {
+extern uint force_recovery;
+}
+
 static int tokudb_init_func(void *p) {
   TOKUDB_DBUG_ENTER("%p", p);
   int r;
+
+  int mode = force_recovery
+                 ? S_IRUSR | S_IRGRP | S_IROTH
+                 : S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+
+  if (force_recovery != 0 && (!read_only || !super_read_only)) {
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Not initialized because tokudb_force_only requires "
+                    "read_only and super_read_only");
+    goto error;
+  }
 
   // 3938: lock the handlerton's initialized status flag for writing
   rwlock_t_lock_write(tokudb_hton_initialized_lock);
@@ -477,8 +492,7 @@ static int tokudb_init_func(void *p) {
 
   db_env->set_check_thp(db_env, tokudb::sysvars::check_jemalloc);
 
-  r = db_env->open(db_env, tokudb_home, tokudb_init_flags,
-                   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+  r = db_env->open(db_env, tokudb_home, tokudb_init_flags, mode);
 
   TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_INIT, "env opened:return=%d", r);
 

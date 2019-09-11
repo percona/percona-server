@@ -491,6 +491,10 @@ static int dir_cmd_check(THD *thd, TOKUDB_UNUSED(struct SYS_VAR *var),
   return error;
 }
 
+static MYSQL_SYSVAR_UINT(force_recovery, force_recovery, PLUGIN_VAR_READONLY,
+                         "force recovery. Set to 6 to skip reading the logs",
+                         NULL, NULL, 0, 0, 0, 0);
+
 //******************************************************************************
 // all system variables
 //******************************************************************************
@@ -504,10 +508,11 @@ SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(client_pool_threads),
     MYSQL_SYSVAR(compress_buffers_before_eviction), MYSQL_SYSVAR(data_dir),
     MYSQL_SYSVAR(debug), MYSQL_SYSVAR(directio),
-    MYSQL_SYSVAR(enable_partial_eviction), MYSQL_SYSVAR(fs_reserve_percent),
-    MYSQL_SYSVAR(fsync_log_period), MYSQL_SYSVAR(log_dir),
-    MYSQL_SYSVAR(max_lock_memory), MYSQL_SYSVAR(read_status_frequency),
-    MYSQL_SYSVAR(strip_frm_data), MYSQL_SYSVAR(tmp_dir), MYSQL_SYSVAR(version),
+    MYSQL_SYSVAR(enable_partial_eviction), MYSQL_SYSVAR(force_recovery),
+    MYSQL_SYSVAR(fs_reserve_percent), MYSQL_SYSVAR(fsync_log_period),
+    MYSQL_SYSVAR(log_dir), MYSQL_SYSVAR(max_lock_memory),
+    MYSQL_SYSVAR(read_status_frequency), MYSQL_SYSVAR(strip_frm_data),
+    MYSQL_SYSVAR(tmp_dir), MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(write_status_frequency), MYSQL_SYSVAR(dir_per_db),
     MYSQL_SYSVAR(check_jemalloc),
 

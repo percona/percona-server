@@ -3459,15 +3459,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
         goto error;
       }
 
-      const auto backup_lock_acquired =
-          thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::BACKUP_LOCK, "",
-                                                       "", MDL_SHARED);
-
-      if (backup_lock_acquired) {
-        my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-        goto error;
-      }
-
       res = stop_slave_cmd(thd);
       break;
     }

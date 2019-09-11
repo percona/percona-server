@@ -97,6 +97,18 @@ static MYSQL_SYSVAR_ULONGLONG(
     0);
 
 static MYSQL_SYSVAR_UINT(
+    force_recovery,
+    force_recovery,
+    PLUGIN_VAR_READONLY,
+    "force recovery. Set to 6 to skip reading the logs",
+    NULL,
+    NULL,
+    0,
+    0,
+    0,
+    0);
+
+static MYSQL_SYSVAR_UINT(
     cachetable_pool_threads,
     cachetable_pool_threads,
     PLUGIN_VAR_READONLY,
@@ -997,6 +1009,7 @@ static int dir_cmd_check(THD* thd,
 st_mysql_sys_var* system_variables[] = {
     // global vars
     MYSQL_SYSVAR(cache_size),
+    MYSQL_SYSVAR(force_recovery),
     MYSQL_SYSVAR(checkpoint_on_flush_logs),
     MYSQL_SYSVAR(cachetable_pool_threads),
     MYSQL_SYSVAR(cardinality_scale_percent),

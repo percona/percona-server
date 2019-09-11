@@ -212,6 +212,11 @@ int create(
     return error;
 }
 
+extern "C" {
+  extern uint         force_recovery;
+}
+
+
 int open(
     DB_ENV* env,
     DB** status_db_ptr,
@@ -230,7 +235,7 @@ int open(
                 NULL,
                 DB_BTREE,
                 DB_THREAD,
-                S_IWUSR);
+                force_recovery ? 0 : S_IWUSR);
     }
     if (error == 0) {
         uint32_t pagesize = 0;

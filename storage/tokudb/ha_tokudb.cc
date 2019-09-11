@@ -1331,7 +1331,7 @@ int ha_tokudb::open_main_dictionary(
             NULL,
             DB_BTREE,
             open_flags,
-            S_IWUSR);
+            is_read_only ? 0 : S_IWUSR);
     if (error) {
         goto exit;
     }
@@ -1394,7 +1394,7 @@ int ha_tokudb::open_secondary_dictionary(
     }
 
 
-    error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, S_IWUSR);
+    error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, is_read_only ? 0 : S_IWUSR);
     if (error) {
         my_errno = error;
         goto cleanup;
@@ -1613,6 +1613,7 @@ exit:
 }
 
 int ha_tokudb::initialize_share(const char* name, int mode) {
+
     int error = 0;
     uint64_t num_rows = 0;
     DB_TXN* txn = NULL;
@@ -1645,7 +1646,7 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
         error = verify_frm_data(table->s->path.str, txn);
         if (error)
             goto exit;
-    } else {
+    } else if (force_recovery == 0 && !read_only && !super_read_only) {
         // remove the frm data for partitions since we are not maintaining it
         error = remove_frm_data(share->status_block, txn);
         if (error)
@@ -1666,6 +1667,7 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
             hidden_primary_key,
             primary_key);
     if (error) { goto exit; }
+
 
     error = open_main_dictionary(name, mode == O_RDONLY, txn);
     if (error) {
@@ -1815,7 +1817,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
     transaction = NULL;
     cursor = NULL;
-
 
     /* Open primary key */
     hidden_primary_key = 0;
@@ -2084,6 +2085,8 @@ int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
     uchar* frm_data = NULL;
     size_t frm_len = 0;
     int error = 0;
+
+    if (force_recovery != 0 || read_only || super_read_only) { goto cleanup; }
 
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
     error = table_share->read_frm_image((const uchar**)&frm_data,&frm_len);

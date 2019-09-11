@@ -33,7 +33,13 @@ while($encryption_mode < 2)
 
   # Determining server temp dir where 'filesort()' temporary files will be
   # created.
-  --let $tmp_dir = `SELECT @@global.tmpdir`
+  # We use this to determine temp file used by filesort() later in this test.
+  # The problem with the value returned by SELECT @@global.tmpdir is that it
+  # return the tmp as seen from the server user perspective while proc/<pid>/fd/X
+  # links to something like /dev/shm/var_auto_ThIa/tmp/mysqld.1/MYabc
+  # (or /dev/shm/var_auto_ThIa/tmp/10/mysqld.1/MYabc if tests are executed in parallel)
+  # if the test executd with --mem option  
+  --let $tmp_dir = tmp\/*[0-9]*\/mysqld.1
 
   # Determining server PID file name.
   --let $pid_file = `SELECT @@global.pid_file`
@@ -69,11 +75,16 @@ while($encryption_mode < 2)
   # Establishing a new auxiliary connection.
   --connect (con1,localhost,root,,)
 
+  # Setting enforce_legacy_temp_files debug macro to make sure that
+  # temporary files are not created with 'O_TMPFILE' flag and therefore
+  # have a valid name starting with 'MY'
+  SET debug = "+d,enforce_legacy_temp_files";
+
   # Making the server stop at 'after_find_all_keys' DEBUG_SYNC point
   # (inside 'filesort()' after 'find_all_keys()')
   # when executing the following 'SELECT sql_big_result' statement.
   SET DEBUG_SYNC = 'after_find_all_keys SIGNAL after_find_all_keys_reached WAIT_FOR after_find_all_keys_signaled';
-  --send SELECT sql_big_result * FROM t1 ORDER BY dummy
+  --send CREATE TABLE t2 AS SELECT sql_big_result * FROM t1 ORDER BY dummy
 
   # In the main connection waiting for the SELECT from the aux connection to
   # reach 'after_find_all_keys' DEBUG_SYNC point and suspend.
@@ -83,6 +94,8 @@ while($encryption_mode < 2)
   # Looking for a file descriptor (symbolic link) from '/proc/$pid_no/fd'
   # which points to a file in $tmp_dir and starts with 'MY'. For instance,
   # lrwx------ 1 64  66 -> <build_dir>/mysql-test/var/tmp/mysqld.1/MYOi8yx9 (deleted)
+  # or in case if the test is run with --mem
+  # lrwx------ 1 64  45 -> /dev/shm/var_auto_ThIa/tmp/mysqld.1/MYSAK75H (deleted)
   # File descriptor number is extracted into $tmp_fd_no MTR variable.
   # In 'ls':
   # * "-o" means omit owner;
@@ -90,7 +103,7 @@ while($encryption_mode < 2)
   # * "--time-style='+'" means omit timestamp.
   --let $awk_filter = {print \$4}
   --let $fd_no_include_file = $MYSQL_TMP_DIR/fd_no_include_file.inc
-  --exec ls -og --time-style='+' /proc/$pid_no/fd | grep $tmp_dir/MY | awk '$awk_filter' > $fd_no_include_file
+  --exec ls -og --time-style='+' /proc/$pid_no/fd | grep -E $tmp_dir/MY | awk '$awk_filter' > $fd_no_include_file
   --replace_result $fd_no_include_file <fd_no_include_file>
   --eval LOAD DATA LOCAL INFILE '$fd_no_include_file' INTO TABLE id_table
   --remove_file $fd_no_include_file
@@ -123,6 +136,21 @@ while($encryption_mode < 2)
   --reap
   --enable_result_log
 
+  # Resetting 'enforce_legacy_temp_files' debug macro.
+  SET debug = "-d,enforce_legacy_temp_files";
+
+  # Saving result set checksums.
+  --let $data_checksum = query_get_value(CHECKSUM TABLE t2, Checksum, 1)
+  if($encryption_mode == 0)
+  {
+    --let $data_checksum_encrypted = $data_checksum
+  }
+  if($encryption_mode == 1)
+  {
+    --let $data_checksum_unencrypted = $data_checksum
+  }
+  DROP TABLE t2;
+
   # Closing aux connection.
   # 'count_sessions.inc' is not needed as the server is restarted
   --connection default
@@ -145,3 +173,9 @@ while($encryption_mode < 2)
 
   --inc $encryption_mode
 }
+
+# Comparing checksums of result sets created with and without
+# '--encrypt-tmp-files' option set.
+--let $assert_text = SELECT result checksums must match
+--let $assert_cond = $data_checksum_encrypted = $data_checksum_unencrypted
+--source include/assert.inc

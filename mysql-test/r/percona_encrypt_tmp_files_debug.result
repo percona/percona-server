@@ -22,13 +22,16 @@ INSERT INTO t1 SELECT 256 + id, MD5(256 + id), REPEAT(MD5(256 + id), 16) FROM t1
 INSERT INTO t1 SELECT 512 + id, MD5(512 + id), REPEAT(MD5(512 + id), 16) FROM t1 ORDER BY id;
 INSERT INTO t1 SELECT 1024 + id, MD5(1024 + id), REPEAT(MD5(1024 + id), 16) FROM t1 ORDER BY id;
 INSERT INTO t1 SELECT 2048 + id, MD5(2048 + id), REPEAT(MD5(2048 + id), 16) FROM t1 ORDER BY id;
+SET debug = "+d,enforce_legacy_temp_files";
 SET DEBUG_SYNC = 'after_find_all_keys SIGNAL after_find_all_keys_reached WAIT_FOR after_find_all_keys_signaled';
-SELECT sql_big_result * FROM t1 ORDER BY dummy;
+CREATE TABLE t2 AS SELECT sql_big_result * FROM t1 ORDER BY dummy;
 SET DEBUG_SYNC = 'now WAIT_FOR after_find_all_keys_reached';
 LOAD DATA LOCAL INFILE '<fd_no_include_file>' INTO TABLE id_table;
 TRUNCATE TABLE id_table;
 include/assert_grep.inc [filesort() temporary file must not contain unencrypted key]
 SET DEBUG_SYNC = 'now SIGNAL after_find_all_keys_signaled';
+SET debug = "-d,enforce_legacy_temp_files";
+DROP TABLE t2;
 DROP TABLE t1;
 SET DEBUG_SYNC = 'RESET';
 # restart: --encrypt-tmp-files=OFF
@@ -56,13 +59,17 @@ INSERT INTO t1 SELECT 256 + id, MD5(256 + id), REPEAT(MD5(256 + id), 16) FROM t1
 INSERT INTO t1 SELECT 512 + id, MD5(512 + id), REPEAT(MD5(512 + id), 16) FROM t1 ORDER BY id;
 INSERT INTO t1 SELECT 1024 + id, MD5(1024 + id), REPEAT(MD5(1024 + id), 16) FROM t1 ORDER BY id;
 INSERT INTO t1 SELECT 2048 + id, MD5(2048 + id), REPEAT(MD5(2048 + id), 16) FROM t1 ORDER BY id;
+SET debug = "+d,enforce_legacy_temp_files";
 SET DEBUG_SYNC = 'after_find_all_keys SIGNAL after_find_all_keys_reached WAIT_FOR after_find_all_keys_signaled';
-SELECT sql_big_result * FROM t1 ORDER BY dummy;
+CREATE TABLE t2 AS SELECT sql_big_result * FROM t1 ORDER BY dummy;
 SET DEBUG_SYNC = 'now WAIT_FOR after_find_all_keys_reached';
 LOAD DATA LOCAL INFILE '<fd_no_include_file>' INTO TABLE id_table;
 TRUNCATE TABLE id_table;
 include/assert_grep.inc [filesort() temporary file must contain unencrypted key]
 SET DEBUG_SYNC = 'now SIGNAL after_find_all_keys_signaled';
+SET debug = "-d,enforce_legacy_temp_files";
+DROP TABLE t2;
 DROP TABLE t1;
 SET DEBUG_SYNC = 'RESET';
 # restart
+include/assert.inc [SELECT result checksums must match]

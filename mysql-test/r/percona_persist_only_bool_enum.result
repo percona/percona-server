@@ -1,0 +1,161 @@
+#
+# Changing values
+#
+SET PERSIST_ONLY super_read_only = OFF;
+SET PERSIST_ONLY binlog_row_image = FULL;
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+FULL
+# restart
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+FULL
+#
+# Changing values
+#
+SET PERSIST_ONLY super_read_only = ON;
+SET PERSIST_ONLY binlog_row_image = NOBLOB;
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+FULL
+# restart
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+super_read_only	ON
+SELECT @@global.super_read_only;
+@@global.super_read_only
+1
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+NOBLOB
+#
+# Changing values
+#
+SET PERSIST_ONLY super_read_only = off;
+SET PERSIST_ONLY binlog_row_image = minimal;
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	NOBLOB
+super_read_only	ON
+SELECT @@global.super_read_only;
+@@global.super_read_only
+1
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+NOBLOB
+# restart
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+MINIMAL
+#
+# Changing values
+#
+SET PERSIST_ONLY super_read_only = on;
+SET PERSIST_ONLY binlog_row_image = full;
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+MINIMAL
+# restart
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+super_read_only	ON
+SELECT @@global.super_read_only;
+@@global.super_read_only
+1
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+FULL
+#
+# Changing values
+#
+SET PERSIST_ONLY super_read_only = 0;
+SET PERSIST_ONLY binlog_row_image = 0;
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+super_read_only	ON
+SELECT @@global.super_read_only;
+@@global.super_read_only
+1
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+FULL
+# restart
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+MINIMAL
+#
+# Changing values
+#
+SET PERSIST_ONLY super_read_only = 1;
+SET PERSIST_ONLY binlog_row_image = 2;
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	MINIMAL
+super_read_only	OFF
+SELECT @@global.super_read_only;
+@@global.super_read_only
+0
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+MINIMAL
+# restart
+SHOW VARIABLES WHERE Variable_name LIKE 'super_read_only' OR Variable_name LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+super_read_only	ON
+SELECT @@global.super_read_only;
+@@global.super_read_only
+1
+SELECT @@global.binlog_row_image;
+@@global.binlog_row_image
+FULL
+#
+# Cleanup
+#
+# Restart server with defaults
+# restart

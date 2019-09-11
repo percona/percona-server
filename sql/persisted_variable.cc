@@ -75,6 +75,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_show.h"
+#include "sql/sys_vars.h"
 #include "sql/sys_vars_shared.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
@@ -599,6 +600,27 @@ bool Persisted_variables_cache::load_persist_file() {
 }
 
 /**
+  Create value item depending on provided content
+
+  Creates Item_int if provided string represents integer value.
+  Otherwise creates Item_string
+
+  @param [in] thd      Current thread
+  @param [in] str      Content to be itemized
+
+  @return Item object
+*/
+Item *Persisted_variables_cache::create_item(THD *thd, const string &str) {
+  int error;
+  my_strtoll10(str.c_str(), nullptr, &error);
+  if (!error) {
+    return new (thd->mem_root) Item_int(str.c_str(), (uint)str.length());
+  }
+  return new (thd->mem_root)
+      Item_string(str.c_str(), str.length(), &my_charset_utf8mb4_bin);
+}
+
+/**
   set_persist_options() will set the options read from persisted config file
 
   This function does nothing when --no-defaults is set or if
@@ -715,12 +737,27 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
         res = new (thd->mem_root)
             Item_int(iter->value.c_str(), (uint)iter->value.length());
         break;
-      case SHOW_CHAR:
       case SHOW_LEX_STRING:
-      case SHOW_BOOL:
-      case SHOW_MY_BOOL:
         res = new (thd->mem_root) Item_string(
             iter->value.c_str(), iter->value.length(), &my_charset_utf8mb4_bin);
+        break;
+      case SHOW_CHAR: {
+        /* The only way to detect enum */
+        Sys_var_enum *enum_var = dynamic_cast<Sys_var_enum *>(sysvar);
+        Sys_var_multi_enum *multi_enum_var =
+            dynamic_cast<Sys_var_multi_enum *>(sysvar);
+        if (enum_var || multi_enum_var) {
+          res = create_item(thd, iter->value);
+        } else {
+          res = new (thd->mem_root)
+              Item_string(iter->value.c_str(), iter->value.length(),
+                          &my_charset_utf8mb4_bin);
+        }
+        break;
+      }
+      case SHOW_BOOL:
+      case SHOW_MY_BOOL:
+        res = create_item(thd, iter->value);
         break;
       case SHOW_CHAR_PTR:
         if (iter->is_null)

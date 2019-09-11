@@ -40,6 +40,7 @@ class Json_dom;
 class THD;
 class set_var;
 class sys_var;
+class Item;
 struct MYSQL_FILE;
 
 /**
@@ -156,6 +157,8 @@ class Persisted_variables_cache {
   /* Helper function to extract variables from json formatted string */
   bool extract_variables_from_json(const Json_dom *dom,
                                    bool is_read_only = false);
+  /* Helper function to create value item depending on provided content */
+  Item *create_item(THD *thd, const std::string &str);
 
  private:
   /* Helper functions for file IO */

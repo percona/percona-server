@@ -1171,7 +1171,11 @@ log_read_encryption() {
 	}
 
 	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
-		   ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0) {
+		   ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0
+	    ||
+	    memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
+		   ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE) == 0
+	    ) {
 		encryption_magic = true;
 		existing_redo_encryption_mode = REDO_LOG_ENCRYPT_MK;
 

@@ -1,0 +1,118 @@
+# This test case will test the V2 => V3 encryption header upgrade
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/have_debug.inc
+
+--disable_query_log
+call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] Function 'keyring_file' already exists");
+call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
+call mtr.add_suppression("Plugin keyring_file reported");
+#call mtr.add_suppression("InnoDB: Failed to find tablespace for table");
+--enable_query_log
+
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+SET GLOBAL innodb_file_per_table = 1;
+
+# Create a table with encryption
+SET DEBUG='+d,force_v2_encryption';
+CREATE TABLE t1(i INT,  c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, "znmcg");
+INSERT INTO t1 VALUES (2, "prtsd");
+INSERT INTO t1 VALUES (3, "vlwfb");
+CREATE TABLE t2(i INT,  c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t2 VALUES (1, "znmcg");
+INSERT INTO t2 VALUES (2, "prtsd");
+INSERT INTO t2 VALUES (3, "vlwfb");
+SET DEBUG='';
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# Wait for all dirty pages to be flushed.
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--echo # check that t1 is created with V2 format
+LET $MYSQLD_DATADIR = `select @@datadir`;
+let SEARCH_FILE = $MYSQLD_DATADIR/test/t1.ibd;
+let SEARCH_PATTERN=lCB;
+--source include/search_pattern.inc
+LET $MYSQLD_DATADIR = `select @@datadir`;
+let SEARCH_PATTERN=lCC;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=znmcg;
+--source include/search_pattern.inc
+
+--echo # check that t2 is created with V2 format
+let SEARCH_FILE = $MYSQLD_DATADIR/test/t2.ibd;
+let SEARCH_PATTERN=lCB;
+--source include/search_pattern.inc
+LET $MYSQLD_DATADIR = `select @@datadir`;
+let SEARCH_PATTERN=lCC;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=znmcg;
+--source include/search_pattern.inc
+
+--echo # rebuild t1
+ALTER TABLE t1 ENGINE = InnoDB ENCRYPTION="Y";
+FLUSH TABLES;
+
+# Wait for all dirty pages to be flushed.
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--echo # t1 uses the V3 format now and is still encrypted
+let SEARCH_FILE = $MYSQLD_DATADIR/test/t1.ibd;
+let SEARCH_PATTERN=lCB;
+--source include/search_pattern.inc
+LET $MYSQLD_DATADIR = `select @@datadir`;
+let SEARCH_PATTERN=lCC;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=znmcg;
+--source include/search_pattern.inc
+
+--echo # t2 still uses V2
+let SEARCH_FILE = $MYSQLD_DATADIR/test/t2.ibd;
+let SEARCH_PATTERN=lCB;
+--source include/search_pattern.inc
+LET $MYSQLD_DATADIR = `select @@datadir`;
+let SEARCH_PATTERN=lCC;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=znmcg;
+--source include/search_pattern.inc
+
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+# Wait for all dirty pages to be flushed.
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+--echo # t2 uses V3 now
+let SEARCH_FILE = $MYSQLD_DATADIR/test/t2.ibd;
+let SEARCH_PATTERN=lCB;
+--source include/search_pattern.inc
+LET $MYSQLD_DATADIR = `select @@datadir`;
+let SEARCH_PATTERN=lCC;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=znmcg;
+--source include/search_pattern.inc
+
+# Restart and ensure it's still readable
+--let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring-file-data=$MYSQL_TMP_DIR/mydummy_key $KEYRING_PLUGIN_OPT 
+--let $restart_hide_args= 1
+--source include/restart_mysqld.inc
+SELECT * FROM t1;
+
+--echo # t1 uses the V3 format now and is still encrypted
+let SEARCH_FILE = $MYSQLD_DATADIR/test/t1.ibd;
+let SEARCH_PATTERN=lCB;
+--source include/search_pattern.inc
+LET $MYSQLD_DATADIR = `select @@datadir`;
+let SEARCH_PATTERN=lCC;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=znmcg;
+--source include/search_pattern.inc
+
+
+# Cleanup
+DROP TABLE t1;

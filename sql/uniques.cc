@@ -923,6 +923,7 @@ bool Unique::get(TABLE *table) {
                    open_cached_file(outfile, mysql_tmpdir, TEMP_PREFIX,
                                     READ_RECORD_BUFFER, MYF(MY_WME))))
     return 1;
+  if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0) != 0) return 1;
 
   Uniq_param uniq_param;
   uniq_param.max_rows = elements;

@@ -1411,7 +1411,7 @@ static void acl_free_utility_user() {
     my_free(acl_utility_user_name.str);
     my_free(acl_utility_user_host_name.str);
     my_free(acl_utility_user.credentials[0].m_auth_string.str);
-    memset(&acl_utility_user, 0, sizeof(acl_utility_user));
+    memset(static_cast<void *>(&acl_utility_user), 0, sizeof(acl_utility_user));
     acl_utility_user_initialized = false;
   }
 }

@@ -20875,7 +20875,7 @@ debug_set:
                         "Cannot update innodb_buffer_pool_size to less than "
                         "20MB per instance with "
                         "innodb_empty_free_list_algorithm = backoff.");
-    return true;
+    return false;
   }
 
   aligned_buffer_pool_size =

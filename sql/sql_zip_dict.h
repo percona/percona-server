@@ -39,6 +39,7 @@ class THD;
                                                   compression dictionaries
   @retval ER_COMPRESSION_DICTIONARY_NAME_TOO_LONG Dictionary name is too long
   @retval ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG Dictionary data is too long
+  @retval ER_COMPRESSION_DICTIONARY_DATA_ZERO_LEN Dictionary data is zero len
   @retval ER_COMPRESSION_DICTIONARY_EXISTS        Dictionary with such name
                                                   already exists
   @retval ER_READ_ONLY_MODE                       Forbidden in read-only mode

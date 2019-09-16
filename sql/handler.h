@@ -712,6 +712,7 @@ enum handler_create_zip_dict_result
                                           exists */
   HA_CREATE_ZIP_DICT_NAME_TOO_LONG,  /*!< zip dict name is too long */
   HA_CREATE_ZIP_DICT_DATA_TOO_LONG,  /*!< zip dict data is too long */
+  HA_CREATE_ZIP_DICT_DATA_ZERO_LEN,  /*!< zip dict data is zero len */
   HA_CREATE_ZIP_DICT_READ_ONLY,      /*!< cannot create in read-only mode */
   HA_CREATE_ZIP_DICT_OUT_OF_MEMORY,  /*!< out of memory */
   HA_CREATE_ZIP_DICT_OUT_OF_FILE_SPACE,

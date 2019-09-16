@@ -75,6 +75,9 @@ SET @longer_dictionary_data = CONCAT(@long_dictionary_data, 'a');
 --error ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
 CREATE COMPRESSION_DICTIONARY d14(@longer_dictionary_data);
 
+--error ER_COMPRESSION_DICTIONARY_DATA_ZERO_LEN
+CREATE COMPRESSION_DICTIONARY d15('');
+
 # we use MD5() function here to get rid of NUL characters in the output
 SELECT id, name, MD5(zip_dict), LENGTH(zip_dict)
   FROM information_schema.xtradb_zip_dict

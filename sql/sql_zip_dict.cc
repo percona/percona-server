@@ -38,6 +38,7 @@ Creates a new compression dictionary with the specified data.
                                                 compression dictionaries
 @retval ER_COMPRESSION_DICTIONARY_NAME_TOO_LONG Dictionary name is too long
 @retval ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG Dictionary data is too long
+@retval ER_COMPRESSION_DICTIONARY_DATA_ZERO_LEN Dictionary data is zero len
 @retval ER_COMPRESSION_DICTIONARY_EXISTS        Dictionary with such name
                                                 already exists
 @retval ER_READ_ONLY_MODE                       Forbidden in read-only mode
@@ -76,6 +77,10 @@ int mysql_create_zip_dict(THD* thd, const char* name, ulong name_len,
       case HA_CREATE_ZIP_DICT_NAME_TOO_LONG:
         error= ER_COMPRESSION_DICTIONARY_NAME_TOO_LONG;
         my_error(error, MYF(0), name, local_name_len);
+        break;
+      case HA_CREATE_ZIP_DICT_DATA_ZERO_LEN:
+        error= ER_COMPRESSION_DICTIONARY_DATA_ZERO_LEN;
+        my_error(error, MYF(0), name, local_data_len);
         break;
       case HA_CREATE_ZIP_DICT_DATA_TOO_LONG:
         error= ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG;

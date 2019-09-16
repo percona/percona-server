@@ -4953,6 +4953,10 @@ innobase_create_zip_dict(
 		DBUG_RETURN(HA_CREATE_ZIP_DICT_DATA_TOO_LONG);
 	}
 
+	if (UNIV_UNLIKELY(*data_len == 0)) {
+		DBUG_RETURN(HA_CREATE_ZIP_DICT_DATA_ZERO_LEN);
+	}
+
 	switch (dict_create_zip_dict(name, *name_len, data, *data_len)) {
 		case DB_SUCCESS:
 			result = HA_CREATE_ZIP_DICT_OK;

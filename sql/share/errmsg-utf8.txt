@@ -7792,6 +7792,9 @@ ER_COMPRESSION_DICTIONARY_NAME_TOO_LONG
 ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
   eng "Data for compression dictionary '%-.192s' is too long (max length = %lu)"
 
+ER_COMPRESSION_DICTIONARY_DATA_ZERO_LEN
+  eng "Data for compression dictionary can't be of zero lenght"
+
 ER_COMPRESSION_DICTIONARY_IS_REFERENCED
   eng "Compression dictionary '%-.192s' is in use"
 

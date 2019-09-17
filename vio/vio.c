@@ -427,6 +427,7 @@ void vio_end(void)
 #elif defined(HAVE_OPENSSL)
   vio_ssl_end();
 #endif
+  vio_proxy_cleanup();
 }
 
 struct vio_string

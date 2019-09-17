@@ -12817,10 +12817,10 @@ static bool innobase_ddse_dict_init(
   /* Options and tablespace are set at the SQL layer. */
 
   if (is_dd_encrypted) {
-    innodb_dynamic_metadata->set_encrypted();
-    innodb_table_stats->set_encrypted();
-    innodb_index_stats->set_encrypted();
-    innodb_ddl_log->set_encrypted();
+    innodb_dynamic_metadata->set_target_encrypted();
+    innodb_table_stats->set_target_encrypted();
+    innodb_index_stats->set_target_encrypted();
+    innodb_ddl_log->set_target_encrypted();
   }
 
   tables->push_back(innodb_dynamic_metadata);

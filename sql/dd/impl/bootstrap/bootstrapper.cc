@@ -1682,8 +1682,8 @@ bool sync_meta_data(THD *thd) {
 struct Target_encryption_guard {
  public:
   Target_encryption_guard(const Object_table *object_table)
-      : m_object_table(object_table)
-      : set_encryption(object_table->is_target_encrypted()) {}
+      : m_object_table(object_table),
+        set_encryption(object_table->is_target_encrypted()) {}
   ~Target_encryption_guard() {
     if (set_encryption) {
       m_object_table->set_target_encrypted();

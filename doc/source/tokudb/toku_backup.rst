@@ -19,7 +19,7 @@ To install |Percona TokuBackup|:
 1. Run ``ps_tokudb_admin --enable-backup`` to add the ``preload-hotbackup`` option into **[mysqld_safe]** section of :file:`my.cnf`.
 
   .. code-block:: bash
-    
+
     $ sudo ps_tokudb_admin --enable-backup
     Checking SELinux status...
     INFO: SELinux is disabled.
@@ -38,13 +38,13 @@ To install |Percona TokuBackup|:
 
   .. code-block:: bash
 
-    $ sudo service mysql restart 
+    $ sudo service mysql restart
 
 3. Run ``ps_tokudb_admin --enable-backup`` again to finish installation of |TokuBackup| plugin
 
   .. code-block:: bash
-    
-    $ sudo ps_tokudb_admin --enable-backup                                     
+
+    $ sudo ps_tokudb_admin --enable-backup
     Checking SELinux status...
     INFO: SELinux is disabled.
 
@@ -90,7 +90,7 @@ Since attributes of files are preserved, in most cases you will need to change t
 
   $ chown -R mysql:mysql /var/lib/mysql
 
-If you have changed default |TokuDB| data directory (:variable:`tokudb_data_dir`) or |TokuDB| log directory (:variable:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately: 
+If you have changed default |TokuDB| data directory (:variable:`tokudb_data_dir`) or |TokuDB| log directory (:variable:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately:
 
 .. code-block:: bash
 
@@ -157,7 +157,7 @@ Reporting Errors
 .. code-block:: mysql
 
   mysql> SET tokudb_backup_dir='/tmp/backupdir';
-  ERROR 1231 (42000): Variable 'tokudb_backup_dir' can't be set to the value of '/tmp/backupdir'
+  ERROR 1231 (42000): Variable 'tokudb_backup_dir' cannot be set to the value of '/tmp/backupdir'
 
   mysql> SELECT @@tokudb_backup_last_error;
   +----------------------------+
@@ -165,7 +165,7 @@ Reporting Errors
   +----------------------------+
   |                         17 |
   +----------------------------+
- 
+
   mysql> SELECT @@tokudb_backup_last_error_string;
   +---------------------------------------------------+
   | @@tokudb_backup_last_error_string                 |
@@ -173,12 +173,36 @@ Reporting Errors
   | tokudb backup couldn't create needed directories. |
   +---------------------------------------------------+
 
+Performing a TokuDB Hotbackup and Replication
+-----------------------------------------------
+
+TokuDB Hotbackup is a solution which allows you to do a backup as a database snapshot. A snapshot is a point-in-time view of the database. The Hotbackup is a special library which intercepts specific system calls used to duplicate data. This solution generates copied files which contain the same content as the original files.
+
+The transaction log should be flushed upon transaction commit, set the :variable:``tokudb_commit_sync`` variable to "ON". When the binlog is flushed, these changes are copied to the backup. Replication often uses backup replication to create slaves. You must know the last executed GTID or binary log position for both the slave configuration and the master configuration.
+
+The process to bootstrap a slave is as follows:
+
+      1. Copy the backup to another server you intend to slave to your master,
+         which produced the backup, as if you were doing a server restore.
+
+      2. Start this copied/second/slave server instance and allow and wait for crashrecovery to run.
+
+      3. Run ``SHOW MASTER STATUS`` on the slave server instance to obtain the current binlog position for the slave server.
+
+      4. Shut down the slave server instance and set it up as your actual slave by editing the serverid and making typical changes to my.cnf.
+
+      5. Restart the slave server instance.
+
+      6. On the slave server instance, run the ``CHANGE MASTER TO`` statement with the information from the ``SHOW MASTER STATUS`` result.
+
+The slave server should now be up and running
+
 Limitations and known issues
 ----------------------------
 
 * You must disable |InnoDB| asynchronous IO if backing up |InnoDB| tables with |TokuBackup|. Otherwise you will have inconsistent, unrecoverable backups. The appropriate setting is ``innodb_use_native_aio=0``.
-  
-* To be able to run Point-In-Time-Recovery you'll need to manually get the binary log position.
+
+* To be able to run Point-In-Time-Recovery you must manually get the binary log position.
 
 * Transactional storage engines (|TokuDB| and |InnoDB|) will perform recovery on the backup copy of the database when it is first started.
 
@@ -192,12 +216,10 @@ Limitations and known issues
 
 * |TokuBackup| does not follow symbolic links.
 
-* |TokuBackup| does not backup |MySQL| configuration file(s). 
+* |TokuBackup| does not backup |MySQL| configuration file(s).
 
 * |TokuBackup| does not backup tablespaces if they are out of :variable:`datadir`.
 
-* Due to upstream bug :mysqlbug:`80183`, |TokuBackup| can't recover backed-up table data if backup was taken while running ``OPTIMIZE TABLE`` or ``ALTER TABLE ... TABLESPACE``.
+* Due to upstream bug :mysqlbug:`80183`, |TokuBackup| cannot recover backed-up table data if backup was taken while running ``OPTIMIZE TABLE`` or ``ALTER TABLE ... TABLESPACE``.
 
-* |TokuBackup| doesn't support incremental backups.
-
-
+* |TokuBackup| does not support incremental backups.

@@ -3227,14 +3227,13 @@ kept in non-LRU list while on failure the 'table' object will be freed.
                                 DB_SUCCESS added to the data dictionary cache)
 @param[in]	compression	compression algorithm to use, can be nullptr
 @param[in,out]	trx		transaction
-@param[in]      fil_encryption_t mode,  in: encryption mode
-@param[in]      const CreateInfoEncryptionKeyId &create_info_encryption_key_id
-in: encryption key_id
+@param[in]	fil_encryption_t mode	encryption mode
+@param[in]	keyring_encryption_key_id	encryption key_id
 @return error code or DB_SUCCESS */
 dberr_t row_create_table_for_mysql(
     dict_table_t *table, const char *compression, trx_t *trx,
-    fil_encryption_t mode,
-    const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
+    const fil_encryption_t mode,
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   mem_heap_t *heap;
   dberr_t err;
 
@@ -3263,7 +3262,7 @@ dberr_t row_create_table_for_mysql(
   }
 
   /* Assign table id and build table space. */
-  err = dict_build_table_def(table, trx, mode, create_info_encryption_key_id);
+  err = dict_build_table_def(table, trx, mode, keyring_encryption_key_id);
   if (err != DB_SUCCESS) {
     trx->error_state = err;
     goto error_handling;

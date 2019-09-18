@@ -4217,7 +4217,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   bool build_fts_common = false;
 
   ha_innobase_inplace_ctx *ctx;
-  CreateInfoEncryptionKeyId create_info_encryption_key_id;
+  KeyringEncryptionKeyIdInfo keyring_encryption_key_id;
   bool none_explicitly_specified = Encryption::none_explicitly_specified(
       ha_alter_info->create_info->used_fields,
       ha_alter_info->create_info->encrypt_type.str);
@@ -4667,12 +4667,12 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
 
     mutex_exit(&dict_sys->mutex);
 
-    create_info_encryption_key_id.was_encryption_key_id_set =
+    keyring_encryption_key_id.was_encryption_key_id_set =
         ha_alter_info->create_info->was_encryption_key_id_set;
-    create_info_encryption_key_id.encryption_key_id = key_id;
+    keyring_encryption_key_id.id = key_id;
 
     error = row_create_table_for_mysql(ctx->new_table, compression, ctx->trx,
-                                       mode, create_info_encryption_key_id);
+                                       mode, keyring_encryption_key_id);
 
     mutex_enter(&dict_sys->mutex);
 

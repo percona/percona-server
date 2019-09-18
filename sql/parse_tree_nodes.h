@@ -5044,6 +5044,24 @@ typedef PT_alter_tablespace_option<decltype(Tablespace_options::encryption),
                                    &Tablespace_options::encryption>
     PT_alter_tablespace_option_encryption;
 
+class PT_alter_tablespace_option_encryption_key_id final
+    : public PT_alter_tablespace_option_base {
+  typedef PT_alter_tablespace_option_base super;
+
+ public:
+  explicit PT_alter_tablespace_option_encryption_key_id(EncryptionKeyId value)
+      : m_value(value) {}
+
+  bool contextualize(Alter_tablespace_parse_context *pc) override {
+    pc->Tablespace_options::encryption_key_id.was_encryption_key_id_set = true;
+    pc->Tablespace_options::encryption_key_id.id = m_value;
+    return super::contextualize(pc);
+  }
+
+ private:
+  const EncryptionKeyId m_value;
+};
+
 class PT_alter_tablespace_option_nodegroup final
     : public PT_alter_tablespace_option_base /* purecov: inspected */
 {

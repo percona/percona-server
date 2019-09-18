@@ -30,7 +30,8 @@ create table t4 (a varchar(255)) engine=innodb encryption='KEYRING' encryption_k
 CREATE TABLESPACE ts_encrypted ADD DATAFILE 'ts_encrypted.ibd' ENCRYPTION="Y" ENGINE="InnoDB";
 CREATE TABLE t5 (a varchar(255)) TABLESPACE ts_encrypted ENCRYPTION="Y" ENGINE="InnoDB";
 
-CREATE TABLESPACE ts_rk_encrypted ADD DATAFILE 'ts_rk_encrypted.ibd' ENCRYPTION='KEYRING' ENGINE="InnoDB";
+--error ER_INVALID_ENCRYPTION_OPTION
+CREATE TABLESPACE ts_keyring_encrypted ADD DATAFILE 'ts_keyring_encrypted.ibd' ENCRYPTION='KEYRING' ENGINE="InnoDB";
 
 create table t6 (a varchar(255)) engine=innodb;
 
@@ -121,12 +122,12 @@ ALTER TABLE t6 ENCRYPTION='KEYRING', ALGORITHM=INPLACE;
 
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
---echo # Only three tables should stayed encrypted - the ones with explicite encryption
+--echo # Three tables should stay encrypted - the ones with explicit encryption
 --let $wait_timeout= 600
 --let $wait_condition=SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
---let $assert_text= Three tables should stayed encrypted - the ones with explicite encryption t1, t4 and t6
+--let $assert_text= Three tablespaces should stay encrypted - the ones with explicit encryption t1, t4 and t6
 
 --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE ((FLAG & 8192) = 8192)]" = 3
 --source include/assert.inc
@@ -265,7 +266,6 @@ alter table t4 encryption='n';
 
 drop table t1, t2, t3, t4, t5, t6;
 drop tablespace ts_encrypted;
-drop tablespace ts_rk_encrypted;
 
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SET GLOBAL innodb_encryption_threads=4;
@@ -276,4 +276,3 @@ SET GLOBAL innodb_encryption_threads=4;
 
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=0;
-

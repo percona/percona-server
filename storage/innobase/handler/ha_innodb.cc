@@ -5140,7 +5140,6 @@ static void innobase_post_ddl(THD *thd) {
 @return error code
 @retval 0 on success */
 static int innodb_init(void *p) {
-  fprintf(stderr, "innodb_init\n");
   DBUG_ENTER("innodb_init");
 
   handlerton *innobase_hton = (handlerton *)p;

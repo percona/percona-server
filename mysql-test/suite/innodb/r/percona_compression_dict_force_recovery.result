@@ -51,13 +51,13 @@ ERROR HY000: Table 'compression_dictionary' is read only
 #########################################################
 # drop existing compression dictionary with references by tables
 DROP COMPRESSION_DICTIONARY d1;
-ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
+ERROR HY000: Operation not allowed when innodb_force_recovery > 0.
 # drop existing table
 DROP TABLE t1;
-ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
+ERROR HY000: Operation not allowed when innodb_force_recovery > 0.
 # drop existing compression dictionary with no references
 DROP COMPRESSION_DICTIONARY d1;
-ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
+ERROR HY000: Operation not allowed when innodb_force_recovery > 0.
 # create new compression dictionary
 CREATE COMPRESSION_DICTIONARY d2('blah');
 #########################################################

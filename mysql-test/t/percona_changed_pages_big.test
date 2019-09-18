@@ -5,10 +5,10 @@
 --echo #
 
 CREATE TABLE `joinit` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `i` int NOT NULL AUTO_INCREMENT,
   `s` varchar(64) DEFAULT NULL,
   `t` time NOT NULL,
-  `g` int(11) NOT NULL,
+  `g` int NOT NULL,
   PRIMARY KEY (`i`),
   KEY key_g (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

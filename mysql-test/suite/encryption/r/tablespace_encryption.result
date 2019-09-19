@@ -18,10 +18,10 @@ SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 SET GLOBAL innodb_encryption_threads=4;
 include/assert.inc [table ts4 should not be encrypted]
 include/assert.inc [Successful rotation of percona_innodb-0 to version 2]
-include/assert.inc [None of the tablespaces should get re-encrypted with version 2]
+include/assert.inc [None of the tablespaces should get re-encrypted with version 2 as innodb_encryption_rotate_key_age is 2]
 include/assert.inc [Successful rotation of percona_innodb-0 to version 3]
 include/assert.inc [Table ts1 should not get re-encrypted as key 3 is still in version 1]
-include/assert.inc [Tablespace ts2 should not get re-encrypted as key 3 is still in version 1]
+include/assert.inc [Tablespace ts2 should not get re-encrypted as key 5 is still in version 1]
 include/assert.inc [Table ts4 should stay unencrypted]
 # Now, let's rotate key 5 twice
 include/assert.inc [Successful rotation of percona_innodb-5 to version 2]

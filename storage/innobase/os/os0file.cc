@@ -1721,7 +1721,7 @@ static dberr_t verify_post_encryption_checksum(const IORequest &type,
           encryption.is_encrypted_and_compressed(buf));
     }
 
-    if (encryption.m_encryption_rotation == Encryption::NO_ROTATION &&
+    if (encryption.m_encryption_rotation == Encryption_rotation::NO_ROTATION &&
         !is_crypt_checksum_correct) {  // There is no re-encryption going on
       const auto space_id =
           mach_read_from_4(buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
@@ -1734,7 +1734,8 @@ static dberr_t verify_post_encryption_checksum(const IORequest &type,
   }
 
   if (encryption.m_encryption_rotation ==
-      Encryption::MASTER_KEY_TO_KEYRING) {  // There is re-encryption going on
+      Encryption_rotation::MASTER_KEY_TO_KEYRING) {  // There is re-encryption
+                                                     // going on
     encryption.m_type =
         is_crypt_checksum_correct
             ? Encryption::KEYRING  // assume page is RK encrypted
@@ -1799,16 +1800,13 @@ static bool load_key_needed_for_decryption(const IORequest &type,
     encryption.m_key_version = key_version_read_from_page;
   } else {
     ut_ad(encryption.m_type == Encryption::AES);
-    if (encryption.m_encryption_rotation == Encryption::NO_ROTATION)
+    if (encryption.m_encryption_rotation == Encryption_rotation::NO_ROTATION)
       return true;  // we are all set - needed key was alread loaded into
                     // encryption module
 
     ut_ad(encryption.m_encryption_rotation ==
-          Encryption::MASTER_KEY_TO_KEYRING);
-    ut_ad(encryption.m_tablespace_iv != NULL);
-    encryption.m_iv = encryption.m_tablespace_iv;  // iv comes from tablespace
-                                                   // header for MK encryption
-    ut_ad(encryption.m_tablespace_key != NULL);
+              Encryption_rotation::MASTER_KEY_TO_KEYRING &&
+          encryption.m_tablespace_key != nullptr);
     encryption.set_key(encryption.m_tablespace_key, ENCRYPTION_KEY_LEN, false);
   }
 
@@ -8306,7 +8304,6 @@ Encryption::Encryption(const Encryption &other) noexcept
       m_klen(other.m_klen),
       m_key_allocated(other.m_key_allocated),
       m_iv(other.m_iv),
-      m_tablespace_iv(other.m_tablespace_iv),
       m_tablespace_key(other.m_tablespace_key),
       m_key_version(other.m_key_version),
       m_key_id(other.m_key_id),
@@ -10067,7 +10064,7 @@ bool os_dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
 
   IORequest write_request(IORequest::WRITE);
   write_request.encryption_key(space->encryption_key, space->encryption_klen,
-                               false, space->encryption_iv, 0, 0, NULL, NULL);
+                               false, space->encryption_iv, 0, 0, nullptr);
 
   write_request.encryption_algorithm(Encryption::AES);
 
@@ -10112,7 +10109,7 @@ dberr_t os_dblwr_decrypt_page(fil_space_t *space, page_t *page) {
   IORequest decrypt_request;
 
   decrypt_request.encryption_key(space->encryption_key, space->encryption_klen,
-                                 false, space->encryption_iv, 0, 0, NULL, NULL);
+                                 false, space->encryption_iv, 0, 0, nullptr);
 
   decrypt_request.encryption_algorithm(Encryption::AES);
 

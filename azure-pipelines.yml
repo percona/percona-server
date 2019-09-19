@@ -1,0 +1,250 @@
+jobs:
+- job:
+  timeoutInMinutes: 180
+  displayName: Ubuntu Bionic
+  pool:
+    vmImage: 'ubuntu-18.04'
+
+  variables:
+    UBUNTU_CODE_NAME: bionic
+    CCACHE_DIR: $(Pipeline.Workspace)/ccache
+    CCACHE_COMPRESS: 1
+    CCACHE_COMPRESSLEVEL: 9
+    CCACHE_CPP2: 1
+
+  strategy:
+    matrix:
+      GCC-9 Debug:
+        Compiler: gcc
+        CompilerVer: 9
+        BuildType: Debug
+
+      GCC-9 Release:
+        Compiler: gcc
+        CompilerVer: 9
+        BuildType: RelWithDebInfo
+
+      Clang-9 Debug:
+        Compiler: clang
+        CompilerVer: 9
+        BuildType: Debug
+
+      Clang-9 Release:
+        Compiler: clang
+        CompilerVer: 9
+        BuildType: RelWithDebInfo
+
+      GCC-8 Debug:
+        Compiler: gcc
+        CompilerVer: 8
+        BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        GCC-8 Release:
+          Compiler: gcc
+          CompilerVer: 8
+          BuildType: RelWithDebInfo
+
+      Clang-8 Debug:
+        Compiler: clang
+        CompilerVer: 8
+        BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Clang-8 Release:
+          Compiler: clang
+          CompilerVer: 8
+          BuildType: RelWithDebInfo
+
+      GCC-7 Debug:
+        Compiler: gcc
+        CompilerVer: 7
+        BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        GCC-7 Release:
+          Compiler: gcc
+          CompilerVer: 7
+          BuildType: RelWithDebInfo
+
+      Clang-7 Debug:
+        Compiler: clang
+        CompilerVer: 7
+        BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Clang-7 Release:
+          Compiler: clang
+          CompilerVer: 7
+          BuildType: RelWithDebInfo
+
+      GCC-6 Debug:
+        Compiler: gcc
+        CompilerVer: 6
+        BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        GCC-6 Release:
+          Compiler: gcc
+          CompilerVer: 6
+          BuildType: RelWithDebInfo
+
+      Clang-6 Debug:
+        Compiler: clang
+        CompilerVer: 6.0
+        BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Clang-6 Release:
+          Compiler: clang
+          CompilerVer: 6.0
+          BuildType: RelWithDebInfo
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        GCC-5 Debug:
+          Compiler: gcc
+          CompilerVer: 5
+          BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        GCC-5 Release:
+          Compiler: gcc
+          CompilerVer: 5
+          BuildType: RelWithDebInfo
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Clang-5 Debug:
+          Compiler: clang
+          CompilerVer: 5.0
+          BuildType: Debug
+
+      ${{ if ne(variables['Build.Reason'], 'IndividualCI') }}:
+        Clang-5 Release:
+          Compiler: clang
+          CompilerVer: 5.0
+          BuildType: RelWithDebInfo
+
+  steps:
+  - checkout: self
+    submodules: true
+  - script: |
+      if [[ "$(Compiler)" == "clang" ]]; then
+        CC=clang-$(CompilerVer)
+        CXX=clang++-$(CompilerVer)
+      else
+        CC=gcc-$(CompilerVer)
+        CXX=g++-$(CompilerVer)
+      fi
+
+      echo CC=$CC CXX=$CXX BuildType=$(BuildType) Ubuntu=$UBUNTU_CODE_NAME
+      echo --- Configure required LLVM and Ubuntu Toolchain repositories
+      if [[ "$CC" == clang* ]]; then
+         PACKAGES="llvm-$(CompilerVer)-dev"
+         curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
+         echo "deb http://apt.llvm.org/$UBUNTU_CODE_NAME/ llvm-toolchain-$UBUNTU_CODE_NAME-$(CompilerVer) main" | sudo tee -a /etc/apt/sources.list > /dev/null
+      fi
+
+      echo --- Update list of packages and download dependencies
+      sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
+      sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
+
+      sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install $CXX $PACKAGES cmake cmake-curses-gui ccache bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev liblzma-dev libssl-dev libreadline-dev libpam-dev libcurl4-openssl-dev || exit 1;
+      if [[ "$INVERTED" != "ON" ]]; then
+        sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-unauthenticated install libevent-dev libeditline-dev liblz4-dev libre2-dev protobuf-compiler libprotobuf-dev libprotoc-dev libicu-dev || exit 1;
+      fi
+
+      UPDATE_TIME=$SECONDS
+      echo --- Packages updated in $UPDATE_TIME seconds.
+
+      $CC -v
+      $CXX -v
+      ccache --version
+      ccache --print-config
+      ccache --zero-stats
+
+      echo '##vso[task.setvariable variable=CC]'$CC
+      echo '##vso[task.setvariable variable=CXX]'$CXX
+      echo '##vso[task.setvariable variable=UPDATE_TIME]'$UPDATE_TIME
+      echo '##vso[task.prependpath]/usr/lib/ccache'
+
+    displayName: '*** Install Build Dependencies'
+
+  - task: CacheBeta@0
+    continueOnError: true
+    inputs:
+      key: ccache | $(Agent.OS)-$(Compiler)-$(CompilerVer)-$(BuildType) | $(Build.SourceVersion)
+      restoreKeys: ccache | $(Agent.OS)-$(Compiler)-$(CompilerVer)-$(BuildType)
+      path: $(CCACHE_DIR)
+    displayName: '*** Download ccached data'
+
+  - script: |
+      echo --- Set cmake parameters
+      CMAKE_OPT="
+        -DCMAKE_BUILD_TYPE=$(BuildType)
+        -DBUILD_CONFIG=mysql_release
+        -DFEATURE_SET=community
+        -DENABLE_DOWNLOADS=1
+        -DDOWNLOAD_BOOST=1
+        -DWITH_BOOST=../deps
+        -DMYSQL_MAINTAINER_MODE=ON
+        -DCMAKE_C_COMPILER_LAUNCHER=/usr/bin/ccache
+        -DCMAKE_CXX_COMPILER_LAUNCHER=/usr/bin/ccache
+        -DWITH_KEYRING_VAULT=ON
+        -DWITH_PAM=ON
+        -DWITH_TOKUDB=ON
+        -DWITH_ROCKSDB=ON
+        -DWITH_CURL=system
+        -DWITH_MECAB=system
+        -DWITH_RAPIDJSON=bundled
+        -DWITH_SSL=system
+        -DWITH_LIBEVENT=bundled
+      "
+
+      if [[ "$INVERTED" != "ON" ]]; then
+        CMAKE_OPT+="
+          -DWITH_READLINE=system
+          -DWITH_ICU=system
+          -DWITH_LZ4=system
+          -DWITH_PROTOBUF=system
+          -DWITH_RE2=system
+          -DWITH_ZLIB=system
+          -DWITH_NUMA=ON
+        "
+      else
+        CMAKE_OPT+="
+          -DWITH_EDITLINE=bundled
+          -DWITH_ICU=bundled
+          -DWITH_LZ4=bundled
+          -DWITH_PROTOBUF=bundled
+          -DWITH_RE2=bundled
+          -DWITH_ZLIB=bundled
+          -DWITH_NUMA=OFF
+          -DWITH_ARCHIVE_STORAGE_ENGINE=OFF
+          -DWITH_BLACKHOLE_STORAGE_ENGINE=OFF
+          -DWITH_EXAMPLE_STORAGE_ENGINE=ON
+          -DWITH_FEDERATED_STORAGE_ENGINE=OFF
+          -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON
+          -DWITH_INNODB_MEMCACHED=ON
+        "
+      fi
+
+      echo --- CMAKE_OPT=\"$CMAKE_OPT\"
+      mkdir bin; cd bin
+      CC=$CC CXX=$CXX cmake .. $CMAKE_OPT || exit 1
+
+      CMAKE_TIME=$SECONDS
+      echo --- CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds.
+
+      echo '##vso[task.setvariable variable=CMAKE_TIME]'$CMAKE_TIME
+
+    displayName: '*** cmake .. -DCMAKE_BUILD_TYPE=$(BuildType)'
+
+  - script: |
+      cd bin
+      make -j2 || exit 1
+      ccache --show-stats
+
+      BUILD_TIME=$SECONDS
+      echo --- Total time $(($BUILD_TIME + $UPDATE_TIME + $CMAKE_TIME)) seconds. Build time $BUILD_TIME seconds. CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds.
+
+    displayName: '*** Compile'

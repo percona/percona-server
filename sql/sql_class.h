@@ -2813,7 +2813,7 @@ public:
     }
     st_transactions()
     {
-      memset(this, 0, sizeof(*this));
+      memset(static_cast<void*>(this), 0, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }

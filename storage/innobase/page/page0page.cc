@@ -541,7 +541,7 @@ page_create_empty(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	trx_id_t	max_trx_id = 0;
-	const page_t*	page	= buf_block_get_frame(block);
+	const page_t*	page	= buf_nonnull_block_get_frame(block);
 	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);

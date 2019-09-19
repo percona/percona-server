@@ -1563,7 +1563,7 @@ struct Name_resolution_context;
 struct LEX;
 struct TABLE_LIST
 {
-  TABLE_LIST() {}                          /* Remove gcc warning */
+  TABLE_LIST() { memset(static_cast<void*>(this), 0, sizeof(*this)); }
 
   /**
     Prepare TABLE_LIST that consists of one table instance to use in
@@ -1576,7 +1576,7 @@ struct TABLE_LIST
                              const char *alias_arg,
                              enum thr_lock_type lock_type_arg)
   {
-    memset(static_cast<void*>(this), 0, sizeof(*this));
+    new (this) TABLE_LIST;
     db= (char*) db_name_arg;
     db_length= db_length_arg;
     table_name= (char*) table_name_arg;

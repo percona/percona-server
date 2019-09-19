@@ -130,6 +130,8 @@ class Encryption {
 
   static constexpr char KEY_MAGIC_PS_V1[] = "PSA";
 
+  static constexpr char KEY_MAGIC_PS_V2[] = "PSB";
+
   /** Encryption master key prifix */
   static constexpr char MASTER_KEY_PREFIX[] = "INNODBKey";
 

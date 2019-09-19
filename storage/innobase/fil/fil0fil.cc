@@ -6279,6 +6279,11 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     crypt_data = first_page
                      ? fil_space_read_crypt_data(page_size_t(flags), first_page)
                      : nullptr;
+
+    keyring_encryption_info.page0_has_crypt_data = crypt_data != nullptr;
+    keyring_encryption_info.is_mk_to_keyring_rotation =
+        crypt_data != nullptr && crypt_data->encryption_rotation ==
+                                     Encryption_rotation::MASTER_KEY_TO_KEYRING;
   }
 
   space = fil_space_create(space_name, space_id, flags, purpose, crypt_data);

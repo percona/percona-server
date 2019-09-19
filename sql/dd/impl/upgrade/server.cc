@@ -706,6 +706,21 @@ bool do_server_upgrade_checks(THD *thd) {
     return dd::end_transaction(thd, true);
   }
 
+  if (!error_count.has_too_many_errors()) {
+    /*
+      Get hold of the InnoDB handlerton. The check for partitioned tables
+      using shared tablespaces is only relevant for InnoDB.
+    */
+    plugin_ref pr =
+        ha_resolve_by_name_raw(thd, LEX_CSTRING{STRING_WITH_LEN("InnoDB")});
+    handlerton *hton =
+        (pr != nullptr ? plugin_data<handlerton *>(pr) : nullptr);
+    assert(hton != nullptr && hton->is_there_mk_to_keyring_rotation);
+
+    if (hton->is_there_mk_to_keyring_rotation())
+      return dd::end_transaction(thd, true);
+  }
+
   thd->pop_internal_handler();
   return false;
 }

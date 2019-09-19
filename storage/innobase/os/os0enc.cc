@@ -199,8 +199,8 @@ constexpr char Encryption::KEY_MAGIC_V2[];
 constexpr char Encryption::KEY_MAGIC_V3[];
 constexpr char Encryption::KEY_MAGIC_RK_V1[];
 constexpr char Encryption::KEY_MAGIC_RK_V2[];
-
 constexpr char Encryption::KEY_MAGIC_PS_V1[];
+constexpr char Encryption::KEY_MAGIC_PS_V2[];
 
 constexpr char Encryption::MASTER_KEY_PREFIX[];
 constexpr char Encryption::DEFAULT_MASTER_KEY[];

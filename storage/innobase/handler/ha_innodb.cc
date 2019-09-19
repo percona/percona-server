@@ -1714,6 +1714,8 @@ static bool innobase_get_tablespace_statistics(
 static bool innobase_get_tablespace_type(const dd::Tablespace &space,
                                          Tablespace_type *space_type);
 
+static bool innobase_is_there_mk_to_keyring_rotation();
+
 /** Get the tablespace type given the name.
 
 @param[in]  tablespace_name tablespace name
@@ -5715,6 +5717,9 @@ static int innodb_init(void *p) {
   innobase_hton->get_tablespace_type_by_name =
       innobase_get_tablespace_type_by_name;
 
+  innobase_hton->is_there_mk_to_keyring_rotation =
+      innobase_is_there_mk_to_keyring_rotation;
+
   innobase_hton->is_dict_readonly = innobase_is_dict_readonly;
 
   innobase_hton->sdi_create = dict_sdi_create;
@@ -6052,6 +6057,10 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   space_id_t upgrade_mysql_plugin_space = SPACE_UNKNOWN;
 
   if (srv_is_upgrade_mode) {
+    if (srv_has_crypt_data_v1_rotating_from_mk) {
+      return innodb_init_abort();
+    }
+
     if (!dict_sys_table_id_build()) {
       return innodb_init_abort();
     }
@@ -18918,6 +18927,10 @@ static bool innobase_get_tablespace_type(const dd::Tablespace &space,
   }
 
   return false;
+}
+
+static bool innobase_is_there_mk_to_keyring_rotation() {
+  return srv_has_crypt_data_v1_rotating_from_mk;
 }
 
 /** Get the tablespace type given the name.

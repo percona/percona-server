@@ -233,9 +233,7 @@ struct fil_space_crypt_t {
   uchar *get_min_key_version_key();
   uchar *get_key_currently_used_for_encryption();
 
-  uint min_key_version;  // min key version for this space
-  ulint page0_offset;  // byte offset on page 0 for crypt data //TODO:Robert: po
-                       // co to ?
+  uint min_key_version;         // min key version for this space
   fil_encryption_t encryption;  // Encryption setup
 
   // key being used for encryption
@@ -263,14 +261,14 @@ struct fil_space_crypt_t {
   Encryption_rotation encryption_rotation;
 
   uchar *tablespace_key;  // TODO:Make it private ?
-  // In Oracle's tablespace encryption is Encryption::KEY_LEN long,
-  // which is incorrect value - it should be always 128 bits,
-  // nevertheless we need Encryption::KEY_LEN tablespace_iv
-  // to be able to store this IV.
-  uchar *tablespace_iv;
 
-  // In Oracle's tablespace encryption is Encryption::KEY_LEN long,
-  // which is incorrect value - it should be always 128 bits,
+  // In Oracle's tablespace encryption iv is ENCRYPTION_KEY_LEN long,
+  // which is incorrect value - it should be always 128 bits.
+  // In case of MK to KEYRING re-encryption we re-use MK iv for
+  // Keyring encryption. Since only 128 bits is really used
+  // by AES we only store the needed 128 bits of this iv.
+  // During re-encryption we use this iv to decrypt MK encrypted
+  // pages and encrypt pages with KEYRING.
   unsigned char iv[CRYPT_SCHEME_1_IV_LEN];
 
   uint encrypting_with_key_version;
@@ -279,6 +277,11 @@ struct fil_space_crypt_t {
   unsigned int type;
 
   std::list<byte *> fetched_keys;  // TODO: temp for test
+
+  // Internally we have two versions of crypt_data written to page 0.
+  // One starting with magic PSA and the second one starting with PSB.
+  // Here we store which magic we read : 1 - PSA, 2 - PSB.
+  size_t private_version{2};
 
   char uuid[Encryption::SERVER_UUID_LEN + 1];
 };
@@ -378,17 +381,14 @@ void fil_space_destroy_crypt_data(fil_space_crypt_t **crypt_data);
 MY_NODISCARD byte *fil_parse_write_crypt_data_v1(space_id_t space_id, byte *ptr,
                                                  const byte *end_ptr, ulint len);
 
-/**
-Encrypt a page.
-
-@param[in]		space		Tablespace
-@param[in]		offset		Page offset
-@param[in]		lsn		Log sequence number
-@param[in]		src_frame	Page to encrypt
-@param[in,out]		dst_frame	Output buffer
-@return encrypted buffer or NULL */
-MY_NODISCARD byte *fil_space_encrypt(const fil_space_t *space, ulint offset, lsn_t lsn,
-                                     byte *src_frame, byte *dst_frame);
+/** Parse a MLOG_FILE_WRITE_CRYPT_DATA log entry
+@param[in]  space_id  id of space that this log entry refers to
+@param[in]  ptr  Log entry start
+@param[in]  end_ptr  Log entry end
+@param[in]  len  Log entry length
+@return position on log buffer */
+MY_NODISCARD byte *fil_parse_write_crypt_data_v2(space_id_t space_id, byte *ptr,
+                                                 const byte *end_ptr, ulint len);
 
 /**
 Decrypt a page.

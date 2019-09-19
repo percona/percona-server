@@ -180,7 +180,7 @@ tablespace.
 This feature extends the  `CREATE TABLESPACE
 <https://dev.mysql.com/doc/refman/5.7/en/create-tablespace.html>`_
 statement to accept the ``ENCRYPTION='Y/N'`` option.
-  
+
 Usage
 --------------------------------------------------------------------------------
 
@@ -233,7 +233,7 @@ user needs to find out whether it is encrypted or not (this task is easier for
 single tablespaces since you can check table info).
 
 A ``flag`` field in the ``INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`` has bit
-number 13 set if tablespace is encrypted. This bit can be ckecked with 
+number 13 set if tablespace is encrypted. This bit can be ckecked with
 ``flag & 8192`` expression in the following way::
 
   >SELECT space, name, flag, (flag & 8192) != 0 AS encrypted FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE name in ('foo', 'test/t2', 'bar', 'noencrypt');
@@ -246,6 +246,28 @@ number 13 set if tablespace is encrypted. This bit can be ckecked with
   |    32 | noencrypt |  2048 |         0 |
   +-------+-----------+-------+-----------+
   4 rows in set (0.01 sec)
+
+Encrypted table metadata is contained in the INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION table. You must have the ``Process`` privilege to view the table information. ::
+
+ >desc INNODB_TABLESPACES_ENCRYPTION:
+ 
+ +-----------------------------+--------------------+-----+----+--------+------+
+  | Field                       | Type               | Null| Key| Default| Extra|
+  +-----------------------------+--------------------+-----+----+--------+------+
+  | SPACE                       | int(11) unsigned   | NO  |    |        |      |
+  | NAME                        | varchar(655)       | YES |    |        |      |
+  | ENCRYPTION_SCHEME           | int(11) unsigned   | NO  |    |        |      |
+  | KEYSERVER_REQUESTS          | int(11) unsigned   | NO  |    |        |      |
+  | MIN_KEY_VERSION             | int(11) unsigned   | NO  |    |        |      |
+  | CURRENT_KEY_VERSION         | int(11) unsigned   | NO  |    |        |      |
+  | KEY_ROTATION_PAGE_NUMBER    | bigint(21) unsigned| YES |    |        |      |
+  | KEY_ROTATION_MAX_PAGE_NUMBER| bigint(21) unsigned| YES |    |        |      |
+  | CURRENT_KEY_ID              | int(11) unsigned   | NO  |    |        |      |
+  | ROTATING_OR_FLUSHING        | int(1) unsigned    | NO  |    |        |      |
+
+.. seealso::
+  |MariaDB| Documentation
+  https://mariadb.com/kb/en/library/information-schema-innodb_tablespaces_encryption-table/
 
 System Variables
 ----------------
@@ -336,7 +358,7 @@ keyring, |Percona Server| will create it with version 1. If a new
 ``CREATE TABLE`` statement fails
 
 .. rubric:: FORCE_KEYRING
-	    
+
 :Availability: This value is **Alpha** quality
 
 New tables are created encrypted and keyring encryption is enforced.
@@ -345,7 +367,7 @@ New tables are created encrypted and keyring encryption is enforced.
 
 :Availability: This value is **Alpha** quality
 
-All tables created or altered without the ``ENCRYPTION=NO`` clause 
+All tables created or altered without the ``ENCRYPTION=NO`` clause
 are encrypted with the latest version of the default encryption key. If a table
 being altered is already encrypted with the master key, the table is recreated
 encrypted with the latest version of the default encryption key.
@@ -395,7 +417,7 @@ KEYRING. The value of this variable determines how frequently the encrypted
 tables should be encrypted again. If it is set to **1**, the encrypted table is
 re-encrypted on each key rotation. If it is set to **2**, the table is encrypted
 on every other key rotation.
-      
+
 .. variable:: innodb_encrypt_online_alter_logs
 
    :version 5.7.21-21: Implemented
@@ -537,18 +559,18 @@ System variables
 Enables the encryption of the redo log.
 
 .. .. variable:: innodb_key_rotation_interval
-.. 	      
+..
 ..    :version 5.7.23-24: Implemented
 ..    :cli: ``--innodb-key-rotation_interval``
 ..    :dyn: Yes
 ..    :scope: Global
 ..    :vartype: Text
 ..    :default: ``0``
-.. 
+..
 .. This variable stores the time (in seconds) that should pass between key
 .. rotations. It is only used if :variable:`innodb_redo_log_encrypt` is set to
 .. ``KEYRING_KEY``.
-.. 	     
+..
 
 .. _data-at-rest-encryption.variable.innodb-scrub-log:
 
@@ -571,8 +593,8 @@ Specifies if data scrubbing should be automatically applied to the redo log.
    :dyn: Yes
    :scope: Global
    :vartype: Text
-   :default: 
- 
+   :default:
+
 Specifies the velocity of data scrubbing (writing dummy redo log records) in bytes per second.
 
 
@@ -717,11 +739,11 @@ Configuration file should contain the following information:
   certificate that was used to sign Vault's certificates.
 
 .. warning::
-   
+
    Each ``secret_mount_point`` should be used by only one server - otherwise
    mixing encryption keys from different servers may lead to undefined
    behavior.
-  
+
 An example of the configuration file looks like this: ::
 
   vault_url = https://vault.public.com:8202

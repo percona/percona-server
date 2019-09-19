@@ -55,7 +55,7 @@ include/assert.inc [All encrypted tables should have encrypted flag set, apart f
 # Now turn off encryption and wait for threads to decrypt everything
 SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 # Three tables should stay encrypted - the ones with explicit encryption
-include/assert.inc [Three tables should stay encrypted - the ones with explicit encryption t1, t4 and t6]
+include/assert.inc [Three tablespaces should stay encrypted - the ones with explicit encryption t1, t4 and t6]
 # t1 yes on expecting NOT FOUND
 # t2 ... default expecting FOUND
 # t3 no  on expecting FOUND

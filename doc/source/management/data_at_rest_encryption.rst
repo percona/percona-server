@@ -532,6 +532,10 @@ tables.
    |MariaDB| Documentation: ``innodb_encrypt_tables`` Option
       https://mariadb.com/kb/en/library/xtradbinnodb-server-system-variables/#innodb_encrypt_tables
 
+.. note:: 
+
+If the 5.7 version has encrypted MySQL schema tables due to ``--innodb-encrypt-tables`` ="ON" during bootstrap or if ``--innodb_encrypt-tables`` is present at the upgrade time, the create mysql tablespace is encrypted during upgrade.
+
       ..variable:: table_encryption_privilege_check
 
         :cli: table-encryption-privilege-check

@@ -34,6 +34,7 @@
 #include "buffer.h"
 #include "audit_handler.h"
 #include "filter.h"
+#include "security_context_wrapper.h"
 
 #define PLUGIN_VERSION 0x0002
 
@@ -1062,7 +1063,8 @@ const char *next_word(const char *str, size_t *len,
 
 
 static
-void audit_log_update_thd_local(audit_log_thd_local *local,
+void audit_log_update_thd_local(MYSQL_THD thd,
+                                audit_log_thd_local *local,
                                 unsigned int event_class,
                                 const void *event)
 {
@@ -1076,18 +1078,21 @@ void audit_log_update_thd_local(audit_log_thd_local *local,
     const struct mysql_event_connection *event_connection=
       (const struct mysql_event_connection *) event;
 
+    const char *host = get_priv_host(thd);
+    const size_t host_length = strlen(host);
+
     local->skip_session= FALSE;
     if (audit_log_include_accounts != NULL &&
-        !audit_log_check_account_included(event_connection->user,
-                                          event_connection->user_length,
-                                          event_connection->host,
-                                          event_connection->host_length))
+        !audit_log_check_account_included(event_connection->priv_user,
+                                          event_connection->priv_user_length,
+                                          host,
+                                          host_length))
       local->skip_session= TRUE;
     if (audit_log_exclude_accounts != NULL &&
-        audit_log_check_account_excluded(event_connection->user,
-                                         event_connection->user_length,
-                                         event_connection->host,
-                                         event_connection->host_length))
+        audit_log_check_account_excluded(event_connection->priv_user,
+                                         event_connection->priv_user_length,
+                                         host,
+                                         host_length))
       local->skip_session= TRUE;
 
     if (event_connection->status == 0)
@@ -1183,7 +1188,7 @@ void audit_log_notify(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   size_t len, buflen;
   audit_log_thd_local *local= get_thd_local(thd);
 
-  audit_log_update_thd_local(local, event_class, event);
+  audit_log_update_thd_local(thd, local, event_class, event);
 
   if (!is_event_class_allowed_by_policy(event_class, audit_log_policy))
     return;

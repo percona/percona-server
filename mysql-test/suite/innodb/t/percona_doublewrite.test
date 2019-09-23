@@ -140,6 +140,62 @@ SET GLOBAL innodb_fast_shutdown=2;
 --let $restart_parameters=restart:--innodb-force-recovery=6
 --source include/start_mysqld.inc
 
+--echo #
+--echo # Bug PS-3411: Parallel doublewrite buffer file created when skip-innodb_doublewrite is set
+--echo #
+
+--let $restart_hide_args= 1
+--let $restart_parameters= restart:--innodb-parallel-doublewrite-path=$DOUBLEWRITE_FILE
+--source include/restart_mysqld.inc
+file_exists $DOUBLEWRITE_FILE;
+
+CREATE TABLE t1 (a INT);
+
+--let $i= 1000
+--disable_query_log
+START TRANSACTION;
+while($i)
+{
+    --eval INSERT INTO t1 VALUES ($i);
+    --dec $i
+}
+COMMIT;
+--enable_query_log
+
+# wait until pages flushed
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+SELECT * FROM t1 ORDER BY a DESC LIMIT 10;
+DROP TABLE t1;
+
+--let $restart_hide_args= 1
+--let $restart_parameters= "restart:--innodb-parallel-doublewrite-path=$DOUBLEWRITE_FILE --skip-innodb-doublewrite"
+--source include/restart_mysqld.inc
+--error 1
+--file_exists $DOUBLEWRITE_FILE;
+
+# check that it still works
+CREATE TABLE t1 (a INT);
+
+--let $i= 1000
+--disable_query_log
+START TRANSACTION;
+while($i)
+{
+    --eval INSERT INTO t1 VALUES ($i);
+    --dec $i
+}
+COMMIT;
+--enable_query_log
+
+# wait until pages flushed
+--let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_dirty'
+--source include/wait_condition.inc
+
+SELECT * FROM t1 ORDER BY a DESC LIMIT 10;
+DROP TABLE t1;
+
 --echo # Cleanup
 --let $restart_parameters=
 --source include/restart_mysqld.inc

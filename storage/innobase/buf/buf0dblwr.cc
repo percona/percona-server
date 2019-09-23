@@ -1485,6 +1485,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 the disk file.
 @return DB_SUCCESS or error code */
 dberr_t buf_parallel_dblwr_create(void) noexcept {
+  if (!srv_use_doublewrite_buf) {
+    return (DB_SUCCESS);
+  }
+
   if (!parallel_dblwr_buf.file.is_closed() || srv_read_only_mode) {
     ut_ad(parallel_dblwr_buf.recovery_buf_unaligned == nullptr);
     return (DB_SUCCESS);

@@ -39,5 +39,38 @@ SET GLOBAL innodb_fast_shutdown=2;
 # restart:--innodb-force-recovery=6
 # Test that --innodb_force_recovery=6 succeeds to start without the doublewrite file
 # restart:--innodb-force-recovery=6
+#
+# Bug PS-3411: Parallel doublewrite buffer file created when skip-innodb_doublewrite is set
+#
+# restart:<hidden args>
+CREATE TABLE t1 (a INT);
+SELECT * FROM t1 ORDER BY a DESC LIMIT 10;
+a
+1000
+999
+998
+997
+996
+995
+994
+993
+992
+991
+DROP TABLE t1;
+# restart:<hidden args>
+CREATE TABLE t1 (a INT);
+SELECT * FROM t1 ORDER BY a DESC LIMIT 10;
+a
+1000
+999
+998
+997
+996
+995
+994
+993
+992
+991
+DROP TABLE t1;
 # Cleanup
 # restart

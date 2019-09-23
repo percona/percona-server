@@ -1645,6 +1645,10 @@ the disk file.
 dberr_t
 buf_parallel_dblwr_create(void)
 {
+	if (!srv_use_doublewrite_buf) {
+		return(DB_SUCCESS);
+	}
+
 	if (!parallel_dblwr_buf.file.is_closed() || srv_read_only_mode) {
 
 		ut_ad(parallel_dblwr_buf.recovery_buf_unaligned == NULL);

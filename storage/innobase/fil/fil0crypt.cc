@@ -1038,10 +1038,12 @@ struct rotate_thread_t {
   }
 };
 
+#ifdef UNIV_DEBUG
 static bool is_unenc_to_enc_rotation(const fil_space_crypt_t &crypt_data) {
   return crypt_data.type == CRYPT_SCHEME_UNENCRYPTED &&
          !crypt_data.is_encryption_disabled();
 }
+#endif
 
 /***********************************************************************
 Check if space needs rotation given a key_state

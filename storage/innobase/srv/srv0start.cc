@@ -1687,7 +1687,7 @@ static dberr_t srv_open_tmp_tablespace(bool create_new_db,
       mtr_start(&mtr);
       mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-      fsp_header_init(tmp_space->space_id(), size, &mtr, false);
+      fsp_header_init(tmp_space->space_id(), size, &mtr, true);
 
       mtr_commit(&mtr);
     } else {

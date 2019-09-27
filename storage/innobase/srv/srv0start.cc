@@ -1323,8 +1323,10 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
 
     mtr_x_lock(fil_space_get_latch(space_id), &mtr);
 
+
+    const bool use_default_key = strlen(Encryption::s_uuid) == 0;
     if (!fsp_header_init(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr,
-                         create_new_db)) {
+                         use_default_key)) {
       ib::error(ER_IB_MSG_1093, ulong{undo::id2num(space_id)});
 
       mtr_commit(&mtr);

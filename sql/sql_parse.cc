@@ -6663,8 +6663,13 @@ static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query) {
       slayage if both are string-equal.
     */
 
-    if (sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first ||
+    const bool is_utility_connection = acl_is_utility_user(
+        tmp->m_security_ctx->user().str, tmp->m_security_ctx->host().str,
+        tmp->m_security_ctx->ip().str);
+
+    if (((sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first) &&
+         !is_utility_connection) ||
         sctx->user_matches(tmp->security_context())) {
       /*
         Process the kill:

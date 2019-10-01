@@ -402,4 +402,5 @@ void vio_end(void)
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
 #endif
+  vio_proxy_cleanup();
 }

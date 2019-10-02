@@ -73,9 +73,73 @@ SET GLOBAL audit_log_exclude_accounts= NULL;
 
 --source audit_log_echo.inc
 
+
+
+#
+# PS-5707: Audit log filtering by user is not working
+#
+
+--let $expected_text = "This should go to audit log"
+--let $not_expected_text = "This shouldn't go to audit log"
+
+SHOW VARIABLES LIKE 'audit_log_exclude_accounts';
+SET GLOBAL audit_log_exclude_accounts = 'user22@%';
+SHOW VARIABLES LIKE 'audit_log_exclude_accounts';
+
+SET GLOBAL audit_log_flush = ON;
+--remove_file $log_file
+SET GLOBAL audit_log_flush = ON;
+
+
+--connect (user_connection, 127.0.0.1, user22, password1, )
+--connection user_connection
+SELECT current_user();
+SHOW VARIABLES LIKE 'audit_log_exclude_accounts';
+
+CREATE TABLE t1 (a text);
+--eval INSERT INTO t1 VALUES($not_expected_text)
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--disconnect user_connection
+
+--connection default
+SET GLOBAL audit_log_exclude_accounts = '';
+SHOW VARIABLES LIKE 'audit_log_exclude_accounts';
+
+
+--connect (user_connection, 127.0.0.1, user22, password1, )
+--connection user_connection
+SELECT current_user();
+SHOW VARIABLES LIKE 'audit_log_exclude_accounts';
+
+CREATE TABLE t1 (a text);
+--eval INSERT INTO t1 VALUES($expected_text)
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--disconnect user_connection
+
+--connection default
+SET GLOBAL audit_log_flush = ON;
+
+# Check that log is properly filtered
+--let $assert_file= $log_file
+--let $assert_count = 1
+--let $assert_select = $expected_text
+--let $assert_text = $expected_text
+--source include/assert_grep.inc
+
+--let $assert_count = 0
+--let $assert_select = $not_expected_text
+--let $assert_text = $not_expected_text
+--source include/assert_grep.inc
+
+
 # cleanup users
 DROP USER 'user1'@'127.0.0.1';
 DROP USER 'user22'@'%';
 DROP USER '22user'@'localhost';
 DROP USER 'admin'@'%';
 DROP USER 'us,er1'@'localhost';
+

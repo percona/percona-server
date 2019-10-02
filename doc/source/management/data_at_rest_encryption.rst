@@ -556,6 +556,8 @@ tables.
    :vartype: Numeric
    :default: 0
 
+:Availability: This feature is of **Experimental** quality.
+
 This variable works in combination with the :variable:`default_table_encryption`
 variable set to ``ONLINE_TO_KEYRING``. This variable configures the number of
 threads for background encryption. For the online encryption to work, this

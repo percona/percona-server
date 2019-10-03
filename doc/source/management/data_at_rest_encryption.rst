@@ -585,7 +585,45 @@ on every other key rotation.
 
 This variable simultaneously turns on the encryption of files used by InnoDB for
 full text search using parallel sorting, building indexes using merge sort, and
-online DDL logs created by InnoDB for online DDL. Encryption is available for file merges used in queries and backend processes.
+online DDL logs created by InnoDB for online DDL.
+
+.. _data-at-rest-encryption.undo-tablespace:
+
+InnoDB Undo Tablespace Encryption
+================================================================================
+
+:Availability: This feature is **Experimental** quality
+
+The encryption of InnoDB Undo tablespaces is only available when using
+separate undo tablespaces. Otherwise, the InnoDB undo log is part of
+the InnoDB system tablespace.
+
+.. seealso::
+
+   More information about how the encryption of the system tablespace
+      :ref:`data-at-rest-encryption.innodb-system-tablespace`
+
+System variables
+--------------------------------------------------------------------------------
+
+.. variable:: innodb_undo_log_encrypt
+
+   :version 5.7.23-24: Implemented
+   :cli: ``--innodb-undo-log-encrypt``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``Off``
+
+Enables the encryption of InnoDB Undo tablespaces. You can enable encryption and
+disable encryption while the server is running.
+
+.. note::
+
+    If you enable undo log encryption, the server writes encryption information
+    into the header. That information stays in the header during the life of the
+    undo log. If you restart the server, the server will try to load the
+    encryption key from the keyring during startup. If the keyring is not available, the server cannot start. You can drop the undo tablespace with ``DROP UNDO TABLESPACE``. 
 
 Binary log encryption
 =====================

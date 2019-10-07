@@ -1203,7 +1203,9 @@ void PFS_connection_status_visitor::visit_account(PFS_account *pfs) {
 void PFS_connection_status_visitor::visit_thread(PFS_thread *) {}
 
 void PFS_connection_status_visitor::visit_THD(THD *thd) {
-  add_to_status(m_status_vars, &thd->status_var);
+  if (!thd->status_var_aggregated) {
+    add_to_status(m_status_vars, &thd->status_var);
+  }
 }
 
 PFS_instance_wait_visitor::PFS_instance_wait_visitor() = default;

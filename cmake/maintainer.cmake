@@ -107,6 +107,11 @@ IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-null-conversion")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-unused-private-field")
 
+  # clang-5 or older: disable "suggest braces around initialization of subobject" warnings
+  IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6)
+    STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-missing-braces")
+  ENDIF()
+
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wconditional-uninitialized")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wdeprecated")
 

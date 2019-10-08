@@ -768,6 +768,7 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
       // From now on all DD tables will be created with encryption='y'
     }
   }
+  delete p;
 
   /*
     Iterate over the table definitions and add them to the System_tables

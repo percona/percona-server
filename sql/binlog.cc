@@ -2700,7 +2700,9 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       DBUG_ASSERT(0);
 #endif
 
-    error= ordered_commit(thd, all, /* skip_commit */ true);
+    error= prepare_ordered_commit(thd, all, /* skip_commit */ true);
+    if (!error)
+      error= ordered_commit(thd);
   }
 
   if (check_write_error(thd))
@@ -9425,6 +9427,10 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       DBUG_RETURN(RESULT_ABORTED);
     }
 
+    int rc= prepare_ordered_commit(thd, all, skip_commit);
+    if (rc)
+      DBUG_RETURN(RESULT_INCONSISTENT);
+
     /*
       Block binlog updates if there's an active BINLOG lock.
 
@@ -9438,6 +9444,33 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       const ulong timeout= thd->variables.lock_wait_timeout;
 
       DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+
+#ifdef HAVE_REPLICATION
+      DBUG_EXECUTE_IF("delay_slave_worker_0", {
+        if (has_commit_order_manager(thd))
+        {
+          Slave_worker *worker= dynamic_cast<Slave_worker *>(thd->rli_slave);
+
+          if (worker->id == 0)
+          {
+            static bool skip_first_query= true;
+            if (!skip_first_query)
+            {
+              static const char act[]= "now WAIT_FOR signal.lock_binlog_for_backup";
+              DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+
+              static const char act2[]= "now SIGNAL finished_delay_slave_worker_0";
+              DBUG_ASSERT(opt_debug_sync_timeout > 0);
+              DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act2)));
+
+              DBUG_SET("-d,delay_slave_worker_0");
+            }
+            skip_first_query= !skip_first_query;
+          }
+        }
+      });
+#endif
+
       if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT,
                                                      timeout))
       {
@@ -9450,7 +9483,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       binlog_prot_acquired= true;
     }
 
-    int rc= ordered_commit(thd, all, skip_commit);
+    rc= ordered_commit(thd);
 
     if (binlog_prot_acquired)
     {
@@ -10117,12 +10150,10 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
                be skipped (it is handled by the caller somehow) and @c
                false otherwise (the normal case).
  */
-int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
+int MYSQL_BIN_LOG::prepare_ordered_commit(THD *thd, bool all,
+                                          bool skip_commit)
 {
-  DBUG_ENTER("MYSQL_BIN_LOG::ordered_commit");
-  int flush_error= 0, sync_error= 0;
-  my_off_t total_bytes= 0;
-  bool do_rotate= false;
+  DBUG_ENTER("MYSQL_BIN_LOG::prepare_ordered_commit");
 
   /*
     These values are used while flushing a transaction, so clear
@@ -10183,12 +10214,20 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
       thd->commit_error= THD::CE_COMMIT_ERROR;
       DBUG_RETURN(thd->commit_error);
     }
-
-    if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
-      DBUG_RETURN(finish_commit(thd));
   }
-  else
 #endif
+
+  DBUG_RETURN(0); /* no error */
+}
+
+
+int MYSQL_BIN_LOG::ordered_commit(THD *thd)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::ordered_commit");
+  int      flush_error= 0, sync_error= 0;
+  my_off_t total_bytes= 0;
+  bool     do_rotate= false;
+
   if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
   {
     DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d",

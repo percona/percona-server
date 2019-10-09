@@ -77,6 +77,14 @@ bool Commit_order_manager::wait_for_its_turn(Slave_worker *worker,
 
     DBUG_PRINT("info", ("Worker %lu is waiting for commit signal", worker->id));
 
+    DBUG_EXECUTE_IF("delay_slave_worker_0", {
+      if (worker->id == 1)
+      {
+        static const char act[]= "now SIGNAL signal.w1.wait_for_its_turn";
+        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      }
+    });
+
     mysql_mutex_lock(&m_mutex);
     thd->ENTER_COND(cond, &m_mutex,
                     &stage_worker_waiting_for_its_turn_to_commit,

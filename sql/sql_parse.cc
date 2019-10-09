@@ -2512,6 +2512,14 @@ bool lock_binlog_for_backup(THD *thd)
       thd->global_read_lock.is_acquired())
     DBUG_RETURN(false);
 
+  DBUG_EXECUTE_IF("delay_slave_worker_0", {
+    static const char act[]= "now WAIT_FOR signal.w1.wait_for_its_turn";
+    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+
+    static const char act2[]= "now SIGNAL signal.lock_binlog_for_backup";
+    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act2)));
+  });
+
   DBUG_RETURN(thd->backup_binlog_lock.acquire(thd));
 }
 

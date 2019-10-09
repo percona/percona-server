@@ -1,0 +1,70 @@
+################################################################################
+# PS-3345: LP #1527463: Waiting for binlog lock
+#
+# 3-way deadlock can be achieved with 2 slave threads working in parallel and
+# with 1 slave client that executes LOCK BINLOG FOR BACKUP. 
+#
+# And the deadlock is:
+# worker0: applying INSERT INTO t1 VALUES(11, NULL);
+# worker1: applying INSERT INTO t1 VALUES(12, NULL);
+# worker1: calls backup_binlog_lock.acquire_protection()
+# worker1: waits for worker0 in wait_for_its_turn()
+# client: executes LOCK BINLOG FOR BACKUP
+# client: waits in backup_binlog_lock.acquire(), but protection is acquired by worker1
+# worker0: calls backup_binlog_lock.acquire_protection(), but it's blocked by client
+#
+# This test verifies the deadlock can be found and handled correctly.
+# When it finds the deadlock, it throws error.
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_slave_parallel_type_logical_clock.inc
+--source include/stop_slave_sql.inc
+
+--echo #
+--echo # Case 1: 3-way deadlock with 2 slave threads and 1 slave client 
+--echo #
+--source include/rpl_connection_master.inc
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE = InnoDB;
+SET debug = "+d,set_commit_parent_100";
+INSERT INTO t1 VALUES(11);
+INSERT INTO t1 VALUES(12);
+INSERT INTO t1 VALUES(13);
+INSERT INTO t1 VALUES(14);
+
+--source include/rpl_connection_slave1.inc
+SET GLOBAL debug = "+d,delay_slave_worker_0";
+--source include/start_slave_sql.inc
+--send LOCK BINLOG FOR BACKUP
+
+--source include/rpl_connection_slave.inc
+SET DEBUG_SYNC = 'now WAIT_FOR finished_delay_slave_worker_0';
+
+--let $assert_text= Throws error when deadlock is detected
+--let $assert_cond= [ SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE = "Waiting for binlog lock" AND INFO = "LOCK BINLOG FOR BACKUP" ] = 0
+--source include/assert.inc
+
+--source include/rpl_connection_slave1.inc
+--reap
+UNLOCK BINLOG;
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Deinitialize
+--echo #
+--source include/rpl_connection_slave.inc
+SET GLOBAL debug = "";
+SET DEBUG_SYNC = 'RESET';
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

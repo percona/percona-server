@@ -8877,18 +8877,20 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
                                       bool is_boot, bool encrypt_key) {
   byte *master_key = nullptr;
   ulint master_key_id = 0;
+  bool is_default_master_key = false;
 
   /* Get master key from key ring. For bootstrap, we use a default
   master key which master_key_id is 0. */
   if (encrypt_key) {
-    if (is_boot) {
+    if (is_boot || strlen(server_uuid) == 0) {
       master_key = static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
 
       ut_ad(ENCRYPTION_KEY_LEN >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
 
       strcpy(reinterpret_cast<char *>(master_key),
              ENCRYPTION_DEFAULT_MASTER_KEY);
-      default_master_key_used = true;
+      is_default_master_key = true;
+      default_master_key_used = is_default_master_key;
     } else {
       get_master_key(&master_key_id, &master_key);
 
@@ -8953,7 +8955,8 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
   mach_write_to_4(ptr, crc);
 
   if (encrypt_key) {
-    if (is_boot) {
+    ut_ad(master_key != nullptr);
+    if (is_default_master_key) {
       ut_free(master_key);
     } else {
       my_free(master_key);

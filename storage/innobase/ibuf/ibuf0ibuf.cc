@@ -3992,7 +3992,7 @@ ibuf_insert_to_index_page_low(
 		DBUG_RETURN(rec);
 	}
 
-	page = buf_block_get_frame(block);
+	page = buf_nonnull_block_get_frame(block);
 
 	ut_print_timestamp(stderr);
 

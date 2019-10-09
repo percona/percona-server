@@ -191,12 +191,15 @@ SET(GMOCK_INCLUDE_DIRS
   CACHE INTERNAL "")
 
 # Build gmock/gtest libraries.
-INCLUDE_DIRECTORIES(
+INCLUDE_DIRECTORIES(SYSTEM
   ${GMOCK_SOURCE_DIR}
   ${GMOCK_SOURCE_DIR}/include
   ${GTEST_SOURCE_DIR}
   ${GTEST_SOURCE_DIR}/include
 )
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wformat-overflow" HAVE_FORMAT_OVERFLOW)
+
 ADD_LIBRARY(gmock STATIC ${GMOCK_SOURCE_DIR}/src/gmock-all.cc)
 ADD_LIBRARY(gtest STATIC ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
 SET(GTEST_LIBRARIES gmock gtest)
@@ -246,6 +249,8 @@ MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/sql/share")
 ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 # Add tests (link them with gunit/gmock libraries) 
 SET(TESTS
@@ -317,6 +322,13 @@ IF (MERGE_UNITTESTS)
   SET_SOURCE_FILES_PROPERTIES(MERGE_SMALL_TESTS MERGE_LARGE_TESTS
     PROPERTIES GENERATED 1)
 
+  # Suppress -Wformat-overflow= for my_safe_snprintf(" %s ", nullptr)
+  IF(HAVE_FORMAT_OVERFLOW)
+    ADD_COMPILE_FLAGS(
+      ${MERGE_LARGE_TESTS}
+      COMPILE_FLAGS "-Wno-format-overflow")
+  ENDIF()
+
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
   FILE(WRITE ${MERGE_LARGE_TESTS} "// Merging large unit tests\n")
@@ -365,6 +377,13 @@ ENDIF(MERGE_UNITTESTS)
     ENDIF()
   ENDFOREACH()
   
+  # Suppress -Wformat-overflow= for my_safe_snprintf(" %s ", nullptr)
+  IF(HAVE_FORMAT_OVERFLOW)
+    ADD_COMPILE_FLAGS(
+      segfault-t.cc
+      COMPILE_FLAGS "-Wno-format-overflow")
+  ENDIF()
+
   FOREACH(test ${SERVER_TESTS})
     SET(SRC_FILES ${test}-t.cc)
     IF(WIN32)

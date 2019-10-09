@@ -1343,7 +1343,7 @@ btr_page_free(
 	buf_block_t*	block,	/*!< in: block to be freed, x-latched */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	const page_t*	page	= buf_block_get_frame(block);
+	const page_t*	page	= buf_nonnull_block_get_frame(block);
 	ulint		level	= btr_page_get_level(page, mtr);
 
 	ut_ad(fil_page_get_type(block->frame) == FIL_PAGE_INDEX);
@@ -2707,7 +2707,7 @@ btr_attach_half_pages(
 	ulint		prev_page_no;
 	ulint		next_page_no;
 	ulint		level;
-	page_t*		page		= buf_block_get_frame(block);
+	page_t*		page		= buf_nonnull_block_get_frame(block);
 	page_t*		lower_page;
 	page_t*		upper_page;
 	ulint		lower_page_no;
@@ -2729,10 +2729,10 @@ btr_attach_half_pages(
 		btr_cur_t	cursor;
 		ulint*		offsets;
 
-		lower_page = buf_block_get_frame(new_block);
+		lower_page = buf_nonnull_block_get_frame(new_block);
 		lower_page_no = buf_block_get_page_no(new_block);
 		lower_page_zip = buf_block_get_page_zip(new_block);
-		upper_page = buf_block_get_frame(block);
+		upper_page = buf_nonnull_block_get_frame(block);
 		upper_page_no = buf_block_get_page_no(block);
 		upper_page_zip = buf_block_get_page_zip(block);
 
@@ -2749,10 +2749,10 @@ btr_attach_half_pages(
 			offsets, lower_page_no, mtr);
 		mem_heap_empty(heap);
 	} else {
-		lower_page = buf_block_get_frame(block);
+		lower_page = buf_nonnull_block_get_frame(block);
 		lower_page_no = buf_block_get_page_no(block);
 		lower_page_zip = buf_block_get_page_zip(block);
-		upper_page = buf_block_get_frame(new_block);
+		upper_page = buf_nonnull_block_get_frame(new_block);
 		upper_page_no = buf_block_get_page_no(new_block);
 		upper_page_zip = buf_block_get_page_zip(new_block);
 	}

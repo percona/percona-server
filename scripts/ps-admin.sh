@@ -58,7 +58,7 @@ DOCKER=0
 SCRIPT_PWD=$(cd `dirname $0` && pwd)
 MYSQL_CLIENT_BIN="${SCRIPT_PWD}/mysql"
 MYSQL_DEFAULTS_BIN="${SCRIPT_PWD}/my_print_defaults"
-if [ -f /etc/redhat-release ]; then
+if [ -f /etc/redhat-release -o -f /etc/system-release ]; then
   SYSTEMD_ENV_FILE="/etc/sysconfig/mysql"
 else
   SYSTEMD_ENV_FILE="/etc/default/mysql"

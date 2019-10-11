@@ -1,0 +1,49 @@
+# This test is for scenario when gtid_next variable is set to GTID value, which indicates that 
+# this is replicated transaction and single DROP statement contains temporary and non-temporary tables
+# Theoretically such transaction should not be logged by master. It would be split into 2 separate transactions (SBR)
+# or drop of temporary table would be skipped from logging, resulting in single table DROP for non-temporary table (RBR)
+# However there are still at least 2 cases when it can happen:
+#
+# 1. Simulate replicated transaction by invoking DROP with 2 such tables directly on slave.
+# 2. Create t1, t2 as non-temporary tables on master, then replicate to slave. 
+#    Next drop t1, t2 from slave and create t1, t2 on slave only using stored procedure.
+#    This scenario is strange, however rpl_gtid_split_statements.test performs such scenario.
+# 
+# If slave uses RBL, droping of temporary table will not be logged, so single table drop of non-temporary table will 
+# go to slave's binlog.
+# If slave uses SBL, case 1 above will issue the error (2 tables would be logged to binlog,
+# but as separate transactions using the same GTID, which is not allowed).
+# If slave uses SBL, case 2 will still work, as temporary tables created by stored procedures are not logged
+# even if SBL is used.
+
+--source include/have_myisam.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+--echo #
+--echo # PS-5181 Assertion when droping temporary and non-temporary table as single DROP statement when Row Based Logging (RBL)
+--echo #
+
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (a int) engine = MyISAM;
+CREATE TEMPORARY TABLE t2 (a int);
+SET SESSION gtid_next = '11111111-AAAA-2222-BBBB-000000000000:1';
+
+DROP TABLE t1, t2;
+
+SET SESSION gtid_next = 'AUTOMATIC';
+
+# When binlog format is statement we expect the error, as such drop need split into 2 transactions
+SET SESSION binlog_format = 'STATEMENT';
+CREATE TABLE t1 (a int) engine = MyISAM;
+CREATE TEMPORARY TABLE t2 (a int);
+SET SESSION gtid_next = '11111111-AAAA-2222-BBBB-000000000000:2';
+
+--error ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID
+DROP TABLE t1, t2;
+
+# cleanup
+SET SESSION gtid_next = 'AUTOMATIC';
+DROP TABLE t1;
+DROP TABLE t2;
+SET SESSION GTID_NEXT=AUTOMATIC;
+

@@ -2712,12 +2712,12 @@ void undo_rotate_default_master_key() {
 }
 
 bool srv_enable_redo_encryption(THD *thd) {
-  if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_MK) {
-    return srv_enable_redo_encryption_mk(thd);
-  }
-
-  if (srv_redo_log_encrypt == REDO_LOG_ENCRYPT_RK) {
-    return srv_enable_redo_encryption_rk(thd);
+  switch (srv_redo_log_encrypt) {
+    case REDO_LOG_ENCRYPT_ON:
+    case REDO_LOG_ENCRYPT_MK:
+      return srv_enable_redo_encryption_mk(thd);
+    case REDO_LOG_ENCRYPT_RK:
+      return srv_enable_redo_encryption_rk(thd);
   }
 
   return false;

@@ -969,15 +969,6 @@ static bool check_and_create_compression_dict_tables(THD *thd) {
   }
 
   /*
-    If we are in read-only mode, we skip re-populating. Here, 'opt_readonly'
-    is the value of the '--read-only' option.
-  */
-  if (opt_readonly) {
-    LogErr(WARNING_LEVEL, ER_COMPRESSION_DICTIONARY_NO_CREATE, "", "");
-    return false;
-  }
-
-  /*
     We must also check if the DDSE is started in a way that makes the DD
     read only. For now, we only support InnoDB as SE for the DD. The call
     to retrieve the handlerton for the DDSE should be replaced by a more

@@ -2283,10 +2283,12 @@ static bool rm_table_eval_gtid_and_table_groups_state(
         /*
           Normal case. Single base table in SE which don't support atomic DDL
           so it will be logged as a single-table DROP TABLES statement.
-          Other groups are empty.
+          We still can have temporary tables in this drop, but only those ones
+          which are not logged (previous 'if' would detect them).
+          Such temporary tables will be just dropped, but not logged.
         */
-        assert(!drop_ctx->has_tmp_trans_tables());
-        assert(!drop_ctx->has_tmp_non_trans_tables());
+        assert(!drop_ctx->has_tmp_trans_tables_to_binlog());
+        assert(!drop_ctx->has_tmp_non_trans_tables_to_binlog());
         assert(!drop_ctx->has_tmp_nonexistent_tables());
         drop_ctx->gtid_and_table_groups_state =
             Drop_tables_ctx::GTID_SINGLE_TABLE_GROUP;

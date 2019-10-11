@@ -1,0 +1,19 @@
+#
+# PS-5181 Assertion when droping temporary and non-temporary table as single DROP statement when Row Based Logging (RBL)
+#
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (a int) engine = MyISAM;
+CREATE TEMPORARY TABLE t2 (a int);
+SET SESSION gtid_next = '11111111-AAAA-2222-BBBB-000000000000:1';
+DROP TABLE t1, t2;
+SET SESSION gtid_next = 'AUTOMATIC';
+SET SESSION binlog_format = 'STATEMENT';
+CREATE TABLE t1 (a int) engine = MyISAM;
+CREATE TEMPORARY TABLE t2 (a int);
+SET SESSION gtid_next = '11111111-AAAA-2222-BBBB-000000000000:2';
+DROP TABLE t1, t2;
+ERROR HY000: Cannot execute statement because it needs to be written to the binary log as multiple statements, and this is not allowed when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
+SET SESSION gtid_next = 'AUTOMATIC';
+DROP TABLE t1;
+DROP TABLE t2;
+SET SESSION GTID_NEXT=AUTOMATIC;

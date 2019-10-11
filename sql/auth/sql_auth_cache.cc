@@ -1245,7 +1245,7 @@ static bool acl_init_utility_user(bool check_no_resolve) {
       (char *)my_malloc(key_memory_acl_mem, HOSTNAME_LENGTH + 1, MY_ZEROFILL);
 
   acl_utility_user.credentials[0].m_auth_string.str =
-      static_cast<char *>(my_malloc(key_memory_acl_mem, pwlen, MYF(0)));
+      static_cast<char *>(my_malloc(key_memory_acl_mem, pwlen, MY_ZEROFILL));
 
   acl_utility_user_initialized = true;
 

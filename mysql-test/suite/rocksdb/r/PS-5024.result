@@ -1,0 +1,37 @@
+#
+# PS-5024: Query returns incorrect result for table with no PK and non-unique CHAR utf8mb4 SK
+#
+CREATE TABLE t1 (cola char(3) not null, colb char(3) not null, filler char(200), key ka(cola), key kb(colb)) default charset utf8mb4 engine=rocksdb;
+INSERT INTO t1(cola,colb,filler) VALUES('aaa','aaa', 'Z1'), ('aaa','aaa', 'Z2'), ('aaa','aaa', 'Z3'), ('bbb','bbb', 'Z4');
+SELECT * FROM t1 WHERE cola <> 'aaa';
+cola	colb	filler
+bbb	bbb	Z4
+SELECT * FROM t1 WHERE colb <> 'aaa';
+cola	colb	filler
+bbb	bbb	Z4
+SELECT * FROM t1 FORCE INDEX(kb) WHERE cola <> 'aaa';
+cola	colb	filler
+bbb	bbb	Z4
+SELECT * FROM t1 WHERE cola = 'aaa';
+cola	colb	filler
+aaa	aaa	Z1
+aaa	aaa	Z2
+aaa	aaa	Z3
+SELECT * FROM t1 WHERE colb = 'aaa';
+cola	colb	filler
+aaa	aaa	Z1
+aaa	aaa	Z2
+aaa	aaa	Z3
+CREATE TABLE t2 (pk VARCHAR(16) not null PRIMARY KEY, key1 VARCHAR(16) not null, col1 VARCHAR(16) not null, KEY(key1)) ENGINE=rocksdb;
+INSERT INTO t2 VALUES ('row1', 'row1-key', 'row1-data'), ('row2', 'row2-key', 'row2-data'), ('row3', 'row3-key', 'row3-data'), ('row4', 'row4-key', 'row4-data'), ('row5', 'row5-key', 'row5-data');
+SELECT * FROM t2 WHERE key1 <='row3-key';
+pk	key1	col1
+row1	row1-key	row1-data
+row2	row2-key	row2-data
+row3	row3-key	row3-data
+SELECT * FROM t2 WHERE key1 > 'row1-key' AND key1 < 'row4-key';
+pk	key1	col1
+row2	row2-key	row2-data
+row3	row3-key	row3-data
+DROP TABLE t1;
+DROP TABLE t2;

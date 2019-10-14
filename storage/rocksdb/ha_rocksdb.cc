@@ -9318,10 +9318,9 @@ ulong ha_rocksdb::index_flags(bool &pk_can_be_decoded,
 
   ulong base_flags = HA_READ_NEXT |  // doesn't seem to be used
                      HA_READ_ORDER | HA_READ_RANGE | HA_READ_PREV;
+  bool res = check_keyread_allowed(pk_can_be_decoded, table_share, inx, part,
+                                   all_parts);
   if (res) base_flags |= HA_KEYREAD_ONLY;
-
-  if (check_keyread_allowed(pk_can_be_decoded, table_share, inx, part,
-                            all_parts))
 
   if (inx == table_share->primary_key) {
     /*
@@ -9330,7 +9329,8 @@ ulong ha_rocksdb::index_flags(bool &pk_can_be_decoded,
       plans.
     */
     base_flags |= HA_KEYREAD_ONLY;
-  } else {
+  } else if (res) {
+    /* We can do ICP only if we are able to decode the key (res == true) */
     /*
       We can Index Condition Pushdown any key except the primary. With primary
       key, we get (pk, record) pair immediately, there is no place to put the

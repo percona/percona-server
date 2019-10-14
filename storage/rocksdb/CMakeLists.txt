@@ -296,8 +296,8 @@ IF (ROCKSDB_DYNAMIC_PLUGIN)
 ELSE()
   MYSQL_ADD_PLUGIN(rocksdb_se ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE MANDATORY
     STATIC_ONLY LINK_LIBRARIES rocksdb_sources)
-    # to fix linkage error on partition_base
-    TARGET_LINK_LIBRARIES(rocksdb_se sql_main)
+  # to fix linkage error on partition_base
+  TARGET_LINK_LIBRARIES(rocksdb_se sql_main)
 ENDIF()
 
 IF (NOT HAVE_EXTERNAL_ROCKSDB)

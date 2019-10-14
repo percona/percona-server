@@ -300,6 +300,18 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
     KEY_PART_INFO *key_part;
     uint primary_key = (uint)(
         find_type(primary_key_name, &share->keynames, FIND_TYPE_NO_PREFIX) - 1);
+
+    /*
+      The following if-else is here for MyRocks:
+      set share->primary_key as early as possible, because the return value
+      of ha_rocksdb::index_flags(key, ...) (HA_KEYREAD_ONLY bit in particular)
+      depends on whether the key is the primary key.
+    */
+    if (primary_key < MAX_KEY && share->keys_in_use.is_set(primary_key))
+      share->primary_key = primary_key;
+    else
+      share->primary_key = MAX_KEY;
+
     const longlong ha_option = handler_file->ha_table_flags();
     keyinfo = share->key_info;
     key_part = keyinfo->key_part;

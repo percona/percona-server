@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ -f /etc/redhat-release ]
+if [ -f /etc/redhat-release -o -f /etc/system-release ]
 then
     SYSTEMD_ENV_FILE="/etc/sysconfig/mysql"
 else

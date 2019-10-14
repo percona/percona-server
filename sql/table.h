@@ -916,7 +916,11 @@ struct TABLE_SHARE {
   uint rowid_field_offset{0}; /* Field_nr +1 to rowid field */
   // Primary key index number, used in TABLE::key_info[]. See
   // is_missing_primary_key() for more details.
-  uint primary_key{0};
+  /*
+    By default, when a new object is created, there should be no PK
+    configured.
+  */
+  uint primary_key{MAX_KEY};
   uint next_number_index{0};      /* autoincrement key number */
   uint next_number_key_offset{0}; /* autoinc keypart offset in a key */
   uint next_number_keypart{0};    /* autoinc keypart number in a key */

@@ -324,11 +324,6 @@ static const uint ENCRYPTION_PROGRESS_INFO_SIZE = sizeof(uint);
 
 class IORequest;
 
-enum class Encryption_rotation : std::uint8_t {
-  NO_ROTATION,
-  MASTER_KEY_TO_KEYRING
-};
-
 /** Encryption algorithm. */
 struct Encryption {
   /** Algorithm types supported */
@@ -342,6 +337,8 @@ struct Encryption {
 
     KEYRING = 2
   };
+
+  enum Encryption_rotation { NO_ROTATION, MASTER_KEY_TO_KEYRING };
 
   /** Encryption information format version */
   enum Version {
@@ -363,25 +360,27 @@ struct Encryption {
         m_klen(0),
         m_key_allocated(false),
         m_iv(nullptr),
+        m_tablespace_iv(nullptr),
         m_tablespace_key(nullptr),
         m_key_version(0),
         m_key_id(0),
         m_checksum(0),
-        m_encryption_rotation(Encryption_rotation::NO_ROTATION) {}
+        m_encryption_rotation(NO_ROTATION) {}
 
   /** Specific constructor
   @param[in]	type		Algorithm type */
   explicit Encryption(Type type)
       : m_type(type),
-        m_key(nullptr),
+        m_key(NULL),
         m_klen(0),
         m_key_allocated(false),
-        m_iv(nullptr),
-        m_tablespace_key(nullptr),
+        m_iv(NULL),
+        m_tablespace_iv(NULL),
+        m_tablespace_key(NULL),
         m_key_version(0),
         m_key_id(0),
         m_checksum(0),
-        m_encryption_rotation(Encryption_rotation::NO_ROTATION) {
+        m_encryption_rotation(NO_ROTATION) {
 #ifdef UNIV_DEBUG
     switch (m_type) {
       case NONE:
@@ -408,6 +407,7 @@ struct Encryption {
     std::swap(m_klen, other.m_klen);
     std::swap(m_key_allocated, other.m_key_allocated);
     std::swap(m_iv, other.m_iv);
+    std::swap(m_tablespace_iv, other.m_tablespace_iv);
     std::swap(m_tablespace_key, other.m_tablespace_key);
     std::swap(m_key_version, other.m_key_version);
     std::swap(m_key_id, other.m_key_id);
@@ -648,6 +648,12 @@ struct Encryption {
 
   /** Encrypt initial vector */
   byte *m_iv;
+
+  // We decide as the last step in decrypt (after reading the page)
+  // when re_encryption_type is MK_TO_RK whether page is
+  // encrypted with MK or RK => thus we do not know which tablespace_iv we are
+  // going to use RK or MK
+  byte *m_tablespace_iv;
 
   byte *m_tablespace_key;
 
@@ -907,15 +913,18 @@ class IORequest {
   @param[in] key_len	length of the encryption key
   @param[in] iv		The encryption iv to use */
   void encryption_key(byte *key, ulint key_len, bool key_allocated, byte *iv,
-                      uint key_version, uint key_id, byte *tablespace_key) {
+                      uint key_version, uint key_id, byte *tablespace_iv,
+                      byte *tablespace_key) {
     m_encryption.set_key(key, key_len, key_allocated);
     m_encryption.m_iv = iv;
     m_encryption.m_key_version = key_version;
     m_encryption.m_key_id = key_id;
+    m_encryption.m_tablespace_iv = tablespace_iv;
     m_encryption.m_tablespace_key = tablespace_key;
   }
 
-  void encryption_rotation(Encryption_rotation encryption_rotation) {
+  void encryption_rotation(
+      Encryption::Encryption_rotation encryption_rotation) {
     m_encryption.m_encryption_rotation = encryption_rotation;
   }
 
@@ -942,12 +951,13 @@ class IORequest {
 
   /** Clear all encryption related flags */
   void clear_encrypted() {
-    m_encryption.set_key(nullptr, 0, false);
-    m_encryption.m_iv = nullptr;
+    m_encryption.set_key(NULL, 0, false);
+    m_encryption.m_iv = NULL;
     m_encryption.m_type = Encryption::NONE;
-    m_encryption.m_encryption_rotation = Encryption_rotation::NO_ROTATION;
+    m_encryption.m_encryption_rotation = Encryption::NO_ROTATION;
+    m_encryption.m_tablespace_iv = NULL;
     m_encryption.m_key_id = 0;
-    m_encryption.m_tablespace_key = nullptr;
+    m_encryption.m_tablespace_key = NULL;
   }
 
   void mark_page_zip_compressed() { m_is_page_zip_compressed = true; }

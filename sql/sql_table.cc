@@ -15116,7 +15116,7 @@ static bool remove_secondary_keys(
   Field **f_ptr, *field;
 
   for (f_ptr = table->field; (field = *f_ptr); f_ptr++) {
-    Create_field *new_field = new Create_field(field, field);
+    Create_field *new_field = new (thd->mem_root) Create_field(field, field);
     alter_info_new.create_list.push_back(new_field);
   }
 
@@ -15200,7 +15200,7 @@ static bool restore_secondary_keys(
   Field **f_ptr, *field;
 
   for (f_ptr = table->field; (field = *f_ptr); f_ptr++) {
-    Create_field *new_field = new Create_field(field, field);
+    Create_field *new_field = new (thd->mem_root) Create_field(field, field);
     alter_info_new.create_list.push_back(new_field);
   }
 

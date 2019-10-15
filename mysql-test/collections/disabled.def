@@ -178,3 +178,6 @@ encryption.innodb-bad-key-change2 : BUG#5322 Keyring encrypted tablespace import
 encryption.innodb-bad-key-change3 : BUG#5322 Keyring encrypted tablespace import/export is broken
 encryption.innodb_encryption_discard_import : BUG#5322 Keyring encrypted tablespace import/export is broken
 encryption.innodb-redo-wrongkey : BUG#5635 Intoduce crypt_schema 2 for better error checking in encryption threads
+
+# PS-5363 merge MySQL 8.0.17
+main.percona_mysqlbinlog_ssl_compress : BUG#5363 temporarily disabled until the merge

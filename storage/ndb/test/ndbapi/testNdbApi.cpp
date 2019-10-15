@@ -7230,6 +7230,7 @@ int runCheckSlowCommit(NDBT_Context *ctx, NDBT_Step *step) {
           errorCode = 8114;
           break;
       }
+      ndbout << "Inserting error " << errorCode;
 
       int ret = runCheckWriteTransactionOverOtherNodeFailure(
           ctx, step, restarter, errorCode);

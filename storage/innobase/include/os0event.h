@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,6 +46,14 @@ typedef struct os_event *os_event_t;
 
 typedef OSMutex EventMutex;
 
+#ifdef _WIN32
+/** Native condition variable. */
+typedef CONDITION_VARIABLE os_cond_t;
+#else
+/** Native condition variable */
+typedef pthread_cond_t os_cond_t;
+#endif /* _WIN32 */
+
 /** InnoDB condition variable. */
 struct os_event {
   os_event(void) UNIV_NOTHROW;
@@ -53,6 +61,9 @@ struct os_event {
   os_event &operator=(const os_event &) = default;
 
   ~os_event() UNIV_NOTHROW;
+
+  friend void os_event_global_init();
+  friend void os_event_global_destroy();
 
   /**
   Destroys a condition variable */
@@ -63,6 +74,8 @@ struct os_event {
 #endif /* !_WIN32 */
 
     mutex.destroy();
+
+    ut_ad(n_objects_alive.fetch_sub(1) != 0);
   }
 
   /** Set the event */
@@ -130,10 +143,10 @@ struct os_event {
   /**
   Waits for an event object until it is in the signaled state or
   a timeout is exceeded.
-  @param time_in_usec - timeout in microseconds,
-  or OS_SYNC_INFINITE_TIME
-  @param reset_sig_count- zero or the value returned by
-  previous call of os_event_reset().
+  @param time_in_usec timeout in microseconds,
+                  or OS_SYNC_INFINITE_TIME
+  @param reset_sig_count zero or the value returned by
+                  previous call of os_event_reset().
   @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
   ulint wait_time_low(ulint time_in_usec, int64_t reset_sig_count) UNIV_NOTHROW;
 
@@ -152,10 +165,12 @@ struct os_event {
     {
       int ret;
 
-      ret = pthread_cond_init(&cond_var, NULL);
+      ret = pthread_cond_init(&cond_var, &cond_attr);
       ut_a(ret == 0);
     }
 #endif /* _WIN32 */
+
+    ut_d(n_objects_alive.fetch_add(1));
   }
 
   /**
@@ -210,16 +225,22 @@ struct os_event {
 
   /**
   Do a timed wait on condition variable.
-  @param abstime - timeout
-  @param time_in_ms - timeout in milliseconds.
   @return true if timed out, false otherwise */
   bool timed_wait(
 #ifndef _WIN32
-      const timespec *abstime
+      const timespec *abstime /*!< Timeout. */
 #else
-      DWORD time_in_ms
+      DWORD time_in_ms /*!< Timeout in milliseconds. */
 #endif /* !_WIN32 */
   );
+
+#ifndef _WIN32
+  /** Returns absolute time until which we should wait if
+      we wanted to wait for time_in_usec microseconds since now.
+      This method could be removed if we switched to the usage
+      of std::condition_variable. */
+  struct timespec get_wait_timelimit(ulint time_in_usec);
+#endif /* !_WIN32 */
 
  private:
   /** Mask for the event signal count in the count_and_set field */
@@ -236,16 +257,24 @@ struct os_event {
   EventMutex mutex; /*!< this mutex protects
                     the next fields */
 
-#ifdef _WIN32
-  /** Native condition variable. */
-  typedef CONDITION_VARIABLE os_cond_t;
-#else
-  /** Native condition variable */
-  typedef pthread_cond_t os_cond_t;
-#endif /* _WIN32 */
-
   os_cond_t cond_var; /*!< condition variable is
                       used in waiting for the event */
+
+#ifndef _WIN32
+  /** Attributes object passed to pthread_cond_* functions.
+  Defines usage of the monotonic clock if it's available.
+  Initialized once, in the os_event::global_init(), and
+  destroyed in the os_event::global_destroy(). */
+  static pthread_condattr_t cond_attr;
+
+  /** True iff usage of the monotonic clock has been successfuly
+  enabled for the cond_attr object. */
+  static bool cond_attr_has_monotonic_clock;
+#endif /* !_WIN32 */
+
+#ifdef UNIV_DEBUG
+  static std::atomic_size_t n_objects_alive;
+#endif /* UNIV_DEBUG */
 
   // Disable copy constructor
   os_event(const os_event &);
@@ -339,6 +368,15 @@ ulint os_event_wait_time_low(
 #define os_event_wait_time(e, t) os_event_wait_time_low((e), (t), 0)
 
 #include "os0event.ic"
+
+/** Initializes support for os_event objects. Must be called once,
+ and before any os_event object is created. */
+void os_event_global_init(void);
+
+/** Deinitializes support for os_event objects. Must be called once,
+ and after all os_event objects are destroyed. After it is called, no
+new os_event is allowed to be created. */
+void os_event_global_destroy(void);
 
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !os0event_h */

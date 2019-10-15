@@ -139,12 +139,11 @@ void dict_stats_update_for_index(dict_index_t *index); /*!< in/out: index */
 /** Renames a table in InnoDB persistent stats storage.
  This function creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
-dberr_t dict_stats_rename_table(
-    const char *old_name, /*!< in: old table name */
-    const char *new_name, /*!< in: new table name */
-    char *errstr,         /*!< out: error string if != DB_SUCCESS
-                          is returned */
-    size_t errstr_sz);    /*!< in: errstr size */
+dberr_t dict_stats_rename_table(const char *old_name, /*!< in: old table name */
+                                const char *new_name, /*!< in: new table name */
+                                char *errstr,      /*!< out: error string if !=
+                                                   DB_SUCCESS      is returned */
+                                size_t errstr_sz); /*!< in: errstr size */
 
 /** Renames an index in InnoDB persistent stats storage.
  This function creates its own transaction and commits it.
@@ -163,9 +162,8 @@ dberr_t dict_stats_rename_index(
 @retval DB_IO_DECRYPT_FAIL if decryption of the table failed
 @retval DB_TABLESPACE_DELETED if .ibd file is missing
 @retval DB_CORRUPTION if table is marked as corrupted */
-dberr_t dict_stats_report_error(dict_table_t* table)
+dberr_t dict_stats_report_error(dict_table_t *table)
     MY_ATTRIBUTE((nonnull, warn_unused_result));
-
 
 /** Evict the stats tables if they loaded in tablespace cache and also
 close the stats .ibd files. We have to close stats tables because

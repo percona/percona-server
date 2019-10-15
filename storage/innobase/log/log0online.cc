@@ -62,7 +62,7 @@ static constexpr bool log_online_rec_has_page(mlog_id_t type) noexcept {
 }
 
 /* Mutex protecting log_bmp_sys and log buffers there */
-static ib_mutex_t log_bmp_sys_mutex;
+static ib_uninitialized_mutex_t log_bmp_sys_mutex;
 
 /** A redo log byte buffer with associated LSN values */
 template <std::size_t CAPACITY>
@@ -1044,8 +1044,6 @@ void log_online_read_shutdown(void) noexcept {
   log_bmp_sys = nullptr;
   log_bmp_sys_unaligned = nullptr;
 
-  srv_redo_log_thread_started = false;
-
   UT_DELETE(log_online_metadata_recover);
   log_online_metadata_recover = nullptr;
 
@@ -1301,11 +1299,12 @@ static bool log_online_write_bitmap(void) {
     bmp_tree_node =
         (ib_rbt_node_t *)rbt_next(log_bmp_sys->modified_pages, bmp_tree_node);
 
-    DBUG_EXECUTE_IF("bitmap_page_2_write_error",
-                    if (bmp_tree_node && fsp_is_ibd_tablespace(space_id)) {
-                      DBUG_SET("+d,bitmap_page_write_error");
-                      DBUG_SET("-d,bitmap_page_2_write_error");
-                    });
+    DBUG_EXECUTE_IF(
+        "bitmap_page_2_write_error",
+        if (bmp_tree_node && fsp_is_ibd_tablespace(space_id)) {
+          DBUG_SET("+d,bitmap_page_write_error");
+          DBUG_SET("-d,bitmap_page_2_write_error");
+        });
   }
 
   rbt_reset(log_bmp_sys->modified_pages);
@@ -1817,12 +1816,12 @@ bool log_online_purge_changed_page_bitmaps(
   }
 
   bool log_bmp_sys_inited = false;
-  if (srv_redo_log_thread_started) {
+  if (srv_thread_is_active(srv_threads.m_changed_page_tracker)) {
     /* User requests might happen with both enabled and disabled
     tracking */
     log_bmp_sys_inited = true;
     mutex_enter(&log_bmp_sys_mutex);
-    if (!srv_redo_log_thread_started) {
+    if (!srv_thread_is_active(srv_threads.m_changed_page_tracker)) {
       log_bmp_sys_inited = false;
       mutex_exit(&log_bmp_sys_mutex);
     }
@@ -1836,7 +1835,8 @@ bool log_online_purge_changed_page_bitmaps(
     return true;
   }
 
-  if (srv_redo_log_thread_started && lsn > log_bmp_sys->end_lsn) {
+  if (srv_thread_is_active(srv_threads.m_changed_page_tracker) &&
+      lsn > log_bmp_sys->end_lsn) {
     ut_ad(log_bmp_sys->end_lsn > 0);
     /* If we have to delete the current output file, close it
     first. */

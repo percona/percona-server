@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2013, Monty Program Ab
    Copyright (C) 2012 Percona Inc.
 
@@ -242,7 +242,7 @@ TC_LOG_MMAP::PAGE *TC_LOG_MMAP::get_active_from_pool() {
         best_p = p;
       }
     }
-    if (*best_p == NULL || best_free == 0) return NULL;
+    if (*best_p == nullptr || best_free == 0) return nullptr;
   }
 
   PAGE *new_active = *best_p;
@@ -357,11 +357,11 @@ ulong TC_LOG_MMAP::log_xid(my_xid xid) {
       mysql_cond_wait(&COND_active, &LOCK_tc);
 
     /* no active page ? take one from the pool. */
-    if (active == NULL) {
+    if (active == nullptr) {
       active = get_active_from_pool();
 
       /* There are no pages with free slots? Wait and retry. */
-      if (active == NULL) {
+      if (active == nullptr) {
         overflow();
         continue;
       }
@@ -384,9 +384,9 @@ ulong TC_LOG_MMAP::log_xid(my_xid xid) {
       goto done;  // we're done
     }
   }  // page was not synced! do it now
-  DBUG_ASSERT(active == p && syncing == NULL);
+  DBUG_ASSERT(active == p && syncing == nullptr);
   syncing = p;                         // place is vacant - take it
-  active = NULL;                       // page is not active anymore
+  active = nullptr;                    // page is not active anymore
   mysql_cond_broadcast(&COND_active);  // in case somebody's waiting
   mysql_mutex_unlock(&LOCK_tc);
   err = sync();
@@ -417,7 +417,7 @@ bool TC_LOG_MMAP::sync() {
   /* Page is synced. Let's move it to the pool. */
   *pool_last_ptr = syncing;
   pool_last_ptr = &(syncing->next);
-  syncing->next = NULL;
+  syncing->next = nullptr;
   syncing->state = err ? PS_ERROR : PS_POOL;
   mysql_cond_broadcast(&COND_pool);  // in case somebody's waiting
 
@@ -425,7 +425,7 @@ bool TC_LOG_MMAP::sync() {
   mysql_cond_broadcast(&syncing->cond);
 
   /* Mark syncing slot as free and wake-up new syncer. */
-  syncing = NULL;
+  syncing = nullptr;
   if (active) mysql_cond_signal(&active->cond);
 
   mysql_mutex_unlock(&LOCK_tc);

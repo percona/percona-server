@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -211,6 +211,17 @@ class ReadView {
             m_low_limit_id, m_up_limit_id);
   }
 
+  /** Check and reduce low limit number for read view. Used to
+  block purge till GTID is persisted on disk table.
+  @param[in]	trx_no	transaction number to check with */
+  void reduce_low_limit(trx_id_t trx_no) {
+    if (trx_no < m_low_limit_no) {
+      /* Save low limit number set for Read View for MVCC. */
+      ut_d(m_view_low_limit_no = m_low_limit_no);
+      m_low_limit_no = trx_no;
+    }
+  }
+
   /**
   @return the low limit no */
   trx_id_t low_limit_no() const { return (m_low_limit_no); }
@@ -218,6 +229,10 @@ class ReadView {
   /**
   @return the low limit id */
   trx_id_t low_limit_id() const { return (m_low_limit_id); }
+
+  /**
+  @return the up limit id */
+  trx_id_t up_limit_id() const noexcept { return (m_up_limit_id); }
 
   /**
   @return true if there are no transaction ids in the snapshot */
@@ -235,6 +250,10 @@ class ReadView {
 
 #ifdef UNIV_DEBUG
   /**
+  @return the view low limit number */
+  trx_id_t view_low_limit_no() const { return (m_view_low_limit_no); }
+
+  /**
   @param rhs		view to compare with
   @return truen if this view is less than or equal rhs */
   bool le(const ReadView *rhs) const {
@@ -242,9 +261,7 @@ class ReadView {
   }
 #endif /* UNIV_DEBUG */
 
-  trx_id_t up_limit_id() const { return (m_up_limit_id); }
-
-  void print(FILE *file) const {
+  void print(FILE *file) const noexcept {
     fprintf(file, "Read view low limit trx n:o " TRX_ID_FMT "\n",
             low_limit_no());
     print_limits(file);
@@ -253,7 +270,7 @@ class ReadView {
       fprintf(file, "Read view trx id " TRX_ID_FMT "\n", m_ids.data()[i]);
   }
 
-  bool is_cloned() const { return (m_cloned); }
+  bool is_cloned() const noexcept { return (m_cloned); }
 
  private:
   /**
@@ -312,6 +329,14 @@ class ReadView {
   whose transaction number is strictly smaller (<) than this value:
   they can be removed in purge if not needed by other views */
   trx_id_t m_low_limit_no;
+
+#ifdef UNIV_DEBUG
+  /** The low limit number up to which read views don't need to access
+  undo log records for MVCC. This could be higher than m_low_limit_no
+  if purge is blocked for GTID persistence. Currently used for debug
+  variable INNODB_PURGE_VIEW_TRX_ID_AGE. */
+  trx_id_t m_view_low_limit_no;
+#endif /* UNIV_DEBUG */
 
   /** AC-NL-RO transaction view that has been "closed". */
   bool m_closed;

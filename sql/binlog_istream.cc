@@ -67,8 +67,6 @@ const char *Binlog_read_error::get_str() const {
       return "Reading encrypted log files directly is not supported.";
     case ERROR_DECRYPTING_FILE:
       return "Failed to decrypt content read from binlog file.";
-    case INVALID_OFFSET:
-      return "Wrong offset or I/O error";
     case DECRYPT_PRE_8_0_14_INIT_FAILURE:
       return "Failed to initialize binlog encryption of binlog file encrypted "
              "with previous version of Percona Server. Please make sure that "

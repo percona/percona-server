@@ -6617,12 +6617,10 @@ static int i_s_dict_fill_innodb_tablespaces(
     space_type = "Single";
   }
 
-  /* Temporary tablespace and undo tablespace encryption flags are not updated
-  in DD. Remove fsp_is_undo_tablespace() in below condition after upstream
-  fixes BUG#94665. Temporary tablespace encryption flag DD update is not
+  /* Temporary tablespace encryption flags are not updated in DD. It is not
   necessary because bootstrap doesn't check temporary tablespace from DD.
   Temporary tablespace has to be ready before DD validation can take place */
-  if (fsp_is_global_temporary(space_id) || fsp_is_undo_tablespace(space_id)) {
+  if (fsp_is_global_temporary(space_id)) {
     fil_space_t *space = fil_space_acquire_silent(space_id);
     if (space != nullptr) {
       is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);

@@ -25,13 +25,13 @@ SET(MYSQL_INSTALL_COMPONENT Server)
 
 IF(NOT CMAKE_CROSSCOMPILING)
   MYSQL_ADD_EXECUTABLE(comp_err comp_err.cc SKIP_INSTALL)
-  TARGET_LINK_LIBRARIES(comp_err mysys mysys_ssl)
+  TARGET_LINK_LIBRARIES(comp_err mysys)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(comp_client_err
   comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc
   SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(comp_client_err mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(comp_client_err mysys)
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
   COMMAND comp_client_err
@@ -45,7 +45,7 @@ ADD_CUSTOM_TARGET(GenClientError
 
 
 IF (BUILD_BUNDLED_LZ4)
-  ADD_CONVENIENCE_LIBRARY(lz4_lib
+  ADD_LIBRARY(lz4_lib STATIC
     ../extra/lz4/lz4.c
     ../extra/lz4/lz4frame.c
     ../extra/lz4/lz4hc.c
@@ -73,10 +73,14 @@ ADD_CUSTOM_TARGET(GenError
                   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
                   ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt)
 
+MYSQL_ADD_EXECUTABLE(range_check_err range_check_err.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(range_check_err mysys)
+add_dependencies(range_check_err GenError)
+
 # Set InnoDB mutex type
 ADD_DEFINITIONS(-DMUTEX_EVENT)
 
-## Most executables depend on libeay32.dll (through mysys_ssl).
+## Most executables depend on libeay32.dll (through mysys).
 ## For 'comp_err' we need it to be available during build.
 IF (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
   ADD_DEPENDENCIES(GenError copy_openssl_dlls)
@@ -91,11 +95,11 @@ IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.cc)
-TARGET_LINK_LIBRARIES(my_print_defaults  mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(my_print_defaults  mysys)
 
 MYSQL_ADD_EXECUTABLE(perror perror.cc)
 ADD_DEPENDENCIES(perror GenError)
-TARGET_LINK_LIBRARIES(perror mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(perror mysys)
 
 IF (BUILD_BUNDLED_LZ4)
   MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
@@ -149,26 +153,19 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc)
   TARGET_COMPILE_DEFINITIONS(innochecksum PRIVATE UNIV_NO_ERR_MSGS UNIV_LIBRARY)
   IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    ADD_COMPILE_FLAGS(innochecksum.cc COMPILE_FLAGS "-Wno-unused-parameter")
+    ADD_COMPILE_FLAGS(innochecksum.cc COMPILE_FLAGS "-Wno-unused-parameter -Wno-cast-qual")
   ENDIF()
   TARGET_LINK_LIBRARIES(innochecksum
-    mysys_ssl innodb_zipdecompress ${LZ4_LIBRARY})
+    mysys innodb_zipdecompress ${LZ4_LIBRARY})
   ADD_DEPENDENCIES(innochecksum GenError)
 
   MYSQL_ADD_EXECUTABLE(ibd2sdi ibd2sdi.cc)
   TARGET_COMPILE_DEFINITIONS(ibd2sdi PRIVATE UNIV_NO_ERR_MSGS UNIV_LIBRARY)
   IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    ADD_COMPILE_FLAGS(ibd2sdi.cc COMPILE_FLAGS "-Wno-unused-parameter")
+    ADD_COMPILE_FLAGS(ibd2sdi.cc COMPILE_FLAGS "-Wno-unused-parameter -Wno-cast-qual")
   ENDIF()
   TARGET_LINK_LIBRARIES(ibd2sdi
-    mysys_ssl innodb_zipdecompress ${LZ4_LIBRARY})
+    mysys innodb_zipdecompress ${LZ4_LIBRARY})
   ADD_DEPENDENCIES(ibd2sdi GenError)
 
-ENDIF()
-
-# In published release builds on Solaris, we need to bundle gcc source.
-# PB2 will take care of putting it in extra/ when needed
-IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/gcc-4.8.1.tar.bz2)
-  INSTALL(FILES gcc-4.8.1.tar.bz2 
-          DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Development)
 ENDIF()

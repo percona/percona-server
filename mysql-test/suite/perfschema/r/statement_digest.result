@@ -110,6 +110,8 @@ CALL p1();
 c
 DROP PROCEDURE p1;
 CREATE FUNCTION `func`(a INT, b INT) RETURNS int(11) RETURN a+b //
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select func(3,4);
 func(3,4)
 7
@@ -196,14 +198,14 @@ statements_digest	?	SELECT ? FROM `no_such_table`	1	0	0	1
 statements_digest	?	CREATE TABLE `dup_table` ( `c` CHARACTER (?) )	2	0	0	1
 statements_digest	?	DROP TABLE `dup_table`	1	0	0	0
 statements_digest	?	INSERT IGNORE INTO `t11` VALUES (?)	1	1	1	0
-statements_digest	?	SHOW WARNINGS	1	0	0	0
+statements_digest	?	SHOW WARNINGS	2	0	0	0
 statements_digest	?	PREPARE `stmt` FROM ?	1	0	0	0
 statements_digest	?	EXECUTE `stmt`	2	0	0	0
 statements_digest	?	DEALLOCATE PREPARE `stmt`	1	0	0	0
 statements_digest	?	CREATE PROCEDURE `p1` ( ) BEGIN SELECT * FROM `t12` ; END	1	0	0	0
 statements_digest	?	CALL `p1` ( )	2	0	0	0
 statements_digest	?	DROP PROCEDURE `p1`	1	0	0	0
-statements_digest	?	CREATE FUNCTION `func` ( `a` INTEGER , `b` INTEGER ) RETURNS INTEGER (?) RETURN `a` + `b`	1	0	0	0
+statements_digest	?	CREATE FUNCTION `func` ( `a` INTEGER , `b` INTEGER ) RETURNS INTEGER (?) RETURN `a` + `b`	1	0	1	0
 statements_digest	?	SELECT `func` (...)	2	0	0	0
 statements_digest	?	DROP FUNCTION `func`	1	0	0	0
 statements_digest	?	CREATE TRIGGER `trg` BEFORE INSERT ON `t12` FOR EACH ROW SET @? := ?	1	0	0	0

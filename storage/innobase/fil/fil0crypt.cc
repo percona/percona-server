@@ -68,7 +68,7 @@ static int number_of_t1_pages_rotated = 0;
 #endif
 
 /** Mutex for keys */
-static ib_mutex_t fil_crypt_key_mutex;
+static ib_uninitialized_mutex_t fil_crypt_key_mutex;
 
 static bool fil_crypt_threads_inited = false;
 
@@ -91,13 +91,13 @@ os_event_t fil_crypt_threads_event;
 static os_event_t fil_crypt_throttle_sleep_event;
 
 /** Mutex for key rotation threads. */
-ib_mutex_t fil_crypt_threads_mutex;
+ib_uninitialized_mutex_t fil_crypt_threads_mutex;
 
 /** Mutex for setting cnt of threads */
-ib_mutex_t fil_crypt_threads_set_cnt_mutex;
+ib_uninitialized_mutex_t fil_crypt_threads_set_cnt_mutex;
 
 /** Mutex for accessing space_list and key_rotation */
-ib_mutex_t fil_crypt_list_mutex;
+ib_uninitialized_mutex_t fil_crypt_list_mutex;
 
 /** Variable ensuring only 1 thread at time does initial conversion */
 static bool fil_crypt_start_converting = false;
@@ -181,7 +181,7 @@ bool fil_space_crypt_t::load_needed_keys_into_local_cache() {
 
 /** Statistics variables */
 static fil_crypt_stat_t crypt_stat;
-static ib_mutex_t crypt_stat_mutex;
+static ib_uninitialized_mutex_t crypt_stat_mutex;
 
 /***********************************************************************
 Check if a key needs rotation given a key_state
@@ -1031,6 +1031,7 @@ struct rotate_thread_t {
         return true;
       case SRV_SHUTDOWN_FLUSH_PHASE:
       case SRV_SHUTDOWN_LAST_PHASE:
+      case SRV_SHUTDOWN_MASTER_STOP:
         break;
     }
     ut_ad(0);
@@ -1561,16 +1562,12 @@ static buf_block_t *fil_crypt_get_page_throttle_func(rotate_thread_t *state,
 
   state->crypt_stat.pages_read_from_disk++;
 
-  uintmax_t start = ut_time_us(NULL);
+  const auto start = ut_time_monotonic_us();
   dberr_t err;
   block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
                            Page_fetch::POSSIBLY_FREED, file, line, mtr, false,
                            &err);
-  uintmax_t end = ut_time_us(NULL);
-
-  if (end < start) {
-    end = start;  // safety...
-  }
+  const auto end = ut_time_monotonic_us();
 
   state->cnt_waited++;
   state->sum_waited_us += (end - start);
@@ -1813,16 +1810,17 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
       continue;
     }
 
-    DBUG_EXECUTE_IF("rotate_only_first_100_pages_from_t1",
-                    if (strcmp(state->space->name, "test/t1") == 0) {
-                      // ib::error() << "rotate_only_first_100_pages_from_t1 is
-                      // active" << '\n';
-                      if (number_of_t1_pages_rotated >= 100) {
-                        state->offset = end;
-                        return;
-                      } else
-                        ++number_of_t1_pages_rotated;
-                    });
+    DBUG_EXECUTE_IF(
+        "rotate_only_first_100_pages_from_t1",
+        if (strcmp(state->space->name, "test/t1") == 0) {
+          // ib::error() << "rotate_only_first_100_pages_from_t1 is
+          // active" << '\n';
+          if (number_of_t1_pages_rotated >= 100) {
+            state->offset = end;
+            return;
+          } else
+            ++number_of_t1_pages_rotated;
+        });
 
     fil_crypt_rotate_page(key_state, state);
   }
@@ -2278,8 +2276,9 @@ enum class UpdateEncryptedFlagOperation : char { SET, CLEAR };
 static dberr_t fil_update_encrypted_flag(
     const char *space_name, UpdateEncryptedFlagOperation update_operation,
     volatile bool *is_space_being_removed, THD *thd) {
-  DBUG_EXECUTE_IF("fail_encryption_flag_update_on_t3",
-                  if (strcmp(space_name, "test/t3") == 0) { return DB_ERROR; });
+  DBUG_EXECUTE_IF(
+      "fail_encryption_flag_update_on_t3",
+      if (strcmp(space_name, "test/t3") == 0) { return DB_ERROR; });
 
   bool failure =
       (update_operation == UpdateEncryptedFlagOperation::SET
@@ -2311,11 +2310,11 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
 
   ulint number_of_pages_flushed_now = 0;
   log_free_check();
-  uintmax_t start = ut_time_us(NULL);
+  const auto start = ut_time_monotonic_us();
 
   crypt_data->rotate_state.flush_observer->flush();
 
-  uintmax_t end = ut_time_us(NULL);
+  const auto end = ut_time_monotonic_us();
 
   number_of_pages_flushed_now =
       crypt_data->rotate_state.flush_observer->get_number_of_pages_flushed() -
@@ -2431,12 +2430,13 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
      * EXPORT - this will make sure that buffers will get flushed * In MTR we
      * can check if we reached this point by checking flushing field - it should
      * be 1 if we are here */
-    DBUG_EXECUTE_IF("rotate_only_first_100_pages_from_t1",
-                    if (strcmp(state->space->name, "test/t1") == 0 &&
-                        number_of_t1_pages_rotated >= 100) {
-                      crypt_data->rotate_state.flushing = true;
-                      should_flush = false;
-                    });
+    DBUG_EXECUTE_IF(
+        "rotate_only_first_100_pages_from_t1",
+        if (strcmp(state->space->name, "test/t1") == 0 &&
+            number_of_t1_pages_rotated >= 100) {
+          crypt_data->rotate_state.flushing = true;
+          should_flush = false;
+        });
 
     if (should_flush) {
       /* we're the last active thread */

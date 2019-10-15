@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -100,13 +100,14 @@ combination of types */
                          other flags */
 #define DICT_VIRTUAL 128 /* Index on Virtual column */
 
-#define DICT_SDI                                  \
-  256 /* Tablespace dictionary Index. Set only in \
-      in-memory index structure. */
+#define DICT_SDI                                                         \
+  256                        /* Tablespace dictionary Index. Set only in \
+                             in-memory index structure. */
+#define DICT_MULTI_VALUE 512 /* Multi-value index */
 
-#define DICT_IT_BITS             \
-  9 /*!< number of bits used for \
-    SYS_INDEXES.TYPE */
+#define DICT_IT_BITS              \
+  10 /*!< number of bits used for \
+     SYS_INDEXES.TYPE */
 /* @} */
 
 #if 0                         /* not implemented, retained for history */
@@ -517,6 +518,10 @@ struct dict_col_t {
   /** Check if a column is a virtual column
   @return true if it is a virtual column, false otherwise */
   bool is_virtual() const { return (prtype & DATA_VIRTUAL); }
+
+  /** Check if a column is a multi-value virtual column
+  @return true if it is a multi-value virtual column, false otherwise */
+  bool is_multi_value() const { return ((prtype & DATA_MULTI_VALUE) != 0); }
 
   /** Check if a column is nullable
   @return true if it is nullable, otherwise false */
@@ -1081,6 +1086,14 @@ struct dict_index_t {
     return (type & DICT_CLUSTERED);
   }
 
+  /** Check whether the index is the multi-value index
+  @return nonzero for multi-value index, zero for other indexes */
+  bool is_multi_value() const {
+    ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+    return (type & DICT_MULTI_VALUE);
+  }
+
   /** Returns the minimum data size of an index record.
   @return minimum data size in bytes */
   ulint get_min_size() const {
@@ -1209,6 +1222,30 @@ struct dict_index_t {
   /** Check if the underlying table is compressed.
   @return true if compressed, false otherwise. */
   bool is_compressed() const;
+
+  /** Check if a multi-value index is built on specified multi-value
+  virtual column. Please note that there could be only one multi-value
+  virtual column on the multi-value index, but not necessary the first
+  field of the index.
+  @param[in]	mv_col	multi-value virtual column
+  @return non-zero means the column is on the index and this is the
+  nth position of the column, zero means it's not on the index */
+  uint32_t has_multi_value_col(const dict_v_col_t *mv_col) const {
+    ut_ad(is_multi_value());
+    for (uint32_t i = 0; i < n_fields; ++i) {
+      const dict_col_t *col = get_col(i);
+      if (mv_col->m_col.ind == col->ind) {
+        return (i + 1);
+      }
+
+      /* Only one multi-value field, if not match then no match. */
+      if (col->is_multi_value()) {
+        break;
+      }
+    }
+
+    return (0);
+  }
 };
 
 /** The status of online index creation */
@@ -1642,6 +1679,9 @@ struct dict_table_t {
   /** Number of virtual columns. */
   unsigned n_v_cols : 10;
 
+  /** Number of multi-value virtual columns. */
+  unsigned n_m_v_cols : 10;
+
   /** TRUE if this table is expected to be kept in memory. This table
   could be a table that has FK relationships or is undergoing DDL */
   unsigned can_be_evicted : 1;
@@ -1777,7 +1817,7 @@ struct dict_table_t {
   unsigned stat_initialized : 1;
 
   /** Timestamp of last recalc of the stats. */
-  ib_time_t stats_last_recalc;
+  ib_time_monotonic_t stats_last_recalc;
 
 /** The two bits below are set in the 'stat_persistent' member. They
 have the following meaning:
@@ -1853,13 +1893,12 @@ BG_STAT_IN_PROGRESS to be cleared. The background stats thread will
 detect this and will eventually quit sooner. */
 #define BG_STAT_SHOULD_QUIT (1 << 1)
 
-#define BG_SCRUB_IN_PROGRESS    ((byte)(1 << 2))
-                                /*!< BG_SCRUB_IN_PROGRESS is set in
-                                stats_bg_flag when the background
-                                scrub code is working on this table. The DROP
-                                TABLE code waits for this to be cleared
-                                before proceeding. */
-
+#define BG_SCRUB_IN_PROGRESS ((byte)(1 << 2))
+  /*!< BG_SCRUB_IN_PROGRESS is set in
+  stats_bg_flag when the background
+  scrub code is working on this table. The DROP
+  TABLE code waits for this to be cleared
+  before proceeding. */
 
   /** The state of the background stats thread wrt this table.
   See BG_STAT_NONE, BG_STAT_IN_PROGRESS and BG_STAT_SHOULD_QUIT.

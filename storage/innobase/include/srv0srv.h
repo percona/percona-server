@@ -58,11 +58,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0ddl.h"
 #include "os0event.h"
 #include "os0file.h"
+#include "os0thread.h"
 #include "que0types.h"
 #include "sql/system_variables.h"
 #include "srv0conc.h"
 #include "trx0types.h"
 #include "ut0counter.h"
+
+#include <future>
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
@@ -174,34 +177,124 @@ struct srv_stats_t {
   ulint_ctr_64_t pages_decrypted;
 };
 
+/** Structure which keeps shared future objects for InnoDB background
+threads. One should use these objects to check if threads exited. */
 struct Srv_threads {
-  /** true if monitor thread is created */
-  bool m_monitor_thread_active;
+  /** Monitor thread (prints info). */
+  IB_thread m_monitor;
 
-  /** true if error monitor thread is created */
-  bool m_error_monitor_thread_active;
+  /** Error monitor thread. */
+  IB_thread m_error_monitor;
 
-  /** true if buffer pool dump/load thread is created */
-  bool m_buf_dump_thread_active;
+  /** Redo closer thread. */
+  IB_thread m_log_closer;
 
-  /** true if buffer pool resize thread is created */
-  bool m_buf_resize_thread_active;
+  /** Redo checkpointer thread. */
+  IB_thread m_log_checkpointer;
 
-  /** true if stats thread is created */
-  bool m_dict_stats_thread_active;
+  /** Redo writer thread. */
+  IB_thread m_log_writer;
 
-  /** true if timeout thread is created */
-  bool m_timeout_thread_active;
+  /** Redo flusher thread. */
+  IB_thread m_log_flusher;
 
-  /** true if master thread is created */
-  bool m_master_thread_active;
+  /** Redo write notifier thread. */
+  IB_thread m_log_write_notifier;
 
+  /** Redo flush notifier thread. */
+  IB_thread m_log_flush_notifier;
+
+  /** Redo log archiver (used by backup). */
+  IB_thread m_backup_log_archiver;
+
+  /** Buffer pool dump thread. */
+  IB_thread m_buf_dump;
+
+  /** Buffer pool resize thread. */
+  IB_thread m_buf_resize;
+
+  /** Dict stats background thread. */
+  IB_thread m_dict_stats;
+
+  /** Thread detecting lock wait timeouts. */
+  IB_thread m_lock_wait_timeout;
+
+  /** The master thread. */
+  IB_thread m_master;
+
+  /** The ts_alter_encrypt thread. */
+  IB_thread m_ts_alter_encrypt;
+
+  /** Thread doing rollbacks during recovery. */
+  IB_thread m_trx_recovery_rollback;
+
+  /** Thread writing recovered pages during recovery. */
+  IB_thread m_recv_writer;
+
+  /** Purge coordinator (also being a worker) */
+  IB_thread m_purge_coordinator;
+
+  /** Number of purge workers and size of array below. */
+  size_t m_purge_workers_n;
+
+  /** Purge workers. Note that the m_purge_workers[0] is the same shared
+  state as m_purge_coordinator. */
+  IB_thread *m_purge_workers;
+
+  /** Page cleaner coordinator (also being a worker). */
+  IB_thread m_page_cleaner_coordinator;
+
+  /** Number of page cleaner workers and size of array below. */
+  size_t m_page_cleaner_workers_n;
+
+  /** Page cleaner workers. Note that m_page_cleaner_workers[0] is the
+  same shared state as m_page_cleaner_coordinator. */
+  IB_thread *m_page_cleaner_workers;
+
+  /** Number of LRU manager threads and size of array below. */
+  size_t m_lru_managers_n;
+
+  /** LRU manager threads. */
+  IB_thread *m_lru_managers;
+
+  /** Changed page tracking thread. */
+  IB_thread m_changed_page_tracker;
+
+  /** Archiver's log archiver (used by Clone). */
+  IB_thread m_log_archiver;
+
+  /** Archiver's page archiver (used by Clone). */
+  IB_thread m_page_archiver;
+
+  /** Thread doing optimization for FTS index. */
+  IB_thread m_fts_optimize;
+
+  /** Thread for GTID persistence */
+  IB_thread m_gtid_persister;
+
+#ifdef UNIV_DEBUG
+  /** Used in test scenario to delay threads' cleanup until the pre_dd_shutdown
+  is ended and final plugin's shutdown is started (when plugin is DELETED).
+  Note that you may only delay the shutdown for threads for which there is no
+  waiting procedure used in the pre_dd_shutdown. */
+  os_event_t shutdown_cleanup_dbg;
+#endif /* UNIV_DEBUG */
   /** true if tablespace alter encrypt thread is created */
   bool m_ts_alter_encrypt_thread_active;
 
   /** true if there is keyring encryption thread running */
   bool m_encryption_threads_active;
 };
+
+/** Check if given thread is still active. */
+bool srv_thread_is_active(const IB_thread &thread);
+
+/** Delay the thread after it discovered that the shutdown_state
+is greater or equal to SRV_SHUTDOWN_CLEANUP, before it proceeds
+with further clean up. This is used in the tests to see if such
+a possible delay does not have impact on the clean shutdown.
+@param[in]  wait_for_signal   wait until shutdown phase starts */
+void srv_thread_delay_cleanup_if_needed(bool wait_for_signal);
 
 struct Srv_cpu_usage {
   int n_cpu;
@@ -268,32 +361,27 @@ extern os_event_t srv_checkpoint_completed_event;
 log tracking iteration */
 extern os_event_t srv_redo_log_tracked_event;
 
-/** Whether the redo log tracker thread has been started. Does not take into
-account whether the tracking is currently enabled (see srv_track_changed_pages
-for that) */
-extern bool srv_redo_log_thread_started;
-
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT (srv_sys_space.get_autoextend_increment())
 
 #ifndef UNIV_HOTBACKUP
 /** Mutex protecting page_zip_stat_per_index */
-extern ib_mutex_t page_zip_stat_per_index_mutex;
+extern ib_uninitialized_mutex_t page_zip_stat_per_index_mutex;
 /* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
-extern ib_mutex_t srv_monitor_file_mutex;
+extern ib_uninitialized_mutex_t srv_monitor_file_mutex;
 /* Temporary file for innodb monitor output */
 extern FILE *srv_monitor_file;
 /* Mutex for locking srv_dict_tmpfile. Only created if !srv_read_only_mode.
 This mutex has a very high rank; threads reserving it should not
 be holding any InnoDB latches. */
-extern ib_mutex_t srv_dict_tmpfile_mutex;
+extern ib_uninitialized_mutex_t srv_dict_tmpfile_mutex;
 /* Temporary file for output from the data dictionary */
 extern FILE *srv_dict_tmpfile;
 /* Mutex for locking srv_misc_tmpfile. Only created if !srv_read_only_mode.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
-extern ib_mutex_t srv_misc_tmpfile_mutex;
+extern ib_uninitialized_mutex_t srv_misc_tmpfile_mutex;
 /* Temporary file for miscellanous diagnostic output */
 extern FILE *srv_misc_tmpfile;
 #endif /* !UNIV_HOTBACKUP */
@@ -381,6 +469,9 @@ extern char *srv_log_group_home_dir;
 
 /** Enable or Disable Encrypt of REDO tablespace. */
 extern ulong srv_redo_log_encrypt;
+
+/* Maximum number of redo files of a cloned DB. */
+#define SRV_N_LOG_FILES_CLONE_MAX 1000
 
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
@@ -783,6 +874,8 @@ extern mysql_pfs_key_t page_archiver_thread_key;
 extern mysql_pfs_key_t buf_dump_thread_key;
 extern mysql_pfs_key_t buf_lru_manager_thread_key;
 extern mysql_pfs_key_t buf_resize_thread_key;
+extern mysql_pfs_key_t clone_ddl_thread_key;
+extern mysql_pfs_key_t clone_gtid_thread_key;
 extern mysql_pfs_key_t dict_stats_thread_key;
 extern mysql_pfs_key_t fts_optimize_thread_key;
 extern mysql_pfs_key_t fts_parallel_merge_thread_key;
@@ -808,6 +901,8 @@ extern mysql_pfs_key_t srv_purge_thread_key;
 extern mysql_pfs_key_t srv_worker_thread_key;
 extern mysql_pfs_key_t trx_recovery_rollback_thread_key;
 extern mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
+extern mysql_pfs_key_t parallel_read_thread_key;
+extern mysql_pfs_key_t parallel_read_ahead_thread_key;
 extern mysql_pfs_key_t srv_log_tracking_thread_key;
 extern mysql_pfs_key_t log_scrub_thread_key;
 #endif /* UNIV_PFS_THREAD */
@@ -1052,7 +1147,16 @@ void srv_worker_thread();
 /** Rotate default master key for UNDO tablespace. */
 void undo_rotate_default_master_key();
 
-/** Enable UNDO tablespace encryption.
+/** Set encryption for UNDO tablespace with given space id.
+@param[in] thdthread    handle
+@param[in] space_id     undo tablespace id
+@param[in] mtr          mini-transaction
+@param[in] is_boot	true if it is called during server start up.
+@return false for success, true otherwise */
+bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id,
+                                    mtr_t *mtr, bool is_boot);
+
+/** Enable UNDO tablespaces encryption.
 @param[in] is_boot	true if it is called during server start up. In this
                         case, default master key will be used which will be
                         rotated later with actual master key from kyering.
@@ -1070,26 +1174,14 @@ ulint srv_get_task_queue_length(void);
 ulint srv_release_threads(enum srv_thread_type type, /*!< in: thread type */
                           ulint n); /*!< in: number of threads to release */
 
-/** Check whether any background thread is created.
-Send the threads wakeup signal.
-
-NOTE: this check is part of the final shutdown, when the first phase of
-shutdown has already been completed.
-@see srv_pre_dd_shutdown()
-@see srv_master_thread_active()
-@return name of thread that is active
-@retval NULL if no thread is active */
-const char *srv_any_background_threads_are_active();
-
 /** Check whether the master thread is active.
 This is polled during the final phase of shutdown.
 The first phase of server shutdown must have already been executed
 (or the server must not have been fully started up).
 @see srv_pre_dd_shutdown()
-@see srv_any_background_threads_are_active()
 @retval true   if any thread is active
 @retval false  if no thread is active */
-bool srv_master_thread_active();
+bool srv_master_thread_is_active();
 
 /** Wakeup the purge threads. */
 void srv_purge_wakeup(void);
@@ -1225,9 +1317,9 @@ struct export_var_t {
   ulint innodb_undo_tablespaces_active;   /*!< number of active undo
                                           tablespaces */
 #ifdef UNIV_DEBUG
-  ulint innodb_purge_trx_id_age;      /*!< rw_max_trx_id - purged trx_id */
-  ulint innodb_purge_view_trx_id_age; /*!< rw_max_trx_id
-                                      - purged view's min trx_id */
+  ulint innodb_purge_trx_id_age;      /*!< rw_max_trx_no - purged trx_no */
+  ulint innodb_purge_view_trx_id_age; /*!< rw_max_trx_no
+                                      - purged view's min trx_no */
   ulint innodb_ahi_drop_lookups;      /*!< number of adaptive hash
                                       index lookups when freeing
                                       file pages */
@@ -1292,27 +1384,28 @@ struct export_var_t {
 #ifndef UNIV_HOTBACKUP
 /** Thread slot in the thread table.  */
 struct srv_slot_t {
-  srv_thread_type type;   /*!< thread type: user,
-                          utility etc. */
-  ibool in_use;           /*!< TRUE if this slot
-                          is in use */
-  ibool suspended;        /*!< TRUE if the thread is
-                          waiting for the event of this
-                          slot */
-  ib_time_t suspend_time; /*!< time when the thread was
-                          suspended. Initialized by
-                          lock_wait_table_reserve_slot()
-                          for lock wait */
-  ulong wait_timeout;     /*!< wait time that if exceeded
-                          the thread will be timed out.
-                          Initialized by
-                          lock_wait_table_reserve_slot()
-                          for lock wait */
-  os_event_t event;       /*!< event used in suspending
-                          the thread when it has nothing
-                          to do */
-  que_thr_t *thr;         /*!< suspended query thread
-                          (only used for user threads) */
+  /** Thread type: user, utility etc. */
+  srv_thread_type type;
+
+  /** TRUE if this slot is in use. */
+  bool in_use;
+
+  /** TRUE if the thread is waiting for the event of this slot. */
+  bool suspended;
+
+  /** Time when the thread was suspended. Initialized by
+  lock_wait_table_reserve_slot() for lock wait. */
+  ib_time_monotonic_t suspend_time;
+
+  /** Wait time that if exceeded the thread will be timed out.
+  Initialized by lock_wait_table_reserve_slot() for lock wait. */
+  ulong wait_timeout;
+
+  /** Event used in suspending the thread when it has nothing to do. */
+  os_event_t event;
+
+  /** Suspended query thread (only used for user threads). */
+  que_thr_t *thr;
 };
 #endif /* !UNIV_HOTBACKUP */
 

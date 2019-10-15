@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,7 @@ static std::map<std::string, std::vector<std::string>> log_sync_points = {
       "log_advance_ready_for_write_before_update", "log_writer_write_begin",
       "log_writer_before_write_from_log_buffer",
       "log_writer_before_copy_to_write_ahead_buffer",
+      "log_writer_before_write_new_incomplete_block",
       "log_writer_before_write_ahead", "log_writer_after_checkpoint_check",
       "log_writer_after_archiver_check", "log_writer_before_lsn_update",
       "log_writer_before_limits_update", "log_writer_write_end",
@@ -475,7 +476,6 @@ static void log_test_run() {
 
   run_threads(
       [max_dirty_page_age](size_t thread_no) {
-
         static_cast<void>(max_dirty_page_age);  // clang -Wunused-lambda-capture
         log_t &log = *log_sys;
 
@@ -511,7 +511,6 @@ static void log_test_run() {
             log_write_up_to(log, end_lsn, true);
           }
         }
-
       },
       LOG_TEST_N_THREADS);
 }

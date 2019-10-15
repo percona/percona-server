@@ -643,8 +643,8 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
     error_txt = "A bad Space ID was found";
 
   } else if (m_space_id != 0 && space_id != m_space_id) {
-  /* Tablespace ID mismatch. The file could be in use
-  by another tablespace. */
+    /* Tablespace ID mismatch. The file could be in use
+    by another tablespace. */
 
 #ifndef UNIV_HOTBACKUP
     ut_d(ib::info(ER_IB_MSG_398)

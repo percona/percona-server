@@ -1,6 +1,5 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +54,8 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
   my_off_t offset;
   uchar *in_buff_pos;
   DBUG_ENTER("_mi_read_cache");
-  DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
+  // TODO(laurynas)
+  // DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
 
   if (pos < info->pos_in_file) {
     read_length = length;
@@ -87,7 +87,7 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
       info->seek_not_done = 1;
     } else
       info->read_pos = info->read_end; /* All block used */
-    if (!_my_b_read(info, buff, length)) DBUG_RETURN(0);
+    if (!(*info->read_function)(info, buff, length)) DBUG_RETURN(0);
     read_length = info->error;
   } else {
     info->seek_not_done = 1;

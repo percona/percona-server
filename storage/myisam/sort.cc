@@ -1,6 +1,5 @@
 /* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -751,8 +750,9 @@ static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
   uint length;
 
   if ((count = (uint)MY_MIN((ha_rows)buffpek->max_keys, buffpek->count))) {
-    if (my_b_pread(fromfile, buffpek->base, (length = sort_length * count),
-                   buffpek->file_pos))
+    if (mysql_file_pread(fromfile->file, (uchar *)buffpek->base,
+                         (length = sort_length * count), buffpek->file_pos,
+                         MYF_RW))
       return ((uint)-1); /* purecov: inspected */
     buffpek->key = buffpek->base;
     buffpek->file_pos += length; /* New filepos */
@@ -773,11 +773,12 @@ static uint read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
     buffp = buffpek->base;
 
     for (idx = 1; idx <= count; idx++) {
-      if (my_b_pread(fromfile, (uchar *)&length_of_key, sizeof(length_of_key),
-                     buffpek->file_pos))
+      if (mysql_file_pread(fromfile->file, (uchar *)&length_of_key,
+                           sizeof(length_of_key), buffpek->file_pos, MYF_RW))
         return ((uint)-1);
       buffpek->file_pos += sizeof(length_of_key);
-      if (my_b_pread(fromfile, buffp, length_of_key, buffpek->file_pos))
+      if (mysql_file_pread(fromfile->file, (uchar *)buffp, length_of_key,
+                           buffpek->file_pos, MYF_RW))
         return ((uint)-1);
       buffpek->file_pos += length_of_key;
       buffp = buffp + sort_length;

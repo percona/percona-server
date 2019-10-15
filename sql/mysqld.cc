@@ -6759,7 +6759,8 @@ int mysqld_main(int argc, char **argv)
   if (init_ssl_communication()) unireg_abort(MYSQLD_ABORT_EXIT);
   if (network_init()) unireg_abort(MYSQLD_ABORT_EXIT);
 
-  init_io_cache_encryption(encrypt_tmp_files);
+    // TODO(laurynas)
+    // init_io_cache_encryption(encrypt_tmp_files);
 
 #ifdef _WIN32
   if (opt_require_secure_transport && !opt_enable_shared_memory &&

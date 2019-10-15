@@ -1,17 +1,9 @@
 --source include/have_myisam.inc
 
-# Row binlog format to fill binlog cache faster
-SET @binlog_format_saved = @@global.binlog_format;
-SET GLOBAL binlog_format='ROW';
-SET SESSION binlog_format='ROW';
---source include/have_binlog_format_row.inc
-
 if (`SELECT @@global.encrypt_tmp_files = 0`)
 {
    --die Test requires --encrypt-tmp-files
 }
-
---source include/count_sessions.inc
 
 #
 # MyISAM messing around with IO_CACHE::file
@@ -54,64 +46,6 @@ UPDATE t1 SET c = v, t = v;
 SELECT sql_big_result t, COUNT(t) FROM t1 GROUP BY t LIMIT 10;
 DROP TABLE t1;
 
-RESET MASTER;
-SET @saved_binlog_cache_size = @@global.binlog_cache_size;
-SET GLOBAL binlog_cache_size = 8192;
-
-connect con1, localhost, root;
-
-#
-# Test the last half-filled block:
-# first write 3 blocks, then reinit the file and write one full and one
-# partial block. reading the second time must stop in the middle of the
-# second block, and NOT read till EOF.
-#
-CREATE TABLE t1 (a TEXT) ENGINE=InnoDB;
-START TRANSACTION;
-INSERT t1 SELECT REPEAT(seq, 1000) FROM seq_1_to_15;
-COMMIT;
-START TRANSACTION;
-INSERT t1 SELECT REPEAT(seq, 1000) FROM seq_1_to_8;
-COMMIT;
-
-disconnect con1;
-connect con2, localhost, root;
-
-#
-# Test reinit_io_cache(WRITE_CACHE) with non-zero seek_offset:
-# Start a transaction, write until the cache goes to disk,
-# create a savepoint, write more blocks to disk, rollback to savepoint.
-#
-CREATE TABLE t2 (a TEXT) ENGINE=InnoDB;
-START TRANSACTION;
-INSERT t2 SELECT REPEAT(seq, 1000) FROM seq_1_to_15;
-SAVEPOINT foo;
-INSERT t2 SELECT REPEAT(seq, 1000) FROM seq_16_to_30;
-ROLLBACK TO SAVEPOINT foo;
-INSERT t2 SELECT REPEAT(seq, 1000) FROM seq_31_to_40;
-COMMIT;
-
-# SHOW BINLOG EVENTS must succeed without 'CORRUPTED BINLOG' error
---disable_result_log
-SHOW BINLOG EVENTS;
---enable_result_log
-
-disconnect con2;
-connection default;
-
-FLUSH BINARY LOGS;
-
-DROP TABLE t1, t2;
-
-SET GLOBAL binlog_cache_size = @saved_binlog_cache_size;
-
-let $MYSQLD_DATADIR = `SELECT @@datadir`;
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 | $MYSQL;
-
-SELECT LEFT(a, 10) FROM t1;
-SELECT LEFT(a, 10) FROM t2;
-DROP TABLE t1, t2;
-
 DROP TABLE seq_31_to_40;
 DROP TABLE seq_16_to_30;
 DROP TABLE seq_1_to_8;
@@ -150,7 +84,3 @@ DROP TABLE t1;
 --echo #
 --echo # End of 5.7 testcases
 --echo #
-
---source include/wait_until_count_sessions.inc
-
-SET GLOBAL binlog_format = @binlog_format_saved;

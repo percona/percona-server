@@ -617,7 +617,6 @@ SET(SQL_SOURCE
   event_scheduler.cc
   events.cc
   mf_iocache.cc
-  mf_iocache_encr.cc
   protocol_callback.cc
   signal_handler.cc
   sql_audit.cc

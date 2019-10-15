@@ -1,6 +1,5 @@
 /* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-   Copyright (c) 2010, 2017, MariaDB Corporation.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +117,6 @@ struct MEM_ROOT;
 #define MY_IGNORE_BADFD 32 /* my_sync: ignore 'bad descriptor' errors */
 #define MY_SYNC_DIR 8192   /* my_create/delete/rename: sync directory */
 #define MY_REPORT_WAITING_IF_FULL 64 /* my_write: set status as waiting */
-#define MY_ENCRYPT 256               /* Encrypt IO_CACHE temporary files */
 #define MY_FULL_IO 512 /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128  /* Option to init_io_cache() */
 #define MY_LINK_WARNING 32          /* my_redel() gives warning if links */
@@ -281,7 +279,8 @@ enum cache_type {
   WRITE_CACHE,
   SEQ_READ_APPEND /* sequential read or append */,
   READ_FIFO,
-  READ_NET
+  READ_NET,
+  WRITE_NET
 };
 
 enum flush_type {
@@ -487,13 +486,8 @@ typedef void (*my_error_reporter)(enum loglevel level, uint ecode, ...);
 
 extern my_error_reporter my_charset_error_reporter;
 
+/* defines for mf_iocache */
 extern PSI_file_key key_file_io_cache;
-
-MY_NODISCARD
-extern int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count);
-
-MY_NODISCARD
-extern int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count);
 
 /* Test if buffer is inited */
 inline void my_b_clear(IO_CACHE *info) { info->buffer = nullptr; }
@@ -510,7 +504,7 @@ inline int my_b_read(IO_CACHE *info, uchar *buffer, size_t count) {
     info->read_pos += count;
     return 0;
   }
-  return _my_b_read(info, buffer, count);
+  return (*info->read_function)(info, buffer, count);
 }
 
 inline int my_b_write(IO_CACHE *info, const uchar *buffer, size_t count) {
@@ -519,13 +513,11 @@ inline int my_b_write(IO_CACHE *info, const uchar *buffer, size_t count) {
     info->write_pos += count;
     return 0;
   }
-  return _my_b_write(info, buffer, count);
+  return (*info->write_function)(info, buffer, count);
 }
 
-MY_NODISCARD
 extern int _my_b_get(IO_CACHE *info);
 
-MY_NODISCARD
 inline int my_b_get(IO_CACHE *info) {
   if (info->read_pos != info->read_end) {
     info->read_pos++;
@@ -533,9 +525,6 @@ inline int my_b_get(IO_CACHE *info) {
   }
   return _my_b_get(info);
 }
-
-MY_NODISCARD
-int my_b_pread(IO_CACHE *info, uchar *Buffer, size_t Count, my_off_t pos);
 
 MY_NODISCARD
 inline my_off_t my_b_tell(const IO_CACHE *info) {
@@ -750,13 +739,6 @@ extern bool array_append_string_unique(const char *str, const char **array,
 
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
-typedef int (*io_cache_encr_read_function)(IO_CACHE *, uchar *, size_t);
-typedef int (*io_cache_encr_write_function)(IO_CACHE *, const uchar *, size_t);
-extern void init_io_cache_encryption_ext(
-    io_cache_encr_read_function read_function,
-    io_cache_encr_write_function write_function, size_t encr_block_size,
-    size_t encr_header_size);
-extern void init_io_cache_encryption(bool enable);
 MY_NODISCARD
 extern int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
                              enum cache_type type, my_off_t seek_offset,
@@ -771,10 +753,18 @@ extern bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
                             my_off_t seek_offset, bool use_async_io,
                             bool clear_cache);
 extern void setup_io_cache(IO_CACHE *info);
+MY_NODISCARD
+extern int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count);
+MY_NODISCARD
+extern int _my_b_read_r(IO_CACHE *info, uchar *Buffer, size_t Count);
 extern void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
                                 IO_CACHE *write_cache, uint num_threads);
 extern void remove_io_thread(IO_CACHE *info);
+MY_NODISCARD
+extern int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count);
 extern int _my_b_net_read(IO_CACHE *info, uchar *Buffer, size_t Count);
+MY_NODISCARD
+extern int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count);
 extern int my_b_append(IO_CACHE *info, const uchar *Buffer, size_t Count);
 extern int my_b_safe_write(IO_CACHE *info, const uchar *Buffer, size_t Count);
 

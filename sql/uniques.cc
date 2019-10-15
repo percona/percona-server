@@ -1,6 +1,5 @@
 /* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-   Copyright (c) 2010, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,8 +117,8 @@ static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                         merge_chunk,
                         static_cast<ulonglong>(merge_chunk->file_position()),
                         static_cast<ulonglong>(bytes_to_read)));
-    if (my_b_pread(fromfile, merge_chunk->buffer_start(), bytes_to_read,
-                   merge_chunk->file_position()))
+    if (mysql_file_pread(fromfile->file, merge_chunk->buffer_start(),
+                         bytes_to_read, merge_chunk->file_position(), MYF_RW))
       DBUG_RETURN((uint)-1); /* purecov: inspected */
 
     merge_chunk->init_current_key();
@@ -924,6 +923,10 @@ bool Unique::get(TABLE *table) {
                                     READ_RECORD_BUFFER, MYF(MY_WME))))
     return 1;
   if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0) != 0) return 1;
+
+  MY_ATTRIBUTE((unused))
+  int reinit_res = reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
+  DBUG_ASSERT(reinit_res == 0);
 
   Uniq_param uniq_param;
   uniq_param.max_rows = elements;

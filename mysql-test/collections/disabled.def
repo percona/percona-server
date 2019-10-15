@@ -181,3 +181,4 @@ encryption.innodb-redo-wrongkey : BUG#5635 Intoduce crypt_schema 2 for better er
 
 # PS-5363 merge MySQL 8.0.17
 main.percona_mysqlbinlog_ssl_compress : BUG#5363 temporarily disabled until the merge
+main.percona_encrypt_tmp_files : BUG#5363 temporarily disabled until the merge

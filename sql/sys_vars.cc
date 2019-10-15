@@ -6181,7 +6181,7 @@ static Sys_var_ulong Sys_sp_cache_size(
 static Sys_var_bool Sys_encrypt_tmp_files(
     "encrypt_tmp_files",
     "Encrypt temporary files "
-    "(created for filesort, binary log cache, etc)",
+    "(created for filesort, Group Replication, etc)",
     READ_ONLY GLOBAL_VAR(encrypt_tmp_files), CMD_LINE(OPT_ARG), DEFAULT(false));
 
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var) {

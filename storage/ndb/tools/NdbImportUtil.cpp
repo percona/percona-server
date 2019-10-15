@@ -1547,7 +1547,7 @@ NdbImportUtil::free_row(Row* row)
   rows.push_back(row);
   rows.unlock();
 }
- 
+
 void
 NdbImportUtil::free_rows(RowList& src)
 {
@@ -2081,7 +2081,7 @@ NdbImportUtil::add_reject_table()
   table.add_pseudo_attr("reject",
                         NdbDictionary::Column::Text);
 }
- 
+
 void
 NdbImportUtil::add_rowmap_table()
 {

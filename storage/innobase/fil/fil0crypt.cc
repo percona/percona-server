@@ -119,12 +119,15 @@ EncryptionKeyId get_global_default_encryption_key_id_value();
 #define DEBUG_KEYROTATION_THROTTLING 0
 
 static constexpr uint KERYING_ENCRYPTION_INFO_MAX_SIZE =
-    ENCRYPTION_MAGIC_SIZE + 1  // type
+    ENCRYPTION_MAGIC_SIZE + 2  // length of iv
+    + 4                        // space id
+    + 2                        // offset
+    + 1                        // type
     + 4                        // min_key_version
     + 4                        // key_id
     + 1                        // encryption
     + CRYPT_SCHEME_1_IV_LEN    // iv (16 bytes)
-    + 1                        // encryption rotation type
+    + 4                        // encryption rotation type
     + ENCRYPTION_KEY_LEN       // tablespace key
     + ENCRYPTION_KEY_LEN;      // tablespace iv
 
@@ -211,12 +214,12 @@ void fil_space_crypt_cleanup() {
   mutex_free(&crypt_stat_mutex);
 }
 
-fil_space_crypt_t::fil_space_crypt_t(uint new_type, uint new_min_key_version,
-                                     uint new_key_id,
-                                     fil_encryption_t new_encryption,
-                                     Crypt_key_operation key_operation,
-                                     Encryption_rotation encryption_rotation)
+fil_space_crypt_t::fil_space_crypt_t(
+    uint new_type, uint new_min_key_version, uint new_key_id,
+    fil_encryption_t new_encryption, Crypt_key_operation key_operation,
+    Encryption::Encryption_rotation encryption_rotation)
     : min_key_version(new_min_key_version),
+      page0_offset(0),
       encryption(new_encryption),
       key_found(false),
       rotate_state(),
@@ -421,14 +424,20 @@ fil_space_crypt_t *fil_space_read_crypt_data(const page_size_t &page_size,
 
   bytes_read += ENCRYPTION_MAGIC_SIZE;
 
+  uint8_t iv_length = mach_read_from_2(page + offset + bytes_read);
+  bytes_read += 2;
+  bytes_read += 4;  // skip space_id
+  bytes_read += 2;  // skip offset
+
   uint8_t type = mach_read_from_1(page + offset + bytes_read);
   bytes_read += 1;
 
   fil_space_crypt_t *crypt_data;
 
-  if (!(type == CRYPT_SCHEME_UNENCRYPTED || type == CRYPT_SCHEME_1)) {
-    ib::error() << "Found non sensible crypt scheme: " << type
-                << " for space: " << page_get_space_id(page)
+  if (!(type == CRYPT_SCHEME_UNENCRYPTED || type == CRYPT_SCHEME_1) ||
+      iv_length != sizeof crypt_data->iv) {
+    ib::error() << "Found non sensible crypt scheme: " << type << ","
+                << iv_length << " for space: " << page_get_space_id(page)
                 << " offset: " << offset << " bytes: ["
                 << page[offset + 2 + ENCRYPTION_MAGIC_SIZE]
                 << page[offset + 3 + ENCRYPTION_MAGIC_SIZE]
@@ -457,12 +466,15 @@ fil_space_crypt_t *fil_space_read_crypt_data(const page_size_t &page_size,
   crypt_data->type = type;
   crypt_data->min_key_version = min_key_version;
   crypt_data->encrypting_with_key_version = min_key_version;
-  memcpy(crypt_data->iv, page + offset + bytes_read, CRYPT_SCHEME_1_IV_LEN);
-  bytes_read += CRYPT_SCHEME_1_IV_LEN;
+  crypt_data->page0_offset = offset;
+  memcpy(crypt_data->iv, page + offset + bytes_read, iv_length);
 
-  crypt_data->encryption_rotation = static_cast<Encryption_rotation>(
-      mach_read_from_1(page + offset + bytes_read));
-  bytes_read += 1;
+  bytes_read += iv_length;
+
+  crypt_data->encryption_rotation =
+      (Encryption::Encryption_rotation)mach_read_from_4(page + offset +
+                                                        bytes_read);
+  bytes_read += 4;
 
   uchar tablespace_key[ENCRYPTION_KEY_LEN];
   memcpy(tablespace_key, page + offset + bytes_read, ENCRYPTION_KEY_LEN);
@@ -473,11 +485,19 @@ fil_space_crypt_t *fil_space_read_crypt_data(const page_size_t &page_size,
                     0) ==
       tablespace_key) {  // tablespace_key is all zeroes which means there is no
                          // tablepsace in mtr log
-    crypt_data->set_tablespace_key(nullptr);
+    crypt_data->set_tablespace_key(NULL);
+    crypt_data->set_tablespace_iv(NULL);  // No tablespace_key => no iv
   } else {
-    crypt_data->set_tablespace_key(
-        tablespace_key);  // We are using the same iv for both
-                          // MK encryption and KEYRING encryption
+    ut_ad(tablespace_key != NULL);
+    crypt_data->set_tablespace_key(tablespace_key);  // Since there is
+                                                     // tablespace_key present -
+                                                     // we also need to read
+                                                     // tablespace_iv
+    uchar tablespace_iv[ENCRYPTION_KEY_LEN];
+    ut_ad(tablespace_iv != NULL);
+    memcpy(tablespace_iv, page + offset + bytes_read, ENCRYPTION_KEY_LEN);
+    bytes_read += ENCRYPTION_KEY_LEN;
+    crypt_data->set_tablespace_iv(tablespace_iv);
   }
 
   return crypt_data;
@@ -520,10 +540,11 @@ Write crypt data to a page (0)
 
 void fil_space_crypt_t::write_page0(
     const fil_space_t *space, byte *page, mtr_t *mtr, uint a_min_key_version,
-    uint a_type, Encryption_rotation current_encryption_rotation) {
+    uint a_type, Encryption::Encryption_rotation current_encryption_rotation) {
   ut_ad(this == space->crypt_data);
   const ulint offset =
       fsp_header_get_keyring_encryption_offset(page_size_t(space->flags));
+  page0_offset = offset;
 
   byte *encrypt_info = new byte[KERYING_ENCRYPTION_INFO_MAX_SIZE];
   byte *encrypt_info_ptr = encrypt_info;
@@ -533,6 +554,13 @@ void fil_space_crypt_t::write_page0(
 
   memcpy(encrypt_info_ptr, ENCRYPTION_KEY_MAGIC_PS_V1, ENCRYPTION_MAGIC_SIZE);
   encrypt_info_ptr += ENCRYPTION_MAGIC_SIZE;
+  mach_write_to_2(encrypt_info_ptr, CRYPT_SCHEME_1_IV_LEN);
+  encrypt_info_ptr += 2;
+
+  mach_write_to_4(encrypt_info_ptr, space->id);
+  encrypt_info_ptr += 4;
+  mach_write_to_2(encrypt_info_ptr, offset);
+  encrypt_info_ptr += 2;
 
   mach_write_to_1(encrypt_info_ptr, a_type);
   encrypt_info_ptr += 1;
@@ -547,15 +575,20 @@ void fil_space_crypt_t::write_page0(
   memcpy(encrypt_info_ptr, iv, CRYPT_SCHEME_1_IV_LEN);
   encrypt_info_ptr += CRYPT_SCHEME_1_IV_LEN;
 
-  mach_write_to_1(encrypt_info_ptr,
-                  static_cast<byte>(current_encryption_rotation));
-  encrypt_info_ptr += 1;
+  mach_write_to_4(encrypt_info_ptr, current_encryption_rotation);
+  encrypt_info_ptr += 4;
 
-  if (tablespace_key == nullptr) {
+  if (tablespace_key == NULL) {
+    ut_ad(tablespace_iv == NULL);
+    memset(encrypt_info_ptr, 0, ENCRYPTION_KEY_LEN);
+    encrypt_info_ptr += ENCRYPTION_KEY_LEN;
     memset(encrypt_info_ptr, 0, ENCRYPTION_KEY_LEN);
     encrypt_info_ptr += ENCRYPTION_KEY_LEN;
   } else {
+    ut_ad(tablespace_iv != NULL);
     memcpy(encrypt_info_ptr, tablespace_key, ENCRYPTION_KEY_LEN);
+    encrypt_info_ptr += ENCRYPTION_KEY_LEN;
+    memcpy(encrypt_info_ptr, tablespace_iv, ENCRYPTION_KEY_LEN);
     encrypt_info_ptr += ENCRYPTION_KEY_LEN;
   }
 
@@ -601,15 +634,16 @@ static fil_space_crypt_t *fil_space_set_crypt_data(
 
 /******************************************************************
 Parse a MLOG_FILE_WRITE_CRYPT_DATA log entry
-@param[in]  space_id  id of space that this log entry refers to
-@param[in]  ptr  Log entry start
-@param[in]  end_ptr  Log entry end
-@param[in]  len  Log entry length
+@param[in]	ptr		Log entry start
+@param[in]	end_ptr		Log entry end
+@param[in]	block		buffer block
 @return position on log buffer */
 
-byte *fil_parse_write_crypt_data(space_id_t space_id, byte *ptr,
-                                 const byte *end_ptr, ulint len) {
+byte *fil_parse_write_crypt_data(byte *ptr, const byte *end_ptr,
+                                 const buf_block_t *block, ulint len) {
   ptr += 4;  // skip offset and len
+  const uint iv_len = mach_read_from_2(ptr + ENCRYPTION_MAGIC_SIZE);
+  ut_a(iv_len == CRYPT_SCHEME_1_IV_LEN);  // only supported
 
   if (len != KERYING_ENCRYPTION_INFO_MAX_SIZE) {
     recv_sys->set_corrupt_log();
@@ -623,6 +657,13 @@ byte *fil_parse_write_crypt_data(space_id_t space_id, byte *ptr,
   // We should only enter this function if ENCRYPTION_KEY_MAGIC_PS_V1 is set
   ut_ad((memcmp(ptr, ENCRYPTION_KEY_MAGIC_PS_V1, ENCRYPTION_MAGIC_SIZE) == 0));
   ptr += ENCRYPTION_MAGIC_SIZE;
+
+  ptr += 2;  // length of iv has been already read
+
+  space_id_t space_id = mach_read_from_4(ptr);
+  ptr += 4;
+  uint offset = mach_read_from_2(ptr);
+  ptr += 2;
 
   uint type = mach_read_from_1(ptr);
   ptr += 1;
@@ -642,14 +683,15 @@ byte *fil_parse_write_crypt_data(space_id_t space_id, byte *ptr,
   fil_space_crypt_t *crypt_data = fil_space_create_crypt_data(
       encryption, key_id, Crypt_key_operation::FETCH_OR_GENERATE_KEY);
   /* Need to overwrite these as above will initialize fields. */
+  crypt_data->page0_offset = offset;
   DBUG_ASSERT(min_key_version != ENCRYPTION_KEY_VERSION_INVALID);
   crypt_data->min_key_version = min_key_version;
   crypt_data->encryption = encryption;
-  memcpy(crypt_data->iv, ptr, CRYPT_SCHEME_1_IV_LEN);
-  ptr += CRYPT_SCHEME_1_IV_LEN;
+  memcpy(crypt_data->iv, ptr, iv_len);
+  ptr += iv_len;
   crypt_data->encryption_rotation =
-      static_cast<Encryption_rotation>(mach_read_from_1(ptr));
-  ptr += 1;
+      (Encryption::Encryption_rotation)mach_read_from_4(ptr);
+  ptr += 4;
   uchar tablespace_key[ENCRYPTION_KEY_LEN];
   memcpy(tablespace_key, ptr, ENCRYPTION_KEY_LEN);
   ptr += ENCRYPTION_KEY_LEN;
@@ -659,15 +701,21 @@ byte *fil_parse_write_crypt_data(space_id_t space_id, byte *ptr,
                     0) ==
       tablespace_key) {  // tablespace_key is all zeroes which means there is no
                          // tablepsace in mtr log
-    crypt_data->set_tablespace_key(nullptr);
+    crypt_data->set_tablespace_key(NULL);
+    crypt_data->set_tablespace_iv(NULL);  // No tablespace_key => no iv
     ptr += ENCRYPTION_KEY_LEN;
   } else {
     crypt_data->set_tablespace_key(tablespace_key);
+    uchar tablespace_iv[ENCRYPTION_KEY_LEN];
+    memcpy(tablespace_iv, ptr, ENCRYPTION_KEY_LEN);
+    ptr += ENCRYPTION_KEY_LEN;
+    crypt_data->set_tablespace_iv(tablespace_iv);
   }
 
   /* Check is used key found from encryption plugin */
   if (crypt_data->should_encrypt() && !crypt_data->is_key_found()) {
-    ib::error() << "Key cannot be read for space id = " << space_id;
+    ib::error() << "Key cannot be read for space id = "
+                << space_id;  // TODO: To jest zmienione w MariaDB - zmienić!
     recv_sys->set_corrupt_log();
   }
 
@@ -841,13 +889,13 @@ static bool fil_crypt_start_encrypting_space(fil_space_t *space) {
                                                     // space from MK encryption
                                                     // to RK encryption
     // TODO: assert that space->encryption_key is all zeroes here
-    crypt_data->encryption_rotation =
-        Encryption_rotation::MASTER_KEY_TO_KEYRING;
+    crypt_data->encryption_rotation = Encryption::MASTER_KEY_TO_KEYRING;
     crypt_data->set_tablespace_key(space->encryption_key);
-    crypt_data->set_iv(
-        space->encryption_iv);  // using the same iv for reading MK encrypted
-                                // pages and encrypting KEYRING encrypted
-                                // pages
+    crypt_data->set_tablespace_iv(space->encryption_iv);  // space key and
+                                                          // encryption are
+                                                          // always initalized
+                                                          // for MK encrypted
+                                                          // tables
   }
 
   crypt_data->encrypting_with_key_version =
@@ -1627,7 +1675,7 @@ static void fil_crypt_rotate_page(const key_state_t *key_state,
     //
     // We will rotate the pages from the begining if there was a crash
     uint kv = space->crypt_data->encryption_rotation ==
-                      Encryption_rotation::MASTER_KEY_TO_KEYRING
+                      Encryption::MASTER_KEY_TO_KEYRING
                   ? ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED
                   : mach_read_from_4(frame + FIL_PAGE_ENCRYPTION_KEY_VERSION);
 
@@ -2329,7 +2377,7 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
     // mtr.set_named_space(space);
     crypt_data->write_page0(space, block->frame, &mtr,
                             crypt_data->rotate_state.min_key_version_found,
-                            current_type, Encryption_rotation::NO_ROTATION);
+                            current_type, Encryption::NO_ROTATION);
   }
 
   mtr.commit();
@@ -2394,8 +2442,9 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
       /* we're the last active thread */
       ut_ad(crypt_data->rotate_state.flushing == false);
       crypt_data->rotate_state.flushing = true;
+      crypt_data->set_tablespace_iv(NULL);
       crypt_data->set_tablespace_key(NULL);
-      crypt_data->encryption_rotation = Encryption_rotation::NO_ROTATION;
+      crypt_data->encryption_rotation = Encryption::NO_ROTATION;
     }
 
     DBUG_EXECUTE_IF(

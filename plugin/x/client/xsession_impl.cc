@@ -261,7 +261,10 @@ class Notice_server_hello_ignore {
 }  // namespace details
 
 Session_impl::Session_impl(std::unique_ptr<Protocol_factory> factory)
-    : m_context(std::make_shared<Context>()), m_factory(std::move(factory)) {
+    : m_context(std::make_shared<Context>()),
+      m_factory(std::move(factory)),
+      m_server_supported_auth_methods{Auth::Mysql41, Auth::Plain,
+                                      Auth::Sha256_memory} {
   if (nullptr == m_factory.get()) {
     m_factory.reset(new details::Protocol_factory_default());
   }

@@ -2799,9 +2799,29 @@ void Rdb_key_def::pack_with_varchar_encoding(
   const size_t value_length = (field_var->length_bytes == 1)
                                   ? (uint)*field->ptr
                                   : uint2korr(field->ptr);
-  size_t xfrm_len = charset->coll->strnxfrm(
-      charset, buf, fpi->m_max_image_len, field_var->char_length(),
-      field_var->ptr + field_var->length_bytes, value_length, 0);
+  const char *src =
+      reinterpret_cast<const char *>(field_var->ptr + field_var->length_bytes);
+
+  // We only store the trimmed contents but encode the missing char with
+  // removed_chars later to save space
+  const size_t trimmed_len =
+      charset->cset->lengthsp(charset, src, value_length);
+
+  // Max memcmp byte length with char_length(), in case we need to truncate
+  const size_t max_xfrm_len = charset->cset->charpos(
+      charset, src, src + trimmed_len, field_var->char_length());
+
+  // Trimmed length in code points - this is needed to avoid the padding
+  // behavior in strnxfrm for padding collations otherwise strnxfrm would
+  // pad to max length which defeats the trimming earlier
+  const size_t trimmed_codepoints =
+      charset->cset->numchars(charset, src, src + trimmed_len);
+
+  const size_t xfrm_len = charset->coll->strnxfrm(
+      charset, buf, fpi->m_max_image_len_before_encoding,
+      std::min<size_t>(trimmed_codepoints, field_var->char_length()),
+      reinterpret_cast<const uchar *>(src),
+      std::min<size_t>(trimmed_len, max_xfrm_len), 0);
 
   /* Got a mem-comparable image in 'buf'. Now, produce varlength encoding */
   if (fpi->m_use_legacy_varbinary_format) {
@@ -2914,14 +2934,25 @@ void Rdb_key_def::pack_with_varchar_space_pad(
                                   ? (uint)*field->ptr
                                   : uint2korr(field->ptr);
 
+  // We only store the trimmed contents but encode the missing char with
+  // removed_chars later to save space
   const size_t trimmed_len =
       charset->cset->lengthsp(charset, src, value_length);
 
+  // Max memcmp byte length with char_length(), in case we need to truncate
+  // for prefix keys
   const size_t max_xfrm_len = charset->cset->charpos(
       charset, src, src + trimmed_len, field_var->char_length());
 
+  // Trimmed length in code points - this is needed to avoid the padding
+  // behavior in strnxfrm for padding collations otherwise strnxfrm would
+  // pad to max length which defeats the trimming earlier
+  const size_t trimmed_codepoints =
+      charset->cset->numchars(charset, src, src + trimmed_len);
+
   const size_t xfrm_len = charset->coll->strnxfrm(
-      charset, buf, fpi->m_max_image_len, field_var->char_length(),
+      charset, buf, fpi->m_max_image_len_before_encoding,
+      std::min<size_t>(trimmed_codepoints, field_var->char_length()),
       reinterpret_cast<const uchar *>(src),
       std::min<size_t>(trimmed_len, max_xfrm_len), 0);
 
@@ -3619,9 +3650,8 @@ static void rdb_get_mem_comparable_space(const CHARSET_INFO *const cs,
       // mem-comparable image of the space character
       std::array<uchar, 20> space;
 
-      const size_t space_len =
-          cs->coll->strnxfrm(cs, space.data(), sizeof(space), 1, space_mb,
-                             space_mb_len, 0);
+      const size_t space_len = cs->coll->strnxfrm(
+          cs, space.data(), sizeof(space), 1, space_mb, space_mb_len, 0);
       Rdb_charset_space_info *const info = new Rdb_charset_space_info;
       info->space_xfrm_len = space_len;
       info->space_mb_len = space_mb_len;
@@ -3827,6 +3857,8 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
   /* Calculate image length. By default, is is pack_length() */
   m_max_image_len =
       field ? field->pack_length() : ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN;
+  m_max_image_len_before_encoding = 0;
+
   m_skip_func = Rdb_key_def::skip_max_length;
   m_pack_func = Rdb_key_def::pack_with_make_sort_key;
 
@@ -3954,6 +3986,10 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
     */
     const CHARSET_INFO *cs = field->charset();
     m_max_image_len = cs->coll->strnxfrmlen(cs, field->field_length);
+
+    /* Remember the original length before encoding - we'll use it in
+      packing / padding calculations later */
+    m_max_image_len_before_encoding = m_max_image_len;
   }
   const bool is_varchar = (type == MYSQL_TYPE_VARCHAR);
   const CHARSET_INFO *cs = field->charset();
@@ -4045,8 +4081,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
           m_skip_func = Rdb_key_def::skip_variable_space_pad;
           m_segment_size = get_segment_size_from_collation(cs);
           m_max_image_len =
-              (max_image_len_before_chunks / (m_segment_size - 1) +
-               cs->mbmaxlen) *
+              (max_image_len_before_chunks / (m_segment_size - 1) + 1) *
               m_segment_size;
           rdb_get_mem_comparable_space(cs, &space_xfrm, &space_xfrm_len,
                                        &space_mb_len);

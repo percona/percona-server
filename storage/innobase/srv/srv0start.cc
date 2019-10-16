@@ -3271,6 +3271,7 @@ void srv_pre_dd_shutdown() {
     access the data dictionary. */
     srv_is_being_shutdown = true;
     srv_shutdown_state.store(SRV_SHUTDOWN_CLEANUP);
+    unlock_keyrings(NULL);
     return;
   }
 

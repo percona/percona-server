@@ -36,6 +36,7 @@
 #include "m_ctype.h"
 #include "myisampack.h"
 #include "my_bitmap.h"
+#include "my_compare.h"
 #include "my_stacktrace.h"
 #include "myisampack.h"
 #include "mysql/thread_pool_priv.h"
@@ -2449,6 +2450,31 @@ int Rdb_key_def::skip_variable_space_pad(const Rdb_field_packing *const fpi,
   Function of type rdb_index_field_unpack_t
 */
 
+template <int length>
+void Rdb_key_def::pack_unsigned(
+    Rdb_field_packing *const fpi, Field *const field,
+    uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
+  DBUG_ASSERT(fpi != nullptr);
+  DBUG_ASSERT(field != nullptr);
+  DBUG_ASSERT(dst != nullptr);
+  DBUG_ASSERT(*dst != nullptr);
+  DBUG_ASSERT(length == fpi->m_max_image_len);
+
+  const uchar *ptr = field->field_ptr();
+  uchar *to = *dst;
+
+#ifdef WORDS_BIGENDIAN
+  /* Parameterized length should enable loop unrolling */
+  for (int i = 0; i < length; i++) to[i] = ptr[i];
+#else
+  /* Parameterized length should enable loop unrolling */
+  for (int i = 0, j = length - 1; i < length; ++i, --j) to[i] = ptr[j];
+#endif
+
+  *dst += length;
+}
+
 int Rdb_key_def::unpack_integer(
     Rdb_field_packing *const fpi, Field *const field, uchar *const to,
     Rdb_string_reader *const reader,
@@ -2480,6 +2506,28 @@ int Rdb_key_def::unpack_integer(
     }
     for (int i = 0, j = length - 1; i < length - 1; ++i, --j) to[i] = from[j];
   }
+#endif
+  return UNPACK_SUCCESS;
+}
+
+template <int length>
+int Rdb_key_def::unpack_unsigned(
+    Rdb_field_packing *const fpi, Field *const field, uchar *const to,
+    Rdb_string_reader *const reader,
+    Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__))) {
+  DBUG_ASSERT(length == fpi->m_max_image_len);
+
+  const uchar *from;
+  if (!(from = (const uchar *)reader->read(length))) {
+    return UNPACK_FAILURE; /* Mem-comparable image doesn't have enough bytes */
+  }
+
+#ifdef WORDS_BIGENDIAN
+  /* Parameterized length should enable loop unrolling */
+  for (int i = 0; i < length; i++) to[i] = from[i];
+#else
+  /* Parameterized length should enable loop unrolling */
+  for (int i = 0, j = length - 1; i < length; ++i, --j) to[i] = from[j];
 #endif
   return UNPACK_SUCCESS;
 }
@@ -2593,6 +2641,10 @@ int Rdb_key_def::unpack_double(
 /*
   Function of type rdb_index_field_unpack_t
 
+  Unpack a float by doing the reverse action of pack_float
+
+  Note that this only works on IEEE values.
+
   Unpack a float by doing the reverse action of Field_float::make_sort_key
   (sql/field.cc).  Note that this only works on IEEE values.
   Note also that this code assumes that NaN and +/-Infinity are never
@@ -2631,6 +2683,42 @@ int Rdb_key_def::unpack_newdate(
   field_ptr[1] = from[1];
   field_ptr[2] = from[0];
   return UNPACK_SUCCESS;
+}
+
+/*
+  Function of type rdb_index_field_unpack_t
+
+  Pack bit type with uneven hights bits (mod of 8) first and then
+  the rest. See Field_bit::Field_bit for more details.
+ */
+void Rdb_key_def::pack_bit(
+    Rdb_field_packing *const fpi, Field *const field,
+    uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
+  DBUG_ASSERT(fpi != nullptr);
+  DBUG_ASSERT(field != nullptr);
+  DBUG_ASSERT(dst != nullptr);
+  DBUG_ASSERT(*dst != nullptr);
+  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_BIT);
+
+  uint length = fpi->m_max_image_len;
+  const uchar *ptr = field->field_ptr();
+  uchar *to = *dst;
+  auto *field_bit = static_cast<Field_bit *>(field);
+
+  if (field_bit->bit_len) {
+    /* uneven high bits */
+    uchar bits = get_rec_bits(field_bit->bit_ptr, field_bit->bit_ofs,
+                              field_bit->bit_len);
+    *to++ = bits;
+    length--;
+  }
+
+  /* copy the rest */
+  uint data_length = std::min(length, field_bit->bytes_in_rec);
+  memcpy(to, ptr, data_length);
+
+  *dst += fpi->m_max_image_len;
 }
 
 /*
@@ -3975,6 +4063,47 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         return false;
       }
     } break;
+
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_ENUM: {
+      const auto field_enum = static_cast<const Field_enum *>(field);
+      switch (field_enum->pack_length()) {
+        case 1:
+          m_pack_func = Rdb_key_def::pack_unsigned<1>;
+          m_unpack_func = Rdb_key_def::unpack_unsigned<1>;
+          break;
+
+        case 2:
+          m_pack_func = Rdb_key_def::pack_unsigned<2>;
+          m_unpack_func = Rdb_key_def::unpack_unsigned<2>;
+          break;
+
+        case 3:
+          m_pack_func = Rdb_key_def::pack_unsigned<3>;
+          m_unpack_func = Rdb_key_def::unpack_unsigned<3>;
+          break;
+
+        case 4:
+          m_pack_func = Rdb_key_def::pack_unsigned<4>;
+          m_unpack_func = Rdb_key_def::unpack_unsigned<4>;
+          break;
+
+        case 8:
+          m_pack_func = Rdb_key_def::pack_unsigned<8>;
+          m_unpack_func = Rdb_key_def::unpack_unsigned<8>;
+          break;
+
+        default:
+          DBUG_ASSERT(false);
+          break;
+      }
+      return false;
+    }
+
+    case MYSQL_TYPE_BIT:
+      m_pack_func = Rdb_key_def::pack_bit;
+      return false;
+
     // Obsolete
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TIMESTAMP:

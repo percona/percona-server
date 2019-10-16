@@ -44,15 +44,10 @@ SET(MYSYS_SSL_SOURCES
 
 ADD_CONVENIENCE_LIBRARY(mysys_ssl ${MYSYS_SSL_SOURCES})
 TARGET_LINK_LIBRARIES(mysys_ssl dbug strings ${SSL_LIBRARIES} ${ZLIB_LIBRARY})
-<<<<<<< HEAD
-
-||||||| merged common ancestors
-=======
 TARGET_LINK_LIBRARIES(mysys_ssl ${CMAKE_THREAD_LIBS_INIT})
 IF(WIN32)
   TARGET_LINK_LIBRARIES(mysys_ssl crypt32)
 ENDIF()
->>>>>>> mysql-5.6
 DTRACE_INSTRUMENT(mysys_ssl)
 
 IF(MSVC)

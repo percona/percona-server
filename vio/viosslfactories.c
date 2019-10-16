@@ -125,23 +125,6 @@ static DH *get_dh2048(void)
   DH *dh;
   if ((dh=DH_new()))
   {
-<<<<<<< HEAD
-    BIGNUM* p= BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
-    BIGNUM* g= BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    dh->p= p;
-    dh->g= g;
-    if (! dh->p || ! dh->g)
-#else
-    if (!DH_set0_pqg(dh, p, NULL, g))
-#endif
-    {
-||||||| merged common ancestors
-    dh->p=BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
-    dh->g=BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
-    if (! dh->p || ! dh->g)
-    {
-=======
     BIGNUM *p= BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
     BIGNUM *g= BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
     if (!p || !g
@@ -150,15 +133,8 @@ static DH *get_dh2048(void)
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
     ) {
       /* DH_free() will free 'p' and 'g' at once. */
->>>>>>> mysql-5.6
       DH_free(dh);
-<<<<<<< HEAD
-      dh= NULL;
-||||||| merged common ancestors
-      dh=0;
-=======
       return NULL;
->>>>>>> mysql-5.6
     }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     dh->p= p;
@@ -364,31 +340,17 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
-<<<<<<< HEAD
-  long ssl_ctx_options= (SSL_OP_NO_SSLv2 |
-                         SSL_OP_NO_SSLv3
-                         | SSL_OP_NO_TICKET
-                        );
-  int ret_set_cipherlist= 0;
-  char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
-#if defined(OPENSSL_EC_NAMED_CURVE) && (OPENSSL_VERSION_NUMBER < 0x10002000L)
-  EC_KEY *ecdh;
-#endif
-||||||| merged common ancestors
-  long ssl_ctx_options= (SSL_OP_NO_SSLv2 |
-                         SSL_OP_NO_SSLv3
-                         | SSL_OP_NO_TICKET
-                        );
-
-=======
   /* MySQL 5.6 supports TLS up to v1.2, explicitly disable TLSv1.3. */
   long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
 #ifdef HAVE_TLSv13
                         SSL_OP_NO_TLSv1_3 |
 #endif /* HAVE_TLSv13 */
                         SSL_OP_NO_TICKET;
-
->>>>>>> mysql-5.6
+  int ret_set_cipherlist= 0;
+  char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
+#if defined(OPENSSL_EC_NAMED_CURVE) && (OPENSSL_VERSION_NUMBER < 0x10002000L)
+  EC_KEY *ecdh;
+#endif
   DBUG_ENTER("new_VioSSLFd");
   DBUG_PRINT("enter",
              ("key_file: '%s'  cert_file: '%s'  ca_file: '%s'  ca_path: '%s'  "
@@ -413,6 +375,9 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   ssl_ctx_options= (ssl_ctx_options | ssl_ctx_flags) &
     (SSL_OP_NO_SSLv2 |
      SSL_OP_NO_SSLv3 |
+#ifdef HAVE_TLSv13
+     SSL_OP_NO_TLSv1_3 |
+#endif /* HAVE_TLSv13 */
      SSL_OP_NO_TLSv1
 #ifdef SSL_OP_NO_TLSv1_1
      | SSL_OP_NO_TLSv1_1
@@ -429,13 +394,6 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_RETURN(0);
 
   if (!(ssl_fd->ssl_context= SSL_CTX_new(is_client ?
-<<<<<<< HEAD
-                                         SSLv23_client_method() :
-                                         SSLv23_server_method())))
-||||||| merged common ancestors
-                                         TLSv1_client_method() :
-                                         TLSv1_server_method())))
-=======
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
                                          SSLv23_client_method() :
                                          SSLv23_server_method()
@@ -444,7 +402,6 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
                                          TLS_server_method()
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
                                         )))
->>>>>>> mysql-5.6
   {
     *error= SSL_INITERR_MEMFAIL;
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));

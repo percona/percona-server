@@ -120,54 +120,24 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv)
 {
-<<<<<<< HEAD
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX ctx_value;
-  EVP_CIPHER_CTX *ctx= &ctx_value;
-#else
-  EVP_CIPHER_CTX *ctx= EVP_CIPHER_CTX_new();
-  if (unlikely(!ctx))
-    return MY_AES_BAD_DATA;
-#endif
-
-||||||| merged common ancestors
-  EVP_CIPHER_CTX ctx;
-=======
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
   EVP_CIPHER_CTX *ctx= &stack_ctx;
+  memset(ctx, 0, sizeof(stack_ctx));
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX *ctx= EVP_CIPHER_CTX_new();
+  if (unlikely(!ctx))
+    return MY_AES_BAD_DATA;
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.6
   const EVP_CIPHER *cipher= aes_evp_type(mode);
   int u_len, f_len;
   /* The real key to be used for encryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
-<<<<<<< HEAD
-  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0
-                  && EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE && !iv))
-  {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-    EVP_CIPHER_CTX_free(ctx);
-#endif
-||||||| merged common ancestors
-  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
-=======
   my_aes_create_key(key, key_length, rkey, mode);
-  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
->>>>>>> mysql-5.6
-    return MY_AES_BAD_DATA;
-  }
-
-<<<<<<< HEAD
-  if (!EVP_EncryptInit(ctx, cipher, rkey, iv))
-||||||| merged common ancestors
-  if (!EVP_EncryptInit(&ctx, cipher, rkey, iv))
+  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
     goto aes_error;                             /* Error */
-  if (!EVP_CIPHER_CTX_set_padding(&ctx, 1))
-=======
+
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_init(ctx);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
@@ -175,17 +145,7 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   if (!EVP_EncryptInit(ctx, cipher, rkey, iv))
     goto aes_error;                             /* Error */
   if (!EVP_CIPHER_CTX_set_padding(ctx, 1))
->>>>>>> mysql-5.6
     goto aes_error;                             /* Error */
-<<<<<<< HEAD
-  if (!EVP_CIPHER_CTX_set_padding(ctx, 1))
-||||||| merged common ancestors
-  if (!EVP_EncryptUpdate(&ctx, dest, &u_len, source, source_length))
-=======
-  if (!EVP_EncryptUpdate(ctx, dest, &u_len, source, source_length))
->>>>>>> mysql-5.6
-    goto aes_error;                             /* Error */
-<<<<<<< HEAD
   if (source_length > 0) /* workaround for old OpenSSL versions */
   {
     if (!EVP_EncryptUpdate(ctx, dest, &u_len, source, source_length))
@@ -194,49 +154,23 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   else
     u_len= 0;
   if (!EVP_EncryptFinal(ctx, dest + u_len, &f_len))
-||||||| merged common ancestors
-
-  if (!EVP_EncryptFinal(&ctx, dest + u_len, &f_len))
-=======
-  if (!EVP_EncryptFinal(ctx, dest + u_len, &f_len))
->>>>>>> mysql-5.6
     goto aes_error;                             /* Error */
 
-<<<<<<< HEAD
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX_cleanup(ctx);
-#else
-  EVP_CIPHER_CTX_free(ctx);
-#endif
-||||||| merged common ancestors
-  EVP_CIPHER_CTX_cleanup(&ctx);
-=======
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX_free(ctx);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.6
   return u_len + f_len;
 
 aes_error:
   /* need to explicitly clean up the error if we want to ignore it */
   ERR_clear_error();
-<<<<<<< HEAD
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX_cleanup(ctx);
-#else
-  EVP_CIPHER_CTX_free(ctx);
-#endif
-||||||| merged common ancestors
-  EVP_CIPHER_CTX_cleanup(&ctx);
-=======
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX_free(ctx);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.6
   return MY_AES_BAD_DATA;
 }
 
@@ -246,27 +180,15 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv)
 {
-<<<<<<< HEAD
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX ctx_value;
-  EVP_CIPHER_CTX *ctx= &ctx_value;
-#else
-  EVP_CIPHER_CTX *ctx= EVP_CIPHER_CTX_new();
-  if (unlikely(!ctx))
-    return MY_AES_BAD_DATA;
-#endif
-
-||||||| merged common ancestors
-
-  EVP_CIPHER_CTX ctx;
-=======
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
   EVP_CIPHER_CTX *ctx= &stack_ctx;
+  memset(ctx, 0, sizeof(stack_ctx));
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX *ctx= EVP_CIPHER_CTX_new();
+  if (unlikely(!ctx))
+    return MY_AES_BAD_DATA;
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.6
   const EVP_CIPHER *cipher= aes_evp_type(mode);
   int u_len, f_len;
 
@@ -274,30 +196,12 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
   my_aes_create_key(key, key_length, rkey, mode);
-<<<<<<< HEAD
-  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0
-                  && EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE && !iv))
-  {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-    EVP_CIPHER_CTX_free(ctx);
-#endif
-||||||| merged common ancestors
   if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
-=======
-  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
->>>>>>> mysql-5.6
-    return MY_AES_BAD_DATA;
-  }
+    goto aes_error;                             /* Error */
 
-<<<<<<< HEAD
-  EVP_CIPHER_CTX_init(ctx);
-||||||| merged common ancestors
-  EVP_CIPHER_CTX_init(&ctx);
-=======
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_init(ctx);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.6
 
   if (!EVP_DecryptInit(ctx, aes_evp_type(mode), rkey, iv))
     goto aes_error;                             /* Error */
@@ -308,41 +212,21 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   if (!EVP_DecryptFinal_ex(ctx, dest + u_len, &f_len))
     goto aes_error;                             /* Error */
 
-<<<<<<< HEAD
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX_cleanup(ctx);
-#else
-  EVP_CIPHER_CTX_free(ctx);
-#endif
-||||||| merged common ancestors
-  EVP_CIPHER_CTX_cleanup(&ctx);
-=======
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX_free(ctx);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.6
   return u_len + f_len;
 
 aes_error:
   /* need to explicitly clean up the error if we want to ignore it */
   ERR_clear_error();
-<<<<<<< HEAD
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX_cleanup(ctx);
-#else
-  EVP_CIPHER_CTX_free(ctx);
-#endif
-||||||| merged common ancestors
-  EVP_CIPHER_CTX_cleanup(&ctx);
-=======
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX_free(ctx);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.6
   return MY_AES_BAD_DATA;
 }
 
@@ -377,7 +261,6 @@ my_bool my_aes_needs_iv(my_aes_opmode opmode)
 
   iv_length= EVP_CIPHER_iv_length(cipher);
   DBUG_ASSERT(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
-  return iv_length != 0
-    ? (EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE) : FALSE;
+  return iv_length != 0 ? TRUE : FALSE;
 }
 

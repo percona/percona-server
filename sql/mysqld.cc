@@ -1316,19 +1316,13 @@ typedef struct CRYPTO_dynlock_value
 } openssl_lock_t;
 
 static openssl_lock_t *openssl_stdlocks;
-openssl_lock_t *openssl_dynlock_create(const char *, int);
-void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
-void openssl_lock_function(int, int, const char *, int);
+static openssl_lock_t *openssl_dynlock_create(const char *, int);
+static void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
+static void openssl_lock_function(int, int, const char *, int);
 static void openssl_lock(int, openssl_lock_t *, const char *, int);
-<<<<<<< HEAD
-unsigned long openssl_id_function();
-||||||| merged common ancestors
-static unsigned long openssl_id_function();
-=======
 static unsigned long openssl_id_function();
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
->>>>>>> mysql-5.6
 char *des_key_file;
 #ifndef EMBEDDED_LIBRARY
 struct st_VioSSLFd *ssl_acceptor_fd;
@@ -3061,18 +3055,10 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   }
 
   // Clean up errors now, before possibly waiting for a new connection.
-<<<<<<< HEAD
 #if !defined(EMBEDDED_LIBRARY) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
-  ERR_remove_state(0);
-||||||| merged common ancestors
-#ifndef EMBEDDED_LIBRARY
-  ERR_remove_state(0);
-=======
-#ifndef EMBEDDED_LIBRARY
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.6
 #endif
 
   delete thd;
@@ -4619,11 +4605,6 @@ static int init_thread_environment()
 
 
 #if defined(HAVE_OPENSSL)
-<<<<<<< HEAD
-unsigned long openssl_id_function()
-||||||| merged common ancestors
-static unsigned long openssl_id_function()
-=======
 
 /*
   OpenSSL 1.1 supports native platform threads,
@@ -4632,13 +4613,12 @@ static unsigned long openssl_id_function()
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
 static unsigned long openssl_id_function()
->>>>>>> mysql-5.6
 {
   return (unsigned long) pthread_self();
 }
 
 
-openssl_lock_t *openssl_dynlock_create(const char *file, int line)
+static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
 {
   openssl_lock_t *lock= new openssl_lock_t;
   mysql_rwlock_init(key_rwlock_openssl, &lock->lock);
@@ -4646,7 +4626,7 @@ openssl_lock_t *openssl_dynlock_create(const char *file, int line)
 }
 
 
-void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
+static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
             int line)
 {
   mysql_rwlock_destroy(&lock->lock);
@@ -4654,7 +4634,7 @@ void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
 }
 
 
-void openssl_lock_function(int mode, int n, const char *file, int line)
+static void openssl_lock_function(int mode, int n, const char *file, int line)
 {
   if (n < 0 || n > CRYPTO_num_locks())
   {
@@ -4704,7 +4684,6 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
-<<<<<<< HEAD
   int fips_mode= FIPS_mode();
   if (fips_mode != 0)
   {
@@ -4715,10 +4694,6 @@ static int init_ssl()
     FIPS_mode_set(0);
   }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-||||||| merged common ancestors
-=======
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
->>>>>>> mysql-5.6
   CRYPTO_malloc_init();
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   OPENSSL_malloc_init();
@@ -4738,17 +4713,9 @@ static int init_ssl()
                                           opt_ssl_crl, opt_ssl_crlpath,
                                           ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
-<<<<<<< HEAD
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    ERR_remove_state(0);
-#endif
-||||||| merged common ancestors
-    ERR_remove_state(0);
-=======
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.6
     if (!ssl_acceptor_fd)
     {
       sql_print_warning("Failed to setup SSL");

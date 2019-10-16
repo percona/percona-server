@@ -730,10 +730,22 @@ class Rdb_key_def {
       Rdb_field_packing *const fpi, Field *const field, uchar *buf, uchar **dst,
       Rdb_pack_field_context *const pack_ctx);
 
+  template <int length>
+  static void pack_unsigned(Rdb_field_packing *const fpi, Field *const field,
+                            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                            Rdb_pack_field_context *const pack_ctx
+                                MY_ATTRIBUTE((__unused__)));
+
   static int unpack_integer(Rdb_field_packing *const fpi, Field *const field,
                             uchar *const to, Rdb_string_reader *const reader,
                             Rdb_string_reader *const unp_reader
                                 MY_ATTRIBUTE((__unused__)));
+
+  template <int length>
+  static int unpack_unsigned(Rdb_field_packing *const fpi, Field *const field,
+                             uchar *const to, Rdb_string_reader *const reader,
+                             Rdb_string_reader *const unp_reader
+                                 MY_ATTRIBUTE((__unused__)));
 
   static int unpack_double(
       Rdb_field_packing *const fpi MY_ATTRIBUTE((__unused__)),
@@ -746,6 +758,11 @@ class Rdb_key_def {
       Field *const field MY_ATTRIBUTE((__unused__)), uchar *const field_ptr,
       Rdb_string_reader *const reader,
       Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__)));
+
+  static void pack_bit(Rdb_field_packing *const fpi, Field *const field,
+                       uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                       Rdb_pack_field_context *const pack_ctx
+                           MY_ATTRIBUTE((__unused__)));
 
   static int unpack_binary_str(Rdb_field_packing *const fpi, Field *const field,
                                uchar *const to, Rdb_string_reader *const reader,

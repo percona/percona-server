@@ -1,8 +1,13 @@
 --source include/have_rocksdb.inc
 
+call mtr.add_suppression("Trying to create an index with a multi-level collation");
+call mtr.add_suppression("Will handle this collation internally as if it had a NO_PAD attribute.");
+
+CREATE TABLE collations AS SELECT * FROM information_schema.COLLATION_CHARACTER_SET_APPLICABILITY WHERE COLLATION_NAME NOT IN ("binary", "latin2_czech_cs");
+
 --let $i=1
---let $charset=query_get_value(select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY where COLLATION_NAME like '%_bin' ORDER BY CHARACTER_SET_NAME, CHARACTER_SET_NAME, $i)
---let $collate=query_get_value(select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY where COLLATION_NAME like '%_bin' ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, $i)
+--let $charset=query_get_value(select * from collations, CHARACTER_SET_NAME, $i)
+--let $collate=query_get_value(select * from collations, COLLATION_NAME, $i)
 while ($charset != 'No such row')
 {
   --echo # Testing character set $charset collation $collate
@@ -24,6 +29,8 @@ while ($charset != 'No such row')
   --eval DROP TABLE $table_name
 
   --inc $i
-  --let $charset=query_get_value(select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY where COLLATION_NAME like '%_bin' ORDER BY CHARACTER_SET_NAME, CHARACTER_SET_NAME, $i)
-  --let $collate=query_get_value(select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY where COLLATION_NAME like '%_bin' ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, $i)
+  --let $charset=query_get_value(select * from collations, CHARACTER_SET_NAME, $i)
+  --let $collate=query_get_value(select * from collations, COLLATION_NAME, $i)
 }
+
+DROP TABLE collations;

@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -55,7 +62,7 @@
 #include "crypt_genhash_impl.h"
 #include "debug_sync.h"
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
@@ -12476,7 +12483,6 @@ int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
 
 #if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
-#if !defined(HAVE_YASSL)
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
 
@@ -12772,7 +12778,6 @@ bool init_rsa_keys(void)
 {
   return (g_rsa_keys.read_rsa_keys());
 }
-#endif // ifndef HAVE_YASSL
 
 static MYSQL_PLUGIN plugin_info_ptr;
 
@@ -12808,12 +12813,10 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   char scramble[SCRAMBLE_LENGTH + 1];
   char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
   String scramble_response_packet;
-#if !defined(HAVE_YASSL)
   int cipher_length= 0;
   unsigned char plain_text[MAX_CIPHER_LENGTH];
   RSA *private_key= NULL;
   RSA *public_key= NULL;
-#endif
 
   DBUG_ENTER("sha256_password_authenticate");
 
@@ -12862,7 +12865,6 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
   if (!my_vio_is_encrypted(vio))
   {
- #if !defined(HAVE_YASSL)
     /*
       Since a password is being used it must be encrypted by RSA since no 
       other encryption is being active.
@@ -12929,9 +12931,6 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
     if (pkt_len == 1)
       DBUG_RETURN(CR_ERROR);
-#else
-    DBUG_RETURN(CR_ERROR);
-#endif
   } // if(!my_vio_is_encrypter())
 
   if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1)
@@ -12974,7 +12973,6 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   DBUG_RETURN(CR_ERROR);
 }
 
-#if !defined(HAVE_YASSL)
 static MYSQL_SYSVAR_STR(private_key_path, auth_rsa_private_key_path,
         PLUGIN_VAR_READONLY,
         "A fully qualified path to the private RSA key used for authentication",
@@ -12989,7 +12987,6 @@ static struct st_mysql_sys_var* sha256_password_sysvars[]= {
   MYSQL_SYSVAR(public_key_path),
   0
 };
-#endif // HAVE_YASSL
 #endif // HAVE_OPENSSL
 
 static struct st_mysql_auth native_password_handler=
@@ -13059,11 +13056,7 @@ mysql_declare_plugin(mysql_password)
   NULL,                                         /* Deinit function  */
   0x0100,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
-#if !defined(HAVE_YASSL)
   sha256_password_sysvars,                      /* system variables */
-#else
-  NULL,
-#endif
   NULL,                                         /* config options   */
   0                                             /* flags            */
 }
@@ -13162,18 +13155,12 @@ validate_user_plugin_records()
         }
       }
       if (acl_user->plugin.str == sha256_password_plugin_name.str &&
-#if !defined(HAVE_YASSL)
           (!g_rsa_keys.get_private_key() || !g_rsa_keys.get_public_key()) &&
-#endif
           !ssl_acceptor_fd)
       {
           sql_print_warning("The plugin '%s' is used to authenticate "
                             "user '%s'@'%.*s', "
-#if !defined(HAVE_YASSL)
                             "but neither SSL nor RSA keys are "
-#else
-                            "but no SSL is "
-#endif
                             "configured. "
                             "Nobody can currently login using this account.",
                             sha256_password_plugin_name.str,

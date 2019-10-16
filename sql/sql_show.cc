@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2199,8 +2206,17 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         /* Lock THD mutex that protects its data when looking at it. */
         if (tmp->query())
         {
-          uint length= min<uint>(max_query_length, tmp->query_length());
-          char *q= thd->strmake(tmp->query(),length);
+          const char *query_str;
+          size_t query_length;
+          if ((query_length = tmp->rewritten_query.length()) > 0) {
+            query_str = tmp->rewritten_query.c_ptr();
+          } else {
+            query_length = tmp->query_length();
+            query_str = tmp->query();
+          }
+
+          uint length= min<uint>(max_query_length, query_length);
+          char *q= thd->strmake(query_str, length);
           /* Safety: in case strmake failed, we set length to 0. */
           thd_info->query_string=
             CSET_STRING(q, q ? length : 0, tmp->query_charset());
@@ -2361,9 +2377,18 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
       /* INFO */
       if (tmp->query())
       {
+        const char *query_str;
+        size_t query_length;
+
+        if ((query_length = tmp->rewritten_query.length()) > 0) {
+          query_str = tmp->rewritten_query.c_ptr();
+        } else {
+          query_length = tmp->query_length();
+          query_str = tmp->query();
+        }
         size_t const width=
-          min<size_t>(PROCESS_LIST_INFO_WIDTH, tmp->query_length());
-        table->field[7]->store(tmp->query(), width, cs);
+          min<size_t>(PROCESS_LIST_INFO_WIDTH, query_length);
+        table->field[7]->store(query_str, width, cs);
         table->field[7]->set_notnull();
       }
 

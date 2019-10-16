@@ -367,14 +367,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-<<<<<<< HEAD
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF) && \
-    (OPENSSL_VERSION_NUMBER < 0x10100000L)
-||||||| merged common ancestors
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
-=======
 #if !defined(DBUG_OFF)
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
   int j, n;
 #endif
 
@@ -397,15 +390,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-<<<<<<< HEAD
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF) && \
-    (OPENSSL_VERSION_NUMBER < 0x10100000L)
-
-||||||| merged common ancestors
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
-=======
 #if !defined(DBUG_OFF)
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
   {
     STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
     ssl_comp_methods = SSL_COMP_get_compression_methods();
@@ -417,7 +402,11 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
       for (j = 0; j < n; j++)
       {
         SSL_COMP *c = sk_SSL_COMP_value(ssl_comp_methods, j);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
         DBUG_PRINT("info", ("  %d: %s\n", c->id, c->name));
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+        DBUG_PRINT("info", ("  %d: %s\n", SSL_COMP_get_id(c), SSL_COMP_get0_name(c)));
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
       }
   }
 #endif

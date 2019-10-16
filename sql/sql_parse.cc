@@ -5676,21 +5676,6 @@ finish:
     /* report error issued during command execution */
     if (thd->killed_errno())
       thd->send_kill_message();
-<<<<<<< HEAD
-||||||| merged common ancestors
-    if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-    {
-      thd->killed= THD::NOT_KILLED;
-      thd->mysys_var->abort= 0;
-    }
-=======
-    if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-    {
-      thd->killed= THD::NOT_KILLED;
-      thd->mysys_var->abort= 0;
-      thd->reset_query_for_display();
-    }
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
     if (thd->is_error() || (thd->variables.option_bits & OPTION_MASTER_SQL_ERROR))
       trans_rollback_stmt(thd);
     else
@@ -5706,6 +5691,7 @@ finish:
     {
       thd->killed= THD::NOT_KILLED;
       thd->mysys_var->abort= 0;
+      thd->reset_query_for_display();
     }
   }
 
@@ -7178,7 +7164,6 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     parser_state->m_lip.found_semicolon= NULL;
   }
 
-<<<<<<< HEAD
   /* Update user statistics only if at least one timer was initialized */
   if (unlikely(update_userstat &&
                (start_busy_usecs > 0.0 || start_cpu_nsecs > 0.0)))
@@ -7192,11 +7177,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 #endif
   }
 
-||||||| merged common ancestors
-=======
   DEBUG_SYNC(thd, "query_rewritten");
 
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
   DBUG_VOID_RETURN;
 }
 

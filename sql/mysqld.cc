@@ -126,7 +126,7 @@ int dummy_variable_to_pull_in_lf_hash_functions= LF_HASH_OVERHEAD;
 #include <poll.h>
 #endif
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 #include <openssl/crypto.h>
 #endif
 
@@ -1309,23 +1309,17 @@ char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
 
 #ifdef HAVE_OPENSSL
 #include <openssl/crypto.h>
-<<<<<<< HEAD
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
-||||||| merged common ancestors
-#ifndef HAVE_YASSL
-=======
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
 typedef struct CRYPTO_dynlock_value
 {
   mysql_rwlock_t lock;
 } openssl_lock_t;
 
 static openssl_lock_t *openssl_stdlocks;
-static openssl_lock_t *openssl_dynlock_create(const char *, int);
-static void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
-static void openssl_lock_function(int, int, const char *, int);
+openssl_lock_t *openssl_dynlock_create(const char *, int);
+void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
+void openssl_lock_function(int, int, const char *, int);
 static void openssl_lock(int, openssl_lock_t *, const char *, int);
-static unsigned long openssl_id_function();
+unsigned long openssl_id_function();
 char *des_key_file;
 #ifndef EMBEDDED_LIBRARY
 struct st_VioSSLFd *ssl_acceptor_fd;
@@ -2109,12 +2103,6 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_connection_count);
 #ifdef HAVE_OPENSSL
   mysql_mutex_destroy(&LOCK_des_key_file);
-<<<<<<< HEAD
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
-||||||| merged common ancestors
-#ifndef HAVE_YASSL
-=======
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
     mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
@@ -4558,12 +4546,6 @@ static int init_thread_environment()
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
-<<<<<<< HEAD
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
-||||||| merged common ancestors
-#ifndef HAVE_YASSL
-=======
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
   openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
                                                      sizeof(openssl_lock_t));
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
@@ -4613,21 +4595,14 @@ static int init_thread_environment()
 }
 
 
-<<<<<<< HEAD
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL) && \
-    (OPENSSL_VERSION_NUMBER < 0x10100000L)
-||||||| merged common ancestors
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
-=======
 #if defined(HAVE_OPENSSL)
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
-static unsigned long openssl_id_function()
+unsigned long openssl_id_function()
 {
   return (unsigned long) pthread_self();
 }
 
 
-static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
+openssl_lock_t *openssl_dynlock_create(const char *file, int line)
 {
   openssl_lock_t *lock= new openssl_lock_t;
   mysql_rwlock_init(key_rwlock_openssl, &lock->lock);
@@ -4635,7 +4610,7 @@ static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
 }
 
 
-static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
+void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
             int line)
 {
   mysql_rwlock_destroy(&lock->lock);
@@ -4643,7 +4618,7 @@ static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
 }
 
 
-static void openssl_lock_function(int mode, int n, const char *file, int line)
+void openssl_lock_function(int mode, int n, const char *file, int line)
 {
   if (n < 0 || n > CRYPTO_num_locks())
   {
@@ -4692,8 +4667,6 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
-<<<<<<< HEAD
-#ifndef HAVE_YASSL
   int fips_mode= FIPS_mode();
   if (fips_mode != 0)
   {
@@ -4703,13 +4676,11 @@ static int init_ssl()
         " Disabling FIPS.");
     FIPS_mode_set(0);
   }
-#endif /* HAVE_YASSL */
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
-||||||| merged common ancestors
-#ifndef HAVE_YASSL
-=======
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   CRYPTO_malloc_init();
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  OPENSSL_malloc_init();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)

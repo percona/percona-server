@@ -961,16 +961,6 @@
    fun:_Z11mysqld_mainiPPc
    fun:main
 }
-<<<<<<< HEAD
-
-{
-   Spurious dlerror_run errors on main.udf
-   Memcheck:Leak
-   ...
-   fun:dlerror_run
-}
-||||||| merged common ancestors
-=======
 
 {
    OpenSSL libstdc++ version 5 / three
@@ -992,4 +982,10 @@
    fun:asprintf
    fun:dlerror
 }
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
+
+{
+   Spurious dlerror_run errors on main.udf
+   Memcheck:Leak
+   ...
+   fun:dlerror_run
+}

@@ -201,30 +201,14 @@ IF(WIN32)
   LIST(APPEND LIBS_TO_MERGE auth_win_client)
 ENDIF()
 
-<<<<<<< HEAD
 # Merge several convenience libraries into one big perconaserverclient
-MERGE_LIBRARIES(perconaserverclient STATIC ${LIBS} COMPONENT Development)
-||||||| merged common ancestors
-# Merge several convenience libraries into one big mysqlclient
-MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
-=======
-# Merge several convenience libraries into one big mysqlclient
-MERGE_LIBRARIES(mysqlclient STATIC ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(mysqlclient ${LIBS_TO_LINK})
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
+MERGE_LIBRARIES(perconaserverclient STATIC ${LIBS_TO_MERGE} COMPONENT Development)
+TARGET_LINK_LIBRARIES(perconaserverclient ${LIBS_TO_LINK})
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
-<<<<<<< HEAD
- INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
- INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
-||||||| merged common ancestors
- INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
- INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
-=======
-  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
   INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^
 ENDIF()
 
 MACRO(GET_TARGET_NAME target out_name)

@@ -87,17 +87,9 @@ IF(FEATURE_SET)
   ENDFOREACH()
 ENDIF()
 
-<<<<<<< HEAD
-SET(WITH_SSL bundled CACHE STRING "")
-SET(WITH_ZLIB system CACHE STRING "")
-||||||| merged common ancestors
-SET(WITH_SSL bundled CACHE STRING "")
-SET(WITH_ZLIB bundled CACHE STRING "")
-=======
 IF(NOT WITH_SSL)
   SET(WITH_SSL system CACHE STRING "")
 ENDIF()
 IF(NOT WITH_ZLIB)
-  SET(WITH_ZLIB bundled CACHE STRING "")
+  SET(WITH_ZLIB system CACHE STRING "")
 ENDIF()
->>>>>>> 472b73ec0d76bd44bbe2fc6489df8ca8b2e0a49f^

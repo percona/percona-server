@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/08/2019
+.\"      Date: 09/27/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "06/08/2019" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "09/27/2019" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -90,7 +90,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.317.\ \&Command\-line options for the ndb_restore program
+.B Table\ \&18.303.\ \&Command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -685,7 +685,9 @@ or
 .sp .5v
 .RE
 .PP
-More detailed information about all options used by ndb_restore can be found in the following list:
+More detailed information about all options used by
+\fBndb_restore\fR
+can be found in the following list:
 .sp
 .RS 4
 .ie n \{\
@@ -799,9 +801,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.4\&.25 to a cluster running NDB Cluster 7\&.3\&.26, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.4\&.26 to a cluster running NDB Cluster 7\&.3\&.27, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.4\&.25 distribution\&.
+that comes with the NDB Cluster 7\&.4\&.26 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1222,7 +1224,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.318.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
+.B Table\ \&18.304.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1640,7 +1642,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.319.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
+.B Table\ \&18.305.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -2798,7 +2800,7 @@ to restore the privilege tables\&.
 This works only if the privilege tables were converted to
 NDB
 before the backup was taken\&. For more information, see
-Section\ \&18.5.15, \(lqDistributed MySQL Privileges for NDB Cluster\(rq\&.
+Section\ \&18.5.15, \(lqDistributed Privileges Using Shared Grant Tables\(rq\&.
 .RE
 .sp
 .RS 4

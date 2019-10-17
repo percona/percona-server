@@ -322,14 +322,12 @@ script:
       if [[ "$CC" == "gcc-4.8" ]]; then
         CMAKE_OPT=${CMAKE_OPT/WITH_PROTOBUF=system/WITH_PROTOBUF=bundled};
       fi;
-      `# disable RocksDB for gcc-8 until MyRocks is warning-free`;
-      if [[ "$CC" == "gcc-8" ]]; then NOT_GCC_8=0; else NOT_GCC_8=1; fi;
       if [[ "$TRAVIS_REPO_SLUG" == "percona/percona-server" ]]; then
-        CMAKE_OPT+=" -DWITH_TOKUDB=ON -DWITH_ROCKSDB=$NOT_GCC_8";
+        CMAKE_OPT+=" -DWITH_TOKUDB=ON -DWITH_ROCKSDB=ON";
       else
         `# disable TokuDB or RocksDB as developers' forks must fit in the 50 min time limit`;
         if [[ "$BUILD" == "Debug" ]] && [[ "$CC" == "clang-$VERSION" ]]; then
-          CMAKE_OPT+=" -DWITH_TOKUDB=OFF -DWITH_ROCKSDB=$NOT_GCC_8";
+          CMAKE_OPT+=" -DWITH_TOKUDB=OFF -DWITH_ROCKSDB=ON";
         else
           CMAKE_OPT+=" -DWITH_TOKUDB=ON -DWITH_ROCKSDB=OFF";
         fi;
@@ -343,7 +341,7 @@ script:
 
   - CMAKE_TIME=$(($SECONDS - $INIT_TIME - $UPDATE_TIME));
     if [[ "$TRAVIS_REPO_SLUG" == "percona/percona-server" ]]; then
-      TIMEOUT_TIME=$((116 * 60 - $SECONDS));
+      TIMEOUT_TIME=$((176 * 60 - $SECONDS));
     else
       TIMEOUT_TIME=$((46 * 60 - $SECONDS));
     fi;

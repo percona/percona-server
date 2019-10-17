@@ -4,6 +4,9 @@
  Utility user
 ==============
 
+|Availability| This feature is **Experimental** quality.
+
+
 |Percona Server| has implemented ability to have a |MySQL| user who has system access to do administrative tasks but limited access to user schema. This feature is especially useful to those operating |MySQL| As A Service. 
 
 This user has a mixed and special scope of abilities and protection:

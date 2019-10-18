@@ -105,6 +105,8 @@ const std::string PER_INDEX_CF_NAME("$per_index_cf");
 
 static std::vector<std::string> rdb_tables_to_recalc;
 
+static Rdb_exec_time st_rdb_exec_time;
+
 /**
   Updates row counters based on the table type and operation type.
 */
@@ -2966,7 +2968,8 @@ class Rdb_transaction {
     rocksdb::ReadOptions options = m_read_opts;
 
     if (skip_bloom_filter) {
-      const bool enable_iterate_bounds = THDVAR(get_thd(), enable_iterate_bounds);
+      const bool enable_iterate_bounds =
+          THDVAR(get_thd(), enable_iterate_bounds);
       options.total_order_seek = true;
       options.iterate_lower_bound =
           enable_iterate_bounds ? &eq_cond_lower_bound : nullptr;
@@ -5187,6 +5190,9 @@ static int rocksdb_init_func(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
+  // NO_LINT_DEBUG
+  sql_print_information("RocksDB: Opening TransactionDB...");
+
   status = rocksdb::TransactionDB::Open(
       main_opts, tx_db_options, rocksdb_datadir, cf_descr, &cf_handles, &rdb);
 
@@ -5196,19 +5202,28 @@ static int rocksdb_init_func(void *const p) {
   }
   cf_manager.init(std::move(cf_options_map), &cf_handles);
 
-  if (dict_manager.init(rdb, &cf_manager,
-                        rocksdb_enable_remove_orphaned_dropped_cfs)) {
+  // NO_LINT_DEBUG
+  sql_print_information("RocksDB: Initializing data dictionary...");
+
+  if (st_rdb_exec_time.exec("Rdb_dict_manager::init", [&]() {
+        return dict_manager.init(rdb, &cf_manager,
+                                 rocksdb_enable_remove_orphaned_dropped_cfs);
+      })) {
     LogPluginErrMsg(ERROR_LEVEL, 0, "Failed to initialize data dictionary.");
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
+  sql_print_information("RocksDB: Initializing DDL Manager...");
+
+  if (st_rdb_exec_time.exec("Rdb_ddl_manager::init", [&]() {
 #if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
-  if (ddl_manager.init(&dict_manager, &cf_manager, rocksdb_validate_tables)) {
+        return ddl_manager.init(&dict_manager, &cf_manager,
+                                rocksdb_validate_tables);
 #else
-  if (ddl_manager.init(&dict_manager, &cf_manager)) {
-#endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
-        // ROCKSDB_INCLUDE_VALIDATE_TABLES
+        return ddl_manager.init(&dict_manager, &cf_manager);
+#endif // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
+      })) {
     LogPluginErrMsg(ERROR_LEVEL, 0, "Failed to initialize DDL manager.");
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(HA_EXIT_FAILURE);
@@ -5321,6 +5336,8 @@ static int rocksdb_init_func(void *const p) {
   LogPluginErrMsg(INFORMATION_LEVEL, 0,
                   "MyRocks storage engine plugin has been successfully "
                   "initialized.");
+
+  st_rdb_exec_time.report();
 
   // Skip cleaning up rdb_open_tables as we've succeeded
   rdb_open_tables_cleanup.skip();

@@ -2730,9 +2730,9 @@ bool srv_enable_redo_encryption_mk(THD *thd) {
         ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
                   log_encrypt_name(existing_redo_encryption_mode),
                   "master_key");
-        ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                    log_encrypt_name(existing_redo_encryption_mode),
-                    "master_key");
+        ib_senderrf(
+            thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
+            log_encrypt_name(existing_redo_encryption_mode), "master_key");
       } else {
         ib::fatal(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
                   log_encrypt_name(existing_redo_encryption_mode),
@@ -2791,9 +2791,9 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
         ib::error(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
                   log_encrypt_name(existing_redo_encryption_mode),
                   "keyring_key");
-        ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
-                    log_encrypt_name(existing_redo_encryption_mode),
-                    "keyring_key");
+        ib_senderrf(
+            thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_BE_CHANGED,
+            log_encrypt_name(existing_redo_encryption_mode), "keyring_key");
       } else {
         ib::fatal(ER_REDO_ENCRYPTION_CANT_BE_CHANGED,
                   log_encrypt_name(existing_redo_encryption_mode),
@@ -2861,8 +2861,8 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
 }
 
 /* Set encryption for UNDO tablespace with given space id. */
-bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id,
-                                    mtr_t *mtr, bool is_boot) {
+bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,
+                                    bool is_boot) {
   ut_ad(fsp_is_undo_tablespace(space_id));
   fil_space_t *space = fil_space_get(space_id);
 
@@ -2881,8 +2881,7 @@ bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id,
   if (!Encryption::fill_encryption_info(key, iv, encrypt_info, is_boot, true)) {
     ib::error(ER_IB_MSG_1052, space->name);
     if (thd != nullptr) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1052,
-                  space->name);
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1052, space->name);
     }
     return true;
   }
@@ -2894,8 +2893,7 @@ bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id,
                                    false, mtr)) {
     ib::error(ER_IB_MSG_1053, space->name);
     if (thd != nullptr) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1053,
-                  space->name);
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1053, space->name);
     }
     return true;
   }
@@ -2906,8 +2904,8 @@ bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id,
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_1054, space->name, int{err}, ut_strerr(err));
     if (thd != nullptr) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1054,
-                  space->name, int{err}, ut_strerr(err));
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1054, space->name, int{err},
+                  ut_strerr(err));
     }
     return true;
   }

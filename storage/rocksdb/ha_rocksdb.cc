@@ -7650,8 +7650,7 @@ ulong ha_rocksdb::index_flags(bool &pk_can_be_decoded,
 
   ulong base_flags = HA_READ_NEXT |  // doesn't seem to be used
                      HA_READ_ORDER | HA_READ_RANGE | HA_READ_PREV;
-  bool res = check_keyread_allowed(pk_can_be_decoded,
-                                   table_share, inx, part,
+  bool res = check_keyread_allowed(pk_can_be_decoded, table_share, inx, part,
                                    all_parts);
   if (res)
     base_flags |= HA_KEYREAD_ONLY;

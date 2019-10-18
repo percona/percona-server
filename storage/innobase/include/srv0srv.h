@@ -1153,8 +1153,8 @@ void undo_rotate_default_master_key();
 @param[in] mtr          mini-transaction
 @param[in] is_boot	true if it is called during server start up.
 @return false for success, true otherwise */
-bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id,
-                                    mtr_t *mtr, bool is_boot);
+bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr,
+                                    bool is_boot);
 
 /** Enable UNDO tablespaces encryption.
 @param[in] is_boot	true if it is called during server start up. In this

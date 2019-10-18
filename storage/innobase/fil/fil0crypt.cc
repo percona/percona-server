@@ -3081,7 +3081,8 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
                       ENCRYPTION_KEY_LEN)) {
     ib::error(ER_REDO_ENCRYPTION_CANT_GENERATE_KEY);
     if (thd) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_GENERATE_KEY);
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN,
+                  ER_DA_REDO_ENCRYPTION_CANT_GENERATE_KEY);
     }
     return nullptr;
   }

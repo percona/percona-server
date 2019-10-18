@@ -2009,8 +2009,8 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
   if (is_encrypted && srv_undo_log_encrypt) {
     mtr_t mtr;
     mtr_start(&mtr);
-    ut_d(bool ret =) set_undo_tablespace_encryption(nullptr, new_space_id,
-                                                    &mtr, false);
+    ut_d(bool ret =)
+        set_undo_tablespace_encryption(nullptr, new_space_id, &mtr, false);
     /* Don't expect any error here (unless keyring plugin is uninstalled). In
     that case too, continue truncation processing of tablespace. */
     ut_ad(!ret);

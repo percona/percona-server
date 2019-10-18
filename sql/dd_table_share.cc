@@ -317,9 +317,9 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
       depends on whether the key is the primary key.
     */
     if (primary_key < MAX_KEY && share->keys_in_use.is_set(primary_key))
-      share->primary_key= primary_key;
+      share->primary_key = primary_key;
     else
-      share->primary_key= MAX_KEY;
+      share->primary_key = MAX_KEY;
 
     longlong ha_option = handler_file->ha_table_flags();
     keyinfo = share->key_info;

@@ -10,8 +10,8 @@ namespace keyring {
 class Vault_keys_container final : public Keys_container,
                                    private boost::noncopyable {
  public:
-  Vault_keys_container(ILogger *logger_value) noexcept :
-    Keys_container(logger_value) {}
+  Vault_keys_container(ILogger *logger_value) noexcept
+      : Keys_container(logger_value) {}
 
   bool init(IKeyring_io *keyring_io_value,
             std::string keyring_storage_url_value);

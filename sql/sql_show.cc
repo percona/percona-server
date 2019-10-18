@@ -1,13 +1,20 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2339,8 +2346,15 @@ public:
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     {
-      const char *query_str= inspect_thd->query().str;
-      size_t query_length= inspect_thd->query().length;
+      const char *query_str;
+      size_t query_length;
+      if ((query_length = inspect_thd->rewritten_query.length()) > 0) {
+        query_str = inspect_thd->rewritten_query.c_ptr();
+      } else {
+        query_length = inspect_thd->query().length;
+        query_str = inspect_thd->query().str;
+      }
+
 #ifndef EMBEDDED_LIBRARY
       String buf;
       if (inspect_thd->is_a_srv_session())
@@ -2569,8 +2583,17 @@ public:
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     {
-      const char *query_str= inspect_thd->query().str;
-      size_t query_length= inspect_thd->query().length;
+      const char *query_str;
+      size_t query_length;
+
+      if (inspect_thd->rewritten_query.length()) {
+        query_str = inspect_thd->rewritten_query.c_ptr_safe();
+        query_length = inspect_thd->rewritten_query.length();
+      } else {
+        query_str = inspect_thd->query().str;
+        query_length = inspect_thd->query().length;
+      }
+
 #ifndef EMBEDDED_LIBRARY
       String buf;
       if (inspect_thd->is_a_srv_session())
@@ -5021,6 +5044,13 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
     if (!view_open_result)
     {
+      if (table_list.is_view())
+      {
+        // See comments in tdc_open_view() for explanation.
+        if (!table_list.prelocking_placeholder &&
+            table_list.prepare_security(thd))
+          goto end;
+      }
       // Actual view query is not needed, just indicate that this is a view:
       table_list.set_view_query((LEX *) 1);
       res= schema_table->process_table(thd, &table_list, table,

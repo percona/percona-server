@@ -1,14 +1,22 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -50,9 +58,19 @@ PageBulk::init()
 	mtr = static_cast<mtr_t*>(
 		mem_heap_alloc(m_heap, sizeof(mtr_t)));
 	mtr_start(mtr);
+<<<<<<< HEAD
 	if (m_index->is_committed()) {
 		mtr_x_lock(dict_index_get_lock(m_index), mtr);
 	}
+||||||| merged common ancestors
+	mtr_x_lock(dict_index_get_lock(m_index), mtr);
+=======
+
+	if (!dict_index_is_online_ddl(m_index)) {
+		mtr_x_lock(dict_index_get_lock(m_index), mtr);
+	}
+
+>>>>>>> b3f0164e00
 	mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
 	mtr_set_flush_observer(mtr, m_flush_observer);
 
@@ -610,9 +628,19 @@ PageBulk::latch()
 	ibool	ret;
 
 	mtr_start(m_mtr);
+<<<<<<< HEAD
 	if (m_index->is_committed()) {
 		mtr_x_lock(dict_index_get_lock(m_index), m_mtr);
 	}
+||||||| merged common ancestors
+	mtr_x_lock(dict_index_get_lock(m_index), m_mtr);
+=======
+
+	if (!dict_index_is_online_ddl(m_index)) {
+		mtr_x_lock(dict_index_get_lock(m_index), m_mtr);
+	}
+
+>>>>>>> b3f0164e00
 	mtr_set_log_mode(m_mtr, MTR_LOG_NO_REDO);
 	mtr_set_flush_observer(m_mtr, m_flush_observer);
 
@@ -641,6 +669,15 @@ PageBulk::latch()
 
 	return (m_err);
 }
+
+#ifdef UNIV_DEBUG
+/* Check if an index is locked */
+bool PageBulk::isIndexXLocked() {
+	return (dict_index_is_online_ddl(m_index) &&
+		mtr_memo_contains_flagged(m_mtr, dict_index_get_lock(m_index),
+			MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK));
+}
+#endif // UNIV_DEBUG
 
 /** Split a page
 @param[in]	page_bulk	page to split
@@ -715,6 +752,16 @@ BtrBulk::pageCommit(
 		mark it modified in mini-transaction.  */
 		page_bulk->setNext(FIL_NULL);
 	}
+
+	/* Assert that no locks are held during bulk load operation
+	in case of a online ddl operation. Insert thread acquires index->lock
+	to check the online status of index. During bulk load index,
+	there are no concurrent insert of reads and hence, there is no
+	need to acquire a lock in that case. */
+	ut_ad(!page_bulk->isIndexXLocked());
+
+	DBUG_EXECUTE_IF("innodb_bulk_load_sleep",
+			os_thread_sleep(1000000););
 
 	/* Compress page if it's a compressed table. */
 	if (page_bulk->getPageZip() != NULL && !page_bulk->compress()) {
@@ -799,8 +846,13 @@ BtrBulk::insert(
 			return(err);
 		}
 
+<<<<<<< HEAD
 		DEBUG_SYNC_C("bulk_load_insert");
 
+||||||| merged common ancestors
+=======
+		DEBUG_SYNC_C("bulk_load_insert");
+>>>>>>> b3f0164e00
 		m_page_bulks->push_back(new_page_bulk);
 		ut_ad(level + 1 == m_page_bulks->size());
 		m_root_level = level;
@@ -935,6 +987,19 @@ BtrBulk::finish(dberr_t	err)
 {
 	ulint		last_page_no = FIL_NULL;
 
+<<<<<<< HEAD
+||||||| merged common ancestors
+	ut_ad(!dict_table_is_temporary(m_index->table));
+
+=======
+	ut_ad(!dict_table_is_temporary(m_index->table));
+
+#ifdef UNIV_DEBUG
+	/* Assert that the index online status has not changed */
+	ut_ad(m_index->online_status == m_index_online);
+#endif // UNIV_DEBUG
+
+>>>>>>> b3f0164e00
 	if (m_page_bulks->size() == 0) {
 		/* The table is empty. The root page of the index tree
 		is already in a consistent state. No need to flush. */

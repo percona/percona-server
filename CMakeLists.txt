@@ -1,14 +1,21 @@
 # Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
@@ -40,6 +47,19 @@ IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR
    CMAKE_VERSION VERSION_GREATER "3.0.0")
  CMAKE_POLICY(SET CMP0045 OLD)
  CMAKE_POLICY(SET CMP0042 OLD)
+ENDIF()
+
+# In CMake 3.12 and above, the
+#
+# * ``check_include_file`` macro in the ``CheckIncludeFile`` module, the
+# * ``check_include_file_cxx`` macro in the
+#   ``CheckIncludeFileCXX`` module, and the
+# * ``check_include_files`` macro in the ``CheckIncludeFiles`` module
+#
+# now prefer to link the check executable to the libraries listed in the
+# ``CMAKE_REQUIRED_LIBRARIES`` variable.
+IF(POLICY CMP0075)
+  CMAKE_POLICY(SET CMP0075 OLD)
 ENDIF()
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
@@ -556,7 +576,7 @@ IF(BUILD_BUNDLED_ZLIB)
     ${CMAKE_CURRENT_BINARY_DIR}/zlib
     )
 ENDIF()
-# Add bundled yassl/taocrypt or system openssl.
+# Add openssl.
 MYSQL_CHECK_SSL()
 # Add system/bundled editline.
 MYSQL_CHECK_EDITLINE()

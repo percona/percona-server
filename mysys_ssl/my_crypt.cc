@@ -18,14 +18,10 @@
 #include <my_global.h>
 #include <string.h>
 
-#ifdef HAVE_YASSL
-#include "yassl.cc"
-#else
 #include <openssl/evp.h>
 #include <openssl/aes.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#endif
 #include <my_crypt.h>
 #include <boost/move/unique_ptr.hpp>
 #include <boost/core/noncopyable.hpp>
@@ -374,16 +370,6 @@ size_t my_aes_crypt_get_size(enum my_aes_mode mode MY_ATTRIBUTE((unused)), size_
   return (source_length / MY_AES_BLOCK_SIZE + 1) * MY_AES_BLOCK_SIZE;
 }
 
-#ifdef HAVE_YASSL
-#include <random.hpp>
-int my_random_bytes(uchar* buf, int num)
-{
-  TaoCrypt::RandomNumberGenerator rand;
-  rand.GenerateBlock((TaoCrypt::byte*) buf, num);
-  return MY_AES_OK;
-}
-#else
-
 int my_random_bytes(uchar *buf, int num)
 {
   /*
@@ -397,4 +383,3 @@ int my_random_bytes(uchar *buf, int num)
     return MY_AES_OPENSSL_ERROR;
   return MY_AES_OK;
 }
-#endif

@@ -159,7 +159,7 @@
 #include "item_strfunc.h"               // Item_func_uuid
 #include "handler.h"
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 #include <openssl/crypto.h>
 #endif
 
@@ -3682,8 +3682,6 @@ int warn_self_signed_ca()
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
-<<<<<<< HEAD
-#ifndef HAVE_YASSL
   int fips_mode= FIPS_mode();
   if (fips_mode != 0)
   {
@@ -3693,10 +3691,6 @@ static int init_ssl()
         " Disabling FIPS.");
     FIPS_mode_set(0);
   }
-||||||| merged common ancestors
-#ifndef HAVE_YASSL
-=======
->>>>>>> b3f0164e00
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   CRYPTO_malloc_init();
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */

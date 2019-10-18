@@ -143,7 +143,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
 
-const LEX_STRING command_name[]={
+const LEX_STRING command_name[] MY_ATTRIBUTE((unused)) = {
   { C_STRING_WITH_LEN("Sleep") },
   { C_STRING_WITH_LEN("Quit") },
   { C_STRING_WITH_LEN("Init DB") },
@@ -5987,7 +5987,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
     parser_state->m_lip.found_semicolon= NULL;
   }
 
-<<<<<<< HEAD
   /* Update user statistics only if at least one timer was initialized */
   if (unlikely(update_userstat &&
                (start_busy_usecs > 0.0 || start_cpu_nsecs > 0.0)))
@@ -6001,11 +6000,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat)
 #endif
   }
 
-||||||| merged common ancestors
-=======
   DEBUG_SYNC(thd, "query_rewritten");
 
->>>>>>> b3f0164e00
   DBUG_VOID_RETURN;
 }
 

@@ -4171,16 +4171,10 @@ innobase_init(
 	innobase_hton->show_status = innobase_show_status;
 	innobase_hton->fill_is_table = innobase_fill_i_s_table;
 	innobase_hton->flags =
-<<<<<<< HEAD
 		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
+		HTON_SUPPORTS_TABLE_ENCRYPTION |
 		HTON_SUPPORTS_ONLINE_BACKUPS |
 		HTON_SUPPORTS_COMPRESSED_COLUMNS;
-||||||| merged common ancestors
-		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS;
-=======
-		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
-		HTON_SUPPORTS_TABLE_ENCRYPTION;
->>>>>>> b3f0164e00
 
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
@@ -21678,7 +21672,6 @@ static MYSQL_SYSVAR_UINT(merge_threshold_set_all_debug,
   " cache by the specified value dynamically, at the time.",
   NULL, innodb_merge_threshold_set_all_debug_update,
   DICT_INDEX_MERGE_THRESHOLD_DEFAULT, 1, 50, 0);
-<<<<<<< HEAD
 
 static MYSQL_SYSVAR_ULONG(semaphore_wait_timeout_debug,
   srv_fatal_semaphore_wait_threshold,
@@ -21686,15 +21679,6 @@ static MYSQL_SYSVAR_ULONG(semaphore_wait_timeout_debug,
   "Number of seconds that a semaphore can be held. If semaphore wait crosses"
   "this value, server will crash", NULL, NULL, 600, 100, 600, 0);
 
-||||||| merged common ancestors
-=======
-
-static MYSQL_SYSVAR_ULONG(semaphore_wait_timeout_debug,
-  srv_fatal_semaphore_wait_threshold,
-  PLUGIN_VAR_RQCMDARG,
-  "Number of seconds that a semaphore can be held. If semaphore wait crosses"
-  "this value, server will crash", NULL, NULL, 600, 100, 600, 0);
->>>>>>> b3f0164e00
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,

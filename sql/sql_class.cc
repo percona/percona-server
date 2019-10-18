@@ -1,12 +1,6 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| merged common ancestors
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
-=======
    Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
->>>>>>> b3f0164e00
+   Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

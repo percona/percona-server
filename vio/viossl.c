@@ -244,47 +244,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
   DBUG_RETURN(ret < 0 ? -1 : ret);
 }
 
-<<<<<<< HEAD
-#ifdef HAVE_YASSL
-
-/* Emulate a blocking recv() call with vio_read(). */
-static long yassl_recv(void *ptr, void *buf, size_t len)
-{
-  return (long)vio_read(ptr, buf, len);
-}
-
-
-/* Emulate a blocking send() call with vio_write(). */
-static long yassl_send(void *ptr, const void *buf, size_t len)
-{
-  return (long)vio_write(ptr, buf, len);
-}
-
-#endif
-
 int vio_ssl_shutdown(Vio *vio, int how)
-||||||| merged common ancestors
-#ifdef HAVE_YASSL
-
-/* Emulate a blocking recv() call with vio_read(). */
-static long yassl_recv(void *ptr, void *buf, size_t len)
-{
-  return (long)vio_read(ptr, buf, len);
-}
-
-
-/* Emulate a blocking send() call with vio_write(). */
-static long yassl_send(void *ptr, const void *buf, size_t len)
-{
-  return (long)vio_write(ptr, buf, len);
-}
-
-#endif
-
-int vio_ssl_shutdown(Vio *vio)
-=======
-int vio_ssl_shutdown(Vio *vio)
->>>>>>> b3f0164e00
 {
   int r= 0;
   SSL *ssl= (SSL*)vio->ssl_arg;
@@ -410,14 +370,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-<<<<<<< HEAD
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF) && \
-    (OPENSSL_VERSION_NUMBER < 0x10100000L)
-||||||| merged common ancestors
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
-=======
 #if !defined(DBUG_OFF)
->>>>>>> b3f0164e00
   int j, n;
 #endif
 
@@ -440,15 +393,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-<<<<<<< HEAD
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF) && \
-    (OPENSSL_VERSION_NUMBER < 0x10100000L)
-
-||||||| merged common ancestors
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
-=======
 #if !defined(DBUG_OFF)
->>>>>>> b3f0164e00
   {
     STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
     ssl_comp_methods = SSL_COMP_get_compression_methods();

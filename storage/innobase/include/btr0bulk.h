@@ -201,20 +201,16 @@ public:
 		return(m_page_zip);
 	}
 
-<<<<<<< HEAD
 	dberr_t getError()
 	{
 		return(m_err);
 	}
 
-||||||| merged common ancestors
-=======
 #ifdef UNIV_DEBUG
 	/** Check if index is X locked */
 	bool isIndexXLocked();
 #endif // UNIV_DEBUG
 
->>>>>>> b3f0164e00
 	/* Memory heap for internal allocation */
 	mem_heap_t*	m_heap;
 

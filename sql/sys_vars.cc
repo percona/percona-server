@@ -1705,7 +1705,7 @@ static Sys_var_ulong Sys_max_binlog_files(
        GLOBAL_VAR(max_binlog_files),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 102400), DEFAULT(0),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(0), DEPRECATED(""));
+       ON_UPDATE(0), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_max_slowlog_size(
        "max_slowlog_size",

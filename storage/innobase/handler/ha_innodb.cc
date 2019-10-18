@@ -21804,7 +21804,6 @@ static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
 
   if (!legit_value) return 1;
 
-  // TODO(laurynas) or = use; ?
   /* Set the default output to current value for all error cases. */
   *static_cast<ulong *>(save) = srv_redo_log_encrypt;
 

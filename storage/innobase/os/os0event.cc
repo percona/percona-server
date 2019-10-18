@@ -417,8 +417,6 @@ void os_event_global_init(void) {
 }
 
 void os_event_global_destroy(void) {
-  // TODO(laurynas): this cannot run with vars being destructed after
-  // main
 #if 0
   ut_ad(os_event::n_objects_alive.load() == 0);
 #ifndef _WIN32

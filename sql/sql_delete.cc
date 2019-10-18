@@ -614,16 +614,10 @@ cleanup:
     my_ok(thd, deleted_rows);
     DBUG_PRINT("info", ("%ld records deleted", (long)deleted_rows));
   }
-<<<<<<< HEAD
 
   thd->updated_row_count += deleted_rows;
 
-  DBUG_RETURN(error > 0);
-||||||| merged common ancestors
-  DBUG_RETURN(error > 0);
-=======
   return error > 0;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -1303,14 +1297,8 @@ bool Query_result_delete::send_eof(THD *thd) {
   if (!local_error && !thd->is_error()) {
     ::my_ok(thd, deleted_rows);
   }
-<<<<<<< HEAD
   thd->updated_row_count += deleted_rows;
-  return 0;
-||||||| merged common ancestors
-  return 0;
-=======
   return thd->is_error();
->>>>>>> mysql-8.0.18
 }
 
 bool Sql_cmd_delete::accept(THD *thd, Select_lex_visitor *visitor) {

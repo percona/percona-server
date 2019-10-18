@@ -8193,7 +8193,6 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
   this->m_key_index = MAX_KEY;
   this->m_key_info = nullptr;
 
-<<<<<<< HEAD
   // row lookup not needed
   if (event_type == binary_log::WRITE_ROWS_EVENT ||
       (delete_update_lookup_condition =
@@ -8215,15 +8214,8 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
         table->s->rfr_lookup_warning = true;
       }
     } else
-      DBUG_VOID_RETURN;
+      return;
   }
-||||||| merged common ancestors
-  if (event_type == binary_log::WRITE_ROWS_EVENT)  // row lookup not needed
-    DBUG_VOID_RETURN;
-=======
-  if (event_type == binary_log::WRITE_ROWS_EVENT)  // row lookup not needed
-    return;
->>>>>>> mysql-8.0.18
 
   if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN))
     goto TABLE_OR_INDEX_HASH_SCAN;
@@ -12102,14 +12094,8 @@ Delete_rows_log_event::Delete_rows_log_event(
 int Delete_rows_log_event::do_before_row_operations(
     const Slave_reporting_capability *const) {
   int error = 0;
-<<<<<<< HEAD
-  DBUG_ENTER("Delete_rows_log_event::do_before_row_operations");
-  m_table->file->rpl_before_delete_rows();
-||||||| merged common ancestors
-  DBUG_ENTER("Delete_rows_log_event::do_before_row_operations");
-=======
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
+  m_table->file->rpl_before_delete_rows();
   /*
     Increment the global status delete count variable
    */
@@ -12133,14 +12119,8 @@ int Delete_rows_log_event::do_after_row_operations(
     const Slave_reporting_capability *const, int error) {
   DBUG_TRACE;
   error = row_operations_scan_and_key_teardown(error);
-<<<<<<< HEAD
   m_table->file->rpl_after_delete_rows();
-  DBUG_RETURN(error);
-||||||| merged common ancestors
-  DBUG_RETURN(error);
-=======
   return error;
->>>>>>> mysql-8.0.18
 }
 
 int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli) {
@@ -12251,14 +12231,8 @@ Update_rows_log_event::Update_rows_log_event(
 int Update_rows_log_event::do_before_row_operations(
     const Slave_reporting_capability *const) {
   int error = 0;
-<<<<<<< HEAD
-  DBUG_ENTER("Update_rows_log_event::do_before_row_operations");
-  m_table->file->rpl_before_update_rows();
-||||||| merged common ancestors
-  DBUG_ENTER("Update_rows_log_event::do_before_row_operations");
-=======
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
+  m_table->file->rpl_before_update_rows();
   /*
     Increment the global status update count variable
   */
@@ -12282,14 +12256,8 @@ int Update_rows_log_event::do_after_row_operations(
     const Slave_reporting_capability *const, int error) {
   DBUG_TRACE;
   error = row_operations_scan_and_key_teardown(error);
-<<<<<<< HEAD
   m_table->file->rpl_after_update_rows();
-  DBUG_RETURN(error);
-||||||| merged common ancestors
-  DBUG_RETURN(error);
-=======
   return error;
->>>>>>> mysql-8.0.18
 }
 
 int Update_rows_log_event::do_exec_row(const Relay_log_info *const rli) {

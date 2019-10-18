@@ -859,19 +859,9 @@ static bool rea_create_tmp_table(
   }
 
   // Create the table in the storage engine.
-<<<<<<< HEAD
   if (ha_create_table(thd, path, db, table_name, create_info, &create_fields,
                       false, false, tmp_table_ptr.get())) {
-    DBUG_RETURN(true);
-||||||| merged common ancestors
-  if (ha_create_table(thd, path, db, table_name, create_info, false, false,
-                      tmp_table_ptr.get())) {
-    DBUG_RETURN(true);
-=======
-  if (ha_create_table(thd, path, db, table_name, create_info, false, false,
-                      tmp_table_ptr.get())) {
     return true;
->>>>>>> mysql-8.0.18
   }
 
   /*
@@ -1062,17 +1052,11 @@ static bool rea_create_base_table(
       if (!thd->is_plugin_fake_ddl())
         (void)trans_intermediate_ddl_commit(thd, result);
     }
-<<<<<<< HEAD
-    DBUG_RETURN(true);
+    return true;
   } else {
     if (compression_dict::cols_table_insert(thd, *table_def)) {
-      DBUG_RETURN(true);
+      return true;
     }
-||||||| merged common ancestors
-    DBUG_RETURN(true);
-=======
-    return true;
->>>>>>> mysql-8.0.18
   }
 
   /*
@@ -4697,7 +4681,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
   if (sql_field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
     my_error(ER_COMPRESSED_COLUMN_USED_AS_KEY, MYF(0),
              column->get_field_name());
-    DBUG_RETURN(true);
+    return true;
   }
 
   uint column_length;
@@ -6970,7 +6954,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
                     ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                     ha_resolve_storage_engine_name(subpart_elem->engine_type),
                     "CLUSTERING");
-                DBUG_RETURN(true);
+		return true;
               }
             }
           } else if (unlikely(!ha_check_storage_engine_flag(
@@ -6979,14 +6963,14 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
             my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                      ha_resolve_storage_engine_name(part_elem->engine_type),
                      "CLUSTERING");
-            DBUG_RETURN(true);
+	    return true;
           }
         }
       } else if (unlikely(!ha_check_storage_engine_flag(
                      file->ht, HTON_SUPPORTS_CLUSTERED_KEYS))) {
         my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                  ha_resolve_storage_engine_name(file->ht), "CLUSTERING");
-        DBUG_RETURN(true);
+	return true;
       }
       if (key->type & KEYTYPE_UNIQUE)
         key_info->flags = HA_NOSAME;
@@ -7741,7 +7725,7 @@ bool mysql_prepare_create_table(
       if (sql_field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
         my_error(ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE, MYF(0),
                  sql_field->field_name);
-        DBUG_RETURN(true);
+	return true;
       }
     }
 
@@ -7755,7 +7739,7 @@ bool mysql_prepare_create_table(
         sql_field->zip_dict_name.str != nullptr &&
         sql_field->zip_dict_name.length != 0) {
       if (compression_dict::acquire_dict_mdl(thd, MDL_SHARED_READ)) {
-        DBUG_RETURN(true);
+	      return true;
       }
 
       uint64 zip_dict_id =
@@ -7764,7 +7748,7 @@ bool mysql_prepare_create_table(
       if (zip_dict_id == 0) {
         my_error(ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST, MYF(0),
                  sql_field->zip_dict_name.str);
-        DBUG_RETURN(true);
+	return true;
       }
       sql_field->zip_dict_id = zip_dict_id;
     }
@@ -7861,8 +7845,7 @@ bool mysql_prepare_create_table(
       if (prepare_key(thd, create_info, &alter_info->create_list, key,
                       key_info_buffer, key_info, &key_part_info, keys_to_check,
                       key_number, file, &auto_increment))
-<<<<<<< HEAD
-        DBUG_RETURN(true);
+        return true;
       for (const auto &it : alter_info->delayed_key_list) {
         if (it == key) {
           alter_info->delayed_key_info[alter_info->delayed_key_count++] =
@@ -7870,11 +7853,6 @@ bool mysql_prepare_create_table(
           break;
         }
       }
-||||||| merged common ancestors
-        DBUG_RETURN(true);
-=======
-        return true;
->>>>>>> mysql-8.0.18
       key_info++;
       key_number++;
     }
@@ -7884,16 +7862,10 @@ bool mysql_prepare_create_table(
   // to only those SEs that can participate in replication.
   if (!primary_key && !thd->is_dd_system_thread() &&
       !thd->is_initialize_system_thread() &&
-<<<<<<< HEAD
-      thd->variables.sql_require_primary_key &&
-      !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
-||||||| merged common ancestors
-      thd->variables.sql_require_primary_key) {
-=======
       (file->ha_table_flags() &
        (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)) != 0 &&
-      thd->variables.sql_require_primary_key) {
->>>>>>> mysql-8.0.18
+      thd->variables.sql_require_primary_key &&
+      !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
     my_error(ER_TABLE_WITHOUT_PK, MYF(0));
     return true;
   }
@@ -8429,14 +8401,8 @@ static bool create_table_impl(
     return true;
   }
 
-<<<<<<< HEAD
   if (check_engine(thd, db, table_name, create_info, alter_info))
-    DBUG_RETURN(true);
-||||||| merged common ancestors
-  if (check_engine(thd, db, table_name, create_info)) DBUG_RETURN(true);
-=======
-  if (check_engine(thd, db, table_name, create_info)) return true;
->>>>>>> mysql-8.0.18
+    return true;
 
   // Check if new table creation is disallowed by the storage engine.
   if (!internal_tmp_table &&
@@ -8608,7 +8574,7 @@ static bool create_table_impl(
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                ha_resolve_storage_engine_name(part_info->default_engine_type),
                "COMPRESSED COLUMNS");
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -13348,19 +13314,9 @@ static bool upgrade_old_temporal_types(THD *thd, Alter_info *alter_info) {
         temporal_field->init(thd, def->field_name, sql_type, NULL, NULL,
                              (def->flags & NOT_NULL_FLAG), default_value,
                              update_value, &def->comment, def->change, NULL,
-<<<<<<< HEAD
                              nullptr, false, 0, &def->zip_dict_name, nullptr,
                              nullptr, def->m_srid, def->hidden, def->is_array))
-      DBUG_RETURN(true);
-||||||| merged common ancestors
-                             NULL, false, 0, NULL, nullptr, def->m_srid,
-                             def->hidden, def->is_array))
-      DBUG_RETURN(true);
-=======
-                             NULL, false, 0, NULL, nullptr, def->m_srid,
-                             def->hidden, def->is_array))
       return true;
->>>>>>> mysql-8.0.18
 
     temporal_field->field = def->field;
     create_it.replace(temporal_field);
@@ -14838,16 +14794,8 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE *table,
                  "ALGORITHM=COPY",
                  ER_THD(thd, ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME),
                  "ALGORITHM=INPLACE");
-<<<<<<< HEAD
-        DBUG_RETURN(true);
-      case fk_column_change_type::DROPPED:
-||||||| merged common ancestors
-        DBUG_RETURN(true);
-      case FK_COLUMN_DROPPED:
-=======
         return true;
-      case FK_COLUMN_DROPPED:
->>>>>>> mysql-8.0.18
+      case fk_column_change_type::DROPPED:
         /*
           Should already have been checked in
           transfer_preexisting_foreign_keys().
@@ -14893,30 +14841,14 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE *table,
       case fk_column_change_type::DATA_CHANGE:
         my_error(ER_FK_COLUMN_CANNOT_CHANGE, MYF(0), bad_column_name,
                  f_key->foreign_id->str);
-<<<<<<< HEAD
-        DBUG_RETURN(true);
-      case fk_column_change_type::RENAMED:
-||||||| merged common ancestors
-        DBUG_RETURN(true);
-      case FK_COLUMN_RENAMED:
-=======
         return true;
-      case FK_COLUMN_RENAMED:
->>>>>>> mysql-8.0.18
+      case fk_column_change_type::RENAMED:
         my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
                  "ALGORITHM=COPY",
                  ER_THD(thd, ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME),
                  "ALGORITHM=INPLACE");
-<<<<<<< HEAD
-        DBUG_RETURN(true);
-      case fk_column_change_type::DROPPED:
-||||||| merged common ancestors
-        DBUG_RETURN(true);
-      case FK_COLUMN_DROPPED:
-=======
         return true;
-      case FK_COLUMN_DROPPED:
->>>>>>> mysql-8.0.18
+      case fk_column_change_type::DROPPED:
         /*
           Should already have been checked in
           transfer_preexisting_foreign_keys().
@@ -15268,7 +15200,7 @@ static bool remove_secondary_keys(
     const dd::Table *table_def, dd::Table *altered_table_def,
     std::vector<dd::Index *> *dd_disabled_sec_keys) {
   uint i;
-  DBUG_ENTER("remove_secondary_keys");
+  DBUG_TRACE;
   DBUG_ASSERT(alter_info->delayed_key_count > 0);
 
   /*
@@ -15320,7 +15252,7 @@ static bool remove_secondary_keys(
 
   if (table->file->check_if_supported_inplace_alter(table, &ha_alter_info) ==
       HA_ALTER_INPLACE_NOT_SUPPORTED)
-    DBUG_RETURN(true);
+	  return true;
 
   for (const auto index : *altered_table_def->indexes()) {
     const char *dd_index_name = index->name().c_str();
@@ -15341,10 +15273,10 @@ static bool remove_secondary_keys(
           table, &ha_alter_info, true, table_def, altered_table_def)) {
     table->file->ha_commit_inplace_alter_table(table, &ha_alter_info, false,
                                                table_def, altered_table_def);
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -16047,17 +15979,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       create_info->db_type = table->s->db_type();
   }
 
-<<<<<<< HEAD
   if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info,
                    alter_info))
-    DBUG_RETURN(true);
-||||||| merged common ancestors
-  if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
-    DBUG_RETURN(true);
-=======
-  if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
     return true;
->>>>>>> mysql-8.0.18
 
   /*
     Do not allow change of storage engine if table participates in a foreign
@@ -16293,7 +16217,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
              ha_resolve_storage_engine_name(new_part_info->default_engine_type),
              "COMPRESSED COLUMNS");
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -16344,12 +16268,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         // Not possible, error out.
         my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0), "ALGORITHM=INSTANT",
                  "ALGORITHM=INPLACE/COPY");
-        DBUG_RETURN(true);
+	return true;
       case Alter_info::ALTER_TABLE_ALGORITHM_COPY:
       case Alter_info::ALTER_TABLE_ALGORITHM_INPLACE:
         break;
       default:
-        DBUG_ASSERT(0);
+	return 0;
     }
   }
 
@@ -16943,13 +16867,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                  " for query "
                      << thd->query().str << " table_db: " << alter_ctx.new_db
                      << " table_name: " << alter_ctx.new_name);
-        DBUG_RETURN(true);
+	return true;
       }
       /* New table is successfully created, check if any columns have
       compression dictionary and add entry for them in
       mysql.compression_dictionary_cols table */
       if (compression_dict::cols_table_insert(thd, *new_table_def))
-        DBUG_RETURN(true);
+	return true;
 
       goto end_inplace;
     } else {
@@ -18029,17 +17953,7 @@ static int copy_data_between_tables(
 
   set_column_defaults(to, create);
 
-<<<<<<< HEAD
-  while (!(error = info->Read())) {
-||||||| merged common ancestors
-  to->file->ha_extra(HA_EXTRA_BEGIN_ALTER_COPY);
-
-  while (!(error = info->Read())) {
-=======
-  to->file->ha_extra(HA_EXTRA_BEGIN_ALTER_COPY);
-
   while (!(error = iterator->Read())) {
->>>>>>> mysql-8.0.18
     if (thd->killed) {
       thd->send_kill_message();
       error = 1;
@@ -18399,17 +18313,9 @@ err:
   @retval false Engine available/supported.
 */
 static bool check_engine(THD *thd, const char *db_name, const char *table_name,
-<<<<<<< HEAD
                          HA_CREATE_INFO *create_info,
                          const Alter_info *alter_info) {
-  DBUG_ENTER("check_engine");
-||||||| merged common ancestors
-                         HA_CREATE_INFO *create_info) {
-  DBUG_ENTER("check_engine");
-=======
-                         HA_CREATE_INFO *create_info) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
   handlerton **new_engine = &create_info->db_type;
   handlerton *req_engine = *new_engine;
   bool no_substitution = (!is_engine_substitution_allowed(thd));
@@ -18436,7 +18342,7 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
         if (enf_engine != *new_engine && no_substitution) {
           const char *engine_name = ha_resolve_storage_engine_name(req_engine);
           my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name, engine_name);
-          DBUG_RETURN(true);
+	return true;
         }
         *new_engine = enf_engine;
       }
@@ -18485,7 +18391,7 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
              ha_resolve_storage_engine_name(*new_engine), "COMPRESSED COLUMNS");
     *new_engine = 0;
-    DBUG_RETURN(true);
+	return true;
   }
 
   // The storage engine must support secondary engines.

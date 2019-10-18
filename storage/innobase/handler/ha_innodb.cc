@@ -656,12 +656,8 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(ibuf_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
-<<<<<<< HEAD
-    PSI_MUTEX_KEY(log_bmp_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
-||||||| merged common ancestors
-=======
     PSI_MUTEX_KEY(log_limits_mutex, 0, 0, PSI_DOCUMENT_ME),
->>>>>>> mysql-8.0.18
+    PSI_MUTEX_KEY(log_bmp_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_checkpointer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_closer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -2879,16 +2875,8 @@ static void innobase_trx_init(
 
   trx->check_unique_secondary =
       !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS);
-<<<<<<< HEAD
 
   trx->stats.set(innobase_slow_log_verbose(thd));
-
-  DBUG_VOID_RETURN;
-||||||| merged common ancestors
-
-  DBUG_VOID_RETURN;
-=======
->>>>>>> mysql-8.0.18
 }
 
 /** Allocates an InnoDB transaction for a MySQL handler object for DML.
@@ -4849,7 +4837,7 @@ static int innodb_init_params() {
     sql_print_error(
         "InnoDB: innodb_parallel_doublewrite_path cannot have "
         "colon (:) in the file name.");
-    DBUG_RETURN(HA_ERR_INITIALIZATION);
+    return HA_ERR_INITIALIZATION;
   }
 
   /* Check that the value of system variable innodb_page_size was
@@ -5278,7 +5266,7 @@ static int innodb_init(void *p) {
         "InnoDB: cannot enable encryption, innodb_encrypt_tables is set to "
         "value different than OFF, but "
         "keyring plugin is not available");
-    DBUG_RETURN(innodb_init_abort());
+    return innodb_init_abort();
   }
 
   // We are starting encryption threads, we must lock the keyring plugins
@@ -5290,7 +5278,7 @@ static int innodb_init(void *p) {
           "InnoDB: cannot enable encryption threads, "
           "keyring plugin is not available");
 
-      DBUG_RETURN(innodb_init_abort());
+      return innodb_init_abort();
     }
     if (Encryption::is_keyring_alive() == false) {
       sql_print_error(
@@ -5298,7 +5286,7 @@ static int innodb_init(void *p) {
           "properly initialized. Cannot enable encryption threads.");
       unlock_keyrings(NULL);
 
-      DBUG_RETURN(innodb_init_abort());
+      return innodb_init_abort();
     }
   }
 
@@ -5508,17 +5496,9 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename,
 @param[in,out]	tablespaces	predefined tablespaces created by the DDSE
 @return 0 on success, 1 on failure */
 static int innobase_init_files(dict_init_mode_t dict_init_mode,
-<<<<<<< HEAD
                                List<const Plugin_tablespace> *tablespaces,
                                bool &is_dd_encrypted) {
-  DBUG_ENTER("innobase_init_files");
-||||||| merged common ancestors
-                               List<const Plugin_tablespace> *tablespaces) {
-  DBUG_ENTER("innobase_init_files");
-=======
-                               List<const Plugin_tablespace> *tablespaces) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
 
   ut_ad(dict_init_mode == DICT_INIT_CREATE_FILES ||
         dict_init_mode == DICT_INIT_CHECK_FILES ||
@@ -5620,12 +5600,12 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     ib::error(ER_XB_MSG_4, "mysql.ibd")
         << "Failed to determine if mysql.ibd is encrypted. "
            "Have you deleted it?";
-    DBUG_RETURN(innodb_init_abort());
+    return innodb_init_abort();
   }
 
   if (do_encrypt && !Encryption::check_keyring()) {
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-    DBUG_RETURN(innodb_init_abort());
+    return innodb_init_abort();
   }
 
   is_dd_encrypted = do_encrypt;
@@ -7410,7 +7390,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
                     srv_pass_corrupt_table <= 1)) {
     free_share(m_share);
 
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    return HA_ERR_CRASHED_ON_USAGE;
   }
 
   /* Will be allocated if it is needed in ::update_row() */
@@ -7552,7 +7532,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   if (UNIV_UNLIKELY(ib_table && ib_table->is_corrupt &&
                     srv_pass_corrupt_table <= 1)) {
     free_share(m_share);
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    return HA_ERR_CRASHED_ON_USAGE;
   }
 
   FilSpace space;
@@ -7588,17 +7568,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     ib_table = NULL;
     is_part = NULL;
     free_share(m_share);
-<<<<<<< HEAD
-    DBUG_RETURN(error);
-||||||| merged common ancestors
-    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-
-    DBUG_RETURN(HA_ERR_TABLE_CORRUPT);
-=======
-    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-
-    return HA_ERR_TABLE_CORRUPT;
->>>>>>> mysql-8.0.18
+    return error;
   }
 
   // if (space() == NULL) {
@@ -7695,13 +7665,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
     dict_table_close(ib_table, FALSE, FALSE);
 
-<<<<<<< HEAD
-    DBUG_RETURN(ret_err);
-||||||| merged common ancestors
-    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
-=======
-    return HA_ERR_TABLESPACE_MISSING;
->>>>>>> mysql-8.0.18
+    return ret_err;
   }
 
   m_prebuilt = row_create_prebuilt(ib_table, table->s->reclength);
@@ -10155,7 +10119,7 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
 
   if (UNIV_UNLIKELY(m_share && m_share->ib_table &&
                     m_share->ib_table->is_corrupt))
-    DBUG_RETURN(HA_ERR_CRASHED);
+    return HA_ERR_CRASHED;
 
   upd_t *uvect;
 
@@ -10265,17 +10229,11 @@ func_exit:
 
   innobase_active_small();
 
-<<<<<<< HEAD
   if (UNIV_UNLIKELY(m_share && m_share->ib_table &&
                     m_share->ib_table->is_corrupt))
-    DBUG_RETURN(HA_ERR_CRASHED);
+    return HA_ERR_CRASHED;
 
-  DBUG_RETURN(err);
-||||||| merged common ancestors
-  DBUG_RETURN(err);
-=======
   return err;
->>>>>>> mysql-8.0.18
 }
 
 /** Deletes a row given as the parameter.
@@ -10309,7 +10267,7 @@ int ha_innobase::delete_row(
 
   if (UNIV_UNLIKELY(m_share && m_share->ib_table &&
                     m_share->ib_table->is_corrupt))
-    DBUG_RETURN(HA_ERR_CRASHED);
+    return HA_ERR_CRASHED;
 
   if (!m_prebuilt->upd_node) {
     row_get_prebuilt_update_vector(m_prebuilt);
@@ -10330,20 +10288,12 @@ int ha_innobase::delete_row(
 
   innobase_active_small();
 
-<<<<<<< HEAD
   if (UNIV_UNLIKELY(m_share && m_share->ib_table &&
                     m_share->ib_table->is_corrupt))
-    DBUG_RETURN(HA_ERR_CRASHED);
+    return HA_ERR_CRASHED;
 
-  DBUG_RETURN(
-      convert_error_code_to_mysql(error, m_prebuilt->table->flags, m_user_thd));
-||||||| merged common ancestors
-  DBUG_RETURN(
-      convert_error_code_to_mysql(error, m_prebuilt->table->flags, m_user_thd));
-=======
   return convert_error_code_to_mysql(error, m_prebuilt->table->flags,
                                      m_user_thd);
->>>>>>> mysql-8.0.18
 }
 
 /** Delete all rows from the table.
@@ -10577,7 +10527,7 @@ int ha_innobase::index_read(
 
   if (UNIV_UNLIKELY(srv_pass_corrupt_table <= 1 && m_share &&
                     m_share->ib_table && m_share->ib_table->is_corrupt)) {
-    DBUG_RETURN(HA_ERR_CRASHED);
+    return HA_ERR_CRASHED;
   }
 
   dict_index_t *index = m_prebuilt->index;
@@ -10678,7 +10628,7 @@ int ha_innobase::index_read(
 
   if (UNIV_UNLIKELY(srv_pass_corrupt_table <= 1 && m_share &&
                     m_share->ib_table && m_share->ib_table->is_corrupt)) {
-    DBUG_RETURN(HA_ERR_CRASHED);
+    return HA_ERR_CRASHED;
   }
 
   DBUG_EXECUTE_IF("ib_select_query_failure", ret = DB_ERROR;);
@@ -10795,7 +10745,7 @@ int ha_innobase::change_active_index(
 
   if (UNIV_UNLIKELY(srv_pass_corrupt_table <= 1 && m_share &&
                     m_share->ib_table && m_share->ib_table->is_corrupt))
-    DBUG_RETURN(HA_ERR_CRASHED);
+    return HA_ERR_CRASHED;
 
   ut_ad(m_user_thd == ha_thd());
   ut_a(m_prebuilt->trx == thd_to_trx(m_user_thd));
@@ -10901,7 +10851,7 @@ int ha_innobase::general_fetch(
 
   if (UNIV_UNLIKELY(srv_pass_corrupt_table <= 1 && m_share &&
                     m_share->ib_table && m_share->ib_table->is_corrupt))
-    DBUG_RETURN(HA_ERR_CRASHED);
+    return HA_ERR_CRASHED;
 
   const trx_t *trx = m_prebuilt->trx;
 
@@ -10917,11 +10867,11 @@ int ha_innobase::general_fetch(
 
   if (m_prebuilt->table->is_readable()) {
   } else if (m_prebuilt->table->is_corrupt) {
-    DBUG_RETURN(HA_ERR_CRASHED);
+    return HA_ERR_CRASHED;
   } else {
     FilSpace space(m_prebuilt->table->space, true);
 
-    DBUG_RETURN(space() ? HA_ERR_DECRYPTION_FAILED : HA_ERR_NO_SUCH_TABLE);
+    return space() ? HA_ERR_DECRYPTION_FAILED : HA_ERR_NO_SUCH_TABLE;
   }
 
   innobase_srv_conc_enter_innodb(m_prebuilt);
@@ -13208,18 +13158,10 @@ static bool innobase_ddse_dict_init(
   DBUG_ASSERT(tables && tables->is_empty());
   DBUG_ASSERT(tablespaces && tablespaces->is_empty());
 
-<<<<<<< HEAD
   bool is_dd_encrypted{false};
 
   if (innobase_init_files(dict_init_mode, tablespaces, is_dd_encrypted)) {
-    DBUG_RETURN(true);
-||||||| merged common ancestors
-  if (innobase_init_files(dict_init_mode, tablespaces)) {
-    DBUG_RETURN(true);
-=======
-  if (innobase_init_files(dict_init_mode, tablespaces)) {
     return true;
->>>>>>> mysql-8.0.18
   }
 
   /* Instantiate table defs only if we are successful so far. */
@@ -15516,25 +15458,14 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
 
   if (dict_table_is_discarded(innodb_table)) {
     ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, norm_name);
-<<<<<<< HEAD
-    DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-  } else if (!innodb_table->is_readable()) {
-    DBUG_RETURN(innodb_table->keyring_encryption_info.page0_has_crypt_data ==
-                        true
-                    ? HA_ERR_DECRYPTION_FAILED
-                    : HA_ERR_TABLESPACE_MISSING);
-||||||| merged common ancestors
-    DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-  } else if (innodb_table->ibd_file_missing) {
-    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
-=======
     return HA_ERR_NO_SUCH_TABLE;
-  } else if (innodb_table->ibd_file_missing) {
-    return HA_ERR_TABLESPACE_MISSING;
->>>>>>> mysql-8.0.18
+  } else if (!innodb_table->is_readable()) {
+    return innodb_table->keyring_encryption_info.page0_has_crypt_data == true
+               ? HA_ERR_DECRYPTION_FAILED
+               : HA_ERR_TABLESPACE_MISSING;
   }
 
-  if (UNIV_UNLIKELY(innodb_table->is_corrupt)) DBUG_RETURN(HA_ERR_CRASHED);
+  if (UNIV_UNLIKELY(innodb_table->is_corrupt)) return HA_ERR_CRASHED;
 
   trx_t *trx = check_trx_exists(thd);
   innobase_register_trx(ht, thd, trx);
@@ -16745,10 +16676,10 @@ int ha_innobase::records(ha_rows *num_rows) /*!< out: number of rows */
 
   } else if (m_prebuilt->table->file_unreadable) {
     if (m_prebuilt->table->keyring_encryption_info.page0_has_crypt_data)
-      DBUG_RETURN(m_prebuilt->table->keyring_encryption_info
-                          .keyring_encryption_key_is_missing
-                      ? HA_ERR_ENCRYPTION_KEY_MISSING
-                      : HA_ERR_DECRYPTION_FAILED);
+      return m_prebuilt->table->keyring_encryption_info
+                     .keyring_encryption_key_is_missing
+                 ? HA_ERR_ENCRYPTION_KEY_MISSING
+                 : HA_ERR_DECRYPTION_FAILED;
 
     ib_senderrf(m_user_thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_MISSING,
                 table->s->table_name.str);
@@ -18466,18 +18397,12 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
     thd_set_kill_status(m_user_thd);
   }
 
-<<<<<<< HEAD
   if (UNIV_UNLIKELY(m_share && m_share->ib_table &&
                     m_share->ib_table->is_corrupt)) {
-    DBUG_RETURN(HA_ADMIN_CORRUPT);
+    return HA_ADMIN_CORRUPT;
   }
 
-  DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
-||||||| merged common ancestors
-  DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
-=======
   return is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT;
->>>>>>> mysql-8.0.18
 }
 
 /** Gets the foreign key create info for a table stored in InnoDB.
@@ -22657,11 +22582,11 @@ static int innodb_encryption_threads_validate(
 {
   long long intbuf;
 
-  DBUG_ENTER("innodb_encryption_threads_validate");
+  DBUG_TRACE;
 
   if (value->val_int(value, &intbuf)) {
     /* The value is NULL. That is invalid. */
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (srv_n_fil_crypt_threads_requested == 0 &&
@@ -22674,7 +22599,7 @@ static int innodb_encryption_threads_validate(
                       "InnoDB: cannot enable encryption threads, "
                       "keyring plugin is not available",
                       MYF(0));
-      DBUG_RETURN(1);
+      return 1;
     }
     if (Encryption::is_keyring_alive() == false) {
       my_printf_error(
@@ -22683,7 +22608,7 @@ static int innodb_encryption_threads_validate(
           "properly initialized. Cannot enable encryption threads.",
           MYF(0));
       unlock_keyrings(NULL);
-      DBUG_RETURN(1);
+      return 1;
     }
   } else if (intbuf == 0 && srv_n_fil_crypt_threads_requested >
                                 0) {  // We are disabling encryption
@@ -22693,7 +22618,7 @@ static int innodb_encryption_threads_validate(
 
   *reinterpret_cast<ulong *>(save) = static_cast<ulong>(intbuf);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /******************************************************************
@@ -22962,13 +22887,6 @@ static MYSQL_SYSVAR_UINT(
     " cache by the specified value dynamically, at the time.",
     NULL, innodb_merge_threshold_set_all_debug_update,
     DICT_INDEX_MERGE_THRESHOLD_DEFAULT, 1, 50, 0);
-
-static MYSQL_SYSVAR_ULONG(
-    semaphore_wait_timeout_debug, srv_fatal_semaphore_wait_threshold,
-    PLUGIN_VAR_RQCMDARG,
-    "Number of seconds that a semaphore can be held. If semaphore wait crosses"
-    "this value, server will crash",
-    NULL, NULL, 600, 100, 600, 0);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(
@@ -24425,7 +24343,6 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(buf_flush_list_now),
     MYSQL_SYSVAR(track_redo_log_now),
     MYSQL_SYSVAR(merge_threshold_set_all_debug),
-    MYSQL_SYSVAR(semaphore_wait_timeout_debug),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
     MYSQL_SYSVAR(page_hash_locks),

@@ -1105,14 +1105,8 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
   my_bitmap_map *old_map;
   bool error = false;
-<<<<<<< HEAD
   bool omit_compressed_columns_extensions = false;
-  DBUG_ENTER("store_create_info");
-||||||| merged common ancestors
-  DBUG_ENTER("store_create_info");
-=======
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
   DBUG_PRINT("enter", ("table: %s", table->s->table_name.str));
 
   restore_record(table, s->default_values);  // Get empty record
@@ -3473,8 +3467,8 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
         (const char *)pos, strlen((const char *)pos), cs);
 
     // COLUMN_KEY
-<<<<<<< HEAD
-    pos = (uchar *)((field->flags & PRI_KEY_FLAG)
+    pos = pointer_cast<const uchar *>(
+	    (field->flags & PRI_KEY_FLAG)
                         ? "PRI"
                         : (field->flags & UNIQUE_KEY_FLAG)
                               ? "UNI"
@@ -3482,21 +3476,6 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
                                     ? "MUL"
                                     : (field->flags & CLUSTERING_FLAG) ? "CLU"
                                                                        : "");
-||||||| merged common ancestors
-    pos =
-        (uchar *)((field->flags & PRI_KEY_FLAG)
-                      ? "PRI"
-                      : (field->flags & UNIQUE_KEY_FLAG)
-                            ? "UNI"
-                            : (field->flags & MULTIPLE_KEY_FLAG) ? "MUL" : "");
-=======
-    pos = pointer_cast<const uchar *>(
-        (field->flags & PRI_KEY_FLAG)
-            ? "PRI"
-            : (field->flags & UNIQUE_KEY_FLAG)
-                  ? "UNI"
-                  : (field->flags & MULTIPLE_KEY_FLAG) ? "MUL" : "");
->>>>>>> mysql-8.0.18
     table->field[TMP_TABLE_COLUMNS_COLUMN_KEY]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 

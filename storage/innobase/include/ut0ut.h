@@ -706,23 +706,8 @@ class fatal : public logger {
   @param[in]	err		Error code from errmsg-*.txt.
   @param[in]	args		Variable length argument list */
   template <class... Args>
-<<<<<<< HEAD
-  explicit fatal(int err, Args &&... args) : logger(ERROR_LEVEL) {
-    m_err = err;
-    m_oss << "[FATAL] ";
-
-    m_oss << msg(err, std::forward<Args>(args)...);
-  }
-||||||| merged common ancestors
-  explicit fatal(int err, Args &&... args) : logger(ERROR_LEVEL, err) {
-    m_oss << "[FATAL] ";
-
-    m_oss << msg(err, std::forward<Args>(args)...);
-  }
-=======
   explicit fatal(int err, Args &&... args)
       : logger(ERROR_LEVEL, err, std::forward<Args>(args)...) {}
->>>>>>> mysql-8.0.18
 
   /** Destructor. */
   virtual ~fatal();

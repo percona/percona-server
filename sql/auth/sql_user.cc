@@ -1460,107 +1460,12 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
       return true;
     }
 
-<<<<<<< HEAD
   /* trying to change the password of the utility user? */
   if (acl_is_utility_user(acl_user->user, acl_user->host.get_host(), nullptr)) {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_ASSERT(acl_user->plugin.length != 0);
-  is_role = acl_user->is_role;
-
-  if (!(combo = (LEX_USER *)thd->alloc(sizeof(LEX_USER)))) DBUG_RETURN(true);
-
-  combo->user.str = lex_user->user.str;
-  combo->host.str = lex_user->host.str;
-  combo->user.length = lex_user->user.length;
-  combo->host.length = lex_user->host.length;
-  combo->plugin.str = acl_user->plugin.str;
-  combo->plugin.length = acl_user->plugin.length;
-
-  lex_string_strmake(thd->mem_root, &combo->user, combo->user.str,
-                     strlen(combo->user.str));
-  lex_string_strmake(thd->mem_root, &combo->host, combo->host.str,
-                     strlen(combo->host.str));
-  lex_string_strmake(thd->mem_root, &combo->plugin, combo->plugin.str,
-                     strlen(combo->plugin.str));
-  optimize_plugin_compare_by_pointer(&combo->plugin);
-  combo->auth.str = new_password;
-  combo->auth.length = new_password_len;
-  combo->current_auth.str = current_password;
-  combo->current_auth.length =
-      (current_password) ? strlen(current_password) : 0;
-  combo->uses_identified_by_clause = true;
-  combo->uses_identified_with_clause = false;
-  combo->uses_authentication_string_clause = false;
-  combo->uses_replace_clause = (current_password) ? true : false;
-  combo->retain_current_password = retain_current_password;
-  combo->discard_old_password = false;
-
-  /* set default values */
-  thd->lex->ssl_type = SSL_TYPE_NOT_SPECIFIED;
-  memset(&(thd->lex->mqh), 0, sizeof(thd->lex->mqh));
-  thd->lex->alter_password.cleanup();
-
-  bool is_privileged_user = is_privileged_user_for_credential_change(thd);
-
-  if (set_and_validate_user_attributes(
-          thd, combo, what_to_set, is_privileged_user, false,
-          &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], nullptr,
-          "SET PASSWORD")) {
-    authentication_plugin.assign(combo->plugin.str);
-    result = 1;
-    goto end;
-  }
-||||||| merged common ancestors
-  DBUG_ASSERT(acl_user->plugin.length != 0);
-  is_role = acl_user->is_role;
-
-  if (!(combo = (LEX_USER *)thd->alloc(sizeof(LEX_USER)))) DBUG_RETURN(true);
-
-  combo->user.str = lex_user->user.str;
-  combo->host.str = lex_user->host.str;
-  combo->user.length = lex_user->user.length;
-  combo->host.length = lex_user->host.length;
-  combo->plugin.str = acl_user->plugin.str;
-  combo->plugin.length = acl_user->plugin.length;
-
-  lex_string_strmake(thd->mem_root, &combo->user, combo->user.str,
-                     strlen(combo->user.str));
-  lex_string_strmake(thd->mem_root, &combo->host, combo->host.str,
-                     strlen(combo->host.str));
-  lex_string_strmake(thd->mem_root, &combo->plugin, combo->plugin.str,
-                     strlen(combo->plugin.str));
-  optimize_plugin_compare_by_pointer(&combo->plugin);
-  combo->auth.str = new_password;
-  combo->auth.length = new_password_len;
-  combo->current_auth.str = current_password;
-  combo->current_auth.length =
-      (current_password) ? strlen(current_password) : 0;
-  combo->uses_identified_by_clause = true;
-  combo->uses_identified_with_clause = false;
-  combo->uses_authentication_string_clause = false;
-  combo->uses_replace_clause = (current_password) ? true : false;
-  combo->retain_current_password = retain_current_password;
-  combo->discard_old_password = false;
-
-  /* set default values */
-  thd->lex->ssl_type = SSL_TYPE_NOT_SPECIFIED;
-  memset(&(thd->lex->mqh), 0, sizeof(thd->lex->mqh));
-  thd->lex->alter_password.cleanup();
-
-  bool is_privileged_user = is_privileged_user_for_credential_change(thd);
-
-  if (set_and_validate_user_attributes(
-          thd, combo, what_to_set, is_privileged_user, false,
-          &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], nullptr,
-          "SET PASSWORD")) {
-    authentication_plugin.assign(combo->plugin.str);
-    result = 1;
-    goto end;
-  }
-=======
     DBUG_ASSERT(acl_user->plugin.length != 0);
     is_role = acl_user->is_role;
 
@@ -1618,7 +1523,6 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
       result = 1;
       goto end;
     }
->>>>>>> mysql-8.0.18
 
     // We must not have user with plain text password at this point
     // unless the password was randomly generated in which case the
@@ -1932,10 +1836,10 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   if (acl_utility_user.user) {
     if (user_from && acl_is_utility_user(user_from->user.str,
                                          user_from->host.str, nullptr)) {
-      DBUG_RETURN(-1);
+	    return -1;
     } else if (user_to && acl_is_utility_user(user_to->user.str,
                                               user_to->host.str, nullptr)) {
-      DBUG_RETURN(-1);
+	    return -1;
     }
   }
 
@@ -2163,64 +2067,9 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   { /* Critical section */
     Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
-<<<<<<< HEAD
-  if (check_system_user_privilege(thd, list)) {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
-
-  while ((tmp_user_name = user_list++)) {
-    if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
-                            nullptr)) {
-      log_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
-      result = true;
-      continue;
-    }
-
-    bool history_check_done = false;
-    /*
-      Ignore the current user as it already exists.
-    */
-    if (!(user_name = get_current_user(thd, tmp_user_name))) {
-      result = 1;
-      log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
-      continue;
-    }
-    if (set_and_validate_user_attributes(
-            thd, user_name, what_to_update, true, is_role,
-            &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], &history_check_done,
-            "CREATE USER")) {
-      result = 1;
-      log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
-      continue;
-||||||| merged common ancestors
-  if (check_system_user_privilege(thd, list)) {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
-
-  while ((tmp_user_name = user_list++)) {
-    bool history_check_done = false;
-    /*
-      Ignore the current user as it already exists.
-    */
-    if (!(user_name = get_current_user(thd, tmp_user_name))) {
-      result = 1;
-      log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
-      continue;
-    }
-    if (set_and_validate_user_attributes(
-            thd, user_name, what_to_update, true, is_role,
-            &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], &history_check_done,
-            "CREATE USER")) {
-      result = 1;
-      log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
-      continue;
-=======
     if (!acl_cache_lock.lock()) {
       commit_and_close_mysql_tables(thd);
       return true;
->>>>>>> mysql-8.0.18
     }
 
     if (check_system_user_privilege(thd, list)) {
@@ -2229,6 +2078,12 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
     }
 
     while ((tmp_user_name = user_list++)) {
+    if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
+                            nullptr)) {
+      log_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
+      result = true;
+      continue;
+    }
       bool history_check_done = false;
       /*
         Ignore the current user as it already exists.
@@ -2455,32 +2310,21 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
       return true;
     }
 
-<<<<<<< HEAD
-  while ((tmp_user_name = user_list++)) {
-    if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
-                            nullptr)) {
-      log_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
-      result = true;
-      continue;
-    }
-
-    if (!(user_name = get_current_user(thd, tmp_user_name))) {
-      result = 1;
-      continue;
-||||||| merged common ancestors
-  while ((tmp_user_name = user_list++)) {
-    if (!(user_name = get_current_user(thd, tmp_user_name))) {
-      result = 1;
-      continue;
-=======
     if (check_system_user_privilege(thd, list)) {
       commit_and_close_mysql_tables(thd);
       return true;
->>>>>>> mysql-8.0.18
     }
 
     get_mandatory_roles(&mandatory_roles);
     while ((user = user_list++) != 0) {
+
+    if (acl_is_utility_user(user->user.str, user->host.str,
+                            nullptr)) {
+      log_user(thd, &wrong_users, user, wrong_users.length() > 0);
+      result = true;
+      continue;
+    }
+
       if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
                        [&](Role_id &id) -> bool {
                          Role_id id2(user->user, user->host);
@@ -2795,30 +2639,10 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
       return true;
     }
 
-<<<<<<< HEAD
-    if (acl_is_utility_user(tmp_user_from->user.str, tmp_user_from->host.str,
-                            nullptr)) {
-      result = true;
-      log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);
-      continue;
-    }
 
-    /* add the defaults where needed */
-    if (!(user_from = get_current_user(thd, tmp_user_from))) {
-      log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);
-      result = 1;
-      continue;
-||||||| merged common ancestors
-    /* add the defaults where needed */
-    if (!(user_from = get_current_user(thd, tmp_user_from))) {
-      log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);
-      result = 1;
-      continue;
-=======
     if (check_system_user_privilege(thd, list)) {
       commit_and_close_mysql_tables(thd);
       return true;
->>>>>>> mysql-8.0.18
     }
 
     is_privileged_user = is_privileged_user_for_credential_change(thd);
@@ -2830,6 +2654,13 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
       bool history_check_done = false;
       TABLE *history_tbl = nullptr;
       bool dummy_row_existed = false;
+
+    if (acl_is_utility_user(tmp_user_from->user.str, tmp_user_from->host.str,
+                            nullptr)) {
+      log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);
+        result = 1;
+        continue;
+    }
 
       /* add the defaults where needed */
       if (!(user_from = get_current_user(thd, tmp_user_from))) {

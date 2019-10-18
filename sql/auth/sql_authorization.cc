@@ -1510,17 +1510,9 @@ void get_sp_access_map(
   }
 }
 
-<<<<<<< HEAD
 void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map,
                           bool effective_grants) {
-  DBUG_ENTER("get_table_access_map");
-||||||| merged common ancestors
-void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
-  DBUG_ENTER("get_table_access_map");
-=======
-void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
   for (const auto &key_and_value : *column_priv_hash) {
     GRANT_TABLE *grant_table = key_and_value.second.get();
@@ -2427,15 +2419,9 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->priv_host().str,
              (db ? db : (thd->db().str ? thd->db().str : "unknown")));
-<<<<<<< HEAD
   }
   thd->diff_access_denied_errors++;
-  DBUG_RETURN(true);
-||||||| merged common ancestors
-  DBUG_RETURN(true);
-=======
   return true;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -3440,29 +3426,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
       return true;
     }
 
-<<<<<<< HEAD
-  /* go through users in user_list */
-  grant_version++;
-  while ((target_user = str_list++)) {
-    if (acl_is_utility_user(target_user->user.str, target_user->host.str,
-                            nullptr)) {
-      my_error(ER_NONEXISTING_GRANT, MYF(0), target_user->user.str,
-               target_user->host.str);
-      error = true;
-      continue;
-    }
-
-    if (!(user = get_current_user(thd, target_user))) {
-      error = true;
-      continue;
-||||||| merged common ancestors
-  /* go through users in user_list */
-  grant_version++;
-  while ((target_user = str_list++)) {
-    if (!(user = get_current_user(thd, target_user))) {
-      error = true;
-      continue;
-=======
     bool with_grant_option = ((rights & GRANT_ACL) != 0);
     bool grant_option = thd->lex->grant_privilege;
     if (db == 0 && with_grant_option && (rights & ~GRANT_ACL) == 0 &&
@@ -3473,7 +3436,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
         level.
       */
       rights = 0;
->>>>>>> mysql-8.0.18
     }
 
     dynpriv_table = tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
@@ -3488,6 +3450,13 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
     /* go through users in user_list */
     grant_version++;
     while ((target_user = str_list++)) {
+    if (acl_is_utility_user(target_user->user.str, target_user->host.str,
+                            nullptr)) {
+      my_error(ER_NONEXISTING_GRANT, MYF(0), target_user->user.str,
+               target_user->host.str);
+      error = true;
+      continue;
+    }
       if (!(user = get_current_user(thd, target_user))) {
         error = true;
         continue;
@@ -4618,17 +4587,9 @@ void get_privilege_access_maps(
     Db_access_map *db_map, Db_access_map *db_wild_map,
     Table_access_map *table_map, SP_access_map *sp_map, SP_access_map *func_map,
     List_of_granted_roles *granted_roles, Grant_acl_set *with_admin_acl,
-<<<<<<< HEAD
     Dynamic_privileges *dynamic_acl, Restrictions &restrictions,
     bool effective_grants) {
-  DBUG_ENTER("get_privilege_access_maps");
-||||||| merged common ancestors
-    Dynamic_privileges *dynamic_acl, Restrictions &restrictions) {
-  DBUG_ENTER("get_privilege_access_maps");
-=======
-    Dynamic_privileges *dynamic_acl, Restrictions &restrictions) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
   List_of_auth_id_refs activated_roles_ref;
   boost::graph_traits<Granted_roles_graph>::edge_iterator ei, ei_end;

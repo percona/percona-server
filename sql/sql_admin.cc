@@ -2051,16 +2051,8 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
     if (using_users == 0 || using_users->elements == 0) {
       const List_of_auth_id_refs *active_list =
           thd->security_context()->get_active_roles();
-<<<<<<< HEAD
-      DBUG_RETURN(mysql_show_grants(thd, &current_user, *active_list,
-                                    show_mandatory_roles, effective_grants));
-||||||| merged common ancestors
-      DBUG_RETURN(mysql_show_grants(thd, &current_user, *active_list,
-                                    show_mandatory_roles));
-=======
       return mysql_show_grants(thd, &current_user, *active_list,
-                               show_mandatory_roles);
->>>>>>> mysql-8.0.18
+                                    show_mandatory_roles, effective_grants);
     }
   } else if (strcmp(thd->security_context()->priv_user().str,
                     for_user->user.str) != 0) {
@@ -2084,15 +2076,8 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
 
   LEX_USER *tmp_user = const_cast<LEX_USER *>(for_user);
   tmp_user = get_current_user(thd, tmp_user);
-<<<<<<< HEAD
-  DBUG_RETURN(mysql_show_grants(thd, tmp_user, authid_list,
-                                show_mandatory_roles, effective_grants));
-||||||| merged common ancestors
-  DBUG_RETURN(
-      mysql_show_grants(thd, tmp_user, authid_list, show_mandatory_roles));
-=======
-  return mysql_show_grants(thd, tmp_user, authid_list, show_mandatory_roles);
->>>>>>> mysql-8.0.18
+  return mysql_show_grants(thd, tmp_user, authid_list,
+                                show_mandatory_roles, effective_grants);
 }
 
 bool Sql_cmd_show::execute(THD *thd) {

@@ -143,14 +143,8 @@ SET(INSTALL_BINDIR_STANDALONE           "bin")
 SET(INSTALL_SBINDIR_STANDALONE          "bin")
 #
 SET(INSTALL_LIBDIR_STANDALONE           "lib")
-<<<<<<< HEAD
-SET(INSTALL_PLUGINDIR_STANDALONE        "lib/mysql/plugin")
-||||||| merged common ancestors
-SET(INSTALL_PLUGINDIR_STANDALONE        "lib/plugin")
-=======
 SET(INSTALL_PRIV_LIBDIR_STANDALONE      "lib/private")
 SET(INSTALL_PLUGINDIR_STANDALONE        "lib/plugin")
->>>>>>> mysql-8.0.18
 #
 SET(INSTALL_INCLUDEDIR_STANDALONE       "include")
 #
@@ -319,18 +313,13 @@ SET(INSTALL_BINDIR_DEB                  "bin")
 SET(INSTALL_SBINDIR_DEB                 "sbin")
 #
 SET(INSTALL_LIBDIR_DEB                  "lib")
-<<<<<<< HEAD
-SET(INSTALL_PLUGINDIR_DEB               "lib/mysql/plugin")
-||||||| merged common ancestors
 SET(INSTALL_PLUGINDIR_DEB               "lib/plugin")
-=======
 SET(INSTALL_PRIV_LIBDIR_DEB             "lib/mysql/private")
 IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
   SET(INSTALL_PLUGINDIR_DEB             "lib/mysql/plugin/debug")
 ELSE()
   SET(INSTALL_PLUGINDIR_DEB             "lib/mysql/plugin")
 ENDIF()
->>>>>>> mysql-8.0.18
 #
 SET(INSTALL_INCLUDEDIR_DEB              "include/mysql")
 #

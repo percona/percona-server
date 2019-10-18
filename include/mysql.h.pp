@@ -86,10 +86,6 @@ enum enum_server_command {
   COM_CLONE,
   COM_END
 };
-<<<<<<< HEAD
-static const int PURGE_BITMAPS_TO_LSN = 1;
-||||||| merged common ancestors
-=======
 #include "my_compress.h"
 enum enum_compression_algorithm {
   MYSQL_UNCOMPRESSED = 1,
@@ -120,7 +116,7 @@ void mysql_compress_context_init(mysql_compress_context *cmp_ctx,
                                  enum enum_compression_algorithm algorithm,
                                  unsigned int compression_level);
 void mysql_compress_context_deinit(mysql_compress_context *mysql_compress_ctx);
->>>>>>> mysql-8.0.18
+static const int PURGE_BITMAPS_TO_LSN = 1;
 enum SERVER_STATUS_flags_enum {
   SERVER_STATUS_IN_TRANS = 1,
   SERVER_STATUS_AUTOCOMMIT = 2,

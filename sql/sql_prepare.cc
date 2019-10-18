@@ -1476,14 +1476,7 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
   sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
 
-<<<<<<< HEAD
-  DBUG_VOID_RETURN;
-||||||| merged common ancestors
   /* check_prepared_statement sends the metadata packet in case of success */
-  DBUG_VOID_RETURN;
-=======
-  /* check_prepared_statement sends the metadata packet in case of success */
->>>>>>> mysql-8.0.18
 }
 
 /**

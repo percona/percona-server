@@ -529,15 +529,9 @@ static void log_test_general_close() {
 
   sync_check_close();
 
-<<<<<<< HEAD
-  srv_shutdown_state.store(SRV_SHUTDOWN_NONE);
-||||||| merged common ancestors
-  srv_shutdown_state = SRV_SHUTDOWN_NONE;
-=======
   os_event_global_destroy();
 
-  srv_shutdown_state = SRV_SHUTDOWN_NONE;
->>>>>>> mysql-8.0.18
+  srv_shutdown_state.store(SRV_SHUTDOWN_NONE);
 
   free(srv_log_group_home_dir);
   srv_log_group_home_dir = nullptr;

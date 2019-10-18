@@ -1063,15 +1063,8 @@ bool opt_require_secure_transport = 0;
 bool relay_log_purge;
 bool relay_log_recovery;
 bool opt_allow_suspicious_udfs;
-<<<<<<< HEAD
-char *opt_secure_file_priv;
-||||||| merged common ancestors
-char *opt_secure_file_priv;
-bool opt_log_slow_admin_statements = 0;
-=======
 const char *opt_secure_file_priv;
 bool opt_log_slow_admin_statements = 0;
->>>>>>> mysql-8.0.18
 bool opt_log_slow_slave_statements = 0;
 bool lower_case_file_system = 0;
 bool opt_large_pages = 0;
@@ -1080,15 +1073,9 @@ bool opt_myisam_use_mmap = 0;
 std::atomic<bool> offline_mode;
 uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
-<<<<<<< HEAD
 ulonglong opt_slow_query_log_use_global_control = 0;
 ulong opt_slow_query_log_rate_type = 0;
-volatile bool password_require_current = false;
-||||||| merged common ancestors
-volatile bool password_require_current = false;
-=======
 bool password_require_current = false;
->>>>>>> mysql-8.0.18
 std::atomic<bool> partial_revokes;
 bool opt_partial_revokes;
 
@@ -3004,15 +2991,7 @@ static bool check_admin_address_has_valid_value(
 static bool network_init(void) {
   if (opt_initialize) return false;
 
-<<<<<<< HEAD
-  set_ports();
-
   set_proxy();
-||||||| merged common ancestors
-  set_ports();
-
-=======
->>>>>>> mysql-8.0.18
 #ifdef HAVE_SYS_UN_H
   std::string const unix_sock_name(mysqld_unix_port ? mysqld_unix_port : "");
 #else
@@ -5450,16 +5429,10 @@ static int init_server_components() {
   setup_fpu();
   init_slave_list();
 
-<<<<<<< HEAD
   init_global_table_stats();
   init_global_index_stats();
 
-  setup_error_log();
-||||||| merged common ancestors
-  setup_error_log();
-=======
   setup_error_log();  // opens the log if needed
->>>>>>> mysql-8.0.18
 
   enter_cond_hook = thd_enter_cond;
   exit_cond_hook = thd_exit_cond;
@@ -6242,16 +6215,10 @@ static int init_server_components() {
 
   init_max_user_conn();
 
-<<<<<<< HEAD
   init_global_user_stats();
   init_global_client_stats();
   init_global_thread_stats();
-  DBUG_RETURN(0);
-||||||| merged common ancestors
-  DBUG_RETURN(0);
-=======
   return 0;
->>>>>>> mysql-8.0.18
 }
 
 #ifdef _WIN32
@@ -6428,20 +6395,13 @@ int mysqld_main(int argc, char **argv)
 
   /* init_error_log() is required by error_log_printf() in
      option_error_reporter() */
+  //  Init error log subsystem. This does not actually open the log yet.
   if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
   ho_error = handle_early_options();
 
   init_sql_statement_names();
   sys_var_init();
   ulong requested_open_files = 0;
-<<<<<<< HEAD
-||||||| merged common ancestors
-  if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
-=======
-
-  //  Init error log subsystem. This does not actually open the log yet.
-  if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
->>>>>>> mysql-8.0.18
   if (!opt_validate_config) adjust_related_options(&requested_open_files);
   // moved signal initialization here so that PFS thread inherited signal mask
   my_init_signals();

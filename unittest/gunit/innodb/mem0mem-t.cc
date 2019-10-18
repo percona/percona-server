@@ -1,16 +1,4 @@
-<<<<<<< HEAD
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
-||||||| merged common ancestors
-<<<<<<<<< Temporary merge branch 1
 /* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
-||||||||| merged common ancestors
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
-=========
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
->>>>>>>>> Temporary merge branch 2
-=======
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-8.0.18
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,17 +44,10 @@ class mem0mem : public ::testing::Test {
     os_event_global_init();
     sync_check_init(srv_max_n_threads);
   }
-<<<<<<< HEAD
-  static void TearDownTestCase() { sync_check_close(); }
-||||||| merged common ancestors
-  static void TearDownTestCase() { sync_check_close(); }
->>>>>>>>> Temporary merge branch 2
-=======
   static void TearDownTestCase() {
     sync_check_close();
     os_event_global_destroy();
   }
->>>>>>> mysql-8.0.18
 };
 
 /* test mem_heap_is_top() */

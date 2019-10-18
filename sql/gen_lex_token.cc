@@ -85,7 +85,7 @@
   - likewise for sql/sql_hints.yy
 */
 
-int start_token_range_for_sql_hints = 1000;
+int start_token_range_for_sql_hints = 1005;    // MERGETODO
 int start_token_range_for_digests = 1100;
 /*
   This is a tool used during build only,

@@ -717,19 +717,6 @@ void log_request_checkpoint(log_t &log, bool sync) {
 bool log_make_latest_checkpoint(log_t &log) {
   const lsn_t lsn = log_get_lsn(log);
 
-<<<<<<< HEAD
-  if (srv_shutdown_state.load() != SRV_SHUTDOWN_FLUSH_PHASE)
-    log_preflush_pool_modified_pages(log, lsn);
-
-  log_checkpointer_mutex_enter(log);
-
-||||||| merged common ancestors
-  log_preflush_pool_modified_pages(log, lsn);
-
-  log_checkpointer_mutex_enter(log);
-
-=======
->>>>>>> mysql-8.0.18
   if (lsn <= log.last_checkpoint_lsn.load()) {
     return (false);
   }
@@ -772,17 +759,8 @@ static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
       /* Reason unknown. */
       || srv_is_being_started) {
     buf_flush_sync_all_buf_pools();
-<<<<<<< HEAD
-  } else {
-    new_oldest += log_buffer_flush_order_lag(log);
-||||||| merged common ancestors
-
-  } else {
-    new_oldest += log_buffer_flush_order_lag(log);
-=======
 
     return (true);
->>>>>>> mysql-8.0.18
 
   } else if (srv_flush_sync) {
     /* Wake up page cleaner asking to perform sync flush

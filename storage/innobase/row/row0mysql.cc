@@ -2782,7 +2782,7 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
         (dict_sys_t::is_dd_table_id(prebuilt->table->id) ||
          compression_dict::is_hardcoded(prebuilt->table->name.m_name)))) {
     ib::error(ER_IB_MSG_985) << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
-    DBUG_RETURN(DB_READ_ONLY);
+    return DB_READ_ONLY;
   }
 
   /* For compression dictionary delete, trx is already active because of the

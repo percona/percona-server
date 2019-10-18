@@ -9051,18 +9051,8 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
                                            // key id used
     }
 
-<<<<<<< HEAD
     /* Check encryption is matched or not. */
     if (err == DB_SUCCESS && FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
-      ut_ad(iter.m_encryption_key != NULL);
-
-||||||| merged common ancestors
-    if (FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
-      ut_ad(table->encryption_key != nullptr);
-
-=======
-    if (FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
->>>>>>> mysql-8.0.18
       if (!dd_is_table_in_encrypted_tablespace(table)) {
         ib::error(ER_IB_MSG_338) << "Table is not in an encrypted tablespace,"
                                     " but the data file intended for import"

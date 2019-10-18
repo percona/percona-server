@@ -42,14 +42,6 @@ void hp_clear(HP_SHARE *info) {
   info->records = 0;
   info->blength = 1;
   info->changed = 0;
-<<<<<<< HEAD
-  DBUG_VOID_RETURN;
-||||||| merged common ancestors
-  info->del_link = 0;
-  DBUG_VOID_RETURN;
-=======
-  info->del_link = 0;
->>>>>>> mysql-8.0.18
 }
 
 /*

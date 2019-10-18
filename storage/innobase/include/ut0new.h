@@ -1278,7 +1278,6 @@ class aligned_array_pointer : public aligned_memory<T_Type, T_Align_to> {
   size_t m_size;
 };
 
-<<<<<<< HEAD
 inline void ut_free_func(byte *buf) { ut_free(buf); }
 
 using ut_unique_ptr = std::unique_ptr<byte, std::function<void(byte *)>>;
@@ -1315,8 +1314,6 @@ inline ut_unique_ptr ut_make_unique_ptr_zalloc_nokey_no_fatal(
                        ut_free_func);
 }
 
-||||||| merged common ancestors
-=======
 namespace ut {
 
 /** Specialization of basic_ostringstream which uses ut_allocator. Please note
@@ -1331,5 +1328,4 @@ template <typename T>
 using vector = std::vector<T, ut_allocator<T>>;
 
 }  // namespace ut
->>>>>>> mysql-8.0.18
 #endif /* ut0new_h */

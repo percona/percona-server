@@ -3604,7 +3604,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     }
 
     /* If table is encrypted, but can't find cfp file, return error. */
-    if (cfg.m_cfp_missing) {
+    if (cfg.m_cfp_missing == true && !cfg.m_is_keyring_encrypted) {
       ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
               "Table is in an encrypted tablespace, but the encryption"
               " meta-data file cannot be found while importing.");
@@ -3688,33 +3688,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
           trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
           "Encryption attribute in the file does not match the dictionary.");
 
-<<<<<<< HEAD
-    /* If table is set to encrypted, but can't find
-    cfp file, then return error. */
-    if (cfg.m_cfp_missing == true && !cfg.m_is_keyring_encrypted &&
-        ((space_flags != 0 && FSP_FLAGS_GET_ENCRYPTION(space_flags)) ||
-         dd_is_table_in_encrypted_tablespace(table))) {
-      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Table is in an encrypted tablespace, but"
-              " can't find the encryption meta-data file"
-              " in importing");
-      err = DB_ERROR;
-      return (row_import_error(prebuilt, trx, err));
-||||||| merged common ancestors
-    /* If table is set to encrypted, but can't find
-    cfp file, then return error. */
-    if (cfg.m_cfp_missing == true &&
-        ((space_flags != 0 && FSP_FLAGS_GET_ENCRYPTION(space_flags)) ||
-         dd_is_table_in_encrypted_tablespace(table))) {
-      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Table is in an encrypted tablespace, but"
-              " can't find the encryption meta-data file"
-              " in importing");
-      err = DB_ERROR;
-      return (row_import_error(prebuilt, trx, err));
-=======
       return (row_import_cleanup(prebuilt, trx, err));
->>>>>>> mysql-8.0.18
     }
     return (row_import_error(prebuilt, trx, err));
   }

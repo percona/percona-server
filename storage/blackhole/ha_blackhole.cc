@@ -109,31 +109,15 @@ int ha_blackhole::write_row(uchar *) {
 int ha_blackhole::update_row(const uchar *, uchar *) {
   DBUG_TRACE;
   THD *thd = ha_thd();
-<<<<<<< HEAD
-  if (pretend_for_slave(*thd)) DBUG_RETURN(0);
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-||||||| merged common ancestors
-  if (is_slave_applier(thd) && thd->query().str == NULL) DBUG_RETURN(0);
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-=======
-  if (is_slave_applier(thd) && thd->query().str == NULL) return 0;
+  if (pretend_for_slave(*thd)) return 0;
   return HA_ERR_WRONG_COMMAND;
->>>>>>> mysql-8.0.18
 }
 
 int ha_blackhole::delete_row(const uchar *) {
   DBUG_TRACE;
   THD *thd = ha_thd();
-<<<<<<< HEAD
-  if (pretend_for_slave(*thd)) DBUG_RETURN(0);
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-||||||| merged common ancestors
-  if (is_slave_applier(thd) && thd->query().str == NULL) DBUG_RETURN(0);
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-=======
-  if (is_slave_applier(thd) && thd->query().str == NULL) return 0;
+  if (pretend_for_slave(*thd)) return 0;
   return HA_ERR_WRONG_COMMAND;
->>>>>>> mysql-8.0.18
 }
 
 int ha_blackhole::rnd_init(bool) {

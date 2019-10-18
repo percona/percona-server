@@ -1284,16 +1284,8 @@ class Binlog_event_writer : public Basic_ostream {
     if (have_checksum) checksum = my_checksum(checksum, header, header_len);
   }
 
-<<<<<<< HEAD
   bool write(const unsigned char *buffer, my_off_t length) override {
-    DBUG_ENTER("Binlog_event_writer::write");
-||||||| merged common ancestors
-  bool write(const unsigned char *buffer, my_off_t length) {
-    DBUG_ENTER("Binlog_event_writer::write");
-=======
-  bool write(const unsigned char *buffer, my_off_t length) {
     DBUG_TRACE;
->>>>>>> mysql-8.0.18
 
     while (length > 0) {
       /* Write event header into binlog */
@@ -5330,15 +5322,9 @@ static bool check_write_error_code(uint error_code) {
 bool MYSQL_BIN_LOG::check_write_error(const THD *thd) {
   DBUG_TRACE;
 
-  if (!thd->is_error()) DBUG_RETURN(false);
+  if (!thd->is_error()) return false;
 
-<<<<<<< HEAD
   bool checked = check_write_error_code(thd->get_stmt_da()->mysql_errno());
-||||||| merged common ancestors
-  if (!thd->is_error()) DBUG_RETURN(checked);
-=======
-  if (!thd->is_error()) return checked;
->>>>>>> mysql-8.0.18
 
   if (!checked) {
     /* Check all conditions for one that matches the expected error */
@@ -6988,16 +6974,8 @@ bool MYSQL_BIN_LOG::write_event(Log_event *ev, Master_info *mi) {
   return error;
 }
 
-<<<<<<< HEAD
 bool MYSQL_BIN_LOG::write_buffer(uchar *buf, uint len, Master_info *mi) {
-  DBUG_ENTER("MYSQL_BIN_LOG::write_buffer(uchar *, uint, Master_info *");
-||||||| merged common ancestors
-bool MYSQL_BIN_LOG::write_buffer(const char *buf, uint len, Master_info *mi) {
-  DBUG_ENTER("MYSQL_BIN_LOG::write_buffer(char *, uint, Master_info *");
-=======
-bool MYSQL_BIN_LOG::write_buffer(const char *buf, uint len, Master_info *mi) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
 
   // check preconditions
   DBUG_ASSERT(is_relay_log);
@@ -8390,15 +8368,9 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
       return RESULT_ABORTED;
     }
 
-<<<<<<< HEAD
     int rc = ordered_commit(thd, all, skip_commit);
 
-    if (rc) DBUG_RETURN(RESULT_INCONSISTENT);
-||||||| merged common ancestors
-    if (ordered_commit(thd, all, skip_commit)) DBUG_RETURN(RESULT_INCONSISTENT);
-=======
-    if (ordered_commit(thd, all, skip_commit)) return RESULT_INCONSISTENT;
->>>>>>> mysql-8.0.18
+    if (rc) return RESULT_INCONSISTENT;
 
     DBUG_EXECUTE_IF("ensure_binlog_cache_is_reset", {
       /* Assert that binlog cache is reset at commit time. */

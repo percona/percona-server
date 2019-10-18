@@ -104,7 +104,6 @@ SET(TESTS
   byteorder
   calloc
   cost_estimate
-  dbug
   decimal
   dynarray
   filesort_buffer

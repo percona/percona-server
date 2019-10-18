@@ -741,22 +741,14 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
   if (!trx_is_interrupted(trx)) {
     extern ib_mutex_t master_key_id_mutex;
 
-<<<<<<< HEAD
     bool was_master_key_id_mutex_locked = false;
     fil_space_t *space = fil_space_get(table->space);
     ut_ad(space != nullptr);
     if (dd_is_table_in_encrypted_tablespace(table) &&
         space->crypt_data != NULL) {
-      /* Require the mutex to block key rotation. */
-      was_master_key_id_mutex_locked = true;
-||||||| merged common ancestors
-    if (dd_is_table_in_encrypted_tablespace(table)) {
-      /* Require the mutex to block key rotation. */
-=======
-    if (dd_is_table_in_encrypted_tablespace(table)) {
       /* Take the mutex to make sure master_key_id doesn't change (eg: key
       rotation). */
->>>>>>> mysql-8.0.18
+      was_master_key_id_mutex_locked = true;
       mutex_enter(&master_key_id_mutex);
     }
 

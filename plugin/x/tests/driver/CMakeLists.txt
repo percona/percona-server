@@ -79,7 +79,7 @@ MYSQL_ADD_EXECUTABLE(mysqlxtest
   LINK_LIBRARIES
   mysys
   strings
-  mysqlclient
+  perconaserverclient
   ${MYSQLX_CLIENT_FULL_LIB}
   ${MYSQLX_PROTOCOL_FULL_LIB}
   ${PROTOBUF_LIBRARY}
@@ -98,28 +98,6 @@ MYSQLX_APPEND_COMPILE_DEFINITIONS(mysqlxtest
   "NGS_DISABLE_LOGGING;USE_MYSQLX_FULL_PROTO"
 )
 
-<<<<<<< HEAD
-TARGET_LINK_LIBRARIES(${XTEST_EXE_NAME}
-  mysys
-  strings
-  perconaserverclient
-  ${MYSQLX_CLIENT_FULL_LIB}
-  ${MYSQLX_PROTOCOL_FULL_LIB}
-  ${PROTOBUF_LIBRARY}
-)
-
-||||||| merged common ancestors
-TARGET_LINK_LIBRARIES(${XTEST_EXE_NAME}
-  mysys
-  strings
-  mysqlclient
-  ${MYSQLX_CLIENT_FULL_LIB}
-  ${MYSQLX_PROTOCOL_FULL_LIB}
-  ${PROTOBUF_LIBRARY}
-)
-
-=======
->>>>>>> mysql-8.0.18
 MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-parameter" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(${XTEST_SRC} COMPILE_FLAGS ${HAS_WARN_FLAG})

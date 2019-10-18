@@ -641,6 +641,7 @@ void lock_trx_lock_list_init(
 
 /** Set the lock system timeout event. */
 void lock_set_timeout_event();
+
 #ifdef UNIV_DEBUG
 /** Checks that a transaction id is sensible, i.e., not in the future.
  @return true if ok */

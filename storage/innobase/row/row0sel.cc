@@ -4522,20 +4522,10 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   if (dict_table_is_discarded(prebuilt->table)) {
     return DB_TABLESPACE_DELETED;
 
-<<<<<<< HEAD
   } else if (prebuilt->table->file_unreadable) {
-    DBUG_RETURN(fil_space_get(prebuilt->table->space)
+    return fil_space_get(prebuilt->table->space)
                     ? DB_IO_DECRYPT_FAIL
-                    : DB_TABLESPACE_NOT_FOUND);
-||||||| merged common ancestors
-  } else if (prebuilt->table->ibd_file_missing) {
-    DBUG_RETURN(DB_TABLESPACE_NOT_FOUND);
-
-=======
-  } else if (prebuilt->table->ibd_file_missing) {
-    return DB_TABLESPACE_NOT_FOUND;
-
->>>>>>> mysql-8.0.18
+                    : DB_TABLESPACE_NOT_FOUND;
   } else if (!prebuilt->index_usable) {
     return DB_MISSING_HISTORY;
 

@@ -109,7 +109,6 @@ MACRO(MYSQL_CHECK_CURL)
     MESSAGE(STATUS "CURL_INCLUDE_DIR = ${CURL_INCLUDE_DIR}")
   ENDIF()
 ENDMACRO()
-<<<<<<< HEAD
 
 MACRO (CHECK_IF_CURL_DEPENDS_ON_RTMP project_name)
   EXECUTE_PROCESS(COMMAND ldd ${CURL_LIBRARY}
@@ -121,10 +120,6 @@ Please provide CURL library that does not depend on rtmp library to build keyrin
     RETURN()
   ENDIF()
 ENDMACRO()
-
-||||||| merged common ancestors
-=======
-
 
 MACRO(MYSQL_CHECK_CURL_DLLS)
 
@@ -199,4 +194,3 @@ MACRO(MYSQL_CHECK_CURL_DLLS)
 
   ENDIF()
 ENDMACRO()
->>>>>>> mysql-8.0.18

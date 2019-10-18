@@ -998,7 +998,6 @@ static bool login_connection(THD *thd) {
       thd->variables.net_read_timeout);
   thd->get_protocol_classic()->set_write_timeout(
       thd->variables.net_write_timeout);
-<<<<<<< HEAD
 
   if (unlikely(opt_userstat)) {
     thd->reset_stats();
@@ -1007,12 +1006,7 @@ static bool login_connection(THD *thd) {
     increment_connection_count(*thd, true);
   }
 
-  DBUG_RETURN(0);
-||||||| merged common ancestors
-  DBUG_RETURN(0);
-=======
   return 0;
->>>>>>> mysql-8.0.18
 }
 
 /*

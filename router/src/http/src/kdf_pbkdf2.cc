@@ -46,18 +46,6 @@ constexpr char Pbkdf2McfType::kTypeSha512[];
 std::vector<uint8_t> Pbkdf2::salt() {
   std::vector<uint8_t> out(16);
 
-<<<<<<< HEAD
-  if (out.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-    throw std::out_of_range("out.size() too large");
-  }
-
-||||||| merged common ancestors
-  if (out.size() > std::numeric_limits<int>::max()) {
-    throw std::out_of_range("out.size() too large");
-  }
-
-=======
->>>>>>> mysql-8.0.18
   if (0 == RAND_bytes(out.data(), static_cast<int>(out.size()))) {
     throw std::runtime_error("getting random bytes failed");
   }

@@ -123,19 +123,13 @@ static bool verbose = 0, opt_no_create_info = 0, opt_no_data = 0, quick = 1,
             opt_include_master_host_port = 0, opt_events = 0,
             opt_comments_used = 0, opt_alltspcs = 0, opt_notspcs = 0,
             opt_drop_trigger = 0, opt_network_timeout = 0,
-<<<<<<< HEAD
-            stats_tables_included = 0, column_statistics = false;
+            stats_tables_included = 0, column_statistics = false,
+            opt_show_create_table_skip_secondary_engine = false;
 static bool opt_compressed_columns = false,
             opt_compressed_columns_with_dictionaries = false,
             opt_drop_compression_dictionary = true,
             opt_order_by_primary_desc = false, opt_lock_for_backup = false,
             opt_innodb_optimize_keys = false;
-||||||| merged common ancestors
-            stats_tables_included = 0, column_statistics = false;
-=======
-            stats_tables_included = 0, column_statistics = false,
-            opt_show_create_table_skip_secondary_engine = false;
->>>>>>> mysql-8.0.18
 static bool insert_pat_inited = 0, debug_info_flag = 0, debug_check_flag = 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection, *mysql = 0;
@@ -1823,14 +1817,14 @@ static char *quote_name(char *name, char *buff, bool force) {
    @return Pointer to unquoted string (either original opt_quoted_name or
    buff).
 */
-static char *unquote_name(const char *opt_quoted_name, char *buff) noexcept {
-  if (!opt_quoted) return (char *)opt_quoted_name;
+static const char *unquote_name(const char *opt_quoted_name, char *buff) noexcept {
+  if (!opt_quoted) return (const char *)opt_quoted_name;
 
   const char qtype = ansi_quotes_mode ? '\"' : '`';
 
   if (*opt_quoted_name != qtype) {
     DBUG_ASSERT(strchr(opt_quoted_name, qtype) == 0);
-    return (char *)opt_quoted_name;
+    return (const char *)opt_quoted_name;
   }
 
   ++opt_quoted_name;
@@ -3254,20 +3248,11 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
   result_table = quote_name(table, table_buff, 1);
   opt_quoted_table = quote_name(table, table_buff2, 0);
 
-<<<<<<< HEAD
   const bool has_pk =
       (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
           ? has_primary_key(table)
           : false;
 
-  if (opt_order_by_primary || opt_order_by_primary_desc)
-    order_by = primary_key_fields(result_table, opt_order_by_primary_desc);
-
-||||||| merged common ancestors
-  if (opt_order_by_primary) order_by = primary_key_fields(result_table);
-
-=======
->>>>>>> mysql-8.0.18
   if (!opt_xml && !mysql_query_with_error_report(mysql, 0, query_buff)) {
     /* using SHOW CREATE statement */
     if (!opt_no_create_info && !skip_ddl) {
@@ -4268,7 +4253,9 @@ static void dump_table(char *table, char *db) {
   if (extended_insert)
     init_dynamic_string_checked(&extended_row, "", 1024, 1024);
 
-  if (opt_order_by_primary) order_by = primary_key_fields(result_table);
+  if (opt_order_by_primary || opt_order_by_primary_desc)
+    order_by = primary_key_fields(result_table, opt_order_by_primary_desc);
+
   if (path) {
     char filename[FN_REFLEN], tmp_path[FN_REFLEN];
 

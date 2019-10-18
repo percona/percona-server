@@ -914,21 +914,15 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
       if (table_def == nullptr && table_share->tmp_table == NO_TMP_TABLE) {
         if (thd->dd_client()->acquire(table_share->db.str,
                                       table_share->table_name.str, &table_def))
-          DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+          return HA_ERR_INTERNAL_ERROR;
         DBUG_ASSERT(table_def);
       }
 
       table_parts = Ha_innopart_share::open_table_parts(thd, table, table_def,
                                                         m_part_info, norm_name);
 
-<<<<<<< HEAD
-      if (table_parts == nullptr) DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+      if (table_parts == nullptr) return HA_ERR_INTERNAL_ERROR;
     }
-||||||| merged common ancestors
-    if (table_parts == nullptr) DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
-=======
-    if (table_parts == nullptr) return HA_ERR_INTERNAL_ERROR;
->>>>>>> mysql-8.0.18
 
     /* Now acquire TABLE_SHARE::LOCK_ha_data again and assign table
     and index information. set_table_parts_and_indexes() will check
@@ -3039,19 +3033,9 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
 
     if (dict_table_is_discarded(part_table)) {
       ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, norm_name);
-<<<<<<< HEAD
-      DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-    } else if (!part_table->is_readable()) {
-      DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
-||||||| merged common ancestors
-      DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-    } else if (part_table->ibd_file_missing) {
-      DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
-=======
       return HA_ERR_NO_SUCH_TABLE;
-    } else if (part_table->ibd_file_missing) {
+    } else if (!part_table->is_readable()) {
       return HA_ERR_TABLESPACE_MISSING;
->>>>>>> mysql-8.0.18
     }
 
     error = truncator.exec();
@@ -3139,19 +3123,9 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
 
     if (dict_table_is_discarded(part_table)) {
       ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, table_name);
-<<<<<<< HEAD
-      DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-    } else if (!part_table->is_readable()) {
-      DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
-||||||| merged common ancestors
-      DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-    } else if (part_table->ibd_file_missing) {
-      DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
-=======
       return HA_ERR_NO_SUCH_TABLE;
-    } else if (part_table->ibd_file_missing) {
+    } else if (!part_table->is_readable()) {
       return HA_ERR_TABLESPACE_MISSING;
->>>>>>> mysql-8.0.18
     }
 
     error = truncator.exec();

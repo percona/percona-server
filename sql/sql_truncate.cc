@@ -546,16 +546,8 @@ void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
 
     // Attempt to reconstruct the table
     if (ha_create_table(thd, path, table_ref->db, table_ref->table_name,
-<<<<<<< HEAD
                         &create_info, nullptr, true, false, table_def) != 0) {
-      DBUG_VOID_RETURN;
-||||||| merged common ancestors
-                        &create_info, true, false, table_def) != 0) {
-      DBUG_VOID_RETURN;
-=======
-                        &create_info, true, false, table_def) != 0) {
       return;
->>>>>>> mysql-8.0.18
     }
 
     // Binlog only if truncate-by-recreate succeeds.

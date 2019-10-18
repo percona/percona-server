@@ -2550,7 +2550,7 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   if (plugin->ref_count && plugin->plugin->type == MYSQL_KEYRING_PLUGIN) {
     mysql_mutex_unlock(&LOCK_plugin);
 
-    my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name->str,
+    my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name.str,
              "Plugin is busy, it cannot be uninstalled. ");
     goto err;
   }

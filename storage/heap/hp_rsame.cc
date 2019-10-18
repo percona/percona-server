@@ -52,17 +52,9 @@ int heap_rsame(HP_INFO *info, uchar *record, int inx) {
         return my_errno();
       }
     }
-<<<<<<< HEAD
     if (hp_extract_record(info, record, info->current_ptr))
-      DBUG_RETURN(my_errno());
-    DBUG_RETURN(0);
-||||||| merged common ancestors
-    memcpy(record, info->current_ptr, (size_t)share->reclength);
-    DBUG_RETURN(0);
-=======
-    memcpy(record, info->current_ptr, (size_t)share->reclength);
+      return my_errno();
     return 0;
->>>>>>> mysql-8.0.18
   }
 
   /* Treat deleted and linked chunks as deleted */

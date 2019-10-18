@@ -303,14 +303,8 @@ class Basic_binlog_file_reader {
     m_data_istream.reset_crypto();
 
     Format_description_log_event *fd = read_fdle(offset);
-<<<<<<< HEAD
 
-    if (!fd) DBUG_RETURN(has_fatal_error());
-||||||| merged common ancestors
-    if (!fd) DBUG_RETURN(has_fatal_error());
-=======
     if (!fd) return has_fatal_error();
->>>>>>> mysql-8.0.18
 
     if (position() < offset && seek(offset)) {
       delete fd;

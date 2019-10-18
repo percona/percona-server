@@ -140,18 +140,8 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
       if (readbytes == (size_t)-1 || (MyFlags & (MY_FNABP | MY_NABP)))
         return MY_FILE_ERROR; /* Return with error */
     }
-<<<<<<< HEAD
-    if (MyFlags & (MY_NABP | MY_FNABP))
-      DBUG_RETURN(0);             /* Read went ok; Return 0 */
-    DBUG_RETURN(total_readbytes); /* purecov: inspected */
-||||||| merged common ancestors
-    if (MyFlags & (MY_NABP | MY_FNABP))
-      DBUG_RETURN(0);       /* Read went ok; Return 0 */
-    DBUG_RETURN(readbytes); /* purecov: inspected */
-=======
     if (MyFlags & (MY_NABP | MY_FNABP)) return 0; /* Read went ok; Return 0 */
-    return readbytes;                             /* purecov: inspected */
->>>>>>> mysql-8.0.18
+    return total_readbytes;                       /* purecov: inspected */
   }
 } /* my_pread */
 

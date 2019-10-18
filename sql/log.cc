@@ -815,7 +815,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                     thd->tmp_tables_size) == (uint)-1)
       goto err;
 
-  if (my_b_write(&log_file, (uchar *)"\n", 1)) goto err;
+  if (my_b_write(&log_file, (const uchar *)"\n", 1)) goto err;
 
   if (opt_log_slow_sp_statements == 1 && thd->sp_runtime_ctx &&
       my_b_printf(&log_file, "# Stored_routine: %s\n",
@@ -1672,7 +1672,6 @@ char *make_query_log_name(char *buff, enum_log_table_type log_type) {
                    MYF(MY_UNPACK_FILENAME | MY_REPLACE_EXT));
 }
 
-<<<<<<< HEAD
 /**
    Calculate execution time for the current query.
 
@@ -1707,26 +1706,19 @@ static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime) {
 }
 
 static void copy_global_to_session(THD *thd, ulong flag, const ulong *val) {
-  const ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
+  const ptrdiff_t offset = ((const char *)val - (const char *)&global_system_variables);
   if (opt_slow_query_log_use_global_control & (1ULL << flag))
     *(ulong *)((char *)&thd->variables + offset) = *val;
 }
 
 static void copy_global_to_session(THD *thd, ulong flag, const ulonglong *val) {
-  const ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
+  const ptrdiff_t offset = ((const char *)val - (const char *)&global_system_variables);
   if (opt_slow_query_log_use_global_control & (1ULL << flag))
     *(ulonglong *)((char *)&thd->variables + offset) = *val;
 }
 
 bool log_slow_applicable(THD *thd, int sp_sql_command) {
-  DBUG_ENTER("log_slow_applicable");
-||||||| merged common ancestors
-bool log_slow_applicable(THD *thd) {
-  DBUG_ENTER("log_slow_applicable");
-=======
-bool log_slow_applicable(THD *thd) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
 
   /*
     The following should never be true with our current code base,
@@ -1738,7 +1730,7 @@ bool log_slow_applicable(THD *thd) {
   /* Follow the slow log filter configuration. */
   if (thd->variables.log_slow_filter != 0 &&
       !(thd->variables.log_slow_filter & thd->query_plan_flags))
-    DBUG_RETURN(false);
+	 return false;
 
   ulonglong end_utime_of_query = thd->current_utime();
   ulonglong query_exec_time = get_query_exec_time(thd, end_utime_of_query);
@@ -1751,15 +1743,15 @@ bool log_slow_applicable(THD *thd) {
     if (thd->lex->sql_command == SQLCOM_CALL) {
       if (!thd->stmt_arena->is_regular()) {
         DBUG_ASSERT(sp_sql_command != -1);
-        if (sp_sql_command == SQLCOM_CALL) DBUG_RETURN(false);
+        if (sp_sql_command == SQLCOM_CALL) return false;
       } else
-        DBUG_RETURN(false);
+	 return false;
     } else if (thd->lex->sql_command == SQLCOM_EXECUTE) {
       Prepared_statement *stmt;
       LEX_CSTRING *name = &thd->lex->prepared_stmt_name;
       if ((stmt = thd->stmt_map.find_by_name(*name)) != NULL && stmt->lex &&
           stmt->lex->sql_command == SQLCOM_CALL)
-        DBUG_RETURN(false);
+	 return false;
     }
   }
 
@@ -1787,7 +1779,7 @@ bool log_slow_applicable(THD *thd) {
       query_exec_time < slow_query_log_always_write_time &&
       (thd->variables.long_query_time >= 1000000 ||
        (ulong)query_exec_time < 1000000)) {
-    DBUG_RETURN(false);
+	  return false;
   }
   if (opt_slow_query_log_rate_type == SLOG_RT_SESSION &&
       thd->variables.log_slow_rate_limit &&
@@ -1795,7 +1787,7 @@ bool log_slow_applicable(THD *thd) {
       query_exec_time < slow_query_log_always_write_time &&
       (thd->variables.long_query_time >= 1000000 ||
        (ulong)query_exec_time < 1000000)) {
-    DBUG_RETURN(false);
+	  return false;
   }
 
   /*

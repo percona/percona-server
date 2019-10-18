@@ -2425,18 +2425,11 @@ static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   lsn_age_factor = (age * 100) / limit_for_age;
 
   ut_ad(srv_max_io_capacity >= srv_io_capacity);
-<<<<<<< HEAD
   switch (
       static_cast<srv_cleaner_lsn_age_factor_t>(srv_cleaner_lsn_age_factor)) {
     case SRV_CLEANER_LSN_AGE_FACTOR_LEGACY:
       return (
           static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
-||||||| merged common ancestors
-  return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
-=======
-
-  return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
->>>>>>> mysql-8.0.18
                               (lsn_age_factor * sqrt((double)lsn_age_factor))) /
                              7.5));
     case SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT:
@@ -2617,7 +2610,7 @@ static ulint page_cleaner_flush_pages_recommendation(ulint last_pages_in,
   max_io_capacity. Limit the value to avoid too quick increase */
 
   n_pages = PCT_IO(pct_total);
-  if (age < log_get_max_modified_age_async()) {
+  if (age < log_get_max_modified_age_async(*log_sys)) {
     ulint pages_for_lsn =
         std::min<ulint>(sum_pages_for_lsn, srv_max_io_capacity * 2);
     n_pages = (n_pages + avg_page_rate + pages_for_lsn) / 3;
@@ -3177,37 +3170,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
       }
 
       next_loop_time = curr_time + 1000;
-<<<<<<< HEAD
       n_flushed_last = 0;
-    }
-
-    if (ret_sleep != OS_SYNC_TIME_EXCEEDED && srv_flush_sync &&
-        buf_flush_sync_lsn > 0) {
-      /* woke up for flush_sync */
-      mutex_enter(&page_cleaner->mutex);
-      lsn_t lsn_limit = buf_flush_sync_lsn;
-      buf_flush_sync_lsn = 0;
-      mutex_exit(&page_cleaner->mutex);
-
-      /* Request flushing for threads */
-      pc_request(ULINT_MAX, lsn_limit);
-||||||| merged common ancestors
-      n_flushed_last = n_evicted = 0;
-    }
-
-    if (ret_sleep != OS_SYNC_TIME_EXCEEDED && srv_flush_sync &&
-        buf_flush_sync_lsn > 0) {
-      /* woke up for flush_sync */
-      mutex_enter(&page_cleaner->mutex);
-      lsn_t lsn_limit = buf_flush_sync_lsn;
-      buf_flush_sync_lsn = 0;
-      mutex_exit(&page_cleaner->mutex);
-
-      /* Request flushing for threads */
-      pc_request(ULINT_MAX, lsn_limit);
-=======
-      n_flushed_last = n_evicted = 0;
->>>>>>> mysql-8.0.18
 
       was_server_active = srv_check_activity(last_activity);
       last_activity = srv_get_activity_count();
@@ -3217,54 +3180,17 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
     lsn_t lsn_limit = buf_flush_sync_lsn;
     mutex_exit(&page_cleaner->mutex);
 
-<<<<<<< HEAD
-      /* Wait for all slots to be finished */
-      ulint n_flushed_list = 0;
-      pc_wait_finished(&n_flushed_list);
-||||||| merged common ancestors
-      /* Wait for all slots to be finished */
-      ulint n_flushed_lru = 0;
-      ulint n_flushed_list = 0;
-      pc_wait_finished(&n_flushed_lru, &n_flushed_list);
-=======
     if (srv_read_only_mode) {
       is_sync_flush = false;
     } else {
       ut_a(log_sys != nullptr);
->>>>>>> mysql-8.0.18
 
-<<<<<<< HEAD
-      if (n_flushed_list > 0) {
-        srv_stats.buf_pool_flushed.add(n_flushed_list);
-||||||| merged common ancestors
-      if (n_flushed_list > 0 || n_flushed_lru > 0) {
-        buf_flush_stats(n_flushed_list, n_flushed_lru);
-=======
       const lsn_t checkpoint_lsn = log_sys->last_checkpoint_lsn.load();
->>>>>>> mysql-8.0.18
 
-<<<<<<< HEAD
-        MONITOR_INC_VALUE_CUMULATIVE(MONITOR_FLUSH_SYNC_TOTAL_PAGE,
-                                     MONITOR_FLUSH_SYNC_COUNT,
-                                     MONITOR_FLUSH_SYNC_PAGES, n_flushed_list);
-      }
-||||||| merged common ancestors
-        MONITOR_INC_VALUE_CUMULATIVE(
-            MONITOR_FLUSH_SYNC_TOTAL_PAGE, MONITOR_FLUSH_SYNC_COUNT,
-            MONITOR_FLUSH_SYNC_PAGES, n_flushed_lru + n_flushed_list);
-      }
-=======
       const lsn_t lag = log_buffer_flush_order_lag(*log_sys);
->>>>>>> mysql-8.0.18
 
-<<<<<<< HEAD
-      n_flushed = n_flushed_list;
-||||||| merged common ancestors
-      n_flushed = n_flushed_lru + n_flushed_list;
-=======
       is_sync_flush = srv_flush_sync && lsn_limit > checkpoint_lsn + lag;
     }
->>>>>>> mysql-8.0.18
 
     if (is_sync_flush || is_server_active) {
       ulint n_to_flush;
@@ -3316,34 +3242,13 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
       n_flushed_last += n_flushed_list;
 
-<<<<<<< HEAD
       n_flushed = n_flushed_list;
 
-      if (n_flushed_list) {
-||||||| merged common ancestors
-      n_flushed = n_flushed_lru + n_flushed_list;
-
-      if (n_flushed_lru) {
-        MONITOR_INC_VALUE_CUMULATIVE(
-            MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE, MONITOR_LRU_BATCH_FLUSH_COUNT,
-            MONITOR_LRU_BATCH_FLUSH_PAGES, n_flushed_lru);
-      }
-
-      if (n_flushed_list) {
-=======
-      n_flushed = n_flushed_lru + n_flushed_list;
-
       if (is_sync_flush) {
->>>>>>> mysql-8.0.18
         MONITOR_INC_VALUE_CUMULATIVE(
             MONITOR_FLUSH_SYNC_TOTAL_PAGE, MONITOR_FLUSH_SYNC_COUNT,
-            MONITOR_FLUSH_SYNC_PAGES, n_flushed_lru + n_flushed_list);
+            MONITOR_FLUSH_SYNC_PAGES, n_flushed_list);
       } else {
-        if (n_flushed_lru) {
-          MONITOR_INC_VALUE_CUMULATIVE(
-              MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE, MONITOR_LRU_BATCH_FLUSH_COUNT,
-              MONITOR_LRU_BATCH_FLUSH_PAGES, n_flushed_lru);
-        }
         if (n_flushed_list) {
           MONITOR_INC_VALUE_CUMULATIVE(
               MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE, MONITOR_FLUSH_ADAPTIVE_COUNT,
@@ -3644,15 +3549,9 @@ bool buf_flush_request_force(lsn_t lsn_limit) {
   ut_a(buf_flush_page_cleaner_is_active());
 
   /* adjust based on lsn_avg_rate not to get old */
-<<<<<<< HEAD
   lsn_t lsn_target =
       (lsn_limit != LSN_MAX) ? (lsn_limit + lsn_avg_rate * 3) : LSN_MAX;
-||||||| merged common ancestors
-  lsn_t lsn_target = lsn_limit + lsn_avg_rate * 3;
-=======
-  lsn_t lsn_target = lsn_limit + lsn_avg_rate * 3;
   bool result;
->>>>>>> mysql-8.0.18
 
   mutex_enter(&page_cleaner->mutex);
   if (lsn_target > buf_flush_sync_lsn) {

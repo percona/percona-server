@@ -7156,7 +7156,7 @@ static const char *default_table_encryption_type_names[] = {
 bool Sys_var_enum_default_table_encryption::global_update(THD *, set_var *var) {
   global_var(ulong) = var->save_result.ulonglong_value;
 
-  static const LEX_CSTRING innodb_engine{C_STRING_WITH_LEN("innodb")};
+  static const LEX_CSTRING innodb_engine{STRING_WITH_LEN("innodb")};
 
   plugin_ref plugin;
   if ((plugin = ha_resolve_by_name(nullptr, &innodb_engine, false))) {

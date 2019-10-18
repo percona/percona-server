@@ -42,14 +42,8 @@
 #include <string>
 
 #include "lex_string.h"
-<<<<<<< HEAD
-#include "load_data_events.h"
 #include "m_string.h"  // native_strncasecmp
 #include "my_aes.h"
-||||||| merged common ancestors
-#include "load_data_events.h"
-#include "m_string.h"   // native_strncasecmp
-=======
 #include "libbinlogevents/include/binlog_event.h"
 #include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/load_data_events.h"
@@ -57,7 +51,6 @@
 #include "libbinlogevents/include/statement_events.h"
 #include "libbinlogevents/include/uuid.h"
 #include "m_string.h"   // native_strncasecmp
->>>>>>> mysql-8.0.18
 #include "my_bitmap.h"  // MY_BITMAP
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -2262,24 +2255,10 @@ class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
   Unknown_log_event(const char *buf,
                     const Format_description_event *description_event)
       : binary_log::Unknown_event(buf, description_event),
-<<<<<<< HEAD
         Log_event(header(), footer()),
         what(kind::UNKNOWN) {
-    DBUG_ENTER(
-        "Unknown_log_event::Unknown_log_event(const char *, const "
-        "Format_description_log_event *)");
-    if (!is_valid()) DBUG_VOID_RETURN;
-||||||| merged common ancestors
-        Log_event(header(), footer()) {
-    DBUG_ENTER(
-        "Unknown_log_event::Unknown_log_event(const char *, const "
-        "Format_description_log_event *)");
-    if (!is_valid()) DBUG_VOID_RETURN;
-=======
-        Log_event(header(), footer()) {
     DBUG_TRACE;
     if (!is_valid()) return;
->>>>>>> mysql-8.0.18
     common_header->set_is_valid(true);
     return;
   }

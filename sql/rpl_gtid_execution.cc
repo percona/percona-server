@@ -288,16 +288,8 @@ int gtid_acquire_ownership_multiple(THD *thd) {
   @retval true   Transaction was already logged.
   @retval false  Transaction must be executed.
 */
-<<<<<<< HEAD
 bool is_already_logged_transaction(const THD *thd) {
-  DBUG_ENTER("is_already_logged_transaction");
-||||||| merged common ancestors
-static inline bool is_already_logged_transaction(const THD *thd) {
-  DBUG_ENTER("is_already_logged_transaction");
-=======
-static inline bool is_already_logged_transaction(const THD *thd) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
 
   const Gtid_specification *gtid_next = &thd->variables.gtid_next;
   const Gtid_set *gtid_next_list = thd->get_gtid_next_list_const();

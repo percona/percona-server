@@ -3512,19 +3512,7 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
                                   const char **errptr) {
   SSL *ssl;
   X509 *server_cert = NULL;
-<<<<<<< HEAD
 #ifndef HAVE_X509_CHECK_FUNCTIONS
-||||||| merged common ancestors
-  int ret_validation = 1;
-
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL))
-  int cn_loc = -1;
-=======
-  int ret_validation = 1;
-
-#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
-  int cn_loc = -1;
->>>>>>> mysql-8.0.18
   char *cn = NULL;
   int cn_loc = -1;
   ASN1_STRING *cn_asn1 = NULL;
@@ -3564,7 +3552,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
     are what we expect.
   */
 
-<<<<<<< HEAD
   /* Checking if the provided server_hostname is a V4/V6 IP address */
   server_ip_address = a2i_IPADDRESS(server_hostname);
   if (server_ip_address != nullptr) {
@@ -3574,63 +3561,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
 #else
     ipout = (const unsigned char *)ASN1_STRING_get0_data(server_ip_address);
 #endif
-||||||| merged common ancestors
-  /* Use OpenSSL certificate matching functions instead of our own if we
-     have OpenSSL. The X509_check_* functions return 1 on success.
-  */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
-  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
-                       0) != 1) &&
-      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
-    *errptr =
-        "Failed to verify the server certificate via X509 certificate "
-        "matching functions";
-    goto error;
-
-  } else {
-    /* Success */
-    ret_validation = 0;
-  }
-#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-  /*
-     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
-     Use deprecated X509_get_subject_name() instead.
-  */
-  subject = X509_get_subject_name((X509 *)server_cert);
-  // Find the CN location in the subject
-  cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0) {
-    *errptr = "Failed to get CN location in the certificate subject";
-    goto error;
-=======
-  /* Use OpenSSL certificate matching functions instead of our own if we
-     have OpenSSL. The X509_check_* functions return 1 on success.
-  */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
-  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
-                       0) != 1) &&
-      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
-    *errptr =
-        "Failed to verify the server certificate via X509 certificate "
-        "matching functions";
-    goto error;
-
-  } else {
-    /* Success */
-    ret_validation = 0;
-  }
-#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-  /*
-     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
-     Use deprecated X509_get_subject_name() instead.
-  */
-  subject = X509_get_subject_name((X509 *)server_cert);
-  // Find the CN location in the subject
-  cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0) {
-    *errptr = "Failed to get CN location in the certificate subject";
-    goto error;
->>>>>>> mysql-8.0.18
   }
 
 #ifdef HAVE_X509_CHECK_FUNCTIONS

@@ -2687,7 +2687,6 @@ bool Relay_log_info::is_time_for_mts_checkpoint() {
   return false;
 }
 
-<<<<<<< HEAD
 void *Relay_log_info::operator new(size_t request MY_ATTRIBUTE((unused))) {
   void *ptr;
   if (posix_memalign(&ptr, __alignof__(Relay_log_info),
@@ -2699,8 +2698,6 @@ void *Relay_log_info::operator new(size_t request MY_ATTRIBUTE((unused))) {
 
 void Relay_log_info::operator delete(void *ptr) { free(ptr); }
 
-||||||| merged common ancestors
-=======
 bool operator!(Relay_log_info::enum_priv_checks_status status) {
   return status == Relay_log_info::enum_priv_checks_status::SUCCESS;
 }
@@ -3026,7 +3023,6 @@ Relay_log_info::initialize_applier_security_context() {
   return this->initialize_security_context(this->info_thd);
 }
 
->>>>>>> mysql-8.0.18
 MDL_lock_guard::MDL_lock_guard(THD *target) : m_target{target} { DBUG_TRACE; }
 
 MDL_lock_guard::MDL_lock_guard(THD *target,

@@ -2178,16 +2178,10 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli) {
       }
     }
   }
-<<<<<<< HEAD
 
   if (rli->sql_thread_kill_accepted) rli->last_event_start_time = 0;
 
-  DBUG_RETURN(rli->sql_thread_kill_accepted);
-||||||| merged common ancestors
-  DBUG_RETURN(rli->sql_thread_kill_accepted);
-=======
   return rli->sql_thread_kill_accepted;
->>>>>>> mysql-8.0.18
 }
 
 bool net_request_file(NET *net, const char *fname) {
@@ -5328,50 +5322,6 @@ extern "C" void *handle_slave_io(void *arg) {
 
     DBUG_PRINT("info", ("Starting reading binary log from master"));
     while (!io_slave_killed(thd, mi)) {
-<<<<<<< HEAD
-      ulong event_len;
-      /*
-         We say "waiting" because read_event() will wait if there's nothing to
-         read. But if there's something to read, it will not wait. The
-         important thing is to not confuse users by saying "reading" whereas
-         we're in fact receiving nothing.
-      */
-      THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
-      event_len = read_event(mysql, &rpl, mi, &suppress_warnings);
-
-      DBUG_EXECUTE_IF(
-          "relay_xid_trigger", if (event_len != packet_error) {
-            const uchar *event_buf =
-                static_cast<const uchar *>(mysql->net.read_pos + 1);
-            Log_event_type event_type =
-                static_cast<Log_event_type>(event_buf[EVENT_TYPE_OFFSET]);
-            if (event_type == binary_log::XID_EVENT) {
-              static constexpr char act[] =
-                  "now signal relay_xid_reached wait_for resume";
-              DBUG_ASSERT(
-                  !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-            }
-          });
-
-      if (check_io_slave_killed(thd, mi,
-                                "Slave I/O thread killed while \
-reading event"))
-        goto err;
-||||||| merged common ancestors
-      ulong event_len;
-      /*
-         We say "waiting" because read_event() will wait if there's nothing to
-         read. But if there's something to read, it will not wait. The
-         important thing is to not confuse users by saying "reading" whereas
-         we're in fact receiving nothing.
-      */
-      THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
-      event_len = read_event(mysql, &rpl, mi, &suppress_warnings);
-      if (check_io_slave_killed(thd, mi,
-                                "Slave I/O thread killed while \
-reading event"))
-        goto err;
-=======
       MYSQL_RPL rpl;
 
       THD_STAGE_INFO(thd, stage_requesting_binlog_dump);
@@ -5386,7 +5336,6 @@ requesting master dump") ||
           goto err;
         goto connected;
       }
->>>>>>> mysql-8.0.18
       DBUG_EXECUTE_IF(
           "FORCE_SLAVE_TO_RECONNECT_DUMP", if (!retry_count_dump) {
             retry_count_dump++;
@@ -5412,6 +5361,21 @@ requesting master dump") ||
         */
         THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
         event_len = read_event(mysql, &rpl, mi, &suppress_warnings);
+
+        DBUG_EXECUTE_IF(
+            "relay_xid_trigger", if (event_len != packet_error) {
+              const uchar *event_buf =
+                  static_cast<const uchar *>(mysql->net.read_pos + 1);
+              Log_event_type event_type =
+                  static_cast<Log_event_type>(event_buf[EVENT_TYPE_OFFSET]);
+              if (event_type == binary_log::XID_EVENT) {
+                static constexpr char act[] =
+                    "now signal relay_xid_reached wait_for resume";
+                DBUG_ASSERT(
+                    !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+              }
+            });
+
         if (check_io_slave_killed(thd, mi,
                                   "Slave I/O thread killed while \
 reading event"))
@@ -5560,69 +5524,6 @@ ignore_log_space_limit=%d",
                               llstr(rli->log_space_total, llbuf2),
                               (int)rli->ignore_log_space_limit));
         }
-<<<<<<< HEAD
-      });
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_gtid_log_event",
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::GTID_LOG_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_query_log_event",
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::QUERY_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_user_var_log_event",
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::USER_VAR_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_table_map_event",
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::TABLE_MAP_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",
-                      if (event_buf[EVENT_TYPE_OFFSET] == binary_log::XID_EVENT)
-                          thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_write_rows_log_event",
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_unknown_event",
-          if (static_cast<uchar>(event_buf[EVENT_TYPE_OFFSET]) >=
-              binary_log::MYSQL_END_EVENT) thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF("stop_io_after_queuing_event",
-                      thd->killed = THD::KILLED_NO_VALUE;);
-||||||| merged common ancestors
-      });
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_gtid_log_event",
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::GTID_LOG_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_query_log_event",
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::QUERY_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_user_var_log_event",
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::USER_VAR_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_table_map_event",
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::TABLE_MAP_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",
-                      if (event_buf[EVENT_TYPE_OFFSET] == binary_log::XID_EVENT)
-                          thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_write_rows_log_event",
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF(
-          "stop_io_after_reading_unknown_event",
-          if (event_buf[EVENT_TYPE_OFFSET] >= binary_log::ENUM_END_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
-      DBUG_EXECUTE_IF("stop_io_after_queuing_event",
-                      thd->killed = THD::KILLED_NO_VALUE;);
-=======
 #endif
 
         if (rli->log_space_limit &&
@@ -5666,9 +5567,14 @@ ignore_log_space_limit=%d",
             "stop_io_after_reading_write_rows_log_event",
             if (event_buf[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT)
                 thd->killed = THD::KILLED_NO_VALUE;);
-        DBUG_EXECUTE_IF(
-            "stop_io_after_reading_unknown_event",
-            if (event_buf[EVENT_TYPE_OFFSET] >= binary_log::ENUM_END_EVENT)
+         DBUG_EXECUTE_IF(
+             "stop_io_after_reading_unknown_event",
+             /*
+              * Cast to uchar, because of Percona's events
+              * which have values > 128. This causes ENUM_END_EVENT to be > 128
+              * but event_buf is char, so comparison does not work.
+              */
+              if (static_cast<uchar>(event_buf[EVENT_TYPE_OFFSET]) >= binary_log::ENUM_END_EVENT)
                 thd->killed = THD::KILLED_NO_VALUE;);
         DBUG_EXECUTE_IF("stop_io_after_queuing_event",
                         thd->killed = THD::KILLED_NO_VALUE;);
@@ -5705,7 +5611,6 @@ ignore_log_space_limit=%d",
     thd->reset_query();
     thd->reset_db(NULL_CSTR);
     if (mysql) {
->>>>>>> mysql-8.0.18
       /*
         Here we need to clear the active VIO before closing the
         connection with the master.  The reason is that THD::awake()

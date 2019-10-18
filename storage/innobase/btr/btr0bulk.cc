@@ -56,21 +56,11 @@ dberr_t PageBulk::init() {
 
   mtr = static_cast<mtr_t *>(mem_heap_alloc(m_heap, sizeof(mtr_t)));
   mtr_start(mtr);
-<<<<<<< HEAD
-
-  if (m_index->is_committed()) {
-    mtr_x_lock(dict_index_get_lock(m_index), mtr);
-  }
-
-||||||| merged common ancestors
-  mtr_x_lock(dict_index_get_lock(m_index), mtr);
-=======
 
   if (!dict_index_is_online_ddl(m_index)) {
     mtr_x_lock(dict_index_get_lock(m_index), mtr);
   }
 
->>>>>>> mysql-8.0.18
   mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
   mtr_set_flush_observer(mtr, m_flush_observer);
 
@@ -362,8 +352,6 @@ bool PageBulk::compress() {
   ut_ad(!m_modified);
   ut_ad(m_page_zip != nullptr);
 
-  DBUG_EXECUTE_IF("innodb_bulk_load_compress_sleep", os_thread_sleep(1000000););
-
   return (
       page_zip_compress(m_page_zip, m_page, m_index, page_zip_level, m_mtr));
 }
@@ -627,21 +615,11 @@ void PageBulk::release() {
 /** Start mtr and latch the block */
 dberr_t PageBulk::latch() {
   mtr_start(m_mtr);
-<<<<<<< HEAD
-
-  if (m_index->is_committed()) {
-    mtr_x_lock(dict_index_get_lock(m_index), m_mtr);
-  }
-
-||||||| merged common ancestors
-  mtr_x_lock(dict_index_get_lock(m_index), m_mtr);
-=======
 
   if (!dict_index_is_online_ddl(m_index)) {
     mtr_x_lock(dict_index_get_lock(m_index), m_mtr);
   }
 
->>>>>>> mysql-8.0.18
   mtr_set_log_mode(m_mtr, MTR_LOG_NO_REDO);
   mtr_set_flush_observer(m_mtr, m_flush_observer);
 
@@ -977,13 +955,6 @@ dberr_t BtrBulk::insert(dtuple_t *tuple, ulint level) {
       return (err);
     }
 
-<<<<<<< HEAD
-    DEBUG_SYNC_C("bulk_load_insert");
-
-||||||| merged common ancestors
-=======
-    DEBUG_SYNC_C("bulk_load_insert");
->>>>>>> mysql-8.0.18
     m_page_bulks->push_back(new_page_bulk);
     ut_ad(level + 1 == m_page_bulks->size());
     m_root_level = level;

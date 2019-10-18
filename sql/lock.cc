@@ -1021,7 +1021,7 @@ bool Global_read_lock::lock_global_read_lock(THD *thd) {
       up with deadlocks being reported for queries previously blocked on a
       backup lock.
     */
-    if (thd->backup_tables_lock.abort_if_acquired()) DBUG_RETURN(true);
+    if (thd->backup_tables_lock.abort_if_acquired()) return true;
     MDL_REQUEST_INIT(&mdl_request, MDL_key::GLOBAL, "", "", MDL_SHARED,
                      MDL_EXPLICIT);
 

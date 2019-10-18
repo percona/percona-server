@@ -864,20 +864,8 @@ call tde_db.read_t_encrypt();
 # In connection con4 : Running select
 call tde_db.read_t_encrypt();
 # In connection con5 - Running "alter instance"
-<<<<<<< HEAD
 call tde_db.rotate_master_key(500);
-# In connection con6 - Running "alter instance"
-call tde_db.rotate_master_key(500);
-# In connection con7 - Running "create table"
-||||||| merged common ancestors
-call tde_db.rotate_master_key();
-# In connection con6 - Running "alter instance"
-call tde_db.rotate_master_key();
-# In connection con7 - Running "create table"
-=======
-call tde_db.rotate_master_key();
 # In connection con6 - Running "create table"
->>>>>>> mysql-8.0.18
 call tde_db.create_encrypt_table("Y");
 # In connection con7 - Running "create table"
 call tde_db.create_encrypt_table("N");

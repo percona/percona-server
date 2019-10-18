@@ -7907,25 +7907,11 @@ Dbspj::scanFrag_send(Signal* signal,
        * the section while we hold or even release it.  The
        * signal receiver can still take realtime breaks when
        * receiving.
-<<<<<<< HEAD
-       *
-       * Indicate to sendFirstFragment that we want to keep the
-       * fragments, so it must not free them, unless this is the
-       * last request in which case they can be freed. If the
-       * last request is a local send then a copy is avoided.
-||||||| merged common ancestors
-       * 
-       * Indicate to sendFirstFragment that we want to keep the
-       * fragments, so it must not free them, unless this is the
-       * last request in which case they can be freed. If the
-       * last request is a local send then a copy is avoided.
-=======
        * 
        * Indicate to sendBatchedFragmentedSignal that we want to
        * keep the fragments, so it must not free them, unless this
        * is the last request in which case they can be freed. If
        * the last request is a local send then a copy is avoided.
->>>>>>> mysql-8.0.18
        */
       {
         jam();

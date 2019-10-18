@@ -673,14 +673,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
 
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 
-<<<<<<< HEAD
-  /* set IO functions used by wolfSSL */
-#ifdef HAVE_WOLFSSL
-  wolfSSL_SetIORecv(ssl_fd->ssl_context, wolfssl_recv);
-  wolfSSL_SetIOSend(ssl_fd->ssl_context, wolfssl_send);
-#endif
 
-#if !defined(HAVE_WOLFSSL)
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
   {
     const auto ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
@@ -705,20 +698,10 @@ static struct st_VioSSLFd *new_VioSSLFd(
     report_errors();
     SSL_CTX_free(ssl_fd->ssl_context);
     my_free(ssl_fd);
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 #endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-#endif /* !defined(HAVE_WOLFSSL) */
 
-||||||| merged common ancestors
-  /* set IO functions used by wolfSSL */
-#ifdef HAVE_WOLFSSL
-  wolfSSL_SetIORecv(ssl_fd->ssl_context, wolfssl_recv);
-  wolfSSL_SetIOSend(ssl_fd->ssl_context, wolfssl_send);
-#endif
-
-=======
->>>>>>> mysql-8.0.18
   DBUG_PRINT("exit", ("OK 1"));
 
   return ssl_fd;

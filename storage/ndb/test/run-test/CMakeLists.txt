@@ -44,19 +44,9 @@ MYSQL_ADD_EXECUTABLE(atrt
   db.cpp
   command.cpp
   test_execution_resources.cpp
-<<<<<<< HEAD
-  DESTINATION mysql-test/ndb)
-
-TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static perconaserverclient)
-||||||| merged common ancestors
-  DESTINATION mysql-test/ndb)
-
-TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
-=======
   DESTINATION mysql-test/ndb
-  LINK_LIBRARIES ndbNDBT ndbclient_static mysqlclient
+  LINK_LIBRARIES ndbNDBT ndbclient_static perconaserverclient
   )
->>>>>>> mysql-8.0.18
 
 FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
 ADD_TEST(NAME check_testcase_files

@@ -2944,7 +2944,7 @@ next_block:
     byte *buf = index->online_log->head.block;
 
     err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
+        request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
 
     /* If encryption is enabled decrypt buffer after reading it
     from file system. */
@@ -2956,19 +2956,9 @@ next_block:
         goto func_exit;
       }
 
-<<<<<<< HEAD
       srv_stats.n_rowlog_blocks_decrypted.inc();
       memcpy(buf, index->online_log->crypt_head, srv_sort_buf_size);
     }
-||||||| merged common ancestors
-    err = os_file_read_no_error_handling_int_fd(request, index->online_log->fd,
-                                                index->online_log->head.block,
-                                                ofs, srv_sort_buf_size, NULL);
-=======
-    err = os_file_read_no_error_handling_int_fd(
-        request, index->online_log->path, index->online_log->fd,
-        index->online_log->head.block, ofs, srv_sort_buf_size, NULL);
->>>>>>> mysql-8.0.18
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_961) << "Unable to read temporary file"
@@ -3273,7 +3263,7 @@ bool row_log_allocate(
 
     if (!log->crypt_head || !log->crypt_tail) {
       row_log_free(log);
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
@@ -3756,8 +3746,7 @@ next_block:
     byte *buf = index->online_log->head.block;
 
     dberr_t err = os_file_read_no_error_handling_int_fd(
-<<<<<<< HEAD
-        request, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
+        request, index->online_log->path, index->online_log->fd, buf, ofs, srv_sort_buf_size, nullptr);
 
     /* If encryption is enabled decrypt buffer after reading it
     from file system. */
@@ -3772,13 +3761,6 @@ next_block:
       srv_stats.n_rowlog_blocks_decrypted.inc();
       memcpy(buf, index->online_log->crypt_head, srv_sort_buf_size);
     }
-||||||| merged common ancestors
-        request, index->online_log->fd, index->online_log->head.block, ofs,
-        srv_sort_buf_size, NULL);
-=======
-        request, index->online_log->path, index->online_log->fd,
-        index->online_log->head.block, ofs, srv_sort_buf_size, NULL);
->>>>>>> mysql-8.0.18
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_963) << "Unable to read temporary file"

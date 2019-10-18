@@ -53,7 +53,7 @@ int heap_rrnd(HP_INFO *info, uchar *record, HP_HEAP_POSITION *pos) {
   }
   info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
   if (hp_extract_record(info, record, info->current_ptr))
-    DBUG_RETURN(my_errno());
+    return my_errno();
 
   // reposition scan state also
   info->current_record = pos->record_no;

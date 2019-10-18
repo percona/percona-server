@@ -1315,7 +1315,7 @@ static bool acl_init_utility_user(bool check_no_resolve) {
   acl_users list, then resort */
 
   caching_sha2_password_generate(
-      acl_utility_user.credentials[0].m_auth_string.str, &pwlen,
+      const_cast<char*>(acl_utility_user.credentials[0].m_auth_string.str), &pwlen,
       utility_user_password, strlen(utility_user_password));
 
   acl_utility_user.credentials[0].m_auth_string.length = pwlen;
@@ -1405,7 +1405,7 @@ static void acl_free_utility_user() {
     acl_utility_user_schema_access.clear();
     my_free(acl_utility_user_name.str);
     my_free(acl_utility_user_host_name.str);
-    my_free(acl_utility_user.credentials[0].m_auth_string.str);
+    my_free(const_cast<char*>(acl_utility_user.credentials[0].m_auth_string.str));
     memset(static_cast<void *>(&acl_utility_user), 0, sizeof(acl_utility_user));
     acl_utility_user_initialized = false;
   }
@@ -3214,15 +3214,7 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)
   get_privilege_access_maps(
       acl_user, sctx->get_active_roles(), &m_global_acl, &m_db_acls,
       &m_db_wild_acls, &m_table_acls, &m_sp_acls, &m_func_acls, &granted_roles,
-<<<<<<< HEAD
       &m_with_admin_acls, &m_dynamic_privileges, m_restrictions, false);
-  DBUG_VOID_RETURN;
-||||||| merged common ancestors
-      &m_with_admin_acls, &m_dynamic_privileges, m_restrictions);
-  DBUG_VOID_RETURN;
-=======
-      &m_with_admin_acls, &m_dynamic_privileges, m_restrictions);
->>>>>>> mysql-8.0.18
 }
 
 Acl_map::~Acl_map() {

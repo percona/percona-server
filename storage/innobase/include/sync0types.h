@@ -375,12 +375,8 @@ enum latch_id_t {
   LATCH_ID_LOG_FLUSHER,
   LATCH_ID_LOG_WRITE_NOTIFIER,
   LATCH_ID_LOG_FLUSH_NOTIFIER,
-<<<<<<< HEAD
-  LATCH_ID_LOG_ONLINE,
-||||||| merged common ancestors
-=======
   LATCH_ID_LOG_LIMITS,
->>>>>>> mysql-8.0.18
+  LATCH_ID_LOG_ONLINE,
   LATCH_ID_PARSER,
   LATCH_ID_LOG_ARCH,
   LATCH_ID_PAGE_ARCH,

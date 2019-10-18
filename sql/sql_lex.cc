@@ -85,14 +85,7 @@ sys_var *trg_new_row_fake_var = (sys_var *)0x01;
   LEX_STRING constant for null-string to be used in parser and other places.
 */
 const LEX_STRING null_lex_str = {NULL, 0};
-<<<<<<< HEAD
-const LEX_STRING empty_lex_str = {(char *)"", 0};
 const LEX_CSTRING null_lex_cstr = {nullptr, 0};
-const LEX_CSTRING empty_lex_cstr = {"", 0};
-||||||| merged common ancestors
-const LEX_STRING empty_lex_str = {(char *)"", 0};
-=======
->>>>>>> mysql-8.0.18
 /**
   Mapping from enum values in enum_binlog_stmt_unsafe to error codes.
 

@@ -42,7 +42,7 @@ int heap_rfirst(HP_INFO *info, uchar *record, int inx) {
              sizeof(uchar *));
       info->current_ptr = pos;
       if (hp_extract_record(info, record, pos)) {
-        DBUG_RETURN(my_errno());
+        return my_errno();
       }
       /*
         If we're performing index_first on a table that was taken from

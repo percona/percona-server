@@ -65,20 +65,10 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode) {
 #ifndef DBUG_OFF
   info->opt_flag = READ_CHECK_USED; /* Check when changing */
 #endif
-<<<<<<< HEAD
   DBUG_PRINT("exit", ("heap: 0x%lx  chunk_length: %d  records_in_block: %d",
                       (long)info, share->recordspace.chunk_length,
                       share->recordspace.block.records_in_block));
-  DBUG_RETURN(info);
-||||||| merged common ancestors
-  DBUG_PRINT("exit", ("heap: %p  reclength: %d  records_in_block: %d", info,
-                      share->reclength, share->block.records_in_block));
-  DBUG_RETURN(info);
-=======
-  DBUG_PRINT("exit", ("heap: %p  reclength: %d  records_in_block: %d", info,
-                      share->reclength, share->block.records_in_block));
   return info;
->>>>>>> mysql-8.0.18
 }
 
 /*

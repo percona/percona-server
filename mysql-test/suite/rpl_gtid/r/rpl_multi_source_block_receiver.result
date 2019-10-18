@@ -39,17 +39,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 include/start_slave.inc [FOR CHANNEL 'channel_3']
 [connection server_3]
 DROP TABLE t2;
-<<<<<<< HEAD
-[connection server_2]
-include/start_slave.inc [FOR CHANNEL 'channel_3']
-[connection server_3]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
-||||||| merged common ancestors
-[connection server_2]
-include/start_slave.inc [FOR CHANNEL 'channel_3']
-=======
-include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
->>>>>>> mysql-8.0.18
 include/rpl_end.inc
 RESET SLAVE ALL FOR CHANNEL 'channel_1';
 RESET SLAVE ALL FOR CHANNEL 'channel_3';

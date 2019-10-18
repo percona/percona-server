@@ -215,14 +215,8 @@ static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 static char delimiter[16] = DEFAULT_DELIMITER;
 static size_t delimiter_length = 1;
-<<<<<<< HEAD
-||||||| merged common ancestors
-unsigned short terminal_width = 80;
-=======
-unsigned short terminal_width = 80;
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
->>>>>>> mysql-8.0.18
 
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;

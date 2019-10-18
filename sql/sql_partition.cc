@@ -264,32 +264,8 @@ static bool partition_default_handling(Partition_handler *part_handler,
                                        partition_info *part_info,
                                        bool is_create_table_ind,
                                        const char *normalized_path) {
-<<<<<<< HEAD
-  DBUG_ENTER("partition_default_handling");
-||||||| merged common ancestors
-  Partition_handler *part_handler = table->file->get_partition_handler();
-  DBUG_ENTER("partition_default_handling");
-=======
-  Partition_handler *part_handler = table->file->get_partition_handler();
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-  if (!part_handler) {
-    DBUG_ASSERT(0);
-    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(true);
-  }
-
-=======
-  if (!part_handler) {
-    DBUG_ASSERT(0);
-    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-    return true;
-  }
-
->>>>>>> mysql-8.0.18
   if (!is_create_table_ind) {
     if (part_info->use_default_num_partitions) {
       if (part_handler->get_num_parts(normalized_path, &part_info->num_parts)) {
@@ -1517,7 +1493,7 @@ bool fix_partition_func(THD *thd, TABLE *table, bool is_create_table_ind) {
     if (!part_handler) {
       DBUG_ASSERT(0);
       my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (partition_default_handling(part_handler, part_info, is_create_table_ind,
@@ -5747,16 +5723,8 @@ static int get_part_iter_for_interval_cols_via_map(
     uchar *min_value, uchar *max_value, uint min_len, uint max_len, uint flags,
     PARTITION_ITERATOR *part_iter) {
   uint32 nparts;
-<<<<<<< HEAD
   get_col_endpoint_func get_col_endpoint = nullptr;
-  DBUG_ENTER("get_part_iter_for_interval_cols_via_map");
-||||||| merged common ancestors
-  get_col_endpoint_func get_col_endpoint;
-  DBUG_ENTER("get_part_iter_for_interval_cols_via_map");
-=======
-  get_col_endpoint_func get_col_endpoint;
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
 
   if (part_info->part_type == partition_type::RANGE) {
     get_col_endpoint = get_partition_id_cols_range_for_endpoint;

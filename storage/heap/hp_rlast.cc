@@ -40,7 +40,7 @@ int heap_rlast(HP_INFO *info, uchar *record, int inx) {
                                          offsetof(TREE_ELEMENT, right)))) {
       memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos),
              sizeof(uchar *));
-      if (hp_extract_record(info, record, pos)) DBUG_RETURN(my_errno());
+      if (hp_extract_record(info, record, pos)) return my_errno();
       info->current_ptr = pos;
       info->update = HA_STATE_AKTIV;
     } else {

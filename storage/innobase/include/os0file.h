@@ -1400,32 +1400,14 @@ The wrapper functions have the prefix of "innodb_". */
   pfs_os_aio_func(type, mode, name, file, buf, offset, n, read_only, message1, \
                   message2, space_id, trx, should_buffer, __FILE__, __LINE__)
 
-<<<<<<< HEAD
-#define os_file_read_pfs(type, file, buf, offset, n) \
-  pfs_os_file_read_func(type, file, buf, offset, n, nullptr, __FILE__, __LINE__)
+#define os_file_read_pfs(type, file_name, file, buf, offset, n) \
+  pfs_os_file_read_func(type, file_name, file, buf, offset, n, nullptr, __FILE__, __LINE__)
 
 #define os_file_read_trx_pfs(file, buf, offset, n, trx) \
   pfs_os_file_read_func(file, buf, offset, n, trx, __FILE__, __LINE__)
-||||||| merged common ancestors
-#define os_file_read_pfs(type, file, buf, offset, n) \
-  pfs_os_file_read_func(type, file, buf, offset, n, __FILE__, __LINE__)
-=======
-#define os_file_read_pfs(type, file_name, file, buf, offset, n)          \
-  pfs_os_file_read_func(type, file_name, file, buf, offset, n, __FILE__, \
-                        __LINE__)
->>>>>>> mysql-8.0.18
 
-<<<<<<< HEAD
-#define os_file_read_first_page_pfs(type, file, buf, n, exit) \
-  pfs_os_file_read_first_page_func(type, file, buf, n, __FILE__, __LINE__, exit)
-||||||| merged common ancestors
-#define os_file_read_first_page_pfs(type, file, buf, n) \
-  pfs_os_file_read_first_page_func(type, file, buf, n, __FILE__, __LINE__)
-=======
-#define os_file_read_first_page_pfs(type, file_name, file, buf, n)          \
-  pfs_os_file_read_first_page_func(type, file_name, file, buf, n, __FILE__, \
-                                   __LINE__)
->>>>>>> mysql-8.0.18
+#define os_file_read_first_page_pfs(type, file_name, file, buf, n, exit) \
+  pfs_os_file_read_first_page_func(type, file_name, file, buf, n, __FILE__, __LINE__, exit)
 
 #define os_file_copy_pfs(src, src_offset, dest, dest_offset, size)          \
   pfs_os_file_copy_func(src, src_offset, dest, dest_offset, size, __FILE__, \
@@ -1572,19 +1554,9 @@ os_file_read() which requests a synchronous read operation.
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
 UNIV_INLINE
-<<<<<<< HEAD
-dberr_t pfs_os_file_read_func(IORequest &type, pfs_os_file_t file, void *buf,
+dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
                               os_offset_t offset, ulint n, trx_t *trx,
                               const char *src_file, uint src_line);
-||||||| merged common ancestors
-dberr_t pfs_os_file_read_func(IORequest &type, pfs_os_file_t file, void *buf,
-                              os_offset_t offset, ulint n, const char *src_file,
-                              uint src_line);
-=======
-dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name,
-                              pfs_os_file_t file, void *buf, os_offset_t offset,
-                              ulint n, const char *src_file, uint src_line);
->>>>>>> mysql-8.0.18
 
 /** NOTE! Please use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1601,20 +1573,10 @@ of page 0 of IBD file
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS if request was successful */
 UNIV_INLINE
-<<<<<<< HEAD
-dberr_t pfs_os_file_read_first_page_func(IORequest &type, pfs_os_file_t file,
+dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char* file_name, pfs_os_file_t file,
                                          void *buf, ulint n,
                                          const char *src_file, uint src_line,
                                          bool exit_on_err);
-||||||| merged common ancestors
-dberr_t pfs_os_file_read_first_page_func(IORequest &type, pfs_os_file_t file,
-                                         void *buf, ulint n,
-                                         const char *src_file, uint src_line);
-=======
-dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
-                                         pfs_os_file_t file, void *buf, ulint n,
-                                         const char *src_file, uint src_line);
->>>>>>> mysql-8.0.18
 
 /** copy data from one file to another file. Data is read/written
 at current file offset.
@@ -1848,16 +1810,8 @@ to original un-instrumented file I/O APIs */
 #define os_file_read_pfs(type, file_name, file, buf, offset, n) \
   os_file_read_func(type, file_name, file, buf, offset, n)
 
-<<<<<<< HEAD
-#define os_file_read_first_page_pfs(type, file, buf, n, exit) \
-  os_file_read_first_page_func(type, file, buf, n, exit)
-||||||| merged common ancestors
-#define os_file_read_first_page_pfs(type, file, buf, n) \
-  os_file_read_first_page_func(type, file, buf, n)
-=======
-#define os_file_read_first_page_pfs(type, file_name, file, buf, n) \
-  os_file_read_first_page_func(type, file_name, file, buf, n)
->>>>>>> mysql-8.0.18
+#define os_file_read_first_page_pfs(type, file_name, file, buf, n, exit) \
+  os_file_read_first_page_func(type, file_name, file, buf, n, exit)
 
 #define os_file_copy_pfs(src, src_offset, dest, dest_offset, size) \
   os_file_copy_func(src, src_offset, dest, dest_offset, size)
@@ -1901,7 +1855,6 @@ to original un-instrumented file I/O APIs */
 #endif
 
 #ifdef UNIV_PFS_IO
-<<<<<<< HEAD
 #define os_file_close_no_error_handling(file) \
   os_file_close_no_error_handling_pfs(file)
 #else
@@ -1910,50 +1863,27 @@ to original un-instrumented file I/O APIs */
 #endif
 
 #ifdef UNIV_PFS_IO
-#define os_file_read(type, file, buf, offset, n) \
-  os_file_read_pfs(type, file, buf, offset, n)
-||||||| merged common ancestors
-#define os_file_read(type, file, buf, offset, n) \
-  os_file_read_pfs(type, file, buf, offset, n)
-=======
 #define os_file_read(type, file_name, file, buf, offset, n) \
   os_file_read_pfs(type, file_name, file, buf, offset, n)
->>>>>>> mysql-8.0.18
 #else
 #define os_file_read(type, file_name, file, buf, offset, n) \
   os_file_read_pfs(type, file_name, file.m_file, buf, offset, n)
 #endif
 
 #ifdef UNIV_PFS_IO
-<<<<<<< HEAD
-#define os_file_read_first_page(type, file, buf, n) \
-  os_file_read_first_page_pfs(type, file, buf, n, true)
-||||||| merged common ancestors
-#define os_file_read_first_page(type, file, buf, n) \
-  os_file_read_first_page_pfs(type, file, buf, n)
-=======
 #define os_file_read_first_page(type, file_name, file, buf, n) \
-  os_file_read_first_page_pfs(type, file_name, file, buf, n)
->>>>>>> mysql-8.0.18
+  os_file_read_first_page_pfs(type, file_name, file, buf, n, true)
 #else
-<<<<<<< HEAD
-#define os_file_read_first_page(type, file, buf, n) \
-  os_file_read_first_page_pfs(type, file.m_file, buf, n, true)
+#define os_file_read_first_page(type, file_name, file, buf, n) \
+  os_file_read_first_page_pfs(type, file_name, file.m_file, buf, n, true)
 #endif
 
 #ifdef UNIV_PFS_IO
-#define os_file_read_first_page_noexit(type, file, buf, n) \
-  os_file_read_first_page_pfs(type, file, buf, n, false)
+#define os_file_read_first_page_noexit(type, file_name, file, buf, n) \
+  os_file_read_first_page_pfs(type, file_name, file, buf, n, false)
 #else
-#define os_file_read_first_page_noexit(type, file, buf, n) \
-  os_file_read_first_page_pfs(type, file.m_file, buf, n, false)
-||||||| merged common ancestors
-#define os_file_read_first_page(type, file, buf, n) \
-  os_file_read_first_page_pfs(type, file.m_file, buf, n)
-=======
-#define os_file_read_first_page(type, file_name, file, buf, n) \
-  os_file_read_first_page_pfs(type, file_name, file.m_file, buf, n)
->>>>>>> mysql-8.0.18
+#define os_file_read_first_page_noexit(type, file_name, file, buf, n) \
+  os_file_read_first_page_pfs(type, file_name, file.m_file, buf, n, false)
 #endif
 
 #ifdef UNIV_PFS_IO
@@ -2087,19 +2017,9 @@ Requests a synchronous read operation.
 @param[in]	offset		file offset where to read
 @param[in]	n		number of bytes to read
 @return DB_SUCCESS if request was successful */
-<<<<<<< HEAD
-dberr_t os_file_read_func(IORequest &type, os_file_t file, void *buf,
+dberr_t os_file_read_func(IORequest &type, const char* file_name, os_file_t file, void *buf,
                           os_offset_t offset, ulint n, trx_t *trx)
     MY_ATTRIBUTE((warn_unused_result));
-||||||| merged common ancestors
-dberr_t os_file_read_func(IORequest &type, os_file_t file, void *buf,
-                          os_offset_t offset, ulint n)
-    MY_ATTRIBUTE((warn_unused_result));
-=======
-dberr_t os_file_read_func(IORequest &type, const char *file_name,
-                          os_file_t file, void *buf, os_offset_t offset,
-                          ulint n) MY_ATTRIBUTE((warn_unused_result));
->>>>>>> mysql-8.0.18
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -2111,16 +2031,8 @@ Requests a synchronous read operation of page 0 of IBD file
 @param[in]	n		number of bytes to read
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS if request was successful */
-<<<<<<< HEAD
-dberr_t os_file_read_first_page_func(IORequest &type, os_file_t file, void *buf,
+dberr_t os_file_read_first_page_func(IORequest &type, const char* file_name, os_file_t file, void *buf,
                                      ulint n, bool exit_on_err)
-||||||| merged common ancestors
-dberr_t os_file_read_first_page_func(IORequest &type, os_file_t file, void *buf,
-                                     ulint n)
-=======
-dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
-                                     os_file_t file, void *buf, ulint n)
->>>>>>> mysql-8.0.18
     MY_ATTRIBUTE((warn_unused_result));
 
 /** copy data from one file to another file. Data is read/written

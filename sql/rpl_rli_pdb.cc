@@ -491,62 +491,23 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
   uchar *buffer = (uchar *)group_executed.bitmap;
   int temp_internal_id = 0;
 
-<<<<<<< HEAD
-  if (from->prepare_info_for_read()) DBUG_RETURN(true);
-
-  if (from->get_info(&temp_internal_id, 0) ||
-      from->get_info(group_relay_log_name, sizeof(group_relay_log_name), "") ||
-      from->get_info(&temp_group_relay_log_pos, 0UL) ||
-      from->get_info(temp_group_master_log_name,
-                     sizeof(temp_group_master_log_name), "") ||
-      from->get_info(&temp_group_master_log_pos, 0UL) ||
-      from->get_info(checkpoint_relay_log_name,
-                     sizeof(checkpoint_relay_log_name), "") ||
-      from->get_info(&temp_checkpoint_relay_log_pos, 0UL) ||
-      from->get_info(checkpoint_master_log_name,
-                     sizeof(checkpoint_master_log_name), "") ||
-      from->get_info(&temp_checkpoint_master_log_pos, 0UL) ||
-      from->get_info(&temp_checkpoint_seqno, 0UL) ||
-      from->get_info(&nbytes, 0UL) ||
-      from->get_info(buffer, (size_t)nbytes, (uchar *)0) ||
-||||||| merged common ancestors
-  if (from->prepare_info_for_read()) DBUG_RETURN(true);
-
-  if (from->get_info(&temp_internal_id, 0) ||
-      from->get_info(group_relay_log_name, sizeof(group_relay_log_name), "") ||
-      from->get_info(&temp_group_relay_log_pos, 0UL) ||
-      from->get_info(group_master_log_name, sizeof(group_master_log_name),
-                     "") ||
-      from->get_info(&temp_group_master_log_pos, 0UL) ||
-      from->get_info(checkpoint_relay_log_name,
-                     sizeof(checkpoint_relay_log_name), "") ||
-      from->get_info(&temp_checkpoint_relay_log_pos, 0UL) ||
-      from->get_info(checkpoint_master_log_name,
-                     sizeof(checkpoint_master_log_name), "") ||
-      from->get_info(&temp_checkpoint_master_log_pos, 0UL) ||
-      from->get_info(&temp_checkpoint_seqno, 0UL) ||
-      from->get_info(&nbytes, 0UL) ||
-      from->get_info(buffer, (size_t)nbytes, (uchar *)0) ||
-=======
   if (from->prepare_info_for_read()) return true;
 
   if (!!from->get_info(&temp_internal_id, 0) ||
-      !!from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
-                       "") ||
+      !!from->get_info(group_relay_log_name, sizeof(group_relay_log_name), "") ||
       !!from->get_info(&temp_group_relay_log_pos, 0UL) ||
-      !!from->get_info(group_master_log_name, sizeof(group_master_log_name),
-                       "") ||
+      !!from->get_info(temp_group_master_log_name,
+                     sizeof(temp_group_master_log_name), "") ||
       !!from->get_info(&temp_group_master_log_pos, 0UL) ||
       !!from->get_info(checkpoint_relay_log_name,
-                       sizeof(checkpoint_relay_log_name), "") ||
+                     sizeof(checkpoint_relay_log_name), "") ||
       !!from->get_info(&temp_checkpoint_relay_log_pos, 0UL) ||
       !!from->get_info(checkpoint_master_log_name,
-                       sizeof(checkpoint_master_log_name), "") ||
+                     sizeof(checkpoint_master_log_name), "") ||
       !!from->get_info(&temp_checkpoint_master_log_pos, 0UL) ||
       !!from->get_info(&temp_checkpoint_seqno, 0UL) ||
       !!from->get_info(&nbytes, 0UL) ||
       !!from->get_info(buffer, (size_t)nbytes, (uchar *)0) ||
->>>>>>> mysql-8.0.18
       /* default is empty string */
       !!from->get_info(channel, sizeof(channel), ""))
     return true;
@@ -1770,7 +1731,6 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev) {
   set_master_log_pos(static_cast<ulong>(ev->common_header->log_pos));
   set_gaq_index(ev->mts_group_idx);
   ret = ev->do_apply_event_worker(this);
-<<<<<<< HEAD
 
   DBUG_EXECUTE_IF("after_executed_write_rows_event", {
     if (ev->get_type_code() == binary_log::WRITE_ROWS_EVENT) {
@@ -1780,12 +1740,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev) {
     }
   };);
 
-  DBUG_RETURN(ret);
-||||||| merged common ancestors
-  DBUG_RETURN(ret);
-=======
   return ret;
->>>>>>> mysql-8.0.18
 }
 
 /**

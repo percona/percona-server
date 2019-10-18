@@ -297,7 +297,6 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all) {
     if (!(cookie = log_xid(xid)))
       return RESULT_ABORTED;  // Failed to log the transaction
 
-<<<<<<< HEAD
   /*
     Acquire a shared lock to block commits until START TRANSACTION WITH
     CONSISTENT SNAPSHOT completes snapshot creation for all storage engines.
@@ -307,14 +306,7 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all) {
   sunlock();
 
   if (rc)
-    DBUG_RETURN(RESULT_INCONSISTENT);  // Transaction logged, but not committed
-||||||| merged common ancestors
-  if (ha_commit_low(thd, all))
-    DBUG_RETURN(RESULT_INCONSISTENT);  // Transaction logged, but not committed
-=======
-  if (ha_commit_low(thd, all))
     return RESULT_INCONSISTENT;  // Transaction logged, but not committed
->>>>>>> mysql-8.0.18
 
   /* If cookie is non-zero, something was logged */
   if (cookie) unlog(cookie, xid);

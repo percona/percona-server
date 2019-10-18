@@ -17,8 +17,8 @@
 #ifndef BINLOG_CRYPT_DATA_H
 #define BINLOG_CRYPT_DATA_H
 
-#include "control_events.h"
 #include "my_crypt.h"
+#include "libbinlogevents/include/control_events.h"
 
 class Binlog_crypt_data final {
  public:

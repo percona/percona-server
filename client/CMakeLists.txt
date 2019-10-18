@@ -20,59 +20,27 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-<<<<<<< HEAD
-INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-)
+## Subdirectory with common client code.
 
 INCLUDE_DIRECTORIES(SYSTEM ${READLINE_INCLUDE_DIR})
 
-||||||| merged common ancestors
-INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-)
-
-=======
->>>>>>> mysql-8.0.18
-## Subdirectory with common client code.
 ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.
 ADD_SUBDIRECTORY(dump)
 
-<<<<<<< HEAD
-MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc ${CMAKE_SOURCE_DIR}/sql/net_ns.cc)
-TARGET_LINK_LIBRARIES(mysql perconaserverclient)
-IF(UNIX)
-  TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
-ENDIF(UNIX)
-||||||| merged common ancestors
-MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc ${CMAKE_SOURCE_DIR}/sql/net_ns.cc)
-TARGET_LINK_LIBRARIES(mysql mysqlclient)
-IF(UNIX)
-  TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
-ENDIF(UNIX)
-=======
 MYSQL_ADD_EXECUTABLE(mysql
   ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
   completion_hash.cc
   mysql.cc
   pattern_matcher.cc
   readline.cc
-  LINK_LIBRARIES mysqlclient client_base ${EDITLINE_LIBRARY}
+  LINK_LIBRARIES perconaserverclient client_base ${MY_READLINE_LIBRARY}
   )
->>>>>>> mysql-8.0.18
 
 IF(NOT WITHOUT_SERVER)
-<<<<<<< HEAD
-  MYSQL_ADD_EXECUTABLE(mysql_upgrade upgrade/program.cc)
-  TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base)
-||||||| merged common ancestors
-  MYSQL_ADD_EXECUTABLE(mysql_upgrade upgrade/program.cc)
-  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base)
-=======
   MYSQL_ADD_EXECUTABLE(mysql_upgrade
     upgrade/program.cc
-    LINK_LIBRARIES mysqlclient client_base
+    LINK_LIBRARIES perconaserverclient client_base
     )
 ENDIF()
 
@@ -81,7 +49,6 @@ IF(SOLARIS_SPARC AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
   ADD_COMPILE_FLAGS(mysqltest/regular_expressions.cc
     COMPILE_FLAGS "-xO3"
     )
->>>>>>> mysql-8.0.18
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqltest
@@ -93,89 +60,30 @@ MYSQL_ADD_EXECUTABLE(mysqltest
   mysqltest/regular_expressions.cc
   mysqltest/secondary_engine.cc
   mysqltest/utils.cc
-<<<<<<< HEAD
-)
-
-MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
-SET_TARGET_PROPERTIES(mysqltest PROPERTIES ENABLE_EXPORTS TRUE)
-TARGET_LINK_LIBRARIES(mysqltest perconaserverclient)
-ADD_DEPENDENCIES(mysqltest GenError GenClientError)
-
-ADD_LIBRARY(mysqlcheck_core STATIC check/mysqlcheck_core.cc)
-TARGET_LINK_LIBRARIES(mysqlcheck_core perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)
-TARGET_LINK_LIBRARIES(mysqlcheck mysqlcheck_core)
-
-MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.cc)
-TARGET_LINK_LIBRARIES(mysqldump perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.cc)
-SET_SOURCE_FILES_PROPERTIES(mysqlimport.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlimport perconaserverclient)
-||||||| merged common ancestors
-)
-
-MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
-SET_TARGET_PROPERTIES(mysqltest PROPERTIES ENABLE_EXPORTS TRUE)
-TARGET_LINK_LIBRARIES(mysqltest mysqlclient)
-ADD_DEPENDENCIES(mysqltest GenError GenClientError)
-
-ADD_LIBRARY(mysqlcheck_core STATIC check/mysqlcheck_core.cc)
-TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)
-TARGET_LINK_LIBRARIES(mysqlcheck mysqlcheck_core)
-
-MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.cc)
-TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.cc)
-SET_SOURCE_FILES_PROPERTIES(mysqlimport.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
-=======
->>>>>>> mysql-8.0.18
-
-<<<<<<< HEAD
-MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.cc)
-TARGET_LINK_LIBRARIES(mysqlshow perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
-SET(MYSQLBINLOG_LIB_SOURCES
-  ${CMAKE_SOURCE_DIR}/strings/decimal.cc
-||||||| merged common ancestors
-MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.cc)
-TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
-SET(MYSQLBINLOG_LIB_SOURCES
-  ${CMAKE_SOURCE_DIR}/strings/decimal.cc
-=======
   COMPONENT Test
   DEPENDENCIES GenError GenClientError
   ENABLE_EXPORTS
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlcheck
   check/mysqlcheck.cc
   check/mysqlcheck_core.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqldump
   mysqldump.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlimport
   mysqlimport.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlshow
   mysqlshow.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlbinlog
   mysqlbinlog.cc
->>>>>>> mysql-8.0.18
   ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
   ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
   ${CMAKE_SOURCE_DIR}/sql/json_syntax_check.cc
@@ -195,65 +103,27 @@ MYSQL_ADD_EXECUTABLE(mysqlbinlog
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
 
   DEPENDENCIES GenError
-  LINK_LIBRARIES mysqlclient client_base binlogevents_static
+  LINK_LIBRARIES perconaserverclient client_base binlogevents_static
   )
 
 TARGET_COMPILE_DEFINITIONS(mysqlbinlog PRIVATE DISABLE_PSI_MUTEX)
 TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
-<<<<<<< HEAD
-TARGET_INCLUDE_DIRECTORIES(mysqlbinlog_lib PRIVATE ${CMAKE_SOURCE_DIR}/sql)
-
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
-TARGET_LINK_LIBRARIES(mysqlbinlog perconaserverclient binlogevents_static)
-
-MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
-TARGET_LINK_LIBRARIES(mysqladmin perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.cc)
-SET_SOURCE_FILES_PROPERTIES(mysqlslap.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlslap perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
-TARGET_LINK_LIBRARIES(mysql_config_editor perconaserverclient)
-
-MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
-TARGET_LINK_LIBRARIES(mysql_secure_installation perconaserverclient)
-||||||| merged common ancestors
-TARGET_INCLUDE_DIRECTORIES(mysqlbinlog_lib PRIVATE ${CMAKE_SOURCE_DIR}/sql)
-
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient binlogevents_static)
-
-MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
-TARGET_LINK_LIBRARIES(mysqladmin mysqlclient)
-
-MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.cc)
-SET_SOURCE_FILES_PROPERTIES(mysqlslap.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
-
-MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
-TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
-
-MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
-TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
-=======
->>>>>>> mysql-8.0.18
 
 MYSQL_ADD_EXECUTABLE(mysqladmin
   mysqladmin.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysqlslap
   mysqlslap.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysql_config_editor
   mysql_config_editor.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation
   mysql_secure_installation.cc
-  LINK_LIBRARIES mysqlclient
+  LINK_LIBRARIES perconaserverclient
   )
 MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup
   logger.cc

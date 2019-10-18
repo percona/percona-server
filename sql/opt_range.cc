@@ -11223,7 +11223,7 @@ int QUICK_SELECT_DESC::get_next() {
     result = file->prepare_range_scan(
         (last_range->flag & NO_MIN_RANGE) ? nullptr : &prepare_range_start,
         (last_range->flag & NO_MAX_RANGE) ? nullptr : &prepare_range_end);
-    if (result) DBUG_RETURN(result);
+    if (result) return result;
 
     if (last_range->flag & NO_MAX_RANGE)  // Read last record
     {

@@ -84,15 +84,9 @@ size_t vio_read_pipe(Vio *vio, uchar *buf, size_t count) {
   else if (GetLastError() == ERROR_IO_PENDING)
     ret = wait_overlapped_result(vio, vio->read_timeout);
 
-<<<<<<< HEAD
   enable_iocp_notification(&vio->pipe_overlapped);
 
-  DBUG_RETURN(ret);
-||||||| merged common ancestors
-  DBUG_RETURN(ret);
-=======
   return ret;
->>>>>>> mysql-8.0.18
 }
 
 size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count) {
@@ -112,15 +106,10 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count) {
   else if (GetLastError() == ERROR_IO_PENDING)
     ret = wait_overlapped_result(vio, vio->write_timeout);
 
-<<<<<<< HEAD
   enable_iocp_notification(&vio->pipe_overlapped);
 
   DBUG_RETURN(ret);
-||||||| merged common ancestors
-  DBUG_RETURN(ret);
-=======
   return ret;
->>>>>>> mysql-8.0.18
 }
 
 bool vio_is_connected_pipe(Vio *vio) {

@@ -519,18 +519,8 @@ static void vio_wait_until_woken(Vio *vio) {
 }
 #endif
 
-<<<<<<< HEAD
 int vio_shutdown(Vio *vio, int how) {
-  DBUG_ENTER("vio_shutdown");
-||||||| merged common ancestors
-int vio_shutdown(Vio *vio) {
-  int r = 0;
-  DBUG_ENTER("vio_shutdown");
-=======
-int vio_shutdown(Vio *vio) {
-  int r = 0;
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
 
   int r = vio_cancel(vio, how);
 
@@ -564,7 +554,6 @@ int vio_shutdown(Vio *vio) {
   return r;
 }
 
-<<<<<<< HEAD
 int vio_cancel(Vio *vio, int how) {
   int r = 0;
   DBUG_ENTER("vio_cancel");
@@ -585,10 +574,7 @@ int vio_cancel(Vio *vio, int how) {
   DBUG_RETURN(r);
 }
 
-||||||| merged common ancestors
-=======
 #ifndef DBUG_OFF
->>>>>>> mysql-8.0.18
 void vio_description(Vio *vio, char *buf) {
   switch (vio->type) {
     case VIO_TYPE_SOCKET:
@@ -747,12 +733,12 @@ static bool vio_client_must_be_proxied(const struct sockaddr *addr) noexcept {
   for (i = 0; i < vio_pp_networks_nb; i++)
     if (vio_pp_networks[i].family == addr->sa_family) {
       if (vio_pp_networks[i].family == AF_INET) {
-        struct in_addr *check = &((struct sockaddr_in *)addr)->sin_addr;
+        const struct in_addr *check = &((const struct sockaddr_in *)addr)->sin_addr;
         struct in_addr *addr = &vio_pp_networks[i].addr.in;
         struct in_addr *mask = &vio_pp_networks[i].mask.in;
         if ((check->s_addr & mask->s_addr) == addr->s_addr) return true;
       } else {
-        struct in6_addr *check = &((struct sockaddr_in6 *)addr)->sin6_addr;
+        const struct in6_addr *check = &((const struct sockaddr_in6 *)addr)->sin6_addr;
         struct in6_addr *addr = &vio_pp_networks[i].addr.in6;
         struct in6_addr *mask = &vio_pp_networks[i].mask.in6;
         DBUG_ASSERT(vio_pp_networks[i].family == AF_INET6);
@@ -1010,7 +996,7 @@ bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
     if (vio_client_must_be_proxied(addr))
       if (vio_process_proxy_header(mysql_socket_getfd(vio->mysql_socket), addr,
                                    &addr_length))
-        DBUG_RETURN(true);
+        return true;
 
     /* Normalize IP address. */
 
@@ -1200,16 +1186,8 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout) {
       break;
   }
 
-<<<<<<< HEAD
   END_SOCKET_WAIT(locker, timeout);
-  DBUG_RETURN(ret);
-||||||| merged common ancestors
-  MYSQL_END_SOCKET_WAIT(locker, 0);
-  DBUG_RETURN(ret);
-=======
-  MYSQL_END_SOCKET_WAIT(locker, 0);
   return ret;
->>>>>>> mysql-8.0.18
 }
 
 #elif defined(_WIN32)

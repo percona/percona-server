@@ -41,13 +41,7 @@
 call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-<<<<<<< HEAD
-let $total_persistent_vars=432;
-||||||| merged common ancestors
-let $total_persistent_vars=379;
-=======
-let $total_persistent_vars=383;
->>>>>>> mysql-8.0.18
+let $total_persistent_vars=435;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

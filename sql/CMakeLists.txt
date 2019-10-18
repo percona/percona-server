@@ -843,35 +843,15 @@ IF(WIN32)
   ENDIF()
 ENDIF()
 
-<<<<<<< HEAD
-SET (BINLOG_SOURCE rpl_gtid_misc.cc
-                   rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
-                   rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
-                   rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
-                   log_event.cc binlog.cc sql_binlog.cc basic_ostream.cc
-                   binlog_ostream.cc basic_istream.cc binlog_istream.cc
-                   binlog_reader.cc rpl_log_encryption.cc stream_cipher.cc
-                   rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
-                   rpl_utility.cc rpl_injector.cc rpl_table_access.cc
-                   event_crypt.cc binlog_crypt_data.cc)
-||||||| merged common ancestors
-SET (BINLOG_SOURCE rpl_gtid_misc.cc
-                   rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
-                   rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
-                   rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
-                   log_event.cc binlog.cc sql_binlog.cc basic_ostream.cc
-                   binlog_ostream.cc basic_istream.cc binlog_istream.cc
-                   binlog_reader.cc rpl_log_encryption.cc stream_cipher.cc
-                   rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
-                   rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
-=======
 SET(BINLOG_SOURCE
   basic_istream.cc
   basic_ostream.cc
   binlog.cc
+  binlog_crypt_data.cc
   binlog_istream.cc
   binlog_ostream.cc
   binlog_reader.cc
+  event_crypt.cc
   log_event.cc
   rpl_filter.cc
   rpl_gtid_execution.cc
@@ -892,7 +872,6 @@ SET(BINLOG_SOURCE
   sql_binlog.cc
   stream_cipher.cc
   )
->>>>>>> mysql-8.0.18
 ADD_LIBRARY(binlog STATIC ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
 TARGET_LINK_LIBRARIES(binlog rpl)

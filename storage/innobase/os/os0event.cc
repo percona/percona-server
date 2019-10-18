@@ -270,12 +270,7 @@ struct os_event {
   enabled for the cond_attr object. */
   static bool cond_attr_has_monotonic_clock;
 #endif /* !_WIN32 */
-<<<<<<< HEAD
-||||||| merged common ancestors
-	static bool global_initialized;
-=======
   static bool global_initialized;
->>>>>>> mysql-8.0.18
 
 #ifdef UNIV_DEBUG
   static std::atomic_size_t n_objects_alive;
@@ -628,12 +623,7 @@ void os_event_destroy(os_event_t &event) /*!< in/own: event to free */
 pthread_condattr_t os_event::cond_attr;
 bool os_event::cond_attr_has_monotonic_clock{false};
 #endif /* !_WIN32 */
-<<<<<<< HEAD
-||||||| merged common ancestors
-bool os_event::global_initialized (false);
-=======
 bool os_event::global_initialized{false};
->>>>>>> mysql-8.0.18
 
 #ifdef UNIV_DEBUG
 std::atomic_size_t os_event::n_objects_alive{0};
@@ -661,25 +651,11 @@ void os_event_global_init(void) {
 
 #endif /* UNIV_LINUX */
 #endif /* !_WIN32 */
-<<<<<<< HEAD
-||||||| merged common ancestors
-	os_event::global_initialized = true;
-=======
   os_event::global_initialized = true;
->>>>>>> mysql-8.0.18
 }
 
 void os_event_global_destroy(void) {
-<<<<<<< HEAD
-||||||| merged common ancestors
-<<<<<<<<< Temporary merge branch 1
-	ut_a(os_event::global_initialized);
-||||||||| merged common ancestors
-=========
-=======
   ut_a(os_event::global_initialized);
->>>>>>> mysql-8.0.18
-  ut_ad(os_event::n_objects_alive.load() == 0);
 #ifndef _WIN32
   os_event::cond_attr_has_monotonic_clock = false;
 #ifdef UNIV_DEBUG
@@ -688,10 +664,4 @@ void os_event_global_destroy(void) {
       pthread_condattr_destroy(&os_event::cond_attr);
   ut_ad(ret == 0);
 #endif /* !_WIN32 */
-<<<<<<< HEAD
-||||||| merged common ancestors
-	os_event::global_initialized = false;
-=======
-  os_event::global_initialized = false;
->>>>>>> mysql-8.0.18
 }

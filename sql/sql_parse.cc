@@ -2379,7 +2379,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     case SCH_USER_STATS:
     case SCH_CLIENT_STATS:
     case SCH_THREAD_STATS:
-      if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
+      if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) return 1;
     case SCH_TABLE_STATS:
     case SCH_INDEX_STATS:
     case SCH_OPTIMIZER_TRACE:
@@ -3743,7 +3743,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
     case SQLCOM_LOCK_TABLES:
       /*
-<<<<<<< HEAD
       Do not allow LOCK TABLES under an active LOCK TABLES FOR BACKUP in the
       same connection.
     */
@@ -3753,18 +3752,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
           Can we commit safely? If not, return to avoid releasing
           transactional metadata locks.
         */
-      if (trans_check_state(thd)) DBUG_RETURN(-1);
-||||||| merged common ancestors
-        Can we commit safely? If not, return to avoid releasing
-        transactional metadata locks.
-      */
-      if (trans_check_state(thd)) DBUG_RETURN(-1);
-=======
-        Can we commit safely? If not, return to avoid releasing
-        transactional metadata locks.
-      */
       if (trans_check_state(thd)) return -1;
->>>>>>> mysql-8.0.18
       /* We must end the transaction first, regardless of anything */
       res = trans_commit_implicit(thd);
       thd->locked_tables_list.unlock_locked_tables(thd);
@@ -5367,16 +5355,8 @@ bool create_select_for_variable(Parse_context *pc, const char *var_name) {
   @param parser_state Parser state.
 */
 
-<<<<<<< HEAD
 void mysql_parse(THD *thd, Parser_state *parser_state, bool update_userstat) {
-  DBUG_ENTER("mysql_parse");
-||||||| merged common ancestors
-void mysql_parse(THD *thd, Parser_state *parser_state) {
-  DBUG_ENTER("mysql_parse");
-=======
-void mysql_parse(THD *thd, Parser_state *parser_state) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
   DBUG_PRINT("mysql_parse", ("query: '%s'", thd->query().str));
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
@@ -5547,7 +5527,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
   thd->cleanup_after_query();
   DBUG_ASSERT(thd->change_list.is_empty());
 
-<<<<<<< HEAD
   /* Update user statistics only if at least one timer was initialized */
   if (unlikely(update_userstat &&
                (start_busy_usecs > 0.0 || start_cpu_nsecs > 0.0))) {
@@ -5558,12 +5537,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
     update_global_user_stats(thd, true, my_getsystime());
   }
 
-  DBUG_VOID_RETURN;
-||||||| merged common ancestors
-  DBUG_VOID_RETURN;
-=======
   DEBUG_SYNC(thd, "query_rewritten");
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -5688,19 +5662,9 @@ bool Alter_info::add_field(
     if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
       return true;
     Key_spec *key = new (thd->mem_root)
-<<<<<<< HEAD
         Key_spec(thd->mem_root, key_type, NULL_CSTR, &default_key_create_info,
                  false, true, key_parts);
-    if (key == NULL || key_list.push_back(key)) DBUG_RETURN(true);
-||||||| merged common ancestors
-        Key_spec(thd->mem_root, KEYTYPE_UNIQUE, NULL_CSTR,
-                 &default_key_create_info, false, true, key_parts);
-    if (key == NULL || key_list.push_back(key)) DBUG_RETURN(true);
-=======
-        Key_spec(thd->mem_root, KEYTYPE_UNIQUE, NULL_CSTR,
-                 &default_key_create_info, false, true, key_parts);
     if (key == NULL || key_list.push_back(key)) return true;
->>>>>>> mysql-8.0.18
   }
 
   if (default_value) {
@@ -5760,19 +5724,9 @@ bool Alter_info::add_field(
       new_field->init(thd, field_name->str, type, length, decimals,
                       type_modifier, default_value, on_update_value, comment,
                       change, interval_list, cs, has_explicit_collation,
-<<<<<<< HEAD
                       uint_geom_type, zip_dict, gcol_info, default_val_expr,
                       srid, hidden, is_array))
-    DBUG_RETURN(1);
-||||||| merged common ancestors
-                      uint_geom_type, gcol_info, default_val_expr, srid, hidden,
-                      is_array))
-    DBUG_RETURN(1);
-=======
-                      uint_geom_type, gcol_info, default_val_expr, srid, hidden,
-                      is_array))
     return 1;
->>>>>>> mysql-8.0.18
 
   create_list.push_back(new_field);
   if (opt_after != NULL) {

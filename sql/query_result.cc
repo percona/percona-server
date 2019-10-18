@@ -97,15 +97,9 @@ bool Query_result_send::send_data(THD *thd, List<Item> &items) {
   }
 
   thd->inc_sent_row_count(1);
-<<<<<<< HEAD
   thd->sent_row_count_2++;
   DEBUG_SYNC(thd, "sent_row");
-  DBUG_RETURN(protocol->end_row());
-||||||| merged common ancestors
-  DBUG_RETURN(protocol->end_row());
-=======
   return protocol->end_row();
->>>>>>> mysql-8.0.18
 }
 
 bool Query_result_send::send_eof(THD *thd) {

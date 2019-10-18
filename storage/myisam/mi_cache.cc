@@ -1,11 +1,5 @@
-<<<<<<< HEAD
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-||||||| merged common ancestors
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
-=======
 /* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-8.0.18
+   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,14 +53,8 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
   uint read_length, in_buff_length;
   my_off_t offset;
   uchar *in_buff_pos;
-<<<<<<< HEAD
-  DBUG_ENTER("_mi_read_cache");
-  DBUG_ASSERT(info->m_encryptor == nullptr && info->m_decryptor == nullptr);
-||||||| merged common ancestors
-  DBUG_ENTER("_mi_read_cache");
-=======
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
+  DBUG_ASSERT(info->m_encryptor == nullptr && info->m_decryptor == nullptr);
 
   if (pos < info->pos_in_file) {
     read_length = length;

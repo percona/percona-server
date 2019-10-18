@@ -1027,15 +1027,6 @@ The following options may be given as the first argument:
  contains non-prinable characters
  --profiling-history-size=# 
  Limit of query profiling memory
-<<<<<<< HEAD
- --proxy-protocol-networks=name 
- Enable proxy protocol for these source networks. The
- syntax is a comma separated list of IPv4 and IPv6
- networks. If the network doesn't contain mask, it is
- considered to be a single host. "*" represents all
- networks and must the only directive on the line.
-||||||| merged common ancestors
-=======
  --protocol-compression-algorithms=name 
  List of compression algorithms supported by server.
  Supported values are any combination of zlib, zstd,
@@ -1046,7 +1037,12 @@ The following options may be given as the first argument:
  both client and server support it; otherwise it picks
  zstd if both support it; otherwise it picks uncompressed
  if both support it; otherwise it fails.
->>>>>>> mysql-8.0.18
+ --proxy-protocol-networks=name 
+ Enable proxy protocol for these source networks. The
+ syntax is a comma separated list of IPv4 and IPv6
+ networks. If the network doesn't contain mask, it is
+ considered to be a single host. "*" represents all
+ networks and must the only directive on the line.
  --query-alloc-block-size=# 
  Allocation block size for query parsing and execution
  --query-prealloc-size=# 
@@ -1764,12 +1760,8 @@ port-open-timeout 0
 preload-buffer-size 32768
 print-identified-with-as-hex FALSE
 profiling-history-size 15
-<<<<<<< HEAD
-proxy-protocol-networks 
-||||||| merged common ancestors
-=======
 protocol-compression-algorithms zlib,zstd,uncompressed
->>>>>>> mysql-8.0.18
+proxy-protocol-networks 
 query-alloc-block-size 8192
 query-prealloc-size 8192
 range-alloc-block-size 4096

@@ -1831,15 +1831,9 @@ end:
     });
   }
 
-<<<<<<< HEAD
   if (!error) thd->diff_commit_trans++;
 
-  DBUG_RETURN(error);
-||||||| merged common ancestors
-  DBUG_RETURN(error);
-=======
   return error;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -2241,15 +2235,9 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv) {
     MYSQL_INC_TRANSACTION_ROLLBACK_TO_SAVEPOINT(thd->m_transaction_psi, 1);
 #endif
 
-<<<<<<< HEAD
   thd->diff_rollback_trans++;
 
-  DBUG_RETURN(error);
-||||||| merged common ancestors
-  DBUG_RETURN(error);
-=======
   return error;
->>>>>>> mysql-8.0.18
 }
 
 int ha_prepare_low(THD *thd, bool all) {
@@ -2914,18 +2902,12 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     cached_table_flags = table_flags();
   }
 
-<<<<<<< HEAD
   if (unlikely(opt_userstat)) {
     rows_read = rows_changed = 0;
     memset(index_rows_read, 0, sizeof(index_rows_read));
   }
 
-  DBUG_RETURN(error);
-||||||| merged common ancestors
-  DBUG_RETURN(error);
-=======
   return error;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -3023,7 +3005,7 @@ int handler::ha_rnd_init(bool scan) {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == NONE || (inited == RND && scan));
   if (scan && is_using_prohibited_gap_locks(table, false)) {
-    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+    return HA_ERR_LOCK_DEADLOCK;
   }
   inited = (result = rnd_init(scan)) ? NONE : RND;
   end_range = NULL;
@@ -3077,18 +3059,12 @@ int handler::ha_rnd_next(uchar *buf) {
     m_update_generated_read_fields = false;
   }
   table->set_row_status_from_handler(result);
-<<<<<<< HEAD
 
   if (likely(!result)) {
     update_index_stats(active_index);
   }
 
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -3180,17 +3156,11 @@ int handler::ha_sample_next(uchar *buf) {
   }
   table->set_row_status_from_handler(result);
 
-<<<<<<< HEAD
   if (likely(!result)) {
     update_index_stats(active_index);
   }
 
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 int handler::sample_init() { return rnd_init(true); }
@@ -3348,7 +3318,7 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   if (is_using_prohibited_gap_locks(
           table,
           is_using_full_unique_key(active_index, keypart_map, find_flag))) {
-    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+    return HA_ERR_LOCK_DEADLOCK;
   }
 
   // Set status for the need to update generated fields
@@ -3362,18 +3332,12 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
     m_update_generated_read_fields = false;
   }
   table->set_row_status_from_handler(result);
-<<<<<<< HEAD
 
   if (likely(!result)) {
     update_index_stats(active_index);
   }
 
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
@@ -3385,7 +3349,7 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   if (is_using_prohibited_gap_locks(table, false)) {
-    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+    return HA_ERR_LOCK_DEADLOCK;
   }
 
   // Set status for the need to update generated fields
@@ -3398,18 +3362,12 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
     m_update_generated_read_fields = false;
   }
   table->set_row_status_from_handler(result);
-<<<<<<< HEAD
 
   if (likely(!result)) {
     update_index_stats(active_index);
   }
 
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -3429,7 +3387,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
 
   if (is_using_prohibited_gap_locks(
           table, is_using_full_unique_key(index, keypart_map, find_flag))) {
-    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+    return HA_ERR_LOCK_DEADLOCK;
   }
 
   // Set status for the need to update generated fields
@@ -3443,16 +3401,10 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
     m_update_generated_read_fields = false;
   }
   table->set_row_status_from_handler(result);
-<<<<<<< HEAD
   if (likely(!result)) {
     update_index_stats(index);
   }
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -3483,19 +3435,13 @@ int handler::ha_index_next(uchar *buf) {
     m_update_generated_read_fields = false;
   }
   table->set_row_status_from_handler(result);
-<<<<<<< HEAD
   if (likely(!result)) {
     update_index_stats(active_index);
   }
 
   DEBUG_SYNC(ha_thd(), "handler_ha_index_next_end");
 
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 bool handler::is_using_full_key(key_part_map keypart_map,
@@ -3542,18 +3488,12 @@ int handler::ha_index_prev(uchar *buf) {
     m_update_generated_read_fields = false;
   }
   table->set_row_status_from_handler(result);
-<<<<<<< HEAD
 
   if (likely(!result)) {
     update_index_stats(active_index);
   }
 
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -3575,7 +3515,7 @@ int handler::ha_index_first(uchar *buf) {
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   if (is_using_prohibited_gap_locks(table, false)) {
-    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+    return HA_ERR_LOCK_DEADLOCK;
   }
 
   // Set status for the need to update generated fields
@@ -3588,18 +3528,12 @@ int handler::ha_index_first(uchar *buf) {
     m_update_generated_read_fields = false;
   }
   table->set_row_status_from_handler(result);
-<<<<<<< HEAD
 
   if (likely(!result)) {
     update_index_stats(active_index);
   }
 
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -3621,7 +3555,7 @@ int handler::ha_index_last(uchar *buf) {
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
   if (is_using_prohibited_gap_locks(table, false)) {
-    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+    return HA_ERR_LOCK_DEADLOCK;
   }
 
   // Set status for the need to update generated fields
@@ -3634,18 +3568,12 @@ int handler::ha_index_last(uchar *buf) {
     m_update_generated_read_fields = false;
   }
   table->set_row_status_from_handler(result);
-<<<<<<< HEAD
 
   if (likely(!result)) {
     update_index_stats(active_index);
   }
 
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -3678,18 +3606,12 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen) {
     m_update_generated_read_fields = false;
   }
   table->set_row_status_from_handler(result);
-<<<<<<< HEAD
 
   if (likely(!result)) {
     update_index_stats(active_index);
   }
 
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 /**
@@ -8185,19 +8107,10 @@ int handler::ha_write_row(uchar *buf) {
   Log_func *log_func = Write_rows_log_event::binlog_row_logging_function;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE || m_lock_type == F_WRLCK);
 
-<<<<<<< HEAD
-  DBUG_ENTER("handler::ha_write_row");
+  DBUG_TRACE;
   DEBUG_SYNC(ha_thd(), "start_ha_write_row");
   DBUG_EXECUTE_IF("inject_error_ha_write_row",
-                  DBUG_RETURN(HA_ERR_INTERNAL_ERROR););
-||||||| merged common ancestors
-  DBUG_ENTER("handler::ha_write_row");
-  DBUG_EXECUTE_IF("inject_error_ha_write_row",
-                  DBUG_RETURN(HA_ERR_INTERNAL_ERROR););
-=======
-  DBUG_TRACE;
-  DBUG_EXECUTE_IF("inject_error_ha_write_row", return HA_ERR_INTERNAL_ERROR;);
->>>>>>> mysql-8.0.18
+                  return HA_ERR_INTERNAL_ERROR;);
   DBUG_EXECUTE_IF("simulate_storage_engine_out_of_memory",
                   return HA_ERR_SE_OUT_OF_MEMORY;);
   mark_trx_read_write();

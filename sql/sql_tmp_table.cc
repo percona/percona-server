@@ -440,7 +440,6 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
       DBUG_ASSERT(false);
       break;
   }
-<<<<<<< HEAD
 
   /* Make sure temporary fields are never compressed */
   if (result->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED)
@@ -448,12 +447,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
   result->zip_dict_name = null_lex_cstr;
   result->zip_dict_data = null_lex_cstr;
 
-  DBUG_RETURN(result);
-||||||| merged common ancestors
-  DBUG_RETURN(result);
-=======
   return result;
->>>>>>> mysql-8.0.18
 }
 
 /*

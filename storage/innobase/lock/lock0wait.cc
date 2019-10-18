@@ -34,13 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <mysql/service_thd_wait.h>
 #include <sys/types.h>
-<<<<<<< HEAD
-#include <time.h>
 #include <sstream>
-||||||| merged common ancestors
-#include <time.h>
-=======
->>>>>>> mysql-8.0.18
 
 #include "ha_prototypes.h"
 #include "lock0iter.h"
@@ -203,7 +197,6 @@ static srv_slot_t *lock_wait_table_reserve_slot(
   ut_error;
 }
 
-<<<<<<< HEAD
 /** Print lock wait timeout info to stderr. It's supposed this function
 is executed in trx's THD thread as it calls some non-thread-safe
 functions to get some info from THD.
@@ -241,11 +234,8 @@ static void print_lock_wait_timeout(const trx_t &trx,
   ib::info() << outs.str();
 }
 
-||||||| merged common ancestors
-=======
 void lock_wait_request_check_for_cycles() { lock_set_timeout_event(); }
 
->>>>>>> mysql-8.0.18
 /** Puts a user OS thread to wait for a lock to be released. If an error
  occurs during the wait trx->error_state associated with thr is
  != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK

@@ -191,16 +191,8 @@ void vio_delete_shared_memory(Vio *vio) {
   All handles are closed and the VIO is cleaned up when vio_delete() is
   called and this completes the vio cleanup operation in its entirety.
 */
-<<<<<<< HEAD
 int vio_shutdown_shared_memory(Vio *vio, int how) {
-  DBUG_ENTER("vio_shutdown_shared_memory");
-||||||| merged common ancestors
-int vio_shutdown_shared_memory(Vio *vio) {
-  DBUG_ENTER("vio_shutdown_shared_memory");
-=======
-int vio_shutdown_shared_memory(Vio *vio) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
   if (vio->inactive == false) {
     /*
       Set event_conn_closed for notification of both client and server that

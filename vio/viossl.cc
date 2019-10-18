@@ -366,13 +366,7 @@ int vio_ssl_shutdown(Vio *vio, int how) {
         break;
     }
   }
-<<<<<<< HEAD
-  DBUG_RETURN(vio_shutdown(vio, how));
-||||||| merged common ancestors
-  DBUG_RETURN(vio_shutdown(vio));
-=======
-  return vio_shutdown(vio);
->>>>>>> mysql-8.0.18
+  return vio_shutdown(vio, how);
 }
 
 void vio_ssl_delete(Vio *vio) {

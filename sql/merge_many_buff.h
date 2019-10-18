@@ -59,20 +59,10 @@ bool merge_many_buff(THD *thd, Merge_param *param, Sort_buffer sort_buffer,
   if (num_chunks <= MERGEBUFF2) return false; /* purecov: inspected */
 
   if (flush_io_cache(t_file) ||
-<<<<<<< HEAD
       open_cached_file_encrypted(&t_file2, mysql_tmpdir, TEMP_PREFIX,
                                  DISK_BUFFER_SIZE, MYF(MY_WME),
                                  encrypt_tmp_files))
-    DBUG_RETURN(true); /* purecov: inspected */
-||||||| merged common ancestors
-      open_cached_file(&t_file2, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
-                       MYF(MY_WME)))
-    DBUG_RETURN(true); /* purecov: inspected */
-=======
-      open_cached_file(&t_file2, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
-                       MYF(MY_WME)))
     return true; /* purecov: inspected */
->>>>>>> mysql-8.0.18
 
   IO_CACHE *from_file = t_file;
   IO_CACHE *to_file = &t_file2;

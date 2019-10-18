@@ -279,70 +279,7 @@ IF(UNIX)
   ENDMACRO()
 ENDIF()
 
-<<<<<<< HEAD
-IF(NOT DISABLE_SHARED)
-  # Merge several convenience libraries into one big perconaserverclient
-  # and link them together into shared library.
-  MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
-    EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED} ${CLIENT_API_NONBLOCKING_FUNCTIONS}
-    COMPONENT SharedLibraries)
-  TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
-
-  IF(WIN32)
-    # So that libmysql_api_test below can find the .dll
-    ADD_CUSTOM_COMMAND(TARGET libmysql POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/libmysql.dll"
-      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/libmysql.dll"
-      )
-  ENDIF()
-  IF(UNIX)
-    # libtool compatability
-    IF(FREEBSD OR APPLE)
-      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
-    ELSE()
-      SET(OS_SHARED_LIB_VERSION
-        "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
-    ENDIF()
-    # Name of shared library is perconaserverclient on Unix
-    SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-      OUTPUT_NAME perconaserverclient
-      VERSION "${OS_SHARED_LIB_VERSION}" 
-      SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-    CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-||||||| merged common ancestors
-IF(NOT DISABLE_SHARED)
-  # Merge several convenience libraries into one big mysqlclient
-  # and link them together into shared library.
-  MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
-    EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED} ${CLIENT_API_NONBLOCKING_FUNCTIONS}
-    COMPONENT SharedLibraries)
-  TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
-
-  IF(WIN32)
-    # So that libmysql_api_test below can find the .dll
-    ADD_CUSTOM_COMMAND(TARGET libmysql POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/libmysql.dll"
-      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/libmysql.dll"
-      )
-  ENDIF()
-  IF(UNIX)
-    # libtool compatability
-    IF(FREEBSD OR APPLE)
-      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
-    ELSE()
-      SET(OS_SHARED_LIB_VERSION
-        "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
-    ENDIF()
-    # Name of shared library is mysqlclient on Unix
-    SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-      OUTPUT_NAME mysqlclient 
-      VERSION "${OS_SHARED_LIB_VERSION}" 
-      SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-    CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-=======
-# Merge several convenience libraries into one big mysqlclient
+# Merge several convenience libraries into one big perconaserverclient
 # and link them together into shared library.
 MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
   EXPORTS
@@ -351,7 +288,6 @@ MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
   ${CLIENT_API_NONBLOCKING_FUNCTIONS}
   COMPONENT SharedLibraries)
 TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
->>>>>>> mysql-8.0.18
 
 IF(WIN32)
   # So that libmysql_api_test below can find the .dll
@@ -370,9 +306,9 @@ IF(UNIX)
     SET(OS_SHARED_LIB_VERSION
       "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
   ENDIF()
-  # Name of shared library is mysqlclient on Unix
+  # Name of shared library is perconaserverclient on Unix
   SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-    OUTPUT_NAME mysqlclient 
+    OUTPUT_NAME perconaclient 
     VERSION "${OS_SHARED_LIB_VERSION}" 
     SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
   CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
@@ -383,35 +319,6 @@ IF(UNIX)
       )
   ENDIF()
 
-<<<<<<< HEAD
-    GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-    IF(LINK_FLAG_NO_UNDEFINED)
-      SET(libmysql_link_flags
-        "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
-      SET(libmysql_link_flags
-        "${libmysql_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
-      SET_TARGET_PROPERTIES(libmysql
-        PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
-    ENDIF() 
-    # clean direct output needs to be set several targets have the same name
-    #(perconaserverclient in this case)
-    SET_TARGET_PROPERTIES(perconaserverclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-    SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-||||||| merged common ancestors
-    GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-    IF(LINK_FLAG_NO_UNDEFINED)
-      SET(libmysql_link_flags
-        "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
-      SET(libmysql_link_flags
-        "${libmysql_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
-      SET_TARGET_PROPERTIES(libmysql
-        PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
-    ENDIF() 
-    # clean direct output needs to be set several targets have the same name
-    #(mysqlclient in this case)
-    SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-    SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-=======
   GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
   IF(LINK_FLAG_NO_UNDEFINED)
     STRING_APPEND(libmysql_link_flags
@@ -422,10 +329,9 @@ IF(UNIX)
       PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
   ENDIF() 
   # clean direct output needs to be set several targets have the same name
-  #(mysqlclient in this case)
-  SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+  #(perconaserverclient in this case)
+  SET_TARGET_PROPERTIES(perconaserverclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
   SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
->>>>>>> mysql-8.0.18
 
 ENDIF()
 

@@ -643,7 +643,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec,
       key += char_length;
       continue;
     } else if (seg->flag & HA_BLOB_PART) {
-      uchar *pos = (uchar *)rec + seg->start;
+      const uchar *pos = (const uchar *)rec + seg->start;
       const uint tmp_length = hp_calc_blob_length(seg->bit_start, pos);
       const uint length = MY_MIN(seg->length, tmp_length);
       const CHARSET_INFO *const cs = seg->charset;

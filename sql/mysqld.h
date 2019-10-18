@@ -214,16 +214,8 @@ extern bool opt_enable_shared_memory;
 extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
 #endif
 extern bool opt_allow_suspicious_udfs;
-<<<<<<< HEAD
-extern char *opt_secure_file_priv;
-extern bool opt_log_slow_slave_statements;
-||||||| merged common ancestors
-extern char *opt_secure_file_priv;
-extern bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
-=======
 extern const char *opt_secure_file_priv;
-extern bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
->>>>>>> mysql-8.0.18
+extern bool opt_log_slow_slave_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;
 extern bool check_proxy_users, mysql_native_password_proxy_users,
@@ -397,12 +389,8 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
 extern char *opt_log_error_suppression_list;
 extern char *opt_log_error_services;
-<<<<<<< HEAD
 extern bool encrypt_tmp_files;
-||||||| merged common ancestors
-=======
 extern char *opt_protocol_compression_algorithms;
->>>>>>> mysql-8.0.18
 /** The size of the host_cache. */
 extern uint host_cache_size;
 extern ulong log_error_verbosity;

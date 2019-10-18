@@ -810,13 +810,7 @@ dberr_t btr_cur_search_to_nth_level(
     ut_ad(cursor->low_match != ULINT_UNDEFINED || mode != PAGE_CUR_LE);
     btr_cur_n_sea++;
 
-<<<<<<< HEAD
-    DBUG_RETURN(err);
-||||||| merged common ancestors
-    DBUG_VOID_RETURN;
-=======
-    return;
->>>>>>> mysql-8.0.18
+    return err;
   }
 #endif /* BTR_CUR_HASH_ADAPT */
 #endif /* BTR_CUR_ADAPT */
@@ -1767,14 +1761,8 @@ func_exit:
     /* remember that we will need to adjust parent MBR */
     cursor->rtr_info->mbr_adj = true;
   }
-<<<<<<< HEAD
 
-  DBUG_RETURN(err);
-||||||| merged common ancestors
-
-  DBUG_VOID_RETURN;
-=======
->>>>>>> mysql-8.0.18
+  return err;
 }
 
 /** Searches an index tree and positions a tree cursor on a given level.

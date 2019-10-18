@@ -161,20 +161,12 @@ class PT_secondary_column_attr : public PT_column_attr_base {
 */
 class PT_unique_combo_clustering_key_column_attr : public PT_column_attr_base {
  public:
-<<<<<<< HEAD
   PT_unique_combo_clustering_key_column_attr(enum keytype key_type) noexcept
       : m_key_type(key_type) {}
 
-  virtual void apply_type_flags(ulong *type_flags) const noexcept {
+  void apply_type_flags(ulong *type_flags) const noexcept override {
     if (m_key_type & KEYTYPE_UNIQUE) *type_flags |= UNIQUE_FLAG;
     if (m_key_type & KEYTYPE_CLUSTERING) *type_flags |= CLUSTERING_FLAG;
-||||||| merged common ancestors
-  virtual void apply_type_flags(ulong *type_flags) const {
-    *type_flags |= UNIQUE_FLAG;
-=======
-  void apply_type_flags(ulong *type_flags) const override {
-    *type_flags |= UNIQUE_FLAG;
->>>>>>> mysql-8.0.18
   }
 
   void apply_alter_info_flags(ulonglong *flags) const override {
@@ -417,24 +409,10 @@ class PT_column_format_column_attr : public PT_column_attr_base {
     *type_flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     *type_flags |= format << FIELD_FLAGS_COLUMN_FORMAT;
   }
-<<<<<<< HEAD
-  virtual bool contextualize(Column_parse_context *pc) {
-||||||| merged common ancestors
-  virtual bool contextualize(Column_parse_context *pc) {
-    if (pc->is_generated) {
-      my_error(ER_WRONG_USAGE, MYF(0), "COLUMN_FORMAT", "generated column");
-      return true;
-    }
-=======
   bool contextualize(Column_parse_context *pc) override {
-    if (pc->is_generated) {
-      my_error(ER_WRONG_USAGE, MYF(0), "COLUMN_FORMAT", "generated column");
-      return true;
-    }
->>>>>>> mysql-8.0.18
     return super::contextualize(pc);
   }
-  virtual void apply_zip_dict(LEX_CSTRING *to) const noexcept {
+  void apply_zip_dict(LEX_CSTRING *to) const noexcept override {
     *to = m_zip_dict_name;
   }
 

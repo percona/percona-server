@@ -55,14 +55,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
   uint keys = create_info->keys;
   ulong min_records = create_info->min_records;
   ulong max_records = create_info->max_records;
-<<<<<<< HEAD
   ulong max_rows_for_stated_memory;
-  DBUG_ENTER("heap_create");
-||||||| merged common ancestors
-  DBUG_ENTER("heap_create");
-=======
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
 
   if (!create_info->single_instance) {
     mysql_mutex_lock(&THR_LOCK_heap);

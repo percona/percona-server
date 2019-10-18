@@ -112,22 +112,14 @@ SHOW GRANTS FOR CURRENT_USER();
 SET SESSION default_table_encryption=ON;
 SELECT @@session.default_table_encryption;
 
-<<<<<<< HEAD
-SET SESSION default_table_encryption=KEYRING_ON;
-SELECT @@session.default_table_encryption;
-||||||| merged common ancestors
-SET GLOBAL default_table_encryption=false;
-SELECT @@global.default_table_encryption = false;
-=======
-SET SESSION default_table_encryption=false;
-SELECT @@session.default_table_encryption = false;
-
 SET SESSION default_table_encryption=DEFAULT;
 SELECT @@session.default_table_encryption = false;
 
 SET GLOBAL default_table_encryption=false;
 SELECT @@global.default_table_encryption = false;
->>>>>>> mysql-8.0.18
+
+SET SESSION default_table_encryption=KEYRING_ON;
+SELECT @@session.default_table_encryption;
 
 SET SESSION default_table_encryption=ONLINE_TO_KEYRING;
 SELECT @@session.default_table_encryption;

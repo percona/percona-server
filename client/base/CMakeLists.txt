@@ -46,16 +46,4 @@ ADD_LIBRARY(client_base STATIC
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
 )
 
-<<<<<<< HEAD
 TARGET_LINK_LIBRARIES(client_base perconaserverclient)
-
-# Do not build library unless it is needed by some other target.
-SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)
-||||||| merged common ancestors
-TARGET_LINK_LIBRARIES(client_base mysqlclient)
-
-# Do not build library unless it is needed by some other target.
-SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)
-=======
-TARGET_LINK_LIBRARIES(client_base mysqlclient)
->>>>>>> mysql-8.0.18

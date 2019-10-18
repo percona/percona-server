@@ -1150,7 +1150,7 @@ ibool row_merge_write(int fd,                /*!< in: file descriptor */
             static_cast<const byte *>(buf), srv_sort_buf_size,
             static_cast<byte *>(crypt_buf), offset, space_id)) {
       ib::error() << "Failed encrypt block at " << offset;
-      DBUG_RETURN(FALSE);
+      return FALSE;
     }
     srv_stats.n_merge_blocks_encrypted.inc();
     out_buf = crypt_buf;
@@ -1453,16 +1453,8 @@ static byte *row_merge_write_eof(
   memset(b, 0xff, &block[srv_sort_buf_size] - b);
 #endif /* UNIV_DEBUG_VALGRIND */
 
-<<<<<<< HEAD
   if (!row_merge_write(fd, (*foffs)++, block, crypt_block, space_id)) {
-    DBUG_RETURN(NULL);
-||||||| merged common ancestors
-  if (!row_merge_write(fd, (*foffs)++, block)) {
-    DBUG_RETURN(NULL);
-=======
-  if (!row_merge_write(fd, (*foffs)++, block)) {
     return NULL;
->>>>>>> mysql-8.0.18
   }
 
   UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
@@ -2731,21 +2723,11 @@ done0:
 done1:
 
   mem_heap_free(heap);
-<<<<<<< HEAD
   b2 = row_merge_write_eof(
       &block[2 * srv_sort_buf_size],
       crypt_block ? &crypt_block[2 * srv_sort_buf_size] : nullptr, space_id, b2,
       of->fd, &of->offset);
-  DBUG_RETURN(b2 ? DB_SUCCESS : DB_CORRUPTION);
-||||||| merged common ancestors
-  b2 = row_merge_write_eof(&block[2 * srv_sort_buf_size], b2, of->fd,
-                           &of->offset);
-  DBUG_RETURN(b2 ? DB_SUCCESS : DB_CORRUPTION);
-=======
-  b2 = row_merge_write_eof(&block[2 * srv_sort_buf_size], b2, of->fd,
-                           &of->offset);
   return b2 ? DB_SUCCESS : DB_CORRUPTION;
->>>>>>> mysql-8.0.18
 }
 
 /** Copy a block of index entries.
@@ -2815,18 +2797,10 @@ done0:
   (*foffs0)++;
 
   mem_heap_free(heap);
-<<<<<<< HEAD
-  DBUG_RETURN(row_merge_write_eof(
+  return row_merge_write_eof(
                   &block[2 * srv_sort_buf_size],
                   crypt_block ? &crypt_block[2 * srv_sort_buf_size] : nullptr,
-                  space_id, b2, of->fd, &of->offset) != NULL);
-||||||| merged common ancestors
-  DBUG_RETURN(row_merge_write_eof(&block[2 * srv_sort_buf_size], b2, of->fd,
-                                  &of->offset) != NULL);
-=======
-  return row_merge_write_eof(&block[2 * srv_sort_buf_size], b2, of->fd,
-                             &of->offset) != NULL;
->>>>>>> mysql-8.0.18
+                  space_id, b2, of->fd, &of->offset) != NULL;
 }
 
 /** Merge disk files.
@@ -3809,7 +3783,7 @@ dberr_t row_merge_build_indexes(
         alloc.allocate_large(3 * srv_sort_buf_size, &crypt_pfx, false));
 
     if (crypt_block == nullptr) {
-      DBUG_RETURN(DB_OUT_OF_MEMORY);
+      return DB_OUT_OF_MEMORY;
     }
   }
 

@@ -2024,14 +2024,8 @@ struct st_sp_chistics {
 };
 
 extern const LEX_STRING null_lex_str;
-<<<<<<< HEAD
-extern const LEX_STRING empty_lex_str;
 extern const LEX_CSTRING null_lex_cstr;
 extern const LEX_CSTRING empty_lex_cstr;
-||||||| merged common ancestors
-extern const LEX_STRING empty_lex_str;
-=======
->>>>>>> mysql-8.0.18
 
 struct st_trg_chistics {
   enum enum_trigger_action_time_type action_time;

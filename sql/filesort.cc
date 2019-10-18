@@ -439,21 +439,8 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   else
     thd->inc_status_sort_scan();
 
-<<<<<<< HEAD
   thd->query_plan_flags |= QPLAN_FILESORT;
 
-  if (table->s->tmp_table)
-    table->file->info(HA_STATUS_VARIABLE);  // Get record count
-
-  // If number of rows is not known, use as much of sort buffer as possible.
-  num_rows_estimate = table->file->estimate_rows_upper_bound();
-||||||| merged common ancestors
-  if (table->s->tmp_table)
-    table->file->info(HA_STATUS_VARIABLE);  // Get record count
-
-  // If number of rows is not known, use as much of sort buffer as possible.
-  num_rows_estimate = table->file->estimate_rows_upper_bound();
-=======
   if (table->file->inited) {
     if (table->s->tmp_table)
       table->file->info(HA_STATUS_VARIABLE);  // Get record count
@@ -462,7 +449,6 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
     // If number of rows is not known, use as much of sort buffer as possible.
     num_rows_estimate = HA_POS_ERROR;
   }
->>>>>>> mysql-8.0.18
 
   Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> pq(
       param->max_record_length(),
@@ -1202,36 +1188,16 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
   count = fs_info->sort_buffer(param, count);
 
   if (!my_b_inited(chunk_file) &&
-<<<<<<< HEAD
       open_cached_file_encrypted(chunk_file, mysql_tmpdir, TEMP_PREFIX,
                                  DISK_BUFFER_SIZE, MYF(MY_WME),
                                  encrypt_tmp_files))
-    DBUG_RETURN(1);
-||||||| merged common ancestors
-      open_cached_file(chunk_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
-                       MYF(MY_WME)))
-    DBUG_RETURN(1);
-=======
-      open_cached_file(chunk_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
-                       MYF(MY_WME)))
     return 1;
->>>>>>> mysql-8.0.18
 
   if (!my_b_inited(tempfile) &&
-<<<<<<< HEAD
       open_cached_file_encrypted(tempfile, mysql_tmpdir, TEMP_PREFIX,
                                  DISK_BUFFER_SIZE, MYF(MY_WME),
                                  encrypt_tmp_files))
-    DBUG_RETURN(1); /* purecov: inspected */
-||||||| merged common ancestors
-      open_cached_file(tempfile, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
-                       MYF(MY_WME)))
-    DBUG_RETURN(1); /* purecov: inspected */
-=======
-      open_cached_file(tempfile, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
-                       MYF(MY_WME)))
     return 1; /* purecov: inspected */
->>>>>>> mysql-8.0.18
 
   // Check that we wont have more chunks than we can possibly keep in memory.
   if (my_b_tell(chunk_file) + sizeof(Merge_chunk) > (ulonglong)UINT_MAX)
@@ -1942,20 +1908,10 @@ static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                ("read_to_buffer %p at file_pos %llu bytes %llu", merge_chunk,
                 static_cast<ulonglong>(merge_chunk->file_position()),
                 static_cast<ulonglong>(bytes_to_read)));
-<<<<<<< HEAD
     if (mysql_encryption_file_pread(fromfile, merge_chunk->buffer_start(),
                                     bytes_to_read, merge_chunk->file_position(),
                                     MYF_RW))
-      DBUG_RETURN((uint)-1); /* purecov: inspected */
-||||||| merged common ancestors
-    if (mysql_file_pread(fromfile->file, merge_chunk->buffer_start(),
-                         bytes_to_read, merge_chunk->file_position(), MYF_RW))
-      DBUG_RETURN((uint)-1); /* purecov: inspected */
-=======
-    if (mysql_file_pread(fromfile->file, merge_chunk->buffer_start(),
-                         bytes_to_read, merge_chunk->file_position(), MYF_RW))
       return (uint)-1; /* purecov: inspected */
->>>>>>> mysql-8.0.18
 
     size_t num_bytes_read;
     if (packed_addon_fields || using_varlen_keys) {
@@ -2082,19 +2038,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   DBUG_TRACE;
 
   thd->inc_status_sort_merge_passes();
-<<<<<<< HEAD
   thd->query_plan_fsort_passes++;
-  if (param->not_killable) {
-    killed = &not_killable;
-    not_killable = THD::NOT_KILLED;
-  }
-||||||| merged common ancestors
-  if (param->not_killable) {
-    killed = &not_killable;
-    not_killable = THD::NOT_KILLED;
-  }
-=======
->>>>>>> mysql-8.0.18
 
   my_off_t to_start_filepos = my_b_tell(to_file);
   strpos = sort_buffer.array();

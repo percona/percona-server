@@ -53,10 +53,9 @@ int heap_write(HP_INFO *info, const uchar *record) {
     return EACCES;
   }
 #endif
-<<<<<<< HEAD
   if (share->records >= share->max_records && share->max_records) {
     set_my_errno(HA_ERR_RECORD_FILE_FULL);
-    DBUG_RETURN(HA_ERR_RECORD_FILE_FULL);
+    return HA_ERR_RECORD_FILE_FULL;
   }
 
   uint chunk_count;
@@ -66,16 +65,11 @@ int heap_write(HP_INFO *info, const uchar *record) {
       (share->recordspace.total_data_length + share->index_length >=
        share->max_table_size)) {
     set_my_errno(HA_ERR_RECORD_FILE_FULL);
-    DBUG_RETURN(HA_ERR_RECORD_FILE_FULL);
+    return HA_ERR_RECORD_FILE_FULL;
   }
 
   if (!(pos = hp_allocate_chunkset(&share->recordspace, chunk_count)))
-    DBUG_RETURN(my_errno());
-||||||| merged common ancestors
-  if (!(pos = next_free_record_pos(share))) DBUG_RETURN(my_errno());
-=======
-  if (!(pos = next_free_record_pos(share))) return my_errno();
->>>>>>> mysql-8.0.18
+    return my_errno();
   share->changed = 1;
 
   for (keydef = share->keydef, end = keydef + share->keys; keydef < end;
@@ -146,72 +140,6 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   return 0;
 }
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-/* Find where to place new record */
-
-static uchar *next_free_record_pos(HP_SHARE *info) {
-  int block_pos;
-  uchar *pos;
-  size_t length;
-  DBUG_ENTER("next_free_record_pos");
-
-  if (info->del_link) {
-    pos = info->del_link;
-    info->del_link = *((uchar **)pos);
-    info->deleted--;
-    DBUG_PRINT("exit", ("Used old position: %p", pos));
-    DBUG_RETURN(pos);
-  }
-  if (!(block_pos = (info->records % info->block.records_in_block))) {
-    if ((info->records > info->max_records && info->max_records) ||
-        (info->data_length + info->index_length >= info->max_table_size)) {
-      set_my_errno(HA_ERR_RECORD_FILE_FULL);
-      DBUG_RETURN(NULL);
-    }
-    if (hp_get_new_block(&info->block, &length)) DBUG_RETURN(NULL);
-    info->data_length += length;
-  }
-  DBUG_PRINT("exit", ("Used new position: %p",
-                      ((uchar *)info->block.level_info[0].last_blocks +
-                       block_pos * info->block.recbuffer)));
-  DBUG_RETURN((uchar *)info->block.level_info[0].last_blocks +
-              block_pos * info->block.recbuffer);
-}
-
-=======
-/* Find where to place new record */
-
-static uchar *next_free_record_pos(HP_SHARE *info) {
-  int block_pos;
-  uchar *pos;
-  size_t length;
-  DBUG_TRACE;
-
-  if (info->del_link) {
-    pos = info->del_link;
-    info->del_link = *((uchar **)pos);
-    info->deleted--;
-    DBUG_PRINT("exit", ("Used old position: %p", pos));
-    return pos;
-  }
-  if (!(block_pos = (info->records % info->block.records_in_block))) {
-    if ((info->records > info->max_records && info->max_records) ||
-        (info->data_length + info->index_length >= info->max_table_size)) {
-      set_my_errno(HA_ERR_RECORD_FILE_FULL);
-      return NULL;
-    }
-    if (hp_get_new_block(&info->block, &length)) return NULL;
-    info->data_length += length;
-  }
-  DBUG_PRINT("exit", ("Used new position: %p",
-                      ((uchar *)info->block.level_info[0].last_blocks +
-                       block_pos * info->block.recbuffer)));
-  return (uchar *)info->block.level_info[0].last_blocks +
-         block_pos * info->block.recbuffer;
-}
-
->>>>>>> mysql-8.0.18
 /**
   Populate HASH_INFO structure.
 

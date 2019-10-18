@@ -4560,15 +4560,7 @@ static void do_change_user(struct st_command *command) {
   dynstr_free(&ds_user);
   dynstr_free(&ds_passwd);
   dynstr_free(&ds_db);
-<<<<<<< HEAD
   dynstr_free(&ds_reconnect);
-
-  DBUG_VOID_RETURN;
-||||||| merged common ancestors
-
-  DBUG_VOID_RETURN;
-=======
->>>>>>> mysql-8.0.18
 }
 
 /*

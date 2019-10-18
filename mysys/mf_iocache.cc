@@ -386,18 +386,12 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
   info->error = 0;
   init_functions(info);
 
-<<<<<<< HEAD
   if (info->m_encryptor != nullptr)
     info->m_encryptor->set_stream_offset(seek_offset);
   if (info->m_decryptor != nullptr)
     info->m_decryptor->set_stream_offset(seek_offset);
 
-  DBUG_RETURN(0);
-||||||| merged common ancestors
-  DBUG_RETURN(0);
-=======
   return 0;
->>>>>>> mysql-8.0.18
 } /* reinit_io_cache */
 
 /*

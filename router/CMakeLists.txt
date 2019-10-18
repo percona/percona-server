@@ -20,13 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-<<<<<<< HEAD
-IF(SIZEOF_VOIDP EQUAL 8)
-  SET(ARCH_64BIT 1)
-ELSE()
-  SET(ARCH_64BIT 0)
-ENDIF()
-
 # Disable ld.gold for clang-7 and clang-8
 IF(USE_LD_LLD AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND
    NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
@@ -34,15 +27,6 @@ IF(USE_LD_LLD AND CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND
   STRING(REPLACE "-fuse-ld=gold" "" CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS}")
 ENDIF()
 
-||||||| merged common ancestors
-IF(SIZEOF_VOIDP EQUAL 8)
-  SET(ARCH_64BIT 1)
-ELSE()
-  SET(ARCH_64BIT 0)
-ENDIF()
-
-=======
->>>>>>> mysql-8.0.18
 INCLUDE(cmake/version.cmake)
 SET(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}
@@ -134,24 +118,6 @@ INCLUDE(cmake/packaging.cmake)
 INCLUDE(cmake/Plugin.cmake)
 INCLUDE(cmake/fuzzer.cmake)
 
-<<<<<<< HEAD
-# Set the proper paths for the mysqlclient library
-SET(MySQL_CLIENT_LIB perconaserverclient)
-SET(MySQL_VERSION_HEADER ${CMAKE_BINARY_DIR}/include/mysql_version.h)
-SET(MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include)
-LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
-LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/include)
-
-||||||| merged common ancestors
-# Set the proper paths for the mysqlclient library
-SET(MySQL_CLIENT_LIB mysqlclient)
-SET(MySQL_VERSION_HEADER ${CMAKE_BINARY_DIR}/include/mysql_version.h)
-SET(MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include)
-LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
-LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/include)
-
-=======
->>>>>>> mysql-8.0.18
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 
 # a meta-target to allow build everything router related, but nothing that

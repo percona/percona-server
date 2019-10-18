@@ -1,13 +1,7 @@
 /*****************************************************************************
 
-<<<<<<< HEAD
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2016, Percona Inc. All Rights Reserved.
-||||||| merged common ancestors
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
-=======
 Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
->>>>>>> mysql-8.0.18
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -619,7 +613,7 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
     byte *recovery_buf = static_cast<byte *>(
         ut_align(parallel_dblwr_buf.recovery_buf_unaligned, UNIV_PAGE_SIZE));
 
-    err = os_file_read(read_request, parallel_dblwr_buf.file, recovery_buf, 0,
+    err = os_file_read(read_request, path, parallel_dblwr_buf.file, recovery_buf, 0,
                        size);
     if (err != DB_SUCCESS) {
       ib::error() << "Failed to read the parallel "

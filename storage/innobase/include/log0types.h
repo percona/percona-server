@@ -642,11 +642,8 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   Used by (private): log_checkpointer, recovery code */
   aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> checkpoint_buf;
 
-<<<<<<< HEAD
   /** Log tracking, if enabled, has advanced to this LSN */
   atomic_lsn_t tracked_lsn;
-||||||| merged common ancestors
-=======
   /** @} */
 
   /**************************************************/ /**
@@ -680,7 +677,6 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   lsn_t max_checkpoint_age_async;
 
   /** @} */
->>>>>>> mysql-8.0.18
 #endif /* !UNIV_HOTBACKUP */
 };
 

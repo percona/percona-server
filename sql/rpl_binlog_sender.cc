@@ -536,8 +536,7 @@ int Binlog_sender::send_events(File_reader *reader, my_off_t end_pos) {
         m_packet.length(tmp.length());
       }
 
-<<<<<<< HEAD
-      if (unlikely(send_packet())) DBUG_RETURN(1);
+      if (unlikely(send_packet())) return 1;
 
       DBUG_EXECUTE_IF("dump_thread_wait_after_send_write_rows", {
         if (event_type == binary_log::WRITE_ROWS_EVENT) {
@@ -549,11 +548,6 @@ int Binlog_sender::send_events(File_reader *reader, my_off_t end_pos) {
           DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
         }
       });
-||||||| merged common ancestors
-      if (unlikely(send_packet())) DBUG_RETURN(1);
-=======
-      if (unlikely(send_packet())) return 1;
->>>>>>> mysql-8.0.18
     }
 
     if (unlikely(after_send_hook(log_file, in_exclude_group ? log_pos : 0)))
@@ -1055,8 +1049,7 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
   if (event_checksum_on() && event_updated)
     calc_event_checksum(event_ptr, event_len);
 
-<<<<<<< HEAD
-  if (send_packet()) DBUG_RETURN(1);
+  if (send_packet()) return 1;
 
   // Let's check if next event is Start encryption event
   // If we go outside the file read_event will also return an error
@@ -1064,7 +1057,7 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
   if (read_event(reader, &event_ptr, &event_len, true)) {
     reader->seek(binlog_pos_after_fdle);
     set_last_pos(binlog_pos_after_fdle);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   binlog_read_error = binlog_event_deserialize(
@@ -1072,7 +1065,7 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
 
   if (binlog_read_error.has_error()) {
     set_fatal_error(binlog_read_error.get_str());
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (ev && ev->get_type_code() == binary_log::START_5_7_ENCRYPTION_EVENT) {
@@ -1081,12 +1074,12 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
 
     if (!sele->is_valid()) {
       set_fatal_error("Start encryption log event is invalid");
-      DBUG_RETURN(1);
+      return 1;
     }
 
     if (reader->start_decryption(sele)) {
       set_fatal_error("Could not decrypt binlog: encryption key error");
-      DBUG_RETURN(1);
+      return 1;
     }
 
     if (start_pos <= BIN_LOG_HEADER_SIZE) {
@@ -1094,7 +1087,7 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
       // We have read start encryption event from master binlog, but we have
       // not sent it to slave. We need to inform slave that master position
       // has advanced.
-      if (unlikely(send_heartbeat_event(log_pos))) DBUG_RETURN(1);
+      if (unlikely(send_heartbeat_event(log_pos))) return 1;
     }
   } else {
     reader->seek(binlog_pos_after_fdle);
@@ -1105,12 +1098,7 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
     delete ev;
   }
 
-  DBUG_RETURN(0);
-||||||| merged common ancestors
-  DBUG_RETURN(send_packet());
-=======
-  return send_packet();
->>>>>>> mysql-8.0.18
+  return 0;
 }
 
 int Binlog_sender::has_previous_gtid_log_event(File_reader *reader,
@@ -1150,17 +1138,9 @@ const char *Binlog_sender::log_read_error_msg(
 }
 
 inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
-<<<<<<< HEAD
                                      uint32 *event_len,
                                      bool readahead MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("Binlog_sender::read_event");
-||||||| merged common ancestors
-                                     uint32 *event_len) {
-  DBUG_ENTER("Binlog_sender::read_event");
-=======
-                                     uint32 *event_len) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
 
   if (reset_transmit_packet(0, 0)) return 1;
 #ifndef DBUG_OFF
@@ -1197,13 +1177,7 @@ inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
   DBUG_PRINT("info", ("Read event %s", Log_event::get_type_str(Log_event_type(
                                            (*event_ptr)[EVENT_TYPE_OFFSET]))));
 #ifndef DBUG_OFF
-<<<<<<< HEAD
-  if (!readahead && check_event_count()) DBUG_RETURN(1);
-||||||| merged common ancestors
-  if (check_event_count()) DBUG_RETURN(1);
-=======
-  if (check_event_count()) return 1;
->>>>>>> mysql-8.0.18
+  if (!readahead && check_event_count()) return 1;
 #endif
   return 0;
 }

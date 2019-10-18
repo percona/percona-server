@@ -1,11 +1,5 @@
-<<<<<<< HEAD
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-||||||| merged common ancestors
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
-=======
 /* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-8.0.18
+   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -606,20 +600,10 @@ static int write_keys(MI_SORT_PARAM *info, uchar **sort_keys, uint count,
                          pointer_cast<unsigned char *>(&b)) < 0;
   });
   if (!my_b_inited(tempfile) &&
-<<<<<<< HEAD
       open_cached_file_encrypted(
           tempfile, my_tmpdir(info->tmpdir), "ST", DISK_BUFFER_SIZE,
           info->sort_info->param->myf_rw, get_global_encrypt_tmp_files()))
-    DBUG_RETURN(1); /* purecov: inspected */
-||||||| merged common ancestors
-      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
-    DBUG_RETURN(1); /* purecov: inspected */
-=======
-      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
     return 1; /* purecov: inspected */
->>>>>>> mysql-8.0.18
 
   buffpek->file_pos = my_b_tell(tempfile);
   buffpek->count = count;
@@ -653,20 +637,10 @@ static int write_keys_varlen(MI_SORT_PARAM *info, uchar **sort_keys, uint count,
                          pointer_cast<unsigned char *>(&b)) < 0;
   });
   if (!my_b_inited(tempfile) &&
-<<<<<<< HEAD
       open_cached_file_encrypted(
           tempfile, my_tmpdir(info->tmpdir), "ST", DISK_BUFFER_SIZE,
           info->sort_info->param->myf_rw, get_global_encrypt_tmp_files()))
-    DBUG_RETURN(1); /* purecov: inspected */
-||||||| merged common ancestors
-      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
-    DBUG_RETURN(1); /* purecov: inspected */
-=======
-      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
     return 1; /* purecov: inspected */
->>>>>>> mysql-8.0.18
 
   buffpek->file_pos = my_b_tell(tempfile);
   buffpek->count = count;
@@ -681,20 +655,10 @@ static int write_key(MI_SORT_PARAM *info, uchar *key, IO_CACHE *tempfile) {
   DBUG_TRACE;
 
   if (!my_b_inited(tempfile) &&
-<<<<<<< HEAD
       open_cached_file_encrypted(
           tempfile, my_tmpdir(info->tmpdir), "ST", DISK_BUFFER_SIZE,
           info->sort_info->param->myf_rw, get_global_encrypt_tmp_files()))
-    DBUG_RETURN(1);
-||||||| merged common ancestors
-      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
-    DBUG_RETURN(1);
-=======
-      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
     return 1;
->>>>>>> mysql-8.0.18
 
   if (my_b_write(tempfile, (uchar *)&key_length, sizeof(key_length)) ||
       my_b_write(tempfile, (uchar *)key, (uint)key_length))
@@ -729,20 +693,10 @@ static int merge_many_buff(MI_SORT_PARAM *info, uint keys, uchar **sort_keys,
 
   if (*maxbuffer < MERGEBUFF2) return 0; /* purecov: inspected */
   if (flush_io_cache(t_file) ||
-<<<<<<< HEAD
       open_cached_file_encrypted(
           &t_file2, my_tmpdir(info->tmpdir), "ST", DISK_BUFFER_SIZE,
           info->sort_info->param->myf_rw, get_global_encrypt_tmp_files()))
-    DBUG_RETURN(1); /* purecov: inspected */
-||||||| merged common ancestors
-      open_cached_file(&t_file2, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
-    DBUG_RETURN(1); /* purecov: inspected */
-=======
-      open_cached_file(&t_file2, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
     return 1; /* purecov: inspected */
->>>>>>> mysql-8.0.18
 
   from_file = t_file;
   to_file = &t_file2;

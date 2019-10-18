@@ -436,12 +436,7 @@ struct System_variables {
     Used to determine if the database or tablespace should be encrypted by
     default.
   */
-<<<<<<< HEAD
   ulong default_table_encryption;
-||||||| merged common ancestors
-  bool print_identified_with_as_hex;
-=======
-  bool print_identified_with_as_hex;
 
   /**
     @sa Sys_var_show_create_table_skip_secondary_engine
@@ -452,7 +447,6 @@ struct System_variables {
     @sa Sys_var_generated_random_password_length
   */
   uint32_t generated_random_password_length;
->>>>>>> mysql-8.0.18
 };
 
 /**

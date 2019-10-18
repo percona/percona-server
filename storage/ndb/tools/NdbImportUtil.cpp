@@ -1414,16 +1414,6 @@ NdbImportUtil::alloc_rows(const Table& table, uint cnt, RowList& dst)
 void
 NdbImportUtil::free_blobs_from_row(Row *row)
 {
-<<<<<<< HEAD
-  RowList& rows = *c_rows_free;
-  rows.lock();
-
-||||||| merged common ancestors
-  RowList& rows = *c_rows_free;
-  rows.lock();
-  
-=======
->>>>>>> mysql-8.0.18
   for (uint i = 0; i < row->m_blobs.size(); ++i)
   {
     Blob* blob = row->m_blobs[i];

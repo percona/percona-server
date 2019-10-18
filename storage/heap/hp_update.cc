@@ -39,9 +39,8 @@ int heap_update(HP_INFO *info, const uchar *old_record,
   test_active(info);
   pos = info->current_ptr;
 
-<<<<<<< HEAD
   if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, old_record))
-    DBUG_RETURN(my_errno()); /* Record changed */
+    return my_errno(); /* Record changed */
 
   uint old_chunk_count, new_chunk_count;
   hp_get_encoded_data_length(*share, old_record, &old_chunk_count);
@@ -50,17 +49,10 @@ int heap_update(HP_INFO *info, const uchar *old_record,
   if (new_chunk_count > old_chunk_count) {
     /* extend the old chunkset size as necessary, but do not shrink yet */
     if (hp_reallocate_chunkset(&share->recordspace, new_chunk_count, pos)) {
-      DBUG_RETURN(my_errno()); /* Out of memory or table space */
+      return my_errno(); /* Out of memory or table space */
     }
   }
 
-||||||| merged common ancestors
-  if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, old))
-    DBUG_RETURN(my_errno()); /* Record changed */
-=======
-  if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, old))
-    return my_errno(); /* Record changed */
->>>>>>> mysql-8.0.18
   if (--(share->records) < share->blength >> 1) share->blength >>= 1;
   share->changed = 1;
 
@@ -87,16 +79,8 @@ int heap_update(HP_INFO *info, const uchar *old_record,
 #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
 #endif
-<<<<<<< HEAD
   if (auto_key_changed) heap_update_auto_increment(info, new_record);
-  DBUG_RETURN(0);
-||||||| merged common ancestors
-  if (auto_key_changed) heap_update_auto_increment(info, heap_new);
-  DBUG_RETURN(0);
-=======
-  if (auto_key_changed) heap_update_auto_increment(info, heap_new);
   return 0;
->>>>>>> mysql-8.0.18
 
 err:
   if (my_errno() == HA_ERR_FOUND_DUPP_KEY) {
@@ -120,15 +104,9 @@ err:
     }
   }
   if (++(share->records) == share->blength) share->blength += share->blength;
-<<<<<<< HEAD
   if (new_chunk_count > old_chunk_count) {
     /* Shrink the chunkset to its original size */
     hp_reallocate_chunkset(&share->recordspace, old_chunk_count, pos);
   }
-  DBUG_RETURN(my_errno());
-||||||| merged common ancestors
-  DBUG_RETURN(my_errno());
-=======
   return my_errno();
->>>>>>> mysql-8.0.18
 } /* heap_update */

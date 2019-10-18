@@ -700,21 +700,15 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
     if (field.flags & NOT_SECONDARY_FLAG)
       col_options->set("not_secondary", true);
 
-<<<<<<< HEAD
-    if (field->zip_dict_id != 0) {
+    if (field.zip_dict_id != 0) {
       DBUG_LOG("zip_dict", "Table: " << tab_obj->name()
                                      << " setting field_name "
-                                     << field->field_name
-                                     << " to id: " << field->zip_dict_id);
-      col_options->set("zip_dict_id", field->zip_dict_id);
+                                     << field.field_name
+                                     << " to id: " << field.zip_dict_id);
+      col_options->set("zip_dict_id", field.zip_dict_id);
     }
 
-    if (field->is_array) {
-||||||| merged common ancestors
-    if (field->is_array) {
-=======
     if (field.is_array) {
->>>>>>> mysql-8.0.18
       col_options->set("is_array", true);
     }
 

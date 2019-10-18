@@ -98,7 +98,6 @@ using std::max;
 using std::min;
 using std::unique_ptr;
 
-bool opt_log_slow_admin_statements = false;
 ulong opt_log_slow_sp_statements = 0;
 
 ulong kill_idle_transaction_timeout = 0;
@@ -2225,15 +2224,8 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup) {
         ->get_transaction_write_set_ctx()
         ->restore_savepoint_list();
   }
-<<<<<<< HEAD
 
   restore_sub_statement_state_slow_extended(*backup);
-  DBUG_VOID_RETURN;
-||||||| merged common ancestors
-
-  DBUG_VOID_RETURN;
-=======
->>>>>>> mysql-8.0.18
 }
 
 void THD::set_sent_row_count(ha_rows count) {

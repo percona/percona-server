@@ -780,7 +780,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
 err:
   my_message_local(ERROR_LEVEL, EE_FAILED_TO_HANDLE_DEFAULTS_FILE);
   exit(1);
-  DBUG_RETURN(0); /* Keep compiler happy */
+  return 0; /* Keep compiler happy */
 }
 
 static int search_default_file(Process_option_func opt_handler,

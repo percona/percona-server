@@ -2370,15 +2370,9 @@ void close_temporary_table(THD *thd, TABLE *table, bool free_share,
     --thd->rli_slave->get_c_rli()->atomic_channel_open_temp_tables;
   }
   close_temporary(thd, table, free_share, delete_table);
-<<<<<<< HEAD
 
   mysql_mutex_unlock(&thd->LOCK_temporary_tables);
 
-  DBUG_VOID_RETURN;
-||||||| merged common ancestors
-  DBUG_VOID_RETURN;
-=======
->>>>>>> mysql-8.0.18
 }
 
 /*
@@ -3447,7 +3441,7 @@ table_found:
 
       table->file->unbind_psi();
 
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -9904,13 +9898,13 @@ bool is_equal(const LEX_CSTRING *a, const LEX_CSTRING *b) noexcept {
 
 static bool is_cond_equal(const Item *cond) noexcept {
   return (cond->type() == Item::FUNC_ITEM &&
-          (((Item_func *)cond)->functype() == Item_func::EQ_FUNC ||
-           ((Item_func *)cond)->functype() == Item_func::EQUAL_FUNC));
+          (((const Item_func *)cond)->functype() == Item_func::EQ_FUNC ||
+           ((const Item_func *)cond)->functype() == Item_func::EQUAL_FUNC));
 }
 
 static bool is_cond_mult_equal(const Item *cond) noexcept {
   return (cond->type() == Item::FUNC_ITEM &&
-          (((Item_func *)cond)->functype() == Item_func::MULT_EQUAL_FUNC));
+          (((const Item_func *)cond)->functype() == Item_func::MULT_EQUAL_FUNC));
 }
 
 /*
@@ -10196,14 +10190,14 @@ void Join_node::add_equi_column(const Field *left, const Field *right) {
 inline bool is_cond_or(const Item *item) noexcept {
   if (item->type() != Item::COND_ITEM) return false;
 
-  Item_cond *cond_item = (Item_cond *)item;
+  const Item_cond *cond_item = (const Item_cond *)item;
   return (cond_item->functype() == Item_func::COND_OR_FUNC);
 }
 
 static bool is_cond_and(const Item *item) noexcept {
   if (item->type() != Item::COND_ITEM) return false;
 
-  Item_cond *cond_item = (Item_cond *)item;
+  const Item_cond *cond_item = (const Item_cond *)item;
   return (cond_item->functype() == Item_func::COND_AND_FUNC);
 }
 
@@ -10211,8 +10205,8 @@ void Join_node::add_const_equi_columns(Item *cond) {
   if (!cond) return;
   if (is_cond_or(cond)) return;
   if (is_cond_and(cond)) {
-    List<Item> *args = ((Item_cond *)cond)->argument_list();
-    List_iterator<Item> it(*args);
+    const List<Item> *args = ((const Item_cond *)cond)->argument_list();
+    List_iterator<Item> it(*const_cast<List<Item>*>(args));
     Item *c;
     while ((c = it++)) add_const_equi_columns(c);
     return;
@@ -10221,8 +10215,8 @@ void Join_node::add_const_equi_columns(Item *cond) {
     uint i;
     Field *first_field = nullptr;
     Field *second_field = nullptr;
-    Item **args = ((Item_func *)cond)->arguments();
-    uint arg_count = ((Item_func *)cond)->argument_count();
+    Item **args = ((const Item_func *)cond)->arguments();
+    uint arg_count = ((const Item_func *)cond)->argument_count();
     bool const_value = false;
 
     DBUG_ASSERT(arg_count == 2);
@@ -10233,9 +10227,9 @@ void Join_node::add_const_equi_columns(Item *cond) {
           (variable_field = field_belongs_to_tables(
                ((Item_field *)args[i]->real_item())->field))) {
         if (!first_field)
-          first_field = ((Item_field *)args[i]->real_item())->field;
+          first_field = ((const Item_field *)args[i]->real_item())->field;
         else
-          second_field = ((Item_field *)args[i]->real_item())->field;
+          second_field = ((const Item_field *)args[i]->real_item())->field;
       } else if (args[i]->real_item()->basic_const_item() || !variable_field) {
         const_value = true;
       }

@@ -795,7 +795,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
     uint dup_key_found;
 
-<<<<<<< HEAD
     error = table->file->ha_fast_update(thd, *update_field_list,
                                         *update_value_list, conds);
     if (error == 0)
@@ -805,7 +804,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       error = 1;
     } else
       while (true) {
-        error = info->Read();
+        error = iterator->Read();
         if (error || thd->killed) break;
         thd->inc_examined_row_count(1);
         bool skip_record;
@@ -820,118 +819,23 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           continue;
         }
         DBUG_ASSERT(!thd->is_error());
-||||||| merged common ancestors
-    while (true) {
-      error = info->Read();
-      if (error || thd->killed) break;
-      thd->inc_examined_row_count(1);
-      bool skip_record;
-      if (qep_tab.skip_record(thd, &skip_record)) {
-        error = 1;
-        break;
-      }
-      if (skip_record) {
-        table->file->unlock_row();  // Row failed condition check, release lock
-        thd->get_stmt_da()->inc_current_row_for_condition();
-        continue;
-      }
-      DBUG_ASSERT(!thd->is_error());
-=======
-    while (true) {
-      error = iterator->Read();
-      if (error || thd->killed) break;
-      thd->inc_examined_row_count(1);
-      bool skip_record;
-      if (qep_tab.skip_record(thd, &skip_record)) {
-        error = 1;
-        break;
-      }
-      if (skip_record) {
-        table->file->unlock_row();  // Row failed condition check, release lock
-        thd->get_stmt_da()->inc_current_row_for_condition();
-        continue;
-      }
-      DBUG_ASSERT(!thd->is_error());
->>>>>>> mysql-8.0.18
 
         if (table->file->was_semi_consistent_read())
           continue; /* repeat the read of the same row if it still exists */
 
         table->clear_partial_update_diffs();
 
-<<<<<<< HEAD
         store_record(table, record[1]);
+      bool is_row_changed = false;
         if (fill_record_n_invoke_before_triggers(
                 thd, &update, *update_field_list, *update_value_list, table,
-                TRG_EVENT_UPDATE, 0)) {
+                TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
           error = 1;
           break;
-        }
-        if (invoke_table_check_constraints(thd, table)) {
-          if (thd->is_error()) {
-||||||| merged common ancestors
-      store_record(table, record[1]);
-      if (fill_record_n_invoke_before_triggers(thd, &update, *update_field_list,
-                                               *update_value_list, table,
-                                               TRG_EVENT_UPDATE, 0)) {
-        error = 1;
-        break;
-      }
-      if (invoke_table_check_constraints(thd, table)) {
-        if (thd->is_error()) {
-          error = 1;
-          break;
-        }
-        // continue when IGNORE clause is used.
-        continue;
-      }
-      found_rows++;
-
-      if (!records_are_comparable(table) || compare_records(table)) {
-        int check_result = table_list->view_check_option(thd);
-        if (check_result != VIEW_CHECK_OK) {
-          found_rows--;
-          if (check_result == VIEW_CHECK_SKIP)
-            continue;
-          else if (check_result == VIEW_CHECK_ERROR) {
-=======
-      store_record(table, record[1]);
-      bool is_row_changed = false;
-      if (fill_record_n_invoke_before_triggers(
-              thd, &update, *update_field_list, *update_value_list, table,
-              TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
-        error = 1;
-        break;
-      }
-      found_rows++;
-
-      if (is_row_changed) {
-        /*
-          Default function and default expression values are filled before
-          evaluating the view check option. Check option on view using table(s)
-          with default function and default expression breaks otherwise.
-
-          It is safe to not invoke CHECK OPTION for VIEW if records are same.
-          In this case the row is coming from the view and thus should satisfy
-          the CHECK OPTION.
-        */
-        int check_result = table_list->view_check_option(thd);
-        if (check_result != VIEW_CHECK_OK) {
-          found_rows--;
-          if (check_result == VIEW_CHECK_SKIP)
-            continue;
-          else if (check_result == VIEW_CHECK_ERROR) {
->>>>>>> mysql-8.0.18
-            error = 1;
-            break;
-          }
-          // continue when IGNORE clause is used.
-          continue;
         }
         found_rows++;
 
-<<<<<<< HEAD
-        if (!records_are_comparable(table) || compare_records(table)) {
+        if (is_row_changed) {
           int check_result = table_list->view_check_option(thd);
           if (check_result != VIEW_CHECK_OK) {
             found_rows--;
@@ -942,14 +846,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
               break;
             }
           }
-||||||| merged common ancestors
-        /*
-          In order to keep MySQL legacy behavior, we do this update *after*
-          the CHECK OPTION test. Proper behavior is probably to throw an
-          error, though.
-        */
-        update.set_function_defaults(table);
-=======
         /*
           Existing rows in table should normally satisfy CHECK constraints. So
           it should be safe to check constraints only for rows that has really
@@ -970,14 +866,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           // continue when IGNORE clause is used.
           continue;
         }
->>>>>>> mysql-8.0.18
-
-          /*
-            In order to keep MySQL legacy behavior, we do this update *after*
-            the CHECK OPTION test. Proper behavior is probably to throw an
-            error, though.
-          */
-          update.set_function_defaults(table);
 
           if (will_batch) {
             /*
@@ -2716,29 +2604,13 @@ bool Query_result_update::send_eof(THD *thd) {
   snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), (long)found_rows,
            (long)updated_rows,
            (long)thd->get_stmt_da()->current_statement_cond_count());
-<<<<<<< HEAD
   const ha_rows row_count =
       thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
           ? found_rows
           : updated_rows;
   ::my_ok(thd, row_count, id, buff);
   thd->updated_row_count += row_count;
-  DBUG_RETURN(false);
-||||||| merged common ancestors
-  ::my_ok(thd,
-          thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
-              ? found_rows
-              : updated_rows,
-          id, buff);
-  DBUG_RETURN(false);
-=======
-  ::my_ok(thd,
-          thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
-              ? found_rows
-              : updated_rows,
-          id, buff);
   return false;
->>>>>>> mysql-8.0.18
 }
 
 bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {

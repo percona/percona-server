@@ -611,31 +611,11 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
         continue;
       }
 
-<<<<<<< HEAD
-      const int check_result = table_list->view_check_option(thd);
-      if (check_result == VIEW_CHECK_SKIP)
-        continue;
-      else if (check_result == VIEW_CHECK_ERROR) {
-        has_error = true;
-        break;
-      }
       int error = insert_table->file->ha_upsert(thd, update_field_list,
                                                 update_value_list);
       if (error == ENOTSUP)
         error = write_record(thd, insert_table, &info, &update);
       if (error) {
-||||||| merged common ancestors
-      const int check_result = table_list->view_check_option(thd);
-      if (check_result == VIEW_CHECK_SKIP)
-        continue;
-      else if (check_result == VIEW_CHECK_ERROR) {
-        has_error = true;
-        break;
-      }
-      if (write_record(thd, insert_table, &info, &update)) {
-=======
-      if (write_record(thd, insert_table, &info, &update)) {
->>>>>>> mysql-8.0.18
         has_error = true;
         break;
       }

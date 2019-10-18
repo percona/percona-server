@@ -78,7 +78,7 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
     if (!(keyinfo->flag & HA_NOSAME) || (keyinfo->flag & HA_NULL_PART_KEY))
       memcpy(info->lastkey, key, (size_t)keyinfo->length);
   }
-  if (hp_extract_record(info, record, pos)) DBUG_RETURN(my_errno());
+  if (hp_extract_record(info, record, pos)) return my_errno();
   info->update = HA_STATE_AKTIV;
   return 0;
 }

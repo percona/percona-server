@@ -3042,17 +3042,9 @@ to column numbers in altered_table */
 static MY_ATTRIBUTE((warn_unused_result)) const ulint *innobase_build_col_map(
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *table, const dict_table_t *new_table,
-<<<<<<< HEAD
     const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap,
     row_prebuilt_t *prebuilt) {
-  DBUG_ENTER("innobase_build_col_map");
-||||||| merged common ancestors
-    const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap) {
-  DBUG_ENTER("innobase_build_col_map");
-=======
-    const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap) {
   DBUG_TRACE;
->>>>>>> mysql-8.0.18
   DBUG_ASSERT(altered_table != table);
   DBUG_ASSERT(new_table != old_table);
   DBUG_ASSERT(new_table->get_n_cols() + dict_table_get_n_v_cols(new_table) >=
@@ -5459,7 +5451,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
         ib::warn(ER_XB_MSG_4, table_share->table_name.str);
         my_error(ER_GET_ERRMSG, MYF(0), HA_ERR_DECRYPTION_FAILED, str.c_ptr(),
                  engine);
-        DBUG_RETURN(true);
+        return true;
       }
     }
   }
@@ -5469,7 +5461,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
       UT_LIST_GET_FIRST(indexed_table->indexes)->is_corrupted()) {
     /* The clustered index is corrupted. */
     my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Check if any index name is reserved. */
@@ -6011,16 +6003,8 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
   return prepare_inplace_alter_table_dict(
       ha_alter_info, altered_table, table, old_dd_tab, new_dd_tab,
-<<<<<<< HEAD
       table_share->table_name.str, info.flags(), info.flags2() | encrypt_flag,
-      fts_doc_col_no, add_fts_doc_id, add_fts_doc_id_idx, m_prebuilt));
-||||||| merged common ancestors
-      table_share->table_name.str, info.flags(), info.flags2(), fts_doc_col_no,
-      add_fts_doc_id, add_fts_doc_id_idx));
-=======
-      table_share->table_name.str, info.flags(), info.flags2(), fts_doc_col_no,
-      add_fts_doc_id, add_fts_doc_id_idx);
->>>>>>> mysql-8.0.18
+      fts_doc_col_no, add_fts_doc_id, add_fts_doc_id_idx, m_prebuilt);
 }
 
 /** Check that the column is part of a virtual index(index contains
@@ -7466,7 +7450,7 @@ bool ha_innobase::commit_inplace_alter_table_impl(
       get_error_message(HA_ERR_DECRYPTION_FAILED, &str);
       my_error(ER_GET_ERRMSG, MYF(0), HA_ERR_DECRYPTION_FAILED, str.c_ptr(),
                engine);
-      DBUG_RETURN(true);
+      return true;
     }
 
     /* Exclusively lock the table, to ensure that no other
@@ -7930,7 +7914,7 @@ rollback_trx:
     if (!innobase_build_index_translation(altered_table, ctx0->new_table,
                                           m_share)) {
       MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -426,6 +426,11 @@ struct System_variables {
     in the replication topology.
   */
   uint32_t immediate_server_version;
+
+  /**
+    @sa Sys_var_print_identified_with_as_hex
+  */
+  bool print_identified_with_as_hex;
 
   /**
     Used to determine if the database or tablespace should be encrypted by

@@ -1976,7 +1976,7 @@ int client_task(task_arg arg) {
   free(ep->s);
   TASK_END;
 }
-  /* purecov: end */
+/* purecov: end */
 
 #ifdef XCOM_HAVE_OPENSSL
 void ssl_free_con(connection_descriptor *con) {

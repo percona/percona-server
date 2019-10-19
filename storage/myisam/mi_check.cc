@@ -1,7 +1,5 @@
 /*
    Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,9 +93,9 @@ static int sort_key_cmp(void *cmp_arg, unsigned char *a, unsigned char *b);
 static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a);
 static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a);
 static my_off_t get_record_for_key(MI_INFO *info, MI_KEYDEF *keyinfo,
-                                   uchar *key);
+                                   const uchar *key);
 static int sort_insert_key(MI_SORT_PARAM *sort_param,
-                           SORT_KEY_BLOCKS *key_block, uchar *key,
+                           SORT_KEY_BLOCKS *key_block, const uchar *key,
                            my_off_t prev_block);
 static int sort_delete_record(MI_SORT_PARAM *sort_param);
 /*static int flush_pending_blocks(MI_CHECK *param);*/
@@ -105,7 +103,7 @@ static SORT_KEY_BLOCKS *alloc_key_blocks(MI_CHECK *param, uint blocks,
                                          uint buffer_length);
 static ha_checksum mi_byte_checksum(const uchar *buf, uint length);
 static void set_data_file_type(SORT_INFO *sort_info, MYISAM_SHARE *share);
-static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a);
+static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a);
 
 void myisamchk_init(MI_CHECK *param) {
   memset(param, 0, sizeof(*param));
@@ -629,7 +627,8 @@ err:
 */
 
 static void mi_collect_stats_nonulls_first(HA_KEYSEG *keyseg,
-                                           ulonglong *notnull, uchar *key) {
+                                           ulonglong *notnull,
+                                           const uchar *key) {
   uint first_null, kp;
   first_null = (uint)(ha_find_null(keyseg, key) - keyseg);
   /*
@@ -665,7 +664,8 @@ static void mi_collect_stats_nonulls_first(HA_KEYSEG *keyseg,
 */
 
 static int mi_collect_stats_nonulls_next(HA_KEYSEG *keyseg, ulonglong *notnull,
-                                         uchar *prev_key, uchar *last_key) {
+                                         uchar *prev_key,
+                                         const uchar *last_key) {
   uint diffs[2];
   uint first_null_seg, kp;
   HA_KEYSEG *seg;
@@ -1443,6 +1443,11 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
     memset(&info->rec_cache, 0, sizeof(info->rec_cache));
     goto err;
   }
+  if (!rep_quick)
+    if (init_io_cache(&info->rec_cache, -1, (uint)param->write_buffer_length,
+                      WRITE_CACHE, new_header_length, 1,
+                      MYF(MY_WME | MY_WAIT_IF_FULL)))
+      goto err;
   info->opt_flag |= WRITE_CACHE_USED;
   if (!mi_alloc_rec_buff(info, -1, &sort_param.record) ||
       !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff)) {
@@ -1465,14 +1470,11 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
                                       new_header_length, "datafile-header"))
       goto err;
     info->s->state.dellink = HA_OFFSET_ERROR;
+    info->rec_cache.file = new_file;
     if (param->testflag & T_UNPACK) {
       share->options &= ~HA_OPTION_COMPRESS_RECORD;
       mi_int2store(share->state.header.options, share->options);
     }
-    if (init_io_cache(&info->rec_cache, new_file,
-                      (uint)param->write_buffer_length, WRITE_CACHE,
-                      new_header_length, 1, MYF(MY_WME | MY_WAIT_IF_FULL)))
-      goto err;
   }
   sort_info.info = info;
   sort_info.param = param;
@@ -2043,15 +2045,19 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
   memset(&sort_param, 0, sizeof(sort_param));
   if (!(sort_info.key_block =
             alloc_key_blocks(param, (uint)param->sort_key_blocks,
-                             share->base.max_key_block_length)))
-    goto err;
-
-  if (init_io_cache(&param->read_cache, info->dfile,
+                             share->base.max_key_block_length)) ||
+      init_io_cache(&param->read_cache, info->dfile,
                     (uint)param->read_buffer_length, READ_CACHE,
-                    share->pack.header_length, 1, MYF(MY_WME)))
+                    share->pack.header_length, 1, MYF(MY_WME)) ||
+      (!rep_quick &&
+       init_io_cache(&info->rec_cache, info->dfile,
+                     (uint)param->write_buffer_length, WRITE_CACHE,
+                     new_header_length, 1,
+                     MYF(MY_WME | MY_WAIT_IF_FULL) & param->myf_rw)))
     goto err;
   sort_info.key_block_end = sort_info.key_block + param->sort_key_blocks;
   info->opt_flag |= WRITE_CACHE_USED;
+  info->rec_cache.file = info->dfile; /* for sort_delete_record */
 
   if (!mi_alloc_rec_buff(info, -1, &sort_param.record) ||
       !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff)) {
@@ -2077,11 +2083,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
       mi_int2store(share->state.header.options, share->options);
     }
     share->state.dellink = HA_OFFSET_ERROR;
-    if (init_io_cache(&info->rec_cache, new_file,
-                      (uint)param->write_buffer_length, WRITE_CACHE,
-                      new_header_length, 1,
-                      MYF((param->myf_rw & MY_WAIT_IF_FULL) | MY_WME)))
-      goto err;
+    info->rec_cache.file = new_file;
   }
 
   info->update = (short)(HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
@@ -2464,15 +2466,22 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
 
   if (!(sort_info.key_block =
             alloc_key_blocks(param, (uint)param->sort_key_blocks,
-                             share->base.max_key_block_length)))
-    goto err;
-
-  if (init_io_cache(&param->read_cache, info->dfile,
+                             share->base.max_key_block_length)) ||
+      init_io_cache(&param->read_cache, info->dfile,
                     (uint)param->read_buffer_length, READ_CACHE,
-                    share->pack.header_length, 1, MYF(MY_WME)))
+                    share->pack.header_length, 1, MYF(MY_WME)) ||
+      (!rep_quick &&
+       (init_io_cache(&info->rec_cache, info->dfile,
+                      (uint)param->write_buffer_length, WRITE_CACHE,
+                      new_header_length, 1,
+                      MYF(MY_WME | MY_WAIT_IF_FULL) & param->myf_rw) ||
+        init_io_cache(&new_data_cache, -1, (uint)param->write_buffer_length,
+                      READ_CACHE, new_header_length, 1,
+                      MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))))
     goto err;
   sort_info.key_block_end = sort_info.key_block + param->sort_key_blocks;
   info->opt_flag |= WRITE_CACHE_USED;
+  info->rec_cache.file = info->dfile; /* for sort_delete_record */
 
   if (!rep_quick) {
     /* Get real path for data file */
@@ -2493,16 +2502,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
       mi_int2store(share->state.header.options, share->options);
     }
     share->state.dellink = HA_OFFSET_ERROR;
-    if (init_io_cache(&info->rec_cache, new_file,
-                      (uint)param->write_buffer_length, WRITE_CACHE,
-                      new_header_length, 1,
-                      MYF(MY_WME | MY_WAIT_IF_FULL) & param->myf_rw))
-      goto err;
-
-    if (init_io_cache(&new_data_cache, -1, (uint)param->write_buffer_length,
-                      READ_CACHE, new_header_length, 1,
-                      MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))
-      goto err;
+    info->rec_cache.file = new_file;
   }
 
   info->update = (short)(HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
@@ -3416,28 +3416,29 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a) {
   int cmp;
 
   if (sort_info->key_block->inited) {
-    cmp = ha_key_cmp(sort_param->seg, sort_info->key_block->lastkey, (uchar *)a,
-                     USE_WHOLE_KEY, SEARCH_FIND | SEARCH_UPDATE, diff_pos);
+    cmp = ha_key_cmp(sort_param->seg, sort_info->key_block->lastkey,
+                     static_cast<const uchar *>(a), USE_WHOLE_KEY,
+                     SEARCH_FIND | SEARCH_UPDATE, diff_pos);
     if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
-      ha_key_cmp(sort_param->seg, sort_info->key_block->lastkey, (uchar *)a,
-                 USE_WHOLE_KEY, SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL,
-                 diff_pos);
+      ha_key_cmp(sort_param->seg, sort_info->key_block->lastkey,
+                 static_cast<const uchar *>(a), USE_WHOLE_KEY,
+                 SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, diff_pos);
     else if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS) {
       diff_pos[0] = mi_collect_stats_nonulls_next(
           sort_param->seg, sort_param->notnull, sort_info->key_block->lastkey,
-          (uchar *)a);
+          static_cast<const uchar *>(a));
     }
     sort_param->unique[diff_pos[0] - 1]++;
   } else {
     cmp = -1;
     if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS)
       mi_collect_stats_nonulls_first(sort_param->seg, sort_param->notnull,
-                                     (uchar *)a);
+                                     static_cast<const uchar *>(a));
   }
   if ((sort_param->keyinfo->flag & HA_NOSAME) && cmp == 0) {
     sort_info->dupp++;
-    sort_info->info->lastpos =
-        get_record_for_key(sort_info->info, sort_param->keyinfo, (uchar *)a);
+    sort_info->info->lastpos = get_record_for_key(
+        sort_info->info, sort_param->keyinfo, static_cast<const uchar *>(a));
     mi_check_print_warning(
         param, "Duplicate key for record at %10s against record at %10s",
         llstr(sort_info->info->lastpos, llbuff),
@@ -3446,7 +3447,8 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a) {
               llbuff2));
     param->testflag |= T_RETRY_WITHOUT_QUICK;
     if (sort_info->param->testflag & T_VERBOSE)
-      _mi_print_key(stdout, sort_param->seg, (uchar *)a, USE_WHOLE_KEY);
+      _mi_print_key(stdout, sort_param->seg, static_cast<const uchar *>(a),
+                    USE_WHOLE_KEY);
     return (sort_delete_record(sort_param));
   }
 #ifndef DBUG_OFF
@@ -3456,8 +3458,8 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a) {
     return (1);
   }
 #endif
-  return (sort_insert_key(sort_param, sort_info->key_block, (uchar *)a,
-                          HA_OFFSET_ERROR));
+  return (sort_insert_key(sort_param, sort_info->key_block,
+                          static_cast<const uchar *>(a), HA_OFFSET_ERROR));
 } /* sort_key_write */
 
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param) {
@@ -3509,7 +3511,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a) {
   SORT_KEY_BLOCKS *key_block = sort_info->key_block;
 
   val_len = HA_FT_WLEN + sort_info->info->s->rec_reflength;
-  get_key_full_length_rdonly(a_len, (uchar *)a);
+  get_key_full_length_rdonly(a_len, static_cast<const uchar *>(a));
 
   if (!ft_buf) {
     /*
@@ -3533,17 +3535,19 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a) {
   }
   get_key_full_length_rdonly(val_off, ft_buf->lastkey);
 
-  if (ha_compare_text(sort_param->seg->charset, ((uchar *)a) + 1, a_len - 1,
+  if (ha_compare_text(sort_param->seg->charset,
+                      static_cast<const uchar *>(a) + 1, a_len - 1,
                       ft_buf->lastkey + 1, val_off - 1, 0) == 0) {
     if (!ft_buf->buf) /* store in second-level tree */
     {
       ft_buf->count++;
-      return sort_insert_key(sort_param, key_block, ((uchar *)a) + a_len,
+      return sort_insert_key(sort_param, key_block,
+                             static_cast<const uchar *>(a) + a_len,
                              HA_OFFSET_ERROR);
     }
 
     /* storing the key in the buffer. */
-    memcpy(ft_buf->buf, (char *)a + a_len, val_len);
+    memcpy(ft_buf->buf, static_cast<const char *>(a) + a_len, val_len);
     ft_buf->buf += val_len;
     if (ft_buf->buf < ft_buf->end) return 0;
 
@@ -3584,14 +3588,14 @@ word_init_ft_buf:
 /* get pointer to record from a key */
 
 static my_off_t get_record_for_key(MI_INFO *info, MI_KEYDEF *keyinfo,
-                                   uchar *key) {
+                                   const uchar *key) {
   return _mi_dpos(info, 0, key + _mi_keylength(keyinfo, key));
 } /* get_record_for_key */
 
 /* Insert a key in sort-key-blocks */
 
 static int sort_insert_key(MI_SORT_PARAM *sort_param,
-                           SORT_KEY_BLOCKS *key_block, uchar *key,
+                           SORT_KEY_BLOCKS *key_block, const uchar *key,
                            my_off_t prev_block) {
   uint a_length, t_length, nod_flag;
   my_off_t filepos, key_file_length;
@@ -4285,9 +4289,9 @@ static void set_data_file_type(SORT_INFO *sort_info, MYISAM_SHARE *share) {
     NULLs.
 */
 
-static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a) {
+static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a) {
   for (; (enum ha_base_keytype)keyseg->type != HA_KEYTYPE_END; keyseg++) {
-    uchar *end;
+    const uchar *end;
     if (keyseg->null_bit) {
       if (!*a++) return keyseg;
     }
@@ -4298,8 +4302,7 @@ static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a) {
       case HA_KEYTYPE_BINARY:
       case HA_KEYTYPE_BIT:
         if (keyseg->flag & HA_SPACE_PACK) {
-          int a_length;
-          get_key_length(a_length, a);
+          int a_length = get_key_length(&a);
           a += a_length;
           break;
         } else
@@ -4309,8 +4312,7 @@ static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a) {
       case HA_KEYTYPE_VARTEXT2:
       case HA_KEYTYPE_VARBINARY1:
       case HA_KEYTYPE_VARBINARY2: {
-        int a_length;
-        get_key_length(a_length, a);
+        int a_length = get_key_length(&a);
         a += a_length;
         break;
       }

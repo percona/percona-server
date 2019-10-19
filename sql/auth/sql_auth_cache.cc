@@ -112,7 +112,7 @@ extern Granted_roles_graph *g_granted_roles;
 #include <boost/property_map/property_map.hpp>
 
 struct ACL_internal_schema_registry_entry {
-  const LEX_STRING *m_name;
+  const LEX_CSTRING *m_name;
   const ACL_internal_schema_access *m_access;
 };
 /**
@@ -188,7 +188,7 @@ void init_acl_memory() {
   @param access the schema ACL specific rules
 */
 void ACL_internal_schema_registry::register_schema(
-    const LEX_STRING &name, const ACL_internal_schema_access *access) {
+    const LEX_CSTRING &name, const ACL_internal_schema_access *access) {
   DBUG_ASSERT(m_registry_array_size < array_elements(registry_array));
 
   /* Not thread safe, and does not need to be. */
@@ -239,11 +239,10 @@ const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val, char end) {
   @param host_arg Value to be stored
  */
 void ACL_HOST_AND_IP::update_hostname(const char *host_arg) {
-  hostname = (char *)host_arg;  // This will not be modified!
+  hostname = host_arg;  // This will not be modified!
   hostname_length = hostname ? strlen(hostname) : 0;
-  if (!host_arg ||
-      (!(host_arg = (char *)calc_ip(host_arg, &ip, '/')) ||
-       !(host_arg = (char *)calc_ip(host_arg + 1, &ip_mask, '\0')))) {
+  if (!host_arg || (!(host_arg = calc_ip(host_arg, &ip, '/')) ||
+                    !(host_arg = calc_ip(host_arg + 1, &ip_mask, '\0')))) {
     ip = ip_mask = 0;  // Not a masked ip
   }
 }
@@ -322,7 +321,7 @@ ACL_USER::ACL_USER() {
 }
 
 ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
-  ACL_USER *dst = (ACL_USER *)alloc_root(root, sizeof(ACL_USER));
+  ACL_USER *dst = (ACL_USER *)root->Alloc(sizeof(ACL_USER));
   if (!dst) return 0;
   *dst = *this;
   dst->user = safe_strdup_root(root, user);
@@ -751,7 +750,7 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine) {
   host.update_hostname(get_field(&memex, form->field[0]));
   db = get_field(&memex, form->field[1]);
   user = get_field(&memex, form->field[2]);
-  if (!user) user = (char *)"";
+  if (!user) user = "";
   sort = get_sort(3, host.get_host(), db, user);
   tname = get_field(&memex, form->field[3]);
   if (!db || !tname) {
@@ -1246,7 +1245,7 @@ static bool acl_init_utility_user(bool check_no_resolve) {
       (char *)my_malloc(key_memory_acl_mem, HOSTNAME_LENGTH + 1, MY_ZEROFILL);
 
   acl_utility_user.credentials[0].m_auth_string.str =
-      static_cast<char *>(my_malloc(key_memory_acl_mem, pwlen, MYF(0)));
+      static_cast<char *>(my_malloc(key_memory_acl_mem, pwlen, MY_ZEROFILL));
 
   acl_utility_user_initialized = true;
 
@@ -1505,8 +1504,8 @@ void rebuild_check_host(void) {
     true   Error
 */
 
-bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
-                 char *ip, const char *db) {
+bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
+                 const char *host, const char *ip, const char *db) {
   int res = 1;
   ACL_USER *acl_user = 0;
   DBUG_ENTER("acl_getroot");
@@ -1770,6 +1769,7 @@ bool acl_init(bool dont_read_acl_tables) {
     to avoid hash searches and a global mutex lock on every connect
   */
   g_cached_authentication_plugins = new Cached_authentication_plugins();
+  unknown_accounts = new Map_with_rw_lock<Auth_id, uint>(0);
   if (!g_cached_authentication_plugins->is_valid()) DBUG_RETURN(1);
 
   if (dont_read_acl_tables) {
@@ -1944,7 +1944,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
 
     std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   } else {
-    LogErr(ERROR_LEVEL, ER_AUTHCACHE_TABLE_PROXIES_PRIV_MISSING);
+    LogErr(WARNING_LEVEL, ER_AUTHCACHE_TABLE_PROXIES_PRIV_MISSING);
   }
   acl_proxy_users->shrink_to_fit();
   validate_user_plugin_records();
@@ -1957,7 +1957,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
       goto end;
     }
   } else {
-    LogErr(ERROR_LEVEL, ER_MISSING_GRANT_SYSTEM_TABLE);
+    LogErr(WARNING_LEVEL, ER_MISSING_GRANT_SYSTEM_TABLE);
   }
 
   initialized = 1;
@@ -2002,6 +2002,8 @@ void acl_free(bool end /*= false*/) {
       db_cache.clear();
       delete g_cached_authentication_plugins;
       g_cached_authentication_plugins = 0;
+      delete unknown_accounts;
+      unknown_accounts = 0;
       acl_cache_initialized = false;
     }
   }
@@ -2064,7 +2066,7 @@ class Acl_ignore_error_handler : public Internal_error_handler {
     true        Error.
 */
 bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables) {
-  Acl_table_intact table_intact(thd);
+  Acl_table_intact table_intact(thd, WARNING_LEVEL);
   bool result_acl = false;
 
   DBUG_ASSERT(tables);
@@ -2077,6 +2079,10 @@ bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables) {
       result_acl |= true;
     }
   }
+  /* say that we're still gonna give reading a try */
+  if (result_acl)
+    LogErr(INFORMATION_LEVEL, ER_ACL_WRONG_OR_MISSING_ACL_TABLES_LOG);
+
   return result_acl;
 }
 
@@ -2176,32 +2182,31 @@ bool acl_reload(THD *thd) {
     To avoid deadlocks we should obtain table locks before
     obtaining acl_cache->lock mutex.
   */
-  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("user"), "user", TL_READ,
-                           MDL_SHARED_READ_ONLY);
+  tables[0].init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("user"),
+                           "user", TL_READ, MDL_SHARED_READ_ONLY);
   /*
     For a TABLE_LIST element that is inited with a lock type TL_READ
     the type MDL_SHARED_READ_ONLY of MDL is requested for.
     Acquiring strong MDL lock allows to avoid deadlock and timeout errors
     from SE level.
   */
-  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"), C_STRING_WITH_LEN("db"),
+  tables[1].init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("db"),
                            "db", TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("proxies_priv"), "proxies_priv",
+  tables[2].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("proxies_priv"), "proxies_priv",
                            TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("global_grants"), "global_grants",
+  tables[3].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("global_grants"), "global_grants",
                            TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[4].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("role_edges"), "role_edges",
-                           TL_READ, MDL_SHARED_READ_ONLY);
+  tables[4].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("role_edges"), "role_edges", TL_READ,
+                           MDL_SHARED_READ_ONLY);
 
-  tables[5].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("default_roles"), "default_roles",
+  tables[5].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("default_roles"), "default_roles",
                            TL_READ, MDL_SHARED_READ_ONLY);
 
   tables[0].next_local = tables[0].next_global = tables + 1;
@@ -2650,15 +2655,15 @@ bool grant_reload(THD *thd) {
     Acquiring strong MDL lock allows to avoid deadlock and timeout errors
     from SE level.
   */
-  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("tables_priv"), "tables_priv",
+  tables[0].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("tables_priv"), "tables_priv",
                            TL_READ, MDL_SHARED_READ_ONLY);
-  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("columns_priv"), "columns_priv",
+  tables[1].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("columns_priv"), "columns_priv",
                            TL_READ, MDL_SHARED_READ_ONLY);
-  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("procs_priv"), "procs_priv",
-                           TL_READ, MDL_SHARED_READ_ONLY);
+  tables[2].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("procs_priv"), "procs_priv", TL_READ,
+                           MDL_SHARED_READ_ONLY);
 
   tables[0].next_local = tables[0].next_global = tables + 1;
   tables[1].next_local = tables[1].next_global = tables + 2;

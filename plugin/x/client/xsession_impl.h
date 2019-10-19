@@ -85,6 +85,8 @@ class Session_impl : public XSession {
                         const char *value) override;
   XError set_capability(const Mysqlx_capability capability,
                         const int64_t value) override;
+  XError set_capability(const Mysqlx_capability capability,
+                        const Argument_object &value) override;
 
   XError connect(const char *host, const uint16_t port, const char *user,
                  const char *pass, const char *schema) override;
@@ -104,6 +106,8 @@ class Session_impl : public XSession {
                                               XError *out_error) override;
 
   void close() override;
+
+  Argument_object get_connect_attrs() const override;
 
  private:
   using Context_ptr = std::shared_ptr<Context>;
@@ -141,8 +145,7 @@ class Session_impl : public XSession {
   Protocol_factory_ptr m_factory;
   Internet_protocol m_internet_protocol{Internet_protocol::Any};
   std::vector<Auth> m_use_auth_methods;
-  std::set<Auth> m_server_supported_auth_methods{Auth::Mysql41, Auth::Plain,
-                                                 Auth::Sha256_memory};
+  std::set<Auth> m_server_supported_auth_methods;
 
   class Session_connect_timeout_scope_guard {
    public:

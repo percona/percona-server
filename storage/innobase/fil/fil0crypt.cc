@@ -68,7 +68,7 @@ static int number_of_t1_pages_rotated = 0;
 #endif
 
 /** Mutex for keys */
-static ib_mutex_t fil_crypt_key_mutex;
+static ib_uninitialized_mutex_t fil_crypt_key_mutex;
 
 static bool fil_crypt_threads_inited = false;
 
@@ -91,13 +91,13 @@ os_event_t fil_crypt_threads_event;
 static os_event_t fil_crypt_throttle_sleep_event;
 
 /** Mutex for key rotation threads. */
-ib_mutex_t fil_crypt_threads_mutex;
+ib_uninitialized_mutex_t fil_crypt_threads_mutex;
 
 /** Mutex for setting cnt of threads */
-ib_mutex_t fil_crypt_threads_set_cnt_mutex;
+ib_uninitialized_mutex_t fil_crypt_threads_set_cnt_mutex;
 
 /** Mutex for accessing space_list and key_rotation */
-ib_mutex_t fil_crypt_list_mutex;
+ib_uninitialized_mutex_t fil_crypt_list_mutex;
 
 /** Variable ensuring only 1 thread at time does initial conversion */
 static bool fil_crypt_start_converting = false;
@@ -181,7 +181,7 @@ bool fil_space_crypt_t::load_needed_keys_into_local_cache() {
 
 /** Statistics variables */
 static fil_crypt_stat_t crypt_stat;
-static ib_mutex_t crypt_stat_mutex;
+static ib_uninitialized_mutex_t crypt_stat_mutex;
 
 /***********************************************************************
 Check if a key needs rotation given a key_state
@@ -1031,6 +1031,7 @@ struct rotate_thread_t {
         return true;
       case SRV_SHUTDOWN_FLUSH_PHASE:
       case SRV_SHUTDOWN_LAST_PHASE:
+      case SRV_SHUTDOWN_MASTER_STOP:
         break;
     }
     ut_ad(0);
@@ -1561,16 +1562,12 @@ static buf_block_t *fil_crypt_get_page_throttle_func(rotate_thread_t *state,
 
   state->crypt_stat.pages_read_from_disk++;
 
-  uintmax_t start = ut_time_us(NULL);
+  const auto start = ut_time_monotonic_us();
   dberr_t err;
   block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
                            Page_fetch::POSSIBLY_FREED, file, line, mtr, false,
                            &err);
-  uintmax_t end = ut_time_us(NULL);
-
-  if (end < start) {
-    end = start;  // safety...
-  }
+  const auto end = ut_time_monotonic_us();
 
   state->cnt_waited++;
   state->sum_waited_us += (end - start);
@@ -1813,16 +1810,17 @@ static void fil_crypt_rotate_pages(const key_state_t *key_state,
       continue;
     }
 
-    DBUG_EXECUTE_IF("rotate_only_first_100_pages_from_t1",
-                    if (strcmp(state->space->name, "test/t1") == 0) {
-                      // ib::error() << "rotate_only_first_100_pages_from_t1 is
-                      // active" << '\n';
-                      if (number_of_t1_pages_rotated >= 100) {
-                        state->offset = end;
-                        return;
-                      } else
-                        ++number_of_t1_pages_rotated;
-                    });
+    DBUG_EXECUTE_IF(
+        "rotate_only_first_100_pages_from_t1",
+        if (strcmp(state->space->name, "test/t1") == 0) {
+          // ib::error() << "rotate_only_first_100_pages_from_t1 is
+          // active" << '\n';
+          if (number_of_t1_pages_rotated >= 100) {
+            state->offset = end;
+            return;
+          } else
+            ++number_of_t1_pages_rotated;
+        });
 
     fil_crypt_rotate_page(key_state, state);
   }
@@ -2278,8 +2276,9 @@ enum class UpdateEncryptedFlagOperation : char { SET, CLEAR };
 static dberr_t fil_update_encrypted_flag(
     const char *space_name, UpdateEncryptedFlagOperation update_operation,
     volatile bool *is_space_being_removed, THD *thd) {
-  DBUG_EXECUTE_IF("fail_encryption_flag_update_on_t3",
-                  if (strcmp(space_name, "test/t3") == 0) { return DB_ERROR; });
+  DBUG_EXECUTE_IF(
+      "fail_encryption_flag_update_on_t3",
+      if (strcmp(space_name, "test/t3") == 0) { return DB_ERROR; });
 
   bool failure =
       (update_operation == UpdateEncryptedFlagOperation::SET
@@ -2311,11 +2310,11 @@ static dberr_t fil_crypt_flush_space(rotate_thread_t *state) {
 
   ulint number_of_pages_flushed_now = 0;
   log_free_check();
-  uintmax_t start = ut_time_us(NULL);
+  const auto start = ut_time_monotonic_us();
 
   crypt_data->rotate_state.flush_observer->flush();
 
-  uintmax_t end = ut_time_us(NULL);
+  const auto end = ut_time_monotonic_us();
 
   number_of_pages_flushed_now =
       crypt_data->rotate_state.flush_observer->get_number_of_pages_flushed() -
@@ -2431,12 +2430,13 @@ static void fil_crypt_complete_rotate_space(const key_state_t *key_state,
      * EXPORT - this will make sure that buffers will get flushed * In MTR we
      * can check if we reached this point by checking flushing field - it should
      * be 1 if we are here */
-    DBUG_EXECUTE_IF("rotate_only_first_100_pages_from_t1",
-                    if (strcmp(state->space->name, "test/t1") == 0 &&
-                        number_of_t1_pages_rotated >= 100) {
-                      crypt_data->rotate_state.flushing = true;
-                      should_flush = false;
-                    });
+    DBUG_EXECUTE_IF(
+        "rotate_only_first_100_pages_from_t1",
+        if (strcmp(state->space->name, "test/t1") == 0 &&
+            number_of_t1_pages_rotated >= 100) {
+          crypt_data->rotate_state.flushing = true;
+          should_flush = false;
+        });
 
     if (should_flush) {
       /* we're the last active thread */
@@ -2521,8 +2521,6 @@ void fil_crypt_thread() {
   //#ifdef UNIV_PFS_THREAD
   // pfs_register_thread(page_cleaner_thread_key);
   //#endif
-  my_thread_init();
-
   THD *thd = create_thd(false, true, true, 0);
 
   mutex_enter(&fil_crypt_threads_mutex);
@@ -2534,7 +2532,7 @@ void fil_crypt_thread() {
 
   /* Wait for server to be fully started */
   while (!mysqld_server_started) {
-    if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       return;
     }
     os_thread_sleep(1000000);
@@ -2653,7 +2651,6 @@ void fil_crypt_thread() {
 
   thr.thd = nullptr;
   destroy_thd(thd);
-  my_thread_end();
 }
 
 /*********************************************************************
@@ -2672,9 +2669,10 @@ void fil_crypt_set_thread_cnt(const uint new_cnt) {
     uint add = new_cnt - srv_n_fil_crypt_threads;
     srv_n_fil_crypt_threads = new_cnt;
     for (uint i = 0; i < add; i++) {
-      os_thread_create(PSI_NOT_INSTRUMENTED, fil_crypt_thread);
+      auto thread = os_thread_create(PSI_NOT_INSTRUMENTED, fil_crypt_thread);
       ib::info() << "Creating #" << i + 1 << " encryption thread"
                  << " total threads " << new_cnt << ".";
+      thread.start();
     }
   } else if (new_cnt < srv_n_fil_crypt_threads) {
     srv_n_fil_crypt_threads = new_cnt;
@@ -2734,6 +2732,7 @@ void fil_crypt_threads_init() {
     mutex_create(LATCH_ID_FIL_CRYPT_THREADS_MUTEX, &fil_crypt_threads_mutex);
     mutex_create(LATCH_ID_FIL_CRYPT_THREADS_SET_CNT_MUTEX,
                  &fil_crypt_threads_set_cnt_mutex);
+    mutex_create(LATCH_ID_FIL_CRYPT_LIST_MUTEX, &fil_crypt_list_mutex);
 
     uint cnt = srv_n_fil_crypt_threads;
     srv_n_fil_crypt_threads = 0;
@@ -2754,6 +2753,7 @@ void fil_crypt_threads_cleanup() {
   os_event_destroy(fil_crypt_threads_event);
   mutex_free(&fil_crypt_threads_mutex);
   mutex_free(&fil_crypt_threads_set_cnt_mutex);
+  mutex_free(&fil_crypt_list_mutex);
   fil_crypt_threads_inited = false;
 }
 
@@ -3058,7 +3058,7 @@ redo_log_key *redo_log_keys::load_key_version(THD *thd, uint version) {
     ib::error(ER_REDO_ENCRYPTION_CANT_LOAD_KEY_VERSION, version);
     if (thd) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN,
-                  ER_REDO_ENCRYPTION_CANT_LOAD_KEY_VERSION, version);
+                  ER_DA_REDO_ENCRYPTION_CANT_LOAD_KEY_VERSION, version);
     }
     return nullptr;
   }
@@ -3081,7 +3081,8 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
                       ENCRYPTION_KEY_LEN)) {
     ib::error(ER_REDO_ENCRYPTION_CANT_GENERATE_KEY);
     if (thd) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_CANT_GENERATE_KEY);
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN,
+                  ER_DA_REDO_ENCRYPTION_CANT_GENERATE_KEY);
     }
     return nullptr;
   }
@@ -3094,7 +3095,7 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
                    reinterpret_cast<void **>(&rkey), &klen)) {
     ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_KEY);
     if (thd) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_CANT_FETCH_KEY);
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_FETCH_KEY);
     }
     my_free(redo_key_type);
     my_free(rkey);
@@ -3114,7 +3115,7 @@ redo_log_key *redo_log_keys::generate_and_store_new_key(THD *thd) {
   if (err) {
     ib::error(ER_REDO_ENCRYPTION_CANT_PARSE_KEY, rkey);
     if (thd != nullptr) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_REDO_ENCRYPTION_CANT_PARSE_KEY,
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_DA_REDO_ENCRYPTION_CANT_PARSE_KEY,
                   rkey);
     }
     my_free(redo_key_type);

@@ -27,7 +27,6 @@
 #include <algorithm>
 
 #include "sql/inplace_vector.h"
-#include "thread_utils.h"
 
 namespace inplace_vector_unittest {
 
@@ -51,24 +50,24 @@ typedef InplaceVectorTest InplaceVectorDeathTest;
 
 TEST_F(InplaceVectorDeathTest, OutOfBoundsRead) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(some_integer = int_10[5],
-                               ".*Assertion .*i < size.*");
+  EXPECT_DEATH_IF_SUPPORTED(some_integer = int_10[5],
+                            ".*Assertion .*i < size.*");
 }
 
 TEST_F(InplaceVectorDeathTest, OutOfBoundsWrite) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(int_10[5] = some_integer,
-                               ".*Assertion .*i < size.*");
+  EXPECT_DEATH_IF_SUPPORTED(int_10[5] = some_integer,
+                            ".*Assertion .*i < size.*");
 }
 
 TEST_F(InplaceVectorDeathTest, EmptyBackRead) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(some_integer = int_10.back(),
-                               ".*Assertion .*size.*0.*");
+  EXPECT_DEATH_IF_SUPPORTED(some_integer = int_10.back(),
+                            ".*Assertion .*size.*0.*");
 }
 TEST_F(InplaceVectorDeathTest, EmptyBackWrite) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(int_10.back() = 42, ".*Assertion .*size.*0.*");
+  EXPECT_DEATH_IF_SUPPORTED(int_10.back() = 42, ".*Assertion .*size.*0.*");
 }
 
 #endif  // DBUG_OFF

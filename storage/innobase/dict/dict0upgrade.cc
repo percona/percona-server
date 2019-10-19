@@ -230,11 +230,10 @@ static bool dd_has_explicit_pk(const dd::Table *dd_table) {
 
 /** Match InnoDB column object and Server column object
 @param[in]	field	Server field object
-@param[in]	col	InnoDB column object
+@param[in,out]	col	InnoDB column object
 @retval		false	column definition matches
 @retval		true	column definition mismatch */
-static bool dd_upgrade_match_single_col(const Field *field,
-                                        const dict_col_t *col) {
+static bool dd_upgrade_match_single_col(const Field *field, dict_col_t *col) {
   ulint unsigned_type;
   ulint col_type = get_innobase_type_from_mysql_type(&unsigned_type, field);
 
@@ -289,8 +288,9 @@ static bool dd_upgrade_match_single_col(const Field *field,
   ulint is_virtual = (innobase_is_v_fld(field)) ? DATA_VIRTUAL : 0;
 
   const ulint compressed =
-      field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED ? DATA_COMPRESSED
-                                                              : 0;
+      field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED
+          ? DATA_COMPRESSED_57
+          : 0;
 
   ulint server_prtype =
       (static_cast<ulint>(field->type()) | nulls_allowed | unsigned_type |
@@ -306,6 +306,13 @@ static bool dd_upgrade_match_single_col(const Field *field,
            "etc) for col: "
         << field->field_name;
     failure = true;
+  }
+
+  /* Adjust the in-memory flag for compressed column. 8.0 uses a different
+  value */
+  if (compressed != 0) {
+    col->prtype &= ~DATA_COMPRESSED_57;
+    col->prtype |= DATA_COMPRESSED;
   }
 
   /* Numeric columns from 5.1 might have charset as my_charset_bin
@@ -557,7 +564,7 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
     }
   }
 
-  DBUG_EXECUTE_IF("dd_upgrade_srict_mode", ut_ad(index->type == ind_type););
+  DBUG_EXECUTE_IF("dd_upgrade_strict_mode", ut_ad(index->type == ind_type););
 
   if (index->type != ind_type) {
     ib::error(ER_IB_MSG_252) << "Index name: " << index->name
@@ -936,7 +943,6 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
   uint64_t auto_inc = UINT64_MAX;
 
   dd_set_table_options(dd_table, ib_table);
-
 
   /* The number of indexes has to match. */
   DBUG_EXECUTE_IF("dd_upgrade_strict_mode",
@@ -1374,6 +1380,60 @@ static void dd_upgrade_drop_sys_tables() {
   mutex_exit(&dict_sys->mutex);
 }
 
+/** Drop all InnoDB stats backup tables (innodb_*_stats_backup57). This is done
+ * only at the end of successful upgrade */
+static void dd_upgrade_drop_stats_backup_tables() {
+  ut_ad(srv_is_upgrade_mode);
+
+  space_id_t space_id_index_stats =
+      fil_space_get_id_by_name("mysql/innodb_index_stats_backup57");
+  space_id_t space_id_table_stats =
+      fil_space_get_id_by_name("mysql/innodb_table_stats_backup57");
+  char *index_stats_filepath = fil_space_get_first_path(space_id_index_stats);
+  char *table_stats_filepath = fil_space_get_first_path(space_id_table_stats);
+
+  trx_t *trx = trx_allocate_for_mysql();
+
+  if (space_id_index_stats != SPACE_UNKNOWN) {
+    dberr_t err;
+
+    err = fil_close_tablespace(trx, space_id_index_stats);
+    if (err != DB_SUCCESS) {
+      ib::info(ER_IB_MSG_227)
+          << "dict_stats_evict_tablespace: "
+          << " fil_close_tablespace(" << space_id_index_stats << ") failed! "
+          << ut_strerr(err);
+    }
+
+    if (!fil_delete_file(index_stats_filepath)) {
+      ib::info(ER_IB_MSG_990)
+          << "Failed to delete the datafile '" << index_stats_filepath << "'!";
+    }
+    ut_free(index_stats_filepath);
+  }
+
+  if (space_id_table_stats != SPACE_UNKNOWN) {
+    dberr_t err;
+
+    err = fil_close_tablespace(trx, space_id_table_stats);
+    if (err != DB_SUCCESS) {
+      ib::info(ER_IB_MSG_228)
+          << "dict_stats_evict_tablespace: "
+          << " fil_close_tablespace(" << space_id_index_stats << ") failed! "
+          << ut_strerr(err);
+    }
+
+    if (!fil_delete_file(table_stats_filepath)) {
+      ib::info(ER_IB_MSG_990)
+          << "Failed to delete the datafile '" << table_stats_filepath << "'!";
+    }
+    ut_free(table_stats_filepath);
+  }
+
+  trx_commit_for_mysql(trx);
+  trx_free_for_mysql(trx);
+}
+
 /** Rename back the FTS AUX tablespace names from 8.0 format to 5.7
 format on upgrade failure, else mark FTS aux tables evictable
 @param[in]	failed_upgrade		true on upgrade failure, else
@@ -1422,6 +1482,9 @@ int dd_upgrade_finish(THD *thd, bool failed_upgrade) {
 
     /* Flush entire buffer pool. */
     buf_flush_sync_all_buf_pools();
+
+    /* Close and delete the backup stats tables */
+    dd_upgrade_drop_stats_backup_tables();
   }
 
   tables_with_fts.clear();

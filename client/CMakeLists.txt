@@ -46,15 +46,17 @@ SET(MYSQLTEST_SRC
   mysqltest/error_names.cc
   mysqltest/expected_errors.cc
   mysqltest/expected_warnings.cc
+  mysqltest/logfile.cc
   mysqltest/secondary_engine.cc
   mysqltest/utils.cc
 )
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
+SET_TARGET_PROPERTIES(mysqltest PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(mysqltest perconaserverclient)
 ADD_DEPENDENCIES(mysqltest GenError GenClientError)
 
-ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
+ADD_LIBRARY(mysqlcheck_core STATIC check/mysqlcheck_core.cc)
 TARGET_LINK_LIBRARIES(mysqlcheck_core perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)
@@ -75,6 +77,7 @@ SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/strings/decimal.cc
   ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
   ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
+  ${CMAKE_SOURCE_DIR}/sql/json_syntax_check.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/log_event.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_utility.cc
@@ -88,7 +91,7 @@ SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/basic_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_reader.cc
-  ${CMAKE_SOURCE_DIR}/sql/rpl_cipher.cc
+  ${CMAKE_SOURCE_DIR}/sql/stream_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
 )
 ADD_LIBRARY(mysqlbinlog_lib STATIC ${MYSQLBINLOG_LIB_SOURCES})
@@ -116,7 +119,7 @@ MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)
-TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys)
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)

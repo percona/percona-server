@@ -20,8 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "thread_utils.h"
-
 extern CHARSET_INFO *system_charset_info;
 
 TEST(StringTest, EmptyString) {
@@ -50,7 +48,7 @@ TEST(StringDeathTest, AppendEmptyString) {
   tbl_name.append(String(table_name, system_charset_info));
   // We now have eight characters, c_ptr() is not safe.
 #ifndef DBUG_OFF
-  MY_EXPECT_DEATH_IF_SUPPORTED(tbl_name.c_ptr(), ".*m_alloced_length >= .*");
+  EXPECT_DEATH_IF_SUPPORTED(tbl_name.c_ptr(), ".*m_alloced_length >= .*");
 #endif
   EXPECT_STREQ("aaaaaaa.", tbl_name.c_ptr_safe());
 }

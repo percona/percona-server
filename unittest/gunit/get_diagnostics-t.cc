@@ -32,7 +32,6 @@
 #include "sql/sql_class.h"
 #include "sql/sql_get_diagnostics.h"
 #include "unittest/gunit/test_utils.h"
-#include "unittest/gunit/thread_utils.h"
 
 namespace get_diagnostics_unittest {
 
@@ -156,7 +155,7 @@ TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem) {
   info->set_which_da(Diagnostics_information::CURRENT_AREA);
   cmd = new (mem_root) Sql_cmd_get_diagnostics(info);
 
-  MY_EXPECT_DEATH(cmd->execute(thd()), ".*Assertion.*srp.*");
+  EXPECT_DEATH(cmd->execute(thd()), ".*Assertion.*srp.*");
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 
@@ -440,7 +439,7 @@ TEST_F(GetDiagnosticsTest, PushPopDiagnosticsArea) {
 TEST_F(GetDiagnosticsTestDeathTest, DiePopDiagnosticsArea) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 
-  MY_EXPECT_DEATH(thd()->pop_diagnostics_area(), ".*Assertion.*m_stacked_da*");
+  EXPECT_DEATH(thd()->pop_diagnostics_area(), ".*Assertion.*m_stacked_da*");
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 

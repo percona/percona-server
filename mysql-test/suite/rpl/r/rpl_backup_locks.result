@@ -38,7 +38,7 @@ LOCK INSTANCE FOR BACKUP;
 CREATE TABLE t (a INT);
 # connection slave
 STOP SLAVE SQL_THREAD;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+ERROR HY000: Cannot stop the slave SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first.
 UNLOCK INSTANCE;
 # connection master
 DROP TABLE t;

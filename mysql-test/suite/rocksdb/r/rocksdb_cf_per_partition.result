@@ -227,6 +227,9 @@ PARTITION custom_p5 VALUES IN (0x6789A),
 PARTITION custom_p6 VALUES IN (0x789AB),
 PARTITION custom_p7 VALUES IN (0x89ABC)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE t2;
 CREATE TABLE `t2` (
 `col1` bigint(20) NOT NULL,
@@ -246,6 +249,9 @@ PARTITION custom_p5 VALUES IN (0x6789A),
 PARTITION custom_p6 VALUES IN (0x789AB),
 PARTITION custom_p7 VALUES IN (0x89ABC)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set @@global.rocksdb_compact_cf = 'my_cf0';
 set @@global.rocksdb_compact_cf = 'my_cf1';
 SELECT DISTINCT(cf_name) FROM information_schema.rocksdb_cfstats WHERE cf_name='my_cf0';
@@ -330,6 +336,9 @@ PARTITION custom_p5 VALUES IN (0x6789A),
 PARTITION custom_p6 VALUES IN (0x789AB),
 PARTITION custom_p7 VALUES IN (0x89ABC)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT DISTINCT(cf_name) FROM information_schema.rocksdb_cfstats WHERE cf_name='test_cf0';
 cf_name
 test_cf0
@@ -384,6 +393,9 @@ PARTITION custom_p5 VALUES IN (0x6789A),
 PARTITION custom_p6 VALUES IN (0x789AB),
 PARTITION custom_p7 VALUES IN (0x89ABC)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT DISTINCT(cf_name) FROM information_schema.rocksdb_cfstats WHERE cf_name='unique_test_cf5';
 cf_name
 unique_test_cf5

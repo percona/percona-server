@@ -45,7 +45,7 @@ uint srv_background_scrub_data_interval = (7 * 24 * 60 * 60);
  * statistics for scrubbing by background threads
  */
 static btr_scrub_stat_t scrub_stat;
-static ib_mutex_t scrub_stat_mutex;
+static ib_uninitialized_mutex_t scrub_stat_mutex;
 mysql_pfs_key_t scrub_stat_mutex_key;
 
 static uint scrub_compression_level = page_zip_level;

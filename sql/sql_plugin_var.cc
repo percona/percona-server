@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -610,7 +610,10 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
         longlong10_to_str(var->save_result.ulonglong_value, def_val, 10);
         return;
       case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
-        strcpy(def_val, ((thdvar_str_t *)plugin_var)->def_val);
+        if (((thdvar_str_t *)plugin_var)->def_val != NULL)
+          strcpy(def_val, ((thdvar_str_t *)plugin_var)->def_val);
+        else /* no default: consider empty */
+          def_val[0] = 0;
         return;
       case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
         var->save_result.double_value =
@@ -966,7 +969,7 @@ static Item *alloc_and_copy_string(const char *str) {
 
 Item *sys_var_pluginvar::copy_value(THD *thd) {
   LEX_STRING str;
-  uchar *val_ptr = session_value_ptr(thd, thd, &str);
+  const auto *val_ptr = session_value_ptr(thd, thd, &str);
 
   switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
     case PLUGIN_VAR_BOOL:
@@ -979,11 +982,11 @@ Item *sys_var_pluginvar::copy_value(THD *thd) {
       return new Item_int(*(longlong *)val_ptr);
     case PLUGIN_VAR_SET:
     case PLUGIN_VAR_ENUM: {
-      const char *val_str = pointer_cast<char *>(val_ptr);
+      const auto *val_str = pointer_cast<const char *>(val_ptr);
       return (alloc_and_copy_string(val_str));
     }
     case PLUGIN_VAR_STR: {
-      const char *val_str = *pointer_cast<char **>(val_ptr);
+      const auto *val_str = *pointer_cast<const char *const *>(val_ptr);
       return (alloc_and_copy_string(val_str));
     }
     case PLUGIN_VAR_DOUBLE:

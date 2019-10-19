@@ -5,8 +5,8 @@
 
 call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Redo log cannot be encrypted, if the keyring plugin is not loaded.");
-call mtr.add_suppression("keyring error: please check that a keyring plugin is loaded.");
+call mtr.add_suppression("Redo log cannot be encrypted if the keyring plugin is not loaded.");
+call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Redo log key generation failed.");
 
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;

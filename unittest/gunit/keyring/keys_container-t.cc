@@ -35,12 +35,12 @@
 
 namespace keyring__keys_container_unittest {
 using namespace keyring;
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
-using ::testing::_;
 
 bool check_if_file_exists_and_TAG_is_correct(const char *file_name) {
   char tag[4];
@@ -1916,11 +1916,11 @@ class Mock_system_keys_container : public ISystem_keys_container {
 
 class Keys_container_with_system_keys_container_setter : public Keys_container {
  public:
-  Keys_container_with_system_keys_container_setter(ILogger *logger)
-      : Keys_container(logger) {}
+  Keys_container_with_system_keys_container_setter(ILogger *logger_value)
+      : Keys_container(logger_value) {}
   void set_system_keys_container(
-      ISystem_keys_container *system_keys_container) {
-    this->system_keys_container.reset(system_keys_container);
+      ISystem_keys_container *system_keys_container_value) {
+    this->system_keys_container.reset(system_keys_container_value);
   }
 };
 

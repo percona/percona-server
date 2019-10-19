@@ -18,6 +18,8 @@
 # --source include/no_valgrind_without_big.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
+# Waiting time when (re)starting the server
+--let $explicit_default_wait_counter=10000;
 
 --disable_query_log
 call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
@@ -428,3 +430,5 @@ DROP TABLESPACE encrypt_ts;
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+--error 0,1
+remove_file $MYSQL_TMP_DIR/mysecret_keyring.backup;

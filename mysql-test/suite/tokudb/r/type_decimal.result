@@ -12,6 +12,11 @@ backcolor int(11),
 PRIMARY KEY (id),
 UNIQUE datatype_id (datatype_id, min_value, max_value)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ( '1', '4', '0.0000000000', '0.0000000000', 'Ei saja', '0', '16776960');
 INSERT INTO t1 VALUES ( '2', '4', '1.0000000000', '1.0000000000', 'Sajab', '16777215', '255');
 INSERT INTO t1 VALUES ( '3', '1', '2.0000000000', '49.0000000000', '', '0', '16777215');
@@ -223,6 +228,8 @@ a
 123.00
 drop table t1;
 create table t1 (a decimal(10,2) unsigned);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values ("0.0");
 insert into t1 values ("-0.0");
 insert into t1 values ("+0.0");
@@ -281,6 +288,8 @@ a
 123.00
 drop  table t1;
 create table t1 (a decimal(10,2) zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values ("0.0");
 insert into t1 values ("-0.0");
 insert into t1 values ("+0.0");
@@ -423,6 +432,8 @@ a
 1
 drop table t1;
 create table t1 (a decimal unsigned);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values (-99999999999999);
 ERROR 22003: Out of range value for column 'a' at row 1
 insert into t1 values (-1);
@@ -441,6 +452,8 @@ a
 1234567890
 drop table t1;
 create table t1 (a decimal zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (-99999999999999);
 ERROR 22003: Out of range value for column 'a' at row 1
 insert into t1 values (-1);
@@ -459,6 +472,9 @@ a
 1234567890
 drop table t1;
 create table t1 (a decimal unsigned zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values (-99999999999999);
 ERROR 22003: Out of range value for column 'a' at row 1
 insert into t1 values (-1);
@@ -979,6 +995,8 @@ CREATE TABLE t1 (
 qty decimal(16,6) default NULL, 
 dps tinyint(3) unsigned default NULL 
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1.1325,3);
 SELECT ROUND(qty,3), dps, ROUND(qty,dps) FROM t1;
 ROUND(qty,3)	dps	ROUND(qty,dps)
@@ -1003,6 +1021,8 @@ SELECT MOD(1, .12345678912345678912345678912345678912345678912345678912345678912
 MOD()
 0.012345687012345687012345687012345687012345687012345687012345687012345687000000000
 create table t1 (f1 decimal(6,6),f2 decimal(6,6) zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (-0.123456,0.123456);
 select group_concat(f1),group_concat(f2) from t1;
 group_concat(f1)	group_concat(f2)

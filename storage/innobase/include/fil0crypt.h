@@ -180,6 +180,7 @@ struct fil_space_crypt_t {
       memset_s(*iter, ENCRYPTION_KEY_LEN, 0, ENCRYPTION_KEY_LEN);
       my_free(*iter);
     }
+    rotate_state.destroy_flush_observer();
   }
 
   /** Get latest key version from encryption plugin

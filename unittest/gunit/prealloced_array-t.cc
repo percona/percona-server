@@ -28,7 +28,6 @@
 #include <memory>
 
 #include "prealloced_array.h"
-#include "thread_utils.h"
 
 namespace prealloced_array_unittest {
 
@@ -54,30 +53,30 @@ typedef PreallocedArrayTest PreallocedArrayDeathTest;
 
 TEST_F(PreallocedArrayDeathTest, OutOfBoundsRead) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(some_integer = int_10[5],
-                               ".*Assertion .*n < size.*");
+  EXPECT_DEATH_IF_SUPPORTED(some_integer = int_10[5],
+                            ".*Assertion .*n < size.*");
 }
 
 TEST_F(PreallocedArrayDeathTest, OutOfBoundsWrite) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(int_10[5] = some_integer,
-                               ".*Assertion .*n < size.*");
+  EXPECT_DEATH_IF_SUPPORTED(int_10[5] = some_integer,
+                            ".*Assertion .*n < size.*");
 }
 
 TEST_F(PreallocedArrayDeathTest, EmptyBack) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(int_10.back() = 42, ".*Assertion .*n < size.*");
+  EXPECT_DEATH_IF_SUPPORTED(int_10.back() = 42, ".*Assertion .*n < size.*");
 }
 
 TEST_F(PreallocedArrayDeathTest, EmptyPopBack) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MY_EXPECT_DEATH_IF_SUPPORTED(int_10.pop_back(), ".*Assertion .*!empty.*");
+  EXPECT_DEATH_IF_SUPPORTED(int_10.pop_back(), ".*Assertion .*!empty.*");
 }
 
 TEST_F(PreallocedArrayDeathTest, EmptyErase) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   size_t ix = 0;
-  MY_EXPECT_DEATH_IF_SUPPORTED(int_10.erase(ix), ".*Assertion .*ix < size.*");
+  EXPECT_DEATH_IF_SUPPORTED(int_10.erase(ix), ".*Assertion .*ix < size.*");
 }
 
 #endif  // DBUG_OFF

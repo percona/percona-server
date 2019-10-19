@@ -1,7 +1,7 @@
 --source include/have_rocksdb.inc
 
 # Issue 900 : Segmentation fault in myrocks::Rdb_string_reader::read
-CREATE TABLE t1(c1 VARCHAR(3) CHARACTER SET 'utf8' COLLATE 'utf8_bin', c2 YEAR, c3 REAL(1,0) UNSIGNED, PRIMARY KEY(c1)) ENGINE=RocksDB;
+CREATE TABLE t1(c1 VARCHAR(3) CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_bin', c2 YEAR, c3 REAL(1,0) UNSIGNED, PRIMARY KEY(c1)) ENGINE=RocksDB;
 INSERT INTO t1 VALUES(0,'0','0');
 INSERT INTO t1 VALUES('{0}','0','0');
 INSERT INTO t1 VALUES('1','0','1');

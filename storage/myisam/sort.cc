@@ -1,6 +1,5 @@
 /* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +59,8 @@
 */
 
 extern void print_error(const char *fmt, ...);
+
+extern bool get_global_encrypt_tmp_files();
 
 /* Functions defined in this file */
 
@@ -605,8 +606,9 @@ static int write_keys(MI_SORT_PARAM *info, uchar **sort_keys, uint count,
                          pointer_cast<unsigned char *>(&b)) < 0;
   });
   if (!my_b_inited(tempfile) &&
-      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
+      open_cached_file_encrypted(
+          tempfile, my_tmpdir(info->tmpdir), "ST", DISK_BUFFER_SIZE,
+          info->sort_info->param->myf_rw, get_global_encrypt_tmp_files()))
     DBUG_RETURN(1); /* purecov: inspected */
 
   buffpek->file_pos = my_b_tell(tempfile);
@@ -641,8 +643,9 @@ static int write_keys_varlen(MI_SORT_PARAM *info, uchar **sort_keys, uint count,
                          pointer_cast<unsigned char *>(&b)) < 0;
   });
   if (!my_b_inited(tempfile) &&
-      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
+      open_cached_file_encrypted(
+          tempfile, my_tmpdir(info->tmpdir), "ST", DISK_BUFFER_SIZE,
+          info->sort_info->param->myf_rw, get_global_encrypt_tmp_files()))
     DBUG_RETURN(1); /* purecov: inspected */
 
   buffpek->file_pos = my_b_tell(tempfile);
@@ -659,8 +662,9 @@ static int write_key(MI_SORT_PARAM *info, uchar *key, IO_CACHE *tempfile) {
   DBUG_ENTER("write_key");
 
   if (!my_b_inited(tempfile) &&
-      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
+      open_cached_file_encrypted(
+          tempfile, my_tmpdir(info->tmpdir), "ST", DISK_BUFFER_SIZE,
+          info->sort_info->param->myf_rw, get_global_encrypt_tmp_files()))
     DBUG_RETURN(1);
 
   if (my_b_write(tempfile, (uchar *)&key_length, sizeof(key_length)) ||
@@ -696,8 +700,9 @@ static int merge_many_buff(MI_SORT_PARAM *info, uint keys, uchar **sort_keys,
 
   if (*maxbuffer < MERGEBUFF2) DBUG_RETURN(0); /* purecov: inspected */
   if (flush_io_cache(t_file) ||
-      open_cached_file(&t_file2, my_tmpdir(info->tmpdir), "ST",
-                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
+      open_cached_file_encrypted(
+          &t_file2, my_tmpdir(info->tmpdir), "ST", DISK_BUFFER_SIZE,
+          info->sort_info->param->myf_rw, get_global_encrypt_tmp_files()))
     DBUG_RETURN(1); /* purecov: inspected */
 
   from_file = t_file;
@@ -751,8 +756,9 @@ static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
   uint length;
 
   if ((count = (uint)MY_MIN((ha_rows)buffpek->max_keys, buffpek->count))) {
-    if (my_b_pread(fromfile, buffpek->base, (length = sort_length * count),
-                   buffpek->file_pos))
+    if (mysql_encryption_file_pread(fromfile, (uchar *)buffpek->base,
+                                    (length = sort_length * count),
+                                    buffpek->file_pos, MYF_RW))
       return ((uint)-1); /* purecov: inspected */
     buffpek->key = buffpek->base;
     buffpek->file_pos += length; /* New filepos */
@@ -773,11 +779,13 @@ static uint read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
     buffp = buffpek->base;
 
     for (idx = 1; idx <= count; idx++) {
-      if (my_b_pread(fromfile, (uchar *)&length_of_key, sizeof(length_of_key),
-                     buffpek->file_pos))
+      if (mysql_encryption_file_pread(fromfile, (uchar *)&length_of_key,
+                                      sizeof(length_of_key), buffpek->file_pos,
+                                      MYF_RW))
         return ((uint)-1);
       buffpek->file_pos += sizeof(length_of_key);
-      if (my_b_pread(fromfile, buffp, length_of_key, buffpek->file_pos))
+      if (mysql_encryption_file_pread(fromfile, (uchar *)buffp, length_of_key,
+                                      buffpek->file_pos, MYF_RW))
         return ((uint)-1);
       buffpek->file_pos += length_of_key;
       buffp = buffp + sort_length;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -992,7 +992,7 @@ static buf_chunk_t *buf_chunk_init(
   ulint i;
   ulint size_target;
 
-  mutex_own(&buf_pool->chunks_mutex);
+  ut_ad(mutex_own(&buf_pool->chunks_mutex));
 
   /* Round down to a multiple of page size,
   although it already should be. */
@@ -1331,7 +1331,7 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
 
     buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
-    buf_pool->last_printout_time = ut_time();
+    buf_pool->last_printout_time = ut_time_monotonic();
   }
   /* 2. Initialize flushing fields
   -------------------------------- */
@@ -2109,7 +2109,7 @@ withdraw_retry:
     }
   }
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     /* abort to resize for shutdown. */
     buf_pool_withdrawing = false;
     return;
@@ -2183,7 +2183,7 @@ withdraw_retry:
   }
 #endif /* UNIV_DEBUG */
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     return;
   }
 
@@ -2483,13 +2483,11 @@ withdraw_retry:
 /** This is the thread for resizing buffer pool. It waits for an event and
 when waked up either performs a resizing and sleeps again. */
 void buf_resize_thread() {
-  my_thread_init();
-
-  while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
     os_event_wait(srv_buf_resize_event);
     os_event_reset(srv_buf_resize_event);
 
-    if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       break;
     }
 
@@ -2506,11 +2504,6 @@ void buf_resize_thread() {
 
     buf_pool_resize();
   }
-
-  my_thread_end();
-
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-  srv_threads.m_buf_resize_thread_active = false;
 }
 
 /** Clears the adaptive hash index on all pages in the buffer pool. */
@@ -3835,12 +3828,34 @@ dberr_t Buf_fetch<T>::check_state(buf_block_t *&block) {
 
 template <typename T>
 void Buf_fetch<T>::read_page() {
-  const auto local_err = buf_read_page(m_page_id, m_page_size, m_trx);
-  if (local_err == DB_SUCCESS) {
-    buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr), m_trx);
+  bool success{};
+  dberr_t err;
 
+  auto sync = m_mode != Page_fetch::SCAN;
+
+  if (sync) {
+    err = buf_read_page(m_page_id, m_page_size, m_trx);
+    success = (err == DB_SUCCESS);
+  } else {
+    auto ret = buf_read_page_low(&err, false, 0, BUF_READ_ANY_PAGE, m_page_id,
+                                 m_page_size, false, m_trx, false);
+    success = ret > 0;
+
+    if (success) {
+      srv_stats.buf_pool_reads.add(1);
+    }
+
+    ut_a(err != DB_TABLESPACE_DELETED);
+
+    /* Increment number of I/O operations used for LRU policy. */
+    buf_LRU_stat_inc_io();
+  }
+
+  if (success) {
+    if (sync) {
+      buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr), m_trx);
+    }
     m_retries = 0;
-
   } else if (m_retries < BUF_PAGE_READ_MAX_RETRIES) {
     ++m_retries;
 
@@ -3848,7 +3863,7 @@ void Buf_fetch<T>::read_page() {
                     m_retries = BUF_PAGE_READ_MAX_RETRIES;);
   } else {
     if (m_err) {
-      *m_err = local_err;
+      *m_err = err;
     }
 
     /* Pages whose encryption key is unavailable or used
@@ -3858,7 +3873,7 @@ void Buf_fetch<T>::read_page() {
        corrupted in a way where the key_id field is
        nonzero. There is no checksum on field
        FIL_PAGE_FILE_FLUSH_LSN_OR_KEY_VERSION. */
-    if (local_err == DB_IO_DECRYPT_FAIL) return;
+    if (err == DB_IO_DECRYPT_FAIL) return;
 
     ib::fatal(ER_IB_MSG_74)
         << "Unable to read page " << m_page_id << " into the buffer pool after "
@@ -5524,7 +5539,7 @@ static void buf_must_be_all_freed_instance(buf_pool_t *buf_pool) {
 /** Refreshes the statistics used to print per-second averages.
 @param[in,out]	buf_pool	buffer pool instance */
 static void buf_refresh_io_stats(buf_pool_t *buf_pool) {
-  buf_pool->last_printout_time = ut_time();
+  buf_pool->last_printout_time = ut_time_monotonic();
   buf_pool->old_stat = buf_pool->stat;
 }
 

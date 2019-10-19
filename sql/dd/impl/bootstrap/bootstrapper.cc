@@ -70,6 +70,7 @@
 #include "sql/handler.h"                   // dict_init_mode_t
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
+#include "sql/sd_notify.h"  // sysd::notify
 #include "sql/sql_zip_dict.h"
 #include "sql/thd_raii.h"
 
@@ -620,16 +621,7 @@ bool populate_tables(THD *thd) {
 // Re-populate character sets and collations upon normal restart.
 bool repopulate_charsets_and_collations(THD *thd) {
   /*
-    If we are in read-only mode, we skip re-populating. Here, 'opt_readonly'
-    is the value of the '--read-only' option.
-  */
-  if (opt_readonly) {
-    LogErr(WARNING_LEVEL, ER_DD_NO_WRITES_NO_REPOPULATION, "", "");
-    return false;
-  }
-
-  /*
-    We must also check if the DDSE is started in a way that makes the DD
+    We must check if the DDSE is started in a way that makes the DD
     read only. For now, we only support InnoDB as SE for the DD. The call
     to retrieve the handlerton for the DDSE should be replaced by a more
     generic mechanism.
@@ -752,8 +744,10 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
     return true;
 
   // first table in ddse_tablespaces is mysql.ibd
-  dd::Properties *p = dd::Properties_impl::parse_properties(
-      ddse_tablespaces.begin()->get_options());
+  std::unique_ptr<dd::Properties> p{dd::Properties_impl::parse_properties(
+      ddse_tablespaces.begin()->get_options())};
+
+  DBUG_ASSERT(p != nullptr);
 
   DBUG_ASSERT(memcmp(ddse_tablespaces.begin()->get_name(),
                      MYSQL_TABLESPACE_NAME.str,
@@ -867,17 +861,18 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
       return true;
   }
 
-  DBUG_EXECUTE_IF("dd_upgrade_stage_2", if (is_dd_upgrade_57) {
-    /*
-      Server will crash will upgrading 5.7 data directory.
-      This will leave server is an inconsistent state.
-      File tracking upgrade will have Stage 2 written in it.
-      Next restart of server on same data directory should
-      revert all changes done by upgrade and data directory
-      should be reusable by 5.7 server.
-    */
-    DBUG_SUICIDE();
-  });
+  DBUG_EXECUTE_IF(
+      "dd_upgrade_stage_2", if (is_dd_upgrade_57) {
+        /*
+          Server will crash will upgrading 5.7 data directory.
+          This will leave server is an inconsistent state.
+          File tracking upgrade will have Stage 2 written in it.
+          Next restart of server on same data directory should
+          revert all changes done by upgrade and data directory
+          should be reusable by 5.7 server.
+        */
+        DBUG_SUICIDE();
+      });
 
   if (DDSE_dict_recover(thd, DICT_RECOVERY_INITIALIZE_SERVER,
                         d->get_target_dd_version()) ||
@@ -973,15 +968,6 @@ static bool check_and_create_compression_dict_tables(THD *thd) {
     } else {
       fix_table_ids = true;
     }
-  }
-
-  /*
-    If we are in read-only mode, we skip re-populating. Here, 'opt_readonly'
-    is the value of the '--read-only' option.
-  */
-  if (opt_readonly) {
-    LogErr(WARNING_LEVEL, ER_COMPRESSION_DICTIONARY_NO_CREATE, "", "");
-    return false;
   }
 
   /*
@@ -1334,6 +1320,7 @@ bool initialize_dd_properties(THD *thd) {
     if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade()) {
       LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE, actual_version, dd::DD_VERSION);
       log_sink_buffer_check_timeout();
+      sysd::notify("STATUS=Data Dictionary upgrade in progress\n");
     }
     if (bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade()) {
       // This condition is hit only if upgrade has been skipped before
@@ -1490,6 +1477,16 @@ bool sync_meta_data(THD *thd) {
         const_cast<Schema *>(tmp_schema));
     std::unique_ptr<Tablespace> persisted_dd_tspace(
         const_cast<Tablespace *>(tmp_tspace));
+
+    // If the persisted meta data indicates that the DD tablespace is
+    // encrypted, then we record this fact to make sure the DDL statements
+    // that are genereated during e.g. upgrade will have the correct
+    // encryption option.
+    String_type encryption("");
+    Object_table_definition_impl::set_dd_tablespace_encrypted(
+        persisted_dd_tspace->options().exists("encryption") &&
+        !persisted_dd_tspace->options().get("encryption", &encryption) &&
+        encryption == "Y");
 
     // Get the persisted DD table objects into a vector.
     std::vector<std::unique_ptr<Table_impl>> persisted_dd_tables;

@@ -1,16 +1,16 @@
 call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Redo log cannot be encrypted, if the keyring plugin is not loaded.");
-call mtr.add_suppression("keyring error: please check that a keyring plugin is loaded.");
+call mtr.add_suppression("Redo log cannot be encrypted if the keyring plugin is not loaded.");
+call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Redo log key generation failed.");
 CREATE DATABASE tde_db;
 USE tde_db;
 SET GLOBAL innodb_redo_log_encrypt = KEYRING_KEY;
 Warnings:
-Warning	49014	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
+Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	49014	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
+Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
 INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
 SELECT a,LEFT(b,10) FROM tde_db.t4;

@@ -1,6 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-   Copyright (c) 2010, 2017, MariaDB
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +68,7 @@
 
   RETURN VALUE
     0  All OK
-    1  An error occured
+    1  An error occurred
 */
 int my_b_copy_to_file(IO_CACHE *cache, FILE *file) {
   size_t bytes_in_cache;
@@ -150,17 +148,12 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
 */
 
 size_t my_b_fill(IO_CACHE *info) {
-  my_off_t pos_in_file;
+  my_off_t pos_in_file =
+      (info->pos_in_file + (size_t)(info->read_end - info->buffer));
   size_t diff_length, length, max_length;
 
-  if (info->myflags & MY_ENCRYPT) {
-    DBUG_ASSERT(info->read_pos == info->read_end);
-    return _my_b_read(info, 0, 0) ? 0 : info->read_end - info->read_pos;
-  }
-  pos_in_file = info->pos_in_file + (size_t)(info->read_end - info->buffer);
-
   if (info->seek_not_done) { /* File touched, do seek */
-    if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(0)) ==
+    if (mysql_encryption_file_seek(info, pos_in_file, MY_SEEK_SET, MYF(0)) ==
         MY_FILEPOS_ERROR) {
       info->error = 0;
       return 0;
@@ -178,8 +171,8 @@ size_t my_b_fill(IO_CACHE *info) {
   }
   DBUG_EXECUTE_IF("simulate_my_b_fill_error",
                   { DBUG_SET("+d,simulate_file_read_error"); });
-  if ((length = mysql_file_read(info->file, info->buffer, max_length,
-                                info->myflags)) == (size_t)-1) {
+  if ((length = mysql_encryption_file_read(info, info->buffer, max_length,
+                                           info->myflags)) == (size_t)-1) {
     info->error = -1;
     return 0;
   }
@@ -187,18 +180,6 @@ size_t my_b_fill(IO_CACHE *info) {
   info->read_end = info->buffer + length;
   info->pos_in_file = pos_in_file;
   return length;
-}
-
-int my_b_pread(IO_CACHE *info, uchar *Buffer, size_t Count, my_off_t pos) {
-  if (info->myflags & MY_ENCRYPT) {
-    my_b_seek(info, pos);
-    return my_b_read(info, Buffer, Count);
-  }
-
-  /* backward compatibility behavior. XXX remove it? */
-  if (mysql_file_pread(info->file, Buffer, Count, pos, info->myflags | MY_NABP))
-    return info->error = -1;
-  return 0;
 }
 
 /*

@@ -4,14 +4,14 @@ SELECT @@innodb_redo_log_encrypt;
 KEYRING_KEY
 SET GLOBAL innodb_redo_log_encrypt=MASTER_KEY;
 Warnings:
-Warning	49008	InnoDB: Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is keyring_key, requested master_key.
+Warning	7008	InnoDB: Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is keyring_key, requested master_key.
 SELECT @@innodb_redo_log_encrypt;
 @@innodb_redo_log_encrypt
 KEYRING_KEY
 SET GLOBAL innodb_redo_log_encrypt=OFF;
 SET GLOBAL innodb_redo_log_encrypt=MASTER_KEY;
 Warnings:
-Warning	49008	InnoDB: Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is keyring_key, requested master_key.
+Warning	7008	InnoDB: Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is keyring_key, requested master_key.
 SELECT @@innodb_redo_log_encrypt;
 @@innodb_redo_log_encrypt
 OFF

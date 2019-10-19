@@ -7,8 +7,8 @@
 --disable_query_log
 call mtr.add_suppression("Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Redo log cannot be encrypted, if the keyring plugin is not loaded.");
-call mtr.add_suppression("keyring error: please check that a keyring plugin is loaded.");
+call mtr.add_suppression("Redo log cannot be encrypted if the keyring plugin is not loaded.");
+call mtr.add_suppression("Check keyring plugin fail, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Redo log key generation failed.");
 --enable_query_log
 

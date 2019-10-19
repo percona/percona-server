@@ -8,7 +8,7 @@ explain select c,a,b from t where c=0 and a=0 and b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	const	PRIMARY,c	PRIMARY	8	const,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '0' AS `c`,'0' AS `a`,'1' AS `b` from `test`.`t` where 1
+Note	1003	/* select#1 */ select '0' AS `c`,'0' AS `a`,'1' AS `b` from `test`.`t` where true
 flush status;
 select c,a,b from t where c=0 and a=0 and b=1;
 c	a	b

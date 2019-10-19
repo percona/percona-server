@@ -786,11 +786,11 @@ a	FROM_UNIXTIME(a)
 2147483647.9999992	2038-01-19 03:14:07.999999
 2147483647.9999993	2038-01-19 03:14:07.999999
 2147483647.9999994	2038-01-19 03:14:07.999999
-2147483647.9999995	2038-01-19 03:14:08.000000
-2147483647.9999996	2038-01-19 03:14:08.000000
-2147483647.9999997	2038-01-19 03:14:08.000000
-2147483647.9999998	2038-01-19 03:14:08.000000
-2147483647.9999999	2038-01-19 03:14:08.000000
+2147483647.9999995	NULL
+2147483647.9999996	NULL
+2147483647.9999997	NULL
+2147483647.9999998	NULL
+2147483647.9999999	NULL
 DROP TABLE t1;
 SET time_zone=DEFAULT;
 #
@@ -2661,9 +2661,9 @@ a
 -838:59:59.000000
 EXPLAIN SELECT * FROM t1 WHERE a='01:02:03.456700';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a	a	6	const	1	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	a	a	6	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '01:02:03.456700')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIME'01:02:03.4567')
 SELECT * FROM t1 WHERE a='01:02:03.456700';
 a
 01:02:03.456700
@@ -7050,7 +7050,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	8	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '2000-01-01 01:02:03.456700')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIMESTAMP'2000-01-01 01:02:03.4567')
 SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 a
 2000-01-01 01:02:03.456700
@@ -12027,7 +12027,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	7	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '2000-01-01 01:02:03.456700')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIMESTAMP'2000-01-01 01:02:03.4567')
 SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 a
 2000-01-01 01:02:03.456700
@@ -14760,6 +14760,8 @@ SELECT @@timestamp;
 @@timestamp
 1308300674.000000
 CREATE TABLE t1 AS SELECT @@timestamp;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 @@timestamp	double(22,6)	YES		NULL	
@@ -14789,6 +14791,8 @@ DROP TABLE t1;
 #
 CREATE TABLE t1
 (first_usage DATE, last_recharge DATETIME, life_time SMALLINT(4) UNSIGNED);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('2011-04-27', null, 900);
 SELECT
 DATE_ADD(GREATEST(first_usage, IFNULL(last_recharge, first_usage)), INTERVAL life_time DAY ) as dt,

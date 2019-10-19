@@ -9,7 +9,7 @@ FLUSH TABLE_STATISTICS;
 SET @userstat_old= @@userstat;
 SET GLOBAL userstat=ON;
 
-CREATE TABLE t1 (id int(10), a INT, PRIMARY KEY (id));
+CREATE TABLE t1 (id int, a INT, PRIMARY KEY (id));
 INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
 INSERT INTO t1 VALUES (6, 6), (7, 7), (8, 8), (9, 9), (10, 10);
 SELECT MAX(a) FROM t1; 

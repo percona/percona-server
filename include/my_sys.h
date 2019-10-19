@@ -1,6 +1,5 @@
 /* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
-   Copyright (c) 2010, 2017, MariaDB Corporation.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,6 +65,7 @@
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/psi_base.h"
+#include "sql/stream_cipher.h"
 
 struct CHARSET_INFO;
 struct MY_CHARSET_LOADER;
@@ -118,7 +118,6 @@ struct MEM_ROOT;
 #define MY_IGNORE_BADFD 32 /* my_sync: ignore 'bad descriptor' errors */
 #define MY_SYNC_DIR 8192   /* my_create/delete/rename: sync directory */
 #define MY_REPORT_WAITING_IF_FULL 64 /* my_write: set status as waiting */
-#define MY_ENCRYPT 256               /* Encrypt IO_CACHE temporary files */
 #define MY_FULL_IO 512 /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128  /* Option to init_io_cache() */
 #define MY_LINK_WARNING 32          /* my_redel() gives warning if links */
@@ -281,7 +280,8 @@ enum cache_type {
   WRITE_CACHE,
   SEQ_READ_APPEND /* sequential read or append */,
   READ_FIFO,
-  READ_NET
+  READ_NET,
+  WRITE_NET
 };
 
 enum flush_type {
@@ -295,6 +295,10 @@ enum flush_type {
   FLUSH_FORCE_WRITE
 };
 
+/*
+ How was this file opened (for debugging purposes).
+ The important part is whether it is UNOPEN or not.
+ */
 enum file_type {
   UNOPEN = 0,
   FILE_BY_OPEN,
@@ -302,7 +306,7 @@ enum file_type {
   STREAM_BY_FOPEN,
   STREAM_BY_FDOPEN,
   FILE_BY_MKSTEMP,
-  FILE_BY_DUP
+  FILE_BY_O_TMPFILE
 };
 
 struct st_my_file_info {
@@ -470,6 +474,10 @@ struct IO_CACHE /* Used when cacheing files */
     somewhere else
   */
   bool alloced_buffer{false};
+  // This is an encryptor for encrypting the temporary file of the IO cache.
+  Stream_cipher *m_encryptor = nullptr;
+  // This is a decryptor for decrypting the temporary file of the IO cache.
+  Stream_cipher *m_decryptor = nullptr;
 };
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -487,13 +495,8 @@ typedef void (*my_error_reporter)(enum loglevel level, uint ecode, ...);
 
 extern my_error_reporter my_charset_error_reporter;
 
+/* defines for mf_iocache */
 extern PSI_file_key key_file_io_cache;
-
-MY_NODISCARD
-extern int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count);
-
-MY_NODISCARD
-extern int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count);
 
 /* Test if buffer is inited */
 inline void my_b_clear(IO_CACHE *info) { info->buffer = nullptr; }
@@ -510,7 +513,7 @@ inline int my_b_read(IO_CACHE *info, uchar *buffer, size_t count) {
     info->read_pos += count;
     return 0;
   }
-  return _my_b_read(info, buffer, count);
+  return (*info->read_function)(info, buffer, count);
 }
 
 inline int my_b_write(IO_CACHE *info, const uchar *buffer, size_t count) {
@@ -519,13 +522,11 @@ inline int my_b_write(IO_CACHE *info, const uchar *buffer, size_t count) {
     info->write_pos += count;
     return 0;
   }
-  return _my_b_write(info, buffer, count);
+  return (*info->write_function)(info, buffer, count);
 }
 
-MY_NODISCARD
 extern int _my_b_get(IO_CACHE *info);
 
-MY_NODISCARD
 inline int my_b_get(IO_CACHE *info) {
   if (info->read_pos != info->read_end) {
     info->read_pos++;
@@ -533,9 +534,6 @@ inline int my_b_get(IO_CACHE *info) {
   }
   return _my_b_get(info);
 }
-
-MY_NODISCARD
-int my_b_pread(IO_CACHE *info, uchar *Buffer, size_t Count, my_off_t pos);
 
 MY_NODISCARD
 inline my_off_t my_b_tell(const IO_CACHE *info) {
@@ -750,13 +748,6 @@ extern bool array_append_string_unique(const char *str, const char **array,
 
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
-typedef int (*io_cache_encr_read_function)(IO_CACHE *, uchar *, size_t);
-typedef int (*io_cache_encr_write_function)(IO_CACHE *, const uchar *, size_t);
-extern void init_io_cache_encryption_ext(
-    io_cache_encr_read_function read_function,
-    io_cache_encr_write_function write_function, size_t encr_block_size,
-    size_t encr_header_size);
-extern void init_io_cache_encryption(bool enable);
 MY_NODISCARD
 extern int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
                              enum cache_type type, my_off_t seek_offset,
@@ -771,10 +762,18 @@ extern bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
                             my_off_t seek_offset, bool use_async_io,
                             bool clear_cache);
 extern void setup_io_cache(IO_CACHE *info);
+MY_NODISCARD
+extern int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count);
+MY_NODISCARD
+extern int _my_b_read_r(IO_CACHE *info, uchar *Buffer, size_t Count);
 extern void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
                                 IO_CACHE *write_cache, uint num_threads);
 extern void remove_io_thread(IO_CACHE *info);
+MY_NODISCARD
+extern int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count);
 extern int _my_b_net_read(IO_CACHE *info, uchar *Buffer, size_t Count);
+MY_NODISCARD
+extern int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count);
 extern int my_b_append(IO_CACHE *info, const uchar *Buffer, size_t Count);
 extern int my_b_safe_write(IO_CACHE *info, const uchar *Buffer, size_t Count);
 
@@ -795,10 +794,15 @@ extern size_t my_b_vprintf(IO_CACHE *info, const char *fmt, va_list ap);
 extern bool open_cached_file(IO_CACHE *cache, const char *dir,
                              const char *prefix, size_t cache_size,
                              myf cache_myflags);
+extern bool open_cached_file_encrypted(IO_CACHE *cache, const char *dir,
+                                       const char *prefix, size_t cache_size,
+                                       myf cache_myflags, bool encrypted);
 extern bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
+
+enum UnlinkOrKeepFile { UNLINK_FILE, KEEP_FILE };
 File create_temp_file(char *to, const char *dir, const char *pfx, int mode,
-                      myf MyFlags);
+                      UnlinkOrKeepFile unlink_or_keep, myf MyFlags);
 
 // Use Prealloced_array or std::vector or something similar in C++
 extern bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key key,
@@ -999,5 +1003,97 @@ extern MYSQL_FILE *mysql_stdin;
 /**
   @} (end of group MYSYS)
 */
+
+// True if the temporary file of binlog cache is encrypted.
+#ifndef DBUG_OFF
+extern bool binlog_cache_temporary_file_is_encrypted;
+#endif
+
+/**
+  This is a wrapper around mysql_file_seek. Seek to a position in the
+  temporary file of a binlog cache, and set the encryption/decryption
+  stream offset if binlog_encryption is on.
+
+  @param cache The handler of a binlog cache to seek.
+  @param pos The expected position (absolute or relative)
+  @param whence A direction parameter and one of
+                {SEEK_SET, SEEK_CUR, SEEK_END}
+  @param flags  The bitmap of different flags
+                MY_WME | MY_FAE | MY_NABP | MY_FNABP |
+                MY_DONT_CHECK_FILESIZE and so on.
+
+  @retval The new position in the file, or MY_FILEPOS_ERROR on error.
+*/
+my_off_t mysql_encryption_file_seek(IO_CACHE *cache, my_off_t pos, int whence,
+                                    myf flags);
+/**
+   This is a wrapper around mysql_file_read. Read data from the temporary
+   file of a binlog cache, and take care of decrypting the data if
+   binlog_encryption is on.
+
+
+   @param cache The handler of a binlog cache to read.
+   @param[out] buffer The memory buffer to write to.
+   @param count The length of data in the temporary file to be read in bytes.
+   @param flags The bitmap of different flags
+                MY_WME | MY_FAE | MY_NABP | MY_FNABP |
+                MY_DONT_CHECK_FILESIZE and so on.
+
+   @retval The length of bytes to be read, or MY_FILE_ERROR on error.
+*/
+size_t mysql_encryption_file_read(IO_CACHE *cache, uchar *buffer, size_t count,
+                                  myf flags);
+/**
+   This is a wrapper around mysql_file_write. Write data in buffer to the
+   temporary file of a binlog cache, and take care of encrypting the data
+   if binlog_encryption is on.
+
+   @param cache The handler of a binlog cache to write.
+   @param buffer The memory buffer to write from.
+   @param count The length of data in buffer to be written in bytes.
+   @param flags The bitmap of different flags
+                MY_WME | MY_FAE | MY_NABP | MY_FNABP |
+                MY_DONT_CHECK_FILESIZE and so on
+
+   if (flags & (MY_NABP | MY_FNABP)) {
+     @retval 0 if count == 0
+     @retval 0 success
+     @retval MY_FILE_ERROR error
+   } else {
+     @retval 0 if count == 0
+     @retval The number of bytes written on success.
+     @retval MY_FILE_ERROR error
+     @retval The actual number of bytes written on partial success (if
+             less than count bytes were written).
+   }
+*/
+size_t mysql_encryption_file_write(IO_CACHE *cache, const uchar *buffer,
+                                   size_t count, myf flags);
+
+/**
+   This is a wrapper around mysql_file_pread. Read data from the specified
+   offset in a file and take care of decrypting the data if encryption is on.
+
+   @param cache The handler of a file cache to read.
+   @param[out] buffer The memory buffer to write to.
+   @param count The length of data in the file to be read in bytes.
+   @param offset The offset in the file to read from.
+   @param flags The bitmap of different flags
+                MY_WME | MY_FAE | MY_NABP | MY_FNABP |
+                MY_DONT_CHECK_FILESIZE and so on.
+
+   if (flags & (MY_NABP | MY_FNABP)) {
+     @retval 0 if count == 0
+     @retval 0 success
+     @retval MY_FILE_ERROR error
+   } else {
+     @retval 0 if count == 0
+     @retval The number of bytes read.
+     @retval MY_FILE_ERROR error
+   }
+*/
+
+size_t mysql_encryption_file_pread(IO_CACHE *cache, uchar *buffer, size_t count,
+                                   my_off_t offset, myf flags);
 
 #endif /* _my_sys_h */

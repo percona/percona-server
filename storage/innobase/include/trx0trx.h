@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef trx0trx_h
 #define trx0trx_h
 
-#include <list>
 #include <set>
 
 #include "mysql/plugin.h"
@@ -408,9 +407,9 @@ UNIV_INLINE
 bool trx_is_high_priority(const trx_t *trx);
 
 /**
-Kill all transactions that are blocking this transaction from acquiring locks.
+If this is a high priority transaction,
+kill all transactions that are blocking this transaction from acquiring locks.
 @param[in,out] trx	High priority transaction */
-
 void trx_kill_blocking(trx_t *trx);
 
 /** Provides an id of the transaction which does not change over time.
@@ -561,16 +560,41 @@ struct trx_lock_t {
                        == TRX_STATE_ACTIVE: TRX_QUE_RUNNING,
                        TRX_QUE_LOCK_WAIT, ... */
 
-  lock_t *wait_lock;         /*!< if trx execution state is
-                             TRX_QUE_LOCK_WAIT, this points to
-                             the lock request, otherwise this is
-                             NULL; set to non-NULL when holding
-                             both trx->mutex and lock_sys->mutex;
-                             set to NULL when holding
-                             lock_sys->mutex; readers should
-                             hold lock_sys->mutex, except when
-                             they are holding trx->mutex and
-                             wait_lock==NULL */
+  /** If trx execution state is TRX_QUE_LOCK_WAIT, this points to the lock
+  request, otherwise this is NULL; set to non-NULL when holding both trx->mutex
+  and lock_sys->mutex; set to NULL when holding lock_sys->mutex; readers should
+  hold lock_sys->mutex, except when they are holding trx->mutex and
+  wait_lock==NULL */
+  lock_t *wait_lock;
+
+  /** Stores the type of the most recent lock for which this trx had to wait.
+  Set to lock_get_type_low(wait_lock) together with wait_lock in
+  lock_set_lock_and_trx_wait().
+  This field is not cleared when wait_lock is set to NULL during
+  lock_reset_lock_and_trx_wait() as in lock_wait_suspend_thread() we are
+  interested in reporting the last known value of this field via
+  thd_wait_begin(). When a thread has to wait for a lock, it first releases
+  lock-sys mutex, and then calls lock_wait_suspend_thread() where among other
+  things it tries to report statistic via thd_wait_begin() about the kind of
+  lock (THD_WAIT_ROW_LOCK vs THD_WAIT_TABLE_LOCK) that caused the wait. But
+  there is a possibility that before it gets to call thd_wait_begin() some other
+  thread could latch lock-sys and grant the lock and call
+  lock_reset_lock_and_trx_wait(). In other words: in case another thread was
+  quick enough to grant the lock, we still would like to report the reason for
+  attempting to sleep.
+  Another common scenario of "setting trx->lock.wait_lock to NULL" is page
+  reorganization: when we have to move records between pages, we also move
+  locks, and when doing so, we temporarily remove the old waiting lock, and then
+  add another one. For example look at lock_rec_move_low(). It first calls
+  lock_reset_lock_and_trx_wait() which changes trx->lock.wait_lock to NULL, but
+  then calls lock_rec_add_to_queue() -> RecLock::create() -> RecLock::lock_add()
+  -> lock_set_lock_and_trx_wait() to set it again to the new lock. This all
+  happens while holding lock-sys mutex, but we read wait_lock_type without this
+  mutex, so we should not clear the wait_lock_type simply because somebody
+  changed wait_lock to NULL.
+  Protected by trx->mutex. */
+  uint32_t wait_lock_type;
+
   ib_uint64_t deadlock_mark; /*!< A mark field that is initialized
                              to and checked against lock_mark_counter
                              by lock_deadlock_recursive(). */
@@ -611,7 +635,18 @@ struct trx_lock_t {
   lock_pool_t table_locks; /*!< All table locks requested by this
                            transaction, including AUTOINC locks */
 
-  ulint n_rec_locks; /*!< number of rec locks in this trx */
+  /** number of rec locks in this trx */
+  std::atomic<ulint> n_rec_locks;
+
+  /** Used to indicate that every lock of this transaction placed on a record
+  which is being purged should be inherited to the gap.
+  Readers should hold a latch on the lock they'd like to learn about wether or
+  not it should be inherited.
+  Writers who want to set it to true, should hold a latch on the lock-sys queue
+  they intend to add a lock to.
+  Writers may set it to false at any time. */
+  std::atomic<bool> inherit_all;
+
 #ifdef UNIV_DEBUG
   /** When a transaction is forced to rollback due to a deadlock
   check or by another high priority transaction this is true. Used
@@ -708,25 +743,12 @@ enum trx_rseg_type_t {
   TRX_RSEG_TYPE_NOREDO    /*!< non-redo rollback segment. */
 };
 
-struct TrxVersion {
-  TrxVersion(trx_t *trx);
-
-  /**
-  @return true if the trx_t instance is the same */
-  bool operator==(const TrxVersion &rhs) const { return (rhs.m_trx == m_trx); }
-
-  trx_t *m_trx;
-  ulint m_version;
-};
-
-typedef std::list<TrxVersion, ut_allocator<TrxVersion>> hit_list_t;
-
 /** Utility class to collect and report slow query log InnoDB extension
 stats */
 class trx_stats final {
  public:
   trx_stats() {
-  /* Always created in a zeroed memory block */
+    /* Always created in a zeroed memory block */
 #ifdef UNIV_DEBUG
     ut_ad(lock_que_wait_ustarted == 0);
     ut_ad(take_stats == false);
@@ -753,7 +775,8 @@ class trx_stats final {
   @return value to be passed to end_io_read
   */
   MY_NODISCARD
-  static ib_uint64_t start_io_read(const trx_t &trx, ulint bytes) noexcept;
+  static ib_time_monotonic_us_t start_io_read(const trx_t &trx,
+                                              ulint bytes) noexcept;
 
   /**
   Register, if needed, end of an I/O read or wait.
@@ -791,9 +814,7 @@ class trx_stats final {
   void start_lock_wait() noexcept {
     if (UNIV_LIKELY(!take_stats)) return;
     ut_ad(lock_que_wait_ustarted == 0);
-    ulint sec, ms;
-    ut_usectime(&sec, &ms);
-    lock_que_wait_ustarted = static_cast<ib_uint64_t>(sec * 1000000 + ms);
+    lock_que_wait_ustarted = ut_time_monotonic_us();
   }
 
   /**
@@ -831,7 +852,7 @@ class trx_stats final {
  private:
   // FIXME: only used for reclock-waiting threads, thus could be moved to
   // e.g. que_thr_t if there's benefit
-  ib_uint64_t lock_que_wait_ustarted;
+  ib_time_monotonic_us_t lock_que_wait_ustarted;
   bool take_stats;
 };
 
@@ -965,8 +986,7 @@ struct trx_t {
   ACTIVE->COMMITTED is possible when the transaction is in
   rw_trx_list.
 
-  Transitions to COMMITTED are protected by both lock_sys->mutex
-  and trx->mutex.
+  Transitions to COMMITTED are protected by trx->mutex.
 
   NOTE: Some of these state change constraints are an overkill,
   currently only required for a consistent view for printing stats.
@@ -1000,10 +1020,6 @@ struct trx_t {
                      1=recovered, must be rolled back,
                      protected by trx_sys->mutex when
                      trx->in_rw_trx_list holds */
-
-  hit_list_t hit_list; /*!< List of transactions to kill,
-                       when a high priority transaction
-                       is blocked on a lock wait. */
 
   os_thread_id_t killed_by; /*!< The thread ID that wants to
                             kill this transaction asynchronously.
@@ -1057,7 +1073,6 @@ struct trx_t {
                         the transaction; in that case we must
                         flush the log in
                         trx_commit_complete_for_mysql() */
-  ulint duplicates;          /*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
   bool has_search_latch;
   /*!< TRUE if this trx has latched the
   search system latch in S-mode.
@@ -1110,7 +1125,7 @@ struct trx_t {
   contains a pointer to the latest file
   name; this is NULL if binlog is not
   used */
-  int64_t mysql_log_offset;
+  uint64_t mysql_log_offset;
   /*!< if MySQL binlog is used, this
   field contains the end offset of the
   binlog entry */
@@ -1233,6 +1248,9 @@ struct trx_t {
                  transactions are always treated as
                  read-write. */
                  /*------------------------------*/
+  /** Transaction persists GTID. */
+  bool persists_gtid;
+
 #ifdef UNIV_DEBUG
   ulint start_line;       /*!< Track where it was started from */
   const char *start_file; /*!< Filename where it was started */
@@ -1312,15 +1330,13 @@ inline bool trx_is_started(const trx_t *trx) {
           trx->state != TRX_STATE_FORCED_ROLLBACK);
 }
 
-inline ib_uint64_t trx_stats::start_io_read(const trx_t &trx,
-                                            ulint bytes) noexcept {
+inline ib_time_monotonic_us_t trx_stats::start_io_read(const trx_t &trx,
+                                                       ulint bytes) noexcept {
   if (bytes) {
     thd_report_innodb_stat(trx.mysql_thd, trx.id, MYSQL_TRX_STAT_IO_READ_BYTES,
                            bytes);
   }
-  ulint sec, ms;
-  ut_usectime(&sec, &ms);
-  return static_cast<ib_uint64_t>(sec * 1000000 + ms);
+  return ut_time_monotonic_us();
 }
 
 inline ib_uint64_t trx_stats::start_io_read(trx_t *trx, ulint bytes) noexcept {
@@ -1330,9 +1346,7 @@ inline ib_uint64_t trx_stats::start_io_read(trx_t *trx, ulint bytes) noexcept {
 
 inline void trx_stats::end_io_read(const trx_t &trx,
                                    ib_uint64_t start_time) noexcept {
-  ulint sec, ms;
-  ut_usectime(&sec, &ms);
-  const ib_uint64_t finish_time = static_cast<ib_uint64_t>(sec * 1000000 + ms);
+  const auto finish_time = ut_time_monotonic_us();
   thd_report_innodb_stat(trx.mysql_thd, trx.id,
                          MYSQL_TRX_STAT_IO_READ_WAIT_USECS,
                          finish_time - start_time);
@@ -1361,9 +1375,7 @@ inline void trx_stats::bump_innodb_enter_wait(const trx_t &trx, ulint us) const
 
 inline void trx_stats::stop_lock_wait(const trx_t &trx) noexcept {
   if (UNIV_LIKELY(!take_stats)) return;
-  ulint sec, ms;
-  ut_usectime(&sec, &ms);
-  const ib_uint64_t now = static_cast<ib_uint64_t>(sec * 1000000 + ms);
+  const auto now = ut_time_monotonic_us();
   thd_report_innodb_stat(trx.mysql_thd, trx.id, MYSQL_TRX_STAT_LOCK_WAIT_USECS,
                          now - lock_que_wait_ustarted);
   ut_d(lock_que_wait_ustarted = 0);
@@ -1378,11 +1390,6 @@ inline void trx_stats::inc_page_get(const trx_t &trx,
   thd_report_innodb_stat(trx.mysql_thd, trx.id, MYSQL_TRX_STAT_ACCESS_PAGE_ID,
                          page_id_fold);
 }
-
-/* Treatment of duplicate values (trx->duplicates; for example, in inserts).
-Multiple flags can be combined with bitwise OR. */
-#define TRX_DUP_IGNORE 1  /* duplicate rows are to be updated */
-#define TRX_DUP_REPLACE 2 /* duplicate rows are to be replaced */
 
 /** Commit node states */
 enum commit_node_state {
@@ -1599,6 +1606,15 @@ class TrxInInnoDB {
   Transaction instance crossing the handler boundary from the Server. */
   trx_t *m_trx;
 };
+
+/** Check if transaction is internal XA transaction
+@param[in]	trx	transaction
+@return true, iff internal XA transaction. */
+bool trx_is_mysql_xa(trx_t *trx);
+
+/** Update transaction binlog file name and position from session THD.
+@param[in,out]  trx     current transaction. */
+void trx_sys_update_binlog_position(trx_t *trx);
 
 #include "trx0trx.ic"
 #endif /* !UNIV_HOTBACKUP */

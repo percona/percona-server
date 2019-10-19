@@ -72,6 +72,7 @@ use mtr_unique;
 require "lib/mtr_gcov.pl";
 require "lib/mtr_gprof.pl";
 require "lib/mtr_io.pl";
+require "lib/mtr_lock_order.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_process.pl";
 
@@ -126,7 +127,6 @@ my $opt_start_exit;
 my $opt_strace_client;
 my $opt_strace_server;
 my $opt_stress;
-my $opt_suites;
 my $opt_tmpdir;
 my $opt_tmpdir_pid;
 my $opt_trace_protocol;
@@ -142,6 +142,7 @@ my $opt_debug_sync_timeout = 600;    # Default timeout for WAIT_FOR actions.
 my $opt_do_test_list       = "";
 my $opt_force_restart      = 0;
 my $opt_include_ndbcluster = 0;
+my $opt_lock_order         = env_or_val(MTR_LOCK_ORDER => 0);
 my $opt_max_save_core      = env_or_val(MTR_MAX_SAVE_CORE => 5);
 my $opt_max_save_datadir   = env_or_val(MTR_MAX_SAVE_DATADIR => 20);
 my $opt_max_test_fail      = env_or_val(MTR_MAX_TEST_FAIL => 10);
@@ -223,19 +224,27 @@ our $opt_record;
 our $opt_report_unstable_tests;
 our $opt_skip_combinations;
 our $opt_ssl;
+our $opt_suites;
 our $opt_suite_opt;
 our $opt_summary_report;
 our $opt_vardir;
 our $opt_xml_report;
 
-our $DEFAULT_SUITES =
-"main,sys_vars,binlog,binlog_gtid,binlog_nogtid,binlog_57_decryption,encryption,rpl_encryption,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,collations,"
-  ."audit_null,"
-  ."audit_log,"
-  ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
-  ."tokudb.rpl,tokudb.perfschema,"
-  ."rocksdb,rocksdb.rpl,rocksdb.sys_vars,"
-  ."keyring_vault,percona-pam-for-mysql";
+#
+# Suites run by default (i.e. when invoking ./mtr without parameters)
+#
+our $DEFAULT_SUITES = "auth_sec,binlog_gtid,binlog_nogtid,clone,collations,connection_control,encryption,federated,funcs_2,gcol,sysschema,gis,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,json,main,opt_trace,parts,perfschema,query_rewrite_plugins,rpl,rpl_gtid,rpl_nogtid,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,binlog,test_service_sql_api,test_services,x,"
+  # Percona suites
+  ."audit_log,binlog_57_decryption,percona-pam-for-mysql,"
+  ."keyring_vault,"
+  ."rocksdb,rocksdb_rpl,rocksdb_sys_vars,"
+  ."rpl_encryption,"
+  ."tokudb,tokudb_add_index,tokudb_alter_table,tokudb_bugs,tokudb_parts,"
+  ."tokudb_perfschema,tokudb_rpl,"
+  # MySQL suites tested by Percona by default
+  ."audit_null,engines/iuds,engines/funcs,funcs_1,group_replication,interactive_utilities,jp,stress";
+
+# End of list of default suites
 
 our $opt_big_test                  = 0;
 our $opt_check_testcases           = 1;
@@ -397,9 +406,6 @@ sub main {
 
   command_line_setup();
 
-  # Append secondary engiene test suite to list of default suites.
-  add_secondary_engine_suite() if $secondary_engine_support;
-
   # Create build thread id directory
   create_unique_id_dir();
 
@@ -412,8 +418,18 @@ sub main {
   # --help will not reach here, so now it's safe to assume we have binaries
   My::SafeProcess::find_bin($bindir);
 
+  $secondary_engine_support = ($secondary_engine_support and
+                find_secondary_engine($bindir)) ? 1 : 0 ;
+
+  # Append secondary engine test suite to list of default suites if found.
+  add_secondary_engine_suite() if $secondary_engine_support;
+
   if ($opt_gcov) {
     gcov_prepare($basedir);
+  }
+
+  if ($opt_lock_order) {
+    lock_order_prepare($bindir);
   }
 
   # Collect test cases from a file and put them into '@opt_cases'.
@@ -482,6 +498,14 @@ sub main {
       if (not $ndbcluster_enabled) {
         for my $suite (split(",", $opt_suites)) {
           next if not $suite =~ /ndb/;
+          remove_suite_from_list($suite);
+        }
+      }
+
+      # Remove secondary engine test suites if not supported
+      if (defined $::secondary_engine and not $secondary_engine_support) {
+        for my $suite (split(",", $opt_suites)) {
+          next if not $suite =~ /$::secondary_engine/;
           remove_suite_from_list($suite);
         }
       }
@@ -984,6 +1008,13 @@ sub run_test_server ($$$) {
                          "Terminating...");
               return undef;
             }
+          }
+          else {
+            # Remove testcase .log file produce in var/log/ to save space, if
+            # test has passed, since relevant part of logfile has already been
+            # appended to master log
+            my $logfile = "$opt_vardir/log/$result->{shortname}" . ".log";
+            unlink($logfile);
           }
 
           resfile_print_test();
@@ -1541,6 +1572,7 @@ sub command_line_setup {
     'gcov'                      => \$opt_gcov,
     'gprof'                     => \$opt_gprof,
     'helgrind'                  => \$opt_helgrind,
+    'lock-order'                => \$opt_lock_order,
     'sanitize'                  => \$opt_sanitize,
     'valgrind-clients'          => \$opt_valgrind_clients,
     'valgrind-mysqld'           => \$opt_valgrind_mysqld,
@@ -2677,21 +2709,22 @@ sub read_plugin_defs($) {
       $ENV{ $plug_var . '_OPT' } = "--plugin-dir=" . dirname($plugin);
 
       if ($plug_names) {
-        my $lib_name     = basename($plugin);
-        my $load_var     = "--plugin_load=";
-	my $early_load_var = "--early-plugin_load=";
-        my $load_add_var = "--plugin_load_add=";
-        my $semi         = '';
+        my $lib_name       = basename($plugin);
+        my $load_var       = "--plugin_load=";
+        my $early_load_var = "--early-plugin_load=";
+        my $load_add_var   = "--plugin_load_add=";
+        my $semi           = '';
 
         foreach my $plug_name (split(',', $plug_names)) {
-          $load_var     .= $semi . "$plug_name=$lib_name";
-	  $early_load_var .= $semi . "$plug_name=$lib_name";
-          $load_add_var .= $semi . "$plug_name=$lib_name";
+          $load_var       .= $semi . "$plug_name=$lib_name";
+          $early_load_var .= $semi . "$plug_name=$lib_name";
+          $load_add_var   .= $semi . "$plug_name=$lib_name";
           $semi = ';';
         }
 
 	$ENV{ $plug_var . '_EARLY_LOAD'} = $early_load_var;
         $ENV{ $plug_var . '_LOAD' }     = $load_var;
+        $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
         $ENV{ $plug_var . '_LOAD_ADD' } = $load_add_var;
       }
     } else {
@@ -2889,7 +2922,8 @@ sub environment_setup {
   if ($secondary_engine_support) {
     secondary_engine_environment_setup(\&find_plugin, $bindir);
     initialize_function_pointers(\&gdb_arguments, \&mark_log, \&mysqlds,
-                                 \&run_query, \&valgrind_arguments);
+                                 \&run_query, \&valgrind_arguments,
+                                 \&report_failure_and_restart);
   }
 
   # mysql_fix_privilege_tables.sql
@@ -3180,7 +3214,7 @@ sub check_running_as_root () {
 sub check_debug_support ($) {
   my $mysqld_variables = shift;
 
-  if (!$mysqld_variables->{'debug'}) {
+  if (not exists $mysqld_variables->{'debug'}) {
     $debug_compiled_binaries = 0;
 
     if ($opt_debug) {
@@ -4732,27 +4766,39 @@ sub run_testcase ($) {
 
   my $test = start_mysqltest($tinfo);
 
-  # Set only when we have to keep waiting after expectedly died server
-  my $keep_waiting_proc = 0;
+  # Maintain a queue to keep track of server processes which have
+  # died expectedly in order to wait for them to be restarted.
+  my @waiting_procs = ();
   my $print_timeout     = start_timer($print_freq * 60);
 
   while (1) {
     my $proc;
-    if ($keep_waiting_proc) {
+    if (scalar(@waiting_procs)) {
       # Any other process exited?
       $proc = My::SafeProcess->check_any();
       if ($proc) {
         mtr_verbose("Found exited process $proc");
+
+        # Insert the process into waiting queue and pick an other
+        # process which needs to be checked. This is done to avoid
+        # starvation.
+        unshift @waiting_procs, $proc;
+        $proc = pop @waiting_procs;
       } else {
-        $proc = $keep_waiting_proc;
+        # Pick a process from the waiting queue
+        $proc = pop @waiting_procs;
+
         # Also check if timer has expired, if so cancel waiting
         if (has_expired($test_timeout)) {
-          $keep_waiting_proc = 0;
+          $proc = undef;
+          @waiting_procs = ();
         }
       }
     }
 
-    if (!$keep_waiting_proc) {
+    # Check for test timeout if the waiting queue is empty and no
+    # process needs to be checked if it has been restarted.
+    if (not scalar(@waiting_procs) and not defined $proc) {
       if ($test_timeout > $print_timeout) {
         my $timer = $ENV{'MTR_MANUAL_DEBUG'} ? start_timer(2) : $print_timeout;
         $proc = My::SafeProcess->wait_any_timeout($timer);
@@ -4766,9 +4812,9 @@ sub run_testcase ($) {
           } elsif ($ENV{'MTR_MANUAL_DEBUG'}) {
             my $check_crash = check_expected_crash_and_restart($proc);
             if ($check_crash) {
-              # Keep waiting if it returned 2, if 1 don't wait or stop waiting.
-              $keep_waiting_proc = 0     if $check_crash == 1;
-              $keep_waiting_proc = $proc if $check_crash == 2;
+              # Add process to the waiting queue if the check returns 2
+              # or stop waiting if it returns 1.
+              unshift @waiting_procs, $proc if $check_crash == 2;
               next;
             }
           }
@@ -4777,9 +4823,6 @@ sub run_testcase ($) {
         $proc = My::SafeProcess->wait_any_timeout($test_timeout);
       }
     }
-
-    # Will be restored if we need to keep waiting
-    $keep_waiting_proc = 0;
 
     unless (defined $proc) {
       mtr_error("wait_any failed");
@@ -4916,25 +4959,15 @@ sub run_testcase ($) {
         unlink($path_current_testlog);
       }
 
-      # Remove testcase .log file produce in var/log/ to save space since
-      # relevant part of logfile has already been appended to master log
-      {
-        my $log_file_name =
-          $opt_vardir . "/log/" . $tinfo->{shortname} . ".log";
-        if (-e $log_file_name && ($tinfo->{'result'} ne 'MTR_RES_FAILED')) {
-          unlink($log_file_name);
-        }
-      }
-
       return ($res == 62) ? 0 : $res;
     }
 
     # Check if it was an expected crash
     my $check_crash = check_expected_crash_and_restart($proc, $tinfo);
     if ($check_crash) {
-      # Keep waiting if it returned 2, if 1 don't wait or stop waiting.
-      $keep_waiting_proc = 0     if $check_crash == 1;
-      $keep_waiting_proc = $proc if $check_crash == 2;
+      # Add process to the waiting queue if the check returns 2
+      # or stop waiting if it returns 1
+      unshift @waiting_procs, $proc if $check_crash == 2;
       next;
     }
 
@@ -5489,7 +5522,8 @@ sub check_warnings ($) {
 
   # Return immediately if no check proceess was started
   return 0 unless (keys %started);
-  wait_for_check_warnings(\%started, $tinfo);
+  my $res = wait_for_check_warnings(\%started, $tinfo);
+  return $res if $res;
 
   if ($tinfo->{'secondary-engine'}) {
     # Search for unexpected warnings in secondary engine server error
@@ -5506,7 +5540,8 @@ sub check_warnings ($) {
 
   # Return immediately if no check proceess was started
   return 0 unless (keys %started);
-  wait_for_check_warnings(\%started, $tinfo);
+  $res = wait_for_check_warnings(\%started, $tinfo);
+  return $res if $res;
 }
 
 # Loop through our list of processes and look for and entry with the
@@ -5858,6 +5893,22 @@ sub mysqld_arguments ($$$) {
     if ($mysql_version_id < 50100) {
       mtr_add_arg($args, "--skip-bdb");
     }
+  }
+
+  if ($opt_lock_order) {
+    my $lo_dep_1 = "$basedir/mysql-test/lock_order_dependencies.txt";
+    my $lo_dep_2 = "$basedir/internal/mysql-test/lock_order_extra_dependencies.txt";
+    my $lo_out = "$bindir/lock_order";
+    mtr_verbose("lock_order dep_1 = $lo_dep_1");
+    mtr_verbose("lock_order dep_2 = $lo_dep_2");
+    mtr_verbose("lock_order out = $lo_out");
+
+    mtr_add_arg($args, "--loose-lock_order");
+    mtr_add_arg($args, "--loose-lock_order_dependencies=$lo_dep_1");
+    if (-e $lo_dep_2) {
+# mtr_add_arg($args, "--loose-lock_order_extra_dependencies=$lo_dep_2");
+    }
+    mtr_add_arg($args, "--loose-lock_order_output_directory=$lo_out");
   }
 
   if ($mysql_version_id >= 50106 && !$opt_user_args) {
@@ -7495,6 +7546,12 @@ Environment variables controlling debugging parameters
                         using lldb on a non default path, or on distributions
                         with versioned lldb binaries. Example:
                         MTR_LLDB=lldb-8.0
+
+Options for lock_order
+
+  lock-order            Run tests under the lock_order tool.
+                        Set to 1 to enable, 0 to disable.
+                        Defaults to $opt_lock_order, set it's default with MTR_LOCK_ORDER.
 
 Options for valgrind
 

@@ -43,7 +43,6 @@
 #include <string.h>
 #include "mysql.h"
 #include "mysql/client_plugin.h"
-#include "mysql/get_password.h"
 #include "mysql/plugin_auth.h"
 
 #ifdef HAVE_DLFCN_H
@@ -212,16 +211,12 @@ typedef char *(*mysql_authentication_dialog_ask_t)(MYSQL *mysql, int type,
 
 static mysql_authentication_dialog_ask_t ask;
 
-static char *strdup_func(const char *str, myf flags MY_ATTRIBUTE((unused))) {
-  return strdup(str);
-}
-
 static char *builtin_ask(MYSQL *mysql MY_ATTRIBUTE((unused)),
                          int type MY_ATTRIBUTE((unused)), const char *prompt,
                          char *buf, int buf_len) {
   if (type == 2) /* password */
   {
-    char *const password = get_tty_password_ext(prompt, strdup_func);
+    char *const password = get_tty_password(prompt);
     strncpy(buf, password, buf_len - 1);
     buf[buf_len - 1] = 0;
     free(password);

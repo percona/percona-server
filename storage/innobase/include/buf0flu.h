@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -39,14 +39,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 #include "ut0byte.h"
 
-#include <atomic>
-
 #ifndef UNIV_HOTBACKUP
-/** Flag indicating if the page_cleaner is in active state. */
-extern bool buf_page_cleaner_is_active;
+/** Checks if the page_cleaner is in active state. */
+bool buf_flush_page_cleaner_is_active();
 
-/** The number of running LRU manager threads. 0 if LRU manager is inactive. */
-extern std::atomic<ulint> buf_lru_manager_running_threads;
+/** Returns the count of currently active LRU manager threads. */
+MY_NODISCARD size_t buf_flush_active_lru_managers() noexcept;
 
 #ifdef UNIV_DEBUG
 
@@ -76,6 +74,12 @@ void buf_flush_relocate_on_flush_list(
 void buf_flush_write_complete(buf_page_t *bpage);
 
 #endif /* !UNIV_HOTBACKUP */
+
+/** Check if page type is uncompressed.
+@param[in]	page	page frame
+@return true if uncompressed page type. */
+bool page_is_uncompressed_type(const byte *page);
+
 /** Initialize a page for writing to the tablespace.
 @param[in]      block           buffer block; NULL if bypassing the buffer pool
 @param[in,out]  page            page frame
@@ -302,9 +306,9 @@ class FlushObserver {
   ulint get_estimate() const noexcept {
     return (m_estimate.load(std::memory_order_relaxed));
   }
- 
+
   ulint get_number_of_pages_flushed() const {
-    return m_number_of_pages_flushed; 
+    return m_number_of_pages_flushed;
   }
 
  private:

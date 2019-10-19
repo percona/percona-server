@@ -50,7 +50,7 @@ drop table if exists t1,t2;
 # test of full join with blob
 #
 
-create table t1 (nr int(5) not null auto_increment,b blob,str char(10), primary key (nr));
+create table t1 (nr int not null auto_increment,b blob,str char(10), primary key (nr));
 insert into t1 values (null,"a","A");
 insert into t1 values (null,"bbb","BBB");
 insert into t1 values (null,"ccc","CCC");
@@ -134,13 +134,13 @@ drop table t1;
 #
 
 CREATE TABLE t1 (
-  t1_id bigint(21) NOT NULL auto_increment,
+  t1_id bigint NOT NULL auto_increment,
   _field_72 varchar(128) DEFAULT '' NOT NULL,
   _field_95 varchar(32),
-  _field_115 tinyint(4) DEFAULT '0' NOT NULL,
-  _field_122 tinyint(4) DEFAULT '0' NOT NULL,
-  _field_126 tinyint(4),
-  _field_134 tinyint(4),
+  _field_115 tinyint DEFAULT '0' NOT NULL,
+  _field_122 tinyint DEFAULT '0' NOT NULL,
+  _field_126 tinyint,
+  _field_134 tinyint,
   PRIMARY KEY (t1_id),
   UNIQUE _field_72 (_field_72),
   KEY _field_115 (_field_115),
@@ -154,8 +154,8 @@ INSERT INTO t1 VALUES (3,'guest','d41d8cd98f00b204e9800998ecf8427e',1,0,NULL,NUL
 
 
 CREATE TABLE t2 (
-  seq_0_id bigint(21) DEFAULT '0' NOT NULL,
-  seq_1_id bigint(21) DEFAULT '0' NOT NULL,
+  seq_0_id bigint DEFAULT '0' NOT NULL,
+  seq_1_id bigint DEFAULT '0' NOT NULL,
   PRIMARY KEY (seq_0_id,seq_1_id)
 );
 
@@ -165,16 +165,16 @@ INSERT INTO t2 VALUES (2,1);
 INSERT INTO t2 VALUES (2,2);
 
 CREATE TABLE t3 (
-  t3_id bigint(21) NOT NULL auto_increment,
+  t3_id bigint NOT NULL auto_increment,
   _field_131 varchar(128),
-  _field_133 tinyint(4) DEFAULT '0' NOT NULL,
+  _field_133 tinyint DEFAULT '0' NOT NULL,
   _field_135 datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
-  _field_137 tinyint(4),
+  _field_137 tinyint,
   _field_139 datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
   _field_140 blob,
-  _field_142 tinyint(4) DEFAULT '0' NOT NULL,
-  _field_145 tinyint(4) DEFAULT '0' NOT NULL,
-  _field_148 tinyint(4) DEFAULT '0' NOT NULL,
+  _field_142 tinyint DEFAULT '0' NOT NULL,
+  _field_145 tinyint DEFAULT '0' NOT NULL,
+  _field_148 tinyint DEFAULT '0' NOT NULL,
   PRIMARY KEY (t3_id),
   KEY _field_133 (_field_133),
   KEY _field_135 (_field_135),
@@ -187,8 +187,8 @@ INSERT INTO t3 VALUES (2,'test job 2',0,'0000-00-00 00:00:00',0,'1999-02-26 21:0
 
 
 CREATE TABLE t4 (
-  seq_0_id bigint(21) DEFAULT '0' NOT NULL,
-  seq_1_id bigint(21) DEFAULT '0' NOT NULL,
+  seq_0_id bigint DEFAULT '0' NOT NULL,
+  seq_1_id bigint DEFAULT '0' NOT NULL,
   PRIMARY KEY (seq_0_id,seq_1_id)
 );
 
@@ -197,8 +197,8 @@ INSERT INTO t4 VALUES (1,1);
 INSERT INTO t4 VALUES (2,1);
 
 CREATE TABLE t5 (
-  t5_id bigint(21) NOT NULL auto_increment,
-  _field_149 tinyint(4),
+  t5_id bigint NOT NULL auto_increment,
+  _field_149 tinyint,
   _field_156 varchar(128) DEFAULT '' NOT NULL,
   _field_157 varchar(128) DEFAULT '' NOT NULL,
   _field_158 varchar(128) DEFAULT '' NOT NULL,
@@ -219,8 +219,8 @@ INSERT INTO t5 VALUES (1,0,'tomato','','','','','');
 INSERT INTO t5 VALUES (2,0,'cilantro','','','','','');
 
 CREATE TABLE t6 (
-  seq_0_id bigint(21) DEFAULT '0' NOT NULL,
-  seq_1_id bigint(21) DEFAULT '0' NOT NULL,
+  seq_0_id bigint DEFAULT '0' NOT NULL,
+  seq_1_id bigint DEFAULT '0' NOT NULL,
   PRIMARY KEY (seq_0_id,seq_1_id)
 );
 
@@ -229,10 +229,10 @@ INSERT INTO t6 VALUES (1,2);
 INSERT INTO t6 VALUES (2,2);
 
 CREATE TABLE t7 (
-  t7_id bigint(21) NOT NULL auto_increment,
-  _field_143 tinyint(4),
+  t7_id bigint NOT NULL auto_increment,
+  _field_143 tinyint,
   _field_165 varchar(32),
-  _field_166 smallint(6) DEFAULT '0' NOT NULL,
+  _field_166 smallint DEFAULT '0' NOT NULL,
   PRIMARY KEY (t7_id),
   KEY _field_166 (_field_166)
 );
@@ -367,7 +367,7 @@ EXPLAIN SELECT * FROM t1 WHERE txt='Chevy' OR txt IS NULL ORDER BY txt;
 SELECT * FROM t1 WHERE txt='Chevy' OR txt IS NULL ORDER BY txt;
 DROP TABLE t1;
 
-CREATE TABLE t1 ( i int(11) NOT NULL default '0',    c text NOT NULL, d varchar(1) NOT NULL DEFAULT ' ', PRIMARY KEY  (i));
+CREATE TABLE t1 ( i int NOT NULL default '0',    c text NOT NULL, d varchar(1) NOT NULL DEFAULT ' ', PRIMARY KEY  (i));
 INSERT t1 (i, c) VALUES (1,''),(2,''),(3,'asdfh'),(4,'');
 select max(i) from t1 where c = '';
 drop table t1;

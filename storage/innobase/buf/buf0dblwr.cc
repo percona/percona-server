@@ -317,7 +317,8 @@ static dberr_t buf_parallel_dblwr_make_path(void) noexcept {
   ut_ad(srv_parallel_doublewrite_path);
 
   if (Fil_path::is_absolute_path(srv_parallel_doublewrite_path)) {
-    strncpy(path, srv_parallel_doublewrite_path, sizeof(path));
+    strncpy(path, srv_parallel_doublewrite_path, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
   } else {
     /* A relative path to the parallel doublewrite file is based either on
     srv_data_home, either mysql data directory if the former is empty. */

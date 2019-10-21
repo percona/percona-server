@@ -59,6 +59,15 @@ public:
     next= elements ? tmp.next : &first;
   }
 
+  SQL_I_List &operator=(const SQL_I_List &tmp)
+  {
+    Sql_alloc::operator= (tmp);
+    elements= tmp.elements;
+    first= tmp.first;
+    next= tmp.elements ? tmp.next : &first;
+    return *this;
+  }
+
   inline void empty()
   {
     elements= 0;
@@ -184,6 +193,7 @@ public:
   }
   base_list &operator=(const base_list &tmp)
   {
+    Sql_alloc::operator= (tmp);
     elements= tmp.elements;
     first= tmp.first;
     last= elements ? tmp.last : &first;

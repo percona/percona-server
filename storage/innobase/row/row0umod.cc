@@ -518,12 +518,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	old_has = row_vers_old_has_index_entry(FALSE,
 					       btr_pcur_get_rec(&(node->pcur)),
 					       &mtr_vers, index, entry,
-<<<<<<< HEAD
 					       0, 0, thr->prebuilt);
-||||||| merged common ancestors
-					       0, 0);
-=======
-					       0, 0);
 
 	/* If the key is delete marked then the statement could not modify the
 	key yet and the transaction has no implicit lock on it. We must convert
@@ -536,7 +531,6 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		row_convert_impl_to_expl_if_needed(btr_cur, node);
 	}
 
->>>>>>> mysql-5.7
 	if (old_has) {
 		err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
 						   btr_cur, TRUE, thr, &mtr);

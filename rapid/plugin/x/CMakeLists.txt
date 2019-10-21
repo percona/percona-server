@@ -220,13 +220,7 @@ ELSE()
       "NGS_DISABLE_LOGGING;USE_MYSQLX_FULL_PROTO")
   ENDIF()
 
-<<<<<<< HEAD
-  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings perconaserverclient)
-||||||| merged common ancestors
-  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings mysqlclient)
-=======
-  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings ${FORCE_SSL_SOLARIS} mysqlclient)
->>>>>>> mysql-5.7
+  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings ${FORCE_SSL_SOLARIS} perconaserverclient)
   TARGET_LINK_LIBRARIES(mysqlxtest ${PROTOBUF_LIBRARY})
 
   IF(INSTALL_MYSQLTESTDIR)

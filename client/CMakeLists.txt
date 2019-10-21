@@ -101,13 +101,7 @@ SET_SOURCE_FILES_PROPERTIES(mysqlslap.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqlslap perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
-<<<<<<< HEAD
-TARGET_LINK_LIBRARIES(mysql_config_editor perconaserverclient)
-||||||| merged common ancestors
-TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
-=======
-TARGET_LINK_LIBRARIES(mysql_config_editor ${FORCE_SSL_SOLARIS} mysqlclient)
->>>>>>> mysql-5.7
+TARGET_LINK_LIBRARIES(mysql_config_editor ${FORCE_SSL_SOLARIS} perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation perconaserverclient)
@@ -115,13 +109,7 @@ TARGET_LINK_LIBRARIES(mysql_secure_installation perconaserverclient)
 IF(UNIX AND NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_install_db
     mysql_install_db.cc auth_utils.cc path.cc logger.cc)
-<<<<<<< HEAD
-  TARGET_LINK_LIBRARIES(mysql_install_db perconaserverclient)
-||||||| merged common ancestors
-  TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
-=======
-  TARGET_LINK_LIBRARIES(mysql_install_db ${FORCE_SSL_SOLARIS} mysqlclient)
->>>>>>> mysql-5.7
+  TARGET_LINK_LIBRARIES(mysql_install_db ${FORCE_SSL_SOLARIS} perconaserverclient)
   ADD_COMPILE_FLAGS(
     auth_utils.cc mysql_install_db.cc
     COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"

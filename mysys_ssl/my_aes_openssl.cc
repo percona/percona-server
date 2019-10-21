@@ -148,17 +148,9 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   /* The real key to be used for encryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
-<<<<<<< HEAD
+  my_aes_create_key(key, key_length, rkey, mode);
   if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
     goto aes_error;                             /* Error */
-||||||| merged common ancestors
-  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
-    return MY_AES_BAD_DATA;
-=======
-  my_aes_create_key(key, key_length, rkey, mode);
-  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
-    return MY_AES_BAD_DATA;
->>>>>>> mysql-5.7
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_init(ctx);

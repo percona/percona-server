@@ -1308,6 +1308,7 @@ char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_crlpath= NULL, *opt_tls_version;
 
 #ifdef HAVE_OPENSSL
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 #include <openssl/crypto.h>
 typedef struct CRYPTO_dynlock_value
 {
@@ -1319,7 +1320,15 @@ openssl_lock_t *openssl_dynlock_create(const char *, int);
 void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
 void openssl_lock_function(int, int, const char *, int);
 static void openssl_lock(int, openssl_lock_t *, const char *, int);
+<<<<<<< HEAD
 unsigned long openssl_id_function();
+||||||| merged common ancestors
+static unsigned long openssl_id_function();
+=======
+static unsigned long openssl_id_function();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+
+>>>>>>> mysql-5.6
 char *des_key_file;
 #ifndef EMBEDDED_LIBRARY
 struct st_VioSSLFd *ssl_acceptor_fd;
@@ -2103,9 +2112,11 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_connection_count);
 #ifdef HAVE_OPENSSL
   mysql_mutex_destroy(&LOCK_des_key_file);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
     mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
   mysql_mutex_destroy(&LOCK_active_mi);
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
@@ -3050,8 +3061,18 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   }
 
   // Clean up errors now, before possibly waiting for a new connection.
+<<<<<<< HEAD
 #if !defined(EMBEDDED_LIBRARY) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   ERR_remove_state(0);
+||||||| merged common ancestors
+#ifndef EMBEDDED_LIBRARY
+  ERR_remove_state(0);
+=======
+#ifndef EMBEDDED_LIBRARY
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+>>>>>>> mysql-5.6
 #endif
 
   delete thd;
@@ -4546,6 +4567,7 @@ static int init_thread_environment()
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
                                                      sizeof(openssl_lock_t));
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
@@ -4555,6 +4577,7 @@ static int init_thread_environment()
   CRYPTO_set_dynlock_lock_callback(openssl_lock);
   CRYPTO_set_locking_callback(openssl_lock_function);
   CRYPTO_set_id_callback(openssl_id_function);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
@@ -4596,7 +4619,20 @@ static int init_thread_environment()
 
 
 #if defined(HAVE_OPENSSL)
+<<<<<<< HEAD
 unsigned long openssl_id_function()
+||||||| merged common ancestors
+static unsigned long openssl_id_function()
+=======
+
+/*
+  OpenSSL 1.1 supports native platform threads,
+  so we don't need the following callback functions.
+*/
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+
+static unsigned long openssl_id_function()
+>>>>>>> mysql-5.6
 {
   return (unsigned long) pthread_self();
 }
@@ -4661,12 +4697,14 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
     abort();
   }
 }
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif /* HAVE_OPENSSL */
 
 
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
+<<<<<<< HEAD
   int fips_mode= FIPS_mode();
   if (fips_mode != 0)
   {
@@ -4677,6 +4715,10 @@ static int init_ssl()
     FIPS_mode_set(0);
   }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
+||||||| merged common ancestors
+=======
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+>>>>>>> mysql-5.6
   CRYPTO_malloc_init();
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   OPENSSL_malloc_init();
@@ -4696,9 +4738,17 @@ static int init_ssl()
                                           opt_ssl_crl, opt_ssl_crlpath,
                                           ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
+<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_state(0);
 #endif
+||||||| merged common ancestors
+    ERR_remove_state(0);
+=======
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+>>>>>>> mysql-5.6
     if (!ssl_acceptor_fd)
     {
       sql_print_warning("Failed to setup SSL");

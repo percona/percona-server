@@ -2,19 +2,37 @@ drop table if exists t1;
 create table t1(f1 int);
 insert into t1 values (5);
 grant select on test.* to ssl_user1@localhost require SSL;
+<<<<<<< HEAD
 grant select on test.* to ssl_user2@localhost require cipher "SSL_CIPHER";
 grant select on test.* to ssl_user3@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";
 grant select on test.* to ssl_user4@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 grant select on test.* to ssl_user5@localhost require cipher "SSL_CIPHER" AND SUBJECT "xxx";
+||||||| merged common ancestors
+grant select on test.* to ssl_user2@localhost require cipher "DHE-RSA-AES256-SHA";
+grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";
+grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
+grant select on test.* to ssl_user5@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "xxx";
+=======
+grant select on test.* to ssl_user2@localhost require cipher "SSL_CIPHER";;
+grant select on test.* to ssl_user3@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";;
+grant select on test.* to ssl_user4@localhost require cipher "SSL_CIPHER" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";;
+grant select on test.* to ssl_user5@localhost require cipher "SSL_CIPHER" AND SUBJECT "xxx";;
+>>>>>>> mysql-5.6
 flush privileges;
 connect(localhost,ssl_user5,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'ssl_user5'@'localhost' (using password: NO)
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
+<<<<<<< HEAD
 Ssl_cipher	SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_version';
 Variable_name	Value
 Ssl_version	TLSv1.2
+||||||| merged common ancestors
+Ssl_cipher	DHE-RSA-AES256-SHA
+=======
+Ssl_cipher	SSL_CIPHER
+>>>>>>> mysql-5.6
 select * from t1;
 f1
 5
@@ -22,10 +40,16 @@ delete from t1;
 ERROR 42000: DELETE command denied to user 'ssl_user1'@'localhost' for table 't1'
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
+<<<<<<< HEAD
 Ssl_cipher	SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_version';
 Variable_name	Value
 Ssl_version	TLSv1.2
+||||||| merged common ancestors
+Ssl_cipher	DHE-RSA-AES256-SHA
+=======
+Ssl_cipher	SSL_CIPHER
+>>>>>>> mysql-5.6
 select * from t1;
 f1
 5
@@ -33,10 +57,16 @@ delete from t1;
 ERROR 42000: DELETE command denied to user 'ssl_user2'@'localhost' for table 't1'
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
+<<<<<<< HEAD
 Ssl_cipher	SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_version';
 Variable_name	Value
 Ssl_version	TLSv1.2
+||||||| merged common ancestors
+Ssl_cipher	DHE-RSA-AES256-SHA
+=======
+Ssl_cipher	SSL_CIPHER
+>>>>>>> mysql-5.6
 select * from t1;
 f1
 5
@@ -44,10 +74,16 @@ delete from t1;
 ERROR 42000: DELETE command denied to user 'ssl_user3'@'localhost' for table 't1'
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
+<<<<<<< HEAD
 Ssl_cipher	SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_version';
 Variable_name	Value
 Ssl_version	TLSv1.2
+||||||| merged common ancestors
+Ssl_cipher	DHE-RSA-AES256-SHA
+=======
+Ssl_cipher	SSL_CIPHER
+>>>>>>> mysql-5.6
 select * from t1;
 f1
 5
@@ -67,9 +103,15 @@ SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 Variable_name	Value
+<<<<<<< HEAD
 Ssl_cipher	SSL_CIPHER
 Variable_name	Value
 Ssl_version	TLSv1.2
+||||||| merged common ancestors
+Ssl_cipher	DHE-RSA-AES256-SHA
+=======
+Ssl_cipher	SSL_CIPHER
+>>>>>>> mysql-5.6
 End of 5.0 tests
 DROP TABLE IF EXISTS thread_status;
 DROP EVENT IF EXISTS event_status;
@@ -214,19 +256,31 @@ DROP TABLE t1;
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 Variable_name	Value
+<<<<<<< HEAD
 Ssl_version	TLSv1.2
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES128-SHA
 Variable_name	Value
 Ssl_version	TLSv1.2
+||||||| merged common ancestors
+Ssl_cipher	EDH-RSA-DES-CBC3-SHA
+=======
+Ssl_cipher	DHE-RSA-AES128-SHA
+>>>>>>> mysql-5.6
 Variable_name	Value
 Ssl_cipher	AES256-SHA
+<<<<<<< HEAD
 Variable_name	Value
 Ssl_version	TLSv1.2
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES128-SHA
 Variable_name	Value
 Ssl_version	TLSv1.2
+||||||| merged common ancestors
+Variable_name	Value
+Ssl_cipher	RC4-SHA
+=======
+>>>>>>> mysql-5.6
 select 'is still running; no cipher request crashed the server' as result from dual;
 result
 is still running; no cipher request crashed the server
@@ -234,9 +288,15 @@ GRANT SELECT ON test.* TO bug42158@localhost REQUIRE X509;
 FLUSH PRIVILEGES;
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
+<<<<<<< HEAD
 Ssl_cipher	SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_version';
 Variable_name	Value
 Ssl_version	TLSv1.2
+||||||| merged common ancestors
+Ssl_cipher	DHE-RSA-AES256-SHA
+=======
+Ssl_cipher	SSL_CIPHER
+>>>>>>> mysql-5.6
 DROP USER bug42158@localhost;
 End of 5.1 tests

@@ -405,9 +405,17 @@ void vio_end(void)
 {
 #if defined(HAVE_OPENSSL)
   // This one is needed on the client side
+<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_state(0);
 #endif
+||||||| merged common ancestors
+  ERR_remove_state(0);
+=======
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+>>>>>>> mysql-5.6
   ERR_free_strings();
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();

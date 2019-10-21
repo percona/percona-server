@@ -2,7 +2,12 @@
 --source include/have_ssl.inc
 
 connect (ssl_con,localhost,root,,,,,SSL);
+<<<<<<< HEAD
 --replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER DHE-RSA-AES128-SHA SSL_CIPHER ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER
+||||||| merged common ancestors
+=======
+--replace_regex $ALLOWED_CIPHERS_REGEX
+>>>>>>> mysql-5.6
 SHOW STATUS LIKE 'Ssl_cipher';
 
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';

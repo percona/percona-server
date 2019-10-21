@@ -35,7 +35,7 @@ COUNT(*)
 ###
 # Test for loading plugins with 'INSTALL PLUGIN'
 ###
-INSTALL PLUGIN example SONAME 'EXAMPLE_PLUGIN';
+INSTALL PLUGIN example SONAME 'wrong_name.so';
 INSTALL PLUGIN example SONAME 'EXAMPLE_PLUGIN_DIR/EXAMPLE_PLUGIN';
 ERROR HY000: No paths allowed for shared library
 INSTALL PLUGIN test_plugin_server SONAME 'auth_test_plugin.so';

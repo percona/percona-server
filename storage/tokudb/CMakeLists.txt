@@ -20,7 +20,9 @@ include(CheckCXXCompilerFlag)
 # pick language dialect
 check_cxx_compiler_flag(-std=c++11 HAVE_STDCXX11)
 if (HAVE_STDCXX11)
-  set(CMAKE_CXX_FLAGS "-std=c++11 -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+  # compiler_options.cmake sets -std=gnu++03 for clang-6 or newer
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++11 -Wno-deprecated-declarations")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -std=c++11 -Wno-deprecated-declarations")
 else ()
   message(FATAL_ERROR "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does.")
 endif ()

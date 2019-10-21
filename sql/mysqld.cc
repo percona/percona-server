@@ -2,13 +2,20 @@
    reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -119,7 +126,7 @@ int dummy_variable_to_pull_in_lf_hash_functions= LF_HASH_OVERHEAD;
 #include <poll.h>
 #endif
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 #include <openssl/crypto.h>
 #endif
 
@@ -352,7 +359,7 @@ static PSI_thread_key key_thread_handle_con_sockets;
 static PSI_thread_key key_thread_handle_shutdown;
 #endif /* __WIN__ */
 
-#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined (HAVE_OPENSSL)
 static PSI_rwlock_key key_rwlock_openssl;
 #endif
 #endif /* HAVE_PSI_INTERFACE */
@@ -848,7 +855,7 @@ static char **remaining_argv;
 int orig_argc;
 char **orig_argv;
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
@@ -1302,19 +1309,17 @@ char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
 
 #ifdef HAVE_OPENSSL
 #include <openssl/crypto.h>
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
 typedef struct CRYPTO_dynlock_value
 {
   mysql_rwlock_t lock;
 } openssl_lock_t;
 
 static openssl_lock_t *openssl_stdlocks;
-static openssl_lock_t *openssl_dynlock_create(const char *, int);
-static void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
-static void openssl_lock_function(int, int, const char *, int);
+openssl_lock_t *openssl_dynlock_create(const char *, int);
+void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
+void openssl_lock_function(int, int, const char *, int);
 static void openssl_lock(int, openssl_lock_t *, const char *, int);
-static unsigned long openssl_id_function();
-#endif
+unsigned long openssl_id_function();
 char *des_key_file;
 #ifndef EMBEDDED_LIBRARY
 struct st_VioSSLFd *ssl_acceptor_fd;
@@ -2098,11 +2103,9 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_connection_count);
 #ifdef HAVE_OPENSSL
   mysql_mutex_destroy(&LOCK_des_key_file);
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
     mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
-#endif
 #endif
   mysql_mutex_destroy(&LOCK_active_mi);
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
@@ -4543,7 +4546,6 @@ static int init_thread_environment()
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
                                                      sizeof(openssl_lock_t));
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
@@ -4553,7 +4555,6 @@ static int init_thread_environment()
   CRYPTO_set_dynlock_lock_callback(openssl_lock);
   CRYPTO_set_locking_callback(openssl_lock_function);
   CRYPTO_set_id_callback(openssl_id_function);
-#endif
 #endif
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
@@ -4594,15 +4595,14 @@ static int init_thread_environment()
 }
 
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL) && \
-    (OPENSSL_VERSION_NUMBER < 0x10100000L)
-static unsigned long openssl_id_function()
+#if defined(HAVE_OPENSSL)
+unsigned long openssl_id_function()
 {
   return (unsigned long) pthread_self();
 }
 
 
-static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
+openssl_lock_t *openssl_dynlock_create(const char *file, int line)
 {
   openssl_lock_t *lock= new openssl_lock_t;
   mysql_rwlock_init(key_rwlock_openssl, &lock->lock);
@@ -4610,7 +4610,7 @@ static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
 }
 
 
-static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
+void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
             int line)
 {
   mysql_rwlock_destroy(&lock->lock);
@@ -4618,7 +4618,7 @@ static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
 }
 
 
-static void openssl_lock_function(int mode, int n, const char *file, int line)
+void openssl_lock_function(int mode, int n, const char *file, int line)
 {
   if (n < 0 || n > CRYPTO_num_locks())
   {
@@ -4667,7 +4667,6 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
   int fips_mode= FIPS_mode();
   if (fips_mode != 0)
   {
@@ -4677,10 +4676,11 @@ static int init_ssl()
         " Disabling FIPS.");
     FIPS_mode_set(0);
   }
-#endif /* HAVE_YASSL */
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   CRYPTO_malloc_init();
-#endif
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  OPENSSL_malloc_init();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
@@ -4716,10 +4716,8 @@ static int init_ssl()
 #endif /* ! EMBEDDED_LIBRARY */
   if (des_key_file)
     load_des_key_file(des_key_file);
-#ifndef HAVE_YASSL
   if (init_rsa_keys())
     return 1;
-#endif
 #endif /* HAVE_OPENSSL */
   return 0;
 }
@@ -4735,9 +4733,7 @@ static void end_ssl()
     ssl_acceptor_fd= 0;
   }
 #endif /* ! EMBEDDED_LIBRARY */
-#ifndef HAVE_YASSL
   deinit_rsa_keys();
-#endif
 #endif /* HAVE_OPENSSL */
 }
 
@@ -4961,8 +4957,9 @@ initialize_storage_engine(char *se_name, const char *se_kind,
       Need to unlock as global_system_variables.table_plugin
       was acquired during plugin_init()
     */
-    plugin_unlock(0, *dest_plugin);
-    *dest_plugin= plugin;
+    plugin_ref old_dest_plugin = *dest_plugin;
+    *dest_plugin = plugin;
+    plugin_unlock(0, old_dest_plugin);
   }
   return false;
 }
@@ -8282,16 +8279,6 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 
-#ifdef HAVE_YASSL
-
-static char *
-my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
-{
-  return yaSSL_ASN1_TIME_to_string(time, buf, len);
-}
-
-#else /* openssl */
-
 static char *
 my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
 {
@@ -8317,8 +8304,6 @@ end:
   BIO_free(bio);
   return res;
 }
-
-#endif
 
 
 /**
@@ -8530,9 +8515,7 @@ SHOW_VAR status_vars[]= {
     SHOW_FUNC},
   {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after,
     SHOW_FUNC},
-#ifndef HAVE_YASSL
   {"Rsa_public_key",           (char*) &show_rsa_public_key, SHOW_FUNC},
-#endif
 #endif
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
@@ -10386,7 +10369,7 @@ PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
 
 static PSI_rwlock_info all_server_rwlocks[]=
 {
-#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined (HAVE_OPENSSL)
   { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0},
 #endif
 #ifdef HAVE_REPLICATION

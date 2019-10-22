@@ -171,7 +171,7 @@ rw_lock_stats_t rw_lock_stats;
 
 /* The global list of rw-locks */
 rw_lock_list_t rw_lock_list;
-ib_uninitialized_mutex_t rw_lock_list_mutex;
+ib_mutex_t rw_lock_list_mutex;
 
 #ifdef UNIV_DEBUG
 /** Creates a debug info struct. */
@@ -257,6 +257,8 @@ void rw_lock_create_func(
   lock->last_x_file_name = "not yet reserved";
   lock->last_s_line = 0;
   lock->last_x_line = 0;
+  lock->event = os_event_create(0);
+  lock->wait_ex_event = os_event_create(0);
 
   lock->is_block_lock = 0;
 
@@ -284,6 +286,10 @@ void rw_lock_free_func(rw_lock_t *lock) /*!< in/out: rw-lock */
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
   mutex_free(rw_lock_get_mutex(lock));
 #endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
+
+  os_event_destroy(lock->event);
+
+  os_event_destroy(lock->wait_ex_event);
 
   UT_LIST_REMOVE(rw_lock_list, lock);
 

@@ -638,26 +638,26 @@ const char *srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 static ib_time_monotonic_t srv_last_monitor_time;
 #endif /* !UNIV_HOTBACKUP */
 
-static ib_uninitialized_mutex_t srv_innodb_monitor_mutex;
+static ib_mutex_t srv_innodb_monitor_mutex;
 
 /** Mutex protecting page_zip_stat_per_index */
-ib_uninitialized_mutex_t page_zip_stat_per_index_mutex;
+ib_mutex_t page_zip_stat_per_index_mutex;
 
 /* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
-ib_uninitialized_mutex_t srv_monitor_file_mutex;
+ib_mutex_t srv_monitor_file_mutex;
 
 /** Temporary file for innodb monitor output */
 FILE *srv_monitor_file;
 /** Mutex for locking srv_dict_tmpfile. Not created if srv_read_only_mode.
 This mutex has a very high rank; threads reserving it should not
 be holding any InnoDB latches. */
-ib_uninitialized_mutex_t srv_dict_tmpfile_mutex;
+ib_mutex_t srv_dict_tmpfile_mutex;
 /** Temporary file for output from the data dictionary */
 FILE *srv_dict_tmpfile;
 /** Mutex for locking srv_misc_tmpfile. Not created if srv_read_only_mode.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
-ib_uninitialized_mutex_t srv_misc_tmpfile_mutex;
+ib_mutex_t srv_misc_tmpfile_mutex;
 /** Temporary file for miscellanous diagnostic output */
 FILE *srv_misc_tmpfile;
 
@@ -1985,6 +1985,12 @@ loop:
   /* Update the statistics collected for deciding LRU
   eviction policy. */
   buf_LRU_stat_update();
+
+  /* In case mutex_exit is not a memory barrier, it is
+  theoretically possible some threads are left waiting though
+  the semaphore is already released. Wake up those threads: */
+
+  sync_arr_wake_threads_if_sema_free();
 
   if (sync_array_print_long_waits(&waiter, &sema) && sema == old_sema &&
       os_thread_eq(waiter, old_waiter)) {

@@ -324,7 +324,7 @@ class Queue {
 
   /** The queue mutex, used to lock the queue during the enqueue and dequeue
       operations, to ensure thread safety. */
-  ib_uninitialized_mutex_t m_mutex{};
+  ib_mutex_t m_mutex{};
 
   /** When the queue is full, enqueue operations wait on this event. When it is
       set, it indicates that a dequeue has happened and there is space in the
@@ -390,7 +390,7 @@ char *redo_log_archive_dirs{};
 static std::atomic<bool> redo_log_archive_initialized{};
 
 /** Mutex to synchronize start and stop of the redo log archiving. */
-static ib_uninitialized_mutex_t redo_log_archive_admin_mutex;
+static ib_mutex_t redo_log_archive_admin_mutex;
 
 /*
   CAUTION: Global variables!
@@ -1557,9 +1557,9 @@ static void redo_log_archive_consumer() {
     to false again. The Guardian sets the event (if not NULL at that time)
     in both cases.
   */
-  Guardian consumer_guardian(
-      &redo_log_archive_consume_running, &redo_log_archive_consume_event,
-      reinterpret_cast<ib_mutex_t *>(&redo_log_archive_admin_mutex));
+  Guardian consumer_guardian(&redo_log_archive_consume_running,
+                             &redo_log_archive_consume_event,
+                             &redo_log_archive_admin_mutex);
 
   /* Start might have timed out meanwhile. */
   if (redo_log_archive_consume_complete ||

@@ -167,17 +167,17 @@ struct i_s_table_cache_t {
 
 /** This structure describes the intermediate buffer */
 struct trx_i_s_cache_t {
-  rw_lock_t *rw_lock;                       /*!< read-write lock protecting
-                                            the rest of this structure */
-  ib_time_monotonic_us_t last_read;         /*!< last time the cache was read;
-                                            measured in microseconds since
-                                            epoch */
-  ib_uninitialized_mutex_t last_read_mutex; /*!< mutex protecting the
-                      last_read member - it is updated
-                      inside a shared lock of the
-                      rw_lock member */
-  i_s_table_cache_t innodb_trx;             /*!< innodb_trx table */
-  i_s_table_cache_t innodb_locks;           /*!< innodb_locks table */
+  rw_lock_t *rw_lock;               /*!< read-write lock protecting
+                                    the rest of this structure */
+  ib_time_monotonic_us_t last_read; /*!< last time the cache was read;
+                                    measured in microseconds since
+                                    epoch */
+  ib_mutex_t last_read_mutex;       /*!< mutex protecting the
+                            last_read member - it is updated
+                            inside a shared lock of the
+                            rw_lock member */
+  i_s_table_cache_t innodb_trx;     /*!< innodb_trx table */
+  i_s_table_cache_t innodb_locks;   /*!< innodb_locks table */
 /** the hash table size is LOCKS_HASH_CELLS_NUM * sizeof(void*) bytes */
 #define LOCKS_HASH_CELLS_NUM 10000
   hash_table_t *locks_hash; /*!< hash table used to eliminate

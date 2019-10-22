@@ -58,8 +58,6 @@ typedef OSMutex SysMutex;
 typedef OSMutex ib_mutex_t;
 typedef OSMutex ib_bpmutex_t;
 
-using ib_uninitialized_mutex_t = ib_mutex_t;
-
 #else /* UNIV_LIBRARY */
 
 #include <set>
@@ -108,13 +106,6 @@ typedef BlockSyncArrayMutex ib_bpmutex_t;
 #error "ib_mutex_t type is unknown"
 #endif /* MUTEX_FUTEX */
 
-/* A mutex that is in all respects a ib_mutex_t except that it is suitable to be
-used as a global or static variable - its construction is postponed until
-mutex_create call, whereas a regular ib_mutex_t would suffer from C++
-initialization order fiasco. */
-using ib_uninitialized_mutex_t =
-    std::aligned_storage<sizeof(ib_mutex_t), alignof(ib_mutex_t)>::type;
-
 #include "ut0mutex.ic"
 
 extern ulong srv_spin_wait_delay;
@@ -122,45 +113,14 @@ extern ulong srv_n_spin_wait_rounds;
 
 #define mutex_create(I, M) mutex_init((M), (I), __FILE__, __LINE__)
 
-template <typename Mutex>
-void mutex_enter_func(Mutex *mutex, const char *file, int line) {
-  mutex->enter(srv_n_spin_wait_rounds, srv_spin_wait_delay, file, line);
-}
-
-template <>
-inline void mutex_enter_func(ib_uninitialized_mutex_t *mutex, const char *file,
-                             int line) {
-  mutex_enter_func(reinterpret_cast<ib_mutex_t *>(mutex), file, line);
-}
-
-#define mutex_enter(M) mutex_enter_func(M, __FILE__, __LINE__)
+#define mutex_enter(M) \
+  (M)->enter(srv_n_spin_wait_rounds, srv_spin_wait_delay, __FILE__, __LINE__)
 
 #define mutex_enter_nospin(M) (M)->enter(0, 0, __FILE__, __LINE__)
 
-template <typename Mutex>
-MY_NODISCARD bool mutex_enter_nowait_func(Mutex *mutex, const char *file,
-                                          int line) {
-  return mutex->trylock(file, line);
-}
+#define mutex_enter_nowait(M) (M)->trylock(__FILE__, __LINE__)
 
-template <>
-MY_NODISCARD inline bool mutex_enter_nowait_func(
-    ib_uninitialized_mutex_t *mutex, const char *file, int line) {
-  return mutex_enter_nowait_func(reinterpret_cast<ib_mutex_t *>(mutex), file,
-                                 line);
-}
-
-#define mutex_enter_nowait(M) mutex_enter_nowait_func(M, __FILE__, __LINE__)
-
-template <typename Mutex>
-void mutex_exit(Mutex *mutex) {
-  mutex->exit();
-}
-
-template <>
-inline void mutex_exit(ib_uninitialized_mutex_t *mutex) {
-  mutex_exit(reinterpret_cast<ib_mutex_t *>(mutex));
-}
+#define mutex_exit(M) (M)->exit()
 
 #define mutex_free(M) mutex_destroy(M)
 
@@ -194,16 +154,7 @@ Checks that the mutex has been initialized. */
 /**
 Checks that the current thread owns the mutex. Works only
 in the debug version. */
-template <typename Mutex>
-MY_NODISCARD bool mutex_own(Mutex *mutex) {
-  return mutex->is_owned();
-}
-
-template <>
-MY_NODISCARD inline bool mutex_own(ib_uninitialized_mutex_t *mutex) {
-  return mutex_own(reinterpret_cast<ib_mutex_t *>(mutex));
-}
-
+#define mutex_own(M) (M)->is_owned()
 #else
 #define mutex_own(M)      /* No op */
 #define mutex_validate(M) /* No op */
@@ -281,12 +232,6 @@ void mutex_init(Mutex *mutex, latch_id_t id, const char *file_name,
   mutex->init(id, file_name, line);
 }
 
-template <>
-inline void mutex_init(ib_uninitialized_mutex_t *mutex, latch_id_t id,
-                       const char *file_name, uint32_t line) {
-  mutex_init(reinterpret_cast<ib_mutex_t *>(mutex), id, file_name, line);
-}
-
 /**
 Removes a mutex instance from the mutex list. The mutex is checked to
 be in the reset state.
@@ -295,12 +240,6 @@ template <typename Mutex>
 void mutex_destroy(Mutex *mutex) {
   mutex->destroy();
 }
-
-template <>
-inline void mutex_destroy(ib_uninitialized_mutex_t *mutex) {
-  mutex_destroy(reinterpret_cast<ib_mutex_t *>(mutex));
-}
-
 #endif /* UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 

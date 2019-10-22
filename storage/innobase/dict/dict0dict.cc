@@ -260,7 +260,7 @@ static ibool dict_non_lru_find_table(
 and unique key errors. Only created if !srv_read_only_mode */
 FILE *dict_foreign_err_file = NULL;
 /* mutex protecting the foreign and unique error buffers */
-ib_uninitialized_mutex_t dict_foreign_err_mutex;
+ib_mutex_t dict_foreign_err_mutex;
 
 /** SYS_ZIP_DICT and SYS_ZIP_DICT_COLS will be missing when upgrading
 mysql-5.7 to PS-8.0 */

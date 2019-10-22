@@ -63,7 +63,7 @@ bool srv_sync_debug;
 /** The global mutex which protects debug info lists of all rw-locks.
 To modify the debug info list of an rw-lock, this mutex has to be
 acquired in addition to the mutex protecting the lock. */
-static ib_uninitialized_mutex_t rw_lock_debug_mutex;
+static ib_mutex_t rw_lock_debug_mutex;
 
 /** If deadlock detection does not get immediately the mutex,
 it may wait for this event */

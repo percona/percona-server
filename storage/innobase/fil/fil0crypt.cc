@@ -68,7 +68,7 @@ static int number_of_t1_pages_rotated = 0;
 #endif
 
 /** Mutex for keys */
-static ib_uninitialized_mutex_t fil_crypt_key_mutex;
+static ib_mutex_t fil_crypt_key_mutex;
 
 static bool fil_crypt_threads_inited = false;
 
@@ -91,13 +91,13 @@ os_event_t fil_crypt_threads_event;
 static os_event_t fil_crypt_throttle_sleep_event;
 
 /** Mutex for key rotation threads. */
-ib_uninitialized_mutex_t fil_crypt_threads_mutex;
+ib_mutex_t fil_crypt_threads_mutex;
 
 /** Mutex for setting cnt of threads */
-ib_uninitialized_mutex_t fil_crypt_threads_set_cnt_mutex;
+ib_mutex_t fil_crypt_threads_set_cnt_mutex;
 
 /** Mutex for accessing space_list and key_rotation */
-ib_uninitialized_mutex_t fil_crypt_list_mutex;
+ib_mutex_t fil_crypt_list_mutex;
 
 /** Variable ensuring only 1 thread at time does initial conversion */
 static bool fil_crypt_start_converting = false;
@@ -181,7 +181,7 @@ bool fil_space_crypt_t::load_needed_keys_into_local_cache() {
 
 /** Statistics variables */
 static fil_crypt_stat_t crypt_stat;
-static ib_uninitialized_mutex_t crypt_stat_mutex;
+static ib_mutex_t crypt_stat_mutex;
 
 /***********************************************************************
 Check if a key needs rotation given a key_state
@@ -2752,8 +2752,8 @@ void fil_crypt_threads_cleanup() {
   os_event_destroy(fil_crypt_event);
   os_event_destroy(fil_crypt_threads_event);
   mutex_free(&fil_crypt_threads_mutex);
-  mutex_free(&fil_crypt_threads_set_cnt_mutex);
-  mutex_free(&fil_crypt_list_mutex);
+  mutex_destroy(&fil_crypt_threads_set_cnt_mutex);
+  mutex_destroy(&fil_crypt_list_mutex);
   fil_crypt_threads_inited = false;
 }
 

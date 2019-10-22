@@ -16,7 +16,8 @@ INSERT INTO t1 VALUES (1,1);
 select variable_value into @p from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_put';
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
-SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW STATUS LIKE 'binlog_snapshot_file';
+SHOW STATUS LIKE 'binlog_snapshot_position';
 
 connection con2;
 --disable_query_log

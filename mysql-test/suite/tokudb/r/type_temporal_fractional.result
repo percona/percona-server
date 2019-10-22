@@ -13244,14 +13244,10 @@ CAST(CAST('10:10:20' AS TIME(6)) + INTERVAL 10 HOUR AS DATETIME)
 2001-01-01 20:10:20
 SELECT CAST(STR_TO_DATE('23:59:01','%H:%i:%s') AS DATETIME);
 CAST(STR_TO_DATE('23:59:01','%H:%i:%s') AS DATETIME)
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '23:59:01' for function str_to_date
+2001-01-01 23:59:01
 SELECT CAST(STR_TO_DATE('23:59:01.123','%H:%i:%s.%f') AS DATETIME(6));
 CAST(STR_TO_DATE('23:59:01.123','%H:%i:%s.%f') AS DATETIME(6))
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '23:59:01.123' for function str_to_date
+2001-01-01 23:59:01.123000
 SELECT CAST(ADDTIME('40:10:10', 10) as DATETIME);
 CAST(ADDTIME('40:10:10', 10) as DATETIME)
 2001-01-02 16:10:20
@@ -14611,13 +14607,13 @@ INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 000000', '%Y %h %f'));
 ERROR HY000: Incorrect datetime value: '2000 10 000000' for function str_to_date
 INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 123456', '%Y %h %f'));
 ERROR HY000: Incorrect datetime value: '2000 10 123456' for function str_to_date
-INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 000000', '2000 %h 000000'));
+INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 000000', '2001 %h 000000'));
 ERROR HY000: Incorrect datetime value: '2000 10 000000' for function str_to_date
-INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 123456', '2000 %h 123456'));
+INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 123456', '2001 %h 123456'));
 ERROR HY000: Incorrect datetime value: '2000 10 123456' for function str_to_date
-INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 000000', '2000 %h %f'));
+INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 000000', '2001 %h %f'));
 ERROR HY000: Incorrect datetime value: '2000 10 000000' for function str_to_date
-INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 123456', '2000 %h %f'));
+INSERT INTO t1 VALUES (STR_TO_DATE('2000 10 123456', '2001 %h %f'));
 ERROR HY000: Incorrect datetime value: '2000 10 123456' for function str_to_date
 SELECT * FROM t1;
 a
@@ -16126,6 +16122,7 @@ c1
 Warnings:
 Warning	1292	Truncated incorrect time value: '1971-01-01'
 Warning	1292	Truncated incorrect time value: '1971-01-01'
+Warning	1292	Truncated incorrect time value: '1971-01-01'
 DROP VIEW v1;
 DROP TABLE t1;
 #
@@ -16173,6 +16170,7 @@ Warnings:
 Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
 Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
 Warning	1292	Incorrect date value: '31525200' for column 'col_date' at row 1
+Warning	1292	Incorrect datetime value: '00:00:00.000000'
 Warning	1292	Incorrect datetime value: '00:00:00.000000'
 DROP TABLE t1;
 #

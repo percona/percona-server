@@ -14,11 +14,11 @@ create table tbc (b int, c int) engine=innodb;
 insert into tbc values (2,4),(3,9),(3,27),(4,1);
 select * from tbc;
 
-select a,tab.b,c from tab join tbc on tab.b = tbc.b;
+select a,tab.b,c from tab join tbc on tab.b = tbc.b order by a, tab.b, c;
 
-select a,tab.b,tbc.b,c from tab join tbc on tab.b < tbc.b;
+select a,tab.b,tbc.b,c from tab join tbc on tab.b < tbc.b order by a, tab.b, tbc.b, c;
 
-select a,tab.b,tbc.b,c from tab join tbc on tab.b > tbc.b;
+select a,tab.b,tbc.b,c from tab join tbc on tab.b > tbc.b order by a, tab.b, tbc.b, c;
 
 
 drop table tab;

@@ -5203,7 +5203,7 @@ bool Rdb_dict_manager::get_index_info(
                     "data dictionary. This should never happen and it may be a "
                     "bug.",
                     index_info->m_index_dict_version, index_info->m_index_type,
-                    index_info->m_kv_version, index_info->m_ttl_duration);
+                    index_info->m_kv_version, (ulonglong)(index_info->m_ttl_duration));
     abort();
   }
 

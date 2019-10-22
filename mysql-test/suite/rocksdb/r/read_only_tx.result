@@ -3,9 +3,11 @@ INSERT INTO t1 VALUES (1,1);
 select variable_value into @p from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_put';
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
-SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW STATUS LIKE 'binlog_snapshot_file';
 Variable_name	Value
 Binlog_snapshot_file	binlog.000001
+SHOW STATUS LIKE 'binlog_snapshot_position';
+Variable_name	Value
 Binlog_snapshot_position	673
 select case when variable_value-@p < 1000 then 'true' else variable_value-@p end from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_put';
 case when variable_value-@p < 1000 then 'true' else variable_value-@p end

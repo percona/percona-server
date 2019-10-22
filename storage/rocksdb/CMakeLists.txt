@@ -27,8 +27,6 @@ IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
   RETURN ()
 ENDIF ()
 
-
-
 # Suppress warnings for all compilers
 remove_compile_flags(-Wundef)
 append_cflags_if_supported(-Wno-unused-parameter)
@@ -36,6 +34,12 @@ append_cflags_if_supported(-Wno-unused-parameter)
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-variable" HAVE_NO_UNUSED_VARIABLE)
 IF(HAVE_NO_UNUSED_VARIABLE)
   ADD_COMPILE_FLAGS(ha_rocksdb.cc COMPILE_FLAGS "-Wno-unused-variable")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wcast-qual" HAVE_CAST_EQUAL)
+IF(HAVE_CAST_EQUAL)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cast-qual")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-cast-qual")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-shadow-field" HAVE_NO_SHADOW_FIELD)

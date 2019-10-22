@@ -13111,7 +13111,8 @@ static void rocksdb_set_update_cf_options(
   // Reset the pointers regardless of how much success we had with updating
   // the CF options. This will results in consistent behavior and avoids
   // dealing with cases when only a subset of CF-s was successfully updated.
-  *reinterpret_cast<char **>(var_ptr) = my_strdup(0, val, MYF(0));
+  *static_cast<const char **>(var_ptr) =
+      *static_cast<const char *const *>(save);
 
   // Do the real work of applying the changes.
   Rdb_cf_options::Name_to_config_t option_map;

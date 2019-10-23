@@ -4,7 +4,7 @@
 |feature|
 ================================================================================
 
-:Availability: Added in version 8.0.15-5, this feature is **Experimental** qualtiy.
+:Availability: This feature is **Experimental** qualtiy.
 
 Percona has implemented several changes related to |MySQL|'s fast index creation
 feature. Fast index creation was implemented in |MySQL| as a way to speed up the

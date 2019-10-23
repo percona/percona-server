@@ -1,0 +1,30 @@
+#
+# Plugin Data Masking: mask_outer
+#
+SELECT mask_outer('This is a string', 5, 1);
+mask_outer('This is a string', 5, 1)
+XXXXXis a strinX
+SELECT mask_outer('This is a string', 1, 5);
+mask_outer('This is a string', 1, 5)
+Xhis is a sXXXXX
+SELECT mask_outer('This is a string', 5, 1, '#');
+mask_outer('This is a string', 5, 1, '#')
+#####is a strin#
+SELECT mask_outer(NULL, 5, 1);
+mask_outer(NULL, 5, 1)
+NULL
+SELECT mask_outer(NULL, 5, 1, '#');
+mask_outer(NULL, 5, 1, '#')
+NULL
+SELECT mask_outer('This is a string', -1, 5);
+mask_outer('This is a string', -1, 5)
+NULL
+SELECT mask_outer('This is a string', 1, -5);
+mask_outer('This is a string', 1, -5)
+NULL
+SELECT mask_outer('This is a string', 1, 25);
+mask_outer('This is a string', 1, 25)
+Xhis is a string
+SELECT mask_outer('This is a string', 100, 500);
+mask_outer('This is a string', 100, 500)
+XXXXXXXXXXXXXXXX

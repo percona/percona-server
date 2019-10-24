@@ -237,7 +237,6 @@ SET(ROCKSDB_SOURCES
   ${ZSTD_SOURCES}
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
   logger.h
-  rdb_comparator.h
   rdb_datadic.cc rdb_datadic.h
   rdb_iterator.cc rdb_iterator.h
   rdb_cf_options.cc rdb_cf_options.h

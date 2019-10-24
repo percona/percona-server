@@ -35,6 +35,8 @@ usr/lib/mysql/plugin/replication_observers_example_plugin.so
 usr/lib/mysql/plugin/rewrite_example.so
 usr/lib/mysql/plugin/test_security_context.so
 usr/lib/mysql/plugin/test_udf_services.so
+usr/lib/mysql/plugin/component_test_mysql_current_thread_reader.so
+usr/lib/mysql/plugin/debug/component_test_mysql_current_thread_reader.so
 usr/lib/mysql/plugin/debug/auth_test_plugin.so
 usr/lib/mysql/plugin/debug/ha_example.so
 usr/lib/mysql/plugin/debug/libdaemon_example.so

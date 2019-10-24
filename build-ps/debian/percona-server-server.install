@@ -61,9 +61,12 @@ usr/lib/mysql/plugin/keyring_udf.so
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so
 usr/lib/mysql/plugin/component_log_sink_syseventlog.so
-usr/lib/mysql/plugin/component_mysqlbackup.so
 usr/lib/mysql/plugin/component_validate_password.so
 usr/lib/mysql/plugin/component_audit_api_message_emit.so
+usr/lib/mysql/plugin/mysql_clone.so
+usr/lib/mysql/plugin/data_masking.*
+usr/lib/mysql/plugin/debug/data_masking.so
+usr/lib/mysql/plugin/debug/mysql_clone.so
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
 usr/lib/mysql/plugin/debug/innodb_engine.so

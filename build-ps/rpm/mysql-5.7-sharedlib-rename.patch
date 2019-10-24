@@ -28,15 +28,15 @@
  ENDIF()
  
  SET(MYSQLTEST_SRC
-@@ -51,24 +51,24 @@
- )
+@@ -53,24 +53,24 @@
  
  MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
+ SET_TARGET_PROPERTIES(mysqltest PROPERTIES ENABLE_EXPORTS TRUE)
 -TARGET_LINK_LIBRARIES(mysqltest perconaserverclient)
 +TARGET_LINK_LIBRARIES(mysqltest mysqlclient)
  ADD_DEPENDENCIES(mysqltest GenError GenClientError)
  
- ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
+ ADD_LIBRARY(mysqlcheck_core STATIC check/mysqlcheck_core.cc)
 -TARGET_LINK_LIBRARIES(mysqlcheck_core perconaserverclient)
 +TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)
  
@@ -58,7 +58,7 @@
  
  MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
  SET(MYSQLBINLOG_LIB_SOURCES
-@@ -100,20 +100,20 @@
+@@ -103,20 +103,20 @@
  TARGET_INCLUDE_DIRECTORIES(mysqlbinlog_lib PRIVATE ${CMAKE_SOURCE_DIR}/sql)
  
  TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
@@ -83,20 +83,7 @@
 +TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
  
  MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)
- TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys mysys_ssl)
---- cmake/libutils.cmake	2018-08-18 03:30:07.106409849 -0400
-+++ cmake/libutils.cmake	2018-08-18 03:30:07.110743248 -0400
-@@ -33,8 +33,8 @@
- # reduce excessive recompiles.
- 
- # Except for convenience libraries, this file provides macros to merge static 
--# libraries (we need it for perconaserverclient) and to create shared library out of 
--# convenience libraries(again, for perconaserverclient)
-+# libraries (we need it for mysqlclient) and to create shared library out of 
-+# convenience libraries(again, for mysqlclient)
- 
- 
- GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
+ TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys)
 --- include/mysql.h	2018-08-18 03:30:11.721480261 -0400
 +++ include/mysql.h	2018-08-18 03:30:11.727980360 -0400
 @@ -28,7 +28,7 @@
@@ -125,7 +112,7 @@
  #define mysql_library_init mysql_server_init
 --- libmysql/CMakeLists.txt	2018-08-18 03:30:19.520515918 -0400
 +++ libmysql/CMakeLists.txt	2018-08-18 03:30:19.525932667 -0400
-@@ -238,13 +238,13 @@
+@@ -244,13 +244,13 @@
  MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
  ADD_SUBDIRECTORY(authentication_ldap)
    
@@ -143,7 +130,7 @@
  
    INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
    INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
-@@ -276,7 +276,7 @@
+@@ -281,7 +281,7 @@
  ENDIF()
  
  IF(NOT DISABLE_SHARED)
@@ -151,8 +138,8 @@
 +  # Merge several convenience libraries into one big mysqlclient
    # and link them together into shared library.
    MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
-     EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
-@@ -299,9 +299,9 @@
+     EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED} ${CLIENT_API_NONBLOCKING_FUNCTIONS}
+@@ -304,9 +304,9 @@
        SET(OS_SHARED_LIB_VERSION
          "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
      ENDIF()
@@ -164,7 +151,7 @@
        VERSION "${OS_SHARED_LIB_VERSION}" 
        SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
      CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
-@@ -322,8 +322,8 @@
+@@ -327,8 +327,8 @@
          PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
      ENDIF() 
      # clean direct output needs to be set several targets have the same name
@@ -181,9 +168,9 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
  
  
--libperconaserverclient_@SHARED_LIB_MAJOR_VERSION@.@SHARED_LIB_MINOR_VERSION@
-+libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.@SHARED_LIB_MINOR_VERSION@
- { global: ${CLIENT_API_FUNCTIONS};${CLIENT_API_FUNCTIONS_UNDOCUMENTED}; local: *; };
+-libperconaserverclient_@SHARED_LIB_MAJOR_VERSION@.0
++libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.0
+ { global: ${CLIENT_API_FUNCTIONS};${CLIENT_API_FUNCTIONS_UNDOCUMENTED}; ${CLIENT_API_NONBLOCKING_FUNCTIONS}; local: *; };
 --- scripts/CMakeLists.txt	2018-08-18 03:31:39.003728628 -0400
 +++ scripts/CMakeLists.txt	2018-08-18 03:31:39.009145377 -0400
 @@ -365,7 +365,7 @@
@@ -366,10 +353,10 @@
  	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 --- storage/ndb/test/run-test/CMakeLists.txt	2018-08-18 03:33:54.833050942 -0400
 +++ storage/ndb/test/run-test/CMakeLists.txt	2018-08-18 03:33:54.837384341 -0400
-@@ -39,7 +39,7 @@
- MYSQL_ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp
-   DESTINATION mysql-test/ndb
-   )
+@@ -45,7 +45,7 @@
+   test_execution_resources.cpp
+   DESTINATION mysql-test/ndb)
+ 
 -TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static perconaserverclient)
 +TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
  
@@ -391,10 +378,10 @@
  ENDIF()
 --- plugin/percona-pam-for-mysql/CMakeLists.txt 2018-08-21 07:01:38.155232659 -0400
 +++ plugin/percona-pam-for-mysql/CMakeLists.txt 2018-08-21 07:02:18.194400527 -0400
-@@ -37,7 +37,7 @@
+@@ -36,7 +36,7 @@
    MYSQL_ADD_PLUGIN(dialog
                     src/dialog.cc
-                    ../../client/get_password.cc
+                    ../../sql-common/get_password.cc
 -                   LINK_LIBRARIES perconaserverclient
 +                   LINK_LIBRARIES mysqlclient
                     MODULE_ONLY)
@@ -402,15 +389,14 @@
    IF(UNIX)
 --- unittest/gunit/group_replication/CMakeLists.txt     2018-08-22 01:55:48.775894920 -0400
 +++ unittest/gunit/group_replication/CMakeLists.txt     2018-08-22 01:56:19.804229110 -0400
-@@ -45,7 +45,7 @@
-   TARGET_LINK_LIBRARIES(${test}-t gr_unit_test_resource gunit_small ${GCS_LIBRARY})
-   # mysys_ssl/libmysys_ssl.a already includes SSL objects on Solaris
-   IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
--    TARGET_LINK_LIBRARIES(${test}-t perconaserverclient)
-+    TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
-   ENDIF()
+@@ -46,6 +46,6 @@
+   TARGET_LINK_LIBRARIES(${test}-t
+     gr_unit_test_resource gunit_small ${GCS_LIBRARY})
+   SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
+-  TARGET_LINK_LIBRARIES(${test}-t perconaserverclient)
++  TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
  ENDFOREACH()
-
+ 
 --- unittest/gunit/xplugin/CMakeLists.txt	2018-08-22 02:34:45.000000000 -0400
 +++ unittest/gunit/xplugin/CMakeLists.txt 	2018-08-22 02:55:10.561454824 -0400
 @@ -97,7 +97,7 @@

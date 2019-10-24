@@ -595,7 +595,7 @@ namespace undo {
 
 /** Mutext for serializing undo tablespace related DDL.  These have to do with
 creating and dropping undo tablespaces. */
-ib_uninitialized_mutex_t ddl_mutex;
+ib_mutex_t ddl_mutex;
 
 /** A global object that contains a vector of undo::Tablespace structs. */
 Tablespaces *spaces;

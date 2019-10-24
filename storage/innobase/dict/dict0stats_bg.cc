@@ -62,7 +62,7 @@ static os_event_t dict_stats_disabled_event;
 #endif /* UNIV_DEBUG */
 
 /** This mutex protects the "recalc_pool" variable. */
-static ib_uninitialized_mutex_t recalc_pool_mutex;
+static ib_mutex_t recalc_pool_mutex;
 
 /** The number of tables that can be added to "recalc_pool" before
 it is enlarged */

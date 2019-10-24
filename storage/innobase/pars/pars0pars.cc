@@ -91,7 +91,7 @@ pars_res_word_t pars_clustered_token = {PARS_CLUSTERED_TOKEN};
 ulint pars_star_denoter = 12345678;
 
 /** Mutex to protect the sql parser */
-ib_uninitialized_mutex_t pars_mutex;
+ib_mutex_t pars_mutex;
 
 /** Initialize for the internal parser */
 void pars_init() { mutex_create(LATCH_ID_PARSER, &pars_mutex); }

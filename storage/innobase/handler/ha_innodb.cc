@@ -217,7 +217,7 @@ uint32_t predefined_flags;
 static mysql_mutex_t innobase_share_mutex;
 
 /* mutex protecting the master_key_id */
-ib_uninitialized_mutex_t master_key_id_mutex;
+ib_mutex_t master_key_id_mutex;
 
 /** to force correct commit order in binlog */
 static ulong commit_threads = 0;

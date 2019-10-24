@@ -150,7 +150,7 @@ more.  Protected by row_drop_list_mutex. */
 static UT_LIST_BASE_NODE_T(row_mysql_drop_t) row_mysql_drop_list;
 
 /** Mutex protecting the background table drop list. */
-static ib_uninitialized_mutex_t row_drop_list_mutex;
+static ib_mutex_t row_drop_list_mutex;
 
 /** Flag: has row_mysql_drop_list been initialized? */
 static ibool row_mysql_drop_list_inited = FALSE;

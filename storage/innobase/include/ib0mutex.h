@@ -507,7 +507,10 @@ struct TTASEventMutex {
   @param[in]	filename	File where mutex was created
   @param[in]	line		Line in filename */
   void init(latch_id_t id, const char *filename, uint32_t line) UNIV_NOTHROW {
+    ut_a(m_event == nullptr);
     ut_a(!m_lock_word.load(std::memory_order_relaxed));
+
+    m_event = os_event_create(sync_latch_get_name(id));
 
     m_policy.init(*this, id, filename, line);
   }
@@ -517,6 +520,10 @@ struct TTASEventMutex {
   os_event_destroy() at that stage. */
   void destroy() UNIV_NOTHROW {
     ut_ad(!m_lock_word.load(std::memory_order_relaxed));
+
+    /* We have to free the event before InnoDB shuts down. */
+    os_event_destroy(m_event);
+    m_event = 0;
 
     m_policy.destroy();
   }
@@ -530,13 +537,6 @@ struct TTASEventMutex {
 
   /** Release the mutex. */
   void exit() UNIV_NOTHROW {
-    /* A problem: we assume that mutex_reset_lock word
-    is a memory barrier, that is when we read the waiters
-    field next, the read must be serialized in memory
-    after the reset. A speculative processor might
-    perform the read first, which could leave a waiting
-    thread hanging indefinitely. */
-
     m_lock_word.store(false);
     std::atomic_thread_fence(std::memory_order_acquire);
 
@@ -564,7 +564,7 @@ struct TTASEventMutex {
 
   /** The event that the mutex will wait in sync0arr.cc
   @return even instance */
-  os_event_t event() UNIV_NOTHROW { return (&m_event); }
+  os_event_t event() UNIV_NOTHROW { return (m_event); }
 
   /** @return true if locked by some thread */
   bool is_locked() const UNIV_NOTHROW {
@@ -706,7 +706,7 @@ struct TTASEventMutex {
   std::atomic_bool m_waiters;
 
   /** Used by sync0arr.cc for the wait queue */
-  struct os_event m_event;
+  os_event_t m_event;
 
   /** Policy data */
   MutexPolicy m_policy;

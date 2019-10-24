@@ -62,7 +62,7 @@ static constexpr bool log_online_rec_has_page(mlog_id_t type) noexcept {
 }
 
 /* Mutex protecting log_bmp_sys and log buffers there */
-static ib_uninitialized_mutex_t log_bmp_sys_mutex;
+static ib_mutex_t log_bmp_sys_mutex;
 
 /** A redo log byte buffer with associated LSN values */
 template <std::size_t CAPACITY>

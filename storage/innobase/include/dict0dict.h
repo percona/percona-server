@@ -1075,9 +1075,9 @@ constraint */
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
 extern FILE *dict_foreign_err_file;
-extern ib_uninitialized_mutex_t dict_foreign_err_mutex; /* mutex protecting the
+extern ib_mutex_t dict_foreign_err_mutex; /* mutex protecting the
                                           foreign key error messages */
-#endif                                                  /* !UNIV_HOTBACKUP */
+#endif                                    /* !UNIV_HOTBACKUP */
 
 /** the dictionary system */
 extern dict_sys_t *dict_sys;

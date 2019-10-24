@@ -768,7 +768,7 @@ class Tablespaces {
 
 /** Mutext for serializing undo tablespace related DDL.  These have to do with
 creating and dropping undo tablespaces. */
-extern ib_uninitialized_mutex_t ddl_mutex;
+extern ib_mutex_t ddl_mutex;
 
 /** A global object that contains a vector of undo::Tablespace structs. */
 extern Tablespaces *spaces;

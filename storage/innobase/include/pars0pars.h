@@ -57,7 +57,7 @@ NOT re-entrant */
 extern sym_tab_t *pars_sym_tab_global;
 
 /** Mutex to protect the sql parser */
-extern ib_uninitialized_mutex_t pars_mutex;
+extern ib_mutex_t pars_mutex;
 
 extern pars_res_word_t pars_to_binary_token;
 extern pars_res_word_t pars_substr_token;

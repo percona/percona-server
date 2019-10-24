@@ -20,12 +20,14 @@
 #include <string>
 #include <unordered_map>
 
+/* MySQL header files */
+#include "m_ctype.h"
+
 /* RocksDB header files */
 #include "rocksdb/table.h"
 #include "rocksdb/utilities/options_util.h"
 
 /* MyRocks header files */
-#include "./rdb_comparator.h"
 #include "./rdb_global.h"
 
 namespace myrocks {
@@ -90,10 +92,6 @@ class Rdb_cf_options {
   static bool find_cf_options_pair(const std::string &input, size_t *const pos,
                                    std::string *const cf,
                                    std::string *const opt_str);
-
- private:
-  static Rdb_pk_comparator s_pk_comparator;
-  static Rdb_rev_comparator s_rev_pk_comparator;
 
   /* CF name -> value map */
   Name_to_config_t m_name_map;

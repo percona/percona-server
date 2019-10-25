@@ -10,9 +10,6 @@ usr/bin/mysqlimport
 usr/bin/mysqlpump
 usr/bin/mysqlshow
 usr/bin/mysqlslap
-# charsets
-usr/share/mysql/charsets/*.xml
-usr/share/mysql/charsets/README
 usr/bin/lz4_decompress
 usr/bin/zlib_decompress
 # manpages

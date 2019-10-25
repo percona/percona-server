@@ -75,6 +75,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const int buf_flush_page_cleaner_priority = -20;
 #endif /* UNIV_LINUX */
 
+/** Sleep time in microseconds for loop waiting for the oldest
+modification lsn */
+static const ulint buf_flush_wait_flushed_sleep_time = 10000;
+
 /** Number of pages flushed through non flush_list flushes. */
 static ulint buf_lru_flush_page_count = 0;
 
@@ -2087,6 +2091,83 @@ bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
   return (true);
 }
 
+/** Waits until a flush batch of the given lsn ends
+@param[in]	new_oldest	target oldest_modified_lsn to wait for
+                                if LSN_MAX, we wait for flush of all
+                                non-temporary tablespace pages to be
+                                flushed */
+static void buf_flush_wait_flushed(lsn_t new_oldest) {
+  lsn_t instance_newest[MAX_BUFFER_POOLS];
+  for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+    instance_newest[i] = 0;
+
+    buf_pool_t *buf_pool{buf_pool_from_array(i)};
+
+    if (new_oldest == LSN_MAX) {
+      buf_flush_list_mutex_enter(buf_pool);
+
+      buf_page_t *bpage{UT_LIST_GET_FIRST(buf_pool->flush_list)};
+
+      while (bpage != nullptr && fsp_is_system_temporary(bpage->id.space())) {
+        bpage = UT_LIST_GET_NEXT(list, bpage);
+      }
+
+      if (bpage != nullptr) {
+        ut_ad(bpage->in_flush_list);
+        instance_newest[i] = bpage->oldest_modification;
+      }
+
+      buf_flush_list_mutex_exit(buf_pool);
+    }
+  }
+
+  for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+    lsn_t oldest;
+    buf_pool_t *buf_pool{buf_pool_from_array(i)};
+
+    for (;;) {
+      /* We don't need to wait for fsync of the flushed
+      blocks, because anyway we need fsync to make chekpoint.
+      So, we don't need to wait for the batch end here. */
+
+      buf_flush_list_mutex_enter(buf_pool);
+
+      buf_page_t *bpage{nullptr};
+
+      /* We don't need to wait for system temporary pages */
+      for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+           bpage != nullptr && fsp_is_system_temporary(bpage->id.space());
+           bpage = UT_LIST_GET_PREV(list, bpage)) {
+        /* Do nothing. */
+      }
+
+      oldest = bpage != nullptr ? bpage->oldest_modification : 0;
+      ut_ad(bpage == nullptr || bpage->in_flush_list);
+
+      buf_flush_list_mutex_exit(buf_pool);
+
+      if (oldest == 0 || oldest >= new_oldest ||
+          (new_oldest == LSN_MAX && oldest > instance_newest[i])) {
+        break;
+      }
+
+      /* During startup, if there is recovery, page cleaners wait for
+      recv_sys->flush_start event. So signal the flush_start event to
+      make page cleaners start flushing */
+      if (!srv_read_only_mode) {
+        if (recv_sys->flush_start != nullptr) {
+          os_event_set(recv_sys->flush_start);
+        }
+      }
+
+      /* sleep and retry */
+      os_thread_sleep(buf_flush_wait_flushed_sleep_time);
+
+      MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
+    }
+  }
+}
+
 /** This utility flushes dirty blocks from the end of the flush list of all
 buffer pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages!
@@ -3342,23 +3423,39 @@ static void buf_flush_page_cleaner_thread() {
 /** Signal the page cleaner to flush and wait until it and the LRU manager
 clean the buffer pool. */
 void buf_flush_sync_all_buf_pools(void) {
-  bool success;
-  ulint n_pages;
-  do {
-    n_pages = 0;
-    success = buf_flush_lists(ULINT_MAX, LSN_MAX, &n_pages);
-    buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+  /* During shutdown, page cleaners are stopped already at this
+  stage and we want to shutdown the log. Another case when page cleaners are
+  disabled is debug builds, SET GLOBAL innodb_page_cleaners_disabled_debug=ON.
+  As part of it we want to write the headers. See srv_shutdown_log(). These
+  changes should be written (i.e flushed) syncronously */
+  if (srv_shutdown_state.load() >= SRV_SHUTDOWN_FLUSH_PHASE
+#ifdef UNIV_DEBUG
+      || (innodb_page_cleaner_disabled_debug && page_cleaner->is_running)
+#endif /* UNIV_DEBUG */
+  ) {
+    bool success;
+    ulint n_pages;
+    do {
+      n_pages = 0;
+      success = buf_flush_lists(ULINT_MAX, LSN_MAX, &n_pages);
+      buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-    if (!success) {
-      MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
-    }
+      if (!success) {
+        MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
+      }
 
-    MONITOR_INC_VALUE_CUMULATIVE(MONITOR_FLUSH_SYNC_TOTAL_PAGE,
-                                 MONITOR_FLUSH_SYNC_COUNT,
-                                 MONITOR_FLUSH_SYNC_PAGES, n_pages);
-  } while (!success);
+      MONITOR_INC_VALUE_CUMULATIVE(MONITOR_FLUSH_SYNC_TOTAL_PAGE,
+                                   MONITOR_FLUSH_SYNC_COUNT,
+                                   MONITOR_FLUSH_SYNC_PAGES, n_pages);
+    } while (!success);
 
-  ut_a(success);
+    ut_a(success);
+
+  } else {
+    ut_ad(buf_flush_page_cleaner_is_active());
+    buf_flush_request_force(LSN_MAX);
+    buf_flush_wait_flushed(LSN_MAX);
+  }
 }
 
 /** Make a LRU manager thread sleep until the passed target time, if it's not

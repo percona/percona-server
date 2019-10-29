@@ -26,23 +26,19 @@ IF(NOT TOKUDB_OK OR NOT HAVE_O_DIRECT OR NOT HAVE_CLOCK_MONOTONIC OR APPLE)
   RETURN()
 ENDIF()
 
-# disable -Wvla
-include(CheckCCompilerFlag)
-include(CheckCXXCompilerFlag)
-macro(append_cflags_if_supported)
-  foreach(flag ${ARGN})
-    string(REGEX REPLACE "-" "_" temp_flag ${flag})
-    check_c_compiler_flag(${flag} HAVE_C_${temp_flag})
-    if (HAVE_C_${temp_flag})
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
-    endif ()
-    check_cxx_compiler_flag(${flag} HAVE_CXX_${temp_flag})
-    if (HAVE_CXX_${temp_flag})
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
-    endif ()
-  endforeach(flag)
-endmacro(append_cflags_if_supported)
-append_cflags_if_supported(-Wno-vla)
+
+
+# Suppress warnings for all compilers
+remove_compile_flags(-Wvla)
+
+
+# Suppress warnings for all clang versions
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  append_cflags_if_supported(-Wno-deprecated-dynamic-exception-spec)
+  remove_compile_flags(-Wextra-semi -Wconditional-uninitialized)
+ENDIF()
+
+
 
 IF(DEFINED TOKUDB_BACKUP_PLUGIN_VERSION)
   ADD_DEFINITIONS("-DTOKUDB_BACKUP_PLUGIN_VERSION=${TOKUDB_BACKUP_PLUGIN_VERSION}")

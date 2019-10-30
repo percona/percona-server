@@ -4,7 +4,7 @@
  Utility user
 ==============
 
-|Availability| This feature is **Experimental** quality.
+:Availability: This feature is **Experimental** quality.
 
 
 |Percona Server| has implemented ability to have a |MySQL| user who has system access to do administrative tasks but limited access to user schema. This feature is especially useful to those operating |MySQL| As A Service. 
@@ -56,8 +56,8 @@ Option :variable:`utility_user_privileges` allows a comma-separated list of extr
 Version Specific Information
 ============================
 
-  * :rn:`5.7.10-1`
-        Feature ported from |Percona Server| 5.6
+  * :rn:`8.0.17-8`
+        Feature ported from |Percona Server| 5.7
 
 System Variables
 ================

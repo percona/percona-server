@@ -6,14 +6,18 @@ Data Masking
 
 This feature is **Experimental** quality.
 
+This feature was implemented in |Percona Server| version :rn:`8.0.17-8`.
+
 The Percona Data Masking plugin is a free and Open Source implementation of the
 |MySQL|'s data masking plugin. Data Masking provides a set of functions to hide
 sensitive data with modified content.
 
 The data masking functions are the following:
 
+.. tabularcolumns:: |p{2cm}|p{2cm}|p{2cm}|
+
 .. list-table::
-    :widths: 15 15 30
+    :widths: 2 3 6
     :header-rows: 1
 
     * - Type
@@ -112,7 +116,7 @@ The data masking functions are the following:
     * - gen_rnd_us_phone()
       - Generates a random U.S. phone number. The generated number adds the
         `1` dialiing code and is in the `555` area code. The `555` area code
-        is not used.
+        is not valid for any U.S. phone number.
       - .. code-block:: MySQL
 
             mysql> SELECT gen_rnd_us_phone();
@@ -123,19 +127,19 @@ The data masking functions are the following:
             | 1-555635-5709                 |
             +-------------------------------+
     * - gen_blacklist(str, dictionary_name, replacement_dictionary_name)
-      - Returns a value with a value from a second dictionary.
+      - Replaces a value with a value from a second dictionary.
           * str: Value to be replaced
           * dictionary_name: Contains the dictionary
           * replacement_dictionary_name: Select a value from this dictionary
       - .. code-block:: MySQL
 
-            mysql> SELECT gen_blacklist('Arizona', 'US_States', 'IN_States');
+            mysql> SELECT gen_blacklist('apple', 'fruit', 'nut');
 
-            +-----------------------------------------------------------+
-            | gen_blacklist('Arizona', 'US_States', 'IN_States')     |
-            +-----------------------------------------------------------+
-            | Karnataka                                                 |
-            +-----------------------------------------------------------+
+            +-----------------------------------------+
+            | gen_blacklist('apple', 'fruit', 'nut')  |
+            +-----------------------------------------+
+            | walnut                                  |
+            +-----------------------------------------+
     * - gen_dictionary(dictionary_name)
       - Returns a random term from the selected dictionary.
       - .. code-block:: MySQL

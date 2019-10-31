@@ -36,8 +36,8 @@ delay-ported to version 8.0.
 Bugs Fixed
 ================================================================================
 
-- Changed the default of :variable:`innodb_empty_free_list` to ``legacy``. Bugs
-  fixed :psbug:`5881`.
+- Changed the default of :variable:`innodb_empty_free_list_algorithm` to
+  ``backoff``. Bugs fixed :psbug:`5881`
 
 - When the Adaptive Hash Index (AHI) was enabled or disabled, there was an AHI
   overhead during DDL operations. Bugs fixed :psbug:`5747`.

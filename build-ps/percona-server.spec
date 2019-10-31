@@ -60,7 +60,7 @@
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{percona_server_version}%{?dist}
+%define release         rel%{percona_server_version}%{pkg_ver}%{?dist}
 
 %if "%rhel" > "6"
 %define shared_lib_pri_name libmysqlclient

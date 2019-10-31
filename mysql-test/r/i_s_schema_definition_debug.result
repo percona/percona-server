@@ -103,8 +103,8 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
-include/assert.inc [There are 32 system views.]
-include/assert.inc [There are 32 I_S system views in total.]
+include/assert.inc [There are 34 system views.]
+include/assert.inc [There are 34 I_S system views in total.]
 ########################################################################
 # No unexpected I_S tables must be present.
 ########################################################################
@@ -1462,6 +1462,40 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   CAN_ACCESS_TABLE(sch.name, vw.name)
   AND vw.type = 'VIEW'
 ");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY AS SELECT 
+  dict.version AS DICT_VERSION,
+  dict.name AS DICT_NAME,
+  dict.data AS DICT_DATA FROM 
+  mysql.compression_dictionary dict
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY AS SELECT 
+  dict.version AS DICT_VERSION,
+  dict.name AS DICT_NAME,
+  dict.data AS DICT_DATA FROM 
+  mysql.compression_dictionary dict
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY_TABLES AS SELECT 
+  sch.name AS TABLE_SCHEMA,
+  tbl.name AS TABLE_NAME,
+  col.name AS COLUMN_NAME,
+  dict.name AS DICT_NAME FROM 
+  mysql.compression_dictionary_cols cdc
+  JOIN mysql.tables tbl ON cdc.table_id=tbl.id
+  JOIN mysql.columns col ON col.table_id = cdc.table_id AND col.id = cdc.column_id
+  JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+  JOIN mysql.compression_dictionary dict ON dict.id = cdc.dict_id
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY_TABLES AS SELECT 
+  sch.name AS TABLE_SCHEMA,
+  tbl.name AS TABLE_NAME,
+  col.name AS COLUMN_NAME,
+  dict.name AS DICT_NAME FROM 
+  mysql.compression_dictionary_cols cdc
+  JOIN mysql.tables tbl ON cdc.table_id=tbl.id
+  JOIN mysql.columns col ON col.table_id = cdc.table_id AND col.id = cdc.column_id
+  JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+  JOIN mysql.compression_dictionary dict ON dict.id = cdc.dict_id
+");
 SET debug = '-d,skip_dd_table_access_check';
 SET debug = '-d,fetch_system_view_definition';
 ########################################################################
@@ -1473,5 +1507,5 @@ include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to I_S version 80018.
+The schema checksum corresponds to I_S version 80018-PS.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]

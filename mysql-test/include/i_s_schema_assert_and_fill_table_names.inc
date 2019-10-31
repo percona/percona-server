@@ -59,7 +59,9 @@ eval INSERT INTO $I_S_view_names (name) VALUES
   ('TRIGGERS'),
   ('VIEW_ROUTINE_USAGE'),
   ('VIEW_TABLE_USAGE'),
-  ('VIEWS');
+  ('VIEWS'),
+  ('COMPRESSION_DICTIONARY'),
+  ('COMPRESSION_DICTIONARY_TABLES');
 --enable_result_log
 --enable_query_log
 

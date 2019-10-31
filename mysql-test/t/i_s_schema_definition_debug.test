@@ -97,7 +97,7 @@
 --source include/have_debug.inc
 
 # Total number of system views in MySQL server.
-let $expected_system_view_count = 32;
+let $expected_system_view_count = 34;
 
 --echo ########################################################################
 --echo # PART 1
@@ -241,6 +241,9 @@ INSERT INTO I_S_published_schema
 INSERT INTO I_S_published_schema
   VALUES ('80018', 1,
     'ca7b69e91a233bab7856f491e7dab6caff7f0fd4f56218ece438e95375ff2392');
+INSERT INTO I_S_published_schema
+  VALUES ('80018-PS', 0,
+    '59eb926b98d7db72e12037affe61ad0837cf59a5d2849252c2e8164eee8ab78a');
 
 SELECT IFNULL(CONCAT('The schema checksum corresponds to I_S version ',
                      version, '.'),

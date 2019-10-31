@@ -676,9 +676,8 @@ log_online_read_init(void)
 			last_file_start_lsn = file_start_lsn;
 			/* No dir component (log_bmp_sys->bmp_file_home) here,
 			because	that's the cwd */
-			strncpy(log_bmp_sys->out.name,
-				bitmap_dir_file_info.name, FN_REFLEN - 1);
-			log_bmp_sys->out.name[FN_REFLEN - 1] = '\0';
+			my_strncpy_trunc(log_bmp_sys->out.name,
+				bitmap_dir_file_info.name, FN_REFLEN);
 		}
 	}
 

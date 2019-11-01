@@ -2800,11 +2800,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   else
     ret_validation= X509_check_ip(server_cert, ipout, iplen, 0) != 1;
 #else
-  /*
-    YaSSL will always return NULL for any call to 'X509_get_ext_d2i()'
-    and therefore the whole SAN block will be skipped and only 'CN'
-    will be checked.
-  */
   ret_validation= ssl_verify_server_cert_san(server_cert,
     iplen != 0 ? (const char*)ipout : server_hostname, iplen, errptr);
   if (*errptr != NULL)

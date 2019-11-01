@@ -66,23 +66,25 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
 diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
 --- old/libmysql/CMakeLists.txt	2016-03-03 08:30:00.000000000 +0100
 +++ new/libmysql/CMakeLists.txt	2016-03-03 14:07:22.625678083 +0100
-@@ -179,12 +179,12 @@ IF(WIN32)
-   LIST(APPEND LIBS auth_win_client)
+@@ -204,13 +204,13 @@
+   LIST(APPEND LIBS_TO_MERGE auth_win_client)
  ENDIF()
  
 -# Merge several convenience libraries into one big perconaserverclient
--MERGE_LIBRARIES(perconaserverclient STATIC ${LIBS} COMPONENT Development)
+-MERGE_LIBRARIES(perconaserverclient STATIC ${LIBS_TO_MERGE} COMPONENT Development)
+-TARGET_LINK_LIBRARIES(perconaserverclient ${LIBS_TO_LINK})
 +# Merge several convenience libraries into one big mysqlclient
-+MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
++MERGE_LIBRARIES(mysqlclient STATIC ${LIBS_TO_MERGE} COMPONENT Development)
++TARGET_LINK_LIBRARIES(mysqlclient ${LIBS_TO_LINK})
  
  # Visual Studio users need debug  static library for debug projects
  IF(MSVC)
-- INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
-+ INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
-  INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
+-  INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
++  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
+   INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
  ENDIF()
  
-@@ -209,14 +209,14 @@ IF(UNIX)
+@@ -235,14 +235,14 @@
  ENDIF()
  
  IF(UNIX)
@@ -99,9 +101,9 @@ diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
 -  # Merge several convenience libraries into one big perconaserverclient
 +  # Merge several convenience libraries into one big mysqlclient
    # and link them together into shared library.
-   MERGE_LIBRARIES(libmysql SHARED ${LIBS}
+   MERGE_LIBRARIES(libmysql SHARED ${LIBS_TO_MERGE}
      EXPORTS ${CLIENT_API_FUNCTIONS}
-@@ -229,9 +229,9 @@
+@@ -256,9 +256,9 @@
        SET(OS_SHARED_LIB_VERSION
          "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.0")
      ENDIF()
@@ -109,11 +111,11 @@ diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
 +    # Name of shared library is mysqlclient on Unix
      SET_TARGET_PROPERTIES(libmysql PROPERTIES 
 -      OUTPUT_NAME perconaserverclient 
-+      OUTPUT_NAME mysqlclient
++      OUTPUT_NAME mysqlclient 
        VERSION "${OS_SHARED_LIB_VERSION}" 
        SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
      IF(WITH_SYMVER16)
-@@ -254,13 +254,13 @@ IF(NOT DISABLE_SHARED)
+@@ -285,13 +285,13 @@
          PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
      ENDIF() 
      # clean direct output needs to be set several targets have the same name
@@ -131,7 +133,7 @@ diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
        "${CMAKE_SHARED_LIBRARY_SUFFIX}"
        ""
        linkname)
-@@ -274,7 +274,7 @@ IF(NOT DISABLE_SHARED)
+@@ -305,7 +305,7 @@
      LIST(REMOVE_DUPLICATES OS_SHARED_LIB_SYMLINKS)
      FOREACH(ver ${OS_SHARED_LIB_SYMLINKS})
        GET_VERSIONED_LIBNAME(

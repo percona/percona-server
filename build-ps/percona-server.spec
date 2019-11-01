@@ -60,7 +60,7 @@
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{percona_server_version}%{?dist}
+%define release         rel%{percona_server_version}%{pkg_ver}%{?dist}
 
 %if "%rhel" > "6"
 %define shared_lib_pri_name libmysqlclient
@@ -245,8 +245,8 @@
 %define license_files_server    LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_server    COPYING README
-%define license_type            GPL
+%define license_files_server    README
+%define license_type            GPLv2
 %endif
 
 ##############################################################################
@@ -1286,7 +1286,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 # %attr(755, root, root) %{_libdir}/mysql/plugin/debug/*.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam.so

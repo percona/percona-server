@@ -1,13 +1,25 @@
 /* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -20,15 +32,6 @@
 #define TLS_VERSION_OPTION_SIZE 256
 #define SSL_CIPHER_LIST_SIZE 4096
 
-#ifdef HAVE_YASSL
-static const char tls_ciphers_list[]="DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:"
-                                     "AES128-RMD:DES-CBC3-RMD:DHE-RSA-AES256-RMD:"
-                                     "DHE-RSA-AES128-RMD:DHE-RSA-DES-CBC3-RMD:"
-                                     "AES256-SHA:RC4-SHA:RC4-MD5:DES-CBC3-SHA:"
-                                     "DES-CBC-SHA:EDH-RSA-DES-CBC3-SHA:"
-                                     "EDH-RSA-DES-CBC-SHA:AES128-SHA:AES256-RMD";
-static const char tls_cipher_blocked[]= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:";
-#else
 static const char tls_ciphers_list[]="ECDHE-ECDSA-AES128-GCM-SHA256:"
                                      "ECDHE-ECDSA-AES256-GCM-SHA384:"
                                      "ECDHE-RSA-AES128-GCM-SHA256:"
@@ -69,7 +72,6 @@ static const char tls_cipher_blocked[]= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!R
                                         "!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:"
                                         "!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:"
                                         "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
-#endif
 
 static my_bool     ssl_initialized         = FALSE;
 
@@ -233,8 +235,6 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
 
   DBUG_RETURN(0);
 }
-
-#ifndef HAVE_YASSL
 
 /*
   OpenSSL 1.1 supports native platform threads,
@@ -428,8 +428,6 @@ void vio_ssl_end()
   }
 }
 
-#endif //OpenSSL specific
-
 void ssl_start()
 {
   if (!ssl_initialized)
@@ -440,12 +438,10 @@ void ssl_start()
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
 
-#ifndef HAVE_YASSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     init_ssl_locks();
     init_lock_callback_functions();
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
   }
 }
 
@@ -453,19 +449,11 @@ long process_tls_version(const char *tls_version)
 {
   const char *separator= ",";
   char *token, *lasts= NULL;
-#ifndef HAVE_YASSL
   unsigned int tls_versions_count= 3;
   const char *tls_version_name_list[3]= {"TLSv1", "TLSv1.1", "TLSv1.2"};
   const char ctx_flag_default[]= "TLSv1,TLSv1.1,TLSv1.2";
   const long tls_ctx_list[3]= {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2};
   long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2;
-#else
-  unsigned int tls_versions_count= 2;
-  const char *tls_version_name_list[2]= {"TLSv1", "TLSv1.1"};
-  const long tls_ctx_list[2]= {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1};
-  const char ctx_flag_default[]= "TLSv1,TLSv1.1";
-  long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1;
-#endif
   unsigned int index= 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE]= "";
   int tls_found= 0;
@@ -511,7 +499,7 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
   int ret_set_cipherlist= 0;
   char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10002000L)
+#if (OPENSSL_VERSION_NUMBER < 0x10002000L)
   EC_KEY *ecdh;
 #endif
   DBUG_ENTER("new_VioSSLFd");
@@ -540,10 +528,8 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
                     SSL_OP_NO_SSLv3 |
                     SSL_OP_NO_TLSv1 |
                     SSL_OP_NO_TLSv1_1
-#ifndef HAVE_YASSL
                     | SSL_OP_NO_TLSv1_2
                     | SSL_OP_NO_TICKET
-#endif
                    );
   if (!(ssl_fd= ((struct st_VioSSLFd*)
                  my_malloc(key_memory_vio_ssl_fd,
@@ -639,10 +625,6 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 
   if (crl_file || crl_path)
   {
-#ifdef HAVE_YASSL
-    DBUG_PRINT("warning", ("yaSSL doesn't support CRL"));
-    DBUG_ASSERT(0);
-#else
     X509_STORE *store= SSL_CTX_get_cert_store(ssl_fd->ssl_context);
     /* Load crls from the trusted ca */
     if (X509_STORE_load_locations(store, crl_file, crl_path) == 0 ||
@@ -658,7 +640,6 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
       my_free(ssl_fd);
       DBUG_RETURN(0);
     }
-#endif
   }
 
   if (vio_set_cert_stuff(ssl_fd->ssl_context, cert_file, key_file, error))
@@ -695,7 +676,6 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   }
   DH_free(dh);
 
-#ifndef HAVE_YASSL
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
   ecdh= EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
   if (!ecdh)
@@ -732,7 +712,6 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_RETURN(0);
   }
 #endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-#endif /* !HAVE_YASSL */
 
   DBUG_PRINT("exit", ("OK 1"));
 

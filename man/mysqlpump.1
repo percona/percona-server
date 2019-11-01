@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlpump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/08/2019
+.\"      Date: 09/27/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLPUMP\FR" "1" "06/08/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLPUMP\FR" "1" "09/27/2019" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -488,7 +488,7 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -685,7 +685,7 @@ Section\ \&6.2.13, \(lqPluggable Authentication\(rq\&.
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
+Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
 \fBmysqlpump\fR
 uses
 utf8\&.
@@ -1007,7 +1007,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.4.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.4, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .sp
 The
 \fB\-\-get\-server\-public\-key\fR
@@ -1029,10 +1029,11 @@ Dump binary columns using hexadecimal notation (for example,
 becomes
 0x616263)\&. The affected data types are
 BINARY,
-VARBINARY, the
+VARBINARY,
 BLOB
-types, and
-BIT\&.
+types,
+BIT, all spatial data types, and other non\-binary data types when used with the
+binary character set\&.
 .RE
 .sp
 .RS 4
@@ -1528,8 +1529,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.4.1.4, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.5, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.4, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .sp
 The
 \fB\-\-server\-public\-key\-path\fR
@@ -1815,7 +1816,7 @@ the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.5, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
 .RE

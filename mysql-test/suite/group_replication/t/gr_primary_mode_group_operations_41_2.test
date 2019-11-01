@@ -237,6 +237,7 @@ UNLOCK TABLES;
 --echo # 4. Unblock the debug point
 --echo # Check the action terminates and no stages appear
 
+SET DEBUG_SYNC = "now WAIT_FOR signal.action_stopping";
 SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
 SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
 

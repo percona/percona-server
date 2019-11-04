@@ -1990,6 +1990,11 @@ static char *os_file_get_parent_dir(const char *path) {
     return (NULL);
   }
 
+  /* Make sure that mem_strdupl() will get non-negative "ulint len" */
+  if (last_slash - path < 0) {
+    return (NULL);
+  }
+
   /* Non-trivial directory component */
 
   return (mem_strdupl(path, last_slash - path));

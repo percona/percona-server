@@ -263,7 +263,7 @@ extern uint srv_fil_crypt_rotate_key_age;
 extern ib_mutex_t fil_crypt_threads_mutex;
 extern ib_mutex_t fil_crypt_list_mutex;
 
-extern uint srv_n_fil_crypt_threads;
+extern uint srv_n_fil_crypt_threads_requested;
 
 enum fil_load_status {
   /** The tablespace file(s) were found and valid. */
@@ -2447,7 +2447,7 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
         space->crypt_data->min_key_version != 0)) &&
       FSP_FLAGS_GET_ENCRYPTION(fil_space_flags) !=
           FSP_FLAGS_GET_ENCRYPTION(header_fsp_flags)) {
-    if (srv_n_fil_crypt_threads == 0) {
+    if (srv_n_fil_crypt_threads_requested == 0) {
       ib::warn() << "Table encryption flag is "
                  << (FSP_FLAGS_GET_ENCRYPTION(fil_space_flags) ? "ON" : "OFF")
                  << " in the data dictionary but the encryption flag in file "

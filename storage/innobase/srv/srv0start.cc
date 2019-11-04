@@ -1797,7 +1797,7 @@ void srv_shutdown_all_bg_threads() {
         os_event_set(log_scrub_event);
       }
 
-      if (srv_n_fil_crypt_threads_started) {
+      if (srv_threads.m_crypt_threads_n) {
         os_event_set(fil_crypt_threads_event);
       }
     }
@@ -3363,7 +3363,7 @@ void srv_pre_dd_shutdown() {
       }
     }
 
-    if (srv_threads.m_encryption_threads_active) {
+    if (srv_threads.m_crypt_threads_n > 0) {
       wait = true;
       if ((count % 600) == 0) {
         ib::info(ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD)

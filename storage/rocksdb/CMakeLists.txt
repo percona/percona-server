@@ -27,37 +27,68 @@ IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
   RETURN ()
 ENDIF ()
 
-# Relax unused variable warnings for release modes
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-variable" HAVE_UNUSED_VARIABLE)
-IF(HAVE_UNUSED_VARIABLE)
-  SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wno-unused-variable")
-  SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wno-unused-variable")
+
+
+# Suppress warnings for all compilers
+remove_compile_flags(-Wundef)
+append_cflags_if_supported(-Wno-unused-parameter)
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-variable" HAVE_NO_UNUSED_VARIABLE)
+IF(HAVE_NO_UNUSED_VARIABLE)
+  ADD_COMPILE_FLAGS(ha_rocksdb.cc COMPILE_FLAGS "-Wno-unused-variable")
 ENDIF()
 
-# Relax fallthrough warnings we have no control over, as it's in zstd
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  MY_CHECK_CXX_COMPILER_FLAG("-Wimplicit-fallthrough=0" HAVE_IMPLICIT_FALLTHROUGH)
-  IF(HAVE_IMPLICIT_FALLTHROUGH)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wimplicit-fallthrough=0")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wimplicit-fallthrough=0")
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-shadow-field" HAVE_NO_SHADOW_FIELD)
+IF(HAVE_NO_SHADOW_FIELD)
+  ADD_COMPILE_FLAGS(ha_rocksdb.cc rocksdb/utilities/geodb/geodb_impl.cc rocksdb/memtable/hash_skiplist_rep.cc rocksdb/memtable/hash_cuckoo_rep.cc COMPILE_FLAGS "-Wno-shadow-field")
+ENDIF()
+
+
+# Suppress warnings for all clang versions
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  remove_compile_flags(-Winconsistent-missing-destructor-override -Wdeprecated -Wextra-semi -Wnon-virtual-dtor)
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wno-conditional-uninitialized" HAVE_NO_CONDITIONAL_UNINITIALIZED)
+  IF(HAVE_NO_CONDITIONAL_UNINITIALIZED)
+    ADD_COMPILE_FLAGS(ha_rocksdb.cc rocksdb/env/env_posix.cc rocksdb/db/write_thread.cc COMPILE_FLAGS "-Wno-conditional-uninitialized")
   ENDIF()
 ENDIF()
 
-# Relax unused variable warnings
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
 
-# Relax undefined definition warnings for 8.0 until RocksDB catches up
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undef")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-undef")
+# Suppress warnings for clang-8 or newer
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
+  append_cflags_if_supported(-Wno-defaulted-function-deleted)
+ENDIF()
 
-# Relax unused parameter warnings for 8.0 until RocksDB catches up
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter")
 
-# Relax suggest-attribute=format warnings for 8.0 until RocksDB catches up
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-attribute=format")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-suggest-attribute=format")
+# Suppress warnings for gcc-5 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
+  append_cflags_if_supported(-Wno-suggest-attribute=format)
+ENDIF()
+
+
+# Suppress warnings for gcc-7 or newer (it's in zstd)
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+  append_cflags_if_supported(-Wimplicit-fallthrough=0)
+ENDIF()
+
+
+# Suppress warnings for gcc-9 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+  append_cflags_if_supported(-Wno-deprecated-copy -Wno-pessimizing-move)
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wno-redundant-move" HAVE_NO_REDUNDANT_MOVE)
+  IF(HAVE_NO_REDUNDANT_MOVE)
+    ADD_COMPILE_FLAGS(rocksdb/db/range_del_aggregator.cc COMPILE_FLAGS "-Wno-redundant-move")
+  ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" HAVE_NO_SIGN_COMPARE)
+  IF(HAVE_NO_SIGN_COMPARE)
+    ADD_COMPILE_FLAGS(rocksdb/env/io_posix.cc rocksdb/port/port_posix.cc COMPILE_FLAGS "-Wno-sign-compare")
+  ENDIF()
+ENDIF()
+
+
 
 IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
   MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
@@ -80,7 +111,7 @@ int main() {
   const auto a = _mm_set_epi64x(0, 0);
   const auto b = _mm_set_epi64x(0, 0);
   const auto c = _mm_clmulepi64_si128(a, b, 0x00);
-  auto d = _mm_cvtsi128_si64(c);
+  auto d __attribute__((unused)) = _mm_cvtsi128_si64(c);
 }
 " HAVE_SSE42)
 IF (HAVE_SSE42)

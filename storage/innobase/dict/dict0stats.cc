@@ -2068,11 +2068,11 @@ dberr_t dict_stats_report_error(dict_table_t *table) {
   FilSpace space(space_id);
 
   if (!space()) {
-    ib::warn() << "Cannot save statistics for table " << table->name
+    ib::warn() << "Cannot calculate statistics for table " << table->name
                << " because the .ibd file is missing. " << TROUBLESHOOTING_MSG;
     err = DB_TABLESPACE_DELETED;
   } else {
-    ib::warn() << "Cannot save statistics for table " << table->name
+    ib::warn() << "Cannot calculate statistics for table " << table->name
                << " because file " << space()->files.begin()->name
                << (table->is_corrupt ? " is corrupted."
                                      : " cannot be decrypted.");

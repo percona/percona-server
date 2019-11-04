@@ -27,11 +27,16 @@ IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
   RETURN ()
 ENDIF ()
 
-# Relax unused variable warnings for release modes
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-variable" HAVE_UNUSED_VARIABLE)
-IF(HAVE_UNUSED_VARIABLE)
-  SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wno-unused-variable")
-  SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wno-unused-variable")
+# Suppress warnings for gcc-9
+IF(CMAKE_COMPILER_IS_GNUCXX AND
+   (CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 9.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0))
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-copy -Wno-redundant-move -Wno-pessimizing-move -Wno-sign-compare")
+ENDIF()
+
+# Suppress warnings for clang-8
+IF((CMAKE_CXX_COMPILER_ID MATCHES "Clang") AND
+   (CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 8.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8.0))
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-defaulted-function-deleted")
 ENDIF()
 
 # Relax fallthrough warnings we have no control over, as it's in zstd
@@ -44,20 +49,19 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 ENDIF()
 
 # Relax unused variable warnings
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-variable" HAVE_NO_UNUSED_VARIABLE)
+IF(HAVE_NO_UNUSED_VARIABLE)
+  ADD_COMPILE_FLAGS(ha_rocksdb.cc COMPILE_FLAGS "-Wno-unused-variable")
+ENDIF()
 
 # Relax undefined definition warnings for 8.0 until RocksDB catches up
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undef")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-undef")
+remove_compile_flags(-Wundef)
 
 # Relax unused parameter warnings for 8.0 until RocksDB catches up
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter")
+append_cflags_if_supported(-Wno-unused-parameter)
 
 # Relax suggest-attribute=format warnings for 8.0 until RocksDB catches up
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-attribute=format")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-suggest-attribute=format")
+append_cflags_if_supported(-Wno-suggest-attribute=format)
 
 IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
   MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
@@ -80,7 +84,7 @@ int main() {
   const auto a = _mm_set_epi64x(0, 0);
   const auto b = _mm_set_epi64x(0, 0);
   const auto c = _mm_clmulepi64_si128(a, b, 0x00);
-  auto d = _mm_cvtsi128_si64(c);
+  auto d __attribute__((unused)) = _mm_cvtsi128_si64(c);
 }
 " HAVE_SSE42)
 IF (HAVE_SSE42)

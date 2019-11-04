@@ -764,7 +764,7 @@ class trx_stats final {
   @return value to be passed to end_io_read
   */
   MY_NODISCARD
-  static ib_uint64_t start_io_read(trx_t *trx, ulint bytes) noexcept;
+  static ib_time_monotonic_us_t start_io_read(trx_t *trx, ulint bytes) noexcept;
 
   /**
   Register start of an I/O read or wait.
@@ -784,14 +784,16 @@ class trx_stats final {
   @param	trx		transaction to account I/O to or NULL
   @param	start_time	return value of start_io_read
   */
-  static void end_io_read(trx_t *trx, ib_uint64_t start_time) noexcept;
+  static void end_io_read(trx_t *trx,
+                          ib_time_monotonic_us_t start_time) noexcept;
 
   /**
   Register end of an I/O read or wait.
 
   @param	trx		transaction to account I/O to
   @param	start_time	return value of start_io_read*/
-  static void end_io_read(const trx_t &trx, ib_uint64_t start_time) noexcept;
+  static void end_io_read(const trx_t &trx,
+                          ib_time_monotonic_us_t start_time) noexcept;
 
   /**
   Register, if needed, a single untimed I/O read.
@@ -1339,13 +1341,14 @@ inline ib_time_monotonic_us_t trx_stats::start_io_read(const trx_t &trx,
   return ut_time_monotonic_us();
 }
 
-inline ib_uint64_t trx_stats::start_io_read(trx_t *trx, ulint bytes) noexcept {
+inline ib_time_monotonic_us_t trx_stats::start_io_read(trx_t *trx,
+                                                       ulint bytes) noexcept {
   if (UNIV_LIKELY_NULL(trx)) return start_io_read(*trx, bytes);
   return 0;
 }
 
 inline void trx_stats::end_io_read(const trx_t &trx,
-                                   ib_uint64_t start_time) noexcept {
+                                   ib_time_monotonic_us_t start_time) noexcept {
   const auto finish_time = ut_time_monotonic_us();
   thd_report_innodb_stat(trx.mysql_thd, trx.id,
                          MYSQL_TRX_STAT_IO_READ_WAIT_USECS,
@@ -1353,7 +1356,7 @@ inline void trx_stats::end_io_read(const trx_t &trx,
 }
 
 inline void trx_stats::end_io_read(trx_t *trx,
-                                   ib_uint64_t start_time) noexcept {
+                                   ib_time_monotonic_us_t start_time) noexcept {
   if (UNIV_UNLIKELY(start_time != 0)) end_io_read(*trx, start_time);
 }
 

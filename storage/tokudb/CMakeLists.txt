@@ -78,8 +78,16 @@ IF(DEFINED TOKUDB_NOPATCH_CONFIG)
     ADD_DEFINITIONS("-DTOKUDB_NOPATCH_CONFIG=${TOKUDB_NOPATCH_CONFIG}")
 ENDIF()
 
-prepend_cflags_if_supported(-Wno-missing-field-initializers)
+append_cflags_if_supported(-Wno-missing-field-initializers)
 append_cflags_if_supported(-Wno-vla)
+
+# Disable warnings for gcc-9 or higher
+IF(CMAKE_COMPILER_IS_GNUCXX AND
+    (CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 9.0 OR
+     CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0))
+  append_cflags_if_supported(-Wno-address-of-packed-member
+                             -Wno-deprecated-copy)
+ENDIF()
 
 IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PerconaFT/")
     SET(TOKU_FT_DIR_NAME "PerconaFT")

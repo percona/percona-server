@@ -3155,7 +3155,7 @@ got_block:
     /* Let us wait until the read operation
     completes */
 
-    const ib_uint64_t start_time = trx_stats::start_io_read(trx, 0);
+    const ib_time_monotonic_us_t start_time = trx_stats::start_io_read(trx, 0);
     for (;;) {
       enum buf_io_fix io_fix;
 
@@ -3376,7 +3376,7 @@ static void buf_wait_for_read(buf_block_t *block, trx_t *trx) {
   if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
     /* Wait until the read operation completes */
 
-    const ib_uint64_t start_time = trx_stats::start_io_read(trx, 0);
+    const ib_time_monotonic_us_t start_time = trx_stats::start_io_read(trx, 0);
 
     for (;;) {
       if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {

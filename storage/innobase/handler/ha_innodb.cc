@@ -22067,9 +22067,30 @@ static int innodb_track_changed_pages_validate(THD *thd, SYS_VAR *var,
                                                void *save,
                                                struct st_mysql_value *value) {
   long long intbuf = 0;
-  if (value->val_int(value, &intbuf)) {
-    /* The value is NULL. That is invalid. */
-    return 1;
+
+  /* ON, OFF string values are valid as well.
+   * Anyway, this check is enabled only for debug builds
+   * as the variable is dynamic only in debug builds,
+   * so let's handle ON, OFF values like for bool
+   */
+  if (value->value_type(value) == STRING_RESULT) {
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    int length = 0;
+    const char * res;
+    if (!(res = value->val_str(value, buff, &length))) {
+      return 1;
+    } else if (!my_strnncoll(system_charset_info, (const uchar *)res, length, (const uchar *)"OFF", 3)) {
+      intbuf = 0;
+    } else if (!my_strnncoll(system_charset_info, (const uchar *)res, length, (const uchar *)"ON", 2)) {
+      intbuf = 1;
+    } else {
+      return 1;
+    }
+  } else {
+    if (value->val_int(value, &intbuf)) {
+      /* The value is NULL. That is invalid. */
+      return 1;
+    }
   }
 
   if (srv_thread_is_active(srv_threads.m_changed_page_tracker)) {

@@ -602,7 +602,7 @@ Disabled by default.
   :default: ``OFF``
 
 Specifies whether to allow server to restart once MyRocks reported data
-corruption. Disabled by default. 
+corruption. Disabled by default.
 
 Once corruption is detected server writes marker file (named
 ROCKSDB_CORRUPTED) in the data directory and aborts. If marker file exists,
@@ -1132,7 +1132,7 @@ Allowed range is up to ``9223372036854775807``.
 
 .. variable:: rocksdb_disable_file_deletions
 
-  
+
   :cli: ``--rocksdb-disable-file-deletions``
   :dyn: Yes
   :scope: Session
@@ -1146,7 +1146,7 @@ backup. If the client session terminates for any reason after disabling
 deletions and has not re-enabled deletions, they will be explicitly
 re-enabled. This variable should be used by backup tools. Prolonged
 use or other misuse can have serious side effects to the server instance.
- 
+
 .. variable:: rocksdb_enable_bulk_load_api
 
   :cli: ``--rocksdb-enable-bulk-load-api``
@@ -1412,7 +1412,7 @@ master and slave.
 
 .. note::
 
-In version 8.0.16-7 and later, the default value is changed to ``TRUE``.
+    In version 8.0.16-7 and later, the default value is changed to ``TRUE``.
 
 .. variable:: rocksdb_keep_log_file_num
 
@@ -1587,17 +1587,17 @@ only one manifest file is used.
   :default: ``1000``
 
 Specifies the maximum number of file handles opened by MyRocks.
-Values in the range between ``0`` and ``open_files_limit`` 
-are taken as they are. If :variable:`rocksdb_max_open_files` value is 
-greater than ``open_files_limit``, it will be reset to 1/2 of 
+Values in the range between ``0`` and ``open_files_limit``
+are taken as they are. If :variable:`rocksdb_max_open_files` value is
+greater than ``open_files_limit``, it will be reset to 1/2 of
 ``open_files_limit``, and a warning will be emitted to the ``mysqld``
-error log. A value of ``-2`` denotes auto tuning: just sets 
-:variable:`rocksdb_max_open_files` value to 1/2 of ``open_files_limit``. 
+error log. A value of ``-2`` denotes auto tuning: just sets
+:variable:`rocksdb_max_open_files` value to 1/2 of ``open_files_limit``.
 Finally, ``-1`` means no limit, i.e. an infinite number of file handles.
 
 .. warning::
 
-  Setting :variable:`rocksdb_max_open_files` to ``-1`` is dangerous, 
+  Setting :variable:`rocksdb_max_open_files` to ``-1`` is dangerous,
   as server may quickly run out of file handles in this case.
 
 .. variable:: rocksdb_max_row_locks
@@ -1741,7 +1741,7 @@ the specified |cf| does not exist and cannot be created.
   :vartype: String
   :default:
 
-Specifies option overrides for each column family. 
+Specifies option overrides for each column family.
 Empty by default.
 
 .. variable:: rocksdb_paranoid_checks
@@ -1896,7 +1896,7 @@ Resets MyRocks internal statistics dynamically
 
 Specifies whether write batches should be used for replication thread
 instead of the transaction API.
-Disabled by default. 
+Disabled by default.
 
 There are two conditions which are necessary to
 use it: row replication format and slave

@@ -1,6 +1,6 @@
 jobs:
 - job:
-  timeoutInMinutes: 180
+  timeoutInMinutes: 240
   displayName: Ubuntu Bionic
   pool:
     vmImage: 'ubuntu-18.04'
@@ -162,6 +162,8 @@ jobs:
       ccache --print-config
       ccache --zero-stats
 
+      COMPILER_VER=$(CompilerVer)
+      echo '##vso[task.setvariable variable=CompilerMajorVer]'${COMPILER_VER%.*}
       echo '##vso[task.setvariable variable=CC]'$CC
       echo '##vso[task.setvariable variable=CXX]'$CXX
       echo '##vso[task.setvariable variable=UPDATE_TIME]'$UPDATE_TIME
@@ -172,8 +174,8 @@ jobs:
   - task: CacheBeta@0
     continueOnError: true
     inputs:
-      key: ccache | $(Agent.OS)-$(Compiler)-$(CompilerVer)-$(BuildType) | $(Build.SourceVersion)
-      restoreKeys: ccache | $(Agent.OS)-$(Compiler)-$(CompilerVer)-$(BuildType)
+      key: ccache | $(Agent.OS)-$(Compiler)-$(CompilerMajorVer)-$(BuildType) | $(Build.SourceVersion)
+      restoreKeys: ccache | $(Agent.OS)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)
       path: $(CCACHE_DIR)
     displayName: '*** Download ccached data'
 

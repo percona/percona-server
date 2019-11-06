@@ -65,7 +65,7 @@ Linux* too, provided that :program:`yum` is installed on the server.
 
      As soon as you install ``curl``, make sure that |Percona Server| will use
      this version.
-    
+
     .. seealso::
 
        How to install curl and libcurl
@@ -113,15 +113,15 @@ Please add sudo to percona-release setup and yum install commands
 
 |tip.run-all.root|
 
-1. Install the Percona repository 
-   
+1. Install the Percona repository
+
    You can install Percona yum repository by running the following command as a ``root`` user or with sudo:
 
    .. code-block:: bash
-        
+
       $ sudo yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
-   You should see some output such as the following: 
+   You should see some output such as the following:
 
    .. code-block:: bash
 
@@ -177,15 +177,15 @@ Installing |Percona Server| using downloaded rpm packages
    7:
 
    .. code-block:: bash
- 
+
       $ wget https://www.percona.com/downloads/Percona-Server-8.0/Percona-Server-8.0.13-3/binary/redhat/7/x86_64/Percona-Server-8.0.13-3-r63dafaf-el7-x86_64-bundle.tar
 
 2. You should then unpack the bundle to get the packages: :bash:`tar xvf Percona-Server-8.0.13-3-r63dafaf-el7-x86_64-bundle.tar`
 
-   After you unpack the bundle you should see the following packages when running :bash:`ls *.rpm`:  
+   After you unpack the bundle you should see the following packages when running :bash:`ls *.rpm`:
 
    .. admonition:: Output
-   
+
       .. code-block:: guess
 
 	 percona-server-80-debuginfo-8.0.13-3.el7.x86_64.rpm
@@ -199,8 +199,7 @@ Installing |Percona Server| using downloaded rpm packages
 
   .. note::
 
-    For an RHEL 8 package installation, Percona Server requires the mysql module 
-    to be disabled. 
+    For an RHEL 8 package installation, Percona Server requires the mysql module to be disabled.
 
     .. code-block:: bash
 
@@ -298,7 +297,7 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
       rm -rf /var/lib/mysql
       rm -f /etc/my.cnf
 
-.. warning:: 
+.. warning::
 
    This will remove all the packages and delete all the data files (databases,
    tables, logs, etc.), you might want to take a backup before doing this in
@@ -306,7 +305,7 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 
 .. rubric:: Footnotes
 
-.. [#f1] 
+.. [#f1]
 
 .. include:: ../.res/replace.program.txt
 .. include:: ../.res/replace.txt

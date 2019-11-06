@@ -56,13 +56,14 @@ You should also consider the following:
   <https://dev.mysql.com/doc/refman/8.0/en/replication-formats.html>`_.
 
 * As of 8.0.17, InnoDB supports `multi-valued indexes <https://dev.mysql.com/doc/refman/8.0/en/create-index.html#create-index-multi-valued>`__. MyRocks does not support this feature.
-  
+
 * When converting from large MyISAM/InnoDB tables, either by using the
   ``ALTER`` or ``INSERT INTO SELECT`` statements it's recommended that you
   check the :ref:`Data loading <myrocks_data_loading>` documentation and
   create MyRocks tables as below (in case the table is sufficiently big it will
   cause the server to consume all the memory and then be terminated by the OOM
   killer):
+
 
   .. code-block:: mysql
 
@@ -84,8 +85,8 @@ You should also consider the following:
   implementation is less tested, it may lack some functionality and be not as
   stable as in case of InnoDB.
 
-* With partitioned tables that use the |TokuDB| or |MyRocks| storage engine, the
-  upgrade only works with native partitioning.
+* With partitioned tables that use the |TokuDB| or |MyRocks| storage engine,
+  the upgrade only works with native partitioning.
 
   .. seealso::
 
@@ -99,17 +100,23 @@ You should also consider the following:
   error. MyRocks key encoding and comparison does not account for this
   character set attribute.
 
-*  In version 8.0.13-3 and later, MyRocks does not support `explict DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__.
+*  In version 8.0.13-3 and later, MyRocks does not support
+   `explict DEFAULT value expressions <https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html>`__.
 
-* |Percona Server| 8.0.16 does not support encryption for the MyRocks storage engine. At this time, during an ``ALTER TABLE`` operation, MyRocks mistakenly detects all InnoDB tables as encrypted. Therefore, any attempt to ``ALTER`` an InnoDB table to MyRocks fails.
+* |Percona Server| 8.0.16 does not support encryption for the MyRocks
+  storage engine. At this time, during an ``ALTER TABLE`` operation, MyRocks mistakenly detects all InnoDB tables as encrypted. Therefore, any attempt to ``ALTER`` an InnoDB table to MyRocks fails.
 
-As a workaround, we recommend a manual move of the table. The following  steps are the same as the ``ALTER TABLE ... ENGINE=...`` process:
+  As a workaround, we recommend a manual move of the table. The following  steps are the same as the ``ALTER TABLE ... ENGINE=...`` process:
 
-    * Use ``SHOW CREATE TABLE ... `` to return the InnoDB table definition.
-    * With the table definition as the source, perform a ``CREATE TABLE ... ENGINE=RocksDB``.
-    * In the new table, use ``INSERT INTO <new table> SELECT * FROM <old table>``.
+* Use ``SHOW CREATE TABLE ...`` to return the InnoDB table definition.
+
+* With the table definition as the source, perform
+  a ``CREATE TABLE ... ENGINE=RocksDB``.
+
+* In the new table, use ``INSERT INTO <new table> SELECT * FROM <old table>``.
 
   .. note::
+
     With MyRocks and with large tables, it is recommended to set the session variable ``rocksdb_bulk_load=1`` during the load to prevent running out of memory. This recommendation is because of the MyRocks large transaction limitation.
 
   .. seealso::

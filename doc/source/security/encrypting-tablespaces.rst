@@ -123,6 +123,11 @@ tables.
       MySQL Documentation: default_table_encryption
       https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html
 
+.. _merge-sort-encryption:
+
+.. rubric:: Merge-sort-encryption
+
+
 .. variable:: innodb_encrypt_online_alter_logs
 
     :cli: ``--innodb_encrypt-online-alter-logs``

@@ -24,6 +24,7 @@ This feature provides:
   row compression method)
 
 .. To Reviewer: Is the following statement still relevant?
+
 This feature is based on a patch provided by Weixiang Zhai.
 
 Specifications
@@ -46,7 +47,7 @@ The compression can be specified:
 
 * when creating a table:
   ``CREATE TABLE ... (..., foo BLOB COLUMN_FORMAT COMPRESSED, ...);``
-  
+
 * when altering a table and modifying a column to the compressed format:
   ``ALTER TABLE ... MODIFY [COLUMN] ... COLUMN_FORMAT COMPRESSED``, or
   ``ALTER TABLE ... CHANGE [COLUMN] ... COLUMN_FORMAT COMPRESSED``.
@@ -100,7 +101,7 @@ exception when :variable:`innodb_force_value` is set to ``3``: with values
 less than ``3``, compression dictionary operations are allowed, and with
 values >= ``3``, they are forbidden.
 
-.. note:: 
+.. note::
 
   Prior to |Percona Server| :rn:`8.0.15-6` using Compression dictionary operations
   with :variable:`innodb_force_recovery` variable set to value > 0 would result in
@@ -311,7 +312,7 @@ compression for values that are known in advance by the user to have bad
 compression ratio of their first N bytes.
 
 .. seealso::
-   
+
    How to find a good/optimal dictionary for zlib 'setDictionary' when processing a given set of data?
       http://stackoverflow.com/questions/2011653/how-to-find-a-good-optimal-dictionary-for-zlib-setdictionary-when-processing-a
 

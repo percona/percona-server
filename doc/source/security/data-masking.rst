@@ -71,15 +71,15 @@ The data masking functions are the following:
             +------------------------------------------+
     * - mask_ssn()
       - Returns the string with only the last four numbers replaced by "X".
-      - ..  code-block:: MySQL
+      - .. code-block:: MySQL
 
-              mysql> SELECT mask_ssn('555-55-5555');
+            mysql> SELECT mask_ssn('555-55-5555');
 
-              +--------------------------------------+
-              | mask_ssn('555-55-5555`               |
-              +--------------------------------------+
-              | XXX-XX_5555                          |
-              +--------------------------------------+
+            +--------------------------------------+
+            | mask_ssn('555-55-5555')              |
+            +--------------------------------------+
+            | XXX-XX_5555                          |
+            +--------------------------------------+
     * - gen_range()
       - Generates a random number based on a selected range.
       - .. code-block:: MySQL

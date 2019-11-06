@@ -1,13 +1,20 @@
-# Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; see the file COPYING. If not, write to the
@@ -227,11 +234,10 @@
 # Configuration based upon above user input, not to be set directly
 ##############################################################################
 
+%define license_files_server    %{src_dir}/LICENSE %{src_dir}/README
 %if 0%{?commercial}
-%define license_files_server    %{src_dir}/LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_server    %{src_dir}/COPYING %{src_dir}/README
 %define license_type            GPL
 %endif
 
@@ -484,7 +490,7 @@ export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-}
 
-# By default, a build will include the bundeled "yaSSL" library for SSL.
+# By default, a build will include the system library for SSL.
 # However, there may be a need to override.
 # Protect against undefined variables if there is no override option.
 %if %{undefined with_ssl}
@@ -1229,6 +1235,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Thu Sep 05 2019 Bjorn Munch <bjorn.munch@oracle.com>
+- Add License Book, remove COPYING
+
 * Wed Jan 10 2018 Bjorn Munch <bjorn.munch@oracle.com>
 - No longer need to remove obsoleted mysqltest man pages
 

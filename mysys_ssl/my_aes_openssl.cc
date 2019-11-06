@@ -1,13 +1,25 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+Without limiting anything contained in the foregoing, this file,
+which is part of C Driver for MySQL (Connector/C), is also subject to the
+Universal FOSS Exception, version 1.0, a copy of which can be found at
+http://oss.oracle.com/licenses/universal-foss-exception.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
@@ -109,28 +121,26 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    enum my_aes_opmode mode, const unsigned char *iv)
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX ctx_value;
-  EVP_CIPHER_CTX *ctx= &ctx_value;
-#else
+  EVP_CIPHER_CTX stack_ctx;
+  EVP_CIPHER_CTX *ctx= &stack_ctx;
+  memset(ctx, 0, sizeof(stack_ctx));
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX *ctx= EVP_CIPHER_CTX_new();
   if (unlikely(!ctx))
     return MY_AES_BAD_DATA;
-#endif
-
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   const EVP_CIPHER *cipher= aes_evp_type(mode);
   int u_len, f_len;
   /* The real key to be used for encryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
-  my_aes_create_key(key, key_length, rkey, mode);
 
-  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0
-                  && EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE && !iv))
-  {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-    EVP_CIPHER_CTX_free(ctx);
-#endif
-    return MY_AES_BAD_DATA;
-  }
+  my_aes_create_key(key, key_length, rkey, mode);
+  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+    goto aes_error;                             /* Error */
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_init(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   if (!EVP_EncryptInit(ctx, cipher, rkey, iv))
     goto aes_error;                             /* Error */
@@ -148,9 +158,9 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
-#else
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX_free(ctx);
-#endif
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   return u_len + f_len;
 
 aes_error:
@@ -158,9 +168,9 @@ aes_error:
   ERR_clear_error();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
-#else
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX_free(ctx);
-#endif
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   return MY_AES_BAD_DATA;
 }
 
@@ -171,14 +181,14 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    enum my_aes_opmode mode, const unsigned char *iv)
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX ctx_value;
-  EVP_CIPHER_CTX *ctx= &ctx_value;
-#else
+  EVP_CIPHER_CTX stack_ctx;
+  EVP_CIPHER_CTX *ctx= &stack_ctx;
+  memset(ctx, 0, sizeof(stack_ctx));
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX *ctx= EVP_CIPHER_CTX_new();
   if (unlikely(!ctx))
     return MY_AES_BAD_DATA;
-#endif
-
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   const EVP_CIPHER *cipher= aes_evp_type(mode);
   int u_len, f_len;
 
@@ -186,16 +196,12 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
   my_aes_create_key(key, key_length, rkey, mode);
-  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0
-                  && EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE && !iv))
-  {
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-    EVP_CIPHER_CTX_free(ctx);
-#endif
-    return MY_AES_BAD_DATA;
-  }
+  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+    goto aes_error;                             /* Error */
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_init(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   if (!EVP_DecryptInit(ctx, aes_evp_type(mode), rkey, iv))
     goto aes_error;                             /* Error */
@@ -208,9 +214,9 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
-#else
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX_free(ctx);
-#endif
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   return u_len + f_len;
 
 aes_error:
@@ -218,9 +224,9 @@ aes_error:
   ERR_clear_error();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
-#else
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX_free(ctx);
-#endif
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   return MY_AES_BAD_DATA;
 }
 
@@ -255,7 +261,6 @@ my_bool my_aes_needs_iv(my_aes_opmode opmode)
 
   iv_length= EVP_CIPHER_iv_length(cipher);
   DBUG_ASSERT(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
-  return iv_length != 0
-    ? (EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE) : FALSE;
+  return iv_length != 0 ? TRUE : FALSE;
 }
 

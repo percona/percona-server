@@ -2,13 +2,21 @@
 
 Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -39,7 +47,6 @@ Created 5/11/1994 Heikki Tuuri
 #include <ctype.h>
 
 #ifndef UNIV_HOTBACKUP
-# include "btr0types.h"
 # include "trx0trx.h"
 # include "ha_prototypes.h"
 # include "mysql_com.h" /* NAME_LEN */
@@ -222,6 +229,23 @@ ut_time_ms(void)
 	return((ulint) tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/** Returns the number of milliseconds since some epoch using monotonic clock.
+The value may wrap around.  This should not be used as an accurate Time Of Day.
+It is only intended to be used as a means of calculating transient elapsed or
+projected time that will not be influenced by changes to the systems real time
+clock.  Returns a small structure that contains the result so as to poison the
+code and reveal any changes that might later be introduced by upstream.
+*/
+ut_monotonic_time
+ut_monotonic_time_ms(void) {
+	timespec	  tp;
+	ut_monotonic_time ret;
+	clock_gettime(CLOCK_MONOTONIC, &tp);
+
+	ret.ms = (ulint) tp.tv_sec * 1000 + tp.tv_nsec / 1000000;
+	return ret;
+}
 
 /**********************************************************//**
 Returns the difference of two times in seconds.

@@ -73,9 +73,8 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'EXAMPLE';
 # environment. That's why we disable result log when this error message
 # is expected.
 --disable_result_log
---replace_result $EXAMPLE_PLUGIN EXAMPLE_PLUGIN
 --error ER_CANT_OPEN_LIBRARY
---eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN'
+--eval INSTALL PLUGIN example SONAME 'wrong_name.so'
 --enable_result_log
 --replace_result $EXAMPLE_PLUGIN_DIR EXAMPLE_PLUGIN_DIR $EXAMPLE_PLUGIN EXAMPLE_PLUGIN
 --error ER_UDF_NO_PATHS

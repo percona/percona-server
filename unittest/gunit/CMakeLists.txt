@@ -1,14 +1,21 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -191,19 +198,18 @@ SET(GMOCK_INCLUDE_DIRS
   CACHE INTERNAL "")
 
 # Build gmock/gtest libraries.
-INCLUDE_DIRECTORIES(
+INCLUDE_DIRECTORIES(SYSTEM
   ${GMOCK_SOURCE_DIR}
   ${GMOCK_SOURCE_DIR}/include
   ${GTEST_SOURCE_DIR}
   ${GTEST_SOURCE_DIR}/include
 )
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wformat-overflow" HAVE_FORMAT_OVERFLOW)
+
 ADD_LIBRARY(gmock STATIC ${GMOCK_SOURCE_DIR}/src/gmock-all.cc)
 ADD_LIBRARY(gtest STATIC ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
 SET(GTEST_LIBRARIES gmock gtest)
-
-IF (WITH_SSL STREQUAL "bundled")
-  ADD_SUBDIRECTORY(yassl)
-ENDIF()
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
@@ -246,6 +252,8 @@ MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/sql/share")
 ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 # Add tests (link them with gunit/gmock libraries) 
 SET(TESTS
@@ -303,6 +311,7 @@ SET(SERVER_TESTS
   opt_trace
   segfault
   sql_table
+  strings_utf8
   table_cache
   tc_log_mmap
 )
@@ -315,6 +324,13 @@ IF (MERGE_UNITTESTS)
   SET(MERGE_SMALL_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_small_tests.cc)
   SET_SOURCE_FILES_PROPERTIES(MERGE_SMALL_TESTS MERGE_LARGE_TESTS
     PROPERTIES GENERATED 1)
+
+  # Suppress -Wformat-overflow= for my_safe_snprintf(" %s ", nullptr)
+  IF(HAVE_FORMAT_OVERFLOW)
+    ADD_COMPILE_FLAGS(
+      ${MERGE_LARGE_TESTS}
+      COMPILE_FLAGS "-Wno-format-overflow")
+  ENDIF()
 
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -364,6 +380,13 @@ ENDIF(MERGE_UNITTESTS)
     ENDIF()
   ENDFOREACH()
   
+  # Suppress -Wformat-overflow= for my_safe_snprintf(" %s ", nullptr)
+  IF(HAVE_FORMAT_OVERFLOW)
+    ADD_COMPILE_FLAGS(
+      segfault-t.cc
+      COMPILE_FLAGS "-Wno-format-overflow")
+  ENDIF()
+
   FOREACH(test ${SERVER_TESTS})
     SET(SRC_FILES ${test}-t.cc)
     IF(WIN32)
@@ -389,6 +412,3 @@ ENDIF(MERGE_UNITTESTS)
       ADD_TEST(${test} ${test}-t)
     ENDIF()
   ENDFOREACH()
-
-## Most executables depend on libeay32.dll (through mysys_ssl).
-COPY_OPENSSL_DLLS(copy_openssl_gunit)

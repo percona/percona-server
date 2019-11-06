@@ -407,7 +407,7 @@ When this variable is set to ``ON`` log file will be closed and reopened. This c
      :scope: Global
      :dyn: No
      :vartype: Numeric
-     :default: 4096
+     :default: 1 Mb
 
 This variable can be used to specify the size of memory buffer used for logging, used when :variable:`audit_log_strategy` variable is set to ``ASYNCHRONOUS`` or ``PERFORMANCE`` values. This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
 
@@ -504,7 +504,12 @@ This variable is used to specify which events should be logged. Possible values 
     :vartype: Numeric
     :default: 0 (don't rotate the log file)
 
-This variable is used to specify the maximum audit log file size. Upon reaching this size the log will be rotated. The rotated log files will be present in the same same directory as the current log file. A sequence number will be appended to the log file name upon rotation. This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
+This variable specifies the maximum size of the audit log file. Upon reaching
+this size, the audit log will be rotated. The rotated log files are present in
+the same directory as the current log file. The sequence number is appended to
+the log file name upon rotation. For this variable to take effect, set the
+:variable:`audit_log_handler` variable to ``FILE`` and the
+:variable:`audit_log_rotations` variable to a value greater than zero.
  
 .. variable:: audit_log_rotations
 
@@ -562,6 +567,18 @@ This variable is used to specify the ``facility`` value for syslog. This variabl
 
 This variable is used to specify the ``priority`` value for syslog. This variable has the same meaning as the appropriate parameter described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
 
+Status Variables
+================
+
+.. variable:: Audit_log_buffer_size_overflow
+
+    :vartype: Numeric
+    :scope: Global
+
+The number of times an audit log entry was either
+dropped or written directly to the file due to its size being bigger
+than :variable:`audit_log_buffer_size` variable.
+
 Version Specific Information
 ============================
 
@@ -575,3 +592,5 @@ Version Specific Information
     |Percona Server| :ref:`audit_log_plugin` now supports filtering by
     :ref:`user <filtering_by_user>` and
     :ref:`sql_command <filtering_by_sql_command_type>`.
+  * :rn:`5.6.44-85.0`
+    :variable:`Audit_log_buffer_size_overflow` variable implemented

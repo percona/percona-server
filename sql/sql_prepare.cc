@@ -1,13 +1,20 @@
 /* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -119,6 +126,7 @@ When one supplies long data for a placeholder:
 #include "transaction.h"                        // trans_rollback_implicit
 #include "sql_audit.h"
 #include <algorithm>
+#include <limits>
 using std::max;
 using std::min;
 
@@ -1191,6 +1199,7 @@ static bool insert_params_from_vars(Prepared_statement *stmt,
   user_var_entry *entry;
   LEX_STRING *varname;
   List_iterator<LEX_STRING> var_it(varnames);
+  size_t length= 0;
   DBUG_ENTER("insert_params_from_vars");
 
   for (Item_param **it= begin; it < end; ++it)
@@ -1200,7 +1209,13 @@ static bool insert_params_from_vars(Prepared_statement *stmt,
     entry= (user_var_entry*)my_hash_search(&stmt->thd->user_vars,
                                            (uchar*) varname->str,
                                            varname->length);
-    if (param->set_from_user_var(stmt->thd, entry) ||
+    if (param->set_from_user_var(stmt->thd, entry))
+      DBUG_RETURN(1);
+
+    if (entry)
+      length+= entry->length();
+
+    if (length > std::numeric_limits<uint32>::max() ||
         param->convert_str_value(stmt->thd))
       DBUG_RETURN(1);
   }
@@ -1229,15 +1244,14 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   user_var_entry *entry;
   LEX_STRING *varname;
   List_iterator<LEX_STRING> var_it(varnames);
-  String buf;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
   const String *val;
   uint32 length= 0;
   THD *thd= stmt->thd;
 
   DBUG_ENTER("insert_params_from_vars_with_log");
 
-  if (query->copy(stmt->query(), stmt->query_length(), default_charset_info))
-    DBUG_RETURN(1);
+  query->reserve(stmt->query_length() + 32 * stmt->param_count);
 
   for (Item_param **it= begin; it < end; ++it)
   {
@@ -1259,10 +1273,19 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
-    if (query->replace(param->pos_in_query+length, 1, *val))
+    size_t num_bytes = param->pos_in_query - length;
+    if (query->length() + num_bytes + val->length() >
+         std::numeric_limits<uint32>::max())
       DBUG_RETURN(1);
-    length+= val->length()-1;
+
+    if (query->append(stmt->query() + length, num_bytes) ||
+         query->append(*val))
+      DBUG_RETURN(1);
+
+    length = param->pos_in_query + 1;
   }
+  // Take care of tail.
+  query->append(stmt->query() + length, stmt->query_length() - length);
   DBUG_RETURN(0);
 }
 

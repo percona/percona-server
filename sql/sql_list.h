@@ -3,13 +3,20 @@
 /* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
@@ -50,6 +57,14 @@ public:
     elements= tmp.elements;
     first= tmp.first;
     next= elements ? tmp.next : &first;
+  }
+
+  SQL_I_List &operator=(const SQL_I_List &tmp)
+  {
+    elements= tmp.elements;
+    first= tmp.first;
+    next= tmp.elements ? tmp.next : &first;
+    return *this;
   }
 
   inline void empty()
@@ -168,11 +183,20 @@ public:
     relies on this behaviour. This logic is quite tricky: please do not use
     it in any new code.
   */
-  inline base_list(const base_list &tmp) :Sql_alloc()
+  base_list(const base_list &tmp)
+    : Sql_alloc(),
+      first(tmp.first),
+      last(tmp.elements ? tmp.last : &first),
+      elements(tmp.elements)
   {
+  }
+  base_list &operator=(const base_list &tmp)
+  {
+    Sql_alloc::operator= (tmp);
     elements= tmp.elements;
     first= tmp.first;
     last= elements ? tmp.last : &first;
+    return *this;
   }
   /**
     Construct a deep copy of the argument in memory root mem_root.
@@ -471,6 +495,10 @@ template <class T> class List :public base_list
 public:
   inline List() :base_list() {}
   inline List(const List<T> &tmp) :base_list(tmp) {}
+  List &operator=(const List &tmp)
+  {
+    return static_cast<List &>(base_list::operator=(tmp));
+  }
   inline List(const List<T> &tmp, MEM_ROOT *mem_root) :
     base_list(tmp, mem_root) {}
   /*

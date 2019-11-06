@@ -19,6 +19,7 @@
 #include <my_pthread.h>
 #include <my_sys.h>
 #include "audit_log.h"
+#include <my_atomic.h>
 
 struct audit_log_buffer {
   char *buf;
@@ -189,6 +190,7 @@ int audit_log_buffer_write(audit_log_buffer_t *log, const char *buf, size_t len)
       log->write_func(log->write_func_data, buf, len, LOG_RECORD_COMPLETE);
       audit_log_buffer_resume(log);
     }
+    my_atomic_add64(&audit_log_buffer_size_overflow, (int64)1);
     return(0);
   }
 

@@ -3,6 +3,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
+#
+# Bug 75480: Selecting wrong pos with SHOW BINLOG EVENTS causes
+# a potentially misleading message in the server error log
+#
 CREATE TABLE t (a INT, b INT);
 INSERT INTO t (a, b) VALUES (1, 1);
 INSERT INTO t (a, b) VALUES (2, 2);
@@ -11,7 +15,6 @@ INSERT INTO t (a, b) VALUES (4, 4);
 INSERT INTO t (a, b) VALUES (5, 5);
 INSERT INTO t (a, b) VALUES (6, 6);
 INSERT INTO t (a, b) VALUES (7, 7);
-SHOW BINLOG EVENTS FROM 5;
-ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Wrong offset or I/O error
+include/sync_slave_sql_with_master.inc
 DROP TABLE t;
 include/rpl_end.inc

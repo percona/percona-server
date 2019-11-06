@@ -19,6 +19,8 @@
 
 #include <m_ctype.h>
 
+extern uint64 audit_log_buffer_size_overflow;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

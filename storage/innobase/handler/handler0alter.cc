@@ -1,14 +1,22 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -2052,6 +2060,24 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	/** Determine if the table will be rebuilt.
 	@return whether the table will be rebuilt */
 	bool need_rebuild () const { return(old_table != new_table); }
+
+	/** Set shared data between the passed in handler context
+	and current context.
+	@param[in] inplace_alter_handler_ctx        handler context */
+	void set_shared_data(
+		const inplace_alter_handler_ctx *ctx)
+	{
+		ut_ad(ctx != NULL);
+		if (this->add_autoinc == ULINT_UNDEFINED) {
+			return;
+		}
+		const ha_innobase_inplace_ctx* ha_ctx =
+			static_cast<const ha_innobase_inplace_ctx*> (ctx);
+		/* In InnoDB table, if it's adding AUTOINC column,
+		the sequence value should be shared among contexts */
+		ut_ad(ha_ctx->add_autoinc != ULINT_UNDEFINED);
+		this->sequence = ha_ctx->sequence;
+	}
 
 private:
 	// Disable copying

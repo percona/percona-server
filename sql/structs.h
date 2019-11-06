@@ -4,13 +4,20 @@
 /* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
@@ -266,40 +273,6 @@ typedef struct st_user_stats {
   ulonglong empty_queries;
 } USER_STATS;
 
-/* Lookup function for my_hash tables with USER_STATS entries */
-extern "C" uchar *get_key_user_stats(USER_STATS *user_stats, size_t *length,
-                                my_bool not_used MY_ATTRIBUTE((unused)));
-
-/* Free all memory for a my_hash table with USER_STATS entries */
-extern void free_user_stats(USER_STATS* user_stats);
-
-/* Intialize an instance of USER_STATS */
-extern void
-init_user_stats(USER_STATS *user_stats,
-                const char *user,
-                const char *priv_user,
-                uint total_connections,
-                uint total_ssl_connections,
-                uint concurrent_connections,
-                time_t connected_time,
-                double busy_time,
-                double cpu_time,
-                ulonglong bytes_received,
-                ulonglong bytes_sent,
-                ulonglong binlog_bytes_written,
-                ha_rows rows_fetched,
-                ha_rows rows_updated,
-                ha_rows rows_read,
-                ulonglong select_commands,
-                ulonglong update_commands,
-                ulonglong other_commands,
-                ulonglong commit_trans,
-                ulonglong rollback_trans,
-                ulonglong denied_connections,
-                ulonglong lost_connections,
-                ulonglong access_denied_errors,
-                ulonglong empty_queries);
-
 typedef struct st_thread_stats {
   my_thread_id id;
   uint total_connections;
@@ -318,39 +291,6 @@ typedef struct st_thread_stats {
   ulonglong access_denied_errors;
   ulonglong empty_queries;
 } THREAD_STATS;
-
-/* Lookup function for my_hash tables with THREAD_STATS entries */
-extern "C" uchar *get_key_thread_stats(THREAD_STATS *thread_stats, size_t *length,
-                                my_bool not_used MY_ATTRIBUTE((unused)));
-
-/* Free all memory for a my_hash table with THREAD_STATS entries */
-extern void free_thread_stats(THREAD_STATS* thread_stats);
-
-/* Intialize an instance of THREAD_STATS */
-extern void
-init_thread_stats(THREAD_STATS *thread_stats,
-                my_thread_id id,
-                uint total_connections,
-                uint total_ssl_connections,
-                uint concurrent_connections,
-                time_t connected_time,
-                double busy_time,
-                double cpu_time,
-                ulonglong bytes_received,
-                ulonglong bytes_sent,
-                ulonglong binlog_bytes_written,
-                ha_rows rows_fetched,
-                ha_rows rows_updated,
-                ha_rows rows_read,
-                ulonglong select_commands,
-                ulonglong update_commands,
-                ulonglong other_commands,
-                ulonglong commit_trans,
-                ulonglong rollback_trans,
-                ulonglong denied_connections,
-                ulonglong lost_connections,
-                ulonglong access_denied_errors,
-                ulonglong empty_queries);
 
 typedef struct st_table_stats {
   char table[NAME_LEN * 2 + 2];  // [db] + '.' + [table] + '\0'

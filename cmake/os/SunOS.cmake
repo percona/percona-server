@@ -1,13 +1,20 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
@@ -16,6 +23,11 @@
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCSourceCompiles) 
+
+SET(SOLARIS 1)
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+  SET(SOLARIS_SPARC 1)
+ENDIF()
 
 # We require SunStudio 12u2 (CC 5.11)
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
@@ -47,6 +59,7 @@ ENDIF()
 
 # Enable 64 bit file offsets
 SET(_FILE_OFFSET_BITS 64)
+ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
 
 # Legacy option, without it  my_pthread is having problems
 ADD_DEFINITIONS(-DHAVE_RWLOCK_T)

@@ -1,0 +1,79 @@
+#
+# binlog_skip_flush_commands
+#
+
+SET @start_global_value = @@global.binlog_skip_flush_commands;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+
+# valid values are 'ON' and 'OFF'
+SELECT @@global.binlog_skip_flush_commands IN (0, 1);
+SELECT @@global.binlog_skip_flush_commands;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.binlog_skip_flush_commands;
+SHOW GLOBAL  VARIABLES LIKE 'binlog_skip_flush_commands';
+SHOW SESSION VARIABLES LIKE 'binlog_skip_flush_commands';
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+
+#
+# show that it's writable
+#
+SET GLOBAL binlog_skip_flush_commands = ON;
+SELECT @@global.binlog_skip_flush_commands;
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+
+SET GLOBAL binlog_skip_flush_commands = OFF;
+SELECT @@global.binlog_skip_flush_commands;
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+
+SET GLOBAL binlog_skip_flush_commands = 'ON';
+SELECT @@global.binlog_skip_flush_commands;
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+
+SET GLOBAL binlog_skip_flush_commands = 'OFF';
+SELECT @@global.binlog_skip_flush_commands;
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+
+SET GLOBAL binlog_skip_flush_commands = 1;
+SELECT @@global.binlog_skip_flush_commands;
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+
+SET GLOBAL binlog_skip_flush_commands = 0;
+SELECT @@global.binlog_skip_flush_commands;
+SELECT * FROM information_schema.global_variables  WHERE variable_name = 'binlog_skip_flush_commands';
+SELECT * FROM information_schema.session_variables WHERE variable_name = 'binlog_skip_flush_commands';
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION binlog_skip_flush_commands = 'OFF';
+--error ER_GLOBAL_VARIABLE
+SET @@session.binlog_skip_flush_commands = 'ON';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL binlog_skip_flush_commands = 1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL binlog_skip_flush_commands = 1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_skip_flush_commands = 2;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_skip_flush_commands = -3;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_skip_flush_commands = 'AUTO';
+
+#
+# cleanup
+#
+
+SET GLOBAL binlog_skip_flush_commands = @start_global_value;
+SELECT @@global.binlog_skip_flush_commands;

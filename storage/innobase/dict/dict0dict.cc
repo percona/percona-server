@@ -3,13 +3,21 @@
 Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1833,7 +1841,7 @@ dict_table_rename_in_cache(
 
 			ulint	db_len;
 			char*	old_id;
-			char    old_name_cs_filename[MAX_TABLE_NAME_LEN+20];
+			char    old_name_cs_filename[MAX_FULL_NAME_LEN + 1];
 			uint    errors = 0;
 
 			/* All table names are internally stored in charset
@@ -1850,7 +1858,7 @@ dict_table_rename_in_cache(
 			in old_name_cs_filename */
 
 			strncpy(old_name_cs_filename, old_name,
-				MAX_TABLE_NAME_LEN);
+				sizeof(old_name_cs_filename));
 			if (strstr(old_name, TEMP_TABLE_PATH_PREFIX) == NULL) {
 
 				innobase_convert_to_system_charset(
@@ -1872,7 +1880,7 @@ dict_table_rename_in_cache(
 					/* Old name already in
 					my_charset_filename */
 					strncpy(old_name_cs_filename, old_name,
-						MAX_TABLE_NAME_LEN);
+						sizeof(old_name_cs_filename));
 				}
 			}
 
@@ -1898,7 +1906,7 @@ dict_table_rename_in_cache(
 
 				/* This is a generated >= 4.0.18 format id */
 
-				char	table_name[MAX_TABLE_NAME_LEN] = "";
+				char	table_name[MAX_TABLE_NAME_LEN + 1] = "";
 				uint	errors = 0;
 
 				if (strlen(table->name) > strlen(old_name)) {
@@ -5837,7 +5845,8 @@ dict_table_set_corrupt_by_space(
 	dict_table_t*	table;
 	ibool		found = FALSE;
 
-	ut_a(space_id != 0 && space_id < SRV_LOG_SPACE_FIRST_ID);
+	ut_a(space_id != 0);
+	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 
 	if (need_mutex)
 		mutex_enter(&(dict_sys->mutex));

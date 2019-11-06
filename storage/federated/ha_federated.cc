@@ -1,13 +1,20 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -524,8 +531,8 @@ int federated_done(void *p)
   @brief Append identifiers to the string.
 
   @param[in,out] string	The target string.
-  @param[in] name 		Identifier name
-  @param[in] length 	Length of identifier name in bytes
+  @param[in] name       Identifier name
+  @param[in] length     Length of identifier name in bytes
   @param[in] quote_char Quote char to use for quoting identifier.
 
   @return Operation Status
@@ -539,32 +546,36 @@ int federated_done(void *p)
 static bool append_ident(String *string, const char *name, size_t length,
                          const char quote_char)
 {
-  bool result;
-  uint clen;
-  const char *name_end;
+  bool result= true;
   DBUG_ENTER("append_ident");
 
   if (quote_char)
   {
-    string->reserve((uint) length * 2 + 2);
+    string->reserve(length * 2 + 2);
+
     if ((result= string->append(&quote_char, 1, system_charset_info)))
       goto err;
 
-    for (name_end= name+length; name < name_end; name+= clen)
+    uint clen= 0;
+
+    for (const char *name_end= name + length; name < name_end; name+= clen)
     {
-      uchar c= *(uchar *) name;
+      char c= *name;
+
       if (!(clen= my_mbcharlen(system_charset_info, c)))
-        clen= 1;
-      if (clen == 1 && c == (uchar) quote_char &&
+        goto err;
+
+      if (clen == 1 && c == quote_char &&
           (result= string->append(&quote_char, 1, system_charset_info)))
         goto err;
+
       if ((result= string->append(name, clen, string->charset())))
         goto err;
     }
     result= string->append(&quote_char, 1, system_charset_info);
   }
   else
-    result= string->append(name, (uint) length, system_charset_info);
+    result= string->append(name, length, system_charset_info);
 
 err:
   DBUG_RETURN(result);

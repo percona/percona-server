@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -15035,7 +15042,15 @@ option_value_no_option_type:
               MYSQL_YYABORT;
             Lex->var_list.push_back(var);
           }
-        | '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
+        | '@' '@' opt_var_ident_type internal_variable_name
+          {
+            if ($4.var == trg_new_row_fake_var)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
+          equal set_expr_or_default
           {
             THD *thd= YYTHD;
             struct sys_var_with_base tmp= $4;
@@ -15045,7 +15060,7 @@ option_value_no_option_type:
               if (find_sys_var_null_base(thd, &tmp))
                 MYSQL_YYABORT;
             }
-            if (set_system_variable(thd, &tmp, $3, $6))
+            if (set_system_variable(thd, &tmp, $3, $7))
               MYSQL_YYABORT;
           }
         | charset old_or_new_charset_name_or_default
@@ -15130,6 +15145,7 @@ option_value_no_option_type:
             lex->autocommit= TRUE;
             lex->is_set_password_sql= true;
             lex->is_change_password= TRUE;
+            lex->contains_plaintext_password= true;
 
             if (sp)
               sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
@@ -16247,19 +16263,21 @@ subselect_end:
             lex->current_select = lex->current_select->outer_select();
             lex->nest_level--;
             lex->current_select->n_child_sum_items += child->n_sum_items;
-            /*
-              A subselect can add fields to an outer select. Reserve space for
-              them.
-            */
-            lex->current_select->select_n_where_fields+=
-            child->select_n_where_fields;
 
             /*
-              Aggregate functions in having clause may add fields to an outer
-              select. Count them also.
+              A subquery (and all the subsequent query blocks in a UNION) can
+              add columns to an outer query block. Reserve space for them.
+              Aggregate functions in having clause can also add fields to an
+              outer select.
             */
-            lex->current_select->select_n_having_items+=
-            child->select_n_having_items;
+            for (SELECT_LEX *temp= child->master_unit()->first_select();
+                 temp != NULL; temp= temp->next_select())
+            {
+              lex->current_select->select_n_where_fields+=
+                temp->select_n_where_fields;
+              lex->current_select->select_n_having_items+=
+                temp->select_n_having_items;
+            }
           }
         ;
 

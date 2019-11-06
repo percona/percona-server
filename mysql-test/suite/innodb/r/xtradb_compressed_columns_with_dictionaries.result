@@ -1,14 +1,14 @@
 CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('foo');
 CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('foo');
 Warnings:
-Note	1891	Compression dictionary 'ddd' already exists
+Note	1892	Compression dictionary 'ddd' already exists
 CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('bar');
 Warnings:
-Note	1891	Compression dictionary 'ddd' already exists
+Note	1892	Compression dictionary 'ddd' already exists
 DROP COMPRESSION_DICTIONARY IF EXISTS ddd;
 DROP COMPRESSION_DICTIONARY IF EXISTS ddd;
 Warnings:
-Note	1892	Compression dictionary 'ddd' does not exist
+Note	1893	Compression dictionary 'ddd' does not exist
 CREATE COMPRESSION_DICTIONARY d1('');
 CREATE COMPRESSION_DICTIONARY d2(_ucs2'');
 CREATE COMPRESSION_DICTIONARY d3('aaaaaaaabbbbbbbbccccccccdddddddd');

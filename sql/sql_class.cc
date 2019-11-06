@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1519,6 +1526,7 @@ void THD::init(void)
   reset_current_stmt_binlog_format_row();
   reset_binlog_local_stmt_filter();
   memset(&status_var, 0, sizeof(status_var));
+  status_var_aggregated= false;
   binlog_row_event_extra_data= 0;
 
   if (variables.sql_log_bin)
@@ -1799,8 +1807,10 @@ void THD::release_resources()
 
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  mysql_mutex_unlock(&LOCK_status);
   memset(&status_var, 0, sizeof(status_var));
+  status_var_aggregated= true;
+  mysql_mutex_unlock(&LOCK_status);
+
   m_release_resources_done= true;
 }
 
@@ -1814,14 +1824,6 @@ THD::~THD()
 
   if (!m_release_resources_done)
     release_resources();
-
-#ifndef DBUG_OFF
-  {
-    const char* empty_status[sizeof(status_var)] = {};
-    DBUG_ASSERT(memcmp(reinterpret_cast<void*>(&status_var),
-                empty_status, sizeof(status_var))==0);
-  }
-#endif // DBUG_OFF
 
   clear_next_event_pos();
 
@@ -2562,28 +2564,6 @@ void THD::shutdown_active_vio()
   DBUG_VOID_RETURN;
 }
 #endif
-
-char *THD::get_client_host_port(THD *client)
-{
-  Security_context *client_sctx= client->security_ctx;
-  char *client_host= NULL;
-
-  if (client->peer_port && (client_sctx->get_host()->length()
-                            || client_sctx->get_ip()->length()) &&
-      security_ctx->host_or_ip[0])
-  {
-    if ((client_host= (char *) this->alloc(LIST_PROCESS_HOST_LEN+1)))
-      my_snprintf((char *) client_host, LIST_PROCESS_HOST_LEN,
-                  "%s:%u", client_sctx->host_or_ip, client->peer_port);
-  }
-  else
-    client_host= this->strdup(client_sctx->host_or_ip[0] ?
-                              client_sctx->host_or_ip :
-                              client_sctx->get_host()->length() ?
-                              client_sctx->get_host()->ptr() : "");
-
-  return client_host;
-}
 
 const char *get_client_host(THD *client)
 {
@@ -4906,6 +4886,7 @@ void THD::inc_examined_row_count(ha_rows count)
 
 void THD::inc_status_created_tmp_disk_tables()
 {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var_increment(status_var.created_tmp_disk_tables);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
@@ -4914,6 +4895,7 @@ void THD::inc_status_created_tmp_disk_tables()
 
 void THD::inc_status_created_tmp_tables()
 {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var_increment(status_var.created_tmp_tables);
   query_plan_flags|= QPLAN_TMP_TABLE;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
@@ -4923,6 +4905,7 @@ void THD::inc_status_created_tmp_tables()
 
 void THD::inc_status_select_full_join()
 {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var_increment(status_var.select_full_join_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
@@ -4931,6 +4914,7 @@ void THD::inc_status_select_full_join()
 
 void THD::inc_status_select_full_range_join()
 {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var_increment(status_var.select_full_range_join_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
@@ -4939,6 +4923,7 @@ void THD::inc_status_select_full_range_join()
 
 void THD::inc_status_select_range()
 {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var_increment(status_var.select_range_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range)(m_statement_psi, 1);
@@ -4947,6 +4932,7 @@ void THD::inc_status_select_range()
 
 void THD::inc_status_select_range_check()
 {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var_increment(status_var.select_range_check_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
@@ -4955,6 +4941,7 @@ void THD::inc_status_select_range_check()
 
 void THD::inc_status_select_scan()
 {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var_increment(status_var.select_scan_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_scan)(m_statement_psi, 1);
@@ -4963,6 +4950,7 @@ void THD::inc_status_select_scan()
 
 void THD::inc_status_sort_merge_passes()
 {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var_increment(status_var.filesort_merge_passes);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
@@ -4971,6 +4959,7 @@ void THD::inc_status_sort_merge_passes()
 
 void THD::inc_status_sort_range()
 {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var_increment(status_var.filesort_range_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_range)(m_statement_psi, 1);
@@ -4979,6 +4968,7 @@ void THD::inc_status_sort_range()
 
 void THD::inc_status_sort_rows(ha_rows count)
 {
+  DBUG_ASSERT(!status_var_aggregated);
   statistic_add(status_var.filesort_rows, count, &LOCK_status);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
@@ -4987,6 +4977,7 @@ void THD::inc_status_sort_rows(ha_rows count)
 
 void THD::inc_status_sort_scan()
 {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var_increment(status_var.filesort_scan_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
@@ -5025,10 +5016,6 @@ void THD::set_query(const CSET_STRING &string_arg)
   mysql_mutex_lock(&LOCK_thd_data);
   set_query_inner(string_arg);
   mysql_mutex_unlock(&LOCK_thd_data);
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(set_thread_info)(query(), query_length());
-#endif
 }
 
 /** Assign a new value to thd->query and thd->query_id.  */

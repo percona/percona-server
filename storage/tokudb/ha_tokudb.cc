@@ -1075,7 +1075,8 @@ static inline int tokudb_generate_row(DB* dest_db,
         }
 
         buff = (uchar *)dest_key->data;
-        assert_always(buff != NULL && max_key_len > 0);
+        assert_always(buff != nullptr);
+        assert_always(max_key_len > 0);
     } else {
         assert_unreachable();
     }
@@ -1330,7 +1331,7 @@ int ha_tokudb::open_main_dictionary(
             NULL,
             DB_BTREE,
             open_flags,
-            0);
+            S_IWUSR);
     if (error) {
         goto exit;
     }
@@ -1393,7 +1394,7 @@ int ha_tokudb::open_secondary_dictionary(
     }
 
 
-    error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, 0);
+    error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, S_IWUSR);
     if (error) {
         my_errno = error;
         goto cleanup;

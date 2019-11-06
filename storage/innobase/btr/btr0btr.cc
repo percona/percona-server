@@ -3,13 +3,21 @@
 Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1343,7 +1351,7 @@ btr_page_free(
 	buf_block_t*	block,	/*!< in: block to be freed, x-latched */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	const page_t*	page	= buf_block_get_frame(block);
+	const page_t*	page	= buf_nonnull_block_get_frame(block);
 	ulint		level	= btr_page_get_level(page, mtr);
 
 	ut_ad(fil_page_get_type(block->frame) == FIL_PAGE_INDEX);
@@ -2707,7 +2715,7 @@ btr_attach_half_pages(
 	ulint		prev_page_no;
 	ulint		next_page_no;
 	ulint		level;
-	page_t*		page		= buf_block_get_frame(block);
+	page_t*		page		= buf_nonnull_block_get_frame(block);
 	page_t*		lower_page;
 	page_t*		upper_page;
 	ulint		lower_page_no;
@@ -2729,10 +2737,10 @@ btr_attach_half_pages(
 		btr_cur_t	cursor;
 		ulint*		offsets;
 
-		lower_page = buf_block_get_frame(new_block);
+		lower_page = buf_nonnull_block_get_frame(new_block);
 		lower_page_no = buf_block_get_page_no(new_block);
 		lower_page_zip = buf_block_get_page_zip(new_block);
-		upper_page = buf_block_get_frame(block);
+		upper_page = buf_nonnull_block_get_frame(block);
 		upper_page_no = buf_block_get_page_no(block);
 		upper_page_zip = buf_block_get_page_zip(block);
 
@@ -2749,10 +2757,10 @@ btr_attach_half_pages(
 			offsets, lower_page_no, mtr);
 		mem_heap_empty(heap);
 	} else {
-		lower_page = buf_block_get_frame(block);
+		lower_page = buf_nonnull_block_get_frame(block);
 		lower_page_no = buf_block_get_page_no(block);
 		lower_page_zip = buf_block_get_page_zip(block);
-		upper_page = buf_block_get_frame(new_block);
+		upper_page = buf_nonnull_block_get_frame(new_block);
 		upper_page_no = buf_block_get_page_no(new_block);
 		upper_page_zip = buf_block_get_page_zip(new_block);
 	}

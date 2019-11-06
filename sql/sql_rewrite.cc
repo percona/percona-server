@@ -1,14 +1,20 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; version 2 of
-   the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -110,12 +116,14 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
   LEX        *lex= thd->lex;
   TABLE_LIST *first_table= (TABLE_LIST*) lex->select_lex.table_list.first;
   bool        comma= FALSE, comma_inner;
+  bool        proxy_grant= lex->type == TYPE_ENUM_PROXY;
   String      cols(1024);
   int         c;
 
   rlb->append(STRING_WITH_LEN("GRANT "));
-
-  if (lex->all_privileges)
+  if (proxy_grant)
+    rlb->append(STRING_WITH_LEN("PROXY"));
+  else if (lex->all_privileges)
     rlb->append(STRING_WITH_LEN("ALL PRIVILEGES"));
   else
   {
@@ -179,7 +187,18 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
   default:                                                              break;
   }
 
-  if (first_table)
+  LEX_USER *user_name, *tmp_user_name;
+  List_iterator <LEX_USER> user_list(lex->users_list);
+  comma= FALSE;
+
+  if (proxy_grant)
+  {
+    tmp_user_name= user_list++;
+    user_name= get_current_user(thd, tmp_user_name);
+    if (user_name)
+      append_user(thd, rlb, user_name, comma, true);
+  }
+  else if (first_table)
   {
     append_identifier(thd, rlb, first_table->db, strlen(first_table->db));
     rlb->append(STRING_WITH_LEN("."));
@@ -198,10 +217,6 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
 
   rlb->append(STRING_WITH_LEN(" TO "));
   {
-    LEX_USER *user_name, *tmp_user_name;
-    List_iterator <LEX_USER> user_list(lex->users_list);
-    bool comma= FALSE;
-
     while ((tmp_user_name= user_list++))
     {
       if ((user_name= get_current_user(thd, tmp_user_name)))
@@ -483,7 +498,7 @@ static void mysql_rewrite_start_slave(THD *thd, String *rlb)
     rlb->append(STRING_WITH_LEN(" IO_THREAD"));
 
   /* we have printed the IO THREAD related options */
-  if (lex->slave_thd_opt & SLAVE_IO && 
+  if (lex->slave_thd_opt & SLAVE_IO &&
       lex->slave_thd_opt & SLAVE_SQL)
     rlb->append(STRING_WITH_LEN(","));
 

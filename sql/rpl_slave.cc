@@ -1,13 +1,20 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
@@ -2852,7 +2859,7 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
     if (rli->sql_force_rotate_relay)
     {
       mysql_mutex_lock(&mi->data_lock);
-      rotate_relay_log(mi);
+      rotate_relay_log(mi, false/*need_log_space_lock=false*/);
       mysql_mutex_unlock(&mi->data_lock);
       rli->sql_force_rotate_relay= false;
     }
@@ -2906,7 +2913,7 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    "failed to write a Rotate event"
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+      rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
       if (flush_master_info(mi, TRUE))
       {
         error= 1;
@@ -5232,9 +5239,9 @@ err:
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_state(0);
-#endif
-  pthread_exit(0);
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+   pthread_exit(0);
   return(0);                                    // Avoid compiler warnings
 }
 
@@ -5425,8 +5432,8 @@ err:
 
   my_thread_end();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_state(0);
-#endif
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   pthread_exit(0);
   DBUG_RETURN(0); 
 }
@@ -6633,8 +6640,8 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
   DBUG_LEAVE;                            // Must match DBUG_ENTER()
   my_thread_end();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_state(0);
-#endif
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   pthread_exit(0);
   return 0;                             // Avoid compiler warnings
 }
@@ -6712,7 +6719,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
                      "error writing Exec_load event to relay log");
           goto err;
         }
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
+        mi->rli->relay_log.harvest_bytes_written(mi->rli, true/*need_log_space_lock=true*/);
         break;
       }
       if (unlikely(cev_not_written))
@@ -6727,7 +6734,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
           goto err;
         }
         cev_not_written=0;
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
+        mi->rli->relay_log.harvest_bytes_written(mi->rli, true/*need_log_space_lock=true*/);
       }
       else
       {
@@ -6741,7 +6748,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
                      "error writing Append_block event to relay log");
           goto err;
         }
-        mi->rli->relay_log.harvest_bytes_written(&mi->rli->log_space_total);
+        mi->rli->relay_log.harvest_bytes_written(mi->rli, true/*need_log_space_lock=true*/);
       }
     }
   }
@@ -6811,7 +6818,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
     Rotate the relay log makes binlog format detection easier (at next slave
     start or mysqlbinlog)
   */
-  int ret= rotate_relay_log(mi);
+  int ret= rotate_relay_log(mi, true/*need_log_space_lock=true*/);
   DBUG_RETURN(ret);
 }
 
@@ -6925,7 +6932,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
       delete ev;
       DBUG_RETURN(1);
     }
-    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+    rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
   }
   delete ev;
   mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
@@ -6983,7 +6990,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     delete ev;
     DBUG_RETURN(1);
   }
-  rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+  rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
   delete ev;
   mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
 err:
@@ -7517,7 +7524,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+      rli->relay_log.harvest_bytes_written(rli, true/*need_log_space_lock=true*/);
     }
     else
     {
@@ -7648,10 +7655,6 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->ssl_ca[0]?mi->ssl_ca:0,
                   mi->ssl_capath[0]?mi->ssl_capath:0,
                   mi->ssl_cipher[0]?mi->ssl_cipher:0);
-#ifdef HAVE_YASSL
-    mi->ssl_crl[0]= '\0';
-    mi->ssl_crlpath[0]= '\0';
-#endif
     mysql_options(mysql, MYSQL_OPT_SSL_CRL,
                   mi->ssl_crl[0] ? mi->ssl_crl : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
@@ -8397,7 +8400,7 @@ err:
   is void).
 */
 
-int rotate_relay_log(Master_info* mi)
+int rotate_relay_log(Master_info* mi, bool need_log_space_lock)
 {
   DBUG_ENTER("rotate_relay_log");
 
@@ -8435,7 +8438,7 @@ int rotate_relay_log(Master_info* mi)
     If the log is closed, then this will just harvest the last writes, probably
     0 as they probably have been harvested.
   */
-  rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+  rli->relay_log.harvest_bytes_written(rli, need_log_space_lock);
 end:
   DBUG_RETURN(error);
 }

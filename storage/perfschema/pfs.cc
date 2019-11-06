@@ -1,13 +1,20 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software Foundation,
@@ -38,6 +45,7 @@
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "sql_error.h"
+#include "sql_acl.h"
 #include "sp_head.h"
 #include "pfs_digest.h"
 
@@ -2028,6 +2036,14 @@ static void set_thread_account_v1(const char *user, int user_len,
   pfs->m_session_lock.allocated_to_dirty();
 
   clear_thread_account(pfs);
+
+  if (acl_is_utility_user(user, host, NULL)) {
+    /* We do not want the utility user to show up in any PFS statistics,
+    so we keep this pfs session dirty. This fixes many, but not all tables.
+    The remaining seems to honor m_enabled, so we also set that to false. */
+    pfs->m_enabled= false;
+    return;
+  }
 
   if (host_len > 0)
     memcpy(pfs->m_hostname, host, host_len);

@@ -1,14 +1,21 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2347,6 +2354,7 @@ public:
   struct  rand_struct slog_rand;	// used for random slow log filtering
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
+  bool status_var_aggregated; // True if THD status added to global status
   struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
@@ -2812,7 +2820,7 @@ public:
     }
     st_transactions()
     {
-      memset(this, 0, sizeof(*this));
+      memset(static_cast<void*>(this), 0, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
@@ -3734,7 +3742,7 @@ public:
     PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
-  void get_time(QUERY_START_TIME_INFO *time_info)
+  void get_time(QUERY_START_TIME_INFO *time_info) const
   {
     time_info->start_time= start_time;
     time_info->start_utime= start_utime;
@@ -4221,15 +4229,6 @@ public:
   }
   thd_scheduler event_scheduler;
 
-  /* Returns string as 'IP:port' for the client-side
-     of the connnection represented
-     by 'client' as displayed by SHOW PROCESSLIST.
-     Allocates memory from the heap of
-     this THD and that is not reclaimed
-     immediately, so use sparingly. May return NULL.
-  */
-  char *get_client_host_port(THD *client);
-
 public:
   inline Internal_error_handler *get_internal_handler()
   { return m_internal_handler; }
@@ -4340,6 +4339,13 @@ public:
     Assign a new value to thd->query and thd->query_id and mysys_var.
     Protected with LOCK_thd_data mutex.
   */
+  void set_query_for_display(const char *query_arg, size_t query_length_arg) {
+    MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg, query_length_arg);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
+#endif
+  }
+  void reset_query_for_display(void) { set_query_for_display(NULL, 0); }
   void set_query(char *query_arg, uint32 query_length_arg,
                  const CHARSET_INFO *cs_arg)
   {
@@ -4350,8 +4356,9 @@ public:
     set_query(CSET_STRING(query_arg, query_length_arg, charset()));
   }
   void set_query(const CSET_STRING &str); /* Mutex protected */
-  void reset_query()               /* Mutex protected */
-  { set_query(CSET_STRING()); }
+  void reset_query() {             /* Mutex protected */
+    set_query(CSET_STRING());
+  }
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
                         const CHARSET_INFO *cs, query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
@@ -5718,8 +5725,6 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
   return thd->lex->current_select->add_group_to_list(thd, item, asc);
 }
-
-extern pthread_attr_t *get_connection_attrib(void);
 
 #endif /* MYSQL_SERVER */
 

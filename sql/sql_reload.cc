@@ -1,13 +1,20 @@
 /* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -176,7 +183,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       if (active_mi != NULL)
       {
         mysql_mutex_lock(&active_mi->data_lock);
-        if (rotate_relay_log(active_mi))
+        if (rotate_relay_log(active_mi, true/*need_log_space_lock=true*/))
           *write_to_binlog= -1;
         mysql_mutex_unlock(&active_mi->data_lock);
       }
@@ -413,7 +420,39 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
   }
  if (*write_to_binlog != -1)
-   *write_to_binlog= tmp_write_to_binlog;
+ {
+   if (thd == NULL || thd->security_ctx == NULL)
+   {
+     *write_to_binlog=
+       opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+   else if ((thd->security_ctx->master_access & SUPER_ACL) != 0)
+   {
+     /*
+       For users with 'SUPER' privilege 'FLUSH XXX' statements must not be
+       binlogged if 'super_read_only' is set to 'ON'.
+     */
+     if (opt_super_readonly)
+       *write_to_binlog= 0;
+     else
+       *write_to_binlog=
+         opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+   else
+   {
+     /*
+       For users without 'SUPER' privilege 'FLUSH XXX' statements must not be
+       binlogged if 'read_only' or 'super_read_only' is set to 'ON'.
+       Checking only 'opt_readonly' here as in 'super_read_only' mode this
+       variable is implicitly set to 'true'.
+     */
+     if (opt_readonly)
+       *write_to_binlog= 0;
+     else
+       *write_to_binlog=
+         opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+ }
  /*
    If the query was killed then this function must fail.
  */

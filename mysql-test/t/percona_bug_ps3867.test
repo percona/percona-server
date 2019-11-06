@@ -13,7 +13,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 let $log_file=$MYSQLD_DATADIR/test_audit.log;
 
 
---let $restart_parameters="restart: $AUDIT_LOG_OPT $AUDIT_LOG_LOAD --audit_log_include_accounts='user1@localhost' --audit_log_file=test_audit.log --audit_log_policy=ALL --audit-log-format=CSV --audit_log_strategy=SYNCHRONOUS"
+--let $restart_parameters="restart: $AUDIT_LOG_OPT $AUDIT_LOG_LOAD --audit_log_include_accounts='user1@127.0.0.1' --audit_log_file=test_audit.log --audit_log_policy=ALL --audit-log-format=CSV --audit_log_strategy=SYNCHRONOUS"
 --source include/restart_mysqld.inc
 
 SET GLOBAL audit_log_flush=ON;

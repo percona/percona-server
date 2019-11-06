@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/07/2018
+.\"      Date: 09/27/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/07/2018" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "09/27/2019" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-mysql \- the MySQL command\-line tool
+mysql \- the MySQL command\-line client
 .SH "SYNOPSIS"
 .HP \w'\fBmysql\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIdb_name\fR\fR\ 'u
 \fBmysql [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR
@@ -104,8 +104,8 @@ shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIscript\&.sql\fR\fR\fB > \fR
 On Unix, the
 \fBmysql\fR
 client logs statements executed interactively to a history file\&. See
-the section called \(lqMYSQL LOGGING\(rq\&.
-.SH "MYSQL OPTIONS"
+the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
+.SH "MYSQL CLIENT OPTIONS"
 .PP
 \fBmysql\fR
 supports the following options, which can be specified on the command line or in the
@@ -113,7 +113,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -256,13 +256,11 @@ commands except
 charset
 and
 delimiter
-in non\-interactive mode (for input piped to
+in noninteractive mode (for input piped to
 \fBmysql\fR
 or loaded using the
 source
 command)\&.
-.sp
-This option was added in MySQL 5\&.6\&.3\&.
 .RE
 .sp
 .RS 4
@@ -276,8 +274,6 @@ This option was added in MySQL 5\&.6\&.3\&.
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
 .sp
 On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
-.sp
-This option is supported beginning with MySQL 5\&.6\&.1\&.
 .RE
 .sp
 .RS 4
@@ -291,7 +287,7 @@ This option is supported beginning with MySQL 5\&.6\&.1\&.
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -349,7 +345,8 @@ Whether to strip or preserve comments in statements sent to the server\&. The de
 \fB\-\-compress\fR,
 \fB\-C\fR
 .sp
-Compress all information sent between the client and the server if both support compression\&.
+Compress all information sent between the client and the server if possible\&. See
+Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
 .RE
 .sp
 .RS 4
@@ -365,7 +362,20 @@ Compress all information sent between the client and the server if both support 
 Indicate to the server that the client can handle sandbox mode if the account used to connect has an expired password\&. This can be useful for noninteractive invocations of
 \fBmysql\fR
 because normally the server disconnects noninteractive clients that attempt to connect using an account with an expired password\&. (See
-Section\ \&6.3.6, \(lqPassword Expiration and Sandbox Mode\(rq\&.) This option was added in MySQL 5\&.6\&.12\&.
+Section\ \&6.2.10, \(lqServer Handling of Expired Passwords\(rq\&.) This option was added in MySQL 5\&.6\&.12\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-timeout=\fR\fB\fIvalue\fR\fR
+The number of seconds before connection timeout\&. (Default value is
+0\&.)
 .RE
 .sp
 .RS 4
@@ -442,8 +452,8 @@ Print debugging information and memory and CPU usage statistics when the program
 .\}
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
-A hint about the client\-side authentication plugin to use\&. See
-Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
+A hint about which client\-side authentication plugin to use\&. See
+Section\ \&6.2.11, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -466,7 +476,7 @@ client by default uses another\&. In this case, output may be formatted incorrec
 .sp
 For more information, see
 Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq, and
-Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -482,6 +492,9 @@ Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -501,6 +514,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
 \&.mylogin\&.cnf\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -529,6 +545,9 @@ also reads the
 and
 [mysql_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -561,7 +580,7 @@ form only, or use named commands only at the beginning of a line ending with a s
 starts with this option
 \fIenabled\fR
 by default\&. However, even with this option, long\-format commands still work from the first line\&. See
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -577,7 +596,7 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.) This option was added in MySQL 5\&.6\&.7\&.
+Section\ \&6.4.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -593,7 +612,7 @@ Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.) T
 .sp
 Execute the statement and quit\&. The default output format is like that produced with
 \fB\-\-batch\fR\&. See
-Section\ \&4.2.4, \(lqUsing Options on the Command Line\(rq, for some examples\&. With this option,
+Section\ \&4.2.2.1, \(lqUsing Options on the Command Line\(rq, for some examples\&. With this option,
 \fBmysql\fR
 does not use the history file\&.
 .RE
@@ -622,8 +641,8 @@ Continue even if an SQL error occurs\&.
 .\}
 \fB\-\-histignore\fR
 .sp
-A colon\-separated list of one or more patterns specifying statements to ignore for logging purposes\&. These patterns are added to the default pattern list ("*IDENTIFIED*:*PASSWORD*")\&. The value specified for this option affects logging of statements written to the history file\&. For more information, see
-the section called \(lqMYSQL LOGGING\(rq\&. This option was added in MySQL 5\&.6\&.8\&.
+A list of one or more colon\-separated patterns specifying statements to ignore for logging purposes\&. These patterns are added to the default pattern list ("*IDENTIFIED*:*PASSWORD*")\&. The value specified for this option affects logging of statements written to the history file\&. For more information, see
+the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
 .RE
 .sp
 .RS 4
@@ -711,7 +730,7 @@ Write line numbers for errors\&. Disable this with
 Enable or disable
 LOCAL
 capability for
-LOAD DATA INFILE\&. For
+LOAD DATA\&. For
 \fBmysql\fR, this capability is disabled by default\&. With no value, the option enables
 LOCAL\&. The option may be given as
 \fB\-\-local\-infile=0\fR
@@ -739,7 +758,35 @@ login path file\&. A
 is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&. This option was added in MySQL 5\&.6\&.6\&.
+\fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-max\-allowed\-packet=\fR\fB\fIvalue\fR\fR
+The maximum size of the buffer for client/server communication\&. The default is 16MB, the maximum is 1GB\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-max\-join\-size=\fR\fB\fIvalue\fR\fR
+The automatic limit for rows in a join when using
+\fB\-\-safe\-updates\fR\&. (Default value is 1,000,000\&.)
 .RE
 .sp
 .RS 4
@@ -762,7 +809,19 @@ and
 both are recognized\&. Use
 \fB\-\-skip\-named\-commands\fR
 to disable named commands\&. See
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-net\-buffer\-length=\fR\fB\fIvalue\fR\fR
+The buffer size for TCP/IP and socket communication\&. (Default value is 16KB\&.)
 .RE
 .sp
 .RS 4
@@ -818,6 +877,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -939,7 +1001,7 @@ environment variable\&. Valid pagers are
 \fBmore\fR,
 \fBcat [> filename]\fR, and so forth\&. This option works only on Unix and only in interactive mode\&. To disable paging, use
 \fB\-\-skip\-pager\fR\&.
-the section called \(lqMYSQL COMMANDS\(rq, discusses output paging further\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses output paging further\&.
 .RE
 .sp
 .RS 4
@@ -953,20 +1015,24 @@ the section called \(lqMYSQL COMMANDS\(rq, discusses output paging further\&.
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
-The password to use when connecting to the server\&. If you use the short option form (\fB\-p\fR), you
-\fIcannot\fR
-have a space between the option and the password\&. If you omit the
-\fIpassword\fR
-value following the
-\fB\-\-password\fR
+The password of the MySQL account used for connecting to the server\&. The password value is optional\&. If not given,
+\fBmysql\fR
+prompts for one\&. If given, there must be
+\fIno space\fR
+between
+\fB\-\-password=\fR
 or
 \fB\-p\fR
-option on the command line,
-\fBmysql\fR
-prompts for one\&.
+and the password following it\&. If no password option is specified, the default is to send no password\&.
 .sp
-Specifying a password on the command line should be considered insecure\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Specifying a password on the command line should be considered insecure\&. To avoid giving the password on the command line, use an option file\&. See
+Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
+.sp
+To explicitly specify that there is no password and that
+\fBmysql\fR
+should not prompt for one, use the
+\fB\-\-skip\-password\fR
+option\&.
 .RE
 .sp
 .RS 4
@@ -980,7 +1046,11 @@ Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server using a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
+On Windows, connect to the server using a named pipe\&. This option applies only if the server was started with the
+named_pipe
+system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
+named_pipe_full_access_group
+system variable\&.
 .RE
 .sp
 .RS 4
@@ -998,7 +1068,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysql\fR
 does not find it\&. See
-Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.2.11, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1012,7 +1082,7 @@ Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
-The TCP/IP port number to use for the connection\&.
+For TCP/IP connections, the port number to use\&.
 .RE
 .sp
 .RS 4
@@ -1026,6 +1096,9 @@ The TCP/IP port number to use for the connection\&.
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1040,7 +1113,7 @@ Print the program name and all options that it gets from option files\&.
 .sp
 Set the prompt to the specified format\&. The default is
 mysql>\&. The special sequences that the prompt can contain are described in
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1053,8 +1126,8 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
+Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1152,14 +1225,20 @@ If the connection to the server is lost, automatically try to reconnect\&. A sin
 \fB\-\-i\-am\-a\-dummy\fR,
 \fB\-U\fR
 .sp
-Permit only those
+If this option is enabled,
 UPDATE
 and
 DELETE
-statements that specify which rows to modify by using key values\&. If you have set this option in an option file, you can override it by using
-\fB\-\-safe\-updates\fR
-on the command line\&. See
-the section called \(lqMYSQL TIPS\(rq, for more information about this option\&.
+statements that do not use a key in the
+WHERE
+clause or a
+LIMIT
+clause produce an error\&. In addition, restrictions are placed on
+SELECT
+statements that produce (or are estimated to produce) very large result sets\&. If you have set this option in an option file, you can use
+\fB\-\-skip\-safe\-updates\fR
+on the command line to override it\&. For more information about this option, see
+Using Safe-Updates Mode (--safe-updates)\&.
 .RE
 .sp
 .RS 4
@@ -1172,7 +1251,7 @@ the section called \(lqMYSQL TIPS\(rq, for more information about this option\&.
 .\}
 \fB\-\-secure\-auth\fR
 .sp
-Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&. As of MySQL 5\&.6\&.7, this option is enabled by default; use
+Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&. This option is enabled by default; use
 \fB\-\-skip\-secure\-auth\fR
 to disable it\&.
 .if n \{\
@@ -1188,7 +1267,7 @@ to disable it\&.
 .ps -1
 .br
 Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them will be removed in a future MySQL release\&. For account upgrade instructions, see
-Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
+Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -1216,18 +1295,33 @@ This option is deprecated and will be removed in a future release\&. As of MySQL
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-select\-limit=\fR\fB\fIvalue\fR\fR
+The automatic limit for
+SELECT
+statements when using
+\fB\-\-safe\-updates\fR\&. (Default value is 1,000\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
 .sp
-The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that connect to the server using an account that authenticates with the
+The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
 sha256_password
-authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+authentication plugin\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
 This option is available only if MySQL was built using OpenSSL\&.
 .sp
 For information about the
 sha256_password
 plugin, see
-Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.4, \(lqSHA-256 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1240,12 +1334,12 @@ Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq\&.
 .\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
-On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
+On Windows, the shared\-memory name to use for connections made using shared memory to a local server\&. The default value is
 MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
-The server must be started with the
-\fB\-\-shared\-memory\fR
-option to enable shared\-memory connections\&.
+This option applies only if the server was started with the
+shared_memory
+system variable enabled to support shared\-memory connections\&.
 .RE
 .sp
 .RS 4
@@ -1336,6 +1430,12 @@ Do not write line numbers for errors\&. Useful when you want to compare result f
 .sp
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.sp
+On Windows, this option applies only if the server was started with the
+named_pipe
+system variable enabled to support named\-pipe connections\&. In addition, the user making the connection must be a member of the Windows group specified by the
+named_pipe_full_access_group
+system variable\&.
 .RE
 .sp
 .RS 4
@@ -1351,7 +1451,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
+the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1379,7 +1479,7 @@ Display output in table format\&. This is the default for interactive use, but c
 \fB\-\-tee=\fR\fB\fIfile_name\fR\fR
 .sp
 Append a copy of output to the given file\&. This option works only in interactive mode\&.
-the section called \(lqMYSQL COMMANDS\(rq, discusses tee files further\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses tee files further\&.
 .RE
 .sp
 .RS 4
@@ -1407,7 +1507,7 @@ Flush the buffer after each query\&.
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
-The MySQL user name to use when connecting to the server\&.
+The user name of the MySQL account to use for connecting to the server\&.
 .RE
 .sp
 .RS 4
@@ -1531,83 +1631,8 @@ shell> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \*(Aqversion%\*(Aq"\fR
 .if n \{\
 .RE
 .\}
-.sp
-(See Bug #25946\&.)
 .RE
-.PP
-You can also set the following variables by using
-\fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR\&.
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-connect_timeout
-.sp
-The number of seconds before connection timeout\&. (Default value is
-0\&.)
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-max_allowed_packet
-.sp
-The maximum size of the buffer for client/server communication\&. The default is 16MB, the maximum is 1GB\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-max_join_size
-.sp
-The automatic limit for rows in a join when using
-\fB\-\-safe\-updates\fR\&. (Default value is 1,000,000\&.)
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-net_buffer_length
-.sp
-The buffer size for TCP/IP and socket communication\&. (Default value is 16KB\&.)
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-select_limit
-.sp
-The automatic limit for
-SELECT
-statements when using
-\fB\-\-safe\-updates\fR\&. (Default value is 1,000\&.)
-.RE
-.SH "MYSQL COMMANDS"
+.SH "MYSQL CLIENT COMMANDS"
 .PP
 \fBmysql\fR
 sends each SQL statement that you issue to the server to be executed\&. There is also a set of commands that
@@ -1628,7 +1653,7 @@ mysql> \fBhelp\fR
 List of all MySQL commands:
 Note that all text commands must be first on line and end with \*(Aq;\*(Aq
 ?         (\e?) Synonym for `help\*(Aq\&.
-clear     (\ec) Clear command\&.
+clear     (\ec) Clear the current input statement\&.
 connect   (\er) Reconnect to the server\&. Optional arguments are db and host\&.
 delimiter (\ed) Set statement delimiter\&.
 edit      (\ee) Edit command with $EDITOR\&.
@@ -1669,7 +1694,7 @@ commands are disabled except
 charset
 and
 delimiter
-in non\-interactive mode (for input piped to
+in noninteractive mode (for input piped to
 \fBmysql\fR
 or loaded using the
 source
@@ -1703,7 +1728,7 @@ help
 command,
 \fBmysql\fR
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. For more information, see
-the section called \(lqMYSQL SERVER\-SIDE HELP\(rq\&.
+the section called \(lqMYSQL CLIENT SERVER\-SIDE HELP\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2026,7 +2051,7 @@ option\&.)
 source \fIfile_name\fR,
 \e\&. \fIfile_name\fR
 .sp
-Read the named file and executes the statements contained therein\&. On Windows, you can specify path name separators as
+Read the named file and executes the statements contained therein\&. On Windows, specify path name separators as
 /
 or
 \e\e\&.
@@ -2045,9 +2070,9 @@ Quote characters are taken as part of the file name itself\&. For best results, 
 status,
 \es
 .sp
-Provide status information about the connection and the server you are using\&. If you are running in
+Provide status information about the connection and the server you are using\&. If you are running with
 \fB\-\-safe\-updates\fR
-mode,
+enabled,
 status
 also prints the values for the
 \fBmysql\fR
@@ -2566,10 +2591,10 @@ prompt=(\e\eu@\e\eh) [\e\ed]>\e\e_
 In this example, note that the backslashes are doubled\&. If you set the prompt using the
 prompt
 option in an option file, it is advisable to double the backslashes when using the special prompt options\&. There is some overlap in the set of permissible prompt options and the set of special escape sequences that are recognized in option files\&. (The rules for escape sequences in option files are listed in
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.) The overlap may cause you problems if you use single backslashes\&. For example,
+Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.) The overlap may cause you problems if you use single backslashes\&. For example,
 \es
 is interpreted as a space rather than as the current seconds value\&. The following example shows how to define a prompt within an option file to include the current time in
-HH:MM:SS>
+\fIhh:mm:ss\fR>
 format:
 .sp
 .if n \{\
@@ -2613,7 +2638,7 @@ mysql>
 .RE
 .\}
 .RE
-.SH "MYSQL LOGGING"
+.SH "MYSQL CLIENT LOGGING"
 .PP
 On Unix, the
 \fBmysql\fR
@@ -2622,6 +2647,28 @@ client logs statements executed interactively to a history file\&. By default, t
 in your home directory\&. To specify a different file, set the value of the
 MYSQL_HISTFILE
 environment variable\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+How Logging Occurs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Controlling the History File
+.RE
 How Logging Occurs.PP
 Statement logging occurs as follows:
 .sp
@@ -2722,12 +2769,11 @@ SELECT \*(AqToday is\*(Aq , CURDATE();
 .RE
 .\}
 .PP
-As of MySQL 5\&.6\&.8,
 \fBmysql\fR
 ignores for logging purposes statements that match any pattern in the
 \(lqignore\(rq
 list\&. By default, the pattern list is
-"*IDENTIFIED*:*PASSWORD*", to ignore statements that refer to passwords\&. Pattern matching is not case sensitive\&. Within patterns, two characters are special:
+"*IDENTIFIED*:*PASSWORD*", to ignore statements that refer to passwords\&. Pattern matching is not case\-sensitive\&. Within patterns, two characters are special:
 .sp
 .RS 4
 .ie n \{\
@@ -2757,7 +2803,7 @@ To specify additional patterns, use the
 \fB\-\-histignore\fR
 option or set the
 MYSQL_HISTIGNORE
-environment variable\&. (If both are specified, the option value takes precedence\&.) The value should be a colon\-separated list of one or more patterns, which are appended to the default pattern list\&.
+environment variable\&. (If both are specified, the option value takes precedence\&.) The value should be a list of one or more colon\-separated patterns, which are appended to the default pattern list\&.
 .PP
 Patterns specified on the command line might need to be quoted or escaped to prevent your command interpreter from treating them specially\&. For example, to suppress logging for
 UPDATE
@@ -2824,7 +2870,7 @@ shell> \fBln \-s /dev/null $HOME/\&.mysql_history\fR
 .RE
 .\}
 .RE
-.SH "MYSQL SERVER\-SIDE HELP"
+.SH "MYSQL CLIENT SERVER\-SIDE HELP"
 .sp
 .if n \{\
 .RS 4
@@ -2843,7 +2889,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.13, \(lqServer-Side Help\(rq)\&.
+Section\ \&5.1.13, \(lqServer-Side Help Support\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -3064,13 +3110,80 @@ with an option such as
 .PP
 For more information about batch mode, see
 Section\ \&3.5, \(lqUsing mysql in Batch Mode\(rq\&.
-.SH "MYSQL TIPS"
+.SH "MYSQL CLIENT TIPS"
 .PP
-This section describes some techniques that can help you use
+This section provides information about techniques for more effective use of
 \fBmysql\fR
-more effectively\&.
-.SS "Input\-Line Editing"
-.PP
+and about
+\fBmysql\fR
+operational behavior\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Input-Line Editing
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Unicode Support on Windows
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Displaying Query Results Vertically
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Using Safe-Updates Mode (--safe-updates)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Disabling mysql Auto-Reconnect
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+mysql Client Parser Versus Server Parser
+.RE
+Input\-Line Editing.PP
 \fBmysql\fR
 supports input\-line editing, which enables you to modify the current input line in place or recall previous input lines\&. For example, the
 left\-arrow
@@ -3142,11 +3255,10 @@ at the end of
 \&.editrc\&.
 \fBmysql\fR
 will show the bindings when it starts\&.
-.SS "Unicode Support on Windows"
-.PP
-Windows provides APIs based on UTF\-16LE for reading from and writing to the console\&. As of MySQL 5\&.6\&.2, the
+Unicode Support on Windows.PP
+Windows provides APIs based on UTF\-16LE for reading from and writing to the console; the
 \fBmysql\fR
-client for Windows is able to use these APIs\&. As of 5\&.6\&.3, the Windows installer creates an item in the MySQL menu named
+client for Windows is able to use these APIs\&. The Windows installer creates an item in the MySQL menu named
 MySQL command line client \- Unicode\&. This item invokes the
 \fBmysql\fR
 client with properties set to communicate through the console to the MySQL server using Unicode\&.
@@ -3224,8 +3336,8 @@ default\-character\-set=utf8
 .if n \{\
 .RE
 .\}
-.SS "Displaying Query Results Vertically"
-.PP
+.sp
+Displaying Query Results Vertically.PP
 Some query results are much more readable when displayed vertically, instead of in the usual horizontal table format\&. Queries can be displayed vertically by terminating the query with \eG instead of a semicolon\&. For example, longer text values that include newlines often are much easier to read with vertical output:
 .sp
 .if n \{\
@@ -3237,17 +3349,17 @@ mysql> \fBSELECT * FROM mails WHERE LENGTH(txt) < 300 LIMIT 300,1\eG\fR
   msg_nro: 3068
      date: 2000\-03\-01 23:29:50
 time_zone: +0200
-mail_from: Monty
-    reply: monty@no\&.spam\&.com
-  mail_to: "Thimble Smith" <tim@no\&.spam\&.com>
+mail_from: Jones
+    reply: jones@example\&.com
+  mail_to: "John Smith" <smith@example\&.com>
       sbj: UTF\-8
-      txt: >>>>> "Thimble" == Thimble Smith writes:
-Thimble> Hi\&.  I think this is a good idea\&.  Is anyone familiar
-Thimble> with UTF\-8 or Unicode? Otherwise, I\*(Aqll put this on my
-Thimble> TODO list and see what happens\&.
+      txt: >>>>> "John" == John Smith writes:
+John> Hi\&.  I think this is a good idea\&.  Is anyone familiar
+John> with UTF\-8 or Unicode? Otherwise, I\*(Aqll put this on my
+John> TODO list and see what happens\&.
 Yes, please do that\&.
 Regards,
-Monty
+Jones
      file: inbox\-jani\-1
      hash: 190402944
 1 row in set (0\&.09 sec)
@@ -3255,23 +3367,33 @@ Monty
 .if n \{\
 .RE
 .\}
-.SS "Using the \-\-safe\-updates Option"
-.PP
+.sp
+Using Safe\-Updates Mode (\-\-safe\-updates).PP
 For beginners, a useful startup option is
 \fB\-\-safe\-updates\fR
 (or
-\fB\-\-i\-am\-a\-dummy\fR, which has the same effect)\&. It is helpful for cases when you might have issued a
-DELETE FROM \fItbl_name\fR
+\fB\-\-i\-am\-a\-dummy\fR, which has the same effect)\&. Safe\-updates mode is helpful for cases when you might have issued an
+UPDATE
+or
+DELETE
 statement but forgotten the
 WHERE
-clause\&. Normally, such a statement deletes all rows from the table\&. With
-\fB\-\-safe\-updates\fR, you can delete rows only by specifying the key values that identify them\&. This helps prevent accidents\&.
+clause indicating which rows to modify\&. Normally, such statements update or delete all rows in the table\&. With
+\fB\-\-safe\-updates\fR, you can modify rows only by specifying the key values that identify them, or a
+LIMIT
+clause, or both\&. This helps prevent accidents\&. Safe\-updates mode also restricts
+SELECT
+statements that produce (or are estimated to produce) very large result sets\&.
 .PP
-When you use the
+The
 \fB\-\-safe\-updates\fR
-option,
+option causes
 \fBmysql\fR
-issues the following statement when it connects to the MySQL server:
+to execute the following statement when it connects to the MySQL server, to set the session values of the
+sql_safe_updates,
+sql_select_limit, and
+max_join_size
+system variables:
 .sp
 .if n \{\
 .RS 4
@@ -3283,12 +3405,9 @@ SET sql_safe_updates=1, sql_select_limit=1000, max_join_size=1000000;
 .RE
 .\}
 .PP
-See
-Section\ \&5.1.7, \(lqServer System Variables\(rq\&.
-.PP
 The
 SET
-statement has the following effects:
+statement affects statement processing as follows:
 .sp
 .RS 4
 .ie n \{\
@@ -3298,15 +3417,17 @@ statement has the following effects:
 .sp -1
 .IP \(bu 2.3
 .\}
-You are not permitted to execute an
+Enabling
+sql_safe_updates
+causes
 UPDATE
-or
+and
 DELETE
-statement unless you specify a key constraint in the
+statements to produce an error if they do not specify a key constraint in the
 WHERE
-clause or provide a
+clause, or provide a
 LIMIT
-clause (or both)\&. For example:
+clause, or both\&. For example:
 .sp
 .if n \{\
 .RS 4
@@ -3328,9 +3449,11 @@ UPDATE \fItbl_name\fR SET \fInot_key_column\fR=\fIval\fR LIMIT 1;
 .sp -1
 .IP \(bu 2.3
 .\}
-The server limits all large
+Setting
+sql_select_limit
+to 1,000 causes the server to limit all
 SELECT
-results to 1,000 rows unless the statement includes a
+result sets to 1,000 rows unless the statement includes a
 LIMIT
 clause\&.
 .RE
@@ -3343,28 +3466,43 @@ clause\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-The server aborts multiple\-table
+Setting
+max_join_size
+to 1,000,000 causes multiple\-table
 SELECT
-statements that probably need to examine more than 1,000,000 row combinations\&.
+statements to produce an error if the server estimates it must examine more than 1,000,000 row combinations\&.
 .RE
 .PP
-To specify limits different from 1,000 and 1,000,000, you can override the defaults by using the
-\fB\-\-select_limit\fR
+To specify result set limits different from 1,000 and 1,000,000, you can override the defaults by using the
+\fB\-\-select\-limit\fR
 and
-\fB\-\-max_join_size\fR
-options:
+\fB\-\-max\-join\-size\fR
+options when you invoke
+\fBmysql\fR:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-safe\-updates \-\-select_limit=500 \-\-max_join_size=10000\fR
+mysql \-\-safe\-updates \-\-select\-limit=500 \-\-max\-join\-size=10000
 .fi
 .if n \{\
 .RE
 .\}
-.SS "Disabling mysql Auto\-Reconnect"
 .PP
+It is possible for
+UPDATE
+and
+DELETE
+statements to produce an error in safe\-updates mode even with a key specified in the
+WHERE
+clause, if the optimizer decides not to use the index on the key column\&. For example, if key comparisons require type conversion, the index may not be used (see
+Section\ \&8.3.1, \(lqHow MySQL Uses Indexes\(rq)\&. Suppose that an indexed string column
+c1
+is compared to a numeric value using
+WHERE c1 = 2222\&. For such comparisons, the string value is converted to a number and the operands are compared numerically (see
+Section\ \&12.2, \(lqType Conversion in Expression Evaluation\(rq), preventing use of the index\&. If safe\-updates mode is enabled, an error occurs\&.
+Disabling mysql Auto\-Reconnect.PP
 If the
 \fBmysql\fR
 client loses its connection to the server while sending a statement, it immediately and automatically tries to reconnect once to the server and send the statement again\&. However, even if
@@ -3407,10 +3545,76 @@ option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
 Section\ \&23.8.20, \(lqC API Automatic Reconnection Control\(rq\&.
+mysql Client Parser Versus Server Parser.PP
+The
+\fBmysql\fR
+client uses a parser on the client side that is not a duplicate of the complete parser used by the
+\fBmysqld\fR
+server on the server side\&. This can lead to differences in treatment of certain constructs\&. Examples:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The server parser treats strings delimited by
+"
+characters as identifiers rather than as plain strings if the
+ANSI_QUOTES
+SQL mode is enabled\&.
+.sp
+The
+\fBmysql\fR
+client parser does not take the
+ANSI_QUOTES
+SQL mode into account\&. It treats strings delimited by
+",
+\*(Aq, and
+`
+characters the same, regardless of whether
+ANSI_QUOTES
+is enabled\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Within
+/*! \&.\&.\&. */
+comments, the
+\fBmysql\fR
+client parser interprets short\-form
+\fBmysql\fR
+commands\&. The server parser does not interpret them because these commands have no meaning on the server side\&.
+.sp
+If it is desirable for
+\fBmysql\fR
+not to interpret short\-form commands within comments, a partial workaround is to use the
+\fB\-\-binary\-mode\fR
+option, which causes all
+\fBmysql\fR
+commands to be disabled except
+\eC
+and
+\ed
+in noninteractive mode (for input piped to
+\fBmysql\fR
+or loaded using the
+source
+command)\&.
+.RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

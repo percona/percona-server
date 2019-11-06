@@ -2,17 +2,23 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; version 2 of
-   the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -964,6 +970,17 @@ struct handlerton
                                     bool is_sql_layer_system_table);
 
   /**
+    Check if the given database name is reserved.
+
+    @param  hton          Handlerton for SE.
+    @param  name          Database name.
+
+    @retval true          Database name is reserved by SE.
+    @retval false         Database name is not reserved.
+  */
+  bool (*is_reserved_db_name)(handlerton *hton, const char *name);
+
+  /**
     Creates a new compression dictionary with the specified data for this SE.
 
     @param hton                       handletron object.
@@ -1145,6 +1162,7 @@ public:
   inplace_alter_handler_ctx() {}
 
   virtual ~inplace_alter_handler_ctx() {}
+  virtual void set_shared_data(const inplace_alter_handler_ctx *ctx) {};
 };
 
 
@@ -3766,5 +3784,6 @@ inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
 void print_keydup_error(TABLE *table, KEY *key, myf errflag);
 void warn_fk_constraint_violation(THD *thd, TABLE *table, int error);
+bool ha_check_reserved_db_name(const char *name);
 
 #endif /* HANDLER_INCLUDED */

@@ -1,13 +1,20 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2923,6 +2930,7 @@ mysql_execute_command(THD *thd)
     */
     if (deny_updates_if_read_only_option(thd, all_tables))
     {
+      thd->diff_access_denied_errors++;
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                opt_super_readonly ? "--read-only (super)" : "--read-only");
       DBUG_RETURN(-1);
@@ -2998,6 +3006,7 @@ mysql_execute_command(THD *thd)
   if (thd->tx_read_only &&
       (sql_command_flags[lex->sql_command] & CF_DISALLOW_IN_RO_TRANS))
   {
+    thd->diff_access_denied_errors++;
     my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
     goto error;
   }
@@ -3680,8 +3689,10 @@ end_with_restore_list:
   case SQLCOM_SLAVE_START:
   {
     mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi != NULL)
+    if (active_mi != NULL) {
+      DEBUG_SYNC(thd, "begin_start_slave");
       res= start_slave(thd, active_mi, 1 /* net report*/);
+    }
     else
       my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
                  MYF(0));
@@ -5680,6 +5691,7 @@ finish:
     {
       thd->killed= THD::NOT_KILLED;
       thd->mysys_var->abort= 0;
+      thd->reset_query_for_display();
     }
   }
 
@@ -6091,6 +6103,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
              (db ? db : (thd->db ?
                          thd->db :
                          "unknown")));
+  thd->diff_access_denied_errors++;
   DBUG_RETURN(TRUE);
 
 }
@@ -6983,15 +6996,18 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       {
         lex->safe_to_cache_query= false; // see comments below
 
-        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
-                                 thd->rewritten_query.c_ptr_safe(),
-                                 thd->rewritten_query.length());
-      }
-      else
-      {
+        thd->set_query_for_display(thd->rewritten_query.c_ptr_safe(),
+                                   thd->rewritten_query.length());
+      } else if (thd->slave_thread) {
+        /*
+          In the slave, we add the information to pfs.events_statements_history,
+          but not to pfs.threads, as that is what the test suite expects.
+        */
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
                                  thd->query(),
                                  thd->query_length());
+      } else {
+        thd->set_query_for_display(thd->query(), thd->query_length());
       }
 
       if (!(opt_log_raw || thd->slave_thread))
@@ -7109,9 +7125,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
         SQL injection, finding the source of the SQL injection is critical, so the
         design choice is to log the query text of broken queries (a).
       */
-      MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
-                               thd->query(),
-                               thd->query_length());
+      thd->set_query_for_display(thd->query(), thd->query_length());
 
       /* Instrument this broken statement as "statement/sql/error" */
       thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
@@ -7162,6 +7176,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     update_global_user_stats(thd, true, time(NULL));
 #endif
   }
+
+  DEBUG_SYNC(thd, "query_rewritten");
 
   DBUG_VOID_RETURN;
 }

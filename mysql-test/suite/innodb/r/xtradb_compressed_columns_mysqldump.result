@@ -82,11 +82,11 @@ COUNT(*) = 0
 1
 # Importing SQL dump with compressed columns enabled and dictionaries disabled
 Warnings:
-Note	1892	Compression dictionary 'd1' does not exist
+Note	1893	Compression dictionary 'd1' does not exist
 Warnings:
-Note	1892	Compression dictionary 'd2' does not exist
+Note	1893	Compression dictionary 'd2' does not exist
 Warnings:
-Note	1892	Compression dictionary 'd3' does not exist
+Note	1893	Compression dictionary 'd3' does not exist
 number_of_short_rows_in_first_match
 1
 number_of_long_rows_in_first_match
@@ -99,11 +99,11 @@ COUNT(*) = 0
 1
 # Importing SQL dump with compressed columns and dictionaries enabled
 Warnings:
-Note	1892	Compression dictionary 'd1' does not exist
+Note	1893	Compression dictionary 'd1' does not exist
 Warnings:
-Note	1892	Compression dictionary 'd2' does not exist
+Note	1893	Compression dictionary 'd2' does not exist
 Warnings:
-Note	1892	Compression dictionary 'd3' does not exist
+Note	1893	Compression dictionary 'd3' does not exist
 number_of_short_rows_in_first_match
 1
 number_of_long_rows_in_first_match

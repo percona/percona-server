@@ -1,16 +1,23 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
@@ -156,6 +163,24 @@ END {
 }
 
 sub env_or_val($$) { defined $ENV{$_[0]} ? $ENV{$_[0]} : $_[1] }
+
+# set_term_args(user_specified_string, term_exe_variable, term_args_arr, title)
+sub set_term_args {
+  my $term_cmd = $_[0];
+  if ($term_cmd =~ /^ *$/) {
+    mtr_error("MTR_TERM is defined, but empty");
+  }
+  my @term_args = split / /, $term_cmd;
+  $_[1] = shift @term_args;
+  foreach my $t_arg (@term_args) {
+    if ($t_arg eq "%title%") {
+      mtr_add_arg($_[2], "$_[3]");
+    } else {
+      mtr_add_arg($_[2], $t_arg);
+    }
+  }
+
+}
 
 my $path_config_file;           # The generated config file, var/my.cnf
 
@@ -310,6 +335,8 @@ my $opt_callgrind;
 my $opt_helgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 600; # Default timeout for WAIT_FOR actions.
+my $opt_mtr_term_args = env_or_val(MTR_TERM => "xterm -title %title% -e");
+my $opt_lldb_cmd = env_or_val(MTR_LLDB => "lldb");
 
 sub testcase_timeout ($) {
   my ($tinfo)= @_;
@@ -388,6 +415,8 @@ sub main {
 
   mtr_report("Collecting tests...");
   my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases, \@opt_skip_test_list);
+  my $all_tests;
+  @$all_tests = @$tests;
   mark_time_used('collect');
 
   if ( $opt_report_features ) {
@@ -517,19 +546,23 @@ sub main {
     mtr_error("Test suite aborted");
   }
 
-  if ( @$completed != $num_tests){
-
-    if ($opt_force){
-      # All test should have been run, print any that are still in $tests
-      #foreach my $test ( @$tests ){
-      #  $test->print_test();
-      #}
-    }
-
-    # Not all tests completed, failure
+  if (@$completed != $num_tests) {
+    # Not all tests completed
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-    mtr_error("Not all tests completed");
+    mtr_report("Not all tests completed. This means that a test scheduled for a worker did not report anything, the worker most likely crashed.");
+
+    my %comp;
+
+    foreach ( @$completed ) {
+      $comp{$_->{name}} = 1;
+    }
+    for (my $i = 0 ; $i <= @$all_tests ; $i++) {
+      my $t = $all_tests->[$i];
+      if (exists $t->{name} && !exists $comp{$t->{name}}) {
+        mtr_report("Missing result for testcase: ", $t->{name});
+      }
+    }
   }
 
   mark_time_used('init');
@@ -4896,7 +4929,7 @@ sub check_warnings ($) {
 	  return $result;
 	}
 	# Wait for next process to exit
-	next;
+	next if not $result;
       }
       else
       {
@@ -6223,9 +6256,9 @@ sub gdb_arguments {
   }
 
   $$args= [];
-  mtr_add_arg($$args, "-title");
-  mtr_add_arg($$args, "$type");
-  mtr_add_arg($$args, "-e");
+
+  my $term_exe;
+  set_term_args($opt_mtr_term_args, $term_exe, $$args, $type);
 
   if ( $exe_libtool )
   {
@@ -6238,7 +6271,7 @@ sub gdb_arguments {
   mtr_add_arg($$args, "$gdb_init_file");
   mtr_add_arg($$args, "$$exe");
 
-  $$exe= "xterm";
+  $$exe= $term_exe;
 }
 
  #
@@ -6273,17 +6306,17 @@ sub lldb_arguments {
     return;
   }
 
-  mtr_tofile($lldb_start_file, "lldb -s $lldb_init_file $$exe\n");
-  chmod 0755, $lldb_start_file;
-
   $$args= [];
-  mtr_add_arg($$args, "-n");
-  mtr_add_arg($$args, "-W");
-  mtr_add_arg($$args, "-a");
-  mtr_add_arg($$args, "Terminal");
-  mtr_add_arg($$args, $lldb_start_file);
 
-  $$exe= "open";
+  my $term_exe;
+  set_term_args($opt_mtr_term_args, $term_exe, $$args, $type);
+
+  mtr_add_arg($$args, $opt_lldb_cmd);
+  mtr_add_arg($$args, "-s");
+  mtr_add_arg($$args, "$lldb_init_file");
+  mtr_add_arg($$args, "$$exe");
+
+  $$exe= $term_exe;
 }
 
 #
@@ -6789,6 +6822,21 @@ Options for debugging the product
                         the current test run. Defaults to
                         $opt_max_test_fail, set to 0 for no limit. Set
                         it's default with MTR_MAX_TEST_FAIL
+
+Environment variables controlling debugging parameters
+
+  MTR_TERM              Configures the terminal command to run the debugger.
+                        Defaults to xterm, but most other visual terminals
+                        can also be specified. Examples:
+                        MTR_TERM="gnome-terminal --title %title% --wait -x"
+                        MTR_TERM="urxwt -title %title% -e"
+                        Note: older version of gnome-terminal did not support
+                        --wait - those versions aren't compatible.
+  MTR_LLDB              Configures the lldb executable when debugging with
+                        lldb, the default is "lldb". This is useful for
+                        using lldb on a non default path, or on distributions
+                        with versioned lldb binaries. Example:
+                        MTR_LLDB=lldb-8.0
 
 Options for valgrind
 

@@ -1,13 +1,20 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
@@ -345,6 +352,7 @@ static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
 {
   MY_STAT s;
   DBUG_ENTER("add_relay_log");
+  mysql_mutex_assert_owner(&rli->log_space_lock);
   if (!mysql_file_stat(key_file_relaylog,
                        linfo->log_file_name, &s, MYF(0)))
   {
@@ -364,16 +372,21 @@ int Relay_log_info::count_relay_log_space()
 {
   LOG_INFO flinfo;
   DBUG_ENTER("Relay_log_info::count_relay_log_space");
+  mysql_mutex_lock(&log_space_lock);
   log_space_total= 0;
   if (relay_log.find_log_pos(&flinfo, NullS, 1))
   {
     sql_print_error("Could not find first log while counting relay log space.");
+    mysql_mutex_unlock(&log_space_lock);
     DBUG_RETURN(1);
   }
   do
   {
     if (add_relay_log(this, &flinfo))
+    {
+      mysql_mutex_unlock(&log_space_lock);
       DBUG_RETURN(1);
+    }
   } while (!relay_log.find_next_log(&flinfo, 1));
   /*
      As we have counted everything, including what may have written in a
@@ -381,6 +394,7 @@ int Relay_log_info::count_relay_log_space()
      twice.
   */
   relay_log.reset_bytes_written();
+  mysql_mutex_unlock(&log_space_lock);
   DBUG_RETURN(0);
 }
 
@@ -1599,6 +1613,7 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   }
   if (rows_query_ev)
   {
+    info_thd->reset_query_for_display();
     delete rows_query_ev;
     rows_query_ev= NULL;
     info_thd->set_query(NULL, 0);
@@ -2062,7 +2077,7 @@ void Relay_log_info::end_info()
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true/*need_lock_log=true*/,
                   true/*need_lock_index=true*/);
-  relay_log.harvest_bytes_written(&log_space_total);
+  relay_log.harvest_bytes_written(this, true/*need_log_space_lock=true*/);
   /*
     Delete the slave's temporary tables from memory.
     In the future there will be other actions than this, to ensure persistance

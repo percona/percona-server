@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -44,6 +51,7 @@
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
+#include "debug_sync.h"  // debug_sync
 #include <mysql/psi/mysql_statement.h>
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
@@ -4766,6 +4774,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     thd->set_time(&when);
     thd->set_query_and_id((char*)query_arg, q_len_arg,
                           thd->charset(), next_query_id());
+    thd->set_query_for_display(query_arg, q_len_arg);
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     attach_temp_tables_worker(thd);
     DBUG_PRINT("query",("%s", thd->query()));
@@ -4831,6 +4840,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             to fix this if any refactoring happens here sometime.
           */
           thd->set_query((char*) query_arg, q_len_arg, thd->charset());
+          thd->reset_query_for_display();
         }
       }
       if (time_zone_len)
@@ -11394,19 +11404,22 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
-
+    DBUG_EXECUTE_IF("rows_log_event_before_open_table",
+                    {
+                      const char action[] = "now SIGNAL before_open_table WAIT_FOR go_ahead_sql";
+                      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));
+                    };);
     if (open_and_lock_tables(thd, rli->tables_to_lock, FALSE, 0))
     {
-      uint actual_error= thd->get_stmt_da()->sql_errno();
-      if (thd->is_slave_error || thd->is_fatal_error)
+      if (thd->is_error())
       {
+        uint actual_error= thd->get_stmt_da()->sql_errno();
         if (ignored_error_code(actual_error))
         {
           if (log_warnings > 1)
             rli->report(WARNING_LEVEL, actual_error,
                         "Error executing row event: '%s'",
-                        (actual_error ? thd->get_stmt_da()->message() :
-                         "unexpected success or fatal error"));
+                        thd->get_stmt_da()->message());
           thd->get_stmt_da()->clear_warning_info(thd->query_id);
           clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
           error= 0;
@@ -11416,13 +11429,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         {
           rli->report(ERROR_LEVEL, actual_error,
                       "Error executing row event: '%s'",
-                      (actual_error ? thd->get_stmt_da()->message() :
-                       "unexpected success or fatal error"));
+                      thd->get_stmt_da()->message());
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
-          DBUG_RETURN(actual_error);
         }
       }
+      DBUG_RETURN(1);
     }
     /*
       When the open and locking succeeded, we check all tables to
@@ -13914,6 +13925,7 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ASSERT(rli->info_thd == thd);
   /* Set query for writing Rows_query log event into binlog later.*/
   thd->set_query(m_rows_query, (uint32) strlen(m_rows_query));
+  thd->set_query_for_display(m_rows_query, strlen(m_rows_query));
 
   DBUG_ASSERT(rli->rows_query_ev == NULL);
 

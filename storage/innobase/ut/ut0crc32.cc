@@ -3,13 +3,21 @@
 Copyright (C) 2009, 2010 Facebook, Inc. All Rights Reserved.
 Copyright (c) 2011, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -287,26 +295,7 @@ ut_crc32_init()
 	ut_cpuid(vend, &model, &family, &stepping,
 		 &features_ecx, &features_edx);
 
-	/* Valgrind does not understand the CRC32 instructions:
-
-	vex amd64->IR: unhandled instruction bytes: 0xF2 0x48 0xF 0x38 0xF0 0xA
-	valgrind: Unrecognised instruction at address 0xad3db5.
-	Your program just tried to execute an instruction that Valgrind
-	did not recognise.  There are two possible reasons for this.
-	1. Your program has a bug and erroneously jumped to a non-code
-	   location.  If you are running Memcheck and you just saw a
-	   warning about a bad jump, it's probably your program's fault.
-	2. The instruction is legitimate but Valgrind doesn't handle it,
-	   i.e. it's Valgrind's fault.  If you think this is the case or
-	   you are not sure, please let us know and we'll try to fix it.
-	Either way, Valgrind will now raise a SIGILL signal which will
-	probably kill your program.
-
-	*/
-#ifndef UNIV_DEBUG_VALGRIND
 	ut_crc32_sse2_enabled = (features_ecx >> 20) & 1;
-#endif /* UNIV_DEBUG_VALGRIND */
-
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
 
 	if (ut_crc32_sse2_enabled) {

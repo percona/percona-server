@@ -26,6 +26,11 @@
 
 #include "sql/sql_lex.h"
 
+#define LEX_TOKEN_WITH_DEFINITION
+#include "sql/lex_token.h"
+#include "sql/lex.h"
+
+
 #include <limits.h>
 #include <stdlib.h>
 #include <algorithm>  // find_if, iter_swap, reverse
@@ -372,7 +377,15 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd, const LEX_STRING *txt,
 
 void Lex_input_stream::add_digest_token(uint token, Lexer_yystype *yylval) {
   if (m_digest != NULL) {
-    m_digest = digest_add_token(m_digest, token, yylval);
+    /*
+     * Adjust Percona's token value to avoid clash with hint tokens.
+     * See sql/lex.h for additonal info
+     */
+    if(lex_token_array[token].m_percona_token) {
+      m_digest = digest_add_token(m_digest, TOK_PERCONA_ADJUST(token), yylval);
+    } else {
+      m_digest = digest_add_token(m_digest, token, yylval);
+    }
   }
 }
 

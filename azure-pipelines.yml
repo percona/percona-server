@@ -11,6 +11,7 @@ jobs:
     CCACHE_COMPRESS: 1
     CCACHE_COMPRESSLEVEL: 9
     CCACHE_CPP2: 1
+    Agent.Source.Git.ShallowFetchDepth: 512
 
   strategy:
     matrix:
@@ -171,13 +172,13 @@ jobs:
 
     displayName: '*** Install Build Dependencies'
 
-  - task: CacheBeta@0
+  - task: CacheBeta@1
     continueOnError: true
     inputs:
       key: ccache | $(Agent.OS)-$(Compiler)-$(CompilerMajorVer)-$(BuildType) | $(Build.SourceVersion)
       restoreKeys: ccache | $(Agent.OS)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)
       path: $(CCACHE_DIR)
-    displayName: '*** Download ccached data'
+    displayName: '*** Download/upload ccached data'
 
   - script: |
       echo --- Set cmake parameters
@@ -226,6 +227,12 @@ jobs:
           -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON
           -DWITH_INNODB_MEMCACHED=ON
         "
+      fi
+
+      `# disable unit tests for gcc-8 and gcc-9 because of error "No space left on device"`;
+      if [[ "$(BuildType)" == "RelWithDebInfo" ]] &&
+         ([[ "$CC" == "gcc-8" ]] || [[ "$CC" == "gcc-9" ]]); then
+        CMAKE_OPT+="-DWITH_UNIT_TESTS=OFF"
       fi
 
       echo --- CMAKE_OPT=\"$CMAKE_OPT\"

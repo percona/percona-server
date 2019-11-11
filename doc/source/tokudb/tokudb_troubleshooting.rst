@@ -11,25 +11,15 @@ TokuDB Troubleshooting
 .. _tokudb_known_issues:
 
 Known Issues
-================================================================================
+===============================================================================
 
-**Replication and binary logging**: |TokuDB| supports binary logging and
-replication, with one restriction. |TokuDB| does not implement a lock on the
-auto-increment function, so concurrent insert statements with one or more of the
-statements inserting multiple rows may result in a non-deterministic
-interleaving of the auto-increment values. When running replication with these
-concurrent inserts, the auto-increment values on the slave table may not match
-the auto-increment values on the master table. Note that this is only an issue
-with Statement Based Replication (SBR), and not Row Based Replication (RBR).
+**Replication and binary logging**: |TokuDB| supports binary logging and replication, with one restriction. |TokuDB| does not implement a lock on the auto-increment function, so concurrent insert statements with one or more of the statements inserting multiple rows may result in a non-deterministic interleaving of the auto-increment values. When running replication with these concurrent inserts, the auto-increment values on the slave table may not match the auto-increment values on the master table. Note that this is only an issue with Statement Based Replication (SBR), and not Row Based Replication (RBR).
 
 For more information about auto-increment and replication, see the |MySQL|
 Reference Manual: `AUTO_INCREMENT handling in InnoDB
 <http://dev.mysql.com/doc/refman/8.0/en/innodb-auto-increment-handling.html>`_.
 
-In addition, when using the ``REPLACE INTO`` or ``INSERT IGNORE`` on tables with
-no secondary indexes or tables where secondary indexes are subsets of the
-primary, the session variable :variable:`tokudb_pk_insert_mode` controls whether
-row based replication will work.
+In addition, when using the ``REPLACE INTO`` or ``INSERT IGNORE`` on tables with no secondary indexes or tables where secondary indexes are subsets of the primary, the session variable :variable:`tokudb_pk_insert_mode` controls whether row based replication will work.
 
 **Uninformative error message**: The ``LOAD DATA INFILE`` command can sometimes
  produce ``ERROR 1030 (HY000): Got error 1 from storage engine``. The message
@@ -56,7 +46,7 @@ row based replication will work.
 into the table causes a lookup by key followed by an insertion, if the key is
 not in the table. This greatly limits insertion performance. If one knows by
 design that the rows being inserted into the table have unique keys, then one
-can disable the key lookup prior to insertion. 
+can disable the key lookup prior to insertion.
 
 If your primary key is an auto-increment key, and none of your secondary keys
 are declared to be unique, then setting ``unique_checks=OFF`` will provide
@@ -79,6 +69,7 @@ known to be unique.
 
 As of 8.0.17, InnoDB supports `multi-valued indexes <https://dev.mysql.com/doc/refman/8.0/en/create-index.html#create-index-multi-valued>`__. TokuDB does not support this feature.
 
+As of 8.0.17, InnoDB supports the `Clone Plugin <https://dev.mysql.com/doc/refman/8.0/en/clone-plugin.html>`__ and the Clone Plugin API. TokuDB tables do not support either of these features.
 
 .. _tokudb_lock_visualization:
 
@@ -241,7 +232,7 @@ that are held by the transaction.
       |           51 |                     1 | ./test/t-main | 000a000000     | 000a000000      | test               | t                | main                        |
       |           51 |                     1 | ./test/t-main | 0064000000     | 0064000000      | test               | t                | main                        |
       +--------------+-----------------------+---------------+----------------+-----------------+--------------------+------------------+-----------------------------+
- 
+
 .. code-block:: mysql
 
    mysql> SELECT * FROM INFORMATION_SCHEMA.TOKUDB_LOCK_WAITS;
@@ -350,30 +341,30 @@ The following is a reference of the table status statements:
 .. list-table::
    :widths: 15 85
    :header-rows: 1
-   
+
    * - Table Status
      - Description
 
    * - disk free space
      - This is a gross estimate of how much of your file system is available.
        Possible displays in this field are:
- 
+
        * More than twice the reserve ("more than 10 percent of total file system
 	 space")
        * Less than twice the reserve
        * Less than the reserve
        * File system is completely full
- 
+
    * - time of environment creation
      - This is the time when the |TokuDB| storage engine was first started up.
        Normally, this is when ``mysqld`` was initially installed with |TokuDB|. If
        the environment was upgraded from |TokuDB| 4.x (4.2.0 or later), then this
        will be displayed as "Dec 31, 1969" on Linux hosts.
- 
+
    * - time of engine startup
      - This is the time when the |TokuDB| storage engine started up. Normally, this
        is when ``mysqld`` started.
- 
+
    * - time now
      - Current date/time on server.
 
@@ -381,283 +372,283 @@ The following is a reference of the table status statements:
      - This is the number of times an individual PerconaFT dictionary file was
        opened. This is a not a useful value for a regular user to use for any purpose
        due to layers of open/close caching on top.
- 
+
    * - db closes
      - This is the number of times an individual PerconaFT dictionary file was
        closed. This is a not a useful value for a regular user to use for any purpose
        due to layers of open/close caching on top.
- 
+
    * - num open dbs now
      - This is the number of currently open databases.
-       
+
    * - max open dbs
      - This is the maximum number of concurrently opened databases.
-       
+
    * - period, in ms, that recovery log is automatically fsynced
      - ``fsync()`` frequency in milliseconds.
-       
+
    * - dictionary inserts
      - This is the total number of rows that have been inserted into all primary and
        secondary indexes combined, when those inserts have been done with a separate
        recovery log entry per index. For example, inserting a row into a table with
        one primary and two secondary indexes will increase this count by three, if
        the inserts were done with separate recovery log entries.
-       
+
    * - dictionary inserts fail
      - This is the number of single-index insert operations that failed.
-       
+
    * - dictionary deletes
      - This is the total number of rows that have been deleted from all primary and
        secondary indexes combined, if those deletes have been done with a separate
        recovery log entry per index.
-       
+
    * - dictionary deletes fail
      - This is the number of single-index delete operations that failed.
-       
+
    * - dictionary updates
      - This is the total number of rows that have been updated in all primary and
        secondary indexes combined, if those updates have been done with a separate
        recovery log entry per index.
-       
+
    * - dictionary updates fail
      - This is the number of single-index update operations that failed.
-       
+
    * - dictionary broadcast updates``:
      - This is the number of broadcast updates that have been successfully performed.
        A broadcast update is an update that affects all rows in a dictionary.
-       
+
    * - dictionary broadcast updates fail
      - This is the number of broadcast updates that have failed.
-       
+
    * - dictionary multi inserts
      - This is the total number of rows that have been inserted into all primary and
        secondary indexes combined, when those inserts have been done with a single
        recovery log entry for the entire row. (For example, inserting a row into a
        table with one primary and two secondary indexes will normally increase this
        count by three).
-       
+
    * - dictionary multi inserts fail
      - This is the number of multi-index insert operations that failed.
-       
+
    * - dictionary multi deletes
      - This is the total number of rows that have been deleted from all primary and
        secondary indexes combined, when those deletes have been done with a single
        recovery log entry for the entire row.
-       
+
    * - dictionary multi deletes fail
      - This is the number of multi-index delete operations that failed.
-       
+
    * - dictionary updates multi
      - This is the total number of rows that have been updated in all primary and
        secondary indexes combined, if those updates have been done with a single
        recovery log entry for the entire row.
-       
+
    * - dictionary updates fail multi
      - This is the number of multi-index update operations that failed.
-       
+
    * - le: max committed xr
      - This is the maximum number of committed transaction records that were stored
        on disk in a new or modified row.
-       
+
    * - le: max provisional xr
      - This is the maximum number of provisional transaction records that were stored
        on disk in a new or modified row.
-       
+
    * - le: expanded
      - This is the number of times that an expanded memory mechanism was used to
        store a new or modified row on disk.
-       
+
    * - le: max memsize
      - This is the maximum number of bytes that were stored on disk as a new or
        modified row. This is the maximum uncompressed size of any row stored in
        |TokuDB| that was created or modified since the server started.
-       
+
    * - le: size of leafentries before garbage collection (during message application)
      - Total number of bytes of leaf nodes data before performing garbage collection
        for non-flush events.
-       
+
    * - le: size of leafentries after garbage collection (during message application)
      - Total number of bytes of leaf nodes data after performing garbage collection
        for non-flush events.
-       
+
    * - le: size of leafentries before garbage collection (outside message application)
      - Total number of bytes of leaf nodes data before performing garbage collection
        for flush events.
-       
+
    * - le: size of leafentries after garbage collection (outside message application)
      - Total number of bytes of leaf nodes data after performing garbage collection
        for flush events.
-       
+
    * - checkpoint: period
      - This is the interval in seconds between the end of an automatic checkpoint and
        the beginning of the next automatic checkpoint.
-       
+
    * - checkpoint: footprint
      - Where the database is in the checkpoint process.
-       
+
    * - checkpoint: last checkpoint began
      - This is the time the last checkpoint began. If a checkpoint is currently in
        progress, then this time may be later than the time the last checkpoint
        completed.
 
-       .. note:: 
- 
+       .. note::
+
 	  If no checkpoint has ever taken place, then this value will be ``Dec 31,
 	  1969`` on Linux hosts.
-	  
+
    * - checkpoint: last complete checkpoint began
      - This is the time the last complete checkpoint started. Any data that changed
        after this time will not be captured in the checkpoint.
-       
+
    * - checkpoint: last complete checkpoint ended
      - This is the time the last complete checkpoint ended.
-       
+
    * - checkpoint: time spent during checkpoint (begin and end phases)
      - Time (in seconds) required to complete all checkpoints.
-       
+
    * - checkpoint: time spent during last checkpoint (begin and end phases)
      - Time (in seconds) required to complete the last checkpoint.
-       
+
    * - checkpoint: last complete checkpoint LSN
      - This is the Log Sequence Number of the last complete checkpoint.
-       
+
    * - checkpoint: checkpoints taken
      - This is the number of complete checkpoints that have been taken.
-       
+
    * - checkpoint: checkpoints failed
      - This is the number of checkpoints that have failed for any reason.
-       
+
    * - checkpoint: waiters now
      - This is the current number of threads simultaneously waiting for the
        checkpoint-safe lock to perform a checkpoint.
-       
+
    * - checkpoint: waiters max
      - This is the maximum number of threads ever simultaneously waiting for the
        checkpoint-safe lock to perform a checkpoint.
-       
+
    * - checkpoint: non-checkpoint client wait on mo lock
      - The number of times a non-checkpoint client thread waited for the
        multi-operation lock.
-       
+
    * - checkpoint: non-checkpoint client wait on cs lock
      - The number of times a non-checkpoint client thread waited for the
        checkpoint-safe lock.
-       
+
    * - checkpoint: checkpoint begin time
      - Cumulative time (in microseconds) required to mark all dirty nodes as
        pending a checkpoint.
-       
+
    * - checkpoint: long checkpoint begin time
      - The total time, in microseconds, of long checkpoint begins. A long checkpoint
        begin is one taking more than 1 second.
-       
+
    * - checkpoint: long checkpoint begin count
      - The total number of times a checkpoint begin took more than 1 second.
-       
+
    * - checkpoint: checkpoint end time
      - The time spent in checkpoint end operation in seconds.
-       
+
    * - checkpoint: long checkpoint end time
      - The time spent in checkpoint end operation in seconds.
-       
+
    * - checkpoint: long checkpoint end count
      - This is the count of end_checkpoint operations that exceeded 1 minute.
-       
+
    * - cachetable: miss
      - This is a count of how many times the application was unable to access your
        data in the internal cache.
-       
+
    * - cachetable: miss time
      - This is the total time, in microseconds, of how long the database has had to
        wait for a disk read to complete.
-       
+
    * - cachetable: prefetches
      - This is the total number of times that a block of memory has been prefetched
        into the database's cache. Data is prefetched when the database's algorithms
        determine that a block of memory is likely to be accessed by the application.
-       
+
    * - cachetable: size current
      - This shows how much of the uncompressed data, in bytes, is currently in the
        database's internal cache.
-       
+
    * - cachetable: size limit
      - This shows how much of the uncompressed data, in bytes, will fit in the
        database's internal cache.
-       
+
    * - cachetable: size writing
      - This is the number of bytes that are currently queued up to be written to
        disk.
-       
+
    * - cachetable: size nonleaf
      - This shows the amount of memory, in bytes, the current set of non-leaf nodes
        occupy in the cache.
-       
+
    * - cachetable: size leaf
      - This shows the amount of memory, in bytes, the current set of (decompressed)
        leaf nodes occupy in the cache.
-       
+
    * - cachetable: size rollback
      - This shows the rollback nodes size, in bytes, in the cache.
-       
+
    * - cachetable: size cachepressure
      - This shows the number of bytes causing cache pressure (the sum of buffers and
        work done counters), helps to understand if cleaner threads are keeping up
        with workload. It should really be looked at as more of a value to use in a
        ratio of cache pressure / cache table size. The closer that ratio evaluates to
        1, the higher the cache pressure.
-       
+
    * - cachetable: size currently cloned data for checkpoint
      - Amount of memory, in bytes, currently used for cloned nodes. During the
        checkpoint operation, dirty nodes are cloned prior to
        serialization/compression, then written to disk. After which, the memory for
        the cloned block is returned for re-use.
-       
+
    * - cachetable: evictions
      - Number of blocks evicted from cache.
-       
+
    * - cachetable: cleaner executions
      - Total number of times the cleaner thread loop has executed.
-       
+
    * - cachetable: cleaner period
      - |TokuDB| includes a cleaner thread that optimizes indexes in the background.
        This variable is the time, in seconds, between the completion of a group of
        cleaner operations and the beginning of the next group of cleaner operations.
        The cleaner operations run on a background thread performing work that does
        not need to be done on the client thread.
-       
+
    * - cachetable: cleaner iterations
      - This is the number of cleaner operations that are performed every cleaner
        period.
-       
+
    * - cachetable: number of waits on cache pressure
      - The number of times a thread was stalled due to cache pressure.
-       
+
    * - cachetable: time waiting on cache pressure
      - Total time, in microseconds, waiting on cache pressure to subside.
-       
+
    * - cachetable: number of long waits on cache pressure
      - The number of times a thread was stalled for more than 1 second due to cache
        pressure.
-       
+
    * - cachetable: long time waiting on cache pressure
      - Total time, in microseconds, waiting on cache pressure to subside for more
        than 1 second.
-       
+
    * - cachetable: client pool: number of threads in pool
      - The number of threads in the client thread pool.
-       
+
    * - cachetable: client pool: number of currently active threads in pool
      - The number of currently active threads in the client thread pool.
-       
+
    * - cachetable: client pool: number of currently queued work items
      - The number of currently queued work items in the client thread pool.
-       
+
    * - cachetable: client pool: largest number of queued work items
      - The largest number of queued work items in the client thread pool.
-       
+
    * - cachetable: client pool: total number of work items processed
      - The total number of work items processed in the client thread pool.
-       
+
    * - cachetable: client pool: total execution time of processing work items
      - The total execution time of processing work items in the client thread pool.
 
@@ -667,35 +658,35 @@ The following is a reference of the table status statements:
    * - cachetable: cachetable pool: number of currently active threads in pool
      - The number of currently active threads in the cachetable thread pool.
 
-   * - cachetable: cachetable pool: number of currently queued work items``: 
+   * - cachetable: cachetable pool: number of currently queued work items``:
      - The number of currently queued work items in the cachetable thread pool.
 
-   * - cachetable: cachetable pool: largest number of queued work items``: 
+   * - cachetable: cachetable pool: largest number of queued work items``:
      - The largest number of queued work items in the cachetable thread pool.
- 
-   * - cachetable: cachetable pool: total number of work items processed``: 
+
+   * - cachetable: cachetable pool: total number of work items processed``:
      - The total number of work items processed in the cachetable thread pool.
 
-   * - cachetable: cachetable pool: total execution time of processing work items``: 
+   * - cachetable: cachetable pool: total execution time of processing work items``:
      - The total execution time of processing work items in the cachetable thread
        pool.
-  
-   * - cachetable: checkpoint pool: number of threads in pool``: 
+
+   * - cachetable: checkpoint pool: number of threads in pool``:
      - The number of threads in the checkpoint thread pool.
 
    * - cachetable: checkpoint pool: number of currently active threads in pool
      - The number of currently active threads in the checkpoint thread pool.
-  
-   * - cachetable: checkpoint pool: number of currently queued work items``: 
+
+   * - cachetable: checkpoint pool: number of currently queued work items``:
      - The number of currently queued work items in the checkpoint thread pool.
 
-   * - cachetable: checkpoint pool: largest number of queued work items``: 
+   * - cachetable: checkpoint pool: largest number of queued work items``:
      - The largest number of queued work items in the checkpoint thread pool.
 
-   * - cachetable: checkpoint pool: total number of work items processed``: 
+   * - cachetable: checkpoint pool: total number of work items processed``:
      - The total number of work items processed in the checkpoint thread pool.
 
-   * - cachetable: checkpoint pool: total execution time of processing work items``: 
+   * - cachetable: checkpoint pool: total execution time of processing work items``:
      - The total execution time of processing work items in the checkpoint thread
        pool.
 
@@ -812,7 +803,7 @@ The following is a reference of the table status statements:
    * - ft: leaf nodes flushed to disk (not for checkpoint) (seconds)
      - Number of seconds waiting for IO when writing leaf nodes flushed to disk, not
        for checkpoint.
- 
+
    * - ft: nonleaf nodes flushed to disk (not for checkpoint)
      - Number of non-leaf nodes flushed to disk, not for checkpoint.
 
@@ -898,7 +889,7 @@ The following is a reference of the table status statements:
 
    * - ft: leaf nodes destroyed
      - Number of destroyed leaf nodes.
- 
+
    * - ft: nonleaf nodes destroyed
      - Number of destroyed non-leaf nodes.
 
@@ -1138,7 +1129,7 @@ The following is a reference of the table status statements:
        that the leaf entry is deleted in the current transactions view. It is a good
        indicator that there might be excessive garbage in a tree if a range scan
        seems to take too long.
-  
+
    * - ft flusher: total nodes potentially flushed by cleaner thread
      - Total number of nodes whose buffers are potentially flushed by cleaner thread.
 
@@ -1170,7 +1161,7 @@ The following is a reference of the table status statements:
 
    * - ft flusher: min workdone in a buffer flushed by cleaner thread
      - Min workdone value of any message buffer flushed by cleaner thread.
- 
+
    * - ft flusher: total workdone in buffers flushed by cleaner thread
      - Total workdone value of message buffers flushed by cleaner thread.
 

@@ -57,6 +57,8 @@ You should also consider the following:
 
 * As of 8.0.17, InnoDB supports `multi-valued indexes <https://dev.mysql.com/doc/refman/8.0/en/create-index.html#create-index-multi-valued>`__. MyRocks does not support this feature.
 
+* As of 8.0.17, InnoDB supports the use of the `Clone Plugin <https://dev.mysql.com/doc/refman/8.0/en/clone-plugin.html>`__ and the Clone Plugin API. MyRocks tables do not support either these features.
+
 * When converting from large MyISAM/InnoDB tables, either by using the
   ``ALTER`` or ``INSERT INTO SELECT`` statements it's recommended that you
   check the :ref:`Data loading <myrocks_data_loading>` documentation and

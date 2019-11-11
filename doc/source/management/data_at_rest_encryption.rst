@@ -180,7 +180,7 @@ tablespace.
 This feature extends the  `CREATE TABLESPACE
 <https://dev.mysql.com/doc/refman/5.7/en/create-tablespace.html>`_
 statement to accept the ``ENCRYPTION='Y/N'`` option.
-  
+
 Usage
 --------------------------------------------------------------------------------
 
@@ -222,8 +222,9 @@ Trying to add unencrypted table to this table space will result in an error:
 
 .. note::
 
-   |Percona XtraBackup| currently doesn't support backup of encrypted general
-   tablespaces.
+   |Percona XtraBackup| starting with version 2.4.11 supports the backup
+   of encrypted general tablespaces. Version 2.4 does not support the backup
+   of an encrypted system tablespace. 
 
 Checking
 --------
@@ -233,7 +234,7 @@ user needs to find out whether it is encrypted or not (this task is easier for
 single tablespaces since you can check table info).
 
 A ``flag`` field in the ``INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`` has bit
-number 13 set if tablespace is encrypted. This bit can be ckecked with 
+number 13 set if tablespace is encrypted. This bit can be ckecked with
 ``flag & 8192`` expression in the following way::
 
   >SELECT space, name, flag, (flag & 8192) != 0 AS encrypted FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE name in ('foo', 'test/t2', 'bar', 'noencrypt');
@@ -336,7 +337,7 @@ keyring, |Percona Server| will create it with version 1. If a new
 ``CREATE TABLE`` statement fails
 
 .. rubric:: FORCE_KEYRING
-	    
+
 :Availability: This value is **Experimental** quality
 
 New tables are created encrypted and keyring encryption is enforced.
@@ -345,7 +346,7 @@ New tables are created encrypted and keyring encryption is enforced.
 
 :Availability: This value is **Experimental** quality
 
-All tables created or altered without the ``ENCRYPTION=NO`` clause 
+All tables created or altered without the ``ENCRYPTION=NO`` clause
 are encrypted with the latest version of the default encryption key. If a table
 being altered is already encrypted with the master key, the table is recreated
 encrypted with the latest version of the default encryption key.
@@ -395,7 +396,7 @@ KEYRING. The value of this variable determines how frequently the encrypted
 tables should be encrypted again. If it is set to **1**, the encrypted table is
 re-encrypted on each key rotation. If it is set to **2**, the table is encrypted
 on every other key rotation.
-      
+
 .. variable:: innodb_encrypt_online_alter_logs
 
    :version 5.7.21-21: Implemented
@@ -537,18 +538,18 @@ System variables
 Enables the encryption of the redo log.
 
 .. .. variable:: innodb_key_rotation_interval
-.. 	      
+..
 ..    :version 5.7.23-24: Implemented
 ..    :cli: ``--innodb-key-rotation_interval``
 ..    :dyn: Yes
 ..    :scope: Global
 ..    :vartype: Text
 ..    :default: ``0``
-.. 
+..
 .. This variable stores the time (in seconds) that should pass between key
 .. rotations. It is only used if :variable:`innodb_redo_log_encrypt` is set to
 .. ``KEYRING_KEY``.
-.. 	     
+..
 
 .. _data-at-rest-encryption.variable.innodb-scrub-log:
 
@@ -571,8 +572,8 @@ Specifies if data scrubbing should be automatically applied to the redo log.
    :dyn: Yes
    :scope: Global
    :vartype: Text
-   :default: 
- 
+   :default:
+
 Specifies the velocity of data scrubbing (writing dummy redo log records) in bytes per second.
 
 Implemented in version 5.7.27-30, the key rotation is redesigned to allow ``SELECT rotate_system_key("percona_redo)``. The currently used key version is available in the :variable:`innodb_redo_key_version` status. The feature is **Experimental**.
@@ -719,11 +720,11 @@ Configuration file should contain the following information:
   certificate that was used to sign Vault's certificates.
 
 .. warning::
-   
+
    Each ``secret_mount_point`` should be used by only one server - otherwise
    mixing encryption keys from different servers may lead to undefined
    behavior.
-  
+
 An example of the configuration file looks like this: ::
 
   vault_url = https://vault.public.com:8202

@@ -5290,7 +5290,7 @@ static int innodb_init(void *p) {
   }
 
   // We are starting encryption threads, we must lock the keyring plugins
-  if (srv_n_fil_crypt_threads > 0) {
+  if (srv_n_fil_crypt_threads_requested > 0) {
     uint number_of_keyring_locked = lock_keyrings(NULL);
 
     if (number_of_keyring_locked == 0) {
@@ -22542,7 +22542,7 @@ static int innodb_encryption_threads_validate(
     DBUG_RETURN(1);
   }
 
-  if (srv_n_fil_crypt_threads == 0 &&
+  if (srv_n_fil_crypt_threads_requested == 0 &&
       intbuf > 0) {  // We are starting encryption threads, we must lock
                      // the keyring plugins
     uint number_of_keyrings_locked = lock_keyrings(NULL);
@@ -22563,9 +22563,9 @@ static int innodb_encryption_threads_validate(
       unlock_keyrings(NULL);
       DBUG_RETURN(1);
     }
-  } else if (intbuf == 0 &&
-             srv_n_fil_crypt_threads > 0) {  // We are disabling encryption
-                                             // threads, unlock the keyrings
+  } else if (intbuf == 0 && srv_n_fil_crypt_threads_requested >
+                                0) {  // We are disabling encryption
+                                      // threads, unlock the keyrings
     unlock_keyrings(NULL);
   }
 
@@ -24071,11 +24071,11 @@ static MYSQL_SYSVAR_BOOL(encrypt_online_alter_logs,
                          "Encrypt online alter logs.", nullptr, nullptr, false);
 
 static MYSQL_SYSVAR_UINT(
-    encryption_threads, srv_n_fil_crypt_threads, PLUGIN_VAR_RQCMDARG,
+    encryption_threads, srv_n_fil_crypt_threads_requested, PLUGIN_VAR_RQCMDARG,
     "Number of threads performing background key rotation and "
     "scrubbing",
     innodb_encryption_threads_validate, innodb_encryption_threads_update,
-    srv_n_fil_crypt_threads, 0, UINT_MAX32, 0);
+    srv_n_fil_crypt_threads_requested, 0, UINT_MAX32, 0);
 
 static MYSQL_SYSVAR_UINT(encryption_rotate_key_age,
                          srv_fil_crypt_rotate_key_age, PLUGIN_VAR_RQCMDARG,

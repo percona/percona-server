@@ -419,7 +419,7 @@ Datafile::ValidateOutput Datafile::validate_to_dd(space_id_t space_id,
         output.keyring_encryption_info.keyring_encryption_min_key_version !=
             0)) &&
       FSP_FLAGS_GET_ENCRYPTION(flags) != FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
-    if (srv_n_fil_crypt_threads == 0) {
+    if (srv_n_fil_crypt_threads_requested == 0) {
       ib::warn() << "In file '" << m_filepath
                  << "' (tablespace id = " << m_space_id
                  << ") encryption flag is "

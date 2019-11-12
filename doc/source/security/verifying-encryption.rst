@@ -1,15 +1,15 @@
 .. _verifying-encryption:
 
-=================================================================== 
+===================================================================
 Verifying the Encryption for Tables, Tablespaces, and Schemas
 ===================================================================
 
 If a general tablespace contains tables, check the table information to see if
 the table is encrypted. When the general tablespace contains no tables, you
-may verify if the tablespace is encrypted or not. 
+may verify if the tablespace is encrypted or not.
 
 For single tablespaces, verify the ENCRYPTION option using
-`INFORMATION_SCHEMA.TABLES` and the `CREATE OPTIONS` settings. 
+`INFORMATION_SCHEMA.TABLES` and the `CREATE OPTIONS` settings.
 
 .. code-block:: MySQL
 
@@ -37,25 +37,25 @@ A ``flag`` field in the ``INFORMATION_SCHEMA.INNODB_TABLESPACES`` has bit number
 
    .. code-block:: guess
 
-      +-------+-----------+-------+-----------+ 
-      | space | name      | flag  | encrypted | 
-      +-------+-----------+-------+-----------+ 
-      |    29 | foo       | 10240 |      8192 | 
-      |    30 | test/t2   |  8225 |      8192 | 
-      |    31 | bar       | 10240 |      8192 | 
+      +-------+-----------+-------+-----------+
+      | space | name      | flag  | encrypted |
+      +-------+-----------+-------+-----------+
+      |    29 | foo       | 10240 |      8192 |
+      |    30 | test/t2   |  8225 |      8192 |
+      |    31 | bar       | 10240 |      8192 |
       |    32 | noencrypt |  2048 |         0 |
-      +-------+-----------+-------+-----------+ 
+      +-------+-----------+-------+-----------+
       4 rows in set (0.01 sec)
 
 :Availabiliity: This feature is **Experimental**.
 
 The encrypted table metadata is contained in the
 INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION table. You must have the
-``Process`` privilege to view the table information. 
+``Process`` privilege to view the table information.
 
 .. note::
 
-    This table is **Experimental** and may change in future releases. 
+    This table is **Experimental** and may change in future releases.
 
 .. code-block:: MySQL
 
@@ -76,20 +76,7 @@ INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION table. You must have the
   | ROTATING_OR_FLUSHING        | int(1) unsigned    | NO  |    |        |      |
   +-----------------------------+--------------------+-----+----+--------+------+
 
-To identify schemas with encryption enabled, run the following query:
-
-.. code-block:: MySQL
-
-   mysql> SELECT schema_name, default_encryption FROM INFORMATION_SCHEMA WHERE
-   DEFAULT_ENCRYPTION='YES';
-
-   +---------------+-----------------------------+
-   | schema_name   | default_encryption          |
-   +---------------+-----------------------------+
-   | sample        | YES                         |
-   +---------------+-----------------------------+
-
-To identify schemas which are encryption-enabled, you can query the
+To identify encryption-enabled schemas, query the
 INFORMATION_SCHEMA.SCHEMATA table:
 
 ..  code-block:: MySQL
@@ -103,7 +90,7 @@ INFORMATION_SCHEMA.SCHEMATA table:
     | samples                      | YES                             |
     +------------------------------+---------------------------------+
 
-.. note:: 
+.. note::
 
     The ``SHOW CREATE SCHEMA`` statement returns the ``DEFAULT ENCRYPTION``
     clause.

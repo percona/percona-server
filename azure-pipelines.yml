@@ -129,11 +129,10 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
+      CC=$(Compiler)-$(CompilerVer)
       if [[ "$(Compiler)" == "clang" ]]; then
-        CC=clang-$(CompilerVer)
         CXX=clang++-$(CompilerVer)
       else
-        CC=gcc-$(CompilerVer)
         CXX=g++-$(CompilerVer)
       fi
 
@@ -178,7 +177,7 @@ jobs:
       key: ccache | $(Agent.OS)-$(Compiler)-$(CompilerMajorVer)-$(BuildType) | $(Build.SourceVersion)
       restoreKeys: ccache | $(Agent.OS)-$(Compiler)-$(CompilerMajorVer)-$(BuildType)
       path: $(CCACHE_DIR)
-    displayName: '*** Download/upload ccached data'
+    displayName: '*** Download/upload ccached files'
 
   - script: |
       echo --- Set cmake parameters
@@ -244,7 +243,7 @@ jobs:
 
       echo '##vso[task.setvariable variable=CMAKE_TIME]'$CMAKE_TIME
 
-    displayName: '*** cmake .. -DCMAKE_BUILD_TYPE=$(BuildType)'
+    displayName: '*** CC=$(Compiler)-$(CompilerVer) cmake .. -DCMAKE_BUILD_TYPE=$(BuildType)'
 
   - script: |
       cd bin

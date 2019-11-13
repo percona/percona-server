@@ -437,7 +437,16 @@ System variables
    :vartype: Boolean
    :default: ``Off``
 
-Enables the encryption of InnoDB Undo tablespaces
+Enables the encryption of InnoDB Undo tablespaces. You can enable encryption and
+disable encryption while the server is running. 
+
+.. note:: 
+
+    If you enable undo log encryption, the server writes encryption information
+    into the header. That information stays in the header during the life of the
+    undo log. If you restart the server, the server will try to load the
+    encryption key from the keyring during startup. If the keyring is not available, the server
+    cannot start.
 
 Binary log encryption
 ================================================================================

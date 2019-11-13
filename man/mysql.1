@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/08/2019
+.\"      Date: 09/27/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "06/08/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "09/27/2019" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -298,7 +298,7 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -398,7 +398,7 @@ Section\ \&4.2.5, \(lqConnection Compression Control\(rq\&.
 Indicate to the server that the client can handle sandbox mode if the account used to connect has an expired password\&. This can be useful for noninteractive invocations of
 \fBmysql\fR
 because normally the server disconnects noninteractive clients that attempt to connect using an account with an expired password\&. (See
-Section\ \&6.2.12, \(lqPassword Expiration and Sandbox Mode\(rq\&.)
+Section\ \&6.2.12, \(lqServer Handling of Expired Passwords\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -512,7 +512,7 @@ client by default uses another\&. In this case, output may be formatted incorrec
 .sp
 For more information, see
 Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq, and
-Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -689,7 +689,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.4.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.4, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .sp
 The
 \fB\-\-get\-server\-public\-key\fR
@@ -1380,8 +1380,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.4.1.4, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.5, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.4, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1394,7 +1394,7 @@ Section\ \&6.4.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .\}
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
-On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
+On Windows, the shared\-memory name to use for connections made using shared memory to a local server\&. The default value is
 MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
 This option applies only if the server was started with the
@@ -1593,7 +1593,7 @@ the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses tee files further\&.
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The permissible TLS protocols for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.5, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
 .RE
@@ -1821,7 +1821,18 @@ Each command has both a long and short form\&. The long form is not case\-sensit
 .PP
 The use of short\-form commands within multiple\-line
 /* \&.\&.\&. */
-comments is not supported\&.
+comments is not supported\&. Short\-form commands do work within single\-line
+/*! \&.\&.\&. */
+version comments, as do
+/*+ \&.\&.\&. */
+optimizer\-hint comments, which are stored in object definitions\&. If there is a concern that optimizer\-hint comments may be stored in object definitions so that dump files when reloaded with
+mysql
+would result in execution of such commands, either invoke
+\fBmysql\fR
+with the
+\fB\-\-binary\-mode\fR
+option or use a reload client other than
+\fBmysql\fR\&.
 .sp
 .RS 4
 .ie n \{\
@@ -2173,8 +2184,8 @@ Reset the connection to clear the session state\&.
 Resetting a connection has effects similar to
 mysql_change_user()
 or an auto\-reconnect except that the connection is not closed and reopened, and re\-authentication is not done\&. See
-Section\ \&27.8.7.3, \(lqmysql_change_user()\(rq) and see
-Section\ \&27.8.20, \(lqC API Automatic Reconnection Control\(rq)\&.
+Section\ \&27.8.7.3, \(lqmysql_change_user()\(rq, and
+Section\ \&27.8.20, \(lqC API Automatic Reconnection Control\(rq\&.
 .sp
 This example shows how
 resetconnection
@@ -2220,7 +2231,7 @@ mysql> \fBSELECT LAST_INSERT_ID();\fR
 source \fIfile_name\fR,
 \e\&. \fIfile_name\fR
 .sp
-Read the named file and executes the statements contained therein\&. On Windows, you can specify path name separators as
+Read the named file and executes the statements contained therein\&. On Windows, specify path name separators as
 /
 or
 \e\e\&.
@@ -3755,17 +3766,17 @@ mysql> \fBSELECT * FROM mails WHERE LENGTH(txt) < 300 LIMIT 300,1\eG\fR
   msg_nro: 3068
      date: 2000\-03\-01 23:29:50
 time_zone: +0200
-mail_from: Monty
-    reply: monty@no\&.spam\&.com
-  mail_to: "Thimble Smith" <tim@no\&.spam\&.com>
+mail_from: Jones
+    reply: jones@example\&.com
+  mail_to: "John Smith" <smith@example\&.com>
       sbj: UTF\-8
-      txt: >>>>> "Thimble" == Thimble Smith writes:
-Thimble> Hi\&.  I think this is a good idea\&.  Is anyone familiar
-Thimble> with UTF\-8 or Unicode? Otherwise, I\*(Aqll put this on my
-Thimble> TODO list and see what happens\&.
+      txt: >>>>> "John" == John Smith writes:
+John> Hi\&.  I think this is a good idea\&.  Is anyone familiar
+John> with UTF\-8 or Unicode? Otherwise, I\*(Aqll put this on my
+John> TODO list and see what happens\&.
 Yes, please do that\&.
 Regards,
-Monty
+Jones
      file: inbox\-jani\-1
      hash: 190402944
 1 row in set (0\&.09 sec)

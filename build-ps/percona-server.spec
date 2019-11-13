@@ -123,7 +123,7 @@
 %global license_files_server  %{src_dir}/LICENSE.mysql
 %global license_type          Commercial
 %else
-%global license_files_server  %{src_dir}/COPYING %{src_dir}/README
+%global license_files_server  %{src_dir}/README
 %global license_type          GPLv2
 %endif
 

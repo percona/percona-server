@@ -1,13 +1,20 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -40,15 +47,6 @@ static const char* ssl_mode_options[]=
 #define TLS_VERSION_OPTION_SIZE 256
 #define SSL_CIPHER_LIST_SIZE 4096
 
-#ifdef HAVE_YASSL
-static const char* tls_ciphers_list="DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:"
-                                    "AES128-RMD:DES-CBC3-RMD:DHE-RSA-AES256-RMD:"
-                                    "DHE-RSA-AES128-RMD:DHE-RSA-DES-CBC3-RMD:"
-                                    "AES256-SHA:RC4-SHA:RC4-MD5:DES-CBC3-SHA:"
-                                    "DES-CBC-SHA:EDH-RSA-DES-CBC3-SHA:"
-                                    "EDH-RSA-DES-CBC-SHA:AES128-SHA:AES256-RMD";
-static const char* tls_cipher_blocked= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:";
-#else
 static const char* tls_ciphers_list= "ECDHE-ECDSA-AES128-GCM-SHA256:"
                                      "ECDHE-ECDSA-AES256-GCM-SHA384:"
                                      "ECDHE-RSA-AES128-GCM-SHA256:"
@@ -89,7 +87,6 @@ static const char* tls_cipher_blocked= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC
                                        "!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:"
                                        "!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:"
                                        "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
-#endif
 
 /*
   Diffie-Hellman key.
@@ -174,7 +171,6 @@ static long process_tls_version(const char *tls_version)
 {
   const char *separator= ", ";
   char *token= NULL;
-#ifndef HAVE_YASSL
   const char *tls_version_name_list[]= {
     "TLSv1", "TLSv1.1", "TLSv1.2"
   };
@@ -186,17 +182,6 @@ static long process_tls_version(const char *tls_version)
   };
   const char* ctx_flag_default= "TLSv1,TLSv1.1,TLSv1.2";
   long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2;
-#else
-  const char *tls_version_name_list[]= {"TLSv1", "TLSv1.1"};
-  #define TLS_VERSIONS_COUNTS \
-    (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
-  unsigned int tls_versions_count= TLS_VERSIONS_COUNTS;
-  const long tls_ctx_list[TLS_VERSIONS_COUNTS]= {
-    SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1
-  };
-  const char* ctx_flag_default= "TLSv1,TLSv1.1";
-  long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1;
-#endif
   unsigned int index= 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE]= "";
   int tls_found= 0;
@@ -245,7 +230,12 @@ static int configure_ssl_algorithms(SSL_CTX* ssl_ctx, const char* cipher,
                                     const char* tls_version)
 {
   DH *dh= NULL;
+#ifdef HAVE_TLSv13
+  /* We support TLS up to 1.2, so explicitly disable TLS 1.3. */
+  long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1_3;
+#else
   long ssl_ctx_options= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+#endif
   char cipher_list[SSL_CIPHER_LIST_SIZE]= {0};
   long ssl_ctx_flags= -1;
 
@@ -264,12 +254,23 @@ static int configure_ssl_algorithms(SSL_CTX* ssl_ctx, const char* cipher,
                     SSL_OP_NO_SSLv3 |
                     SSL_OP_NO_TLSv1 |
                     SSL_OP_NO_TLSv1_1
-#ifndef HAVE_YASSL
                     | SSL_OP_NO_TLSv1_2
-#endif
+#ifdef HAVE_TLSv13
+                    | SSL_OP_NO_TLSv1_3
+#endif /* HAVE_TLSv13 */
                    );
 
   SSL_CTX_set_options(ssl_ctx, ssl_ctx_options);
+
+#ifdef HAVE_TLSv13
+  /* We do not support TLS 1.3.
+     Setting empty TLS 1.3 ciphersuites disables them. */
+  if (SSL_CTX_set_ciphersuites(ssl_ctx, "") == 0)
+  {
+    G_ERROR("Failed to disable the TLS 1.3 ciphersuites.");
+    goto error;
+  }
+#endif /* HAVE_TLSv13 */
 
   /*
     Set the ciphers that can be used. Note, howerver, that the
@@ -341,7 +342,6 @@ static int configure_ssl_revocation(SSL_CTX* ssl_ctx  MY_ATTRIBUTE((unused)), co
   int retval = 0;
   if (crl_file || crl_path)
   {
-#ifndef HAVE_YASSL
     X509_STORE *store= SSL_CTX_get_cert_store(ssl_ctx);
     /* Load crls from the trusted ca */
     if (X509_STORE_load_locations(store, crl_file, crl_path) == 0 ||
@@ -352,7 +352,6 @@ static int configure_ssl_revocation(SSL_CTX* ssl_ctx  MY_ATTRIBUTE((unused)), co
       G_ERROR("X509_STORE_load_locations for CRL error");
       retval = 1;
     }
-#endif
   }
   return retval;
 }
@@ -597,9 +596,7 @@ void xcom_destroy_ssl()
     client_ctx= NULL;
   }
 
-#if defined(HAVE_YASSL) && defined(WITH_SSL_STANDALONE)
-  yaSSL_CleanUp();
-#elif defined(WITH_SSL_STANDALONE)
+#if defined(WITH_SSL_STANDALONE)
   ENGINE_cleanup();
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();

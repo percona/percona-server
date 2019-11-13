@@ -53,7 +53,8 @@ Other bugs fixed:
 Known Issues
 ===============================================================================
 
-- :psbug:`5783`: The length of time and resources required for a MySQL query execution increased with a large number of table partitions. :ref:`query-limit-esitmates` describes the experimental options added to prevent index scans on the partitions and return a specified number of values.
+- :psbug:`5783`: The length of time and resources required for a MySQL query execution increased with a large number of table partitions. :ref:`query-limit-estimates` describes the experimental options added to prevent index scans on the partitions and return a specified number of values.
+
 
 .. |date| replace:: November 13, 2019
 .. |release| replace:: 5.7.28-31

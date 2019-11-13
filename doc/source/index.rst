@@ -68,6 +68,7 @@ Performance Improvements
 
    performance/aio_page_requests
    performance/query_cache_enhance
+   performance/query_limit_records
    performance/innodb_numa_support
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads

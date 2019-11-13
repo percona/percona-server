@@ -1,7 +1,8 @@
-.. _query-limit-esitmates:
+
+.. _query-limit-estimates:
 
 =========================================================
-Limiting the Estimatation of Records in a Query
+Limiting the Estimation of Records in a Query
 =========================================================
 
 :Availability:  This feature is **Experimental** quality.

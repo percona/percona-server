@@ -1,0 +1,10 @@
+INSTALL PLUGIN procfs SONAME 'procfs.so';
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
+COUNT(*)
+0
+UNINSTALL PLUGIN procfs;
+INSTALL PLUGIN procfs SONAME 'procfs.so';
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
+COUNT(*)
+1
+UNINSTALL PLUGIN procfs;

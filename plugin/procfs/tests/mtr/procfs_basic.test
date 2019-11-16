@@ -1,0 +1,11 @@
+let $MYSQLD_DATADIR= `select @@datadir`;
+INSTALL PLUGIN procfs SONAME 'procfs.so';
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
+UNINSTALL PLUGIN procfs;
+
+INSTALL PLUGIN procfs SONAME 'procfs.so';
+--exec echo "/proc/version" > $MYSQLD_DATADIR/procfs.cnf
+SELECT COUNT(*) FROM information_schema.procfs WHERE file = '/proc/version';
+UNINSTALL PLUGIN procfs;
+remove_file $MYSQLD_DATADIR/procfs.cnf;
+

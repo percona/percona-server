@@ -242,6 +242,7 @@ our $DEFAULT_SUITES = "auth_sec,binlog_gtid,binlog_nogtid,clone,collations,conne
   ."rpl_encryption,"
   ."tokudb,tokudb_add_index,tokudb_alter_table,tokudb_bugs,tokudb_parts,"
   ."tokudb_perfschema,tokudb_rpl,"
+  ."procfs,"
   # MySQL suites tested by Percona by default
   ."audit_null,engines/iuds,engines/funcs,funcs_1,group_replication,interactive_utilities,jp,stress";
 

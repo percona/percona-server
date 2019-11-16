@@ -1,0 +1,17 @@
+/proc/cpuinfo
+/proc/irq/*/*
+/proc/loadavg
+/proc/net/dev
+/proc/net/sockstat
+/proc/net/sockstat_rhe4
+/proc/net/tcpstat
+/proc/self/net/netstat
+/proc/self/stat
+/proc/self/io
+/proc/self/numa_maps
+/proc/softirqs
+/proc/spl/kstat/zfs/arcstats
+/proc/stat
+/proc/sys/fs/file-nr
+/proc/version
+/proc/vmstat

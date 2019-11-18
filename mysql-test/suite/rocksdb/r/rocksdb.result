@@ -969,7 +969,10 @@ rocksdb_manifest_preallocation_size	4194304
 rocksdb_manual_compaction_threads	0
 rocksdb_manual_wal_flush	ON
 rocksdb_master_skip_tx_api	OFF
+rocksdb_max_background_compactions	-1
+rocksdb_max_background_flushes	-1
 rocksdb_max_background_jobs	2
+rocksdb_max_bottom_pri_background_compactions	0
 rocksdb_max_latest_deadlocks	5
 rocksdb_max_log_file_size	0
 rocksdb_max_manifest_file_size	1073741824
@@ -1482,7 +1485,7 @@ create table t1 (i int primary key auto_increment) engine=RocksDB;
 insert into t1 values (null),(null);
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ROCKSDB	10	Fixed	1000	0	#	0	0	0	3	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t1	ROCKSDB	10	Fixed	1000	0	#	0	0	0	3	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 drop table t1;
 #
 # Fix Issue #4: Crash when using pseudo-unique keys
@@ -2749,7 +2752,7 @@ CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(0),(-1),(0);
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ROCKSDB	10	Fixed	1000	#	#	#	#	#	3	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t1	ROCKSDB	10	Fixed	1000	#	#	#	#	#	3	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 SELECT * FROM t1;
 a
 -1
@@ -2760,7 +2763,7 @@ CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(0),(10),(0);
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ROCKSDB	10	Fixed	1000	#	#	#	#	#	12	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t1	ROCKSDB	10	Fixed	1000	#	#	#	#	#	12	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 SELECT * FROM t1;
 a
 1

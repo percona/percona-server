@@ -7,6 +7,7 @@ INSERT INTO t1 VALUES (5);
 SHOW TABLE STATUS LIKE 't1';
 
 INSERT INTO t1 VALUES ();
+--replace_column 3 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 #
 SELECT * FROM t1;
 --replace_column 3 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 #
 SHOW TABLE STATUS LIKE 't1';

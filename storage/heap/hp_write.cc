@@ -54,15 +54,20 @@ int heap_write(HP_INFO *info, const uchar *record) {
     return EACCES;
   }
 #endif
-  if ((share->records >= share->max_records && share->max_records) ||
-      (share->recordspace.total_data_length + share->index_length >=
-       share->max_table_size)) {
+  if (share->records >= share->max_records && share->max_records) {
     set_my_errno(HA_ERR_RECORD_FILE_FULL);
     return HA_ERR_RECORD_FILE_FULL;
   }
 
   uint chunk_count;
   hp_get_encoded_data_length(*share, record, &chunk_count);
+
+  if ((share->recordspace.del_chunk_count < chunk_count) &&
+      (share->recordspace.total_data_length + share->index_length >=
+       share->max_table_size)) {
+    set_my_errno(HA_ERR_RECORD_FILE_FULL);
+    return HA_ERR_RECORD_FILE_FULL;
+  }
 
   if (!(pos = hp_allocate_chunkset(&share->recordspace, chunk_count)))
     return my_errno();

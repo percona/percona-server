@@ -38,7 +38,7 @@ static bool gen_rnd_ssn_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
 static void gen_rnd_ssn_deinit(UDF_INIT *initid) {
   DBUG_ENTER("gen_rnd_ssn_deinit");
 
-  if (initid->ptr) delete initid->ptr;
+  if (initid->ptr) delete[] initid->ptr;
 
   DBUG_VOID_RETURN;
 }

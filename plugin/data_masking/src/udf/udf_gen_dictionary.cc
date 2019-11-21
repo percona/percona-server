@@ -45,7 +45,7 @@ static bool gen_dictionary_init(UDF_INIT *initid, UDF_ARGS *args,
 static void gen_dictionary_deinit(UDF_INIT *initid) {
   DBUG_ENTER("gen_dictionary_deinit");
 
-  if (initid->ptr) delete initid->ptr;
+  if (initid->ptr) delete[] initid->ptr;
 
   DBUG_VOID_RETURN;
 }

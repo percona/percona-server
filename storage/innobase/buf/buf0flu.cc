@@ -1763,7 +1763,7 @@ static std::pair<ulint, ulint> buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
   for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
        bpage != NULL && count + evict_count < max &&
        free_len < srv_LRU_scan_depth + withdraw_depth &&
-       lru_len > BUF_LRU_MIN_LEN;
+       (lru_len > BUF_LRU_MIN_LEN || recv_recovery_is_on());
        ++scanned, bpage = buf_pool->lru_hp.get()) {
     buf_page_t *prev = UT_LIST_GET_PREV(LRU, bpage);
     buf_pool->lru_hp.set(prev);
@@ -2149,15 +2149,6 @@ static void buf_flush_wait_flushed(lsn_t new_oldest) {
       if (oldest == 0 || oldest >= new_oldest ||
           (new_oldest == LSN_MAX && oldest > instance_newest[i])) {
         break;
-      }
-
-      /* During startup, if there is recovery, page cleaners wait for
-      recv_sys->flush_start event. So signal the flush_start event to
-      make page cleaners start flushing */
-      if (!srv_read_only_mode) {
-        if (recv_sys->flush_start != nullptr) {
-          os_event_set(recv_sys->flush_start);
-        }
       }
 
       /* sleep and retry */

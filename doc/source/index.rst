@@ -128,6 +128,20 @@ Management Improvements
    management/ssl-improvement
    management/utility_user
 
+Security Improvements
+=======================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   security/data-at-rest-encryption
+   security/using-keyring-plugin
+   security/overview-master-key
+   security/enabling-master-key
+   security/data-scrubbing
+   security/ssl-improvement
+   security/pam_plugin
 
 Diagnostics Improvements
 ========================
@@ -204,5 +218,3 @@ Reference
 
 * :ref:`genindex`
 * :ref:`modindex`
-
-

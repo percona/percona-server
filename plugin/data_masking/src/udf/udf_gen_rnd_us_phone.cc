@@ -46,7 +46,7 @@ bool gen_rnd_us_phone_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
 void gen_rnd_us_phone_deinit(UDF_INIT *initid) {
   DBUG_ENTER("gen_rnd_us_phone_deinit");
 
-  if (initid->ptr) delete initid->ptr;
+  if (initid->ptr) delete[] initid->ptr;
 
   DBUG_VOID_RETURN;
 }

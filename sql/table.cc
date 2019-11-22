@@ -3620,6 +3620,7 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table) {
   if (create_info->was_encryption_key_id_set) {
     create_info->encryption_key_id = share->encryption_key_id;
   }
+  create_info->explicit_encryption = share->explicit_encryption;
   create_info->secondary_engine = share->secondary_engine;
 }
 

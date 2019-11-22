@@ -302,8 +302,7 @@ class Encryption {
   @param[in]      algorithm       Encryption algorithm to check
   @return true if no algorithm explicitly requested */
   MY_NODISCARD static bool none_explicitly_specified(
-      ulong create_info_used_fields,
-      const char *algorithm) noexcept;
+      bool explicit_encryption, const char *algorithm) noexcept;
 
   /** Check if the string is "y" or "Y".
   @param[in]      algorithm       Encryption algorithm to check
@@ -318,8 +317,7 @@ class Encryption {
   MY_NODISCARD static bool is_online_encryption_on() noexcept;
 
   MY_NODISCARD static bool should_be_keyring_encrypted(
-      ulong create_info_used_fields,
-      const char *algorithm) noexcept;
+      bool explicit_encryption, const char *algorithm) noexcept;
 
   /** Generate random encryption value for key and iv.
   @param[in,out]  value Encryption value */

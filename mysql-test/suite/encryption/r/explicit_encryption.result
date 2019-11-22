@@ -1,53 +1,179 @@
 #
-# PS-5772 8.0.16 encryption reconciliation
-# Check if explicit ENCRYPTION='N' is always shown in SHOW CREATE TABLE
-# for innodb_file_per_table tables. It should not be printed for any
-# different table (in general or system tablespace). Please note we test
-# explicit ENCRYPTION='N' and not the rules of printing this clause in
-# SHOW CREATE TABLE according to WL#12261.
+# PS-6106: ALTER TABLE without ENCRYPTION clause causes tables to get encrypted
 #
-CREATE TABLE t1 (a INT) ENCRYPTION='N';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
-DROP TABLE t1;
-CREATE TABLE t1 (a INT);
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-ALTER TABLE t1 ENCRYPTION='N';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
-DROP TABLE t1;
+CREATE TABLESPACE ts_altered_to_n ADD DATAFILE 'ts_altered_to_n.ibd';
+CREATE TABLE t1_in_ts_altered_to_n (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) TABLESPACE ts_altered_to_n;
+ALTER TABLESPACE ts_altered_to_n ENCRYPTION='N';
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=4;
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='KEYRING';
+CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB COMPRESSION="zlib";
+CREATE TABLE t3 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB;
+CREATE TABLE t4 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='N';
+CREATE TABLE t4_dup LIKE t4;
+CREATE TABLE t5 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2;
 CREATE TABLESPACE ts1;
-CREATE TABLE t1 (a INT) TABLESPACE=ts1 ENCRYPTION='N';
-SHOW CREATE TABLE t1;
+CREATE TABLESPACE ts_encryption_n ADD DATAFILE 'ts_encryption_n.ibd' ENCRYPTION='N';
+CREATE TABLE t1_in_ts_encryption_n (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) TABLESPACE ts_encryption_n;
+# Make sure that all tables, apart from the ones with ENCRYPTION='N', have encryption set to 'Y'
+# in INFORMATION_SCHEMA.INNODB_TABLESPACES (from DD tablespace options). All should be encrypted because
+# we have default_table_encryption set to ONLINE_TO_KEYRING.
+include/assert.inc [Make sure t1s ENCRYPTION field is set to Y]
+include/assert.inc [Make sure t2s ENCRYPTION field is set to Y]
+include/assert.inc [Make sure t3s ENCRYPTION field is set to Y]
+include/assert.inc [Make sure ts1s ENCRYPTION field is set to Y]
+include/assert.inc [Make sure t5s ENCRYPTION field is set to Y]
+include/assert.inc [Make sure t4s ENCRYPTION field is set to N]
+include/assert.inc [Make sure t4_dups ENCRYPTION field is set to N]
+include/assert.inc [Make sure ts_encryption_ns ENCRYPTION field is set to N]
+include/assert.inc [Make sure ts_altered_to_n ENCRYPTION field is set to N]
+SHOW CREATE TABLE t4_dup;
 Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t1;
-DROP TABLESPACE ts1;
-CREATE TABLE t1 (a INT) TABLESPACE=innodb_file_per_table ENCRYPTION='N';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
-DROP TABLE t1;
-SET GLOBAL innodb_file_per_table=0;
-CREATE TABLE t1 (a INT) ENCRYPTION='N';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+t4_dup	CREATE TABLE `t4_dup` (
+  `id` int NOT NULL,
+  `a` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t1;
-SET GLOBAL innodb_file_per_table=1;
+CREATE DATABASE test_enc_n DEFAULT ENCRYPTION='N';
+USE test_enc_n;
+CREATE TABLE t6 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255));
+USE test;
+SET GLOBAL default_table_encryption=OFF;
+CREATE TABLESPACE ts_d_t_e_off;
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+CREATE PROCEDURE innodb_insert_proc(repeat_count INT)
+BEGIN
+DECLARE current_num INT;
+SET current_num = 0;
+WHILE current_num < repeat_count DO
+INSERT INTO t1 VALUES (current_num, REPEAT('foobar', 42));
+INSERT INTO t2 VALUES (current_num, REPEAT('temp'  , 42));
+INSERT INTO t3 VALUES (current_num, REPEAT('barfoo', 42));
+INSERT INTO t4 VALUES (current_num, REPEAT('secret', 42));
+INSERT INTO t4_dup VALUES (current_num, REPEAT('fbar', 42));
+INSERT INTO t5 VALUES (current_num, REPEAT('feee', 42));
+INSERT INTO test_enc_n.t6 VALUES (current_num, REPEAT('secsec', 42));
+INSERT INTO t1_in_ts_encryption_n VALUES (current_num, REPEAT('sososo', 42));
+INSERT INTO t1_in_ts_altered_to_n VALUES (current_num, REPEAT('xxxxxx', 42));
+SET current_num = current_num + 1;
+END WHILE;
+END//
+COMMIT;
+SET autocommit = 0;
+CALL innodb_insert_proc(10000);
+COMMIT;
+SET autocommit = 1;
+# Wait max 2 min for key encryption threads to encrypt all spaces
+include/assert.inc [Make sure t4 is not encrypted]
+include/assert.inc [Make sure t4_dup is not encrypted]
+include/assert.inc [Make sure ts_encryption_n is not encrypted]
+include/assert.inc [Make sure ts_altered_to_n is not encrypted]
+include/assert.inc [Make sure t6 is encrypted]
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING'
+ALTER TABLE t2 ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `a` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='zlib'
+ALTER TABLE t3 ENGINE InnoDB;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int NOT NULL,
+  `a` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t4 ENGINE InnoDB;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` int NOT NULL,
+  `a` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t4_dup ENGINE InnoDB;
+SHOW CREATE TABLE t4_dup;
+Table	Create Table
+t4_dup	CREATE TABLE `t4_dup` (
+  `id` int NOT NULL,
+  `a` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t5 ENGINE InnoDB;
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `id` int NOT NULL,
+  `a` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2
+ALTER TABLE test_enc_n.t6 ENGINE InnoDB;
+SHOW CREATE TABLE test_enc_n.t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `id` int NOT NULL,
+  `a` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLESPACE ts1 ENGINE InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+ALTER TABLESPACE ts_encryption_n ENGINE InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+ALTER TABLESPACE ts_d_t_e_off ENGINE InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+ALTER TABLESPACE ts_altered_to_n ENGINE InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+include/assert.inc [Make sure t1 is encrypted]
+include/assert.inc [Make sure t2 is encrypted]
+include/assert.inc [Make sure t3 is encrypted]
+include/assert.inc [Make sure t4 is not encrypted, before bug fix this would fail, because t4 would get encrypted]
+include/assert.inc [Make sure t4_dup is not encrypted]
+include/assert.inc [Make sure t5 is encrypted with key_id 2]
+include/assert.inc [Make sure t6 is encrypted]
+include/assert.inc [Make sure ts_encryption_n is not encrypted]
+include/assert.inc [Make sure ts_altered_to_n is not encrypted]
+include/assert.inc [Make sure ts1 is encrypted]
+# Tablespaces, apart from t4 should be encrypted after restart
+ALTER TABLE t1 ENCRYPTION='N';
+include/assert.inc [Make sure t1 is marked as excluded in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+ALTER DATABASE test DEFAULT ENCRYPTION='Y';
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` int NOT NULL,
+  `a` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
+SHOW CREATE TABLE t4_dup;
+Table	Create Table
+t4_dup	CREATE TABLE `t4_dup` (
+  `id` int NOT NULL,
+  `a` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
+ALTER DATABASE test DEFAULT ENCRYPTION='N';
+# restart
+# t1 should be decrypted
+DROP TABLE t1,t2,t3,t4,t4_dup,t5,test_enc_n.t6,t1_in_ts_encryption_n,t1_in_ts_altered_to_n;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts_encryption_n;
+DROP TABLESPACE ts_d_t_e_off;
+DROP TABLESPACE ts_altered_to_n;
+DROP PROCEDURE innodb_insert_proc;
+DROP DATABASE test_enc_n;
+SET GLOBAL innodb_encryption_threads=0;
+SET GLOBAL default_table_encryption=OFF;

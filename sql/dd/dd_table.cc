@@ -2136,6 +2136,22 @@ static bool fill_dd_table_from_create_info(
     table_options->set("encrypt_type", encrypt_type);
   }
 
+  // assign explicit encryption. explict_encryption can come from ENCRYPTION
+  // clause usage (used_fields) or from DD (create_info->explicit_encryption -
+  // this means table originally was created with explicit_encryption
+  // (ENCRYPTION clause was used with CREATE)).
+  if ((create_info->used_fields & HA_CREATE_USED_ENCRYPT) ||
+      create_info->explicit_encryption) {
+    // clear explicit encryption if SE does not support encryption
+    if (!(hton->flags & HTON_SUPPORTS_TABLE_ENCRYPTION)) {
+      table_options->set("explicit_encryption", false);
+    } else {
+      table_options->set("explicit_encryption", true);
+    }
+  } else {
+    table_options->set("explicit_encryption", false);
+  }
+
   if (create_info->was_encryption_key_id_set) {
     table_options->set("encryption_key_id", create_info->encryption_key_id);
   }

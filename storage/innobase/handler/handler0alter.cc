@@ -923,7 +923,7 @@ static inline bool is_instant(const Alter_inplace_info *ha_alter_info) {
       ha_alter_info->handler_flags & ~(INNOBASE_INPLACE_IGNORE);
 
   if (Encryption::none_explicitly_specified(
-          ha_alter_info->create_info->used_fields,
+          ha_alter_info->create_info->explicit_encryption,
           ha_alter_info->create_info->encrypt_type.str) ||
       (Encryption::is_keyring(ha_alter_info->create_info->encrypt_type.str) &&
        !Encryption::is_keyring(old_table->s->encrypt_type.str)) ||
@@ -4385,7 +4385,7 @@ template <typename Table>
   ha_innobase_inplace_ctx *ctx;
   KeyringEncryptionKeyIdInfo keyring_encryption_key_id;
   bool none_explicitly_specified = Encryption::none_explicitly_specified(
-      ha_alter_info->create_info->used_fields,
+      ha_alter_info->create_info->explicit_encryption,
       ha_alter_info->create_info->encrypt_type.str);
 
   DBUG_TRACE;
@@ -5622,7 +5622,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
   if (ha_alter_info->handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION ||
       (Encryption::should_be_keyring_encrypted(
-           ha_alter_info->create_info->used_fields,
+           ha_alter_info->create_info->explicit_encryption,
            ha_alter_info->create_info->encrypt_type.str) &&
        innobase_spatial_exist(
            altered_table))) {  // We need to make sure spatial index was not

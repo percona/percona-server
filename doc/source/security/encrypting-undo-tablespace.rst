@@ -6,8 +6,8 @@ Encrypting the Undo Tablespace
 
 The undo data may contain sensitive information about the database operations.
 
-You can encrypt the data in an undo log using the :variable:
-`innodb_undo_log_encrypt` option. You can change the setting for this variable
+You can encrypt the data in an undo log using the
+:variable:`innodb_undo_log_encrypt` option. You can change the setting for this variable
 in the configuration file, as a startup parameter, or during runtime as a global
 variable. The undo data encryption must be enabled; the feature
 is disabled by default.

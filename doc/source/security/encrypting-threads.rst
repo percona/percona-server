@@ -45,8 +45,8 @@ background process.
     :vartype: Numeric
     :default: 0
 
-This variable works in combination with the :variable:
-`default_table_encryption` variable set to ``ONLINE_TO_KEYRING``. This variable
+This variable works in combination with the
+:variable:`default_table_encryption` variable set to ``ONLINE_TO_KEYRING``. This variable
 configures the number of threads for background encryption. For the online
 encryption, the value must be greater than **zero**. 
 

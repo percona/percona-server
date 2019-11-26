@@ -1,0 +1,13 @@
+--disable_query_log
+call mtr.add_suppression("Cannot delete tablespace");
+--enable_query_log
+
+SET @old_table_open_cache= @@global.table_open_cache;
+SET @@global.table_open_cache=1;
+
+CREATE TABLE t0(a int);
+ALTER TABLE t0 DISCARD TABLESPACE;
+ALTER TABLE t0 DISCARD TABLESPACE;
+
+--eval SET @@global.table_open_cache=@old_table_open_cache;
+DROP TABLE t0;

@@ -15904,13 +15904,41 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
   /* If new tablespace definition says it's encrypted */
   bool is_new_encrypted = !Encryption::is_none(newenc.data());
 
-  if (!is_old_encrypted && is_new_encrypted) {
+  // It is only possible to mark tablespace to be skipped by encryption threads
+  // if it is not already encrypted.
+  if (!is_old_encrypted && !is_new_encrypted &&
+      alter_info->explicit_encryption) {
+    if (!fil_crypt_exclude_tablespace_from_rotation(space)) {
+      my_error(ER_EXCLUDE_ENCRYPTION_THREADS_RUNNING, MYF(0), space->name);
+      DBUG_RETURN(convert_error_code_to_mysql(DB_ERROR, 0, NULL));
+    }
+    DBUG_RETURN(error);
+  } else if (!is_old_encrypted && is_new_encrypted) {
+    // TODO: PS-5323 should disallow reaching this code if encryption threads
+    // are enabled. Thus it should be safe to remove the crypt_data here. Here
+    // we encrypt with MK, the tablespace was previously excluded from rotation.
+    if (space->crypt_data != nullptr) {
+      ut_ad(space->crypt_data->type == CRYPT_SCHEME_UNENCRYPTED);
+      fil_space_destroy_crypt_data(&space->crypt_data);
+      space->crypt_data = nullptr;
+      rw_lock_x_lock(&space->latch);
+      space->encryption_type = Encryption::NONE;
+      rw_lock_x_unlock(&space->latch);
+    }
     /* Encrypt tablespace */
     to_encrypt = true;
   } else if (is_old_encrypted && !is_new_encrypted) {
+    if (space->crypt_data) {
+      my_error(ER_EXPLICIT_DECRYPTION_OF_ONLINE_ENCRYPTED_TABLESPACE, MYF(0),
+               space->name);
+      DBUG_RETURN(convert_error_code_to_mysql(DB_ERROR, 0, NULL));
+    }
     /* Unencrypt tablespace */
     to_encrypt = false;
   } else {
+    // TODO: Needs to be addressed by PS-5323. What to do when user requested
+    // re-encryption from online-threads encrypted tablespace to MK encrypted
+    // tablespace.
     /* Nothing to do */
     DBUG_RETURN(error);
   }

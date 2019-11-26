@@ -1,0 +1,79 @@
+SET @@global.keyring_file_data="MYSQL_TMP_DIR/mysecret_keyring";
+CREATE TABLE t1 (a varchar(255)) ENCRYPTION='KEYRING';
+CREATE TABLE t2 (a varchar(255));
+CREATE TABLE t3 (a varchar(255)) ENCRYPTION='N';
+CREATE TABLE t4 (a varchar(255)) ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=5;
+CREATE TABLESPACE ts_encrypted ADD DATAFILE 'ts_encrypted.ibd' ENCRYPTION="Y";
+CREATE TABLE t5 (a varchar(255)) TABLESPACE ts_encrypted ENCRYPTION="Y";
+CREATE TABLESPACE ts_not_encrypted ADD DATAFILE 'ts_not_encrypted.ibd' ENCRYPTION="N";
+CREATE TABLE t6 (a varchar(255)) TABLESPACE ts_not_encrypted;
+CREATE TABLESPACE ts_with_encryption_key_id ADD DATAFILE 'ts_with_encryption_key_id.ibd'  ENCRYPTION_KEY_ID=2;
+CREATE TABLE t7 (a varchar(255)) TABLESPACE ts_with_encryption_key_id;
+CREATE TABLE t8 (a varchar(255)) ENCRYPTION_KEY_ID=3;
+include/assert.inc [TABLE t3 should have EXCLUDED set to Y in INNODB_TABLESPACES_ENCRYPTION]
+include/assert.inc [TABLE ts_not_encrypted should have EXCLUDED set to Y in INNODB_TABLESPACES_ENCRYPTION]
+include/assert.inc [All the other tablespaces should have EXCLUDED set to N]
+SET GLOBAL debug="+d,hang_on_ts_with_encryption_key_id_rotation";
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+SET GLOBAL innodb_encryption_threads=1;
+ALTER TABLESPACE ts_with_encryption_key_id ENCRYPTION='N';
+ERROR HY000: Tablespace ts_with_encryption_key_id cannot be excluded from encryption threads as it is being currently encrypted/decrypted by encryption threads. Please try again later.
+SET GLOBAL debug="-d,hang_on_ts_with_encryption_key_id_rotation";
+SET GLOBAL innodb_encryption_threads=4;
+insert t1 values (repeat('foobarsecret', 12));
+insert t2 values (repeat('tempsecret', 12));
+insert t3 values (repeat('dummysecret', 12));
+insert t4 values (repeat('verysecret', 12));
+insert t5 values (repeat('moresecret', 12));
+insert t6 values (repeat('sooosecret', 12));
+insert t7 values (repeat('notsosecret', 12));
+insert t8 values (repeat('uuuuusecret', 12));
+# Wait max 10 min for key encryption threads to encrypt all spaces
+include/assert.inc [TABLE ts3 should have EXCLUDED set to Y in INNODB_TABLESPACES_ENCRYPTION]
+include/assert.inc [TABLE ts_not_encrypted should have EXCLUDED set to Y in INNODB_TABLESPACES_ENCRYPTION]
+include/assert.inc [All the other tablespaces should have EXCLUDED set to N]
+ALTER TABLESPACE ts_encrypted ENCRYPTION='N';
+ERROR HY000: Tablespace ts_encrypted is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENECRYPTED to decypt the tablespace
+ALTER TABLESPACE ts_with_encryption_key_id ENCRYPTION='N';
+ERROR HY000: Tablespace ts_with_encryption_key_id is encrypted by encryption threads and cannot be explicitly decrypted. Please use default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENECRYPTED to decypt the tablespace
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+# Wait max 10 min for key encryption threads to decrypt spaces
+include/assert.inc [TABLE t3 should have EXCLUDED set to Y in INNODB_TABLESPACES_ENCRYPTION]
+include/assert.inc [TABLE ts_not_encrypted should have EXCLUDED set to Y in INNODB_TABLESPACES_ENCRYPTION]
+include/assert.inc [All the other tablespaces should have EXCLUDED set to N]
+ALTER TABLE t1 ENCRYPTION='N';
+ALTER TABLE t2 ENCRYPTION='N';
+ALTER TABLE t3 ENCRYPTION='N';
+ALTER TABLE t4 ENCRYPTION='N';
+ALTER TABLESPACE ts_encrypted ENCRYPTION='N';
+ALTER TABLESPACE ts_not_encrypted ENCRYPTION='N';
+ALTER TABLESPACE ts_with_encryption_key_id ENCRYPTION='N';
+ALTER TABLE t8 ENCRYPTION='N';
+include/assert.inc [All the ALTERed tables/tablespaces should have EXCLUDED set to Y (i.e. 8 tablespaces)]
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+# Wait max 10 min for key encryption threads to encrypt all spaces
+include/assert.inc [All the ALTERed tables/tablespaces to ENCRYPTION='N' should have EXCLUDED set to Y (i.e. 8 tablespaces)]
+include/assert.inc [All EXCLUDED tablespaces should have MIN_KEY_VERSION = 0]
+include/assert.inc [All tablespace without EXCLUDED set should have MIN_KEY_VERSION = 1]
+# restart
+include/assert.inc [default_table_encryption should be OFF]
+include/assert.inc [encryption threads should be disable]
+include/assert.inc [All the tables/tablespaces with ENCRYPTION='N' should have EXCLUDED set to Y]
+ALTER TABLE t1 ENCRYPTION='KEYRING';
+ALTER TABLE t2 ENCRYPTION='KEYRING';
+ALTER TABLE t3 ENCRYPTION='KEYRING';
+ALTER TABLE t4 ENCRYPTION='KEYRING';
+ALTER TABLESPACE ts_encrypted ENCRYPTION='Y';
+ALTER TABLESPACE ts_not_encrypted ENCRYPTION='Y';
+ALTER TABLESPACE ts_with_encryption_key_id ENCRYPTION='Y';
+ALTER TABLE t8 ENCRYPTION='Y';
+include/assert.inc [There should not be any table/tablespace with EXCLUDED=Y]
+DROP TABLE t1,t2,t3,t4,t5,t6,t7,t8;
+DROP TABLESPACE ts_encrypted;
+DROP TABLESPACE ts_not_encrypted;
+DROP TABLESPACE ts_with_encryption_key_id;
+SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
+SET GLOBAL innodb_encryption_threads=4;
+# Wait max 10 min for key encryption threads to decrypt all spaces
+SET GLOBAL default_table_encryption=OFF;
+SET GLOBAL innodb_encryption_threads=0;

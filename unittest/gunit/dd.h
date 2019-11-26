@@ -85,7 +85,7 @@ class Mock_dd_HANDLER : public Base_mock_HANDLER {
   Mock_dd_HANDLER(handlerton *hton, TABLE_SHARE *share)
       : Base_mock_HANDLER(hton, share) {}
 
-  virtual ~Mock_dd_HANDLER() {}
+  ~Mock_dd_HANDLER() override {}
 
   /* Real DD handlers use InnoDB which supports gap locks.
    * We need to override this method for mock as well

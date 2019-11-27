@@ -15,9 +15,9 @@ encryption with encryption threads.
 The limitation is the following:
 
 * You cannot convert the system tablespace from the encrypted state to the
-* unencrypted state, or the unencrypted state to the encrypted state. You should
-* create a new instance with the system tablespace in the required state and
-* transfer the user tables to that instance.
+  unencrypted state, or the unencrypted state to the encrypted state. If a 
+  conversion is needed, you should create a new instance with the
+  system tablespace in the required state and transfer the user tables to that instance.
 
 .. important::
 
@@ -28,7 +28,8 @@ The limitation is the following:
 
 To enable system tablespace encryption, edit the my.cnf file with the following:
 
-* Add the :variable:`innodb_sys_tablespace_encrypt` Edit the value to "ON"
+* Add the :variable:`innodb_sys_tablespace_encrypt`
+* Edit the `innodb_sys_tablespace_encrypt` value to "ON"
 
 System tablespace encryption can only be enabled with the ``--initialize``
 option

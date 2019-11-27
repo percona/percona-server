@@ -18,8 +18,8 @@ The tables in a general tablespace are either all encrypted or all unencrypted.
 A tablespace cannot contain a mixture of encrypted tables and unencrypted
 tables.
 
-In versions before |Percona Server| 8.0.16-7, use the variable :variable:
-`innodb_encrypt_tables`.
+In versions before |Percona Server| 8.0.16-7, use the variable
+:variable:`innodb_encrypt_tables`.
 
 .. variable:: innodb_encrypt_tables
 
@@ -34,7 +34,7 @@ The variable is considered **deprecated** and was removed in version 8.0.16-7.
 The default setting is "OFF".
 
 The encryption of a schema or a general tablespace is determined by the
-:variable: ``default_table_encryption`` variable unless you specify the
+:variable:`default_table_encryption` variable unless you specify the
 ENCRYPTION clause in the CREATE SCHEMA or CREATE TABLESPACE statement. This
 variable is implemented in |Percona Server| version 8.0.16-7.
 

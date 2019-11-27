@@ -24,7 +24,7 @@ unencrypted, and new pages are encrypted when they are written to disk. If you
 disable `innodb_redo_log_encrypt`, any encrypted pages remain encrypted, but
 new pages are unencrypted.
 
-As implemented in :rn: `8.0.16-7`, the supported values for :variable:
+As implemented in :rn:`8.0.16-7`, the supported values for :variable:
 `innodb_redo_log_encrypt` are the following:
 
 * ON
@@ -35,7 +35,11 @@ As implemented in :rn: `8.0.16-7`, the supported values for :variable:
 
 * keyring_key
 
-The keyring_key is **Experimental**.
+The keyring_key is an **Experimental** value.
+
+.. seealso::
+
+   For more information on the keyring_key - :ref:`encrypting-threads`
 
 .. note::
 
@@ -55,5 +59,4 @@ following conditions:
     :ref:`encrypting-tables`
 
     :ref:`encrypting-tablespaces`
-
 

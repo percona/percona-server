@@ -7,7 +7,7 @@ Encrypting Temporary Files
 :Availability: This feature is of **Experimental** quality.
 
 For InnoDB user-created temporary tables, created in a temporary tablespace
-file, use the :variable: `innodb_temp_tablespace_encrypt` variable.
+file, use the :variable:`innodb_temp_tablespace_encrypt` variable.
 
 .. variable:: innodb_temp_tablespace_encrypt
 
@@ -33,9 +33,9 @@ are located in the encrypted session temporary tablespace.
 To create new temporary tablespaces unencrypted, the following variables must
 be set to ``OFF`` at runtime:
 
-* :variable: ``innodb_temp_tablespace_encrypt``
+* :variable:`innodb_temp_tablespace_encrypt`
 
-* :variable: ``default_table_encryption``
+* :variable:`default_table_encryption`
 
 Any existing encrypted user-created temporary files and intrinsic temporary
 tables remain in an encrypted session.

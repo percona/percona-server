@@ -29,3 +29,5 @@ leak:Perl_Slab_Alloc
 leak:Perl_newUNOP_AUX
 leak:/usr/bin/perl
 leak:/bin/bash
+leak:/usr/bin/sed
+leak:/usr/bin/python2.7

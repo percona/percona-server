@@ -15906,9 +15906,9 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
       alter_info->explicit_encryption) {
     if (!fil_crypt_exclude_tablespace_from_rotation(space)) {
       my_error(ER_EXCLUDE_ENCRYPTION_THREADS_RUNNING, MYF(0), space->name);
-      DBUG_RETURN(convert_error_code_to_mysql(DB_ERROR, 0, NULL));
+      return convert_error_code_to_mysql(DB_ERROR, 0, NULL);
     }
-    DBUG_RETURN(error);
+    return error;
   } else if (!is_old_encrypted && is_new_encrypted) {
     // TODO: PS-5323 should disallow reaching this code if encryption threads
     // are enabled. Thus it should be safe to remove the crypt_data here. Here
@@ -15927,7 +15927,7 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
     if (space->crypt_data) {
       my_error(ER_EXPLICIT_DECRYPTION_OF_ONLINE_ENCRYPTED_TABLESPACE, MYF(0),
                space->name);
-      DBUG_RETURN(convert_error_code_to_mysql(DB_ERROR, 0, NULL));
+      return convert_error_code_to_mysql(DB_ERROR, 0, NULL);
     }
     /* Unencrypt tablespace */
     to_encrypt = false;
@@ -22079,9 +22079,11 @@ static int innodb_track_changed_pages_validate(THD *thd, SYS_VAR *var,
     const char * res;
     if (!(res = value->val_str(value, buff, &length))) {
       return 1;
-    } else if (!my_strnncoll(system_charset_info, (const uchar *)res, length, (const uchar *)"OFF", 3)) {
+    } else if (!my_strnncoll(system_charset_info, (const uchar *)res, length,
+                             (const uchar *)"OFF", 3)) {
       intbuf = 0;
-    } else if (!my_strnncoll(system_charset_info, (const uchar *)res, length, (const uchar *)"ON", 2)) {
+    } else if (!my_strnncoll(system_charset_info, (const uchar *)res, length,
+                             (const uchar *)"ON", 2)) {
       intbuf = 1;
     } else {
       return 1;

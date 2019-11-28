@@ -77,9 +77,7 @@
 #include "sql/trigger_def.h"
 #include "unsafe_string_append.h"
 
-class Cmp_splocal_locations
-    : public std::binary_function<const Item_splocal *, const Item_splocal *,
-                                  bool> {
+class Cmp_splocal_locations {
  public:
   bool operator()(const Item_splocal *a, const Item_splocal *b) {
     DBUG_ASSERT(a == b || a->pos_in_query != b->pos_in_query);
@@ -189,7 +187,7 @@ class Cmp_splocal_locations
 
   @retval true in case of out of memory error.
 */
-static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
+static bool subst_spvars(THD *thd, sp_instr *instr, LEX_CSTRING query_str) {
   // Stack-local array, does not need instrumentation.
   Prealloced_array<Item_splocal *, 16> sp_vars_uses(PSI_NOT_INSTRUMENTED);
 
@@ -213,7 +211,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
   char buffer[512];
   String qbuf(buffer, sizeof(buffer), &my_charset_bin);
   qbuf.length(0);
-  char *cur = query_str->str;
+  const char *cur = query_str.str;
   int prev_pos = 0;
   int res = 0;
   thd->query_name_consts = 0;
@@ -257,7 +255,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
 
     thd->query_name_consts++;
   }
-  if (res || qbuf.append(cur + prev_pos, query_str->length - prev_pos))
+  if (res || qbuf.append(cur + prev_pos, query_str.length - prev_pos))
     return true;
 
   char *pbuf;
@@ -802,7 +800,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd) {
 }
 
 void sp_lex_instr::get_query(String *sql_query) const {
-  LEX_STRING expr_query = this->get_expr_query();
+  LEX_CSTRING expr_query = get_expr_query();
 
   if (!expr_query.str) {
     sql_query->length(0);
@@ -828,7 +826,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
 
   DBUG_PRINT("info", ("query: '%.*s'", (int)m_query.length, m_query.str));
 
-  MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, m_query.str, m_query.length);
+  thd->set_query_for_display(m_query.str, m_query.length);
 
   const LEX_CSTRING query_backup = thd->query();
 
@@ -890,7 +888,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
     If we need to do a substitution but can't (OOM), give up.
   */
 
-  if (need_subst && subst_spvars(thd, this, &m_query)) return true;
+  if (need_subst && subst_spvars(thd, this, m_query)) return true;
 
   if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF) == 0))
     query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
@@ -928,7 +926,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
       unlikely event of subst_spvars() failing (OOM), we'll try to log
       the unmodified statement instead.
     */
-    if (!need_subst) rc = subst_spvars(thd, this, &m_query);
+    if (!need_subst) rc = subst_spvars(thd, this, m_query);
     /*
       We currently do not support --log-slow-extra for this case,
       and therefore pass in a null-pointer instead of a pointer to

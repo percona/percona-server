@@ -68,6 +68,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql-common/net_ns.h"  // set_network_namespace
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL
 #include "sql/auth/sql_security_ctx.h"
@@ -77,7 +78,6 @@
 #include "sql/item_func.h"       // mqh_used
 #include "sql/log.h"
 #include "sql/mysqld.h"  // LOCK_user_conn
-#include "sql/net_ns.h"  // set_network_namespace
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
@@ -466,7 +466,7 @@ void refresh_concurrent_conn_stats() noexcept {
 int check_for_max_user_connections(THD *thd, const USER_CONN *uc) {
   int error = 0;
   Host_errors errors;
-  DBUG_ENTER("check_for_max_user_connections");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&LOCK_user_conn);
   if (global_system_variables.max_user_connections &&
@@ -513,7 +513,7 @@ end:
   if (error) {
     inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*
@@ -535,7 +535,7 @@ end:
 */
 
 void decrease_user_connections(USER_CONN *uc) {
-  DBUG_ENTER("decrease_user_connections");
+  DBUG_TRACE;
   mysql_mutex_lock(&LOCK_user_conn);
   DBUG_ASSERT(uc->connections);
   if (!--uc->connections && !mqh_used) {
@@ -543,7 +543,6 @@ void decrease_user_connections(USER_CONN *uc) {
     hash_user_connections->erase(std::string(uc->user, uc->len));
   }
   mysql_mutex_unlock(&LOCK_user_conn);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -556,7 +555,7 @@ void decrease_user_connections(USER_CONN *uc) {
  */
 void release_user_connection(THD *thd) {
   const USER_CONN *uc = thd->get_user_connect();
-  DBUG_ENTER("release_user_connection");
+  DBUG_TRACE;
 
   if (uc) {
     mysql_mutex_lock(&LOCK_user_conn);
@@ -569,8 +568,6 @@ void release_user_connection(THD *thd) {
     mysql_mutex_unlock(&LOCK_user_conn);
     thd->set_user_connect(NULL);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -581,7 +578,7 @@ void release_user_connection(THD *thd) {
 bool check_mqh(THD *thd, uint check_command) {
   bool error = 0;
   const USER_CONN *uc = thd->get_user_connect();
-  DBUG_ENTER("check_mqh");
+  DBUG_TRACE;
   DBUG_ASSERT(uc != 0);
 
   mysql_mutex_lock(&LOCK_user_conn);
@@ -613,7 +610,7 @@ bool check_mqh(THD *thd, uint check_command) {
   }
 end:
   mysql_mutex_unlock(&LOCK_user_conn);
-  DBUG_RETURN(error);
+  return error;
 }
 
 void init_max_user_conn(void) {
@@ -731,9 +728,11 @@ static int check_connection(THD *thd) {
   uint connect_errors = 0;
   int auth_rc;
   NET *net = thd->get_protocol_classic()->get_net();
+#ifndef DBUG_OFF
   char desc[VIO_DESCRIPTION_SIZE];
   vio_description(net->vio, desc);
   DBUG_PRINT("info", ("New connection received on %s", desc));
+#endif  // DBUG_OFF
 
   thd->set_active_vio(net->vio);
 
@@ -976,7 +975,7 @@ static int check_connection(THD *thd) {
 
 static bool login_connection(THD *thd) {
   int error;
-  DBUG_ENTER("login_connection");
+  DBUG_TRACE;
   DBUG_PRINT("info",
              ("login_connection called by thread %u", thd->thread_id()));
 
@@ -992,13 +991,14 @@ static bool login_connection(THD *thd) {
     if (vio_type(thd->get_protocol_classic()->get_vio()) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000); /* must wait after eof() */
 #endif
-    DBUG_RETURN(1);
+    return 1;
   }
   /* Connect completed, set read/write timeouts back to default */
   thd->get_protocol_classic()->set_read_timeout(
       thd->variables.net_read_timeout);
   thd->get_protocol_classic()->set_write_timeout(
       thd->variables.net_write_timeout);
+<<<<<<< HEAD
 
   if (unlikely(opt_userstat)) {
     thd->reset_stats();
@@ -1008,6 +1008,11 @@ static bool login_connection(THD *thd) {
   }
 
   DBUG_RETURN(0);
+||||||| merged common ancestors
+  DBUG_RETURN(0);
+=======
+  return 0;
+>>>>>>> mysql-8.0.18
 }
 
 /*
@@ -1063,8 +1068,33 @@ static void prepare_new_connection_state(THD *thd) {
   NET *net = thd->get_protocol_classic()->get_net();
   Security_context *sctx = thd->security_context();
 
-  if (thd->get_protocol()->has_client_capability(CLIENT_COMPRESS))
+  if (thd->get_protocol()->has_client_capability(CLIENT_COMPRESS) ||
+      thd->get_protocol()->has_client_capability(
+          CLIENT_ZSTD_COMPRESSION_ALGORITHM)) {
     net->compress = 1;  // Use compression
+    enum enum_compression_algorithm algorithm = get_compression_algorithm(
+        thd->get_protocol()->get_compression_algorithm());
+    NET_SERVER *server_extn = static_cast<NET_SERVER *>(net->extension);
+    if (server_extn != nullptr)
+      mysql_compress_context_init(&server_extn->compress_ctx, algorithm,
+                                  thd->get_protocol()->get_compression_level());
+    if (net->extension == nullptr) {
+      LEX_CSTRING sctx_user = sctx->user();
+      Host_errors errors;
+      my_error(ER_NEW_ABORTING_CONNECTION, MYF(0), thd->thread_id(),
+               thd->db().str ? thd->db().str : "unconnected",
+               sctx_user.str ? sctx_user.str : "unauthenticated",
+               sctx->host_or_ip().str,
+               "Unable to allocate memory for compression context: Aborting "
+               "connection.");
+      thd->server_status &= ~SERVER_STATUS_CLEAR_SET;
+      thd->send_statement_status();
+      thd->killed = THD::KILL_CONNECTION;
+      errors.m_init_connect = 1;
+      inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
+      return;
+    }
+  }
 
   // Initializing session system variables.
   alloc_and_copy_thd_dynamic_variables(thd, true);
@@ -1127,6 +1157,9 @@ static void prepare_new_connection_state(THD *thd) {
       thd->killed = THD::KILL_CONNECTION;
       errors.m_init_connect = 1;
       inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
+      NET_SERVER *server_extn = static_cast<NET_SERVER *>(net->extension);
+      if (server_extn != nullptr)
+        mysql_compress_context_deinit(&server_extn->compress_ctx);
       return;
     }
 
@@ -1160,9 +1193,9 @@ bool thd_prepare_connection(THD *thd) {
 
 void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
                       bool generate_event) {
-  DBUG_ENTER("close_connection");
+  DBUG_TRACE;
 
-  if (sql_errno) net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
+  if (sql_errno) net_send_error(thd, sql_errno, ER_DEFAULT_NONCONST(sql_errno));
   thd->disconnect(server_shutdown);
 
   if (generate_event) {
@@ -1174,7 +1207,6 @@ void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
   }
 
   thd->security_context()->logout();
-  DBUG_VOID_RETURN;
 }
 
 bool thd_connection_alive(THD *thd) {

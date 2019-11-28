@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,12 @@ int heap_update(HP_INFO *info, const uchar *old_record,
   uchar *pos;
   bool auto_key_changed = 0;
   HP_SHARE *share = info->s;
-  DBUG_ENTER("heap_update");
+  DBUG_TRACE;
 
   test_active(info);
   pos = info->current_ptr;
 
+<<<<<<< HEAD
   if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, old_record))
     DBUG_RETURN(my_errno()); /* Record changed */
 
@@ -53,6 +54,13 @@ int heap_update(HP_INFO *info, const uchar *old_record,
     }
   }
 
+||||||| merged common ancestors
+  if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, old))
+    DBUG_RETURN(my_errno()); /* Record changed */
+=======
+  if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, old))
+    return my_errno(); /* Record changed */
+>>>>>>> mysql-8.0.18
   if (--(share->records) < share->blength >> 1) share->blength >>= 1;
   share->changed = 1;
 
@@ -79,8 +87,16 @@ int heap_update(HP_INFO *info, const uchar *old_record,
 #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
 #endif
+<<<<<<< HEAD
   if (auto_key_changed) heap_update_auto_increment(info, new_record);
   DBUG_RETURN(0);
+||||||| merged common ancestors
+  if (auto_key_changed) heap_update_auto_increment(info, heap_new);
+  DBUG_RETURN(0);
+=======
+  if (auto_key_changed) heap_update_auto_increment(info, heap_new);
+  return 0;
+>>>>>>> mysql-8.0.18
 
 err:
   if (my_errno() == HA_ERR_FOUND_DUPP_KEY) {
@@ -90,7 +106,7 @@ err:
       if ((*keydef->write_key)(info, keydef, old_record, pos)) {
         if (++(share->records) == share->blength)
           share->blength += share->blength;
-        DBUG_RETURN(my_errno());
+        return my_errno();
       }
       keydef--;
     }
@@ -104,9 +120,15 @@ err:
     }
   }
   if (++(share->records) == share->blength) share->blength += share->blength;
+<<<<<<< HEAD
   if (new_chunk_count > old_chunk_count) {
     /* Shrink the chunkset to its original size */
     hp_reallocate_chunkset(&share->recordspace, old_chunk_count, pos);
   }
   DBUG_RETURN(my_errno());
+||||||| merged common ancestors
+  DBUG_RETURN(my_errno());
+=======
+  return my_errno();
+>>>>>>> mysql-8.0.18
 } /* heap_update */

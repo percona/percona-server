@@ -119,7 +119,7 @@ bool srv_is_uuid_ready = false;
 #endif /* UNIV_DEBUG */
 
 /* The following is the maximum allowed duration of a lock wait. */
-ulint srv_fatal_semaphore_wait_threshold = 600;
+ulong srv_fatal_semaphore_wait_threshold = 600;
 
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
@@ -414,9 +414,18 @@ ulint srv_buf_pool_size = ULINT_MAX;
 const ulint srv_buf_pool_min_size = 5 * 1024 * 1024;
 /** Default pool size in bytes */
 const ulint srv_buf_pool_def_size = 128 * 1024 * 1024;
+/** Maximum pool size in bytes */
+const longlong srv_buf_pool_max_size = LLONG_MAX;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
 ulonglong srv_buf_pool_chunk_unit;
+/** Minimum buffer pool chunk size. */
+const ulonglong srv_buf_pool_chunk_unit_min = (1024 * 1024);
+/** The buffer pool chunk size must be a multiple of this number. */
+const ulonglong srv_buf_pool_chunk_unit_blk_sz = (1024 * 1024);
+/** Maximum buffer pool chunk size. */
+const ulonglong srv_buf_pool_chunk_unit_max =
+    srv_buf_pool_max_size / MAX_BUFFER_POOLS;
 /** Requested number of buffer pool instances */
 ulong srv_buf_pool_instances;
 /** Default number of buffer pool instances */
@@ -439,6 +448,7 @@ ulong srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
 ulint srv_lock_table_size = ULINT_MAX;
 
+<<<<<<< HEAD
 /** The maximum time limit for a single LRU tail flush iteration by the page
 cleaner thread */
 ulint srv_cleaner_max_lru_time = 1000;
@@ -453,6 +463,12 @@ ulong srv_cleaner_lsn_age_factor = SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT;
 /** Empty free list for a query thread handling algorithm option  */
 ulong srv_empty_free_list_algorithm = SRV_EMPTY_FREE_LIST_BACKOFF;
 
+||||||| merged common ancestors
+=======
+const ulong srv_idle_flush_pct_default = 100;
+ulong srv_idle_flush_pct = srv_idle_flush_pct_default;
+
+>>>>>>> mysql-8.0.18
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 ulong srv_n_read_io_threads;
@@ -3018,7 +3034,7 @@ static void srv_sys_check_set_encryption() {
 
 /** The master thread controlling the server. */
 void srv_master_thread() {
-  DBUG_ENTER("srv_master_thread");
+  DBUG_TRACE;
 
   srv_slot_t *slot;
   ulint old_activity_count = srv_get_activity_count();

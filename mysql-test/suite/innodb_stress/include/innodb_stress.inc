@@ -185,3 +185,13 @@ eval SET GLOBAL innodb_status_output = $innodb_status_output_save_slave;
 #eval SET GLOBAL innodb_prefix_index_cluster_optimization = $innodb_index_cluster_optimization_save_master;
 eval SET GLOBAL innodb_status_output = $innodb_status_output_save_master;
 --enable_query_log
+
+# Reconnect client in case master had been killed
+if ($kill_db_after)
+{
+  --let $rpl_server_number = 1
+  --source include/rpl_reconnect.inc
+}
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

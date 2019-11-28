@@ -696,9 +696,11 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
 
 /** Try to read encryption metadata from an undo tablespace.
 @param[in]	fh		file handle of undo log file
+@param[in]  file_name file name
 @param[in]	space		undo tablespace
 @return DB_SUCCESS if success */
 static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
+                                                   const char *file_name,
                                                    fil_space_t *space) {
   IORequest request;
   ulint n_read = 0;
@@ -714,8 +716,8 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   /* Don't want unnecessary complaints about partial reads. */
   request.disable_partial_io_warnings();
 
-  err = os_file_read_no_error_handling(request, fh, first_page, 0, page_size,
-                                       &n_read);
+  err = os_file_read_no_error_handling(request, file_name, fh, first_page, 0,
+                                       page_size, &n_read);
 
   if (err != DB_SUCCESS) {
     ib::info(ER_IB_MSG_1076, space->name, ut_strerr(err));
@@ -861,9 +863,7 @@ is available so now we know the space_name, file_name and previous space_id.
 @return error code */
 dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
                                   space_id_t space_id) {
-  if (!fsp_is_undo_tablespace(space_id)) {
-    return (DB_SUCCESS);
-  }
+  ut_ad(fsp_is_undo_tablespace(space_id));
 
   space_id_t space_num = undo::id2num(space_id);
   if (!undo::is_active_truncate_log_present(space_num)) {
@@ -1005,7 +1005,7 @@ static dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
   /* Read the encryption metadata in this undo tablespace.
   If the encryption info in the first page cannot be decrypted
   by the master key, this table cannot be opened. */
-  err = srv_undo_tablespace_read_encryption(fh, space);
+  err = srv_undo_tablespace_read_encryption(fh, file_name, space);
 
   /* The file handle will no longer be needed. */
   success = os_file_close(fh);
@@ -2513,7 +2513,8 @@ files_checked:
   if (create_new_db) {
     ut_a(!srv_read_only_mode);
 
-    ut_a(log_sys->last_checkpoint_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
+    ut_a(log_sys->last_checkpoint_lsn.load() ==
+         LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
 
     ut_a(flushed_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
 
@@ -3162,7 +3163,9 @@ void srv_start_threads(bool bootstrap) {
             - there are less possible flows - smaller risk of bug.
     Now we start allowing periodical checkpoints! Since now, it's
     hard to predict when checkpoints are written! */
+    log_limits_mutex_enter(*log_sys);
     log_sys->periodical_checkpoints_enabled = true;
+    log_limits_mutex_exit(*log_sys);
   }
 
   srv_threads.m_buf_resize =
@@ -3206,12 +3209,6 @@ void srv_start_threads(bool bootstrap) {
     ibuf_update_max_tablespace_id();
   }
 
-  /* Create the buffer pool dump/load thread */
-  srv_threads.m_buf_dump =
-      os_thread_create(buf_dump_thread_key, buf_dump_thread);
-
-  srv_threads.m_buf_dump.start();
-
   /* Create the dict stats gathering thread */
   srv_threads.m_dict_stats =
       os_thread_create(dict_stats_thread_key, dict_stats_thread);
@@ -3229,6 +3226,38 @@ void srv_start_threads(bool bootstrap) {
   fil_system_release();
 
   srv_start_state_set(SRV_START_STATE_STAT);
+}
+
+void srv_start_threads_after_ddl_recovery() {
+  /* Start the buffer pool dump/load thread, which will access spaces thus
+        must wait for DDL recovery */
+  srv_threads.m_buf_dump =
+      os_thread_create(buf_dump_thread_key, buf_dump_thread);
+
+  srv_threads.m_buf_dump.start();
+
+  /* Resume unfinished (un)encryption process in background thread. */
+  if (!ts_encrypt_ddl_records.empty()) {
+    srv_threads.m_ts_alter_encrypt =
+        os_thread_create(srv_ts_alter_encrypt_thread_key,
+                         fsp_init_resume_alter_encrypt_tablespace);
+
+    srv_threads.m_ts_alter_encrypt.start();
+
+    /* Wait till shared MDL is taken by background thread for all tablespaces,
+    for which (un)encryption is to be rolled forward. */
+    mysql_mutex_lock(&resume_encryption_cond_m);
+    mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
+    mysql_mutex_unlock(&resume_encryption_cond_m);
+  }
+
+  /* Start and consume all GTIDs for recovered transactions. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.start();
+
+  /* Now the InnoDB Metadata and file system should be consistent.
+  Start the Purge thread */
+  srv_start_purge_threads();
 }
 
 #if 0
@@ -3439,7 +3468,7 @@ static void srv_shutdown_background_threads() {
   const Thread_to_stop threads_to_stop[]{
 
       {"lock_wait_timeout", srv_threads.m_lock_wait_timeout,
-       std::bind(os_event_set, lock_sys->timeout_event), SRV_SHUTDOWN_CLEANUP},
+       lock_set_timeout_event, SRV_SHUTDOWN_CLEANUP},
 
       {"error_monitor", srv_threads.m_error_monitor,
        std::bind(os_event_set, srv_error_event), SRV_SHUTDOWN_CLEANUP},
@@ -3635,7 +3664,7 @@ static lsn_t srv_shutdown_log() {
   /* Validate lsn and write it down. */
   ut_a(log_lsn_validate(lsn) || srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
 
-  ut_a(lsn == log_sys->last_checkpoint_lsn ||
+  ut_a(lsn == log_sys->last_checkpoint_lsn.load() ||
        srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
 
   ut_a(lsn == log_get_lsn(*log_sys));
@@ -3840,15 +3869,26 @@ void srv_shutdown() {
 single-table tablespace.
 @param[in]	table		table object
 @param[out]	filename	filename
-@param[in]	max_len		filename max length */
+@param[in]	max_len		filename max length
+@param[in]	convert		convert table_name to lower case*/
 void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
-                                      ulint max_len) {
+                                      ulint max_len, bool convert) {
   /* Make sure the data_dir_path is set. */
   dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
 
   std::string path = dict_table_get_datadir(table);
+  char table_name[OS_FILE_MAX_PATH];
 
-  auto filepath = Fil_path::make(path, table->name.m_name, CFP, true);
+  char *name;
+  if (convert) {
+    strcpy(table_name, table->name.m_name);
+    innobase_casedn_str(table_name);
+    name = table_name;
+  } else {
+    name = table->name.m_name;
+  }
+
+  auto filepath = Fil_path::make(path, name, CFP, true);
 
   size_t len = strlen(filepath);
   ut_a(max_len >= len);

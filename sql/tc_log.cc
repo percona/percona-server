@@ -289,14 +289,15 @@ void TC_LOG_MMAP::overflow() {
   implement the logic.
  */
 TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all) {
-  DBUG_ENTER("TC_LOG_MMAP::commit");
+  DBUG_TRACE;
   ulong cookie = 0;
   my_xid xid = thd->get_transaction()->xid_state()->get_xid()->get_my_xid();
 
   if (all && xid)
     if (!(cookie = log_xid(xid)))
-      DBUG_RETURN(RESULT_ABORTED);  // Failed to log the transaction
+      return RESULT_ABORTED;  // Failed to log the transaction
 
+<<<<<<< HEAD
   /*
     Acquire a shared lock to block commits until START TRANSACTION WITH
     CONSISTENT SNAPSHOT completes snapshot creation for all storage engines.
@@ -307,11 +308,18 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all) {
 
   if (rc)
     DBUG_RETURN(RESULT_INCONSISTENT);  // Transaction logged, but not committed
+||||||| merged common ancestors
+  if (ha_commit_low(thd, all))
+    DBUG_RETURN(RESULT_INCONSISTENT);  // Transaction logged, but not committed
+=======
+  if (ha_commit_low(thd, all))
+    return RESULT_INCONSISTENT;  // Transaction logged, but not committed
+>>>>>>> mysql-8.0.18
 
   /* If cookie is non-zero, something was logged */
   if (cookie) unlog(cookie, xid);
 
-  DBUG_RETURN(RESULT_SUCCESS);
+  return RESULT_SUCCESS;
 }
 
 int TC_LOG_MMAP::rollback(THD *thd, bool all) {

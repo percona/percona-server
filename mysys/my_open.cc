@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
 /* Special flags */
 {
   File fd;
-  DBUG_ENTER("my_open");
+  DBUG_TRACE;
   DBUG_PRINT("my",
              ("Name: '%s'  Flags: %d  MyFlags: %d", FileName, Flags, MyFlags));
 #if defined(_WIN32)
@@ -82,7 +82,7 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
 
   fd = my_register_filename(fd, FileName, FILE_BY_OPEN, EE_FILENOTFOUND,
                             MyFlags);
-  DBUG_RETURN(fd);
+  return fd;
 } /* my_open */
 
 /*
@@ -143,7 +143,7 @@ File my_unix_socket_connect(const char *FileName, myf MyFlags) noexcept
 
 int my_close(File fd, myf MyFlags) {
   int err;
-  DBUG_ENTER("my_close");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d  MyFlags: %d", fd, MyFlags));
 
   mysql_mutex_lock(&THR_LOCK_open);
@@ -169,7 +169,7 @@ int my_close(File fd, myf MyFlags) {
   }
   my_file_opened--;
   mysql_mutex_unlock(&THR_LOCK_open);
-  DBUG_RETURN(err);
+  return err;
 } /* my_close */
 
 /*
@@ -193,7 +193,7 @@ File my_register_filename(File fd, const char *FileName,
                           enum file_type type_of_file,
                           uint error_message_number, myf MyFlags) {
   char *dup_filename = NULL;
-  DBUG_ENTER("my_register_filename");
+  DBUG_TRACE;
   if ((int)fd >= MY_FILE_MIN) {
     if ((uint)fd >= my_file_limit) {
 #if defined(_WIN32)
@@ -202,7 +202,7 @@ File my_register_filename(File fd, const char *FileName,
       mysql_mutex_lock(&THR_LOCK_open);
       my_file_opened++;
       mysql_mutex_unlock(&THR_LOCK_open);
-      DBUG_RETURN(fd); /* safeguard */
+      return fd; /* safeguard */
 #endif
     } else {
       dup_filename = my_strdup(key_memory_my_file_info, FileName, MyFlags);
@@ -214,7 +214,7 @@ File my_register_filename(File fd, const char *FileName,
         my_file_info[fd].type = type_of_file;
         mysql_mutex_unlock(&THR_LOCK_open);
         DBUG_PRINT("exit", ("fd: %d", fd));
-        DBUG_RETURN(fd);
+        return fd;
       }
       set_my_errno(ENOMEM);
     }
@@ -230,7 +230,7 @@ File my_register_filename(File fd, const char *FileName,
     my_error(error_message_number, MYF(0), FileName, my_errno(),
              my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 #ifdef EXTRA_DEBUG

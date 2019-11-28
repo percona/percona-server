@@ -18,7 +18,15 @@ GRANT ALL PRIVILEGES ON `db1`.* TO `u1`@`localhost`
 #
 SET SESSION default_table_encryption=ON;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN privilege(s) for this operation
+<<<<<<< HEAD
 SET GLOBAL default_table_encryption=ON;
+||||||| merged common ancestors
+SET GLOBAL default_table_encryption=true;
+=======
+SET SESSION default_table_encryption=false;
+SET SESSION default_table_encryption=DEFAULT;
+SET GLOBAL default_table_encryption=true;
+>>>>>>> mysql-8.0.18
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET PERSIST default_table_encryption=ON;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
@@ -41,7 +49,15 @@ GRANT ALL PRIVILEGES ON `db1`.* TO `u1`@`localhost`
 #
 SET SESSION default_table_encryption=ON;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN privilege(s) for this operation
+<<<<<<< HEAD
 SET GLOBAL default_table_encryption=ON;
+||||||| merged common ancestors
+SET GLOBAL default_table_encryption=true;
+=======
+SET SESSION default_table_encryption=false;
+SET SESSION default_table_encryption=DEFAULT;
+SET GLOBAL default_table_encryption=true;
+>>>>>>> mysql-8.0.18
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET PERSIST default_table_encryption=ON;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
@@ -65,7 +81,15 @@ GRANT ALL PRIVILEGES ON `db1`.* TO `u1`@`localhost`
 #
 SET SESSION default_table_encryption=ON;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN privilege(s) for this operation
+<<<<<<< HEAD
 SET GLOBAL default_table_encryption=ON;
+||||||| merged common ancestors
+SET GLOBAL default_table_encryption=true;
+=======
+SET SESSION default_table_encryption=false;
+SET SESSION default_table_encryption=DEFAULT;
+SET GLOBAL default_table_encryption=true;
+>>>>>>> mysql-8.0.18
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN privilege(s) for this operation
 SET PERSIST default_table_encryption=ON;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN privilege(s) for this operation
@@ -87,6 +111,7 @@ GRANT ALL PRIVILEGES ON `db1`.* TO `u1`@`localhost`
 #
 # SET default_table_encryption
 #
+<<<<<<< HEAD
 SET SESSION default_table_encryption=ON;
 SELECT @@session.default_table_encryption;
 @@session.default_table_encryption
@@ -128,6 +153,43 @@ SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
 ON
 SET PERSIST_ONLY default_table_encryption=ON;
+||||||| merged common ancestors
+SET SESSION default_table_encryption=true;
+SELECT @@session.default_table_encryption = true;
+@@session.default_table_encryption = true
+1
+SET GLOBAL default_table_encryption=false;
+SELECT @@global.default_table_encryption = false;
+@@global.default_table_encryption = false
+1
+SET PERSIST default_table_encryption=true;
+SELECT @@global.default_table_encryption = true;
+@@global.default_table_encryption = true
+1
+SET PERSIST_ONLY default_table_encryption=true;
+=======
+SET SESSION default_table_encryption=true;
+SELECT @@session.default_table_encryption = true;
+@@session.default_table_encryption = true
+1
+SET SESSION default_table_encryption=false;
+SELECT @@session.default_table_encryption = false;
+@@session.default_table_encryption = false
+1
+SET SESSION default_table_encryption=DEFAULT;
+SELECT @@session.default_table_encryption = false;
+@@session.default_table_encryption = false
+1
+SET GLOBAL default_table_encryption=false;
+SELECT @@global.default_table_encryption = false;
+@@global.default_table_encryption = false
+1
+SET PERSIST default_table_encryption=true;
+SELECT @@global.default_table_encryption = true;
+@@global.default_table_encryption = true
+1
+SET PERSIST_ONLY default_table_encryption=true;
+>>>>>>> mysql-8.0.18
 ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
 #
 # VARIABLE USED BY USER WITH PERSIST_RO_VARIABLES_ADMIN,

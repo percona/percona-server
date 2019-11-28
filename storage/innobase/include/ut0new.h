@@ -1278,6 +1278,7 @@ class aligned_array_pointer : public aligned_memory<T_Type, T_Align_to> {
   size_t m_size;
 };
 
+<<<<<<< HEAD
 inline void ut_free_func(byte *buf) { ut_free(buf); }
 
 using ut_unique_ptr = std::unique_ptr<byte, std::function<void(byte *)>>;
@@ -1314,4 +1315,21 @@ inline ut_unique_ptr ut_make_unique_ptr_zalloc_nokey_no_fatal(
                        ut_free_func);
 }
 
+||||||| merged common ancestors
+=======
+namespace ut {
+
+/** Specialization of basic_ostringstream which uses ut_allocator. Please note
+that it's .str() method returns std::basic_string which is not std::string, so
+it has similar API (in particular .c_str()), but you can't assign it to regular,
+std::string. */
+using ostringstream =
+    std::basic_ostringstream<char, std::char_traits<char>, ut_allocator<char>>;
+
+/** Specialization of vector which uses ut_allocator. */
+template <typename T>
+using vector = std::vector<T, ut_allocator<T>>;
+
+}  // namespace ut
+>>>>>>> mysql-8.0.18
 #endif /* ut0new_h */

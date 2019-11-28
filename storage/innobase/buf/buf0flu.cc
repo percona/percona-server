@@ -2400,12 +2400,7 @@ static ulint af_get_pct_for_dirty() {
  @return percent of io_capacity to flush to manage redo space */
 static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
 {
-  const lsn_t log_margin =
-      log_translate_sn_to_lsn(log_free_check_margin(*log_sys));
-
-  ut_a(log_sys->lsn_capacity_for_free_check > log_margin);
-
-  const lsn_t log_capacity = log_sys->lsn_capacity_for_free_check - log_margin;
+  const lsn_t log_capacity = log_get_free_check_capacity(*log_sys);
 
   lsn_t lsn_age_factor;
   lsn_t af_lwm = (srv_adaptive_flushing_lwm * log_capacity) / 100;
@@ -2415,9 +2410,7 @@ static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
     return (0);
   }
 
-  auto limit_for_age = log_get_max_modified_age_async();
-  ut_a(limit_for_age >= log_margin);
-  limit_for_age -= log_margin;
+  const auto limit_for_age = log_get_max_modified_age_async(*log_sys);
 
   if (age < limit_for_age && !srv_adaptive_flushing) {
     /* We have still not reached the max_async point and
@@ -2432,11 +2425,18 @@ static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   lsn_age_factor = (age * 100) / limit_for_age;
 
   ut_ad(srv_max_io_capacity >= srv_io_capacity);
+<<<<<<< HEAD
   switch (
       static_cast<srv_cleaner_lsn_age_factor_t>(srv_cleaner_lsn_age_factor)) {
     case SRV_CLEANER_LSN_AGE_FACTOR_LEGACY:
       return (
           static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
+||||||| merged common ancestors
+  return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
+=======
+
+  return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
+>>>>>>> mysql-8.0.18
                               (lsn_age_factor * sqrt((double)lsn_age_factor))) /
                              7.5));
     case SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT:
@@ -2450,14 +2450,15 @@ static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
 }
 
 /** This function is called approximately once every second by the
- page_cleaner thread. Based on various factors it decides if there is a
- need to do flushing.
- @return number of pages recommended to be flushed
- @param lsn_limit	pointer to return LSN up to which flushing must happen
- @param last_pages_in	the number of pages flushed by the last flush_list
-                         flushing. */
-static ulint page_cleaner_flush_pages_recommendation(lsn_t *lsn_limit,
-                                                     ulint last_pages_in) {
+ page_cleaner thread, unless it is sync flushing mode, in which case
+ it is called every small round. Based on various factors it decides
+ if there is a need to do flushing.
+ @param  last_pages_in  the number of pages flushed by the last flush_list
+                        flushing.
+ @param  is_sync_flush  true iff this is sync flush mode
+ @return number of pages recommended to be flushed */
+static ulint page_cleaner_flush_pages_recommendation(ulint last_pages_in,
+                                                     bool is_sync_flush) {
   static lsn_t prev_lsn = 0;
   static ulint sum_pages = 0;
   static ulint avg_page_rate = 0;
@@ -2481,7 +2482,7 @@ static ulint page_cleaner_flush_pages_recommendation(lsn_t *lsn_limit,
     return (0);
   }
 
-  if (prev_lsn == cur_lsn) {
+  if (prev_lsn == cur_lsn && !is_sync_flush) {
     return (0);
   }
 
@@ -2624,6 +2625,8 @@ static ulint page_cleaner_flush_pages_recommendation(lsn_t *lsn_limit,
 
   if (n_pages > srv_max_io_capacity) {
     n_pages = srv_max_io_capacity;
+  } else if (is_sync_flush && n_pages < srv_io_capacity) {
+    n_pages = srv_io_capacity;
   }
 
   /* Normalize request for each instance */
@@ -2651,8 +2654,6 @@ static ulint page_cleaner_flush_pages_recommendation(lsn_t *lsn_limit,
   MONITOR_SET(MONITOR_FLUSH_LSN_AVG_RATE, lsn_avg_rate);
   MONITOR_SET(MONITOR_FLUSH_PCT_FOR_DIRTY, pct_for_dirty);
   MONITOR_SET(MONITOR_FLUSH_PCT_FOR_LSN, pct_for_lsn);
-
-  *lsn_limit = LSN_MAX;
 
   return (n_pages);
 }
@@ -3115,14 +3116,24 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
   ulint n_flushed_last = 0;
   ulint warn_interval = 1;
   ulint warn_count = 0;
+  bool is_sync_flush = false;
+  bool was_server_active = true;
   int64_t sig_count = os_event_reset(buf_flush_event);
 
   while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+    /* We consider server active if either we have just discovered a first
+    activity after a period of inactive server, or we are after the period
+    of active server in which case, it could be just the beginning of the
+    next period, so there is no reason to consider it idle yet. */
+
+    const bool is_server_active =
+        was_server_active || srv_check_activity(last_activity);
+
     /* The page_cleaner skips sleep if the server is
     idle and there are no pending IOs in the buffer pool
     and there is work to do. */
-    if (srv_check_activity(last_activity) || buf_get_n_pending_read_ios() ||
-        n_flushed == 0) {
+    if ((is_server_active || buf_get_n_pending_read_ios() || n_flushed == 0) &&
+        !is_sync_flush) {
       ret_sleep = pc_sleep_if_needed(next_loop_time, sig_count);
 
       if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
@@ -3166,6 +3177,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
       }
 
       next_loop_time = curr_time + 1000;
+<<<<<<< HEAD
       n_flushed_last = 0;
     }
 
@@ -3179,43 +3191,99 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
       /* Request flushing for threads */
       pc_request(ULINT_MAX, lsn_limit);
+||||||| merged common ancestors
+      n_flushed_last = n_evicted = 0;
+    }
 
-      const auto tm = ut_time_monotonic_ms();
+    if (ret_sleep != OS_SYNC_TIME_EXCEEDED && srv_flush_sync &&
+        buf_flush_sync_lsn > 0) {
+      /* woke up for flush_sync */
+      mutex_enter(&page_cleaner->mutex);
+      lsn_t lsn_limit = buf_flush_sync_lsn;
+      buf_flush_sync_lsn = 0;
+      mutex_exit(&page_cleaner->mutex);
 
-      /* Coordinator also treats requests */
-      while (pc_flush_slot() > 0) {
-      }
+      /* Request flushing for threads */
+      pc_request(ULINT_MAX, lsn_limit);
+=======
+      n_flushed_last = n_evicted = 0;
+>>>>>>> mysql-8.0.18
 
-      /* only coordinator is using these counters,
-      so no need to protect by lock. */
-      page_cleaner->flush_time += ut_time_monotonic_ms() - tm;
-      page_cleaner->flush_pass++;
+      was_server_active = srv_check_activity(last_activity);
+      last_activity = srv_get_activity_count();
+    }
 
+    mutex_enter(&page_cleaner->mutex);
+    lsn_t lsn_limit = buf_flush_sync_lsn;
+    mutex_exit(&page_cleaner->mutex);
+
+<<<<<<< HEAD
       /* Wait for all slots to be finished */
       ulint n_flushed_list = 0;
       pc_wait_finished(&n_flushed_list);
+||||||| merged common ancestors
+      /* Wait for all slots to be finished */
+      ulint n_flushed_lru = 0;
+      ulint n_flushed_list = 0;
+      pc_wait_finished(&n_flushed_lru, &n_flushed_list);
+=======
+    if (srv_read_only_mode) {
+      is_sync_flush = false;
+    } else {
+      ut_a(log_sys != nullptr);
+>>>>>>> mysql-8.0.18
 
+<<<<<<< HEAD
       if (n_flushed_list > 0) {
         srv_stats.buf_pool_flushed.add(n_flushed_list);
+||||||| merged common ancestors
+      if (n_flushed_list > 0 || n_flushed_lru > 0) {
+        buf_flush_stats(n_flushed_list, n_flushed_lru);
+=======
+      const lsn_t checkpoint_lsn = log_sys->last_checkpoint_lsn.load();
+>>>>>>> mysql-8.0.18
 
+<<<<<<< HEAD
         MONITOR_INC_VALUE_CUMULATIVE(MONITOR_FLUSH_SYNC_TOTAL_PAGE,
                                      MONITOR_FLUSH_SYNC_COUNT,
                                      MONITOR_FLUSH_SYNC_PAGES, n_flushed_list);
       }
+||||||| merged common ancestors
+        MONITOR_INC_VALUE_CUMULATIVE(
+            MONITOR_FLUSH_SYNC_TOTAL_PAGE, MONITOR_FLUSH_SYNC_COUNT,
+            MONITOR_FLUSH_SYNC_PAGES, n_flushed_lru + n_flushed_list);
+      }
+=======
+      const lsn_t lag = log_buffer_flush_order_lag(*log_sys);
+>>>>>>> mysql-8.0.18
 
+<<<<<<< HEAD
       n_flushed = n_flushed_list;
+||||||| merged common ancestors
+      n_flushed = n_flushed_lru + n_flushed_list;
+=======
+      is_sync_flush = srv_flush_sync && lsn_limit > checkpoint_lsn + lag;
+    }
+>>>>>>> mysql-8.0.18
 
-    } else if (srv_check_activity(last_activity)) {
+    if (is_sync_flush || is_server_active) {
       ulint n_to_flush;
-      lsn_t lsn_limit = 0;
 
       /* Estimate pages from flush_list to be flushed */
-      if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
-        last_activity = srv_get_activity_count();
-        n_to_flush =
-            page_cleaner_flush_pages_recommendation(&lsn_limit, last_pages);
+      if (is_sync_flush) {
+        n_to_flush = page_cleaner_flush_pages_recommendation(last_pages, true);
+        /* Flush n_to_flush pages or stop if you reach lsn_limit earlier,
+        which was the buf_flush_sync_lsn requested before we started.
+        This is because in sync-flush mode we want finer granularity of
+        flushes through all BP instances. */
+        ut_a(lsn_limit > 0);
+        ut_a(lsn_limit < LSN_MAX);
+      } else if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
+        n_to_flush = page_cleaner_flush_pages_recommendation(last_pages, false);
+        lsn_limit = LSN_MAX;
       } else {
         n_to_flush = 0;
+        lsn_limit = 0;
       }
 
       /* Request flushing for threads */
@@ -3242,23 +3310,50 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
         srv_stats.buf_pool_flushed.add(n_flushed_list);
       }
 
-      if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
-        last_pages = n_flushed_list;
+      if (n_to_flush != 0) {
+        last_pages = n_to_flush;
       }
 
       n_flushed_last += n_flushed_list;
 
+<<<<<<< HEAD
       n_flushed = n_flushed_list;
 
       if (n_flushed_list) {
+||||||| merged common ancestors
+      n_flushed = n_flushed_lru + n_flushed_list;
+
+      if (n_flushed_lru) {
         MONITOR_INC_VALUE_CUMULATIVE(
-            MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE, MONITOR_FLUSH_ADAPTIVE_COUNT,
-            MONITOR_FLUSH_ADAPTIVE_PAGES, n_flushed_list);
+            MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE, MONITOR_LRU_BATCH_FLUSH_COUNT,
+            MONITOR_LRU_BATCH_FLUSH_PAGES, n_flushed_lru);
       }
 
-    } else if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
+      if (n_flushed_list) {
+=======
+      n_flushed = n_flushed_lru + n_flushed_list;
+
+      if (is_sync_flush) {
+>>>>>>> mysql-8.0.18
+        MONITOR_INC_VALUE_CUMULATIVE(
+            MONITOR_FLUSH_SYNC_TOTAL_PAGE, MONITOR_FLUSH_SYNC_COUNT,
+            MONITOR_FLUSH_SYNC_PAGES, n_flushed_lru + n_flushed_list);
+      } else {
+        if (n_flushed_lru) {
+          MONITOR_INC_VALUE_CUMULATIVE(
+              MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE, MONITOR_LRU_BATCH_FLUSH_COUNT,
+              MONITOR_LRU_BATCH_FLUSH_PAGES, n_flushed_lru);
+        }
+        if (n_flushed_list) {
+          MONITOR_INC_VALUE_CUMULATIVE(
+              MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE, MONITOR_FLUSH_ADAPTIVE_COUNT,
+              MONITOR_FLUSH_ADAPTIVE_PAGES, n_flushed_list);
+        }
+      }
+
+    } else if (ret_sleep == OS_SYNC_TIME_EXCEEDED && srv_idle_flush_pct) {
       /* no activity, slept enough */
-      buf_flush_lists(PCT_IO(100), LSN_MAX, &n_flushed);
+      buf_flush_lists(PCT_IO(srv_idle_flush_pct), LSN_MAX, &n_flushed);
 
       n_flushed_last += n_flushed;
 
@@ -3545,20 +3640,32 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
 
 /** Request IO burst and wake page_cleaner up.
 @param[in]	lsn_limit	upper limit of LSN to be flushed */
-void buf_flush_request_force(lsn_t lsn_limit) {
+bool buf_flush_request_force(lsn_t lsn_limit) {
   ut_a(buf_flush_page_cleaner_is_active());
 
   /* adjust based on lsn_avg_rate not to get old */
+<<<<<<< HEAD
   lsn_t lsn_target =
       (lsn_limit != LSN_MAX) ? (lsn_limit + lsn_avg_rate * 3) : LSN_MAX;
+||||||| merged common ancestors
+  lsn_t lsn_target = lsn_limit + lsn_avg_rate * 3;
+=======
+  lsn_t lsn_target = lsn_limit + lsn_avg_rate * 3;
+  bool result;
+>>>>>>> mysql-8.0.18
 
   mutex_enter(&page_cleaner->mutex);
   if (lsn_target > buf_flush_sync_lsn) {
     buf_flush_sync_lsn = lsn_target;
+    result = true;
+  } else {
+    result = false;
   }
   mutex_exit(&page_cleaner->mutex);
 
   os_event_set(buf_flush_event);
+
+  return (result);
 }
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 

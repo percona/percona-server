@@ -326,7 +326,7 @@ void QUERY_PROFILE::set_query_source(const char *query_source_arg,
 void QUERY_PROFILE::new_status(const char *status_arg, const char *function_arg,
                                const char *file_arg, unsigned int line_arg) {
   PROF_MEASUREMENT *prof;
-  DBUG_ENTER("QUERY_PROFILE::status");
+  DBUG_TRACE;
 
   DBUG_ASSERT(status_arg != NULL);
 
@@ -342,8 +342,6 @@ void QUERY_PROFILE::new_status(const char *status_arg, const char *function_arg,
 
   /* Maintain the query history size. */
   while (entries.elements > MAX_QUERY_HISTORY) delete entries.pop();
-
-  DBUG_VOID_RETURN;
 }
 
 PROFILING::PROFILING() : profile_id_counter(1), current(NULL), last(NULL) {}
@@ -365,18 +363,16 @@ PROFILING::~PROFILING() {
 */
 void PROFILING::status_change(const char *status_arg, const char *function_arg,
                               const char *file_arg, unsigned int line_arg) {
-  DBUG_ENTER("PROFILING::status_change");
+  DBUG_TRACE;
 
   if (status_arg == NULL) /* We don't know how to handle that */
-    DBUG_VOID_RETURN;
+    return;
 
   if (current == NULL) /* This profile was already discarded. */
-    DBUG_VOID_RETURN;
+    return;
 
   if (unlikely(enabled))
     current->new_status(status_arg, function_arg, file_arg, line_arg);
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -386,7 +382,7 @@ void PROFILING::status_change(const char *status_arg, const char *function_arg,
   @param  initial_state  (optional) name of period before first state change
 */
 void PROFILING::start_new_query(const char *initial_state) {
-  DBUG_ENTER("PROFILING::start_new_query");
+  DBUG_TRACE;
 
   /* This should never happen unless the server is radically altered. */
   if (unlikely(current != NULL)) {
@@ -400,12 +396,10 @@ void PROFILING::start_new_query(const char *initial_state) {
       ((thd->variables.option_bits & OPTION_PROFILING) != 0) ||
       ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_PROFILING)) != 0);
 
-  if (!enabled) DBUG_VOID_RETURN;
+  if (!enabled) return;
 
   DBUG_ASSERT(current == NULL);
   current = new QUERY_PROFILE(this, initial_state);
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -413,12 +407,10 @@ void PROFILING::start_new_query(const char *initial_state) {
   or corrupted.
 */
 void PROFILING::discard_current_query() {
-  DBUG_ENTER("PROFILING::discard_current_profile");
+  DBUG_TRACE;
 
   delete current;
   current = NULL;
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -427,7 +419,7 @@ void PROFILING::discard_current_query() {
   succeed if the profile was previously discarded, and that's expected.
 */
 void PROFILING::finish_current_query() {
-  DBUG_ENTER("PROFILING::finish_current_profile");
+  DBUG_TRACE;
   if (current != NULL) {
     /* The last fence-post, so we can support the span before this. */
     status_change("ending", NULL, NULL, 0);
@@ -452,12 +444,10 @@ void PROFILING::finish_current_query() {
   /* Maintain the history size. */
   while (history.elements > thd->variables.profiling_history_size)
     delete history.pop();
-
-  DBUG_VOID_RETURN;
 }
 
 bool PROFILING::show_profiles() {
-  DBUG_ENTER("PROFILING::show_profiles");
+  DBUG_TRACE;
   QUERY_PROFILE *prof;
   List<Item> field_list;
 
@@ -468,7 +458,7 @@ bool PROFILING::show_profiles() {
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(true);
+    return true;
 
   SELECT_LEX *sel = thd->lex->select_lex;
   SELECT_LEX_UNIT *unit = thd->lex->unit;
@@ -482,8 +472,6 @@ bool PROFILING::show_profiles() {
        iterator = history.iterator_next(iterator)) {
     prof = history.iterator_value(iterator);
 
-    String elapsed;
-
     double query_time_usecs = prof->m_end_time_usecs - prof->m_start_time_usecs;
 
     if (++idx <= unit->offset_limit_cnt) continue;
@@ -491,18 +479,18 @@ bool PROFILING::show_profiles() {
 
     protocol->start_row();
     protocol->store((uint32)(prof->profiling_query_id));
-    protocol->store((double)(query_time_usecs / (1000.0 * 1000)),
-                    (uint32)TIME_FLOAT_DIGITS - 1, &elapsed);
+    protocol->store_double(query_time_usecs / (1000.0 * 1000),
+                           TIME_FLOAT_DIGITS - 1, 0);
     if (prof->m_query_source.str != NULL)
-      protocol->store(prof->m_query_source.str, prof->m_query_source.length,
-                      system_charset_info);
+      protocol->store_string(prof->m_query_source.str,
+                             prof->m_query_source.length, system_charset_info);
     else
       protocol->store_null();
 
-    if (protocol->end_row()) DBUG_RETURN(true);
+    if (protocol->end_row()) return true;
   }
   my_eof(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -513,15 +501,14 @@ bool PROFILING::show_profiles() {
 */
 void PROFILING::set_query_source(const char *query_source_arg,
                                  size_t query_length_arg) {
-  DBUG_ENTER("PROFILING::set_query_source");
+  DBUG_TRACE;
 
-  if (!enabled) DBUG_VOID_RETURN;
+  if (!enabled) return;
 
   if (current != NULL)
     current->set_query_source(query_source_arg, query_length_arg);
   else
     DBUG_PRINT("info", ("no current profile to send query source to"));
-  DBUG_VOID_RETURN;
 }
 
 bool PROFILING::enabled_getrusage() const noexcept {
@@ -637,7 +624,7 @@ int PROFILING::print_current(IO_CACHE *log_file) const noexcept {
   schema, and a SHOW command.
 */
 int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables) {
-  DBUG_ENTER("PROFILING::fill_statistics_info");
+  DBUG_TRACE;
   TABLE *table = tables->table;
   ulonglong row_number = 0;
 
@@ -828,11 +815,11 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables) {
         table->field[17]->set_notnull();
       }
 
-      if (schema_table_store_record(thd_arg, table)) DBUG_RETURN(1);
+      if (schema_table_store_record(thd_arg, table)) return 1;
     }
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 /**
   Clear all the profiling information.

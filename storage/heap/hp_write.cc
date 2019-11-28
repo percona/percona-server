@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,13 +46,14 @@ int heap_write(HP_INFO *info, const uchar *record) {
   HP_KEYDEF *keydef, *end;
   uchar *pos;
   HP_SHARE *share = info->s;
-  DBUG_ENTER("heap_write");
+  DBUG_TRACE;
 #ifndef DBUG_OFF
   if (info->mode & O_RDONLY) {
     set_my_errno(EACCES);
-    DBUG_RETURN(EACCES);
+    return EACCES;
   }
 #endif
+<<<<<<< HEAD
   if (share->records >= share->max_records && share->max_records) {
     set_my_errno(HA_ERR_RECORD_FILE_FULL);
     DBUG_RETURN(HA_ERR_RECORD_FILE_FULL);
@@ -70,6 +71,11 @@ int heap_write(HP_INFO *info, const uchar *record) {
 
   if (!(pos = hp_allocate_chunkset(&share->recordspace, chunk_count)))
     DBUG_RETURN(my_errno());
+||||||| merged common ancestors
+  if (!(pos = next_free_record_pos(share))) DBUG_RETURN(my_errno());
+=======
+  if (!(pos = next_free_record_pos(share))) return my_errno();
+>>>>>>> mysql-8.0.18
   share->changed = 1;
 
   for (keydef = share->keydef, end = keydef + share->keys; keydef < end;
@@ -86,7 +92,7 @@ int heap_write(HP_INFO *info, const uchar *record) {
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
 #endif
   if (share->auto_key) heap_update_auto_increment(info, record);
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   if (my_errno() == HA_ERR_FOUND_DUPP_KEY)
@@ -108,7 +114,7 @@ err:
 
   hp_free_chunks(&share->recordspace, pos);
 
-  DBUG_RETURN(my_errno());
+  return my_errno();
 } /* heap_write */
 
 /*
@@ -140,6 +146,72 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   return 0;
 }
 
+<<<<<<< HEAD
+||||||| merged common ancestors
+/* Find where to place new record */
+
+static uchar *next_free_record_pos(HP_SHARE *info) {
+  int block_pos;
+  uchar *pos;
+  size_t length;
+  DBUG_ENTER("next_free_record_pos");
+
+  if (info->del_link) {
+    pos = info->del_link;
+    info->del_link = *((uchar **)pos);
+    info->deleted--;
+    DBUG_PRINT("exit", ("Used old position: %p", pos));
+    DBUG_RETURN(pos);
+  }
+  if (!(block_pos = (info->records % info->block.records_in_block))) {
+    if ((info->records > info->max_records && info->max_records) ||
+        (info->data_length + info->index_length >= info->max_table_size)) {
+      set_my_errno(HA_ERR_RECORD_FILE_FULL);
+      DBUG_RETURN(NULL);
+    }
+    if (hp_get_new_block(&info->block, &length)) DBUG_RETURN(NULL);
+    info->data_length += length;
+  }
+  DBUG_PRINT("exit", ("Used new position: %p",
+                      ((uchar *)info->block.level_info[0].last_blocks +
+                       block_pos * info->block.recbuffer)));
+  DBUG_RETURN((uchar *)info->block.level_info[0].last_blocks +
+              block_pos * info->block.recbuffer);
+}
+
+=======
+/* Find where to place new record */
+
+static uchar *next_free_record_pos(HP_SHARE *info) {
+  int block_pos;
+  uchar *pos;
+  size_t length;
+  DBUG_TRACE;
+
+  if (info->del_link) {
+    pos = info->del_link;
+    info->del_link = *((uchar **)pos);
+    info->deleted--;
+    DBUG_PRINT("exit", ("Used old position: %p", pos));
+    return pos;
+  }
+  if (!(block_pos = (info->records % info->block.records_in_block))) {
+    if ((info->records > info->max_records && info->max_records) ||
+        (info->data_length + info->index_length >= info->max_table_size)) {
+      set_my_errno(HA_ERR_RECORD_FILE_FULL);
+      return NULL;
+    }
+    if (hp_get_new_block(&info->block, &length)) return NULL;
+    info->data_length += length;
+  }
+  DBUG_PRINT("exit", ("Used new position: %p",
+                      ((uchar *)info->block.level_info[0].last_blocks +
+                       block_pos * info->block.recbuffer)));
+  return (uchar *)info->block.level_info[0].last_blocks +
+         block_pos * info->block.recbuffer;
+}
+
+>>>>>>> mysql-8.0.18
 /**
   Populate HASH_INFO structure.
 
@@ -189,11 +261,11 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   uchar *ptr_to_rec = NULL, *ptr_to_rec2 = NULL;
   ulong hash1 = 0, hash2 = 0;
   HASH_INFO *empty, *gpos = NULL, *gpos2 = NULL, *pos;
-  DBUG_ENTER("hp_write_key");
+  DBUG_TRACE;
 
   flag = 0;
   if (!(empty = hp_find_free_hash(share, &keyinfo->block, share->records)))
-    DBUG_RETURN(-1); /* No more memory */
+    return -1; /* No more memory */
   halfbuff = (long)share->blength >> 1;
   pos =
       hp_find_hash(&keyinfo->block, (first_index = share->records - halfbuff));
@@ -332,12 +404,12 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
         if (hash1 == pos->hash &&
             !hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec)) {
           set_my_errno(HA_ERR_FOUND_DUPP_KEY);
-          DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
+          return HA_ERR_FOUND_DUPP_KEY;
         }
       } while ((pos = pos->next_key));
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* Returns ptr to block, and allocates block if neaded */

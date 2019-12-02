@@ -188,8 +188,8 @@ delete)
 @param[in,out] thd  Session object
 @return TABLE* on success else nullptr */
 static TABLE *open_dictionary_table_write(THD *thd) {
-  TABLE_LIST tablelist(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
-                       C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
+  TABLE_LIST tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
+                       STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
                        COMPRESSION_DICTIONARY_TABLE, TL_WRITE,
                        MDL_SHARED_NO_READ_WRITE);
   tablelist.next_local = tablelist.next_global = nullptr;
@@ -219,8 +219,8 @@ static TABLE *open_dictionary_table_read(THD *thd) {
   DBUG_ASSERT(!thd->is_attachable_ro_transaction_active());
   thd->begin_attachable_ro_transaction();
 
-  TABLE_LIST tablelist(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
-                       C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
+  TABLE_LIST tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
+                       STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
                        COMPRESSION_DICTIONARY_TABLE, TL_READ);
   tablelist.next_local = tablelist.next_global = nullptr;
 
@@ -270,8 +270,8 @@ table mysql.compression_dictionary
 @return on success, a TABLE* object else nullptr on failure */
 
 static TABLE *open_dictionary_cols_table_write(THD *thd) {
-  TABLE_LIST tablelist(C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_DB),
-                       C_STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_TABLE),
+  TABLE_LIST tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_DB),
+                       STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_TABLE),
                        COMPRESSION_DICTIONARY_COLS_TABLE,
                        TL_WRITE_CONCURRENT_DEFAULT, MDL_SHARED_WRITE);
   tablelist.next_local = tablelist.next_global = nullptr;
@@ -396,7 +396,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
   }
 
   table->next_number_field->set_null();
-  table->auto_increment_field_not_null = true;
+  //table->auto_increment_field_not_null = true;
   table->record[0][0] = ts->default_values[0];
   table->file->ha_start_bulk_insert(1);  // 1 is the estimated rows to insert
 
@@ -411,7 +411,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
     my_error(error, MYF(0), name, 64);
     table->file->ha_release_auto_increment();
     table->file->ha_end_bulk_insert();
-    table->auto_increment_field_not_null = false;
+    //table->auto_increment_field_not_null = false;
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
     DBUG_RETURN(error);
@@ -483,7 +483,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
 
   table->file->ha_release_auto_increment();
   table->file->ha_end_bulk_insert();
-  table->auto_increment_field_not_null = false;
+  //table->auto_increment_field_not_null = false;
 
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();

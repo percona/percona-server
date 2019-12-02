@@ -42,7 +42,7 @@ static bool mask_pan_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
 static void mask_pan_deinit(UDF_INIT *initid) {
   DBUG_ENTER("mask_pan_deinit");
 
-  if (initid->ptr) delete initid->ptr;
+  if (initid->ptr) delete[] initid->ptr;
 
   DBUG_VOID_RETURN;
 }

@@ -83,7 +83,7 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t keyring_vault_test)
 
   TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t
-    gunit_large strings dbug mysys sql_main sql_gis sql_dd)
+    gunit_large strings mysys sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t
     sql_main binlog rpl master slave sql_gis sql_dd sql_main)
   TARGET_LINK_LIBRARIES(merge_keyring_vault_tests-t ${CURL_LIBRARY} ${SSL_LIBRARIES})
@@ -101,7 +101,7 @@ ELSE(MERGE_UNITTESTS)
 
   TARGET_LINK_LIBRARIES(${test}-t keyring_vault_test)
   TARGET_LINK_LIBRARIES(${test}-t
-    gunit_large strings dbug mysys sql_main sql_gis sql_dd)
+    gunit_large strings mysys sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t
     sql_main binlog rpl master slave sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t ${CURL_LIBRARY} ${SSL_LIBRARIES})

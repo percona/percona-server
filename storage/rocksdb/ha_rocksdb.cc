@@ -6110,10 +6110,10 @@ int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
     goto error;
   }
 
-    /*
-      If inplace alter is happening, allocate special buffers for unique
-      secondary index duplicate checking.
-    */
+  /*
+    If inplace alter is happening, allocate special buffers for unique
+    secondary index duplicate checking.
+  */
 #ifdef HAVE_PSI_INTERFACE
   if (alloc_alter_buffers &&
       (!(m_dup_sk_packed_tuple = static_cast<uchar *>(
@@ -13254,7 +13254,7 @@ static void rocksdb_set_update_cf_options(
   // Reset the pointers regardless of how much success we had with updating
   // the CF options. This will results in consistent behavior and avoids
   // dealing with cases when only a subset of CF-s was successfully updated.
-  *reinterpret_cast<char **>(var_ptr) = my_strdup(0, val, MYF(0));
+  *reinterpret_cast<const char **>(var_ptr) = val;
 
   // Do the real work of applying the changes.
   Rdb_cf_options::Name_to_config_t option_map;

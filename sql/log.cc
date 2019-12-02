@@ -82,6 +82,7 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/mysqld.h"
+#include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"  // key_memory_File_query_log_name
 #include "sql/query_options.h"
 #include "sql/sp_head.h"
@@ -491,11 +492,11 @@ bool File_query_log::open() {
   my_off_t pos = 0;
   char buff[FN_REFLEN];
   MY_STAT f_stat;
-  DBUG_ENTER("File_query_log::open");
+  DBUG_TRACE;
 
   DBUG_ASSERT(name != nullptr);
 
-  if (is_open()) DBUG_RETURN(false);
+  if (is_open()) return false;
 
   write_error = false;
 
@@ -567,7 +568,7 @@ bool File_query_log::open() {
   }
 
   log_open = true;
-  DBUG_RETURN(false);
+  return false;
 
 err:
   char log_open_file_error_message[96] = "";
@@ -593,12 +594,12 @@ err:
   end_io_cache(&log_file);
 
   log_open = false;
-  DBUG_RETURN(true);
+  return true;
 }
 
 void File_query_log::close() {
-  DBUG_ENTER("File_query_log::close");
-  if (!is_open()) DBUG_VOID_RETURN;
+  DBUG_TRACE;
+  if (!is_open()) return;
 
   end_io_cache(&log_file);
 
@@ -609,8 +610,6 @@ void File_query_log::close() {
     check_and_print_write_error();
 
   log_open = false;
-
-  DBUG_VOID_RETURN;
 }
 
 void File_query_log::check_and_print_write_error() {
@@ -816,7 +815,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                     thd->tmp_tables_size) == (uint)-1)
       goto err;
 
-  if (my_b_write(&log_file, (uchar *)"\n", 1)) goto err;
+  if (my_b_write(&log_file, (const uchar *)"\n", 1)) goto err;
 
   if (opt_log_slow_sp_statements == 1 && thd->sp_runtime_ctx &&
       my_b_printf(&log_file, "# Stored_routine: %s\n",
@@ -1078,7 +1077,7 @@ bool Log_to_csv_event_handler::log_slow(
   struct timeval tv;
   const char *reason = "";
 
-  DBUG_ENTER("Log_to_csv_event_handler::log_slow");
+  DBUG_TRACE;
 
   /*
     CSV uses TIME_to_timestamp() internally if table needs to be repaired
@@ -1230,37 +1229,39 @@ err:
   if (need_close) close_log_table(thd, &open_tables_backup);
 
   thd->time_zone_used = save_time_zone_used;
-  DBUG_RETURN(result);
+  return result;
 }
 
 bool Log_to_csv_event_handler::activate_log(
     THD *thd, enum_log_table_type log_table_type) {
-  TABLE_LIST table_list;
+  DBUG_TRACE;
 
-  DBUG_ENTER("Log_to_csv_event_handler::activate_log");
+  const char *log_name = nullptr;
+  size_t log_name_length = 0;
 
   switch (log_table_type) {
     case QUERY_LOG_GENERAL:
-      table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
-                                GENERAL_LOG_NAME.str, GENERAL_LOG_NAME.length,
-                                GENERAL_LOG_NAME.str,
-                                TL_WRITE_CONCURRENT_INSERT);
+      log_name = GENERAL_LOG_NAME.str;
+      log_name_length = GENERAL_LOG_NAME.length;
       break;
     case QUERY_LOG_SLOW:
-      table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
-                                SLOW_LOG_NAME.str, SLOW_LOG_NAME.length,
-                                SLOW_LOG_NAME.str, TL_WRITE_CONCURRENT_INSERT);
+      log_name = SLOW_LOG_NAME.str;
+      log_name_length = SLOW_LOG_NAME.length;
       break;
     default:
       DBUG_ASSERT(false);
   }
 
+  TABLE_LIST table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                        log_name, log_name_length, log_name,
+                        TL_WRITE_CONCURRENT_INSERT);
+
   Open_tables_backup open_tables_backup;
   if (open_log_table(thd, &table_list, &open_tables_backup) != NULL) {
     close_log_table(thd, &open_tables_backup);
-    DBUG_RETURN(false);
+    return false;
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -1705,32 +1706,31 @@ static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime) {
 }
 
 static void copy_global_to_session(THD *thd, ulong flag, const ulong *val) {
-  const ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
+  const ptrdiff_t offset = ((const char *)val - (const char *)&global_system_variables);
   if (opt_slow_query_log_use_global_control & (1ULL << flag))
     *(ulong *)((char *)&thd->variables + offset) = *val;
 }
 
 static void copy_global_to_session(THD *thd, ulong flag, const ulonglong *val) {
-  const ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
+  const ptrdiff_t offset = ((const char *)val - (const char *)&global_system_variables);
   if (opt_slow_query_log_use_global_control & (1ULL << flag))
     *(ulonglong *)((char *)&thd->variables + offset) = *val;
 }
 
 bool log_slow_applicable(THD *thd, int sp_sql_command) {
-  DBUG_ENTER("log_slow_applicable");
+  DBUG_TRACE;
 
   /*
     The following should never be true with our current code base,
     but better to keep this here so we don't accidently try to log a
     statement in a trigger or stored function
   */
-  if (unlikely(thd->in_sub_stmt))
-    DBUG_RETURN(false);  // Don't set time for sub stmt
+  if (unlikely(thd->in_sub_stmt)) return false;  // Don't set time for sub stmt
 
   /* Follow the slow log filter configuration. */
   if (thd->variables.log_slow_filter != 0 &&
       !(thd->variables.log_slow_filter & thd->query_plan_flags))
-    DBUG_RETURN(false);
+	 return false;
 
   ulonglong end_utime_of_query = thd->current_utime();
   ulonglong query_exec_time = get_query_exec_time(thd, end_utime_of_query);
@@ -1743,15 +1743,15 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
     if (thd->lex->sql_command == SQLCOM_CALL) {
       if (!thd->stmt_arena->is_regular()) {
         DBUG_ASSERT(sp_sql_command != -1);
-        if (sp_sql_command == SQLCOM_CALL) DBUG_RETURN(false);
+        if (sp_sql_command == SQLCOM_CALL) return false;
       } else
-        DBUG_RETURN(false);
+	 return false;
     } else if (thd->lex->sql_command == SQLCOM_EXECUTE) {
       Prepared_statement *stmt;
       LEX_CSTRING *name = &thd->lex->prepared_stmt_name;
       if ((stmt = thd->stmt_map.find_by_name(*name)) != NULL && stmt->lex &&
           stmt->lex->sql_command == SQLCOM_CALL)
-        DBUG_RETURN(false);
+	 return false;
     }
   }
 
@@ -1779,7 +1779,7 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
       query_exec_time < slow_query_log_always_write_time &&
       (thd->variables.long_query_time >= 1000000 ||
        (ulong)query_exec_time < 1000000)) {
-    DBUG_RETURN(false);
+	  return false;
   }
   if (opt_slow_query_log_rate_type == SLOG_RT_SESSION &&
       thd->variables.log_slow_rate_limit &&
@@ -1787,7 +1787,7 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
       query_exec_time < slow_query_log_always_write_time &&
       (thd->variables.long_query_time >= 1000000 ||
        (ulong)query_exec_time < 1000000)) {
-    DBUG_RETURN(false);
+	  return false;
   }
 
   /*
@@ -1806,9 +1806,9 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
          thd->variables.min_examined_row_limit);
     bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
 
-    if (!suppress_logging && log_this_query) DBUG_RETURN(true);
+    if (!suppress_logging && log_this_query) return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2188,7 +2188,7 @@ bool reopen_error_log() {
   @retval          int                  number of added fields, if any
 */
 void log_write_errstream(const char *buffer, size_t length) {
-  DBUG_ENTER("log_write_errstream");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("buffer: %s", buffer));
 
   /*
@@ -2202,8 +2202,6 @@ void log_write_errstream(const char *buffer, size_t length) {
   fflush(stderr);
 
   if (error_log_initialized) mysql_mutex_unlock(&LOCK_error_log);
-
-  DBUG_VOID_RETURN;
 }
 
 my_thread_id log_get_thread_id(THD *thd) { return thd->thread_id(); }
@@ -2258,7 +2256,7 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili) {
   bool dedup;
   int wk;
 
-  DBUG_ENTER("log_message");
+  DBUG_TRACE;
 
   ll.count = 0;
   ll.seen = 0;
@@ -2350,7 +2348,7 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili) {
           to free anything here.
         */
         DBUG_ASSERT(false);
-        DBUG_RETURN(-1);
+        return -1;
     }
 
     /*
@@ -2479,7 +2477,7 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili) {
 
   va_end(fili);
 
-  DBUG_RETURN(log_line_submit(&ll));
+  return log_line_submit(&ll);
 }
 
 /**
@@ -2494,15 +2492,13 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili) {
 
 */
 void error_log_print(enum loglevel level, uint ecode, va_list args) {
-  DBUG_ENTER("error_log_print");
+  DBUG_TRACE;
 
   LogEvent()
       .type(LOG_TYPE_ERROR)
       .errcode(ecode)
       .prio(level)
       .messagev(EE(ecode), args);
-
-  DBUG_VOID_RETURN;
 }
 
 /**

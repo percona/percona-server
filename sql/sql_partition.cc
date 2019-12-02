@@ -264,18 +264,18 @@ static bool partition_default_handling(Partition_handler *part_handler,
                                        partition_info *part_info,
                                        bool is_create_table_ind,
                                        const char *normalized_path) {
-  DBUG_ENTER("partition_default_handling");
+  DBUG_TRACE;
 
   if (!is_create_table_ind) {
     if (part_info->use_default_num_partitions) {
       if (part_handler->get_num_parts(normalized_path, &part_info->num_parts)) {
-        DBUG_RETURN(true);
+        return true;
       }
     } else if (part_info->is_sub_partitioned() &&
                part_info->use_default_num_subpartitions) {
       uint num_parts;
       if (part_handler->get_num_parts(normalized_path, &num_parts)) {
-        DBUG_RETURN(true);
+        return true;
       }
       DBUG_ASSERT(part_info->num_parts > 0);
       DBUG_ASSERT((num_parts % part_info->num_parts) == 0);
@@ -283,7 +283,7 @@ static bool partition_default_handling(Partition_handler *part_handler,
     }
   }
   part_info->set_up_defaults_for_partitioning(part_handler, NULL, 0U);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -312,7 +312,7 @@ int get_parts_for_update(const uchar *old_data,
   Field **part_field_array = part_info->full_part_field_array;
   int error;
   longlong old_func_value;
-  DBUG_ENTER("get_parts_for_update");
+  DBUG_TRACE;
 
   DBUG_ASSERT(new_data == rec0);  // table->record[0]
   set_field_ptr(part_field_array, old_data, rec0);
@@ -320,14 +320,14 @@ int get_parts_for_update(const uchar *old_data,
   set_field_ptr(part_field_array, rec0, old_data);
   if (unlikely(error)) {
     part_info->err_value = old_func_value;
-    DBUG_RETURN(error);
+    return error;
   }
   if (unlikely((error = part_info->get_partition_id(part_info, new_part_id,
                                                     new_func_value)))) {
     part_info->err_value = *new_func_value;
-    DBUG_RETURN(error);
+    return error;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -355,13 +355,13 @@ int get_part_for_delete(const uchar *buf, const uchar *rec0,
                         partition_info *part_info, uint32 *part_id) {
   int error;
   longlong func_value;
-  DBUG_ENTER("get_part_for_delete");
+  DBUG_TRACE;
 
   if (likely(buf == rec0)) {
     if (unlikely((error = part_info->get_partition_id(part_info, part_id,
                                                       &func_value)))) {
       part_info->err_value = func_value;
-      DBUG_RETURN(error);
+      return error;
     }
     DBUG_PRINT("info", ("Delete from partition %d", *part_id));
   } else {
@@ -371,11 +371,11 @@ int get_part_for_delete(const uchar *buf, const uchar *rec0,
     set_field_ptr(part_field_array, rec0, buf);
     if (unlikely(error)) {
       part_info->err_value = func_value;
-      DBUG_RETURN(error);
+      return error;
     }
     DBUG_PRINT("info", ("Delete from partition %d (path2)", *part_id));
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -428,7 +428,7 @@ static bool set_up_field_array(TABLE *table, bool is_sub_part) {
   uint inx;
   partition_info *part_info = table->part_info;
   int result = false;
-  DBUG_ENTER("set_up_field_array");
+  DBUG_TRACE;
 
   ptr = table->field;
   while ((field = *(ptr++))) {
@@ -441,14 +441,14 @@ static bool set_up_field_array(TABLE *table, bool is_sub_part) {
     else
       err_str = "partition function";
     my_error(ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR, MYF(0), err_str);
-    DBUG_RETURN(true);
+    return true;
   }
   if (num_fields == 0) {
     /*
       We are using hidden key as partitioning field
     */
     DBUG_ASSERT(!is_sub_part);
-    DBUG_RETURN(result);
+    return result;
   }
   size_field_array = (num_fields + 1) * sizeof(Field *);
   field_array = (Field **)sql_calloc(size_field_array);
@@ -513,7 +513,7 @@ static bool set_up_field_array(TABLE *table, bool is_sub_part) {
     part_info->subpart_field_array = field_array;
     part_info->num_subpart_fields = num_fields;
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -542,7 +542,7 @@ static bool create_full_part_field_array(THD *thd, TABLE *table,
   bool result = false;
   Field **ptr;
   my_bitmap_map *bitmap_buf;
-  DBUG_ENTER("create_full_part_field_array");
+  DBUG_TRACE;
 
   if (!part_info->is_sub_partitioned()) {
     part_info->full_part_field_array = part_info->part_field_array;
@@ -599,7 +599,7 @@ static bool create_full_part_field_array(THD *thd, TABLE *table,
       bitmap_set_bit(&part_info->full_part_field_set, (*ptr)->field_index);
 
 end:
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -665,13 +665,13 @@ static void set_indicator_in_key_fields(KEY *key_info) {
 
 static void check_fields_in_PF(Field **ptr, bool *all_fields,
                                bool *some_fields) {
-  DBUG_ENTER("check_fields_in_PF");
+  DBUG_TRACE;
 
   *all_fields = true;
   *some_fields = false;
   if ((!ptr) || !(*ptr)) {
     *all_fields = false;
-    DBUG_VOID_RETURN;
+    return;
   }
   do {
     /* Check if the field of the PF is part of the current key investigated */
@@ -680,7 +680,6 @@ static void check_fields_in_PF(Field **ptr, bool *all_fields,
     else
       *all_fields = false;
   } while (*(++ptr));
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -697,11 +696,10 @@ static void check_fields_in_PF(Field **ptr, bool *all_fields,
 
 static void clear_field_flag(TABLE *table) {
   Field **ptr;
-  DBUG_ENTER("clear_field_flag");
+  DBUG_TRACE;
 
   for (ptr = table->field; *ptr; ptr++)
     (*ptr)->flags &= (~GET_FIXED_FIELDS_FLAG);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -732,7 +730,7 @@ static bool handle_list_of_fields(List_iterator<char> it, TABLE *table,
   bool result;
   char *field_name;
   bool is_list_empty = true;
-  DBUG_ENTER("handle_list_of_fields");
+  DBUG_TRACE;
 
   while ((field_name = it++)) {
     is_list_empty = false;
@@ -767,16 +765,16 @@ static bool handle_list_of_fields(List_iterator<char> it, TABLE *table,
           partitioning based on a hidden key. Thus we allocate no
           array for partitioning fields.
         */
-        DBUG_RETURN(false);
+        return false;
       } else {
         my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
-        DBUG_RETURN(true);
+        return true;
       }
     }
   }
   result = set_up_field_array(table, is_sub_part);
 end:
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -923,7 +921,7 @@ static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
   SELECT_LEX select(nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
-  DBUG_ENTER("fix_fields_part_func");
+  DBUG_TRACE;
 
   if (init_lex_with_single_table(thd, table, &lex)) goto end;
 
@@ -993,7 +991,7 @@ end:
 #if !defined(DBUG_OFF)
   func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX, NULL);
 #endif
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -1020,7 +1018,7 @@ static bool check_primary_key(TABLE *table) {
   uint primary_key = table->s->primary_key;
   bool all_fields, some_fields;
   bool result = false;
-  DBUG_ENTER("check_primary_key");
+  DBUG_TRACE;
 
   if (primary_key < MAX_KEY) {
     set_indicator_in_key_fields(table->key_info + primary_key);
@@ -1032,7 +1030,7 @@ static bool check_primary_key(TABLE *table) {
       result = true;
     }
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -1060,7 +1058,7 @@ static bool check_unique_keys(TABLE *table) {
   bool result = false;
   uint keys = table->s->keys;
   uint i;
-  DBUG_ENTER("check_unique_keys");
+  DBUG_TRACE;
 
   for (i = 0; i < keys; i++) {
     if (table->key_info[i].flags & HA_NOSAME)  // Unique index
@@ -1076,7 +1074,7 @@ static bool check_unique_keys(TABLE *table) {
       }
     }
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -1130,11 +1128,7 @@ static bool check_unique_keys(TABLE *table) {
     Support for this is not implemented yet.
 */
 
-static void check_range_capable_PF(TABLE *) {
-  DBUG_ENTER("check_range_capable_PF");
-
-  DBUG_VOID_RETURN;
-}
+static void check_range_capable_PF(TABLE *) { DBUG_TRACE; }
 
 /**
   Set up partition bitmaps
@@ -1150,20 +1144,20 @@ static void check_range_capable_PF(TABLE *) {
 */
 
 static bool set_up_partition_bitmaps(partition_info *part_info) {
-  DBUG_ENTER("set_up_partition_bitmaps");
+  DBUG_TRACE;
 
   DBUG_ASSERT(!part_info->bitmaps_are_initialized);
 
   if (part_info->init_partition_bitmap(&part_info->read_partitions,
                                        &part_info->table->mem_root))
-    DBUG_RETURN(true);
+    return true;
   if (part_info->init_partition_bitmap(&part_info->lock_partitions,
                                        &part_info->table->mem_root))
-    DBUG_RETURN(true);
+    return true;
 
   part_info->bitmaps_are_initialized = true;
   part_info->set_partition_bitmaps(NULL);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -1194,7 +1188,7 @@ static void set_up_partition_key_maps(TABLE *table, partition_info *part_info) {
   uint keys = table->s->keys;
   uint i;
   bool all_fields, some_fields;
-  DBUG_ENTER("set_up_partition_key_maps");
+  DBUG_TRACE;
 
   part_info->all_fields_in_PF.clear_all();
   part_info->all_fields_in_PPF.clear_all();
@@ -1216,7 +1210,6 @@ static void set_up_partition_key_maps(TABLE *table, partition_info *part_info) {
     }
     clear_indicator_in_key_fields(table->key_info + i);
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1237,7 +1230,7 @@ static void set_up_partition_key_maps(TABLE *table, partition_info *part_info) {
 */
 
 static void set_up_partition_func_pointers(partition_info *part_info) {
-  DBUG_ENTER("set_up_partition_func_pointers");
+  DBUG_TRACE;
 
   if (part_info->is_sub_partitioned()) {
     part_info->get_partition_id = get_partition_id_with_sub;
@@ -1334,7 +1327,6 @@ static void set_up_partition_func_pointers(partition_info *part_info) {
     part_info->get_subpartition_id_charset = part_info->get_subpartition_id;
     part_info->get_subpartition_id = get_part_id_charset_func_subpart;
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1436,7 +1428,7 @@ bool field_is_partition_charset(Field *field) {
 
 bool check_part_func_fields(Field **ptr, bool ok_with_charsets) {
   Field *field;
-  DBUG_ENTER("check_part_func_fields");
+  DBUG_TRACE;
 
   while ((field = *(ptr++))) {
     /*
@@ -1447,11 +1439,11 @@ bool check_part_func_fields(Field **ptr, bool ok_with_charsets) {
     if (field_is_partition_charset(field)) {
       const CHARSET_INFO *cs = field->charset();
       if (!ok_with_charsets || cs->mbmaxlen > 1 || cs->strxfrm_multiply > 1) {
-        DBUG_RETURN(true);
+        return true;
       }
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -1487,10 +1479,10 @@ bool fix_partition_func(THD *thd, TABLE *table, bool is_create_table_ind) {
   enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
   Partition_handler *part_handler;
   const ulong save_want_privilege = thd->want_privilege;
-  DBUG_ENTER("fix_partition_func");
+  DBUG_TRACE;
 
   if (part_info->fixed) {
-    DBUG_RETURN(false);
+    return false;
   }
   thd->mark_used_columns = MARK_COLUMNS_NONE;
   thd->want_privilege = 0;
@@ -1501,12 +1493,12 @@ bool fix_partition_func(THD *thd, TABLE *table, bool is_create_table_ind) {
     if (!part_handler) {
       DBUG_ASSERT(0);
       my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (partition_default_handling(part_handler, part_info, is_create_table_ind,
                                    table->s->normalized_path.str)) {
-      DBUG_RETURN(true);
+      return true;
     }
   }
   if (part_info->is_sub_partitioned()) {
@@ -1631,7 +1623,7 @@ end:
   thd->mark_used_columns = save_mark_used_columns;
   thd->want_privilege = save_want_privilege;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
-  DBUG_RETURN(result);
+  return result;
 }
 
 // TODO: Change this to use streams instead, to make it possible to skip
@@ -2027,15 +2019,15 @@ static Create_field *get_sql_field(const char *field_name,
                                    List<Create_field> *create_fields) {
   List_iterator<Create_field> it(*create_fields);
   Create_field *sql_field;
-  DBUG_ENTER("get_sql_field");
+  DBUG_TRACE;
 
   while ((sql_field = it++)) {
     if (!(my_strcasecmp(system_charset_info, sql_field->field_name,
                         field_name))) {
-      DBUG_RETURN(sql_field);
+      return sql_field;
     }
   }
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 int expr_to_string(String *val_conv, Item *item_expr, Field *field,
@@ -2317,10 +2309,10 @@ char *generate_partition_syntax(partition_info *part_info, uint *buf_length,
   List_iterator<partition_element> part_it(part_info->partitions);
   File fptr;
   char *buf = NULL;  // Return buffer
-  DBUG_ENTER("generate_partition_syntax");
+  DBUG_TRACE;
 
   if (!(fptr = mysql_tmpfile("psy"))) {
-    DBUG_RETURN(NULL);
+    return NULL;
   }
   err += add_space(fptr);
   err += add_partition_by(fptr);
@@ -2344,7 +2336,7 @@ char *generate_partition_syntax(partition_info *part_info, uint *buf_length,
       DBUG_ASSERT(0);
       /* We really shouldn't get here, no use in continuing from here */
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
-      DBUG_RETURN(NULL);
+      return NULL;
   }
   if (part_info->part_func_len) {
     err += add_begin_parenthesis(fptr);
@@ -2471,7 +2463,7 @@ close_file:
     my_error(ER_INTERNAL_ERROR, MYF(0), "Failed to generate partition syntax");
   }
   mysql_file_close(fptr, MYF(0));
-  DBUG_RETURN(buf);
+  return buf;
 }
 
 /*
@@ -2491,15 +2483,15 @@ close_file:
 bool partition_key_modified(TABLE *table, const MY_BITMAP *fields) {
   Field **fld;
   partition_info *part_info = table->part_info;
-  DBUG_ENTER("partition_key_modified");
+  DBUG_TRACE;
 
-  if (!part_info) DBUG_RETURN(false);
+  if (!part_info) return false;
   if (table->s->db_type()->partition_flags &&
       (table->s->db_type()->partition_flags() & HA_CAN_UPDATE_PARTITION_KEY))
-    DBUG_RETURN(false);
+    return false;
   for (fld = part_info->full_part_field_array; *fld; fld++)
-    if (bitmap_is_set(fields, (*fld)->field_index)) DBUG_RETURN(true);
-  DBUG_RETURN(false);
+    if (bitmap_is_set(fields, (*fld)->field_index)) return true;
+  return false;
 }
 
 /*
@@ -2578,15 +2570,14 @@ inline static uint32 get_part_id_for_sub(uint32 loc_part_id, uint32 sub_part_id,
 static int get_part_id_hash(uint num_parts, Item *part_expr, uint32 *part_id,
                             longlong *func_value) {
   longlong int_hash_id;
-  DBUG_ENTER("get_part_id_hash");
+  DBUG_TRACE;
 
-  if (part_val_int(part_expr, func_value))
-    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+  if (part_val_int(part_expr, func_value)) return HA_ERR_NO_PARTITION_FOUND;
 
   int_hash_id = *func_value % num_parts;
 
   *part_id = int_hash_id < 0 ? (uint32)-int_hash_id : (uint32)int_hash_id;
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -2609,14 +2600,13 @@ static int get_part_id_hash(uint num_parts, Item *part_expr, uint32 *part_id,
 static int get_part_id_linear_hash(partition_info *part_info, uint num_parts,
                                    Item *part_expr, uint32 *part_id,
                                    longlong *func_value) {
-  DBUG_ENTER("get_part_id_linear_hash");
+  DBUG_TRACE;
 
-  if (part_val_int(part_expr, func_value))
-    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+  if (part_val_int(part_expr, func_value)) return HA_ERR_NO_PARTITION_FOUND;
 
   *part_id = get_part_id_from_linear_hash(
       *func_value, part_info->linear_hash_mask, num_parts);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2632,9 +2622,9 @@ static int get_part_id_linear_hash(partition_info *part_info, uint num_parts,
 
 inline static uint32 get_part_id_key(handler *file, Field **field_array,
                                      uint num_parts, longlong *func_value) {
-  DBUG_ENTER("get_part_id_key");
+  DBUG_TRACE;
   *func_value = file->calculate_key_hash_value(field_array);
-  DBUG_RETURN((uint32)(*func_value % num_parts));
+  return (uint32)(*func_value % num_parts);
 }
 
 /*
@@ -2654,11 +2644,11 @@ inline static uint32 get_part_id_key(handler *file, Field **field_array,
 inline static uint32 get_part_id_linear_key(partition_info *part_info,
                                             Field **field_array, uint num_parts,
                                             longlong *func_value) {
-  DBUG_ENTER("get_part_id_linear_key");
+  DBUG_TRACE;
 
   *func_value = part_info->table->file->calculate_key_hash_value(field_array);
-  DBUG_RETURN(get_part_id_from_linear_hash(
-      *func_value, part_info->linear_hash_mask, num_parts));
+  return get_part_id_from_linear_hash(*func_value, part_info->linear_hash_mask,
+                                      num_parts);
 }
 
 /*
@@ -2811,7 +2801,7 @@ static int get_part_id_charset_func_part(partition_info *part_info,
                                          uint32 *part_id,
                                          longlong *func_value) {
   int res;
-  DBUG_ENTER("get_part_id_charset_func_part");
+  DBUG_TRACE;
 
   copy_to_part_field_buffers(part_info->part_charset_field_array,
                              part_info->part_field_buffers,
@@ -2820,13 +2810,13 @@ static int get_part_id_charset_func_part(partition_info *part_info,
       part_info->get_part_partition_id_charset(part_info, part_id, func_value);
   restore_part_field_pointers(part_info->part_charset_field_array,
                               part_info->restore_part_field_ptrs);
-  DBUG_RETURN(res);
+  return res;
 }
 
 static int get_part_id_charset_func_subpart(partition_info *part_info,
                                             uint32 *part_id) {
   int res;
-  DBUG_ENTER("get_part_id_charset_func_subpart");
+  DBUG_TRACE;
 
   copy_to_part_field_buffers(part_info->subpart_charset_field_array,
                              part_info->subpart_field_buffers,
@@ -2834,7 +2824,7 @@ static int get_part_id_charset_func_subpart(partition_info *part_info,
   res = part_info->get_subpartition_id_charset(part_info, part_id);
   restore_part_field_pointers(part_info->subpart_charset_field_array,
                               part_info->restore_subpart_field_ptrs);
-  DBUG_RETURN(res);
+  return res;
 }
 
 static int get_partition_id_list_col(partition_info *part_info, uint32 *part_id,
@@ -2844,7 +2834,7 @@ static int get_partition_id_list_col(partition_info *part_info, uint32 *part_id,
   int list_index, cmp;
   int min_list_index = 0;
   int max_list_index = part_info->num_list_values - 1;
-  DBUG_ENTER("get_partition_id_list_col");
+  DBUG_TRACE;
 
   while (max_list_index >= min_list_index) {
     list_index = (max_list_index + min_list_index) >> 1;
@@ -2857,12 +2847,12 @@ static int get_partition_id_list_col(partition_info *part_info, uint32 *part_id,
       max_list_index = list_index - 1;
     } else {
       *part_id = (uint32)list_col_array[list_index * num_columns].partition_id;
-      DBUG_RETURN(0);
+      return 0;
     }
   }
 notfound:
   *part_id = 0;
-  DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+  return HA_ERR_NO_PARTITION_FOUND;
 }
 
 static int get_partition_id_list(partition_info *part_info, uint32 *part_id,
@@ -2875,14 +2865,14 @@ static int get_partition_id_list(partition_info *part_info, uint32 *part_id,
   int error = part_val_int(part_info->part_expr, &part_func_value);
   longlong list_value;
   bool unsigned_flag = part_info->part_expr->unsigned_flag;
-  DBUG_ENTER("get_partition_id_list");
+  DBUG_TRACE;
 
   if (error) goto notfound;
 
   if (part_info->part_expr->null_value) {
     if (part_info->has_null_value) {
       *part_id = part_info->has_null_part_id;
-      DBUG_RETURN(0);
+      return 0;
     }
     goto notfound;
   }
@@ -2898,12 +2888,12 @@ static int get_partition_id_list(partition_info *part_info, uint32 *part_id,
       max_list_index = list_index - 1;
     } else {
       *part_id = (uint32)list_array[list_index].partition_id;
-      DBUG_RETURN(0);
+      return 0;
     }
   }
 notfound:
   *part_id = 0;
-  DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+  return HA_ERR_NO_PARTITION_FOUND;
 }
 
 static uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
@@ -2917,7 +2907,7 @@ static uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
   int cmp;
   /* Notice that max_list_index = last_index + 1 here! */
   uint max_list_index = part_info->num_list_values;
-  DBUG_ENTER("get_partition_id_cols_list_for_endpoint");
+  DBUG_TRACE;
 
   /* Find the matching partition (including taking endpoint into account). */
   do {
@@ -2950,7 +2940,7 @@ static uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
       list_index < part_info->num_list_values)
     list_index++;
 
-  DBUG_RETURN(list_index);
+  return list_index;
 }
 
 /**
@@ -3011,7 +3001,7 @@ static uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
   longlong part_func_value =
       part_info->part_expr->val_int_endpoint(left_endpoint, &include_endpoint);
   bool unsigned_flag = part_info->part_expr->unsigned_flag;
-  DBUG_ENTER("get_list_array_idx_for_endpoint");
+  DBUG_TRACE;
 
   if (part_info->part_expr->null_value) {
     /*
@@ -3027,7 +3017,7 @@ static uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
     if (monotonic != MONOTONIC_INCREASING_NOT_NULL &&
         monotonic != MONOTONIC_STRICT_INCREASING_NOT_NULL) {
       /* F(col) can not return NULL, return index with lowest value */
-      DBUG_RETURN(0);
+      return 0;
     }
   }
 
@@ -3042,12 +3032,12 @@ static uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
       if (!list_index) goto notfound;
       max_list_index = list_index - 1;
     } else {
-      DBUG_RETURN(list_index + ((left_endpoint ^ include_endpoint) ? 1 : 0));
+      return list_index + ((left_endpoint ^ include_endpoint) ? 1 : 0);
     }
   } while (max_list_index >= min_list_index);
 notfound:
   if (list_value < part_func_value) list_index++;
-  DBUG_RETURN(list_index);
+  return list_index;
 }
 
 static int get_partition_id_range_col(partition_info *part_info,
@@ -3058,7 +3048,7 @@ static int get_partition_id_range_col(partition_info *part_info,
   uint min_part_id = 0;
   uint max_part_id = max_partition;
   uint loc_part_id;
-  DBUG_ENTER("get_partition_id_range_col");
+  DBUG_TRACE;
 
   while (max_part_id > min_part_id) {
     loc_part_id = (max_part_id + min_part_id + 1) >> 1;
@@ -3077,10 +3067,10 @@ static int get_partition_id_range_col(partition_info *part_info,
   if (loc_part_id == max_partition &&
       (cmp_rec_and_tuple(range_col_array + loc_part_id * num_columns,
                          num_columns) >= 0))
-    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+    return HA_ERR_NO_PARTITION_FOUND;
 
   DBUG_PRINT("exit", ("partition: %d", *part_id));
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int get_partition_id_range(partition_info *part_info, uint32 *part_id,
@@ -3093,13 +3083,13 @@ int get_partition_id_range(partition_info *part_info, uint32 *part_id,
   longlong part_func_value;
   int error = part_val_int(part_info->part_expr, &part_func_value);
   bool unsigned_flag = part_info->part_expr->unsigned_flag;
-  DBUG_ENTER("get_partition_id_range");
+  DBUG_TRACE;
 
-  if (error) DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+  if (error) return HA_ERR_NO_PARTITION_FOUND;
 
   if (part_info->part_expr->null_value) {
     *part_id = 0;
-    DBUG_RETURN(0);
+    return 0;
   }
   *func_value = part_func_value;
   if (unsigned_flag) part_func_value -= 0x8000000000000000ULL;
@@ -3116,10 +3106,10 @@ int get_partition_id_range(partition_info *part_info, uint32 *part_id,
   if (loc_part_id == max_partition &&
       part_func_value >= range_array[loc_part_id] &&
       !part_info->defined_max_value)
-    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+    return HA_ERR_NO_PARTITION_FOUND;
 
   DBUG_PRINT("exit", ("partition: %d", *part_id));
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -3188,7 +3178,7 @@ static uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
       part_info->part_expr->val_int_endpoint(left_endpoint, &include_endpoint);
 
   bool unsigned_flag = part_info->part_expr->unsigned_flag;
-  DBUG_ENTER("get_partition_id_range_for_endpoint");
+  DBUG_TRACE;
 
   if (part_info->part_expr->null_value) {
     /*
@@ -3205,8 +3195,8 @@ static uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
     if (monotonic != MONOTONIC_INCREASING_NOT_NULL &&
         monotonic != MONOTONIC_STRICT_INCREASING_NOT_NULL) {
       /* F(col) can not return NULL, return partition with lowest value */
-      if (!left_endpoint && include_endpoint) DBUG_RETURN(1);
-      DBUG_RETURN(0);
+      if (!left_endpoint && include_endpoint) return 1;
+      return 0;
     }
   }
 
@@ -3251,7 +3241,7 @@ static uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
     /* Right endpoint, set end after correct partition */
     loc_part_id++;
   }
-  DBUG_RETURN(loc_part_id);
+  return loc_part_id;
 }
 
 static int get_partition_id_hash_nosub(partition_info *part_info,
@@ -3288,19 +3278,19 @@ static int get_partition_id_with_sub(partition_info *part_info, uint32 *part_id,
   uint32 loc_part_id, sub_part_id;
   uint num_subparts;
   int error;
-  DBUG_ENTER("get_partition_id_with_sub");
+  DBUG_TRACE;
 
   if (unlikely((error = part_info->get_part_partition_id(
                     part_info, &loc_part_id, func_value)))) {
-    DBUG_RETURN(error);
+    return error;
   }
   num_subparts = part_info->num_subparts;
   if (unlikely(
           (error = part_info->get_subpartition_id(part_info, &sub_part_id)))) {
-    DBUG_RETURN(error);
+    return error;
   }
   *part_id = get_part_id_for_sub(loc_part_id, sub_part_id, num_subparts);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -3374,7 +3364,7 @@ static int get_partition_id_linear_key_sub(partition_info *part_info,
 static bool set_PF_fields_in_key(KEY *key_info, uint key_length) {
   KEY_PART_INFO *key_part;
   bool found_part_field = false;
-  DBUG_ENTER("set_PF_fields_in_key");
+  DBUG_TRACE;
 
   for (key_part = key_info->key_part; (int)key_length > 0; key_part++) {
     if (key_part->null_bit) key_length--;
@@ -3391,7 +3381,7 @@ static bool set_PF_fields_in_key(KEY *key_info, uint key_length) {
       key_part->field->flags |= GET_FIXED_FIELDS_FLAG;
     }
   }
-  DBUG_RETURN(found_part_field);
+  return found_part_field;
 }
 
 /*
@@ -3409,7 +3399,7 @@ static bool set_PF_fields_in_key(KEY *key_info, uint key_length) {
 
 static bool check_part_func_bound(Field **ptr) {
   bool result = true;
-  DBUG_ENTER("check_part_func_bound");
+  DBUG_TRACE;
 
   for (; *ptr; ptr++) {
     if (!((*ptr)->flags & GET_FIXED_FIELDS_FLAG)) {
@@ -3417,7 +3407,7 @@ static bool check_part_func_bound(Field **ptr) {
       break;
     }
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -3447,7 +3437,7 @@ static int get_sub_part_id_from_key(const TABLE *table, uchar *buf,
   uchar *rec0 = table->record[0];
   partition_info *part_info = table->part_info;
   int res;
-  DBUG_ENTER("get_sub_part_id_from_key");
+  DBUG_TRACE;
 
   key_restore(buf, key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf)) {
@@ -3458,7 +3448,7 @@ static int get_sub_part_id_from_key(const TABLE *table, uchar *buf,
     res = part_info->get_subpartition_id(part_info, part_id);
     set_field_ptr(part_field_array, rec0, buf);
   }
-  DBUG_RETURN(res);
+  return res;
 }
 
 /*
@@ -3488,7 +3478,7 @@ static bool get_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
   uchar *rec0 = table->record[0];
   partition_info *part_info = table->part_info;
   longlong func_value;
-  DBUG_ENTER("get_part_id_from_key");
+  DBUG_TRACE;
 
   key_restore(buf, key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf)) {
@@ -3499,7 +3489,7 @@ static bool get_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
     result = part_info->get_part_partition_id(part_info, part_id, &func_value);
     set_field_ptr(part_field_array, rec0, buf);
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -3530,7 +3520,7 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
   partition_info *part_info = table->part_info;
   uchar *rec0 = table->record[0];
   longlong func_value;
-  DBUG_ENTER("get_full_part_id_from_key");
+  DBUG_TRACE;
 
   key_restore(buf, key_spec->key, key_info, key_spec->length);
   if (likely(rec0 == buf)) {
@@ -3545,7 +3535,6 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
   }
   part_spec->end_part = part_spec->start_part;
   if (unlikely(result)) part_spec->start_part++;
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -3568,7 +3557,7 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
   int error;
   uchar *old_rec;
   partition_info *part_info;
-  DBUG_ENTER("verify_data_with_partition");
+  DBUG_TRACE;
   DBUG_ASSERT(table && table->file && part_table && part_table->part_info &&
               part_table->file);
 
@@ -3620,8 +3609,8 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
 err:
   set_field_ptr(part_info->full_part_field_array, old_rec, table->record[0]);
   part_table->record[0] = old_rec;
-  if (error) DBUG_RETURN(true);
-  DBUG_RETURN(false);
+  if (error) return true;
+  return false;
 }
 
 /*
@@ -3646,7 +3635,7 @@ void prune_partition_set(const TABLE *table, part_id_range *part_spec) {
   int last_partition = -1;
   uint i = part_spec->start_part;
   partition_info *part_info = table->part_info;
-  DBUG_ENTER("prune_partition_set");
+  DBUG_TRACE;
 
   if (i)
     i = bitmap_get_next_set(&part_info->read_partitions, i - 1);
@@ -3668,8 +3657,6 @@ void prune_partition_set(const TABLE *table, part_id_range *part_spec) {
     part_spec->start_part = part_spec->end_part + 1;
   else  // if (last_partition != -1)
     part_spec->end_part = last_partition;
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -3706,7 +3693,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
   uint32 part_part = num_parts;
   KEY *key_info = NULL;
   bool found_part_field = false;
-  DBUG_ENTER("get_partition_set");
+  DBUG_TRACE;
 
   part_spec->start_part = 0;
   part_spec->end_part = num_parts - 1;
@@ -3735,13 +3722,13 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
           Check if range can be adjusted by looking in read_partitions
         */
         prune_partition_set(table, part_spec);
-        DBUG_VOID_RETURN;
+        return;
       } else if (part_info->is_sub_partitioned()) {
         if (part_info->all_fields_in_SPF.is_set(index)) {
           if (get_sub_part_id_from_key(table, buf, key_info, key_spec,
                                        &sub_part)) {
             part_spec->start_part = num_parts;
-            DBUG_VOID_RETURN;
+            return;
           }
         } else if (part_info->all_fields_in_PPF.is_set(index)) {
           if (get_part_id_from_key(table, buf, key_info, key_spec,
@@ -3752,7 +3739,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
               scan will be empty.
             */
             part_spec->start_part = num_parts;
-            DBUG_VOID_RETURN;
+            return;
           }
         }
       }
@@ -3777,21 +3764,21 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
             Check if range can be adjusted by looking in read_partitions
           */
           prune_partition_set(table, part_spec);
-          DBUG_VOID_RETURN;
+          return;
         } else if (part_info->is_sub_partitioned()) {
           if (check_part_func_bound(part_info->subpart_field_array)) {
             if (get_sub_part_id_from_key(table, buf, key_info, key_spec,
                                          &sub_part)) {
               part_spec->start_part = num_parts;
               clear_indicator_in_key_fields(key_info);
-              DBUG_VOID_RETURN;
+              return;
             }
           } else if (check_part_func_bound(part_info->part_field_array)) {
             if (get_part_id_from_key(table, buf, key_info, key_spec,
                                      &part_part)) {
               part_spec->start_part = num_parts;
               clear_indicator_in_key_fields(key_info);
-              DBUG_VOID_RETURN;
+              return;
             }
           }
         }
@@ -3837,7 +3824,6 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
     Check if range can be adjusted by looking in read_partitions
   */
   prune_partition_set(table, part_spec);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -3914,7 +3900,7 @@ bool mysql_unpack_partition(THD *thd, char *part_buf, uint part_info_len,
   sql_digest_state *parent_digest = thd->m_digest;
   PSI_statement_locker *parent_locker = thd->m_statement_psi;
   Partition_handler *part_handler;
-  DBUG_ENTER("mysql_unpack_partition");
+  DBUG_TRACE;
 
   thd->variables.character_set_client = system_charset_info;
   // This isn't strictly needed, but here for consistency.
@@ -4036,7 +4022,7 @@ bool mysql_unpack_partition(THD *thd, char *part_buf, uint part_info_len,
 end:
   end_lex_with_single_table(thd, table, old_lex);
   thd->variables.character_set_client = old_character_set_client;
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -4182,7 +4168,7 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info, bool *ret_val,
   bool table_engine_set;
   handlerton *engine_type = part_info->default_engine_type;
   handlerton *old_engine_type = engine_type;
-  DBUG_ENTER("check_native_partitioned");
+  DBUG_TRACE;
 
   if (create_info->used_fields & HA_CREATE_USED_ENGINE) {
     table_engine_set = true;
@@ -4211,7 +4197,7 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info, bool *ret_val,
     DBUG_PRINT("info", ("Changed to native partitioning"));
     *ret_val = true;
   }
-  DBUG_RETURN(false);
+  return false;
 error:
   /*
     Mixed engines not yet supported but when supported it will need
@@ -4219,7 +4205,7 @@ error:
   */
   my_error(ER_MIX_HANDLER_ERROR, MYF(0));
   *ret_val = false;
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -4325,7 +4311,7 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
 #define MAX_COMPARE_PARTITION_OPTION_ERRORS 5
   const char *option_diffs[MAX_COMPARE_PARTITION_OPTION_ERRORS + 1];
   int i, errors = 0;
-  DBUG_ENTER("compare_partition_options");
+  DBUG_TRACE;
   // TODO: Add test for EXCHANGE PARTITION with TABLESPACES!
   // Then if all works, simply remove the check for TABLESPACE (and eventually
   // DATA/INDEX DIRECTORY too).
@@ -4345,7 +4331,7 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
 
   for (i = 0; i < errors; i++)
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), option_diffs[i]);
-  DBUG_RETURN(errors != 0);
+  return errors != 0;
 }
 
 /*
@@ -4380,19 +4366,19 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            Alter_table_ctx *alter_ctx MY_ATTRIBUTE((unused)),
                            bool *partition_changed,
                            partition_info **new_part_info) {
-  DBUG_ENTER("prep_alter_part_table");
+  DBUG_TRACE;
   DBUG_ASSERT(new_part_info);
 
   /* Remove partitioning on a not partitioned table is not possible */
   if (!table->part_info &&
       (alter_info->flags & Alter_info::ALTER_REMOVE_PARTITIONING)) {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (thd->work_part_info &&
       !(thd->work_part_info = thd->lex->part_info->get_clone(thd, true)))
-    DBUG_RETURN(true);
+    return true;
 
   /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
   DBUG_ASSERT(!(alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION));
@@ -4413,12 +4399,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 
     if (!table->part_info) {
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
     if (!part_handler) {
       DBUG_ASSERT(0);
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
 
     /*
@@ -4445,7 +4431,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     tab_part_info = table->part_info->get_full_clone(thd);
     if (!tab_part_info) {
       mem_alloc_error(sizeof(partition_info));
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (alter_info->flags & Alter_info::ALTER_TABLE_REORG) {
@@ -4480,7 +4466,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         }
 
         thd->work_part_info = tab_part_info;
-        DBUG_RETURN(false);
+        return false;
       } else if (new_part_no > curr_part_no) {
         /*
           We will add more partitions, we use the ADD PARTITION without
@@ -5211,7 +5197,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 
           Create a copy of TABLE::part_info to be able to modify it freely.
         */
-        if (!(tab_part_info = tab_part_info->get_clone(thd))) DBUG_RETURN(true);
+        if (!(tab_part_info = tab_part_info->get_clone(thd))) return true;
         thd->work_part_info = tab_part_info;
         if (create_info->used_fields & HA_CREATE_USED_ENGINE &&
             create_info->db_type != tab_part_info->default_engine_type) {
@@ -5284,10 +5270,10 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       }
     }
   }
-  DBUG_RETURN(false);
+  return false;
 err:
   *new_part_info = NULL;
-  DBUG_RETURN(true);
+  return true;
 }
 
 /*
@@ -5311,12 +5297,11 @@ err:
 static void set_field_ptr(Field **ptr, const uchar *new_buf,
                           const uchar *old_buf) {
   ptrdiff_t diff = (new_buf - old_buf);
-  DBUG_ENTER("set_field_ptr");
+  DBUG_TRACE;
 
   do {
     (*ptr)->move_field_offset(diff);
   } while (*(++ptr));
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -5700,7 +5685,7 @@ static uint32 get_partition_id_cols_range_for_endpoint(
   uint min_part_id = 0, max_part_id = part_info->num_parts, loc_part_id;
   part_column_list_val *range_col_array = part_info->range_col_array;
   uint num_columns = part_info->part_field_list.elements;
-  DBUG_ENTER("get_partition_id_cols_range_for_endpoint");
+  DBUG_TRACE;
 
   /* Find the matching partition (including taking endpoint into account). */
   do {
@@ -5730,7 +5715,7 @@ static uint32 get_partition_id_cols_range_for_endpoint(
     /* Set the end after this partition if not already after the last. */
     if (loc_part_id < part_info->num_parts) loc_part_id++;
   }
-  DBUG_RETURN(loc_part_id);
+  return loc_part_id;
 }
 
 static int get_part_iter_for_interval_cols_via_map(
@@ -5739,7 +5724,7 @@ static int get_part_iter_for_interval_cols_via_map(
     PARTITION_ITERATOR *part_iter) {
   uint32 nparts;
   get_col_endpoint_func get_col_endpoint = nullptr;
-  DBUG_ENTER("get_part_iter_for_interval_cols_via_map");
+  DBUG_TRACE;
 
   if (part_info->part_type == partition_type::RANGE) {
     get_col_endpoint = get_partition_id_cols_range_for_endpoint;
@@ -5780,8 +5765,8 @@ static int get_part_iter_for_interval_cols_via_map(
     part_iter->part_nums.end =
         get_col_endpoint(part_info, false, !(flags & NEAR_MAX), nparts);
   }
-  if (part_iter->part_nums.start == part_iter->part_nums.end) DBUG_RETURN(0);
-  DBUG_RETURN(1);
+  if (part_iter->part_nums.start == part_iter->part_nums.end) return 0;
+  return 1;
 }
 
 /**
@@ -5832,7 +5817,7 @@ static int get_part_iter_for_interval_via_mapping(
   MYSQL_TIME start_date;
   bool check_zero_dates = false;
   bool zero_in_start_date = true;
-  DBUG_ENTER("get_part_iter_for_interval_via_mapping");
+  DBUG_TRACE;
   DBUG_ASSERT(!is_subpart);
   (void)store_length_array;
   (void)min_len;
@@ -5863,7 +5848,7 @@ static int get_part_iter_for_interval_via_mapping(
       part_iter->part_nums.start = part_iter->part_nums.end = 0;
       part_iter->part_nums.cur = 0;
       part_iter->ret_null_part = part_iter->ret_null_part_orig = true;
-      DBUG_RETURN(-1);
+      return -1;
     }
   } else
     MY_ASSERT_UNREACHABLE();
@@ -5895,7 +5880,7 @@ static int get_part_iter_for_interval_via_mapping(
     if (!(flags & NO_MAX_RANGE) && *max_value) {
       /* The right bound is X <= NULL, i.e. it is a "X IS NULL" interval */
       part_iter->part_nums.end = 0;
-      DBUG_RETURN(1);
+      return 1;
     }
   } else {
     if (flags & NO_MIN_RANGE)
@@ -5915,7 +5900,7 @@ static int get_part_iter_for_interval_via_mapping(
         part_iter->part_nums.cur = part_iter->part_nums.start = 0;
         part_iter->part_nums.end = 0;
         part_iter->ret_null_part = part_iter->ret_null_part_orig = true;
-        DBUG_RETURN(1);
+        return 1;
       }
       part_iter->part_nums.cur = part_iter->part_nums.start;
       if (check_zero_dates && !part_info->part_expr->null_value) {
@@ -5929,7 +5914,7 @@ static int get_part_iter_for_interval_via_mapping(
         }
       }
       if (part_iter->part_nums.start == max_endpoint_val)
-        DBUG_RETURN(0); /* No partitions */
+        return 0; /* No partitions */
     }
   }
 
@@ -5961,9 +5946,9 @@ static int get_part_iter_for_interval_via_mapping(
     }
     if (part_iter->part_nums.start >= part_iter->part_nums.end &&
         !part_iter->ret_null_part)
-      DBUG_RETURN(0); /* No partitions */
+      return 0; /* No partitions */
   }
-  DBUG_RETURN(1); /* Ok, iterator initialized */
+  return 1; /* Ok, iterator initialized */
 }
 
 /* See get_part_iter_for_interval_via_walking for definition of what this is */
@@ -6017,7 +6002,7 @@ static int get_part_iter_for_interval_via_walking(
   Field *field;
   uint total_parts;
   partition_iter_func get_next_func;
-  DBUG_ENTER("get_part_iter_for_interval_via_walking");
+  DBUG_TRACE;
   (void)store_length_array;
   (void)min_len;
   (void)max_len;
@@ -6046,7 +6031,7 @@ static int get_part_iter_for_interval_via_walking(
     if (is_subpart) {
       if (!part_info->get_subpartition_id(part_info, &part_id)) {
         init_single_partition_iterator(part_id, part_iter);
-        DBUG_RETURN(1); /* Ok, iterator initialized */
+        return 1; /* Ok, iterator initialized */
       }
     } else {
       longlong dummy;
@@ -6056,10 +6041,10 @@ static int get_part_iter_for_interval_via_walking(
               : part_info->get_partition_id(part_info, &part_id, &dummy);
       if (!res) {
         init_single_partition_iterator(part_id, part_iter);
-        DBUG_RETURN(1); /* Ok, iterator initialized */
+        return 1; /* Ok, iterator initialized */
       }
     }
-    DBUG_RETURN(0); /* No partitions match */
+    return 0; /* No partitions match */
   }
 
   if ((field->real_maybe_null() &&
@@ -6067,8 +6052,7 @@ static int get_part_iter_for_interval_via_walking(
         (!(flags & NO_MAX_RANGE) && *max_value))) ||  // X <? NULL
       (flags & (NO_MIN_RANGE | NO_MAX_RANGE)))        // -inf at any bound
   {
-    DBUG_RETURN(
-        -1); /* Can't handle this interval, have to use all partitions */
+    return -1; /* Can't handle this interval, have to use all partitions */
   }
 
   /* Get integers for left and right interval bound */
@@ -6086,7 +6070,7 @@ static int get_part_iter_for_interval_via_walking(
     (x,y]-type interval then the following "b +=..." code will convert it to
     an empty interval by "wrapping around" a + 4G-1 + 1 = a.
   */
-  if (b - a == ~0ULL) DBUG_RETURN(-1);
+  if (b - a == ~0ULL) return -1;
 
   if (flags & NEAR_MIN) ++a;
   if (!(flags & NEAR_MAX)) ++b;
@@ -6108,14 +6092,13 @@ static int get_part_iter_for_interval_via_walking(
        partitions, or
      - there are not many values to enumerate.
   */
-  if ((n_values > 2 * total_parts) && n_values > MAX_RANGE_TO_WALK)
-    DBUG_RETURN(-1);
+  if ((n_values > 2 * total_parts) && n_values > MAX_RANGE_TO_WALK) return -1;
 
   part_iter->field_vals.start = part_iter->field_vals.cur = a;
   part_iter->field_vals.end = b;
   part_iter->part_info = part_info;
   part_iter->get_next = get_next_func;
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /*

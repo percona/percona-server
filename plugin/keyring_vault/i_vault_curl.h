@@ -33,7 +33,12 @@ class IVault_curl : public Keyring_alloc {
   virtual bool write_key(const Vault_key &key, Secure_string *response) = 0;
   virtual bool read_key(const Vault_key &key, Secure_string *response) = 0;
   virtual bool delete_key(const Vault_key &key, Secure_string *response) = 0;
+#ifndef EXTRA_CODE_FOR_UNIT_TESTING
   virtual void set_timeout(uint timeout) noexcept = 0;
+#else
+  // GMock 1.8 doesn't support noexcept mocking at all
+  virtual void set_timeout(uint timeout) = 0;
+#endif
 
   virtual ~IVault_curl() {}
 };

@@ -339,8 +339,8 @@ dberr_t Datafile::read_first_page(bool read_only_mode) {
   while (page_size >= UNIV_PAGE_SIZE_MIN) {
     ulint n_read = 0;
 
-    err = os_file_read_no_error_handling(request, m_handle, m_first_page, 0,
-                                         page_size, &n_read);
+    err = os_file_read_no_error_handling(request, m_filename, m_handle,
+                                         m_first_page, 0, page_size, &n_read);
 
     if (err == DB_IO_ERROR && n_read >= UNIV_PAGE_SIZE_MIN) {
       page_size >>= 1;
@@ -713,10 +713,14 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
   can't be open. And for importing, we skip checking it. */
   if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && !for_import) {
     if (crypt_data == nullptr) {
-      m_encryption_key =
-          static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
-      m_encryption_iv =
-          static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+      if (m_encryption_key == nullptr) {
+        m_encryption_key =
+            static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+      }
+      if (m_encryption_iv == nullptr) {
+        m_encryption_iv =
+            static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+      }
 #ifdef UNIV_ENCRYPT_DEBUG
       fprintf(stderr, "Got from file " SPACE_ID_PFS ":", m_space_id);
 #endif
@@ -850,7 +854,8 @@ dberr_t Datafile::find_space_id() {
       ulint n_bytes = j * page_size;
       IORequest request(IORequest::READ);
 
-      err = os_file_read(request, m_handle, page, n_bytes, page_size);
+      err =
+          os_file_read(request, m_filename, m_handle, page, n_bytes, page_size);
 
       if (err == DB_IO_DECOMPRESS_FAIL) {
         /* If the page was compressed on the fly then
@@ -859,7 +864,7 @@ dberr_t Datafile::find_space_id() {
         n_bytes = os_file_compressed_page_size(page);
 
         if (n_bytes != ULINT_UNDEFINED) {
-          err = os_file_read(request, m_handle, page, page_size,
+          err = os_file_read(request, m_filename, m_handle, page, page_size,
                              UNIV_PAGE_SIZE_MAX);
 
           if (err != DB_SUCCESS) {

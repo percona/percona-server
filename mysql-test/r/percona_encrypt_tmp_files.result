@@ -49,16 +49,16 @@ FROM seq_0_to_9 AS s1, seq_0_to_26 AS s2;
 UPDATE t1 SET c = v, t = v;
 SELECT sql_big_result t, COUNT(t) FROM t1 GROUP BY t LIMIT 10;
 t	COUNT(t)
-a	10
-b	10
-c	10
-d	10
-e	10
-f	10
-g	10
-h	10
-i	10
-j	10
+a         	10
+b         	10
+c         	10
+d         	10
+e         	10
+f         	10
+g         	10
+h         	10
+i         	10
+j         	10
 DROP TABLE t1;
 DROP TABLE seq_0_to_9;
 DROP TABLE seq_0_to_26;

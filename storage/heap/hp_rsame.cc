@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,30 +36,30 @@
 
 int heap_rsame(HP_INFO *info, uchar *record, int inx) {
   HP_SHARE *share = info->s;
-  DBUG_ENTER("heap_rsame");
+  DBUG_TRACE;
 
   test_active(info);
   if (get_chunk_status(&share->recordspace, info->current_ptr) ==
       CHUNK_STATUS_ACTIVE) {
     if (inx < -1 || inx >= (int)share->keys) {
       set_my_errno(HA_ERR_WRONG_INDEX);
-      DBUG_RETURN(HA_ERR_WRONG_INDEX);
+      return HA_ERR_WRONG_INDEX;
     } else if (inx != -1) {
       info->lastinx = inx;
       hp_make_key(share->keydef + inx, info->lastkey, record);
       if (!hp_search(info, share->keydef + inx, info->lastkey, 3)) {
         info->update = 0;
-        DBUG_RETURN(my_errno());
+        return my_errno();
       }
     }
     if (hp_extract_record(info, record, info->current_ptr))
-      DBUG_RETURN(my_errno());
-    DBUG_RETURN(0);
+      return my_errno();
+    return 0;
   }
 
   /* Treat deleted and linked chunks as deleted */
   info->update = 0;
 
   set_my_errno(HA_ERR_RECORD_DELETED);
-  DBUG_RETURN(HA_ERR_RECORD_DELETED);
+  return HA_ERR_RECORD_DELETED;
 }

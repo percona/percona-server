@@ -138,6 +138,9 @@ component_test_mysql_current_thread_reader  plugin_output_directory  TEST_MYSQL_
 # test mysql_runtime_error service
 component_test_mysql_runtime_error  plugin_output_directory  TEST_MYSQL_RUNTIME_ERROR_COMPONENT
 
+# mysqlbackup component
+component_mysqlbackup           plugin_output_directory  MYSQLBACKUP_COMPONENT
+
 # Percona additions
 auth_socket        plugin_output_directory  SOCKET_AUTH
 audit_log          plugin_output_directory  AUDIT_LOG             audit_log
@@ -146,3 +149,4 @@ tokudb_backup      plugin_output_directory  TOKUDB_BACKUP   tokudb_backup
 ha_rocksdb         plugin_output_directory  ROCKSDB         rocksdb,rocksdb_cfstats,rocksdb_dbstats,rocksdb_perf_context,rocksdb_perf_context_global,rocksdb_cf_options,rocksdb_compaction_stats,rocksdb_global_info,rocksdb_ddl,rocksdb_index_file_map,rocksdb_locks,rocksdb_trx,rocksdb_deadlock,rocksdb_sst_props
 auth_pam           plugin_output_directory                 AUTH_PAM
 auth_pam_compat    plugin_output_directory                 AUTH_PAM_COMPAT
+

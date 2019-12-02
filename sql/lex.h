@@ -42,10 +42,28 @@
 #define HINT_COMMENT_STARTER "/*+"
 #define HINT_COMMENT_TERMINATOR "*/"
 
-#define SYM(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS
-#define SYM_FN(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_FUNCTIONS
-#define SYM_HK(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTABLE_KEYWORDS
-#define SYM_H(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTS
+#define SYM(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS, false
+#define SYM_FN(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_FUNCTIONS, false
+#define SYM_HK(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTABLE_KEYWORDS, false
+#define SYM_H(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_HINTS, false
+
+/*
+ * Percona defined tokens are located together with upstream tokens
+ * in sql_yacc.yy. However we put them at the end of the token list, after
+ * hints tokens (sql_hints.yy). When we add add Percona token to the digest
+ * generator input buffer, we need to adjust its value (shift it up)
+ * to not clash with adjusted (shifted up) hint tockens.
+ * That is why we need to detect Percona tokens (following macro)
+ *
+ * Example:
+ * EFFECTIVE_SYM in sql_yacc.h is 1001.
+ * But hint tag RESOURCE_GROUP after applying shift in Hint_scanner::add_hint_token_digest()
+ * is 1001 as well. So these 2 would result with the same token in digest
+ * generator input. To prevent this we detect Percona token and adjust its value
+ * before adding to digest generator input (Lex_input_stream::add_digest_token())
+ * Read comments in get_lex_token.cc for additional info.
+ */
+#define SYM_PERCONA(T, A) STRING_WITH_LEN(T), SYM_OR_NULL(A), SG_KEYWORDS, true
 
 /*
   Symbols are broken into separated arrays to allow field names with
@@ -121,7 +139,7 @@ static const SYMBOL symbols[] = {
     {SYM("CHAIN", CHAIN_SYM)},
     {SYM("CHANGE", CHANGE)},
     {SYM("CHANGED", CHANGED)},
-    {SYM("CHANGED_PAGE_BITMAPS", CHANGED_PAGE_BITMAPS_SYM)},
+    {SYM_PERCONA("CHANGED_PAGE_BITMAPS", CHANGED_PAGE_BITMAPS_SYM)},
     {SYM("CHANNEL", CHANNEL_SYM)},
     {SYM("CHAR", CHAR_SYM)},
     {SYM("CHARACTER", CHAR_SYM)},
@@ -130,10 +148,10 @@ static const SYMBOL symbols[] = {
     {SYM("CIPHER", CIPHER_SYM)},
     {SYM("CLASS_ORIGIN", CLASS_ORIGIN_SYM)},
     {SYM("CLIENT", CLIENT_SYM)},
-    {SYM("CLIENT_STATISTICS", CLIENT_STATS_SYM)},
+    {SYM_PERCONA("CLIENT_STATISTICS", CLIENT_STATS_SYM)},
     {SYM("CLONE", CLONE_SYM)},
     {SYM("CLOSE", CLOSE_SYM)},
-    {SYM("CLUSTERING", CLUSTERING_SYM)},
+    {SYM_PERCONA("CLUSTERING", CLUSTERING_SYM)},
     {SYM("COALESCE", COALESCE)},
     {SYM("CODE", CODE_SYM)},
     {SYM("COLLATE", COLLATE_SYM)},
@@ -150,9 +168,9 @@ static const SYMBOL symbols[] = {
     {SYM("COMPONENT", COMPONENT_SYM)},
     {SYM("COMPRESSION", COMPRESSION_SYM)},
     {SYM("COMPRESSED", COMPRESSED_SYM)},
-    {SYM("COMPRESSION_DICTIONARY", COMPRESSION_DICTIONARY_SYM)},
+    {SYM_PERCONA("COMPRESSION_DICTIONARY", COMPRESSION_DICTIONARY_SYM)},
     {SYM("ENCRYPTION", ENCRYPTION_SYM)},
-    {SYM("ENCRYPTION_KEY_ID", ENCRYPTION_KEY_ID_SYM)},
+    {SYM_PERCONA("ENCRYPTION_KEY_ID", ENCRYPTION_KEY_ID_SYM)},
     {SYM("CONCURRENT", CONCURRENT)},
     {SYM("CONDITION", CONDITION_SYM)},
     {SYM("CONNECTION", CONNECTION_SYM)},
@@ -218,7 +236,7 @@ static const SYMBOL symbols[] = {
     {SYM("DUPLICATE", DUPLICATE_SYM)},
     {SYM("DYNAMIC", DYNAMIC_SYM)},
     {SYM("EACH", EACH_SYM)},
-    {SYM("EFFECTIVE", EFFECTIVE_SYM)},
+    {SYM_PERCONA("EFFECTIVE", EFFECTIVE_SYM)},
     {SYM("ELSE", ELSE)},
     {SYM("ELSEIF", ELSEIF_SYM)},
     {SYM("EMPTY", EMPTY_SYM)},
@@ -311,7 +329,7 @@ static const SYMBOL symbols[] = {
     {SYM("IN", IN_SYM)},
     {SYM("INACTIVE", INACTIVE_SYM)},
     {SYM("INDEX", INDEX_SYM)},
-    {SYM("INDEX_STATISTICS", INDEX_STATS_SYM)},
+    {SYM_PERCONA("INDEX_STATISTICS", INDEX_STATS_SYM)},
     {SYM("INDEXES", INDEXES)},
     {SYM("INFILE", INFILE)},
     {SYM("INITIAL_SIZE", INITIAL_SIZE_SYM)},
@@ -383,6 +401,7 @@ static const SYMBOL symbols[] = {
     {SYM("MASTER_AUTO_POSITION", MASTER_AUTO_POSITION_SYM)},
     {SYM("MASTER_BIND", MASTER_BIND_SYM)},
     {SYM("MASTER_CONNECT_RETRY", MASTER_CONNECT_RETRY_SYM)},
+    {SYM("MASTER_COMPRESSION_ALGORITHMS", MASTER_COMPRESSION_ALGORITHM_SYM)},
     {SYM("MASTER_DELAY", MASTER_DELAY_SYM)},
     {SYM("MASTER_HOST", MASTER_HOST_SYM)},
     {SYM("MASTER_LOG_FILE", MASTER_LOG_FILE_SYM)},
@@ -404,6 +423,7 @@ static const SYMBOL symbols[] = {
     {SYM("MASTER_SSL_VERIFY_SERVER_CERT", MASTER_SSL_VERIFY_SERVER_CERT_SYM)},
     {SYM("MASTER_USER", MASTER_USER_SYM)},
     {SYM("MASTER_HEARTBEAT_PERIOD", MASTER_HEARTBEAT_PERIOD_SYM)},
+    {SYM("MASTER_ZSTD_COMPRESSION_LEVEL", MASTER_ZSTD_COMPRESSION_LEVEL_SYM)},
     {SYM("MATCH", MATCH)},
     {SYM("MAX_CONNECTIONS_PER_HOUR", MAX_CONNECTIONS_PER_HOUR)},
     {SYM("MAX_QUERIES_PER_HOUR", MAX_QUERIES_PER_HOUR)},
@@ -513,6 +533,7 @@ static const SYMBOL symbols[] = {
     {SYM("PREV", PREV_SYM)},
     {SYM("PRIMARY", PRIMARY_SYM)},
     {SYM("PRIVILEGES", PRIVILEGES)},
+    {SYM("PRIVILEGE_CHECKS_USER", PRIVILEGE_CHECKS_USER_SYM)},
     {SYM("PROCEDURE", PROCEDURE_SYM)},
     {SYM("PROCESS", PROCESS)},
     {SYM("PROCESSLIST", PROCESSLIST_SYM)},
@@ -523,6 +544,7 @@ static const SYMBOL symbols[] = {
     {SYM("QUARTER", QUARTER_SYM)},
     {SYM("QUERY", QUERY_SYM)},
     {SYM("QUICK", QUICK)},
+    {SYM("RANDOM", RANDOM_SYM)},
     {SYM("RANK", RANK_SYM)},
     {SYM("RANGE", RANGE_SYM)},
     {SYM("READ", READ_SYM)},
@@ -675,7 +697,7 @@ static const SYMBOL symbols[] = {
     {SYM("TABLES", TABLES)},
     {SYM("TABLESPACE", TABLESPACE_SYM)},
     {SYM("TABLE_CHECKSUM", TABLE_CHECKSUM_SYM)},
-    {SYM("TABLE_STATISTICS", TABLE_STATS_SYM)},
+    {SYM_PERCONA("TABLE_STATISTICS", TABLE_STATS_SYM)},
     {SYM("TEMPORARY", TEMPORARY)},
     {SYM("TEMPTABLE", TEMPTABLE_SYM)},
     {SYM("TERMINATED", TERMINATED)},
@@ -683,7 +705,7 @@ static const SYMBOL symbols[] = {
     {SYM("THAN", THAN_SYM)},
     {SYM("THEN", THEN_SYM)},
     {SYM("THREAD_PRIORITY", THREAD_PRIORITY_SYM)},
-    {SYM("THREAD_STATISTICS", THREAD_STATS_SYM)},
+    {SYM_PERCONA("THREAD_STATISTICS", THREAD_STATS_SYM)},
     {SYM("TIES", TIES_SYM)},
     {SYM("TIME", TIME_SYM)},
     {SYM("TIMESTAMP", TIMESTAMP_SYM)},
@@ -720,7 +742,7 @@ static const SYMBOL symbols[] = {
     {SYM("USE", USE_SYM)},
     {SYM("USER", USER)},
     {SYM("USER_RESOURCES", RESOURCES)},
-    {SYM("USER_STATISTICS", USER_STATS_SYM)},
+    {SYM_PERCONA("USER_STATISTICS", USER_STATS_SYM)},
     {SYM("USE_FRM", USE_FRM)},
     {SYM("USING", USING)},
     {SYM("UTC_DATE", UTC_DATE_SYM)},
@@ -845,6 +867,8 @@ static const SYMBOL symbols[] = {
     {SYM_H("NO_INDEX_MERGE", NO_INDEX_MERGE_HINT)},
     {SYM_H("RESOURCE_GROUP", RESOURCE_GROUP_HINT)},
     {SYM_H("SKIP_SCAN", SKIP_SCAN_HINT)},
-    {SYM_H("NO_SKIP_SCAN", NO_SKIP_SCAN_HINT)}};
+    {SYM_H("NO_SKIP_SCAN", NO_SKIP_SCAN_HINT)},
+    {SYM_H("HASH_JOIN", HASH_JOIN_HINT)},
+    {SYM_H("NO_HASH_JOIN", NO_HASH_JOIN_HINT)}};
 
 #endif /* LEX_INCLUDED */

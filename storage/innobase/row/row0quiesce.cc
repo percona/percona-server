@@ -746,7 +746,8 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
     ut_ad(space != nullptr);
     if (dd_is_table_in_encrypted_tablespace(table) &&
         space->crypt_data != NULL) {
-      /* Require the mutex to block key rotation. */
+      /* Take the mutex to make sure master_key_id doesn't change (eg: key
+      rotation). */
       was_master_key_id_mutex_locked = true;
       mutex_enter(&master_key_id_mutex);
     }

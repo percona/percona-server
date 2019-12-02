@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,13 +34,13 @@ int heap_update(HP_INFO *info, const uchar *old_record,
   uchar *pos;
   bool auto_key_changed = 0;
   HP_SHARE *share = info->s;
-  DBUG_ENTER("heap_update");
+  DBUG_TRACE;
 
   test_active(info);
   pos = info->current_ptr;
 
   if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, old_record))
-    DBUG_RETURN(my_errno()); /* Record changed */
+    return my_errno(); /* Record changed */
 
   uint old_chunk_count, new_chunk_count;
   hp_get_encoded_data_length(*share, old_record, &old_chunk_count);
@@ -49,7 +49,7 @@ int heap_update(HP_INFO *info, const uchar *old_record,
   if (new_chunk_count > old_chunk_count) {
     /* extend the old chunkset size as necessary, but do not shrink yet */
     if (hp_reallocate_chunkset(&share->recordspace, new_chunk_count, pos)) {
-      DBUG_RETURN(my_errno()); /* Out of memory or table space */
+      return my_errno(); /* Out of memory or table space */
     }
   }
 
@@ -80,7 +80,7 @@ int heap_update(HP_INFO *info, const uchar *old_record,
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
 #endif
   if (auto_key_changed) heap_update_auto_increment(info, new_record);
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   if (my_errno() == HA_ERR_FOUND_DUPP_KEY) {
@@ -90,7 +90,7 @@ err:
       if ((*keydef->write_key)(info, keydef, old_record, pos)) {
         if (++(share->records) == share->blength)
           share->blength += share->blength;
-        DBUG_RETURN(my_errno());
+        return my_errno();
       }
       keydef--;
     }
@@ -108,5 +108,5 @@ err:
     /* Shrink the chunkset to its original size */
     hp_reallocate_chunkset(&share->recordspace, old_chunk_count, pos);
   }
-  DBUG_RETURN(my_errno());
+  return my_errno();
 } /* heap_update */

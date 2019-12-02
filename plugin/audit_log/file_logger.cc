@@ -215,7 +215,7 @@ int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size,
                  log_record_state_t state) noexcept {
   flogger_mutex_lock(log);
 
-  int result = my_write(log->file, (uchar *)buffer, size, MYF(0));
+  int result = my_write(log->file, (const uchar *)buffer, size, MYF(0));
 
   if (state == log_record_state_t::COMPLETE && log->rotations > 0) {
     my_off_t filesize;

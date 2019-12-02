@@ -137,6 +137,9 @@ dict_table_t *dict_table_open_on_index_id(
     bool dict_locked)       /*!< in: TRUE=data dictionary locked */
     __attribute__((warn_unused_result));
 
+/** Closes the data dictionary module. */
+void dict_close(void);
+
 /** Inits the structure for persisting dynamic metadata */
 void dict_persist_init(void);
 
@@ -1305,9 +1308,6 @@ void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
 
 /** Resize the hash tables besed on the current buffer pool size. */
 void dict_resize();
-
-/** Closes the data dictionary module. */
-void dict_close(void);
 
 /** Wrapper for the mysql.innodb_dynamic_metadata used to buffer the persistent
 dynamic metadata.

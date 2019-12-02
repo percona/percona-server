@@ -31,12 +31,12 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
   uchar *pos;
   HP_SHARE *share = info->s;
   HP_KEYDEF *keyinfo = share->keydef + inx;
-  DBUG_ENTER("heap_rkey");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("info: %p  inx: %d", info, inx));
 
   if ((uint)inx >= share->keys) {
     set_my_errno(HA_ERR_WRONG_INDEX);
-    DBUG_RETURN(HA_ERR_WRONG_INDEX);
+    return HA_ERR_WRONG_INDEX;
   }
   info->lastinx = inx;
   info->current_record = (ulong)~0L; /* For heap_rrnd() */
@@ -60,7 +60,7 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
                                          find_flag, &custom_arg))) {
       info->update = 0;
       set_my_errno(HA_ERR_KEY_NOT_FOUND);
-      DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+      return HA_ERR_KEY_NOT_FOUND;
     }
     memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos),
            sizeof(uchar *));
@@ -68,7 +68,7 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
   } else {
     if (!(pos = hp_search(info, share->keydef + inx, key, 0))) {
       info->update = 0;
-      DBUG_RETURN(my_errno());
+      return my_errno();
     }
     /*
       If key is unique and can accept NULL values, we still
@@ -78,9 +78,9 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
     if (!(keyinfo->flag & HA_NOSAME) || (keyinfo->flag & HA_NULL_PART_KEY))
       memcpy(info->lastkey, key, (size_t)keyinfo->length);
   }
-  if (hp_extract_record(info, record, pos)) DBUG_RETURN(my_errno());
+  if (hp_extract_record(info, record, pos)) return my_errno();
   info->update = HA_STATE_AKTIV;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* Quick find of record */

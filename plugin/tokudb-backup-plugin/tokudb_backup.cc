@@ -133,7 +133,7 @@ static MYSQL_SYSVAR_STR(plugin_version, tokudb_backup_plugin_version,
                         "version of the tokudb backup plugin", nullptr, nullptr,
                         TOKUDB_BACKUP_PLUGIN_VERSION_STRING);
 
-static char *tokudb_backup_version = (char *)tokubackup_version_string;
+static char *tokudb_backup_version = const_cast<char *>(tokubackup_version_string);
 
 static MYSQL_SYSVAR_STR(version, tokudb_backup_version,
                         PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -675,9 +675,9 @@ class source_dirs {
 
   ~source_dirs() {
     my_free((void *)m_mysql_data_dir);
-    my_free((void *)m_tokudb_data_dir);
-    my_free((void *)m_tokudb_log_dir);
-    my_free((void *)m_log_bin_dir);
+    my_free(const_cast<char*>(m_tokudb_data_dir));
+    my_free(const_cast<char*>(m_tokudb_log_dir));
+    my_free(const_cast<char*>(m_log_bin_dir));
   }
 
   void find_and_allocate_dirs(THD *thd) {
@@ -943,7 +943,7 @@ struct destination_dirs {
 
   ~destination_dirs() {
     for (int i = 0; i < MYSQL_MAX_DIR_COUNT; ++i) {
-      my_free((void *)m_dirs[i]);
+      my_free(const_cast<char*>(m_dirs[i]));
     }
   }
 
@@ -1270,8 +1270,8 @@ static void tokudb_backup_update_throttle(
     MY_ATTRIBUTE((__unused__)) THD *thd,
     MY_ATTRIBUTE((__unused__)) struct SYS_VAR *var, void *var_ptr,
     const void *save) {
-  my_ulonglong *val = (my_ulonglong *)var_ptr;
-  *val = *(my_ulonglong *)save;
+  uint64_t *val = (uint64_t *)var_ptr;
+  *val = *(const uint64_t *)save;
   unsigned long nb = *val;
   tokubackup_throttle_backup(nb);
 }

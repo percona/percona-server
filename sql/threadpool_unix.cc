@@ -29,6 +29,7 @@
 #include "sql/sql_connect.h"
 #include "sql/sql_plist.h"
 #include "sql/threadpool.h"
+#include "sql/protocol_classic.h"
 #include "violite.h"
 #ifdef __linux__
 #include <sys/epoll.h>
@@ -1303,7 +1304,7 @@ void tp_wait_end(THD *thd) {
 static void set_next_timeout_check(ulonglong abstime) {
   DBUG_ENTER("set_next_timeout_check");
   while (abstime < pool_timer.next_timeout_check.load()) {
-    ulonglong old = pool_timer.next_timeout_check.load();
+    ulong old = pool_timer.next_timeout_check.load();
     pool_timer.next_timeout_check.compare_exchange_weak(old, abstime);
   }
   DBUG_VOID_RETURN;

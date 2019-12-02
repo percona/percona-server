@@ -29,13 +29,14 @@ let HVARGS= --no-defaults --secure-file-priv="" --help --verbose >$HELP_VERBOSE_
 
   my $binary= $ENV{'MYSQLD'};
   #print "# DBG: binary: $binary\n";
-  my ($filename, $bindir, $suffix)= fileparse($binary);
+  my $bindir= dirname($binary);
+  my $binary= basename($binary);
   #print "# DBG: bindir: $bindir\n";
   chdir("$bindir/..") || die "Cannot chdir to $bindir/..; $!";
 
   my $relbindir= basename($bindir);
   #print "# DBG: relbindir: $relbindir\n";
-  my $exe= File::Spec->catfile($relbindir, $filename);
+  my $exe= File::Spec->catfile($relbindir, $binary);
   my $syscmd= "$exe $ENV{'HVARGS'}";
   #print "# DBG: syscmd: $syscmd\n";
 
@@ -55,13 +56,14 @@ EOF
 
   #print "# DBG: Config{path_sep'} is $Config{'path_sep'}\n";
   my $binary= $ENV{'MYSQLD'};
-  my ($filename, $bindir, $suffix)= fileparse($binary);
+  my $bindir= dirname($binary);
+  $binary= basename($binary);
   chdir("$bindir/..") || die "Cannot chdir to $bindir/..; $!";
 
   #print "# DBG: ENV{'PATH'}=\"$bindir$Config{'path_sep'}\$ENV{'PATH'}\"\n";
   $ENV{'PATH'}="$bindir$Config{'path_sep'}$ENV{'PATH'}";
   #print "# DBG: PATH: $ENV{'PATH'}\n";
-  my $syscmd= "$filename $ENV{'HVARGS'}";
+  my $syscmd= "$binary $ENV{'HVARGS'}";
   #print "# DBG: syscmd: $syscmd\n";
   (system($syscmd) == 0) || die "system($syscmd) failed: $!";
 EOF

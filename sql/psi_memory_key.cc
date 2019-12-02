@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,6 +118,7 @@ PSI_memory_key key_memory_global_system_variables;
 PSI_memory_key key_memory_handler_errmsgs;
 PSI_memory_key key_memory_handlerton;
 PSI_memory_key key_memory_hash_index_key_buffer;
+PSI_memory_key key_memory_hash_join;
 PSI_memory_key key_memory_help;
 PSI_memory_key key_memory_histograms;
 PSI_memory_key key_memory_host_cache_hostname;
@@ -408,6 +409,7 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_log_error_stack, "log_error_stack", PSI_FLAG_ONLY_GLOBAL_STAT,
      0, PSI_DOCUMENT_ME},
     {&key_memory_histograms, "histograms", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_hash_join, "hash_join", 0, 0, PSI_DOCUMENT_ME},
 
     {&key_memory_userstat_table_stats, "userstat_table_stats",
      PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},

@@ -3116,7 +3116,7 @@ ibool btr_compress(
 #ifdef UNIV_DEBUG
   bool leftmost_child;
 #endif
-  DBUG_ENTER("btr_compress");
+  DBUG_TRACE;
 
   block = btr_cur_get_block(cursor);
   page = btr_cur_get_page(cursor);
@@ -3541,7 +3541,7 @@ func_exit:
 
   MONITOR_INC(MONITOR_INDEX_MERGE_SUCCESSFUL);
 
-  DBUG_RETURN(TRUE);
+  return TRUE;
 
 err_exit:
   /* We play it safe and reset the free bits. */
@@ -3551,7 +3551,7 @@ err_exit:
   }
 
   mem_heap_free(heap);
-  DBUG_RETURN(FALSE);
+  return FALSE;
 }
 
 /** Discards a page that is the only page on its level.  This will empty
@@ -4700,11 +4700,11 @@ static bool btr_can_merge_with_page(
   ulint max_ins_size;
   buf_block_t *mblock;
   page_t *mpage;
-  DBUG_ENTER("btr_can_merge_with_page");
+  DBUG_TRACE;
 
   if (page_no == FIL_NULL) {
     *merge_block = NULL;
-    DBUG_RETURN(false);
+    return false;
   }
 
   index = btr_cur_get_index(cursor);
@@ -4757,11 +4757,11 @@ static bool btr_can_merge_with_page(
   }
 
   *merge_block = mblock;
-  DBUG_RETURN(true);
+  return true;
 
 error:
   *merge_block = NULL;
-  DBUG_RETURN(false);
+  return false;
 }
 
 /** Create an SDI Index

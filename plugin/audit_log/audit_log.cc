@@ -1247,7 +1247,7 @@ static MYSQL_SYSVAR_ULONGLONG(
 static void audit_log_rotate_on_size_update(
     MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
     void *var_ptr MY_ATTRIBUTE((unused)), const void *save) noexcept {
-  ulonglong new_val = *(ulonglong *)(save);
+  ulonglong new_val = *(const ulonglong *)(save);
 
   audit_handler_set_option(log_handler, audit_handler_option_t::ROTATE_ON_SIZE,
                            &new_val);
@@ -1264,7 +1264,7 @@ static void audit_log_rotations_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                                        SYS_VAR *var MY_ATTRIBUTE((unused)),
                                        void *var_ptr MY_ATTRIBUTE((unused)),
                                        const void *save) noexcept {
-  ulonglong new_val = *(ulonglong *)(save);
+  ulonglong new_val = *(const ulonglong *)(save);
 
   audit_handler_set_option(log_handler, audit_handler_option_t::ROTATIONS,
                            &new_val);
@@ -1350,7 +1350,7 @@ static int audit_log_exclude_accounts_validate(
 static void audit_log_exclude_accounts_update(
     MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
     void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
-  const char *new_val = *(const char **)(save);
+  const char *new_val = *(const char * const*)(save);
 
   DBUG_ASSERT(audit_log_include_accounts == nullptr);
 
@@ -1392,7 +1392,7 @@ static int audit_log_include_accounts_validate(
 static void audit_log_include_accounts_update(
     MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
     void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
-  const char *new_val = *(const char **)(save);
+  const char *new_val = *(const char * const*)(save);
 
   DBUG_ASSERT(audit_log_exclude_accounts == nullptr);
 
@@ -1433,7 +1433,7 @@ static int audit_log_exclude_databases_validate(
 static void audit_log_exclude_databases_update(
     MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
     void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
-  const char *new_val = *(const char **)(save);
+  const char *new_val = *(const char * const*)(save);
 
   DBUG_ASSERT(audit_log_include_databases == nullptr);
 
@@ -1475,7 +1475,7 @@ static int audit_log_include_databases_validate(
 static void audit_log_include_databases_update(
     MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
     void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
-  const char *new_val = *(const char **)(save);
+  const char *new_val = *(const char * const*)(save);
 
   DBUG_ASSERT(audit_log_exclude_databases == nullptr);
 
@@ -1516,7 +1516,7 @@ static int audit_log_exclude_commands_validate(
 static void audit_log_exclude_commands_update(
     MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
     void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
-  const char *new_val = *(const char **)(save);
+  const char *new_val = *(const char * const*)(save);
 
   DBUG_ASSERT(audit_log_include_commands == nullptr);
 
@@ -1558,7 +1558,7 @@ static int audit_log_include_commands_validate(
 static void audit_log_include_commands_update(
     MYSQL_THD thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
     void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
-  const char *new_val = *(const char **)(save);
+  const char *new_val = *(const char * const*)(save);
 
   DBUG_ASSERT(audit_log_exclude_commands == nullptr);
 

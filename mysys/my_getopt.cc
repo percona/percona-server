@@ -909,7 +909,7 @@ ret:
     @retval 1    Found an option
 */
 
-int findopt(char *optpat, uint length, const struct my_option **opt_res) {
+int findopt(const char *optpat, uint length, const struct my_option **opt_res) {
   for (const struct my_option *opt = *opt_res; opt->name; opt++)
     if (!getopt_compare_strings(opt->name, optpat, length) &&
         !opt->name[length]) {
@@ -1271,7 +1271,7 @@ static double getopt_double(const char *arg, const struct my_option *optp,
 
 static void init_one_value(const struct my_option *option, void *variable,
                            longlong value) {
-  DBUG_ENTER("init_one_value");
+  DBUG_TRACE;
   switch ((option->var_type & GET_TYPE_MASK)) {
     case GET_BOOL:
       *((bool *)variable) = (bool)value;
@@ -1335,7 +1335,6 @@ static void init_one_value(const struct my_option *option, void *variable,
     default: /* dummy default to avoid compiler warnings */
       break;
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1349,7 +1348,7 @@ static void init_one_value(const struct my_option *option, void *variable,
 
 static void fini_one_value(const struct my_option *option, void *variable,
                            longlong value MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("fini_one_value");
+  DBUG_TRACE;
   switch ((option->var_type & GET_TYPE_MASK)) {
     case GET_STR_ALLOC:
       my_free(*((char **)variable));
@@ -1358,7 +1357,6 @@ static void fini_one_value(const struct my_option *option, void *variable,
     default: /* dummy default to avoid compiler warnings */
       break;
   }
-  DBUG_VOID_RETURN;
 }
 
 void my_cleanup_options(const struct my_option *options) {
@@ -1380,7 +1378,7 @@ void my_cleanup_options(const struct my_option *options) {
 
 static void init_variables(const struct my_option *options,
                            init_func_p init_one_value) {
-  DBUG_ENTER("init_variables");
+  DBUG_TRACE;
   for (; options->name; options++) {
     void *value;
     DBUG_PRINT("options", ("name: '%s'", options->name));
@@ -1396,7 +1394,6 @@ static void init_variables(const struct my_option *options,
                  : options->value);
     if (value) init_one_value(options, value, options->def_value);
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1562,7 +1559,7 @@ void my_print_variables_ex(const struct my_option *options, FILE *file) {
           fprintf(file, "%d\n", *((int *)value));
           break;
         case GET_UINT:
-          fprintf(file, "%d\n", *((uint *)value));
+          fprintf(file, "%u\n", *((uint *)value));
           break;
         case GET_LONG:
           fprintf(file, "%ld\n", *((long *)value));

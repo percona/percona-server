@@ -46,7 +46,7 @@ static bool mask_inner_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
 static void mask_inner_deinit(UDF_INIT *initid) {
   DBUG_ENTER("mask_inner_deinit");
 
-  if (initid->ptr) delete initid->ptr;
+  if (initid->ptr) delete[] initid->ptr;
 
   DBUG_VOID_RETURN;
 }

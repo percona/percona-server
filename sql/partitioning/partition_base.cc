@@ -588,7 +588,7 @@ int Partition_base::create(const char *name, TABLE *table_arg,
   handler **file, **abort_file;
   DBUG_ENTER("Partition_base::create");
 
-  DBUG_ASSERT(*fn_rext((char *)name) == '\0');
+  DBUG_ASSERT(*fn_rext((const char *)name) == '\0');
 
   /* Not allowed to create temporary partitioned tables */
   if (create_info && create_info->options & HA_LEX_CREATE_TMP_TABLE) {
@@ -1172,10 +1172,10 @@ void Partition_base::update_create_info(HA_CREATE_INFO *create_info) {
           m_file[part]->update_create_info(&dummy_info);
 
           if (dummy_info.data_file_name || sub_elem->data_file_name) {
-            sub_elem->data_file_name = (char *)dummy_info.data_file_name;
+            sub_elem->data_file_name = (const char *)dummy_info.data_file_name;
           }
           if (dummy_info.index_file_name || sub_elem->index_file_name) {
-            sub_elem->index_file_name = (char *)dummy_info.index_file_name;
+            sub_elem->index_file_name = (const char *)dummy_info.index_file_name;
           }
         }
       }
@@ -1185,10 +1185,10 @@ void Partition_base::update_create_info(HA_CREATE_INFO *create_info) {
         dummy_info.data_file_name = dummy_info.index_file_name = nullptr;
         m_file[i]->update_create_info(&dummy_info);
         if (dummy_info.data_file_name || part_elem->data_file_name) {
-          part_elem->data_file_name = (char *)dummy_info.data_file_name;
+          part_elem->data_file_name = (const char *)dummy_info.data_file_name;
         }
         if (dummy_info.index_file_name || part_elem->index_file_name) {
-          part_elem->index_file_name = (char *)dummy_info.index_file_name;
+          part_elem->index_file_name = (const char *)dummy_info.index_file_name;
         }
       }
     }

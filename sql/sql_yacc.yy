@@ -72,6 +72,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/opt_explain_json.h"
 #include "sql/opt_explain_traditional.h"
 #include "sql/parser_yystype.h"
+#include "sql/protocol.h"
 #include "sql/resourcegroups/resource_group_mgr.h" // resource_group_support
 #include "sql/resourcegroups/resource_group_sql_cmd.h" // Sql_cmd_*_resource_group etc.
 #include "sql/rpl_filter.h"
@@ -342,7 +343,7 @@ static void case_stmt_action_case(THD *thd)
     (Instruction 12 in the example)
   */
 
-  pctx->push_label(thd, EMPTY_STR, sp->instructions());
+  pctx->push_label(thd, EMPTY_CSTR, sp->instructions());
 }
 
 /**
@@ -1228,7 +1229,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> ACTIVE_SYM                    /* MYSQL */
 %token<lexer.keyword> INACTIVE_SYM                  /* MYSQL */
 %token          LATERAL_SYM                   /* SQL-1999-R */
-%token<lexer.keyword>ARRAY_SYM                     /* SQL-2003-R */
+%token          ARRAY_SYM                     /* SQL-2003-R */
 %token          MEMBER_SYM                    /* SQL-2003-R */
 %token<lexer.keyword> OPTIONAL_SYM                  /* MYSQL */
 %token<lexer.keyword> SECONDARY_SYM                 /* MYSQL */
@@ -1240,6 +1241,10 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> ENFORCED_SYM                  /* SQL-2015-N */
 %token<lexer.keyword> OJ_SYM                        /* ODBC */
 %token<lexer.keyword> NETWORK_NAMESPACE_SYM         /* MYSQL */
+%token<lexer.keyword> RANDOM_SYM                    /* MYSQL */
+%token<lexer.keyword> MASTER_COMPRESSION_ALGORITHM_SYM /* MYSQL */
+%token<lexer.keyword> MASTER_ZSTD_COMPRESSION_LEVEL_SYM  /* MYSQL */
+%token<lexer.keyword> PRIVILEGE_CHECKS_USER_SYM     /* MYSQL */
 
 /*
    Tokens from Percona Server 5.7 and older
@@ -1268,7 +1273,7 @@ void warn_about_deprecated_binary(THD *thd)
 %left CONDITIONLESS_JOIN
 %left   JOIN_SYM INNER_SYM CROSS STRAIGHT_JOIN NATURAL LEFT RIGHT ON_SYM USING
 %left   SET_VAR
-%left   OR_OR_SYM OR_SYM OR2_SYM
+%left   OR_SYM OR2_SYM
 %left   XOR
 %left   AND_SYM AND_AND_SYM
 %left   BETWEEN_SYM CASE_SYM WHEN_SYM THEN_SYM ELSE
@@ -1279,6 +1284,7 @@ void warn_about_deprecated_binary(THD *thd)
 %left   '-' '+'
 %left   '*' '/' '%' DIV_SYM MOD_SYM
 %left   '^'
+%left   OR_OR_SYM
 %left   NEG '~'
 %right  NOT_SYM NOT2_SYM
 %right  BINARY_SYM COLLATE_SYM
@@ -1295,7 +1301,7 @@ void warn_about_deprecated_binary(THD *thd)
         role_ident role_ident_or_text
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
         NCHAR_STRING opt_component
-        sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
+        BIN_NUM TEXT_STRING_filesystem ident_or_empty
         TEXT_STRING_sys_nonewline TEXT_STRING_password TEXT_STRING_hash
         TEXT_STRING_validated
         filter_wild_db_table_string
@@ -1308,9 +1314,11 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <lex_cstr>
         key_cache_name
+        label_ident
         opt_table_alias
         opt_with_compression_dictionary
         opt_replace_password
+        sp_opt_label
 
 %type <lex_str_list> TEXT_STRING_sys_list
 
@@ -1398,7 +1406,7 @@ void warn_about_deprecated_binary(THD *thd)
         filter_string
         select_item
         opt_where_clause
-        opt_where_clause_expr
+        where_clause
         opt_having_clause
         opt_simple_limit
 
@@ -1476,7 +1484,7 @@ void warn_about_deprecated_binary(THD *thd)
         ident_keywords_ambiguous_3_roles
         ident_keywords_ambiguous_4_system_variables
 
-%type <lex_user> user create_user alter_user user_func role
+%type <lex_user> user_ident_or_text user create_user alter_user user_func role
 
 %type <lexer.charset>
         opt_collate
@@ -1858,7 +1866,8 @@ void warn_about_deprecated_binary(THD *thd)
 %type <create_table_tail> opt_create_table_options_etc
         opt_create_partitioning_etc opt_duplicate_as_qe
 
-%type <wild_or_where> opt_wild_or_where_for_show
+%type <wild_or_where> opt_wild_or_where
+
 // used by JSON_TABLE
 %type <jtc_list> columns_clause columns_list
 %type <jt_column> jt_column
@@ -2629,15 +2638,22 @@ master_def:
           {
             Lex->mi.repl_ignore_server_ids_opt= LEX_MASTER_INFO::LEX_MI_ENABLE;
            }
-        |
-        MASTER_AUTO_POSITION_SYM EQ ulong_num
+        | MASTER_COMPRESSION_ALGORITHM_SYM EQ TEXT_STRING_sys
+          {
+            Lex->mi.compression_algorithm = $3.str;
+           }
+        | MASTER_ZSTD_COMPRESSION_LEVEL_SYM EQ ulong_num
+          {
+            Lex->mi.zstd_compression_level = $3;
+           }
+        | MASTER_AUTO_POSITION_SYM EQ ulong_num
           {
             Lex->mi.auto_position= $3 ?
               LEX_MASTER_INFO::LEX_MI_ENABLE :
               LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
-        |
-        master_file_def
+        | PRIVILEGE_CHECKS_USER_SYM EQ privilege_check_def
+        | master_file_def
         ;
 
 ignore_server_id_list:
@@ -2651,6 +2667,21 @@ ignore_server_id:
           {
             Lex->mi.repl_ignore_server_ids.push_back($1);
           }
+
+privilege_check_def:
+          user_ident_or_text
+          {
+            Lex->mi.privilege_checks_none= false;
+            Lex->mi.privilege_checks_username= $1->user.str;
+            Lex->mi.privilege_checks_hostname= $1->host.str;
+          }
+        | NULL_SYM
+          {
+            Lex->mi.privilege_checks_none= true;
+            Lex->mi.privilege_checks_username= NULL;
+            Lex->mi.privilege_checks_hostname= NULL;
+          }
+        ;
 
 master_file_def:
           MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys_nonewline
@@ -3537,7 +3568,7 @@ sp_decl:
             uint num_vars= pctx->context_var_count();
             Item *dflt_value_item= $5.expr;
 
-            LEX_STRING dflt_value_query= EMPTY_STR;
+            LEX_CSTRING dflt_value_query= EMPTY_CSTR;
 
             if (dflt_value_item)
             {
@@ -3662,7 +3693,7 @@ sp_decl:
             }
 
             if (sp->m_parser_data.add_backpatch_entry(
-                  i, handler_pctx->push_label(thd, EMPTY_STR, 0)))
+                  i, handler_pctx->push_label(thd, EMPTY_CSTR, 0)))
             {
               MYSQL_YYABORT;
             }
@@ -3748,7 +3779,7 @@ sp_decl:
               MYSQL_YYABORT;
             }
 
-            LEX_STRING cursor_query= EMPTY_STR;
+            LEX_CSTRING cursor_query= EMPTY_CSTR;
 
             if (cursor_lex->is_metadata_used())
             {
@@ -4124,7 +4155,7 @@ simple_target_specification:
 
             $$=
               create_item_for_sp_var(
-                thd, $1, NULL,
+                thd, to_lex_cstring($1), NULL,
                 sp->m_parser_data.get_current_stmt_start_ptr(),
                 @1.raw.start,
                 @1.raw.end);
@@ -4327,7 +4358,7 @@ sp_proc_stmt_statement:
             {
               /* Extract the query statement from the tokenizer. */
 
-              LEX_STRING query=
+              LEX_CSTRING query=
                 make_string(thd,
                             sp->m_parser_data.get_current_stmt_start_ptr(),
                             @2.raw.end);
@@ -4368,7 +4399,7 @@ sp_proc_stmt_return:
 
             /* Extract expression string. */
 
-            LEX_STRING expr_query= EMPTY_STR;
+            LEX_CSTRING expr_query= EMPTY_CSTR;
 
             const char *expr_start_ptr= @1.raw.end;
 
@@ -4414,7 +4445,7 @@ sp_proc_stmt_unlabeled:
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
             pctx->push_label(thd,
-                             EMPTY_STR,
+                             EMPTY_CSTR,
                              sp->instructions());
           }
           sp_unlabeled_control
@@ -4667,7 +4698,7 @@ sp_if:
 
             /* Extract expression string. */
 
-            LEX_STRING expr_query= EMPTY_STR;
+            LEX_CSTRING expr_query= EMPTY_CSTR;
             const char *expr_start_ptr= @0.raw.end;
 
             if (lex->is_metadata_used())
@@ -4685,7 +4716,7 @@ sp_if:
 
             if (i == NULL ||
                 sp->m_parser_data.add_backpatch_entry(
-                  i, pctx->push_label(thd, EMPTY_STR, 0)) ||
+                  i, pctx->push_label(thd, EMPTY_CSTR, 0)) ||
                 sp->m_parser_data.add_cont_backpatch_entry(i) ||
                 sp->add_instr(thd, i) ||
                 sp->restore_lex(thd))
@@ -4710,7 +4741,7 @@ sp_if:
                                            sp->instructions());
 
             sp->m_parser_data.add_backpatch_entry(
-              i, pctx->push_label(thd, EMPTY_STR, 0));
+              i, pctx->push_label(thd, EMPTY_CSTR, 0));
           }
           sp_elseifs            /*$7*/
           {                     /*$8*/
@@ -4755,7 +4786,7 @@ simple_case_stmt:
 
             /* Extract CASE-expression string. */
 
-            LEX_STRING case_expr_query= EMPTY_STR;
+            LEX_CSTRING case_expr_query= EMPTY_CSTR;
             const char *expr_start_ptr= @1.raw.end;
 
             if (lex->is_metadata_used())
@@ -4842,7 +4873,7 @@ simple_when_clause:
 
             /* Extract expression string. */
 
-            LEX_STRING when_expr_query= EMPTY_STR;
+            LEX_CSTRING when_expr_query= EMPTY_CSTR;
             const char *expr_start_ptr= @1.raw.end;
 
             if (lex->is_metadata_used())
@@ -4862,7 +4893,7 @@ simple_when_clause:
             if (i == NULL ||
                 i->on_after_expr_parsing(thd) ||
                 sp->m_parser_data.add_backpatch_entry(
-                  i, pctx->push_label(thd, EMPTY_STR, 0)) ||
+                  i, pctx->push_label(thd, EMPTY_CSTR, 0)) ||
                 sp->m_parser_data.add_cont_backpatch_entry(i) ||
                 sp->add_instr(thd, i) ||
                 sp->restore_lex(thd))
@@ -4898,7 +4929,7 @@ searched_when_clause:
 
             /* Extract expression string. */
 
-            LEX_STRING when_query= EMPTY_STR;
+            LEX_CSTRING when_query= EMPTY_CSTR;
             const char *expr_start_ptr= @1.raw.end;
 
             if (lex->is_metadata_used())
@@ -4916,7 +4947,7 @@ searched_when_clause:
 
             if (i == NULL ||
                 sp->m_parser_data.add_backpatch_entry(
-                  i, pctx->push_label(thd, EMPTY_STR, 0)) ||
+                  i, pctx->push_label(thd, EMPTY_CSTR, 0)) ||
                 sp->m_parser_data.add_cont_backpatch_entry(i) ||
                 sp->add_instr(thd, i) ||
                 sp->restore_lex(thd))
@@ -4989,7 +5020,7 @@ sp_labeled_control:
         ;
 
 sp_opt_label:
-          /* Empty  */  { $$= null_lex_str; }
+          /* Empty  */  { $$= NULL_CSTR; }
         | label_ident   { $$= $1; }
         ;
 
@@ -5034,7 +5065,7 @@ sp_unlabeled_block:
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
             sp_label *lab=
-              pctx->push_label(YYTHD, EMPTY_STR, sp->instructions());
+              pctx->push_label(YYTHD, EMPTY_CSTR, sp->instructions());
 
             lab->type= sp_label::BEGIN;
           }
@@ -5127,7 +5158,7 @@ sp_unlabeled_control:
 
             /* Extract expression string. */
 
-            LEX_STRING expr_query= EMPTY_STR;
+            LEX_CSTRING expr_query= EMPTY_CSTR;
             const char *expr_start_ptr= @1.raw.end;
 
             if (lex->is_metadata_used())
@@ -5194,7 +5225,7 @@ sp_unlabeled_control:
 
             /* Extract expression string. */
 
-            LEX_STRING expr_query= EMPTY_STR;
+            LEX_CSTRING expr_query= EMPTY_CSTR;
             const char *expr_start_ptr= @3.raw.end;
 
             if (lex->is_metadata_used())
@@ -6952,6 +6983,7 @@ collation_name:
               MYSQL_YYABORT;
             YYLIP->warn_on_deprecated_collation($$);
           }
+        | BINARY_SYM { $$= &my_charset_bin; }
         ;
 
 opt_collate:
@@ -7732,6 +7764,21 @@ alter_server_stmt:
 alter_user_stmt:
           alter_user_command alter_user_list require_clause
           connect_options opt_account_lock_password_expire_options
+        | alter_user_command user_func IDENTIFIED_SYM BY RANDOM_SYM PASSWORD
+          opt_replace_password opt_retain_current_password
+          {
+            $2->auth.str= nullptr;
+            $2->auth.length= 0;
+            $2->has_password_generator= true;
+            $2->uses_identified_by_clause= true;
+            if ($7.str != nullptr) {
+              $2->current_auth= $7;
+              $2->uses_replace_clause= true;
+            }
+            Lex->contains_plaintext_password= true;
+            $2->discard_old_password= false;
+            $2->retain_current_password= $8;
+          }
         | alter_user_command user_func IDENTIFIED_SYM BY TEXT_STRING
           opt_replace_password opt_retain_current_password
           {
@@ -9174,8 +9221,6 @@ query_expression_body:
             if ($1 == NULL)
               MYSQL_YYABORT; // OOM
 
-            $1->set_parentheses();
-
             $$= NEW_PTN PT_union($1, @1, $3, $4);
           }
         | query_expression_body UNION_SYM union_option query_expression_parens
@@ -9200,8 +9245,6 @@ query_expression_body:
             if ($4->is_union())
               YYTHD->syntax_error_at(@4);
 
-            $1->set_parentheses();
-
             PT_nested_query_expression *nested_qe=
               NEW_PTN PT_nested_query_expression($4);
             $$= NEW_PTN PT_union($1, @1, $3, nested_qe);
@@ -9211,23 +9254,7 @@ query_expression_body:
 
 query_expression_parens:
           '(' query_expression_parens ')' { $$= $2; }
-        | '(' query_expression ')'
-          {
-            /*
-              We don't call set_parentheses() on a query expression here. It
-              makes no difference to the contextualization phase whether a
-              query expression was within parentheses unless it is used in
-              conjunction with UNION. Therefore set_parentheses() is called
-              only in the rules producing UNION syntax.
-
-              The need for set_parentheses() is purely to support legacy parse
-              rules, and we are gradually moving away from them and using the
-              query_expression_body to define UNION syntax. When this move is
-              complete, we will not need set_parentheses() any more, and the
-              contextualize() phase can be greatly simplified.
-            */
-            $$= $2;
-          }
+        | '(' query_expression ')' { $$= $2; }
         ;
 
 query_primary:
@@ -9421,7 +9448,7 @@ select_item:
           table_wild { $$= $1; }
         | expr select_alias
           {
-            $$= NEW_PTN PTI_expr_with_alias(@$, $1, @1.cpp, $2);
+            $$= NEW_PTN PTI_expr_with_alias(@$, $1, @1.cpp, to_lex_cstring($2));
           }
         ;
 
@@ -11502,27 +11529,19 @@ opt_all:
         ;
 
 opt_where_clause:
-        opt_where_clause_expr
-          {
-            if ($1 != NULL)
-              $$= new PTI_context<CTX_WHERE>(@$, $1);
-            else
-              $$= NULL;
-          }
+          /* empty */   { $$ = nullptr; }
+        | where_clause
         ;
 
-opt_where_clause_expr: /* empty */  { $$= NULL; }
-        | WHERE expr
-          {
-            $$= $2;
-          }
+where_clause:
+          WHERE expr    { $$ = NEW_PTN PTI_where(@2, $2); }
         ;
 
 opt_having_clause:
           /* empty */ { $$= NULL; }
         | HAVING expr
           {
-            $$= new PTI_context<CTX_HAVING>(@$, $2);
+            $$= new PTI_having(@$, $2);
           }
         ;
 
@@ -11700,10 +11719,6 @@ alter_order_item:
           }
         ;
 
-/*
-   Order by statement in select
-*/
-
 opt_order_clause:
           /* empty */ { $$= NULL; }
         | order_clause
@@ -11777,7 +11792,7 @@ limit_options:
 limit_option:
           ident
           {
-            $$= NEW_PTN PTI_limit_option_ident(@$, $1, @1.raw);
+            $$= NEW_PTN PTI_limit_option_ident(@$, to_lex_cstring($1), @1.raw);
           }
         | param_marker
           {
@@ -12704,7 +12719,7 @@ show:
         ;
 
 show_param:
-           DATABASES opt_wild_or_where_for_show
+           DATABASES opt_wild_or_where
            {
              Lex->sql_command= SQLCOM_SHOW_DATABASES;
              if (Lex->set_wild($2.wild))
@@ -12713,13 +12728,13 @@ show_param:
                        @$, YYTHD, Lex->wild, $2.where) == nullptr)
                MYSQL_YYABORT;
            }
-         | opt_show_cmd_type TABLES opt_db opt_wild_or_where_for_show
+         | opt_show_cmd_type TABLES opt_db opt_wild_or_where
            {
              auto *p= NEW_PTN PT_show_tables(@$, $1, $3, $4.wild, $4.where);
 
              MAKE_CMD(p);
            }
-         | opt_full TRIGGERS_SYM opt_db opt_wild_or_where_for_show
+         | opt_full TRIGGERS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TRIGGERS;
@@ -12731,7 +12746,7 @@ show_param:
                                     @$, YYTHD, lex->wild, $4.where) == nullptr)
                MYSQL_YYABORT;
            }
-         | EVENTS_SYM opt_db opt_wild_or_where_for_show
+         | EVENTS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_EVENTS;
@@ -12742,7 +12757,7 @@ show_param:
                                     @$, YYTHD, lex->wild, $3.where) == nullptr)
                MYSQL_YYABORT;
            }
-         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where_for_show
+         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where
            {
              LEX *lex= Lex;
              lex->sql_command= SQLCOM_SHOW_TABLE_STATUS;
@@ -12756,6 +12771,13 @@ show_param:
         | OPEN_SYM TABLES opt_db opt_wild_or_where
           {
             LEX *lex= Lex;
+            if (lex->set_wild($4.wild)) {
+              MYSQL_YYABORT; // OOM
+            }
+            if ($4.where != nullptr) {
+              ITEMIZE($4.where, &$4.where);
+              Select->set_where_cond($4.where);
+            }
             lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
             lex->select_lex->db= $3;
             if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
@@ -12783,7 +12805,7 @@ show_param:
           from_or_in
           table_ident
           opt_db
-          opt_wild_or_where_for_show
+          opt_wild_or_where
           {
             LEX *lex= Lex;
 
@@ -12834,7 +12856,7 @@ show_param:
           from_or_in            /* #3 */
           table_ident           /* #4 */
           opt_db                /* #5 */
-          opt_where_clause_expr /* #6 */
+          opt_where_clause      /* #6 */
           {
             LEX *lex= Lex;
 
@@ -12904,7 +12926,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
               YYABORT;
           }
-        | opt_var_type STATUS_SYM opt_wild_or_where_for_show
+        | opt_var_type STATUS_SYM opt_wild_or_where
           {
             Lex->sql_command= SQLCOM_SHOW_STATUS;
             THD *thd= YYTHD;
@@ -12931,7 +12953,7 @@ show_param:
             Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;
             Lex->verbose= $1;
           }
-        | opt_var_type VARIABLES opt_wild_or_where_for_show
+        | opt_var_type VARIABLES opt_wild_or_where
           {
             Lex->sql_command= SQLCOM_SHOW_VARIABLES;
             THD *thd= YYTHD;
@@ -12953,7 +12975,7 @@ show_param:
                 MYSQL_YYABORT;
             }
           }
-        | character_set opt_wild_or_where_for_show
+        | character_set opt_wild_or_where
           {
             Lex->sql_command= SQLCOM_SHOW_CHARSETS;
             if (Lex->set_wild($2.wild))
@@ -12962,7 +12984,7 @@ show_param:
                                   @$, YYTHD, Lex->wild, $2.where) == nullptr)
               MYSQL_YYABORT;
           }
-        | COLLATION_SYM opt_wild_or_where_for_show
+        | COLLATION_SYM opt_wild_or_where
           {
             Lex->sql_command= SQLCOM_SHOW_COLLATIONS;
             if (Lex->set_wild($2.wild))
@@ -13093,7 +13115,7 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_CREATE_TRIGGER;
             lex->spname= $3;
           }
-        | PROCEDURE_SYM STATUS_SYM opt_wild_or_where_for_show
+        | PROCEDURE_SYM STATUS_SYM opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
@@ -13103,7 +13125,7 @@ show_param:
                                     @$, YYTHD, lex->wild, $3.where) == nullptr)
               MYSQL_YYABORT;
           }
-        | FUNCTION_SYM STATUS_SYM opt_wild_or_where_for_show
+        | FUNCTION_SYM STATUS_SYM opt_wild_or_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_FUNC;
@@ -13193,26 +13215,9 @@ binlog_from:
         ;
 
 opt_wild_or_where:
-          /* empty */
-        | LIKE TEXT_STRING_sys
-          {
-            if (Lex->set_wild($2))
-              MYSQL_YYABORT; // OOM
-          }
-        | WHERE expr
-          {
-            ITEMIZE($2, &$2);
-
-            Select->set_where_cond($2);
-            if ($2)
-              $2->apply_is_true();
-          }
-        ;
-
-opt_wild_or_where_for_show:
-          /* empty */                   { $$= { NULL_STR, nullptr }; }
-        | LIKE TEXT_STRING_literal      { $$= { $2, nullptr}; }
-        | WHERE expr                    { $$= { NULL_STR, $2}; }
+          /* empty */                   { $$ = {}; }
+        | LIKE TEXT_STRING_literal      { $$ = { $2, {} }; }
+        | where_clause                  { $$ = { {}, $1 }; }
         ;
 
 /* A Oracle compatible synonym for show */
@@ -13265,6 +13270,10 @@ opt_explain_format_type:
               my_error(ER_UNKNOWN_EXPLAIN_FORMAT, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
+          }
+        | ANALYZE_SYM
+          {
+            $$= Explain_format_type::TREE_WITH_EXECUTE;
           }
         ;
 
@@ -13980,7 +13989,7 @@ grouping_expr:
 simple_ident:
           ident
           {
-            $$= NEW_PTN PTI_simple_ident_ident(@$, $1);
+            $$= NEW_PTN PTI_simple_ident_ident(@$, to_lex_cstring($1));
           }
         | simple_ident_q
         ;
@@ -14200,7 +14209,7 @@ role_ident:
         ;
 
 label_ident:
-          IDENT_sys    { $$=$1; }
+          IDENT_sys    { $$=to_lex_cstring($1); }
         | label_keyword
           {
             THD *thd= YYTHD;
@@ -14234,7 +14243,7 @@ role_ident_or_text:
         | LEX_HOSTNAME
         ;
 
-user:
+user_ident_or_text:
           ident_or_text
           {
             if (!($$= LEX_USER::alloc(YYTHD, &$1, NULL)))
@@ -14244,6 +14253,13 @@ user:
           {
             if (!($$= LEX_USER::alloc(YYTHD, &$1, &$3)))
               MYSQL_YYABORT;
+          }
+        ;
+
+user:
+          user_ident_or_text
+          {
+            $$=$1;
           }
         | CURRENT_USER optional_braces
           {
@@ -14537,6 +14553,7 @@ ident_keywords_unambiguous:
         | LOGFILE_SYM
         | LOGS_SYM
         | MASTER_AUTO_POSITION_SYM
+        | MASTER_COMPRESSION_ALGORITHM_SYM
         | MASTER_CONNECT_RETRY_SYM
         | MASTER_DELAY_SYM
         | MASTER_HEARTBEAT_PERIOD_SYM
@@ -14560,6 +14577,7 @@ ident_keywords_unambiguous:
         | MASTER_SYM
         | MASTER_TLS_VERSION_SYM
         | MASTER_USER_SYM
+        | MASTER_ZSTD_COMPRESSION_LEVEL_SYM
         | MAX_CONNECTIONS_PER_HOUR
         | MAX_QUERIES_PER_HOUR
         | MAX_ROWS
@@ -14628,12 +14646,14 @@ ident_keywords_unambiguous:
         | PRESERVE_SYM
         | PREV_SYM
         | PRIVILEGES
+        | PRIVILEGE_CHECKS_USER_SYM
         | PROCESSLIST_SYM
         | PROFILES_SYM
         | PROFILE_SYM
         | QUARTER_SYM
         | QUERY_SYM
         | QUICK
+        | RANDOM_SYM
         | READ_ONLY_SYM
         | REBUILD_SYM
         | RECOVER_SYM
@@ -14839,6 +14859,15 @@ start_option_value_list:
           {
             $$= NEW_PTN PT_option_value_no_option_type_password($3.str, $4.str,
                                                                 $5,
+                                                                false,
+                                                                @4);
+          }
+        | PASSWORD TO_SYM RANDOM_SYM opt_replace_password opt_retain_current_password
+          {
+            // RANDOM PASSWORD GENERATION AND RETURN RESULT SET...
+            $$= NEW_PTN PT_option_value_no_option_type_password($3.str, $4.str,
+                                                                $5,
+                                                                true,
                                                                 @4);
           }
         | PASSWORD FOR_SYM user equal TEXT_STRING_password opt_replace_password opt_retain_current_password
@@ -14846,6 +14875,16 @@ start_option_value_list:
             $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5.str,
                                                                     $6.str,
                                                                     $7,
+                                                                    false,
+                                                                    @6);
+          }
+        | PASSWORD FOR_SYM user TO_SYM RANDOM_SYM opt_replace_password opt_retain_current_password
+          {
+            // RANDOM PASSWORD GENERATION AND RETURN RESULT SET...
+            $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5.str,
+                                                                    $6.str,
+                                                                    $7,
+                                                                    true,
                                                                     @6);
           }
         ;
@@ -15046,11 +15085,11 @@ option_value_no_option_type:
 internal_variable_name:
           lvalue_ident
           {
-            $$= NEW_PTN PT_internal_variable_name_1d($1);
+            $$= NEW_PTN PT_internal_variable_name_1d(to_lex_cstring($1));
           }
         | lvalue_ident '.' ident
           {
-            $$= NEW_PTN PT_internal_variable_name_2d(@$, $1, $3);
+            $$= NEW_PTN PT_internal_variable_name_2d(@$, to_lex_cstring($1), to_lex_cstring($3));
           }
         | DEFAULT_SYM '.' ident
           {
@@ -15764,7 +15803,19 @@ create_user:
             $$=$1;
             $1->auth.str= $4.str;
             $1->auth.length= $4.length;
+            $1->has_password_generator= false;
             $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
+            Lex->contains_plaintext_password= true;
+          }
+        | user IDENTIFIED_SYM BY RANDOM_SYM PASSWORD
+          {
+            $$= $1;
+            $1->has_password_generator= true;
+            $1->auth= EMPTY_CSTR;
+            $1->uses_identified_by_clause= true;
+            $1->uses_identified_with_clause= false;
             $1->discard_old_password= false;
             $1->retain_current_password= false;
             Lex->contains_plaintext_password= true;
@@ -15778,6 +15829,7 @@ create_user:
             $1->uses_identified_with_clause= true;
             $1->discard_old_password= false;
             $1->retain_current_password= false;
+            $1->has_password_generator= false;
           }
         | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_hash
           {
@@ -15790,6 +15842,7 @@ create_user:
             $1->uses_authentication_string_clause= true;
             $1->discard_old_password= false;
             $1->retain_current_password= false;
+            $1->has_password_generator= false;
           }
         | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_password
           {
@@ -15803,6 +15856,19 @@ create_user:
             $1->discard_old_password= false;
             $1->retain_current_password= false;
             Lex->contains_plaintext_password= true;
+            $1->has_password_generator= false;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text BY RANDOM_SYM PASSWORD
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->uses_identified_with_clause= true;
+            $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
+            Lex->contains_plaintext_password= true;
+            $1->has_password_generator= true;
           }
         | user
           {
@@ -15810,6 +15876,7 @@ create_user:
             $1->auth= NULL_CSTR;
             $1->discard_old_password= false;
             $1->retain_current_password= false;
+            $1->has_password_generator= false;
           }
         ;
 
@@ -15817,6 +15884,7 @@ alter_user:
          user IDENTIFIED_SYM BY TEXT_STRING REPLACE_SYM TEXT_STRING_password opt_retain_current_password
           {
             $$=$1;
+            $1->has_password_generator= false;
             $1->auth.str= $4.str;
             $1->auth.length= $4.length;
             $1->uses_identified_by_clause= true;
@@ -15831,6 +15899,7 @@ alter_user:
           opt_retain_current_password
           {
             $$= $1;
+            $1->has_password_generator= false;
             $1->plugin.str= $4.str;
             $1->plugin.length= $4.length;
             $1->auth.str= $6.str;
@@ -15847,11 +15916,37 @@ alter_user:
         | user IDENTIFIED_SYM BY TEXT_STRING_password opt_retain_current_password
           {
             $$=$1;
+            $1->has_password_generator= false;
             $1->auth.str= $4.str;
             $1->auth.length= $4.length;
             $1->uses_identified_by_clause= true;
             $1->discard_old_password= false;
             $1->retain_current_password= $5;
+            Lex->contains_plaintext_password= true;
+          }
+        | user IDENTIFIED_SYM BY RANDOM_SYM PASSWORD opt_retain_current_password
+          {
+            $$= $1;
+            $1->has_password_generator= true;
+            $1->auth= EMPTY_CSTR;
+            $1->uses_identified_by_clause= true;
+            $1->uses_identified_with_clause= false;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $6;
+            Lex->contains_plaintext_password= true;
+          }
+        | user IDENTIFIED_SYM BY RANDOM_SYM PASSWORD REPLACE_SYM TEXT_STRING_password opt_retain_current_password
+          {
+            $$= $1;
+            $1->has_password_generator= true;
+            $1->auth= EMPTY_CSTR;
+            $1->uses_identified_by_clause= true;
+            $1->uses_identified_with_clause= false;
+            $1->uses_replace_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $8;
+            $1->current_auth.str= $7.str;
+            $1->current_auth.length= $7.length;
             Lex->contains_plaintext_password= true;
           }
         | user IDENTIFIED_SYM WITH ident_or_text
@@ -15863,6 +15958,7 @@ alter_user:
             $1->uses_identified_with_clause= true;
             $1->discard_old_password= false;
             $1->retain_current_password= false;
+            $1->has_password_generator= false;
           }
         | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_hash
           opt_retain_current_password
@@ -15876,6 +15972,7 @@ alter_user:
             $1->uses_authentication_string_clause= true;
             $1->discard_old_password= false;
             $1->retain_current_password= $7;
+            $1->has_password_generator= false;
           }
         | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_password
           opt_retain_current_password
@@ -15890,6 +15987,20 @@ alter_user:
             $1->discard_old_password= false;
             $1->retain_current_password= $7;
             Lex->contains_plaintext_password= true;
+            $1->has_password_generator= false;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text BY RANDOM_SYM PASSWORD
+          opt_retain_current_password
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->uses_identified_with_clause= true;
+            $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $8;
+            Lex->contains_plaintext_password= true;
+            $1->has_password_generator= true;
           }
         | user opt_discard_old_password
           {
@@ -15897,6 +16008,7 @@ alter_user:
             $1->discard_old_password= $2;
             $1->retain_current_password= false;
             $1->auth= NULL_CSTR;
+            $1->has_password_generator= false;
           }
         ;
 
@@ -16785,7 +16897,7 @@ install:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
-            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_install_plugin($3, $5);
+            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_install_plugin(to_lex_cstring($3), $5);
           }
         | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
           {
@@ -16800,7 +16912,7 @@ uninstall:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
-            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_uninstall_plugin($3);
+            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_uninstall_plugin(to_lex_cstring($3));
           }
        | UNINSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
           {

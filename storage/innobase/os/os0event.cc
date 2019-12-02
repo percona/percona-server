@@ -270,6 +270,7 @@ struct os_event {
   enabled for the cond_attr object. */
   static bool cond_attr_has_monotonic_clock;
 #endif /* !_WIN32 */
+  static bool global_initialized;
 
 #ifdef UNIV_DEBUG
   static std::atomic_size_t n_objects_alive;
@@ -505,6 +506,7 @@ ulint os_event::wait_time_low(ulint time_in_usec,
 
 /** Constructor */
 os_event::os_event(const char *name) UNIV_NOTHROW {
+  ut_a(global_initialized);
   init();
 
   m_set = false;
@@ -621,6 +623,7 @@ void os_event_destroy(os_event_t &event) /*!< in/own: event to free */
 pthread_condattr_t os_event::cond_attr;
 bool os_event::cond_attr_has_monotonic_clock{false};
 #endif /* !_WIN32 */
+bool os_event::global_initialized{false};
 
 #ifdef UNIV_DEBUG
 std::atomic_size_t os_event::n_objects_alive{0};
@@ -648,10 +651,11 @@ void os_event_global_init(void) {
 
 #endif /* UNIV_LINUX */
 #endif /* !_WIN32 */
+  os_event::global_initialized = true;
 }
 
 void os_event_global_destroy(void) {
-  ut_ad(os_event::n_objects_alive.load() == 0);
+  ut_a(os_event::global_initialized);
 #ifndef _WIN32
   os_event::cond_attr_has_monotonic_clock = false;
 #ifdef UNIV_DEBUG

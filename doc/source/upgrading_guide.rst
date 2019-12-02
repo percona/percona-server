@@ -34,6 +34,23 @@ of incompatible changes that could cause automatic upgrade to fail:
    With partitioned tables that use the TokuDB or MyRocks storage
    engine, the upgrade only works with native partitioning.
 
+.. note::
+
+    :ref:`encrypting-threads` is an **EXPERIMENTAL** feature.
+
+    Before encryption is set to "ON", the user should consult the
+    INFORMATION_SCHEMA_ENCRYPTION or the
+    INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION table to verify which
+    tables or tablespaces are excluded from
+    the encryption. The tablespaces which are not encrypted in the
+    INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION have a 'Y' in the
+    ``EXCLUDED`` column.
+
+    If the user wants to exclude a table from encryption, the user should run
+    ``ALTER TABLE ... ENCRYPTION='N'``. In the case of ``ENCRYPTION='Y'``, the
+    table remains encrypted and a table that is not encrypted remains not
+    encrypted.
+
 -------------------------------------------------------------------------------
 
 .. contents::

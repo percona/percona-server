@@ -62,7 +62,7 @@ fix_thp_setting() {
 
 check_exit_status() {
         errcode=$1
-        if [ $errcode > 0 ];
+        if [ $errcode -gt 0 ];
         then
                 exit $errcode
         fi

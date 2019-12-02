@@ -161,12 +161,17 @@ int create(DB_ENV *env, DB **status_db_ptr, const char *name, DB_TXN *txn) {
   return error;
 }
 
+extern "C" {
+extern uint force_recovery;
+}
+
 int open(DB_ENV *env, DB **status_db_ptr, const char *name, DB_TXN *txn) {
   int error = 0;
   DB *status_db = NULL;
   error = db_create(&status_db, env, 0);
   if (error == 0) {
-    error = status_db->open(status_db, txn, name, NULL, DB_BTREE, DB_THREAD, 0);
+    error = status_db->open(status_db, txn, name, NULL, DB_BTREE, DB_THREAD,
+                            force_recovery ? 0 : S_IWUSR);
   }
   if (error == 0) {
     uint32_t pagesize = 0;

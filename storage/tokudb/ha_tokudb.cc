@@ -1109,7 +1109,7 @@ int ha_tokudb::open_main_dictionary(const char *name, bool is_read_only,
   share->key_file[primary_key] = share->file;
 
   error = share->file->open(share->file, txn, newname, NULL, DB_BTREE,
-                            open_flags, 0);
+                            open_flags, is_read_only ? 0 : S_IWUSR);
   if (error) {
     goto exit;
   }
@@ -1160,7 +1160,8 @@ int ha_tokudb::open_secondary_dictionary(DB **ptr, KEY *key_info,
     goto cleanup;
   }
 
-  error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, 0);
+  error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags,
+                       is_read_only ? 0 : S_IWUSR);
   if (error) {
     set_my_errno(error);
     goto cleanup;
@@ -1211,7 +1212,7 @@ int ha_tokudb::initialize_share(const char *name, int mode) {
   if (table->part_info == NULL) {
     error = verify_frm_data(table->s->path.str, txn);
     if (error) goto exit;
-  } else {
+  } else if (force_recovery == 0 && !read_only && !super_read_only) {
     // remove the frm data for partitions since we are not maintaining it
     error = remove_frm_data(share->status_block, txn);
     if (error) goto exit;
@@ -1617,6 +1618,8 @@ int ha_tokudb::write_frm_data(DB *db, DB_TXN *txn, const char *frm_name) {
   uchar *frm_data = NULL;
   size_t frm_len = 0;
   int error = 0;
+
+  if (force_recovery != 0 || read_only || super_read_only) goto cleanup;
 
   error = readfrm(frm_name, &frm_data, &frm_len);
   if (error) {

@@ -861,6 +861,24 @@ uint get_global_default_encryption_key_id_value() {
   return THDVAR(NULL, default_encryption_key_id);
 }
 
+static MYSQL_THDVAR_UINT(records_in_range, PLUGIN_VAR_RQCMDARG,
+                         "Used to override the result of records_in_range(). "
+                         "Set to a positive number to override",
+                         NULL, NULL, 0,
+                         /* min */ 0, /* max */ INT_MAX, 0);
+
+static MYSQL_THDVAR_UINT(force_index_records_in_range, PLUGIN_VAR_RQCMDARG,
+                         "Used to override the result of records_in_range() "
+                         "when FORCE INDEX is used.",
+                         NULL, NULL, 0,
+                         /* min */ 0, /* max */ INT_MAX, 0);
+
+uint innodb_force_index_records_in_range(THD *thd) {
+  return THDVAR(thd, force_index_records_in_range);
+}
+
+uint innodb_records_in_range(THD *thd) { return THDVAR(thd, records_in_range); }
+
 /** Set up InnoDB API callback function array */
 /*
 Generates array elements which look like:
@@ -22076,7 +22094,7 @@ static int innodb_track_changed_pages_validate(THD *thd, SYS_VAR *var,
   if (value->value_type(value) == STRING_RESULT) {
     char buff[STRING_BUFFER_USUAL_SIZE];
     int length = 0;
-    const char * res;
+    const char *res;
     if (!(res = value->val_str(value, buff, &length))) {
       return 1;
     } else if (!my_strnncoll(system_charset_info, (const uchar *)res, length,
@@ -23226,7 +23244,8 @@ static MYSQL_SYSVAR_ENUM(
     empty_free_list_algorithm, srv_empty_free_list_algorithm,
     PLUGIN_VAR_OPCMDARG,
     "The algorithm to use for empty free list handling.  Allowed values: "
-    "LEGACY: (the default) Original Oracle MySQL handling with single page flushes; "
+    "LEGACY: (the default) Original Oracle MySQL handling with single page "
+    "flushes; "
     "BACKOFF: Wait until cleaner produces a free page.",
     innodb_srv_empty_free_list_algorithm_validate, nullptr,
     SRV_EMPTY_FREE_LIST_LEGACY, &innodb_empty_free_list_algorithm_typelib);
@@ -24434,6 +24453,8 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(background_scrub_data_check_interval),
     MYSQL_SYSVAR(scrub_log),
     MYSQL_SYSVAR(scrub_log_speed),
+    MYSQL_SYSVAR(records_in_range),
+    MYSQL_SYSVAR(force_index_records_in_range),
     NULL};
 
 mysql_declare_plugin(innobase){

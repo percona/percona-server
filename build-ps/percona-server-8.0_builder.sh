@@ -213,7 +213,7 @@ get_sources(){
     fi
     #
     git submodule update
-    cmake .  -DWITH_SSL=bundled -DFORCE_INSOURCE_BUILD=1
+    cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1
     make dist
     #
     EXPORTED_TAR=$(basename $(find . -type f -name percona-server*.tar.gz | sort | tail -n 1))

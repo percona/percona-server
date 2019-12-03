@@ -7,12 +7,13 @@ jobs:
 
   variables:
     UBUNTU_CODE_NAME: bionic
-    BOOST_VERSION: boost_1_69_0
+    BOOST_VERSION: boost_1_70_0
     BOOST_DIR: $(Pipeline.Workspace)/boost
     CCACHE_DIR: $(Pipeline.Workspace)/ccache
     CCACHE_COMPRESS: 1
     CCACHE_COMPRESSLEVEL: 9
     CCACHE_CPP2: 1
+    CCACHE_MAXSIZE: 4G
     Agent.Source.Git.ShallowFetchDepth: 512
 
   strategy:
@@ -131,6 +132,7 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
+      df -Th
       CC=$(Compiler)-$(CompilerVer)
       if [[ "$(Compiler)" == "clang" ]]; then
         CXX=clang++-$(CompilerVer)
@@ -191,6 +193,13 @@ jobs:
 
   - script: |
       echo --- Set cmake parameters
+      COMPILE_OPT+=(
+        -DCMAKE_C_FLAGS_DEBUG=-g1
+        -DCMAKE_CXX_FLAGS_DEBUG=-g1
+        '-DCMAKE_C_FLAGS_RELWITHDEBINFO=-O2 -g1 -DNDEBUG'
+        '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g1 -DNDEBUG'
+      )
+
       CMAKE_OPT="
         -DCMAKE_BUILD_TYPE=$(BuildType)
         -DBUILD_CONFIG=mysql_release
@@ -240,15 +249,10 @@ jobs:
         "
       fi
 
-      `# disable unit tests for gcc-8 and gcc-9 because of error "No space left on device"`;
-      if [[ "$(BuildType)" == "RelWithDebInfo" ]] &&
-         ([[ "$CC" == "gcc-8" ]] || [[ "$CC" == "gcc-9" ]]); then
-        CMAKE_OPT+="-DWITH_UNIT_TESTS=OFF"
-      fi
-
       echo --- CMAKE_OPT=\"$CMAKE_OPT\"
+      echo --- COMPILE_OPT=\"${COMPILE_OPT[@]}\"
       mkdir bin; cd bin
-      CC=$CC CXX=$CXX cmake .. $CMAKE_OPT || exit 1
+      CC=$CC CXX=$CXX cmake .. $CMAKE_OPT "${COMPILE_OPT[@]}" || exit 1
 
       CMAKE_TIME=$SECONDS
       echo --- CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds.
@@ -264,5 +268,7 @@ jobs:
 
       BUILD_TIME=$SECONDS
       echo --- Total time $(($BUILD_TIME + $UPDATE_TIME + $CMAKE_TIME)) seconds. Build time $BUILD_TIME seconds. CMake took $CMAKE_TIME seconds. Packages updated in $UPDATE_TIME seconds.
+      rm -f $(Pipeline.Workspace)/boost/$(BOOST_VERSION).tar.gz
+      df -Th
 
     displayName: '*** Compile'

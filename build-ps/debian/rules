@@ -179,6 +179,7 @@ override_dh_auto_install:
 
 override_dh_strip:
 	dh_strip --dbg-package=percona-server-dbg
+	dh_strip -Xlibprotobuf-lite
 
 override_dh_installinit:
 	@echo "RULES.$@"

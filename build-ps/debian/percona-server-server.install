@@ -41,6 +41,9 @@ usr/share/man/man1/perror.1
 usr/share/man/man8/mysqld.8
 # SQL files
 usr/share/mysql/*.sql
+#private shared libs
+usr/lib/mysql/private/libprotobuf-lite.so.3.6.1
+usr/lib/mysql/private/libprotobuf.so.3.6.1
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so
@@ -65,6 +68,8 @@ usr/lib/mysql/plugin/component_validate_password.so
 usr/lib/mysql/plugin/component_audit_api_message_emit.so
 usr/lib/mysql/plugin/mysql_clone.so
 usr/lib/mysql/plugin/data_masking.*
+usr/lib/mysql/plugin/component_mysqlbackup.so
+usr/lib/mysql/plugin/debug/component_mysqlbackup.so
 usr/lib/mysql/plugin/debug/data_masking.so
 usr/lib/mysql/plugin/debug/mysql_clone.so
 usr/lib/mysql/plugin/debug/adt_null.so

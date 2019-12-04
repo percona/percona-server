@@ -142,15 +142,18 @@
  # and link them together into shared library.
  MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
    EXPORTS
-@@ -306,7 +306,7 @@
+@@ -306,9 +306,9 @@
      SET(OS_SHARED_LIB_VERSION
        "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
    ENDIF()
 -  # Name of shared library is perconaserverclient on Unix
 +  # Name of shared library is mysqlclient on Unix
    SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-     OUTPUT_NAME perconaclient 
+-    OUTPUT_NAME perconaserverclient 
++    OUTPUT_NAME mysqlclient 
      VERSION "${OS_SHARED_LIB_VERSION}" 
+     SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
+   CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
 @@ -329,8 +329,8 @@
        PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
    ENDIF() 
@@ -162,15 +165,6 @@
    SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
  
  ENDIF()
---- libmysql/libmysql.ver.in	2018-08-18 03:31:20.419945051 -0400
-+++ libmysql/libmysql.ver.in	2018-08-18 03:31:20.424278451 -0400
-@@ -21,5 +21,5 @@
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
- 
- 
--libperconaserverclient_@SHARED_LIB_MAJOR_VERSION@.0
-+libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.0
- { global: ${CLIENT_API_FUNCTIONS};${CLIENT_API_FUNCTIONS_UNDOCUMENTED}; ${CLIENT_API_NONBLOCKING_FUNCTIONS}; local: *; };
 --- scripts/CMakeLists.txt	2018-08-18 03:31:39.003728628 -0400
 +++ scripts/CMakeLists.txt	2018-08-18 03:31:39.009145377 -0400
 @@ -365,7 +365,7 @@

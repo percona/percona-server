@@ -112,6 +112,7 @@ Srv_cpu_usage srv_cpu_usage;
 bool srv_is_upgrade_mode = false;
 bool srv_downgrade_logs = false;
 bool srv_upgrade_old_undo_found = false;
+bool srv_has_crypt_data_v1_rotating_from_mk{false};
 #endif /* INNODB_DD_TABLE */
 
 #ifdef UNIV_DEBUG

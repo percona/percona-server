@@ -1646,7 +1646,11 @@ static byte *recv_parse_or_apply_log_rec_body(mlog_id_t type, byte *ptr,
           } else if (memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_PS_V1,
                             ENCRYPTION_MAGIC_SIZE) == 0 &&
                      apply) {
-            return (fil_parse_write_crypt_data(ptr, end_ptr, block, len));
+            return (fil_parse_write_crypt_data_v1(space_id, ptr, end_ptr, len));
+          } else if (memcmp(ptr_copy, ENCRYPTION_KEY_MAGIC_PS_V2,
+                            ENCRYPTION_MAGIC_SIZE) == 0 &&
+                     apply) {
+            return (fil_parse_write_crypt_data_v2(space_id, ptr, end_ptr, len));
           }
         }
         break;
@@ -3997,7 +4001,7 @@ void recv_dblwr_t::decrypt_sys_dblwr_pages() {
   IORequest decrypt_request;
 
   decrypt_request.encryption_key(space->encryption_key, space->encryption_klen,
-                                 false, space->encryption_iv, 0, 0, NULL, NULL);
+                                 false, space->encryption_iv, 0, 0, nullptr);
   decrypt_request.encryption_algorithm(Encryption::AES);
 
   Encryption encryption(decrypt_request.encryption_algorithm());

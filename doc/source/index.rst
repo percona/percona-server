@@ -131,6 +131,7 @@ Security Improvements
   :glob:
 
   security/pam_plugin
+  security/simple-ldap
   security/data-at-rest-encryption
   security/vault
   security/using-keyring-plugin

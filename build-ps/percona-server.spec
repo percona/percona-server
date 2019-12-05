@@ -502,6 +502,7 @@ mkdir debug
            -DWITH_ICU=bundled \
            -DWITH_LZ4=bundled \
            -DWITH_ZLIB=bundled \
+           -DWITH_ZSTD=bundled \
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
            -DWITH_KEYRING_VAULT=ON \
@@ -547,6 +548,7 @@ mkdir release
            -DWITH_ICU=bundled \
            -DWITH_READLINE=system \
            -DWITH_LIBEVENT=bundled \
+           -DWITH_ZSTD=bundled \
            -DWITH_KEYRING_VAULT=ON \
            %{?ssl_option} \
            %{?mecab_option} \

@@ -83,6 +83,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
                 -DWITH_PROTOBUF=bundled \
                 -DWITH_RAPIDJSON=bundled \
                 -DWITH_ICU=bundled \
+                -DWITH_ZSTD=bundled \
                 -DWITH_LZ4=bundled \
                 -DWITH_EDITLINE=bundled \
                 -DWITH_LIBEVENT=bundled \
@@ -124,6 +125,7 @@ endif
                 -DWITH_PROTOBUF=bundled \
                 -DWITH_RAPIDJSON=bundled \
                 -DWITH_ICU=bundled \
+                -DWITH_ZSTD=bundled \
                 -DWITH_LZ4=bundled \
                 -DWITH_EDITLINE=bundled \
                 -DWITH_LIBEVENT=bundled \

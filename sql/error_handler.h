@@ -209,7 +209,8 @@ class View_error_handler : public Internal_error_handler {
 };
 
 /**
-  This internal handler is used to trap ER_NO_SUCH_TABLE.
+  This internal handler is used to trap ER_NO_SUCH_TABLE and
+  ER_BAD_DB_ERROR.
 */
 
 class No_such_table_error_handler : public Internal_error_handler {
@@ -219,7 +220,7 @@ class No_such_table_error_handler : public Internal_error_handler {
   virtual bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
                                 const char *) {
-    if (sql_errno == ER_NO_SUCH_TABLE) {
+    if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_BAD_DB_ERROR) {
       m_handled_errors++;
       return true;
     }

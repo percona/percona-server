@@ -464,3 +464,26 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	#	#	#	#	#
 DROP FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 SET NAMES default;
+#
+# Bug#97682 - Handler fails to trigger on Error 1049 or SQLSTATE 42000 or plain sqlexception
+#
+CREATE FUNCTION handler_func() RETURNS INTEGER
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
+SELECT fake_col INTO @a FROM fake_table;
+RETURN 1;
+END|
+CREATE FUNCTION handler_func2() RETURNS INTEGER
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
+SELECT fake_col INTO @a FROM fake_db.fake_table;
+RETURN 1;
+END|
+SELECT handler_func();
+handler_func()
+NULL
+SELECT handler_func2();
+handler_func2()
+NULL
+DROP FUNCTION handler_func;
+DROP FUNCTION handler_func2;

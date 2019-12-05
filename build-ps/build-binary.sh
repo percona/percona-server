@@ -256,8 +256,9 @@ fi
         -DWITH_ZLIB=system \
         -DWITH_NUMA=ON \
         -DDOWNLOAD_BOOST=1 \
-	-DFORCE_INSOURCE_BUILD=1 \
-	-DWITH_LIBEVENT=bundled \
+        -DFORCE_INSOURCE_BUILD=1 \
+        -DWITH_LIBEVENT=bundled \
+        -DWITH_ZSTD=bundled \
         -DWITH_BOOST="$WORKDIR_ABS/libboost" \
         $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 

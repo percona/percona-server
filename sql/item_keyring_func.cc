@@ -18,6 +18,8 @@
 #include <mysql/service_mysql_keyring.h>
 #include <algorithm>
 #include <cstring>
+#include <sstream>
+#include "mysqld.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/sql_lex.h"
 #include "sql_class.h"  // THD
@@ -47,9 +49,37 @@ longlong Item_func_rotate_system_key::val_int() {
 }
 
 bool Item_func_rotate_system_key::calc_value(const String *arg) {
+  assert(strlen(server_uuid) != 0);
   size_t key_length = 0;
-  return is_valid_percona_system_key(arg->ptr(), &key_length) &&
-         !(my_key_generate(arg->ptr(), "AES", NULL, key_length));
+
+  if (!is_valid_percona_system_key(arg->ptr(), &key_length)) return false;
+
+  std::ostringstream key_id_with_uuid_ss;
+  key_id_with_uuid_ss << arg->ptr() << '-' << server_uuid;
+  std::string key_id_with_uuid = key_id_with_uuid_ss.str();
+
+  // It should only be possible to rotate already existing key.
+  // First check that system key exists.
+  char *key_type = nullptr;
+  size_t key_len;
+  void *key = nullptr;
+  if (my_key_fetch(key_id_with_uuid.c_str(), &key_type, NULL, &key, &key_len) ||
+      nullptr == key) {
+    if (nullptr != key) {
+      my_free(key);
+    }
+    if (nullptr != key_type) {
+      my_free(key_type);
+    }
+    return 0;
+  }
+  assert(memcmp(key_type, "AES", 3) == 0);
+  my_free(key_type);
+  my_free(key);
+  key = key_type = nullptr;
+
+  // rotate the key
+  return !(my_key_generate(key_id_with_uuid.c_str(), "AES", NULL, key_length));
 }
 
 bool Item_func_rotate_system_key::fix_fields(THD *thd, Item **ref) {

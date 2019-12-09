@@ -340,7 +340,6 @@ extern Log_DDL *log_ddl;
 extern bool srv_is_upgrade_mode;
 extern bool srv_downgrade_logs;
 extern bool srv_upgrade_old_undo_found;
-extern bool srv_has_crypt_data_v1_rotating_from_mk;
 #endif /* INNODB_DD_TABLE */
 
 extern bool srv_downgrade_partition_files;

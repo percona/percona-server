@@ -48,12 +48,38 @@ SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 
 SELECT * FROM t1 LIMIT 10;
 
+if (`select locate("KEYRING_KEY", "$redo_log_mode") > 0`) {
+
+# KEYRING_KEY related tests
+
 SELECT rotate_system_key("percona_redo");
 
-if ($wait_for_key_version)
-{
 --let $wait_condition = select variable_value = 2 from performance_schema.global_status where variable_name = 'innodb_encryption_redo_key_version'
 --source include/wait_condition.inc
+
+--let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $percona_key_name_v2=percona_redo-$server_uuid:2
+
+# Check that a new key was created inside keyring
+--let SEARCH_PATTERN=$percona_key_name_v2
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$MYSQL_TMP_DIR/mysecret_keyring2
+--source include/search_pattern_in_file.inc
+
+SELECT rotate_system_key("percona_redo");
+
+--let $wait_condition = select variable_value = 3 from performance_schema.global_status where variable_name = 'innodb_encryption_redo_key_version'
+--source include/wait_condition.inc
+
+--let $percona_key_name_v3=percona_redo-$server_uuid:3
+
+# Check that a new key was created inside keyring
+--let SEARCH_PATTERN=$percona_key_name_v3
+--let ABORT_ON=NOT_FOUND
+--let SEARCH_FILE=$MYSQL_TMP_DIR/mysecret_keyring2
+--source include/search_pattern_in_file.inc
+
+# EOF KEYRING_KEY related tests
 }
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;

@@ -367,12 +367,6 @@ class Encryption {
                                  uint tablespace_key_version,
                                  byte **tablespace_key, size_t *key_len);
 
-  /** Create tablespace key
-  @param[in]	key_id          keyring encryption key info
-  @return true  failure
-          false success */
-  static bool create_tablespace_key(const EncryptionKeyId key_id);
-
   /** Get master key by key id.
   @param[in]      master_key_id master key id
   @param[in]      srv_uuid      uuid of server instance

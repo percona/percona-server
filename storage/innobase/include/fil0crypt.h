@@ -315,8 +315,6 @@ struct redo_log_key final {
   ulint read_count;
   ulint write_count;
   bool present;
-
-  bool persisted() const noexcept { return version != 0; }
 };
 
 /**
@@ -484,6 +482,26 @@ void fil_space_crypt_get_status(const fil_space_t *space,
 Return crypt statistics
 @param[out]	stat		Crypt statistics */
 void fil_crypt_total_stat(fil_crypt_stat_t *stat);
+
+/**
+Checks if tablespace is encrypted with KEYRING encryption v1
+
+@param[in] space Tablespace
+return true - fully or partially encrypted with keyring
+              encryption v1
+       false - is not encrypted, fully or partially with
+              keyring encryption v1 */
+bool is_space_keyring_v1_encrypted(fil_space_t *space);
+
+/**
+Checks if tablespace is encrypted with KEYRING encryption v1
+
+@param[in] space_id Tablespace's id
+return true - fully or partially encrypted with keyring
+              encryption v1
+       false - is not encrypted, fully or partially with
+              keyring encryption v1 */
+bool is_space_keyring_v1_encrypted(space_id_t space_id);
 
 #endif /* !UNIV_INNOCHECKSUM */
 

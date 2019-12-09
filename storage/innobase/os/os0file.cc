@@ -6074,11 +6074,13 @@ Requests a synchronous read operation of page 0 of IBD file.
 @param[in]      offset          file offset where to read
 @param[in]      n               number of bytes to read
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
-dberr_t os_file_read_func(IORequest &type, const char *file_name, os_file_t file, void *buf,
-                          os_offset_t offset, ulint n, trx_t *trx) {
+dberr_t os_file_read_func(IORequest &type, const char *file_name,
+                          os_file_t file, void *buf, os_offset_t offset,
+                          ulint n, trx_t *trx) {
   ut_ad(type.is_read());
 
-  return (os_file_read_page(type, file_name, file, buf, offset, n, nullptr, true, trx));
+  return (os_file_read_page(type, file_name, file, buf, offset, n, nullptr,
+                            true, trx));
 }
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
@@ -6091,12 +6093,14 @@ Requests a synchronous read operation of page 0 of IBD file
 @param[in]      n               number of bytes to read
 @param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS or error code */
-dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name, os_file_t file, void *buf,
-                                     ulint n, bool exit_on_err) {
+dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
+                                     os_file_t file, void *buf, ulint n,
+                                     bool exit_on_err) {
   ut_ad(type.is_read());
 
-  dberr_t err = os_file_read_page(type, file_name, file, buf, 0, UNIV_ZIP_SIZE_MIN,
-                                  nullptr, exit_on_err, nullptr);
+  dberr_t err =
+      os_file_read_page(type, file_name, file, buf, 0, UNIV_ZIP_SIZE_MIN,
+                        nullptr, exit_on_err, nullptr);
 
   if (err == DB_SUCCESS) {
     uint32_t flags = fsp_header_get_flags(static_cast<byte *>(buf));
@@ -6248,7 +6252,8 @@ dberr_t os_file_read_no_error_handling_func(IORequest &type,
                                             ulint *o) {
   ut_ad(type.is_read());
 
-  return (os_file_read_page(type, file_name, file, buf, offset, n, o, false, nullptr));
+  return (os_file_read_page(type, file_name, file, buf, offset, n, o, false,
+                            nullptr));
 }
 
 /** NOTE! Use the corresponding macro os_file_write(), not directly this
@@ -7828,8 +7833,9 @@ class SimulatedAIOHandler {
   /** Do the file read
   @param[in,out]        slot            Slot that has the IO context */
   void read(Slot *slot) {
-    dberr_t err = os_file_read_func(slot->type, slot->name, slot->file.m_file, slot->ptr,
-                                    slot->offset, slot->len, nullptr);
+    dberr_t err =
+        os_file_read_func(slot->type, slot->name, slot->file.m_file, slot->ptr,
+                          slot->offset, slot->len, nullptr);
     ut_a(err == DB_SUCCESS);
   }
 

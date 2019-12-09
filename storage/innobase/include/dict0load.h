@@ -185,8 +185,10 @@ then table->data_dir_path will remain nullptr.
 @param[in]      filepath        filepath of tablespace */
 void dict_save_data_dir_path(dict_table_t *table, char *filepath);
 
-/** Load all tablespaces during upgrade */
-void dict_load_tablespaces_for_upgrade();
+/** Load all tablespaces during upgrade
+@return true - there is tablespace fully or partially
+               KEYRING v1 encrypted. */
+bool dict_load_tablespaces_for_upgrade();
 
 /* Comparator for missing_spaces. */
 struct space_compare {

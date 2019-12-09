@@ -395,6 +395,18 @@ fil_space_crypt_t *fil_space_create_crypt_data(
                                       key_id, uuid, key_operation));
 }
 
+bool is_space_keyring_v1_encrypted(fil_space_t *space) {
+  ut_ad(space != nullptr);
+  return space->crypt_data != nullptr &&
+         space->crypt_data->private_version == 1 &&
+         space->crypt_data->type != CRYPT_SCHEME_UNENCRYPTED;
+}
+
+bool is_space_keyring_v1_encrypted(space_id_t space_id) {
+  fil_space_t *space = fil_space_get(space_id);
+  return is_space_keyring_v1_encrypted(space);
+}
+
 /******************************************************************
 Merge fil_space_crypt_t object
 @param[in,out]	dst		Destination cryp data
@@ -676,6 +688,10 @@ void fil_space_crypt_t::write_page0(
   ut_ad(key_id != (uint)(~0));
   mach_write_to_4(encrypt_info_ptr, key_id);
   encrypt_info_ptr += 4;
+  ut_ad(strlen(space->crypt_data->uuid) > 0);
+  memcpy(encrypt_info_ptr, space->crypt_data->uuid,
+         Encryption::SERVER_UUID_LEN);
+  encrypt_info_ptr += Encryption::SERVER_UUID_LEN;
   mach_write_to_1(encrypt_info_ptr, encryption);
   encrypt_info_ptr += 1;
 
@@ -1341,9 +1357,41 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
 
   /* If used key_id is not found from encryption plugin we can't
   continue to rotate the tablespace */
+
   if (!crypt_data->is_key_found()) {
-    mutex_exit(&crypt_data->mutex);
-    return false;
+    // We can end up here in case we try to encrypt tablespace but the key used
+    // by this tablespace is no longer in keyring. This can happen when keyring
+    // was changed or crypt_data is in version 1 and key's uuid is empty.
+    if (crypt_data->rotate_state.active_threads == 0 &&
+        crypt_data->encryption == FIL_ENCRYPTION_DEFAULT) {
+      ut_ad(
+          (crypt_data->private_version == 2 || strlen(crypt_data->uuid) == 0) &&
+          is_unenc_to_enc_rotation(*crypt_data));
+
+      crypt_data->key_found =
+          Encryption::tablespace_key_exists_or_create_new_one_if_does_not_exist(
+              crypt_data->key_id, server_uuid);
+
+      if (!crypt_data->key_found) {
+        mutex_exit(&crypt_data->mutex);
+        return false;  // failed to fetch or create the key - skip the
+                       // tablespace
+      }
+
+      key_state->key_version = 1;
+      // We assing here uuid to crypt_data key's uuid. If crypt_data
+      // does not make it to page0 (due to crash) we will do the same
+      // after the restart, because we will end up here again -
+      // encryption key will not be found.
+      ut_ad(strlen(server_uuid) > 0);
+      memcpy(crypt_data->uuid, server_uuid, Encryption::SERVER_UUID_LEN);
+      crypt_data->uuid[Encryption::SERVER_UUID_LEN] = '\0';
+      // fix private_version - it might have been 1
+      crypt_data->private_version = 2;
+    } else {
+      mutex_exit(&crypt_data->mutex);
+      return false;
+    }
   }
 
   do {
@@ -1377,22 +1425,11 @@ static bool fil_crypt_space_needs_rotation(rotate_thread_t *state,
         crypt_data->encryption, crypt_data->min_key_version,
         key_state->key_version, key_state->rotate_key_age);
 
-    if (need_key_rotation) {
-      if (crypt_data->rotate_state.active_threads == 0) {
-        if (key_state->key_version == ENCRYPTION_KEY_VERSION_INVALID) {
-          ut_ad(is_unenc_to_enc_rotation(*crypt_data));
-          // we are asked to encrypt table with encryption_key_id assigned, but
-          // the key is not in the keyring - create it now.
-          if (Encryption::create_tablespace_key(crypt_data->key_id)) {
-            break;  // failed to create the key - skip the tablespace
-          }
-          key_state->key_version = 1;
-        }
-      } else if (crypt_data->rotate_state.next_offset >
-                 crypt_data->rotate_state.max_offset) {
-        break;  // the space is already being processed and there are no more
-                // pages to rotate
-      }
+    if (need_key_rotation && crypt_data->rotate_state.active_threads != 0 &&
+        crypt_data->rotate_state.next_offset >
+            crypt_data->rotate_state.max_offset) {
+      break;  // the space is already being processed and there are no more
+              // pages to rotate
     }
 
     if (need_key_rotation == false) {

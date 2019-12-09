@@ -396,6 +396,11 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
     space->crypt_data = crypt_data;
   }
 
+  if (is_space_keyring_v1_encrypted(space)) {
+    ib::error(ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION);
+    return (DB_FAIL);
+  }
+
   /* Return if the encryption metadata is empty. */
   if (!Encryption::is_encrypted_with_v3(first_page + offset) &&
       !(srv_is_upgrade_mode &&

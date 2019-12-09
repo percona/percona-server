@@ -1936,14 +1936,14 @@ TEST_F(Keys_container_with_mocked_system_keys_container_test,
   IKeyring_io *keyring_io = new Buffered_file_io(logger);
   Mock_system_keys_container *system_keys_container =
       new Mock_system_keys_container;
-  keys_container->set_system_keys_container(system_keys_container);
   EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
+  keys_container->set_system_keys_container(system_keys_container);
 
   EXPECT_CALL(*system_keys_container,
               rotate_key_id_if_system_key_without_version(sample_key))
       .WillOnce(Return(true));  // error on key rotation
-  EXPECT_EQ(keys_container->store_key(sample_key), 1);
+  EXPECT_EQ(keys_container->store_key(sample_key), true);
   ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
 
   delete logger;

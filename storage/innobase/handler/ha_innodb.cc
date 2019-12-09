@@ -1706,6 +1706,8 @@ static bool innobase_get_tablespace_statistics(
     const char *tablespace_name, const char *file_name,
     const dd::Properties &ts_se_private_data, ha_tablespace_statistics *stats);
 
+static bool innobase_is_tablespace_keyring_v1_encrypted(
+    const dd::Tablespace &tablespace, int &error);
 /** Retrieve the tablespace type.
 
 @param space            Tablespace object.
@@ -1713,8 +1715,6 @@ static bool innobase_get_tablespace_statistics(
 @return false on success, true on failure */
 static bool innobase_get_tablespace_type(const dd::Tablespace &space,
                                          Tablespace_type *space_type);
-
-static bool innobase_is_there_mk_to_keyring_rotation();
 
 /** Get the tablespace type given the name.
 
@@ -5717,8 +5717,8 @@ static int innodb_init(void *p) {
   innobase_hton->get_tablespace_type_by_name =
       innobase_get_tablespace_type_by_name;
 
-  innobase_hton->is_there_mk_to_keyring_rotation =
-      innobase_is_there_mk_to_keyring_rotation;
+  innobase_hton->is_tablespace_keyring_v1_encrypted =
+      innobase_is_tablespace_keyring_v1_encrypted;
 
   innobase_hton->is_dict_readonly = innobase_is_dict_readonly;
 
@@ -6057,10 +6057,6 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   space_id_t upgrade_mysql_plugin_space = SPACE_UNKNOWN;
 
   if (srv_is_upgrade_mode) {
-    if (srv_has_crypt_data_v1_rotating_from_mk) {
-      return innodb_init_abort();
-    }
-
     if (!dict_sys_table_id_build()) {
       return innodb_init_abort();
     }
@@ -6078,7 +6074,11 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
 
     /* Load all tablespaces upfront from InnoDB Dictionary.
     This is needed for applying purge and ibuf from 5.7 */
-    dict_load_tablespaces_for_upgrade();
+    if (dict_load_tablespaces_for_upgrade()) {
+      // there is a keyring v1 encrypted table - fail the upgrade
+      ib::error(ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION);
+      return innodb_init_abort();
+    }
 
     /* Start purge threads immediately and wait for purge to
     become empty. All table_ids will be adjusted by a fixed
@@ -12254,13 +12254,16 @@ dberr_t create_table_info_t::enable_keyring_encryption(
       get_encryption_mode(m_create_info->encrypt_type.str,
                           m_create_info->used_fields & HA_CREATE_USED_ENCRYPT);
 
-  if (keyring_encryption_mode == FIL_ENCRYPTION_ON ||
-      (keyring_encryption_mode == FIL_ENCRYPTION_DEFAULT &&
-       Encryption::is_online_encryption_on())) {
+  bool is_encrypted = keyring_encryption_mode == FIL_ENCRYPTION_ON ||
+                      (keyring_encryption_mode == FIL_ENCRYPTION_DEFAULT &&
+                       Encryption::is_online_encryption_on());
+
+  if (is_encrypted)
     DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
 
+  if (is_encrypted || m_create_info->was_encryption_key_id_set)
     return check_tablespace_key(m_create_info->encryption_key_id);
-  }
+
   return DB_SUCCESS;
 }
 
@@ -18906,6 +18909,35 @@ static bool innobase_get_index_column_cardinality(
   return (failure);
 }
 
+static bool innobase_is_tablespace_keyring_v1_encrypted(
+    const dd::Tablespace &tablespace, int &error) {
+  error = 0;
+  space_id_t id = 0;
+
+  ut_ad(innobase_strcasecmp(tablespace.engine().c_str(), "InnoDB") == 0);
+
+  if (tablespace.se_private_data().get(dd_space_key_strings[DD_SPACE_ID], &id))
+    return true;
+
+  /* Make sure tablespace is loaded. */
+  fil_space_t *space = fil_space_get(id);
+  if (space == nullptr) {
+    error = HA_ERR_TABLESPACE_MISSING;
+    return false;
+  }
+
+  // If page0 was read and it has crypt - we can check if it is encrypted here
+  // if crypt_data is null it means that page0 may not have yet been read - we
+  // will read it in fil_space_open_if_needed and recheck if crypt_data is null
+  if (space->crypt_data != nullptr) return is_space_keyring_v1_encrypted(space);
+
+  fil_space_open_if_needed(space);
+
+  // We do not need to care about mutexes as this function is only called during
+  // the upgrade
+  return is_space_keyring_v1_encrypted(space);
+}
+
 static bool innobase_get_tablespace_type(const dd::Tablespace &space,
                                          Tablespace_type *space_type) {
   space_id_t id = 0;
@@ -18938,10 +18970,6 @@ static bool innobase_get_tablespace_type(const dd::Tablespace &space,
   }
 
   return false;
-}
-
-static bool innobase_is_there_mk_to_keyring_rotation() {
-  return srv_has_crypt_data_v1_rotating_from_mk;
 }
 
 /** Get the tablespace type given the name.

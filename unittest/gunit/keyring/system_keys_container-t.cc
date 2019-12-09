@@ -22,11 +22,12 @@
 #include "plugin/keyring/common/keyring_key.h"
 #include "plugin/keyring/common/system_keys_container.h"
 #include "system_key.h"
+#include "uuid.h"
 
 namespace keyring__system_keys_container_unittest {
 using namespace keyring;
-using ::testing::StrEq;
 using keyring::Key;
+using ::testing::StrEq;
 
 class System_keys_container_test : public ::testing::Test {
  public:
@@ -454,6 +455,68 @@ TEST_F(System_keys_container_test, GetKeyWithRotatedId) {
   delete percona_binlog_key2;
   delete percona_binlog_key3;
   delete percona_key;
+}
+
+TEST_F(System_keys_container_test, GetKeyWithRotatedId_UUID_version) {
+  std::string percona_binlog_key_id_with_uuid("percona_binlog_");
+  percona_binlog_key_id_with_uuid += generate_uuid();
+  std::string percona_binlog_key_id_with_uuid_v0(
+      percona_binlog_key_id_with_uuid + ":0");
+  std::string percona_binlog_key_id_with_uuid_v1(
+      percona_binlog_key_id_with_uuid + ":1");
+  std::string percona_binlog_key_id_with_uuid_v2(
+      percona_binlog_key_id_with_uuid + ":2");
+  std::string percona_binlog_key_id_with_uuid_v3(
+      percona_binlog_key_id_with_uuid + ":3");
+
+  std::string key_data1("system_key_data_1");
+  Key *key1 = new Key(percona_binlog_key_id_with_uuid_v0.c_str(), "AES", NULL,
+                      key_data1.c_str(), key_data1.length() + 1);
+
+  sys_keys_container->store_or_update_if_system_key_with_version(key1);
+
+  Key *percona_binlog_key = new Key(percona_binlog_key_id_with_uuid.c_str(),
+                                    "AES", NULL, "sys_key", 8);
+  EXPECT_EQ(sys_keys_container->rotate_key_id_if_system_key_without_version(
+                percona_binlog_key),
+            false);
+  EXPECT_STREQ(percona_binlog_key->get_key_id()->c_str(),
+               percona_binlog_key_id_with_uuid_v1.c_str());
+
+  std::string key_data2("system_key_data_2");
+  Key *key2 = new Key(percona_binlog_key_id_with_uuid_v1.c_str(), "AES", NULL,
+                      key_data2.c_str(), key_data2.length() + 1);
+
+  sys_keys_container->store_or_update_if_system_key_with_version(key2);
+
+  Key *percona_binlog_key2 = new Key(percona_binlog_key_id_with_uuid.c_str(),
+                                     "AES", NULL, "sys_key", 8);
+  EXPECT_EQ(sys_keys_container->rotate_key_id_if_system_key_without_version(
+                percona_binlog_key2),
+            false);
+  EXPECT_STREQ(percona_binlog_key2->get_key_id()->c_str(),
+               percona_binlog_key_id_with_uuid_v2.c_str());
+
+  std::string key_data3("system_key_data_3");
+  Key *key3 = new Key(percona_binlog_key_id_with_uuid_v2.c_str(), "AES", NULL,
+                      key_data3.c_str(), key_data3.length() + 1);
+
+  sys_keys_container->store_or_update_if_system_key_with_version(key3);
+
+  Key *percona_binlog_key3 = new Key(percona_binlog_key_id_with_uuid.c_str(),
+                                     "AES", NULL, "sys_key", 8);
+  EXPECT_EQ(sys_keys_container->rotate_key_id_if_system_key_without_version(
+                percona_binlog_key3),
+            false);
+  EXPECT_STREQ(percona_binlog_key3->get_key_id()->c_str(),
+               percona_binlog_key_id_with_uuid_v3.c_str());
+
+  delete key1;
+  delete key2;
+  delete key3;
+  delete percona_binlog_key;
+  delete percona_binlog_key2;
+  delete percona_binlog_key3;
 }
 
 TEST_F(System_keys_container_test, RotateOnNotSystemKey) {

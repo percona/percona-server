@@ -36,6 +36,8 @@ The tablespace memory cache */
 #include <sys/types.h>
 #include <scope_guard.h>
 
+#include "mysqld.h"  // server_uuid
+
 #include "arch0page.h"
 #include "btr0btr.h"
 #include "buf0buf.h"

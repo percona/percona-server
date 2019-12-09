@@ -57,6 +57,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_dbug.h"
 
+#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "fts0fts.h"
 #include "mysql_version.h"
@@ -1371,8 +1372,10 @@ static bool dict_sys_tablespaces_rec_read(const rec_t *rec, space_id_t *id,
 Ignore system and file-per-table tablespaces.
 If it is valid, add it to the file_system list.
 @param[in]      validate        true when the previous shutdown was not clean
-@return the highest space ID found. */
-static inline space_id_t dict_check_sys_tablespaces(bool validate) {
+@return first  - true if there is tablespace KEYRING v1 encrypted,
+                 false if not.
+        second - the highest space ID found. */
+static inline std::pair<bool, space_id_t> dict_check_sys_tablespaces(bool validate) {
   space_id_t max_space_id = 0;
   btr_pcur_t pcur;
   const rec_t *rec;
@@ -1401,11 +1404,20 @@ static inline space_id_t dict_check_sys_tablespaces(bool validate) {
     }
 
     /* Ignore system, undo and file-per-table tablespaces,
-    and tablespaces that already are in the tablespace cache. */
+    and tablespaces that already are in the tablespace cache.
+    */
     if (fsp_is_system_or_temp_tablespace(space_id) ||
         fsp_is_undo_tablespace(space_id) ||
-        !fsp_is_shared_tablespace(fsp_flags) ||
-        fil_space_exists_in_mem(space_id, space_name, false, true)) {
+        !fsp_is_shared_tablespace(fsp_flags)) {
+      continue;
+    }
+
+    // For tables in cache check if they contain crypt_data in page0
+    if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
+      if (is_space_keyring_v1_encrypted(space_id)) {
+        mtr_commit(&mtr);
+        return std::make_pair(true, 0);  // will cause upgrade to fail
+      }
       continue;
     }
 
@@ -1434,8 +1446,13 @@ static inline space_id_t dict_check_sys_tablespaces(bool validate) {
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_191) << "Ignoring tablespace " << id_name_t(space_name)
                               << " because it could not be opened.";
+    } else {
+      if (is_space_keyring_v1_encrypted(space_id)) {
+        ut::free(filepath);
+        mtr_commit(&mtr);
+        return std::make_pair(true, 0);  // will cause upgrade to fail
+      }
     }
-
     if (!dict_sys_t::is_reserved(space_id)) {
       max_space_id = std::max(max_space_id, space_id);
     }
@@ -1445,7 +1462,7 @@ static inline space_id_t dict_check_sys_tablespaces(bool validate) {
 
   mtr_commit(&mtr);
 
-  return max_space_id;
+  return std::make_pair(false, max_space_id);
 }
 
 /** Read and return 5 integer fields from a SYS_TABLES record.
@@ -1529,8 +1546,10 @@ already been added to the fil_system.  If it is valid, add it to the
 file_system list.  Perform extra validation on the table if recovery from
 the REDO log occurred.
 @param[in]      validate        Whether to do validation on the table.
-@return the highest space ID found. */
-static inline space_id_t dict_check_sys_tables(bool validate) {
+@return first  - true if there is tablespace KEYRING v1 encrypted,
+                 false if not.
+        second - the highest space ID found. */
+static inline std::pair<bool, space_id_t> dict_check_sys_tables(bool validate) {
   space_id_t max_space_id = 0;
   btr_pcur_t pcur;
   const rec_t *rec;
@@ -1652,6 +1671,11 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
     if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
       ut::free(table_name.m_name);
       ut::free(space_name_from_dict);
+      if (is_space_keyring_v1_encrypted(space_id)) {
+        mtr_commit(&mtr);
+        return std::make_pair(true, 0);  // will cause upgrade to fail
+      }
+
       continue;
     }
 
@@ -1701,6 +1725,13 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
       ib::warn(ER_IB_MSG_194) << "Ignoring tablespace " << id_name_t(space_name)
                               << " because it could not be opened.";
     } else {
+      if (is_space_keyring_v1_encrypted(space_id)) {
+        ut::free(table_name.m_name);
+        ut::free(space_name_from_dict);
+        ut::free(filepath);
+        mtr_commit(&mtr);
+        return std::make_pair(true, 0);
+      }
       /* This tablespace is not found in
       SYS_TABLESPACES and we are able to
       successfully open it. Add it to std::set.
@@ -1729,7 +1760,7 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
 
   mtr_commit(&mtr);
 
-  return max_space_id;
+  return std::make_pair(false, max_space_id);
 }
 
 /** Loads definitions for table columns. */
@@ -3180,9 +3211,13 @@ load_next_index:
   return DB_SUCCESS;
 }
 
-/** Load all tablespaces during upgrade */
-void dict_load_tablespaces_for_upgrade() {
+/** Load all tablespaces during upgrade
+@return true - there is tablespace fully or partially
+               KEYRING v1 encrypted. */
+bool dict_load_tablespaces_for_upgrade() {
   ut_ad(srv_is_upgrade_mode);
+  bool has_keyring_v1_encrypted_tablespace{false};
+  bool has_keyring_v1_encrypted_table{false};
 
   dict_sys_mutex_enter();
 
@@ -3193,8 +3228,12 @@ void dict_load_tablespaces_for_upgrade() {
   mtr_commit(&mtr);
   fil_set_max_space_id_if_bigger(max_id);
 
-  dict_check_sys_tablespaces(false);
-  dict_check_sys_tables(false);
+  std::tie(has_keyring_v1_encrypted_tablespace, std::ignore) =
+      dict_check_sys_tablespaces(false);
+  std::tie(has_keyring_v1_encrypted_table, std::ignore) =
+      dict_check_sys_tables(false);
 
   dict_sys_mutex_exit();
+
+  return has_keyring_v1_encrypted_tablespace || has_keyring_v1_encrypted_table;
 }

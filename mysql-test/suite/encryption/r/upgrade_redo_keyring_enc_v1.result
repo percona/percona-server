@@ -1,0 +1,21 @@
+# Stop DB server which was created by MTR default
+# First we check if upgrade fails with appropriate message when server discovers that redo encryption is of old version.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Now we remove the redo log files encrypted with old version. Server should be able
+# to restart.
+# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1 --keyring_file_data=MYSQL_TMP_DIR/data_redo_log_keyring_v1_encrypted/mysecret_keyring2 KEYRING_PLUGIN_OPT KEYRING_PLUGIN_EARLY_LOAD
+SELECT * FROM t1 LIMIT 10;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+# Restart the server with default options.
+# restart

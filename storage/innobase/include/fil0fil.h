@@ -318,6 +318,9 @@ struct fil_space_t {
   /** Only used for redo log encryption: the currently active key handle */
   redo_log_key *encryption_redo_key;
 
+  /** Only used for redo log encryption: the redo encryption's key uuid */
+  std::unique_ptr<char[]> encryption_redo_key_uuid;
+
   /** Encryption is in progress */
   encryption_op_type encryption_op_in_progress;
 

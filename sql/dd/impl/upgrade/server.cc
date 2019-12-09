@@ -695,11 +695,29 @@ bool do_server_upgrade_checks(THD *thd) {
         ha_resolve_by_name_raw(thd, LEX_CSTRING{STRING_WITH_LEN("InnoDB")});
     handlerton *hton =
         (pr != nullptr ? plugin_data<handlerton *>(pr) : nullptr);
-    DBUG_ASSERT(hton != nullptr && hton->is_there_mk_to_keyring_rotation);
+    DBUG_ASSERT(hton != nullptr && hton->is_tablespace_keyring_v1_encrypted);
 
-    if (hton->is_there_mk_to_keyring_rotation()) {
-      LogErr(ERROR_LEVEL, ER_UPGRADE_MK_TO_KEYRING_ROTATION);
+    /*
+      Get hold of all tablespaces, keep the non-implicit InnoDB spaces
+      in a map.
+    */
+    std::vector<const dd::Tablespace *> tablespaces;
+    if (thd->dd_client()->fetch_global_components(&tablespaces))
       return dd::end_transaction(thd, true);
+
+    for (const dd::Tablespace *space : tablespaces) {
+      if (my_strcasecmp(system_charset_info, space->engine().c_str(),
+                        "InnoDB") != 0)
+        continue;
+
+      int error = 0;
+      bool is_tablespace_keyring_v1_encrypted =
+          hton->is_tablespace_keyring_v1_encrypted(*space, error);
+      DBUG_ASSERT(error == 0);
+      if (is_tablespace_keyring_v1_encrypted) {
+        LogErr(ERROR_LEVEL, ER_UPGRADE_KEYRING_V1_ENCRYPTION);
+        return dd::end_transaction(thd, true);
+      }
     }
   }
 

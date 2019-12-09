@@ -72,7 +72,7 @@ ALTER TABLE t6 ENCRYPTION='KEYRING', ALGORITHM=INPLACE;
 --let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
 --echo # Wait max 10 min for key encryption threads to encrypt all spaces
 --let $wait_timeout= 600
-# - 1 we do not encrypt t3 and temporary tablespace
+# - 2 we do not encrypt t3 and temporary tablespace
 --let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
@@ -172,9 +172,11 @@ SET GLOBAL default_table_encryption = ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 --echo # Now turn on encryption and wait for threads to encrypt all spaces
 SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 
---echo # Wait max 10 min for key encryption threads to encrypt all spaces
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces, apart from temporary and t3
 --let $wait_timeout= 600
---let $wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
 --let $assert_text= Only two tablespaces should stay unencrypted i.e. t3 and temporary tablespace
@@ -219,9 +221,11 @@ SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 alter table t1 encryption='n';
 alter table t4 encryption='n';
 
---echo # Wait max 10 min for key encryption threads to encrypt all spaces (apart from t1,t3 and t4)
+--let tables_count=`select count(*) from INFORMATION_SCHEMA.INNODB_TABLESPACES`
+
+--echo # Wait max 10 min for key encryption threads to encrypt all spaces (apart from t1,t3 and t4 and temporary table)
 --let $wait_timeout= 600
---let $wait_condition=SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0
+--let $wait_condition=SELECT COUNT(*) = $tables_count - 4 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
 --source include/wait_condition.inc
 
 --let $assert_text= All spaces apart from t1, t3, t4 and temporary tablespace should got encrypted

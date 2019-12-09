@@ -6857,6 +6857,8 @@ int mysqld_main(int argc, char **argv)
           " check if keyring plugin is loaded and execute"
           " \"ALTER INSTANCE ROTATE INNODB MASTER KEY\"");
     }
+    // Only now, that we have server_uuid initialized we can
+    // instruct encryption threads to do some work
     if (innodb_hton->fix_default_table_encryption != nullptr) {
       innodb_hton->fix_default_table_encryption(
           global_system_variables.default_table_encryption);

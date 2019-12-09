@@ -812,9 +812,12 @@ It just need to flush the file header block with current master key.
 @param[in]	iv	encryption iv
 @param[in]	is_boot	if it is for bootstrap
 @param[in]	redo_log_encrypt	encryption type
+@param[in]	version	                key's version (used for KEYRING
+                                    encryption)
 @return true if success. */
 bool log_write_encryption(byte *key, byte *iv, bool is_boot,
-                          redo_log_encrypt_enum redo_log_encrypt);
+                          redo_log_encrypt_enum redo_log_encrypt,
+                          uint version = 0);
 
 /** Rotate the redo log encryption
 It will re-encrypt the redo log encryption metadata and write it to

@@ -19903,8 +19903,8 @@ ER_XB_MSG_6
 ER_XB_UNDO_DELETE_FAILURE
   eng "Deletion of 5.7 undo tablespace %s failed"
 
-ER_UPGRADE_MK_TO_KEYRING_ROTATION
-  eng "Upgrade is not possible as there are tables for which re-encryption from master key encryption to online keyring encryption was not finished. Please either finish off the re-encryption or decrypt the tables. This feature is experimental in the version you are upgrading from."
+ER_UPGRADE_KEYRING_V1_ENCRYPTION
+  eng "Upgrade is not possible as there are tables that are KERYING encrypted. KEYRING encryption is still experimental feature in the version you are upgrading from. To upgrade please decrypt the tables encrypted with KEYRING encryption."
 
 ER_REDO_ENCRYPTION_CANT_BE_CHANGED
   eng "Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is %s, requested %s."
@@ -19929,6 +19929,12 @@ ER_REDO_ENCRYPTION_KEYRING
 
 ER_UNDO_NO_KEYRING
   eng "Undo log can't be encrypted if the keyring plugin is not loaded."
+
+ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY
+  eng "Couldn't fetch default percona_redo key. Please check if keyring is operational."
+
+ER_REDO_ENCRYPTION_CANT_UPGRADE_OLD_VERSION
+  eng "Upgrade cannot continue as redo is encrypted with old, experimental version of KEYRING encryption. Please perform slow shutdown and remove old redo log files before upgrading."
 
 #
 # End of Percona Server 8.0 server error log messages

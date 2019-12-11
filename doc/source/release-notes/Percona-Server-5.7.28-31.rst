@@ -7,7 +7,7 @@
 Percona is glad to announce the release of |Percona Server| |release| on |date|. Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.28-31/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
 
-This release is based on `MySQL 5.7.27 <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-28.html>`_ and includes all the bug fixes in it. |Percona Server| |release| is now the current GA
+This release is based on `MySQL 5.7.28 <https://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-28.html>`_ and includes all the bug fixes in it. |Percona Server| |release| is now the current GA
 (Generally Available) release in the 5.7 series.
 
 All software developed by Percona is open-source and free.

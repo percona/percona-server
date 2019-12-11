@@ -39,7 +39,7 @@ Bugs Fixed
 
 - The memory storage engine detected an incorrect ``full`` condition even 
   though the space contained reusable memory chunks released by deleted
-  records and the space could be reused. Bug fixed :psbug:`1469`
+  records and the space could be reused. Bug fixed :psbug:`1469`.
 
 Other bugs fixed:
 
@@ -61,7 +61,7 @@ Other bugs fixed:
 :psbug:`6057`,
 :psbug:`6111`,
 :psbug:`6117`, and
-:psbug:`6073`
+:psbug:`6073`.
 
 .. |release| replace:: 8.0.18-9
 .. |date| replace:: December 11, 2020

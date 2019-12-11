@@ -64,4 +64,4 @@ Other bugs fixed:
 :psbug:`6073`.
 
 .. |release| replace:: 8.0.18-9
-.. |date| replace:: December 11, 2020
+.. |date| replace:: December 11, 2019

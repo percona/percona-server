@@ -215,7 +215,7 @@ get_sources(){
     fi
     #
     git submodule update
-    cmake .  -DWITH_SSL=bundled -DFORCE_INSOURCE_BUILD=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost
+    cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=${WORKDIR}/build-ps/boost
     make dist
     #
     EXPORTED_TAR=$(basename $(find . -type f -name percona-server*.tar.gz | sort | tail -n 1))
@@ -289,7 +289,7 @@ install_deps() {
         add_percona_yum_repo
         yum -y install http://www.percona.com/downloads/percona-release/redhat/0.1-4/percona-release-0.1-4.noarch.rpm || true
         yum -y install epel-release
-        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc
+        yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd zstd-devel
         yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel
         yum -y install perl-Env perl-Data-Dumper perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
@@ -309,6 +309,7 @@ install_deps() {
             yum -y install automake autoconf cmake cmake3 jemalloc jemalloc-devel
 	    yum -y install libaio-devel ncurses-devel numactl-devel readline-devel time
 	    yum -y install rpcgen re2-devel libtirpc-devel
+	    yum -y install zstd libzstd libzstd-devel
         fi
         if [ "x$RHEL" = "x6" ]; then
             yum -y install Percona-Server-shared-56
@@ -436,7 +437,8 @@ build_srpm(){
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/*.spec' --strip=2
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.gz
+    wget https://dl.bintray.com/boostorg/release/1.70.0/source/${BOOST_PACKAGE_NAME}.tar.gz
+    #wget http://downloads.sourceforge.net/boost/${BOOST_PACKAGE_NAME}.tar.gz
     #wget http://jenkins.percona.com/downloads/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
@@ -804,7 +806,7 @@ MYSQL_VERSION_MINOR=0
 MYSQL_VERSION_PATCH=12
 MYSQL_VERSION_EXTRA=-1
 PRODUCT_FULL=Percona-Server-8.0.12.1
-BOOST_PACKAGE_NAME=boost_1_69_0
+BOOST_PACKAGE_NAME=boost_1_70_0
 PERCONAFT_BRANCH=Percona-Server-5.7.22-22
 TOKUBACKUP_BRANCH=Percona-Server-5.7.22-22
 parse_arguments PICK-ARGS-FROM-ARGV "$@"

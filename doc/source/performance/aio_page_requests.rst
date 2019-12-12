@@ -4,21 +4,23 @@
 Multiple page asynchronous I/O requests
 =======================================
 
-I/O unit size in |InnoDB| is only one page, even if doing read ahead. 16KB
-I/O unit size is too small for sequential reads, and much less efficient than
-larger I/O unit size.
+|InnoDB| supports simulated asynchronous I/O (``aio``) or the Linux Native
+asynchronous I/O subsystem. 
 
-|InnoDB| uses Linux asynchronous I/O (``aio``) by default. By submitting multiple
-consecutive 16KB read requests at once, Linux internally can merge requests and
-reads can be done more efficiently.
+The |InnoDB| simulated system handles each aio request sequentially
+when the trigger is set to Logical Read Ahead (LRA). The |InnoDB| unit
+size is 16KB, the InnoDB page size, which makes this operation less
+efficient than a larger aio unit.
+
+By default, |InnoDB| uses the Linux Native subsystem, which buffers the
+aio requests and then
+submits the requests at one time to improve performance.
 
 `On a HDD RAID 1+0 environment
 <http://yoshinorimatsunobu.blogspot.hr/2013/10/making-full-table-scan-10x-faster-in.html>`_,
 more than 1000MB/s disk reads can be achieved by submitting 64 consecutive pages
 requests at once, while only
 160MB/s disk reads is shown by submitting single page request.
-
-With this feature |InnoDB| submits multiple page I/O requests.
 
 Version Specific Information
 ============================
@@ -30,12 +32,22 @@ Status Variables
 
 .. variable:: Innodb_buffered_aio_submitted
 
-  :version 5.6.38-83.0: Implemented
-  :vartype: Numeric
-  :scope: Global
+   :version 5.6.38-83.0: Implemented
+   :vartype: Numeric
+   :scope: Global
 
-This variable shows the number of submitted buffered asynchronous I/O requests.
+This variable shows the number of asynchronous I/O requests buffered in
+the Linux subsystem before submission.
 
+The following example of a variable call:
+
+.. code-block:: mysql
+
+   mysql> SHOW GLOBAL STATUS like "innodb_buffered_aio_submitted";
+
+   innodb_buffered_aio_submitted 12493
+
+   
 Other Reading
 =============
 

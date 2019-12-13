@@ -13221,13 +13221,28 @@ static int rocksdb_validate_update_cf_options(
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "rocksdb_update_cf_options", str);
     return HA_EXIT_FAILURE;
   }
-  // Loop through option_map and create missing column families
-  for (Rdb_cf_options::Name_to_config_t::iterator it = option_map.begin();
-       it != option_map.end(); ++it) {
-    if (!cf_manager.get_or_create_cf(rdb, it->first,
-                                     !rocksdb_no_create_column_family)) {
-      return HA_EXIT_FAILURE;
+  // Loop through option_map and check if all specified CFs exist.
+  std::vector<const std::string *> unknown_cfs;
+  for (const auto &option : option_map) {
+    if (!cf_manager.get_cf(option.first)) {
+      unknown_cfs.push_back(&(option.first));
     }
+  }
+
+  if (!unknown_cfs.empty()) {
+    std::string err(str);
+    err.append(" Unknown CF: ");
+    bool first = true;
+    for (const auto cf : unknown_cfs) {
+      if (first)
+        first = false;
+      else
+        err.append(", ");
+      err.append(*cf);
+    }
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "rocksdb_update_cf_options",
+             err.c_str());
+    return HA_EXIT_FAILURE;
   }
   return HA_EXIT_SUCCESS;
 }

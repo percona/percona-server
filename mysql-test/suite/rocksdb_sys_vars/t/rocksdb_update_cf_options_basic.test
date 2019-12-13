@@ -86,7 +86,11 @@ SELECT @@global.rocksdb_update_cf_options;
 
 SELECT * FROM INFORMATION_SCHEMA.ROCKSDB_CF_OPTIONS WHERE CF_NAME='cf3' AND OPTION_TYPE='TARGET_FILE_SIZE_BASE';
 
-# Some parts are good. Value still updated.
+# 'foo' column family does not exist, so changing its option is not possible.
+# See https://jira.percona.com/browse/PS-6125
+# Before above fix below SET created 'foo' column family
+call mtr.add_suppression("Column family 'foo' not found.");
+--error ER_WRONG_VALUE_FOR_VAR 
 SET @@global.rocksdb_update_cf_options = 'cf1={target_file_size_base=24m};foo={max_bytes_for_level_multiplier=8};';
 SELECT @@global.rocksdb_update_cf_options;
 

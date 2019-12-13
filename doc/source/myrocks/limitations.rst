@@ -23,6 +23,9 @@ The MyRocks storage engine lacks the following features compared to InnoDB:
 
 * `Gap locks <https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-gap-locks>`_
 
+* `Generated Columns
+  <https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html>`_
+
 * `Group Replication <https://dev.mysql.com/doc/refman/8.0/en/group-replication.html>`_
 
 * `Partial Update of LOB in InnoDB <https://mysqlserverteam.com/mysql-8-0-optimizing-small-partial-update-of-lob-in-innodb/>`_

@@ -49,10 +49,11 @@ System Variables
      :conf: Yes
      :scope: Global
      :dyn: Yes
-     :vartype: ULONG
+     :vartype: ULONG   
      :range: ``assert``, ``warn``, ``salvage``
+     :default: ``assert``
 
-* With the default value |XtraDB| will intentionally crash the server with an assertion failure as it would normally do when detecting corrupted data in a single-table tablespace.
+* With the default value, ``assert``, |XtraDB| will intentionally crash the server with an assertion failure as it would normally do when detecting corrupted data in a single-table tablespace.
 
 * If the ``warn`` value is used it will pass corruption of the table as ``corrupt table`` instead of crashing itself. For this to work :option:`innodb_file_per_table` should be enabled. All file I/O for the datafile after detected as corrupt is disabled, except for the deletion. 
 

@@ -16,10 +16,14 @@ insert into t1 values (1);
 insert into t2 values (2);
 insert into t3 values (2);
 
-# set cf_options for non-existent cf5, cf5 should be created automatically
+# set cf_options for non-existent cf5, cf5 should not be created. Error should be reported.
+call mtr.add_suppression("Column family 'cf5' not found.");
+--error ER_WRONG_VALUE_FOR_VAR 
 SET @@global.rocksdb_update_cf_options = 'cf5={prefix_extractor=capped:28};';
---let $assert_text="Expected cf5 to exist"
---let $assert_cond="[select count(distinct cf_name) from information_schema.rocksdb_cf_options where cf_name in (\'cf5\')]" = 1
+--let $assert_text="Expected cf5 to not exist"
+--let $assert_cond="[select count(distinct cf_name) from information_schema.rocksdb_cf_options where cf_name in (\'cf5\')]" = 0
+
+select * from INFORMATION_SCHEMA.ROCKSDB_GLOBAL_INFO ORDER BY VALUE ASC;
 
 # restart with new column families in DB
 
@@ -79,10 +83,13 @@ create table t5 (a int,
 --source include/assert.inc
 
 # set cf_options for non-existent cf6, cf6 should NOT be created automatically
---error ER_WRONG_ARGUMENTS
+call mtr.add_suppression("Column family 'cf6' not found.");
+--error ER_WRONG_VALUE_FOR_VAR
 SET @@global.rocksdb_update_cf_options = 'cf6={prefix_extractor=capped:28};';
 --let $assert_text="Expected cf6 to NOT exist"
 --let $assert_cond="[select count(distinct cf_name) from information_schema.rocksdb_cf_options where cf_name in (\'cf6\')]" = 0
+
+select * from INFORMATION_SCHEMA.ROCKSDB_GLOBAL_INFO ORDER BY VALUE ASC;
 
 # syntax error in options (no equal sign)
 

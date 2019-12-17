@@ -4,6 +4,8 @@
 call mtr.add_suppression("cannot be decrypted. Are you using correct keyring that contain the");
 call mtr.add_suppression("InnoDB: Tablespace for table .* is set as discarded.");
 call mtr.add_suppression("InnoDB: Cannot calculate statistics for table .* because the .ibd file is missing. Please refer to .* for how to resolve the issue.");
+call mtr.add_suppression("InnoDB: Trying to access missing tablespace [0-9]+");
+call mtr.add_suppression("InnoDB: Cannot save statistics for table .* because the .ibd file is missing.");
 
 
 CREATE TABLE t1 (pk INT PRIMARY KEY, f VARCHAR(255)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=4;

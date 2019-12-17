@@ -7634,11 +7634,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   innobase_copy_frm_flags_from_table_share(ib_table, table->s);
 
-  if (ib_table->is_readable()) {
-    dict_stats_init(ib_table);
-  } else {
-    ib_table->stat_initialized = 1;
-  }
+  dict_stats_init(ib_table);
 
   MONITOR_INC(MONITOR_TABLE_OPEN);
 

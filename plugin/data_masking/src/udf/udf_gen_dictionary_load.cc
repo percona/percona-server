@@ -111,6 +111,7 @@ static std::string _gen_dictionary_load(const char *dictionary_path,
         if (s.length() > 0) list.push_back(s);
       }
       if (list.size() > 0) {
+        std::sort(list.begin(), list.end());
         (*g_data_masking_dict)[s_dictname] = list;
         res = "Dictionary load success";
       } else {

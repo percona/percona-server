@@ -2403,6 +2403,7 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
     so we keep this pfs session dirty. This fixes many, but not all tables.
     The remaining seems to honor m_enabled, so we also set that to false. */
     pfs->m_enabled= false;
+    pfs->m_disable_instrumentation = true;
     return;
   }
 

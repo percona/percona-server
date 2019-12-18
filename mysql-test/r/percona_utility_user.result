@@ -168,4 +168,9 @@ PROCESSLIST_ID	ATTR_NAME	ATTR_VALUE	ORDINAL_POSITION
 SELECT COUNT(DISTINCT PROCESSLIST_ID) FROM performance_schema.session_connect_attrs;
 COUNT(DISTINCT PROCESSLIST_ID)
 1
+SELECT COUNT(*) from performance_schema.threads where type='FOREGROUND';
+COUNT(*)
+2
+KILL 3;
+ERROR HY000: You are not owner of thread 3
 REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';

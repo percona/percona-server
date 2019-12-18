@@ -992,11 +992,11 @@ By default, it is created in the current working directory.
   :vartype: Numeric
   :default: ``0``
 
-Specifies the size of the memtable used to store writes in MyRocks.
-This is the size per column family.
-When this size is reached, the memtable is flushed to persistent media.
-Default value is ``0``.
-Allowed range is up to ``18446744073709551615``.
+Specifies the maximum size of all memtables used to store writes in MyRocks
+across all column families. When this size is reached, the data is flushed
+to persistent media.
+The default value is ``0``.
+The allowed range is up to ``18446744073709551615``.
 
 .. variable:: rocksdb_deadlock_detect
 

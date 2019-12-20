@@ -35,6 +35,13 @@ When log tracking is enabled, the following additional fields are displayed in t
  * "Log tracked up to:" displays the LSN up to which all the changes have been parsed and stored as a bitmap on disk by the log tracking thread
  * "Max tracked LSN age:" displays the maximum limit on how far behind the log tracking thread may be.
 
+.. note:: 
+
+        Implemented in |Percona Server| 8.0.13-4, a new InnoDB monitor,
+        log_writer_on_tracker_waits, records log writer waits due to changed
+        page tracking lag. This log writer works in parallel with other
+        log_writer_on_[*]_ waits monitors.
+
 INFORMATION_SCHEMA Tables
 =========================
 

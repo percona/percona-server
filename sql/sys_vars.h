@@ -2516,6 +2516,9 @@ public:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     DBUG_ENTER("Sys_var_gtid_executed::global_value_ptr");
+
+    DEBUG_SYNC(thd, "gtid_executed_before_get_value");
+
     global_sid_lock->wrlock();
     const Gtid_set *gs= gtid_state->get_executed_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);

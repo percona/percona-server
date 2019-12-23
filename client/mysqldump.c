@@ -148,6 +148,9 @@ static char  *opt_password=0,*current_user=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0, *opt_ignore_error= 0,
              *log_error_file= NULL;
+#ifndef DBUG_OFF
+static char  *start_sql_file= NULL, *finish_sql_file= NULL;
+#endif
 static char **defaults_argv= 0;
 static char compatible_mode_normal_str[255];
 /* Server supports character_set_results session variable? */
@@ -570,6 +573,18 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
+	{"start-sql-file", OPT_START_SQL_FILE, "Execute SQL statements from the file"
+    " at the mysqldump start. Each line has to contain one statement terminated"
+    " with a semicolon. Line length limit is 1023 characters.",
+    &start_sql_file, &start_sql_file, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"finish-sql-file", OPT_FINISH_SQL_FILE, "Execute SQL statements from the file"
+    " at the mysqldump finish. Each line has to contain one statement terminated"
+    " with a semicolon. Line length limit is 1023 characters.",
+    &finish_sql_file, &finish_sql_file, 0, GET_STR,
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif  // DEBUF_OFF
 #include <sslopt-longopts.h>
 #include <caching_sha2_passwordopt-longopts.h>
   {"tab",'T',
@@ -6248,7 +6263,16 @@ static int do_start_slave_sql(MYSQL *mysql_con)
   return(0);
 }
 
+static int do_lock_binlog_for_update(MYSQL *mysql_con)
+{
+  return mysql_query_with_error_report(mysql_con, 0,
+                                       "LOCK BINLOG FOR BACKUP");
+}
 
+static int do_unlock_binlog(MYSQL *mysql_con)
+{
+  return mysql_query_with_error_report(mysql_con, 0, "UNLOCK BINLOG");
+}
 
 static int do_flush_tables_read_lock(MYSQL *mysql_con)
 {
@@ -7107,12 +7131,88 @@ static my_bool server_supports_backup_locks(void)
   return rc;
 }
 
+/*
+ This function executes all sql statements from the given file.
+ Each statement lenght is limited to 1023 characters including
+ trailing semicolon.
+ Each statement has to be in its own line.
+
+  @param[in]   sql_file      File name containing sql statements to be
+                             executed.
+  @retval  1 failure
+           0 success
+*/
+#ifndef DBUG_OFF
+#define SQL_STATEMENT_MAX_LEN 1024  // 1023 chars for statement + trailing 0
+static int execute_sql_file(const char *sql_file)
+{
+  static const char *win_eol= "\r\n";
+  static const char *linux_eol= "\n";
+  static const char *win_semicolon= ";\r\n";
+  static const char *linux_semicolon= ";\n";
+  static const char *semicolon= ";";
+  static const char *comment= "#";
+
+  FILE *file;
+  char  buf[SQL_STATEMENT_MAX_LEN];
+
+  if (!sql_file)
+    return 0;
+
+  if (!(file= fopen(sql_file, "r")))
+  {
+    fprintf(stderr, "Cannot open file %s\n", sql_file);
+    return 1;
+  }
+
+  while (fgets(buf, SQL_STATEMENT_MAX_LEN, file))
+  {
+    // simple validation
+    size_t query_len= strlen(buf);
+
+    // empty file
+    if (query_len == 0)
+    {
+      fclose(file);
+      return 1;
+    }
+
+    // If this is empty or comment line, skip it
+    if (strcmp(buf, linux_eol) == 0 || strcmp(buf, win_eol) == 0 ||
+        strstr(buf, comment) == buf)
+    {
+      continue;
+    }
+
+    // we need line ending with semicolon and optionally a new line
+    // which differs on Windows and Linux
+    if (strstr(buf, linux_semicolon) == 0 &&
+        strstr(buf, win_semicolon) == 0 && strstr(buf, semicolon) == 0)
+    {
+      fclose(file);
+      return 1;
+    }
+
+    if (mysql_query_with_error_report(mysql, 0, buf))
+    {
+      fclose(file);
+      return 1;
+    }
+  }
+
+  fclose(file);
+  return 0;
+}
+#endif  // DBUG_OFF
 
 int main(int argc, char **argv)
 {
   char bin_log_name[FN_REFLEN];
   int exit_code, md_result_fd;
   int consistent_binlog_pos= 0;
+  my_bool flush_tables_read_lock_called= FALSE;
+  my_bool backup_locks_supported= FALSE;
+
   MY_INIT("mysqldump");
 
   compatible_mode_normal_str[0]= 0;
@@ -7146,10 +7246,18 @@ int main(int argc, char **argv)
     free_resources();
     exit(EX_MYSQLERR);
   }
+
+#ifndef DBUG_OFF
+  if (execute_sql_file(start_sql_file))
+    goto err;
+#endif
+
   if (!path)
     write_header(md_result_file, *argv);
 
-  if (opt_lock_for_backup && !server_supports_backup_locks())
+  backup_locks_supported= server_supports_backup_locks();
+
+  if (opt_lock_for_backup && !backup_locks_supported)
   {
     fprintf(stderr, "%s: Error: --lock-for-backup was specified with "
             "--single-transaction, but the server does not support "
@@ -7170,11 +7278,13 @@ int main(int argc, char **argv)
     consistent_binlog_pos= check_consistent_binlog_pos(NULL, NULL);
   }
 
-  if ((opt_lock_all_tables || (opt_master_data && !consistent_binlog_pos) ||
-       (opt_single_transaction && flush_logs)))
+  if (opt_lock_all_tables || (opt_master_data && !consistent_binlog_pos) ||
+      (opt_single_transaction && flush_logs) ||
+      (opt_single_transaction && !backup_locks_supported))
   {
     if (do_flush_tables_read_lock(mysql))
       goto err;
+    flush_tables_read_lock_called= TRUE;
   }
   else if (opt_lock_for_backup && do_lock_tables_for_backup(mysql))
     goto err;
@@ -7211,6 +7321,13 @@ int main(int argc, char **argv)
     mysql_query_with_error_report(mysql, 0,
                                   "SET SESSION rocksdb_skip_fill_cache=1");
 
+  if (opt_single_transaction && !flush_tables_read_lock_called &&
+      backup_locks_supported)
+  {
+    if (do_lock_binlog_for_update(mysql))
+      goto err;
+  }
+
   if (opt_single_transaction && start_transaction(mysql))
     goto err;
 
@@ -7218,19 +7335,36 @@ int main(int argc, char **argv)
   if (opt_slave_apply && add_stop_slave())
     goto err;
 
-
   /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required. */
   if (process_set_gtid_purged(mysql))
     goto err;
 
+  if (opt_single_transaction && !flush_tables_read_lock_called &&
+      backup_locks_supported)
+  {
+    if (do_unlock_binlog(mysql))
+      goto err;
+  }
 
   if (opt_master_data && do_show_master_status(mysql, consistent_binlog_pos))
     goto err;
   if (opt_slave_data && do_show_slave_status(mysql))
     goto err;
-  if (opt_single_transaction && (!opt_lock_for_backup || opt_master_data) &&
-      do_unlock_tables(mysql))                  /* unlock but no commit! */
-    goto err;
+
+  // Note:
+  // opt_single_transaction == true => opt_lock_all_tables == false and vice versa
+  //
+  // We need to keep the lock up to the end of backup if:
+  // 1. we have --lock-for-backup
+  // 2. we have --lock-all-tables (so opt_single_transaction == false)
+  // We unlock if none of above, but tables might have been locked anyway
+  // because of the need of getting consistent binlog coordinates.
+  // If not locked previously, unlocking will not do any harm.
+  if (!(opt_lock_all_tables || opt_lock_for_backup))
+  {
+    if (do_unlock_tables(mysql)) /* unlock but no commit! */
+      goto err;
+  }
 
   if (opt_alltspcs)
     dump_all_tablespaces();
@@ -7319,6 +7453,10 @@ int main(int argc, char **argv)
     server.
   */
 err:
+#ifndef DBUG_OFF
+  execute_sql_file(finish_sql_file);
+#endif
+
   dbDisconnect(current_host);
   if (!path)
     write_footer(md_result_file);

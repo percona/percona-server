@@ -1,0 +1,65 @@
+#################################################
+# Testing mysqldump with options: --single-transaction --master-data
+#################################################
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = 'now WAIT_FOR gtid_executed.started';
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL gtid_executed.continue';
+SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
+Pattern found.
+Pattern not found.
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+#################################################
+# Testing mysqldump with options: --single-transaction
+#################################################
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = 'now WAIT_FOR gtid_executed.started';
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL gtid_executed.continue';
+SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
+Pattern found.
+Pattern not found.
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+#################################################
+# Testing mysqldump with options: --lock-for-backup --single-transaction
+#################################################
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = 'now WAIT_FOR gtid_executed.started';
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL gtid_executed.continue';
+SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
+Pattern found.
+Pattern not found.
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+#################################################
+# Testing mysqldump with options: --lock-for-backup
+#################################################
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = 'now WAIT_FOR gtid_executed.started';
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL gtid_executed.continue';
+SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
+Pattern not found.
+Pattern not found.
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+#################################################
+# Testing mysqldump with options: --lock-all-tables
+#################################################
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = 'now WAIT_FOR gtid_executed.started';
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL gtid_executed.continue';
+SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
+Pattern not found.
+Pattern not found.
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';

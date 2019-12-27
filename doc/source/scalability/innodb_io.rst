@@ -49,7 +49,7 @@ If ``innodb_use_global_flush_log_at_trx_commit=1`` (True), the user session will
      :default: 512
      :units: Bytes
 
-This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use. Clean restart and removal of the old logs is needed for the variable :variable:`innodb_log_block_size` to be changed. **Note:** This feature implementation is considered BETA quality.
+This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use. Clean restart and removal of the old logs is needed for the variable :variable:`innodb_log_block_size` to be changed. **Note:** This feature implementation is considered Experimental quality.
 
 .. variable:: innodb_flush_method
 
@@ -76,10 +76,14 @@ The following values are allowed:
     use O_DIRECT to open the data files and fsync() system call to flush both the data and log files.
 
   * ``O_DIRECT_NO_FSYNC``:
-    use O_DIRECT to open the data files but don't use ``fsync()`` system call to flush both the data and log files. This option isn't suitable for *XFS* file system.
+    use O_DIRECT to open the data files and parallel doublewrite files, but does not
+    use the ``fsync()`` system call to flush the data files, log files, and
+    parallel doublewrite files. This option isn't suitable for *XFS* file system.
 
   * ``ALL_O_DIRECT``: 
-    use O_DIRECT to open both data and log files, and use ``fsync()`` to flush the data files but not the log files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable :variable:`innodb_log_block_size` should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
+    use O_DIRECT to open data files, log files, and parallel doublewrite files
+    and use ``fsync()`` to flush the data files but not the log files or 
+    parallel doublewrite files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise, there may be performance degradation. **Note**: When using this option on *ext4* filesystem variable :variable:`innodb_log_block_size` should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
 
 
 .. variable:: innodb_log_checksum_algorithm

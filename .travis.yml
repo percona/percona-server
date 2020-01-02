@@ -87,7 +87,7 @@ matrix:
 
     # Configurations for a pull request and after merging for percona/percona-server
     # 1
-    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, cron)
       env:              BUILD=RelWithDebInfo
       compiler: clang
       os: osx
@@ -96,19 +96,19 @@ matrix:
       env: VERSION=9    BUILD=Debug
       compiler: clang
     # 3
-    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=8    BUILD=RelWithDebInfo
       compiler: clang
     # 4
-    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=7    BUILD=RelWithDebInfo
       compiler: clang
     # 5
-    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=6.0  BUILD=RelWithDebInfo
       compiler: clang
     # 6
-    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=5.0  BUILD=RelWithDebInfo
       compiler: clang
     # 7
@@ -120,15 +120,15 @@ matrix:
       env: VERSION=9    BUILD=RelWithDebInfo
       compiler: gcc
     # 9
-    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=8    BUILD=RelWithDebInfo
       compiler: gcc
     # 10
-    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=7    BUILD=RelWithDebInfo
       compiler: gcc
     # 11
-    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=6    BUILD=RelWithDebInfo
       compiler: gcc
     # 12
@@ -231,7 +231,9 @@ script:
     if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ "$CC" == "clang" ]]; then
        PACKAGES="llvm-$VERSION-dev $PACKAGES";
        curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
-       echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-$VERSION main" | sudo tee -a /etc/apt/sources.list > /dev/null;
+       if [[ "$CC-$VERSION" != "clang-4.0" ]]; then
+         echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-$VERSION main" | sudo tee -a /etc/apt/sources.list > /dev/null;
+       fi;
     fi;
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
        sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test";
@@ -266,6 +268,12 @@ script:
     ccache --zero-stats;
 
   - echo --- Set cmake parameters;
+    COMPILE_OPT+=(
+      -DCMAKE_C_FLAGS_DEBUG=-g1
+      -DCMAKE_CXX_FLAGS_DEBUG=-g1
+      '-DCMAKE_C_FLAGS_RELWITHDEBINFO=-O2 -g1 -DNDEBUG'
+      '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g1 -DNDEBUG'
+    );
     CMAKE_OPT="
       -DCMAKE_BUILD_TYPE=$BUILD
       -DBUILD_CONFIG=mysql_release
@@ -326,8 +334,9 @@ script:
 
   - echo --- Perform Debug or RelWithDebInfo compilation;
     echo --- CMAKE_OPT=\"$CMAKE_OPT\";
+    echo --- COMPILE_OPT=\"${COMPILE_OPT[@]}\";
     echo --- ENV_VAR_CMAKE_OPT=\"$ENV_VAR_CMAKE_OPT\";
-    cmake .. $CMAKE_OPT $ENV_VAR_CMAKE_OPT;
+    cmake .. $CMAKE_OPT $ENV_VAR_CMAKE_OPT "${COMPILE_OPT[@]}";
 
   - CMAKE_TIME=$(($SECONDS - $INIT_TIME - $UPDATE_TIME));
     if [[ "$TRAVIS_REPO_SLUG" == "percona/percona-server" ]]; then

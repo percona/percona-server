@@ -165,7 +165,7 @@ static os_event_t sync_cell_get_event(
   if (type == SYNC_MUTEX) {
     return (cell->latch.mutex->event());
 
-  } else if (type == SYNC_BUF_BLOCK) {
+  } else if (type == SYNC_BUF_BLOCK || type == SYNC_DICT_AUTOINC_MUTEX) {
     return (cell->latch.bpmutex->event());
 
   } else if (type == RW_LOCK_X_WAIT) {
@@ -214,7 +214,8 @@ sync_cell_t *sync_array_reserve_cell(sync_array_t *arr, void *object,
 
   if (cell->request_type == SYNC_MUTEX) {
     cell->latch.mutex = reinterpret_cast<WaitMutex *>(object);
-  } else if (cell->request_type == SYNC_BUF_BLOCK) {
+  } else if (cell->request_type == SYNC_BUF_BLOCK ||
+             type == SYNC_DICT_AUTOINC_MUTEX) {
     cell->latch.bpmutex = reinterpret_cast<BlockWaitMutex *>(object);
   } else {
     cell->latch.lock = reinterpret_cast<rw_lock_t *>(object);
@@ -391,7 +392,7 @@ void sync_array_cell_print(FILE *file, const sync_cell_t *cell) {
 
   if (type == SYNC_MUTEX) {
     sync_array_mutex_print(file, cell->latch.mutex);
-  } else if (type == SYNC_BUF_BLOCK) {
+  } else if (type == SYNC_BUF_BLOCK || type == SYNC_DICT_AUTOINC_MUTEX) {
     sync_array_mutex_print(file, cell->latch.bpmutex);
   } else if (type == RW_LOCK_X || type == RW_LOCK_X_WAIT ||
              type == RW_LOCK_SX || type == RW_LOCK_S) {
@@ -621,7 +622,8 @@ static bool sync_array_detect_deadlock_low(sync_array_t *arr, sync_cell_t *cell,
                                               depth);
     }
 
-    case SYNC_BUF_BLOCK: {
+    case SYNC_BUF_BLOCK:
+    case SYNC_DICT_AUTOINC_MUTEX: {
       return sync_array_detect_mutex_deadlock(cell->latch.bpmutex, arr, cell,
                                               depth);
     }
@@ -694,6 +696,7 @@ static bool sync_arr_cell_can_wake_up(
       return !cell->latch.mutex->is_locked();
 
     case SYNC_BUF_BLOCK:
+    case SYNC_DICT_AUTOINC_MUTEX:
       return !cell->latch.bpmutex->is_locked();
 
     case RW_LOCK_X:

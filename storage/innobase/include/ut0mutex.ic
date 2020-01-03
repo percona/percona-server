@@ -49,6 +49,15 @@ bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
                                   uint32_t spin) UNIV_NOTHROW {
   sync_cell_t *cell;
   sync_array_t *sync_arr;
+  latch_id_t latch_id = m_policy.get_id();
+  ulint	type = SYNC_MUTEX;
+	
+  if (latch_id == LATCH_ID_BUF_BLOCK_MUTEX ||
+      latch_id == LATCH_ID_BUF_POOL_ZIP) {
+    type = SYNC_BUF_BLOCK;
+  } else if (latch_id == LATCH_ID_AUTOINC) {
+    type = SYNC_DICT_AUTOINC_MUTEX;
+  }
 
   /* We shall prove that in C++14 as defined by the draft N4140 following holds:
 
@@ -173,10 +182,7 @@ bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
 
   sync_arr = sync_array_get_and_reserve_cell(
       this,
-      (m_policy.get_id() == LATCH_ID_BUF_BLOCK_MUTEX ||
-       m_policy.get_id() == LATCH_ID_BUF_POOL_ZIP)
-          ? SYNC_BUF_BLOCK
-          : SYNC_MUTEX,
+      type,
       {filename, line}, &cell);
 
   /* The memory order of the array reservation and
@@ -187,6 +193,12 @@ bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
   and then the event is set to the signaled state. */
 
   set_waiters();
+
+  DBUG_EXECUTE_IF("catch_autoinc_mutex_os_lock",
+    if (m_policy.get_id() == LATCH_ID_AUTOINC) {
+      DEBUG_SYNC_C("autoinc_mutex_wait");
+    }
+  );
 
   /* Try to reserve still a few times. */
 

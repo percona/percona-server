@@ -1057,6 +1057,10 @@ Doesn't depend on the srv_redo_log_encrypt variable, used by
 SET innodb_redo_log_encrypt = MK. */
 bool srv_enable_redo_encryption_mk(THD* thd);
 
+bool srv_enable_undo_encryption(THD* thd);
+
+bool srv_rotate_undo_encryption();
+
 /** Enables keyring key redo encryption. 
 Doesn't depend on the srv_redo_log_encrypt variable, used by 
 SET innodb_redo_log_encrypt = RK. */

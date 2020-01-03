@@ -3954,8 +3954,6 @@ static bool innobase_is_supported_system_table(const char *db,
 /* mutex protecting the master_key_id */
 ib_mutex_t	master_key_id_mutex;
 
-void srv_enable_undo_encryption_if_set();
-
 /** Fix the empty UUID of tablespaces like system, temp etc by generating
 a new master key and do key rotation. These tablespaces if encrypted
 during startup, will be encrypted with tablespace key which has empty UUID
@@ -3986,8 +3984,11 @@ innobase_fix_tablespaces_empty_uuid()
 
 	/* We only need to handle the case when an encrypted tablespace
 	is created at startup. If it is 0, there is no encrypted tablespace,
-	If it is > 1, it means we already have fixed the UUID */
-	if (Encryption::master_key_id != 1) {
+	If it is > 1, it means we already have fixed the UUID 
+	We also continue if undo log encryption is set, to correctly initialize
+	undo encryption during bootstrap.*/
+	if (Encryption::master_key_id != 1 && (srv_undo_log_encrypt == 0
+	    && Encryption::master_key_id == 0)) {
 		return(false);
 	}
 
@@ -4020,6 +4021,13 @@ innobase_fix_tablespaces_empty_uuid()
 		log_rotate_default_key();
 	}
 
+	if(srv_undo_log_encrypt) {
+		bool ret = srv_enable_undo_encryption(NULL);
+		if (ret) {
+			my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+		}
+	}
+
 	/** Check if sys, temp need rotation to fix the empty uuid */
 	/* Also, in future, it is possible to fix empty uuid for redo & undo
 	here. Just add the space_id into vector */
@@ -4028,7 +4036,8 @@ innobase_fix_tablespaces_empty_uuid()
 	space_ids.push_back(srv_sys_space.space_id());
 	space_ids.push_back(srv_tmp_space.space_id());
 
-	bool	ret = !fil_encryption_rotate_global(space_ids) || !log_rotate_encryption();
+	bool	ret = !fil_encryption_rotate_global(space_ids) || !log_rotate_encryption()
+		|| !srv_rotate_undo_encryption();
 
 	my_free(master_key);
 
@@ -4085,7 +4094,8 @@ innobase_encryption_key_rotation()
                 return(true);
         }
 
-	ret = !fil_encryption_rotate() || !log_rotate_encryption();
+	ret = !fil_encryption_rotate() || !log_rotate_encryption()
+	      || !srv_rotate_undo_encryption();
 
 	my_free(master_key);
 
@@ -21482,6 +21492,71 @@ innodb_temp_tablespace_encryption_update(
 	}
 }
 
+/* Declare default check function for boolean system variable. Cannot include
+ * sql_plugin_var.h header in this file due to conflicting macro definitions. */
+int check_func_bool(THD *, struct st_mysql_sys_var *, void *save, st_mysql_value *value);
+
+/** Enable or disable encryption of redo logs
+@param[in]	thd	thread handle
+@param[in]	var	system variable
+@param[out]	var_ptr	current value
+@param[in]	save	immediate result from check function */
+static
+int
+validate_innodb_undo_log_encrypt(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				save,
+	struct st_mysql_value*          value)
+{
+	/* Call the default check function first. */
+	const bool error = check_func_bool(thd, var, save, value);
+	if (error != 0) {
+		return error;
+	}
+
+	const bool target = *static_cast<const bool *>(save);
+
+	/* Set the default output to current value for all error cases. */
+	*static_cast<bool *>(save) = srv_undo_log_encrypt;
+
+
+	if (srv_undo_log_encrypt == target) {
+		/* No change */
+		return 0;
+	}
+
+	/* If encryption is to be disabled. This will just make sure I/O doesn't
+	   write UNDO pages encrypted from now on. */
+	if (target == false) {
+		/* Check and exit if concurrent clone in progress. */
+		*static_cast<bool *>(save) = false;
+		return (0);
+	}
+
+	if (!Encryption::check_keyring()) {
+		ib_senderrf(
+				thd, IB_LOG_LEVEL_WARN,
+				ER_UNDO_ENCRYPTION_ERROR,
+				"Undo log cannot be encrypted"
+				" if the keyring plugin is not loaded.");
+		ib::error() << "Undo log cannot be encrypted,"
+			<< " if the keyring plugin is not loaded.";
+		return 1;
+	}
+
+	/* Enable encryption for UNDO tablespaces */
+	const bool ret = srv_enable_undo_encryption(thd);
+
+	if(ret) {
+		return 1;
+	}
+
+	srv_undo_log_encrypt = true;
+
+	return 0;
+}
+
 /** Enable or disable encryption of redo logs
 @param[in]	thd	thread handle
 @param[in]	var	system variable
@@ -21516,7 +21591,7 @@ update_innodb_redo_log_encrypt(
 			log_encrypt_name(static_cast<redo_log_encrypt_enum>(target)));
 
 		ib::error() << 
-			" Redo log encryption mode"
+			"Redo log encryption mode"
 			" can't be switched without stopping the server and"
 			" recreating the redo logs. Current mode is "
 			<< log_encrypt_name(existing_redo_encryption_mode)
@@ -21531,10 +21606,10 @@ update_innodb_redo_log_encrypt(
 		ib_senderrf(
 			thd, IB_LOG_LEVEL_WARN,
 			ER_REDO_ENCRYPTION_ERROR,
-			" Redo log cannot be"
+			"Redo log cannot be"
 			" encrypted in innodb_read_only mode.");
 		ib::error() <<
-			" Redo log cannot be"
+			"Redo log cannot be"
 			" encrypted in innodb_read_only mode.";
 		return;
 	}
@@ -22435,7 +22510,7 @@ static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
 static MYSQL_SYSVAR_BOOL(undo_log_encrypt, srv_undo_log_encrypt,
   PLUGIN_VAR_OPCMDARG,
   "Enable or disable Encryption of UNDO tablespaces.",
-  NULL, NULL, FALSE);
+  validate_innodb_undo_log_encrypt, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(version, innodb_version_str,
   PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,

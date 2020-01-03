@@ -4,6 +4,8 @@
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Can't set undo tablespaces to be encrypted, since innodb_undo_tablespaces=0");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Can't set undo tablespace number 1 to be encrypted");
+call mtr.add_suppression("Undo log cannot be encrypted");
+call mtr.add_suppression("keyring error:");
 --enable_query_log
 
 SET @start_global_value = @@global.innodb_undo_log_encrypt;
@@ -25,15 +27,13 @@ select * from performance_schema.session_variables where variable_name='innodb_u
 
 #
 # show that it's writable
+# "writing" 0, as it can't be turned on without a keyring
 #
-set global innodb_undo_log_encrypt=1;
---sleep 2
-select @@global.innodb_undo_log_encrypt;
+set global innodb_undo_log_encrypt=0;
 --disable_warnings
 select * from performance_schema.global_variables where variable_name='innodb_undo_log_encrypt';
 select * from performance_schema.session_variables where variable_name='innodb_undo_log_encrypt';
 --enable_warnings
-set @@global.innodb_undo_log_encrypt=0;
 select @@global.innodb_undo_log_encrypt;
 --disable_warnings
 select * from performance_schema.global_variables where variable_name='innodb_undo_log_encrypt';
@@ -51,6 +51,7 @@ set @@session.innodb_undo_log_encrypt='some';
 set global innodb_undo_log_encrypt=1.1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_undo_log_encrypt='foo';
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_undo_log_encrypt=-2;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_undo_log_encrypt=1e1;

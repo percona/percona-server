@@ -7824,6 +7824,9 @@ ER_REDO_ENCRYPTION_ERROR
 ER_REDO_ENCRYPTION_CANT_BE_CHANGED
   eng "Redo log encryption mode can't be switched without stopping the server and recreating the redo logs. Current mode is %s, requested %s."
 
+ER_UNDO_ENCRYPTION_ERROR
+  eng "%s"
+
 #
 # End of Percona Server 5.7 error messages
 #

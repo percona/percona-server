@@ -2636,8 +2636,8 @@ typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_double_t, double);
   default variable data check and update functions
 ****************************************************************************/
 
-static int check_func_bool(THD *thd, st_mysql_sys_var *var,
-                           void *save, st_mysql_value *value)
+int check_func_bool(THD *thd, st_mysql_sys_var *var,
+                    void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *str;

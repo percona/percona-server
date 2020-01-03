@@ -62,12 +62,6 @@ SET GLOBAL innodb_show_locks_held = @innodb_show_locks_held_save;
 SET GLOBAL innodb_status_output_locks = @innodb_status_output_locks_save;
 DROP TABLE t;
 #
-# Bug 1586262: "Buffer pool size, bytes" always 0 in InnoDB status
-#
-mysql -e "SHOW ENGINE INNODB STATUS"
-Grepping InnoDB status for Buffer pool size, bytes 25149440
-Pattern "Buffer pool size, bytes 25149440" found
-#
 # Bug #34486877: Contribution from Percona - garbled utf characters in show engine innodb status
 #
 CREATE TABLE t (id int primary key auto_increment, a text);
@@ -89,3 +83,25 @@ Pattern "UPDATE t SET a=.*☃\?+" not found
 ROLLBACK;
 COMMIT;
 DROP TABLE t;
+#
+# Bug 1586262: "Buffer pool size, bytes" always 0 in InnoDB status
+#
+mysql -e "SHOW ENGINE INNODB STATUS"
+Grepping InnoDB status for Buffer pool size, bytes 25149440
+Pattern "Buffer pool size, bytes 25149440" found
+#
+# PS-6150: MySQL crash - sync_mutex_to_string
+#
+CREATE TABLE t1(id INT NOT NULL AUTO_INCREMENT, a INT, PRIMARY KEY(id)) ENGINE=InnoDB;
+SET DEBUG_SYNC='innobase_lock_autoinc SIGNAL autoinc_lock.locked WAIT_FOR autoinc_lock.continue';
+INSERT INTO test.t1(a) VALUES(1);
+SET DEBUG_SYNC='now WAIT_FOR autoinc_lock.locked';
+SET SESSION debug="+d,catch_autoinc_mutex_os_lock";
+SET DEBUG_SYNC='autoinc_mutex_wait SIGNAL autoinc_mutex_wait.locked';
+INSERT INTO test.t1(a) VALUES(1);
+SET DEBUG_SYNC='now WAIT_FOR autoinc_mutex_wait.locked';
+SHOW ENGINE INNODB STATUS;
+SET DEBUG_SYNC='now SIGNAL autoinc_lock.continue';
+SET SESSION debug="-d,catch_autoinc_mutex_os_lock";
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';

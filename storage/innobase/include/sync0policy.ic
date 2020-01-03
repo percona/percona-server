@@ -42,6 +42,7 @@ template <typename Mutex>
 std::string AggregateMutexStatsPolicy<Mutex>::to_string() const {
   switch (m_id) {
     case LATCH_ID_BUF_BLOCK_MUTEX:
+    case LATCH_ID_BUF_POOL_ZIP:
       /* I don't think it makes sense to keep track of the file name
       and line number for each block mutex. Too much of overhead.
       Use the latch id to figure out the location from the source. */

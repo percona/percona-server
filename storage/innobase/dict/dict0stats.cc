@@ -819,6 +819,10 @@ dict_stats_update_transient_for_index(
 /*==================================*/
 	dict_index_t*	index)	/*!< in/out: index */
 {
+	/* stats_latch is created on 1st lock. */
+	ut_ad(!(index->table->stats_latch_created) ||
+		!rw_lock_own(index->table->stats_latch, RW_X_LATCH));
+
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
 	    && (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO
 		|| !dict_index_is_clust(index))) {
@@ -889,6 +893,10 @@ dict_stats_update_transient(
 	dict_index_t*	index;
 	ulint		sum_of_index_sizes	= 0;
 
+	dict_table_analyze_index_lock(table);
+
+	DEBUG_SYNC_C("innodb_dict_stats_update_transient");
+
 	/* Find out the sizes of the indexes and how many different values
 	for the key they approximately have */
 
@@ -897,6 +905,7 @@ dict_stats_update_transient(
 	if (dict_table_is_discarded(table)) {
 		/* Nothing to do. */
 		dict_stats_empty_table(table);
+		dict_table_analyze_index_unlock(table);
 		return;
 	} else if (index == NULL) {
 		/* Table definition is corrupt */
@@ -904,6 +913,7 @@ dict_stats_update_transient(
 		ib::warn() << "Table " << table->name
 			<< " has no indexes. Cannot calculate statistics.";
 		dict_stats_empty_table(table);
+		dict_table_analyze_index_unlock(table);
 		return;
 	}
 
@@ -934,6 +944,8 @@ dict_stats_update_transient(
 
 	index = dict_table_get_first_index(table);
 
+	dict_table_stats_lock(table, RW_X_LATCH);
+
 	table->stat_n_rows = index->stat_n_diff_key_vals[
 		dict_index_get_n_unique(index) - 1];
 
@@ -947,6 +959,9 @@ dict_stats_update_transient(
 	table->stat_modified_counter = 0;
 
 	table->stat_initialized = TRUE;
+
+	dict_table_stats_unlock(index->table, RW_X_LATCH);
+	dict_table_analyze_index_unlock(table);
 }
 
 /* @{ Pseudo code about the relation between the following functions
@@ -3119,9 +3134,9 @@ dict_stats_update_for_index(
 			" corrupted. Using transient stats instead.";
 	}
 
-	dict_table_stats_lock(index->table, RW_X_LATCH);
+	dict_table_analyze_index_lock(index->table);
 	dict_stats_update_transient_for_index(index);
-	dict_table_stats_unlock(index->table, RW_X_LATCH);
+	dict_table_analyze_index_unlock(index->table);
 
 	DBUG_VOID_RETURN;
 }
@@ -3324,11 +3339,7 @@ dict_stats_update(
 
 transient:
 
-	dict_table_stats_lock(table, RW_X_LATCH);
-
 	dict_stats_update_transient(table);
-
-	dict_table_stats_unlock(table, RW_X_LATCH);
 
 	return(DB_SUCCESS);
 }

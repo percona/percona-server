@@ -23,6 +23,9 @@ call mtr.add_suppression("Cannot open table tde_db/.* from the internal data dic
 call mtr.add_suppression("\\[Warning\\] .* Tablespace for table `tde_db`.`t1` is set as discarded");
 call mtr.add_suppression("\\[Warning\\] .* Database page corruption or a failed file read of page");
 call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table .* because file .*\.ibd cannot be decrypted");
+call mtr.add_suppression("\\[Warning\\] .* Trying to access missing tablespace [0-9]+");
+call mtr.add_suppression("\\[Warning\\] .* Cannot save statistics for table .* because the \.ibd file is missing");
 call mtr.add_suppression("\\[ERROR\\] .* The table .* doesn't have a corresponding tablespace, it was discarded.");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Encryption algorithm support missing:");

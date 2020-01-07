@@ -395,6 +395,7 @@ Summary:        Percona Server - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
 Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55
+Obsoletes:      mariadb-connector-c-devel
 %if "%rhel" > "6"
 Obsoletes:      mariadb-devel
 %endif

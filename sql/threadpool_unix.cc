@@ -1304,7 +1304,7 @@ void tp_wait_end(THD *thd) {
 static void set_next_timeout_check(ulonglong abstime) {
   DBUG_ENTER("set_next_timeout_check");
   while (abstime < pool_timer.next_timeout_check.load()) {
-    ulong old = pool_timer.next_timeout_check.load();
+    uint64 old = pool_timer.next_timeout_check.load();
     pool_timer.next_timeout_check.compare_exchange_weak(old, abstime);
   }
   DBUG_VOID_RETURN;

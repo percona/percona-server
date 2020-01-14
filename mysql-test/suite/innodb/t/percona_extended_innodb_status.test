@@ -33,9 +33,6 @@ SET GLOBAL innodb_show_locks_held = 0;
 --let expected_locks= 4
 --source suite/innodb/include/percona_extended_innodb_status.inc
 
-# wait until all additional connections close
---source include/wait_until_count_sessions.inc
-
 # restoring affected global variables
 SET GLOBAL innodb_show_locks_held = @innodb_show_locks_held_save;
 SET GLOBAL innodb_status_output_locks = @innodb_status_output_locks_save;
@@ -56,3 +53,60 @@ DROP TABLE t;
 --echo Grepping InnoDB status for $SEARCH_PATTERN
 --source include/search_pattern.inc
 --remove_file $innodb_status
+
+
+--echo #
+--echo # PS-6150: MySQL crash - sync_mutex_to_string
+--echo #
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+--connection default
+CREATE TABLE t1(id INT NOT NULL AUTO_INCREMENT, a INT, PRIMARY KEY(id)) ENGINE=InnoDB;
+
+--connection con1
+SET DEBUG_SYNC='innobase_lock_autoinc SIGNAL autoinc_lock.locked WAIT_FOR autoinc_lock.continue'; 
+--send INSERT INTO test.t1(a) VALUES(1)
+
+--connection con2
+# Be sure that con1 locked autoinc_lock
+SET DEBUG_SYNC='now WAIT_FOR autoinc_lock.locked';
+
+# The following will cause autoinc_lock to reach OS level locking and registering the lock in sync_array used by 'SHOW ENGINE INNODB STATUS' to list locked mutexes
+SET SESSION debug="+d,catch_autoinc_mutex_os_lock";
+SET DEBUG_SYNC='autoinc_mutex_wait SIGNAL autoinc_mutex_wait.locked'; 
+--send INSERT INTO test.t1(a) VALUES(1)
+
+--connection default
+# wait up to the point when lock is registered in sync_array (in fact OS lock is not acquired yet, but this is enough)
+SET DEBUG_SYNC='now WAIT_FOR autoinc_mutex_wait.locked';
+
+# Send the query that caused the crash
+--disable_result_log
+SHOW ENGINE INNODB STATUS;
+--enable_result_log
+
+
+# cleanup
+# Unblock connections.
+--connection default
+SET DEBUG_SYNC='now SIGNAL autoinc_lock.continue';
+SET SESSION debug="-d,catch_autoinc_mutex_os_lock";
+SET DEBUG_SYNC = 'RESET';
+
+--connection con1
+--reap
+
+--connection con2
+--reap
+
+--disconnect con1
+--disconnect con2
+
+--connection default
+DROP TABLE t1;
+
+# wait until all additional connections close
+--source include/wait_until_count_sessions.inc
+

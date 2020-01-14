@@ -7115,7 +7115,38 @@ ER_MISSING_KEY
 
 WARN_NAMED_PIPE_ACCESS_EVERYONE
   eng "Setting named_pipe_full_access_group='%s' is insecure. Consider using a Windows group with fewer members."
-<<<<<<< HEAD
+
+ER_FOUND_MISSING_GTIDS
+  eng "Cannot replicate to server with server_uuid='%.36s' because the present server has purged required binary logs. The connecting server needs to replicate the missing transactions from elsewhere, or be replaced by a new server created from a more recent backup. To prevent this error in the future, consider increasing the binary log expiration period on the present server. %s."
+
+#
+#  End of 5.6 error messages.
+#
+
+ER_PLACEHOLDER_1889
+  eng "Placeholder"
+
+ER_PLACEHOLDER_1890
+  eng "Placeholder"
+
+ER_PLACEHOLDER_1891
+  eng "Placeholder"
+
+ER_PLACEHOLDER_1892
+  eng "Placeholder"
+
+ER_PLACEHOLDER_1893
+  eng "Placeholder"
+
+ER_PLACEHOLDER_1894
+  eng "Placeholder"
+
+ER_PLACEHOLDER_1895
+  eng "Placeholder"
+
+#
+# Start of Percona Server 5.6 error messages
+#
 
 ER_QUERY_TIMEOUT 70101
   eng "Query execution was interrupted, max_statement_time exceeded"
@@ -7147,14 +7178,3 @@ ER_COMPRESSION_DICTIONARY_IS_REFERENCED
 
 ER_GTID_DEPLOYMENT_STEP_ACTIVE
   eng "super_read_only cannot be changed when gtid_deployment_step is ON"
-
-||||||| merged common ancestors
-=======
-
-ER_FOUND_MISSING_GTIDS
-  eng "Cannot replicate to server with server_uuid='%.36s' because the present server has purged required binary logs. The connecting server needs to replicate the missing transactions from elsewhere, or be replaced by a new server created from a more recent backup. To prevent this error in the future, consider increasing the binary log expiration period on the present server. %s."
-
->>>>>>> 13beff1
-#
-#  End of 5.6 error messages.
-#

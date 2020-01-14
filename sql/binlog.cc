@@ -8022,7 +8022,6 @@ err1:
   return 1;
 }
 
-<<<<<<< HEAD
 /*
   Copy out the non-directory part of binlog position filename for the
   `binlog_snapshot_file' status variable, same way as it is done for
@@ -8098,9 +8097,6 @@ void MYSQL_BIN_LOG::xunlock(void)
   mysql_mutex_unlock(&LOCK_log);
 }
 
-
-||||||| merged common ancestors
-=======
 void MYSQL_BIN_LOG::report_missing_purged_gtids(const Gtid_set* slave_executed_gtid_set,
                                          const char** errmsg)
 {
@@ -8258,7 +8254,7 @@ void MYSQL_BIN_LOG::report_missing_gtids(const Gtid_set* previous_gtid_set,
 
   DBUG_VOID_RETURN;
 }
->>>>>>> 13beff1
+
 Group_cache *THD::get_group_cache(bool is_transactional)
 {
   DBUG_ENTER("THD::get_group_cache(bool)");

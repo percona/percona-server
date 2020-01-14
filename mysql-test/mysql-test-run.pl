@@ -1065,6 +1065,7 @@ sub print_global_resfile {
   resfile_global("gprof", $opt_gprof ? 1 : 0);
   resfile_global("valgrind", $opt_valgrind ? 1 : 0);
   resfile_global("callgrind", $opt_callgrind ? 1 : 0);
+  resfile_global("helgrind", $opt_helgrind ? 1 : 0);
   resfile_global("mem", $opt_mem ? 1 : 0);
   resfile_global("tmpdir", $opt_tmpdir);
   resfile_global("vardir", $opt_vardir);
@@ -1778,6 +1779,15 @@ sub command_line_setup {
     $opt_valgrind= 1;
   }
 
+  if ( $opt_helgrind )
+  {
+    mtr_report("Turning on valgrind with helgrind for mysqld(s)");
+    $opt_valgrind= 1;
+    $opt_valgrind_mysqld= 1;
+
+    push(@valgrind_args, "--tool=helgrind");
+  }
+
   if ( $opt_callgrind )
   {
     mtr_report("Turning on valgrind with callgrind for mysqld(s)");
@@ -1793,30 +1803,8 @@ sub command_line_setup {
     $opt_debug_sync_timeout*= 10;
   }
 
-<<<<<<< HEAD
-  if ( $opt_helgrind )
-  {
-    mtr_report("Turning on valgrind with helgrind for mysqld(s)");
-    $opt_valgrind= 1;
-    $opt_valgrind_mysqld= 1;
-  }
-
-  if ( $opt_valgrind )
-||||||| merged common ancestors
-  if ( $opt_valgrind )
-=======
   if ($opt_valgrind)
->>>>>>> 13beff1
   {
-<<<<<<< HEAD
-    # Set valgrind_options to default unless already defined
-    push(@valgrind_args, @default_valgrind_args)
-      unless @valgrind_args || $opt_helgrind;
-||||||| merged common ancestors
-    # Set valgrind_options to default unless already defined
-    push(@valgrind_args, @default_valgrind_args)
-      unless @valgrind_args;
-=======
     # Default to --tool=memcheck if no other tool has been explicitly
     # specified. From >= 2.1.2, this option is needed
     if (!@valgrind_args or !grep(/^--tool=/, @valgrind_args))
@@ -1825,7 +1813,6 @@ sub command_line_setup {
       unshift(@valgrind_args, ("--tool=memcheck", "--num-callers=16",
                                "--show-reachable=yes"));
     }
->>>>>>> 13beff1
 
     # Add suppression file if not specified
     if (!grep(/^--suppressions=/, @valgrind_args))
@@ -6503,43 +6490,16 @@ sub valgrind_arguments {
   my $exe=  shift;
   my $report_prefix= shift;
 
-  if (my @tool_list= grep(/^--tool=(memcheck|callgrind|massif)/, @valgrind_args))
+  if (my @tool_list= grep(/^--tool=(memcheck|callgrind|helgrind|massif)/, @valgrind_args))
   {
-<<<<<<< HEAD
-    mtr_add_arg($args, "--tool=callgrind");
-    mtr_add_arg($args, "--base=$opt_vardir/log");
-  }
-  elsif ( $opt_helgrind )
-  {
-    mtr_add_arg($args, "--tool=helgrind");
-  }
-  else
-  {
-    mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    mtr_add_arg($args, "--leak-check=yes");
-    mtr_add_arg($args, "--num-callers=16");
-    # Support statically-linked malloc libraries and
-    # dynamically-linked jemalloc
-    mtr_add_arg($args, "--soname-synonyms=somalloc=NONE,somalloc=*jemalloc*");
-    mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
-      if -f "$glob_mysql_test_dir/valgrind.supp";
-||||||| merged common ancestors
-    mtr_add_arg($args, "--tool=callgrind");
-    mtr_add_arg($args, "--base=$opt_vardir/log");
-  }
-  else
-  {
-    mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    mtr_add_arg($args, "--leak-check=yes");
-    mtr_add_arg($args, "--num-callers=16");
-    mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
-      if -f "$glob_mysql_test_dir/valgrind.supp";
-=======
     # Get the value of the last specified --tool=<> argument to valgrind
-    my ($tool_name)= $tool_list[-1] =~ /(memcheck|callgrind|massif)$/;
+    my ($tool_name)= $tool_list[-1] =~ /(memcheck|callgrind|helgrind|massif)$/;
     if ($tool_name=~ /memcheck/)
     {
       mtr_add_arg($args, "--leak-check=yes") ;
+      # Support statically-linked malloc libraries and
+      # dynamically-linked jemalloc
+      mtr_add_arg($args, "--soname-synonyms=somalloc=NONE,somalloc=*jemalloc*");
     }
     else
     {
@@ -6548,7 +6508,6 @@ sub valgrind_arguments {
       mtr_add_arg($args, "--$tool_name-out-file=$opt_vardir/log/".
                          "$report_prefix"."_$tool_name.out.%%p");
     }
->>>>>>> 13beff1
   }
 
   # Add valgrind options, can be overriden by user
@@ -6912,6 +6871,7 @@ Options for valgrind
                         can be specified more then once
   valgrind-path=<EXE>   Path to the valgrind executable
   callgrind             Instruct valgrind to use callgrind
+  helgrind              Instruct valgrind to use helgrind
 
 Misc options
   user=USER             User for connecting to mysqld(default: $opt_user)

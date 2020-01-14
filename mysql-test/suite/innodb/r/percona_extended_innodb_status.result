@@ -81,5 +81,5 @@ SET DEBUG_SYNC='now WAIT_FOR autoinc_mutex_wait.locked';
 SHOW ENGINE INNODB STATUS;
 SET DEBUG_SYNC='now SIGNAL autoinc_lock.continue';
 SET SESSION debug="-d,catch_autoinc_mutex_os_lock";
-SET DEBUG_SYNC = 'RESET';
 DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';

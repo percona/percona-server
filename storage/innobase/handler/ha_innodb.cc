@@ -8527,6 +8527,8 @@ ha_innobase::innobase_lock_autoinc(void)
 			/* Acquire the AUTOINC mutex. */
 			dict_table_autoinc_lock(ib_table);
 
+			DEBUG_SYNC_C("innobase_lock_autoinc");
+
 			/* We need to check that another transaction isn't
 			already holding the AUTOINC lock on the table. */
 			if (ib_table->n_waiting_or_granted_auto_inc_locks) {

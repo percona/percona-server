@@ -7773,8 +7773,8 @@ bool mysql_prepare_create_table(
                       key_info_buffer, key_info, &key_part_info, keys_to_check,
                       key_number, file, &auto_increment))
         return true;
-      for (const auto &it : alter_info->delayed_key_list) {
-        if (it == key) {
+      for (const auto &it2 : alter_info->delayed_key_list) {
+        if (it2 == key) {
           alter_info->delayed_key_info[alter_info->delayed_key_count++] =
               *key_info;
           break;
@@ -8661,9 +8661,9 @@ static bool validate_table_encryption(THD *thd, HA_CREATE_INFO *create_info) {
                                tt != Tablespace_type::SPACE_TYPE_SHARED);
     uses_system_tablespace = tt == Tablespace_type::SPACE_TYPE_SYSTEM;
     if (uses_system_tablespace) {
-      dd::Encrypt_result result = dd::is_system_tablespace_encrypted(thd);
-      if (result.error) return true;
-      uses_encrypted_tablespace = result.value;
+      dd::Encrypt_result result2 = dd::is_system_tablespace_encrypted(thd);
+      if (result2.error) return true;
+      uses_encrypted_tablespace = result2.value;
     }
   }
 
@@ -13862,7 +13862,6 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   /* List with secondary keys which should be created after copying the data */
   Mem_root_array<const Key_spec *> delayed_key_list(thd->mem_root);
   /* Foreign key list returned by handler::get_foreign_key_list() */
-  List<FOREIGN_KEY_INFO> f_key_list;
   /*
     Alter_info::alter_list is used by fill_alter_inplace_info() call as well.
     So this function works on its copy rather than original list.
@@ -14170,9 +14169,10 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       key constraints in the table.
   */
 
+  const dd::Table *obj =
+      (table->s->tmp_table ? table->s->tmp_table_def : src_table);
   bool skip_secondary = thd->variables.expand_fast_index_creation &&
-                        !table->file->get_foreign_key_list(thd, &f_key_list) &&
-                        f_key_list.elements == 0;
+                        !obj->foreign_key_parents().empty();
 
   for (uint i = 0; i < table->s->keys; i++, key_info++) {
     const char *key_name = key_info->name;
@@ -14386,13 +14386,14 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         if (skip_secondary && key->type & KEYTYPE_MULTIPLE) {
           delayed_key_list.push_back(key);
         }
-      } else if (skip_secondary) {
+      } else  // if (skip_secondary)
+      {
         /*
           We are adding a foreign key so disable the secondary keys
           optimization.
         */
-        skip_secondary = false;
-        delayed_key_list.empty();
+        // skip_secondary = false;
+        // delayed_key_list.empty();
       }
     }
   }
@@ -14677,16 +14678,8 @@ static fk_column_change_type fk_check_column_changes(
           SE that foreign keys should be updated to use new name of column
           like it happens in case of in-place algorithm.
         */
-<<<<<<< HEAD
-        *bad_column_name = column->str;
-        return fk_column_change_type::RENAMED;
-||||||| 91a17cedb1e
-        *bad_column_name = column->str;
-        return FK_COLUMN_RENAMED;
-=======
         *bad_column_name = column;
-        return FK_COLUMN_RENAMED;
->>>>>>> mysql-8.0.19
+        return fk_column_change_type::RENAMED;
       }
 
       const auto fields_differ =
@@ -14701,18 +14694,10 @@ static fk_column_change_type fk_check_column_changes(
             means values in this column might be changed by ALTER
             and thus referential integrity might be broken,
           */
-<<<<<<< HEAD
-          *bad_column_name = column->str;
+          *bad_column_name = column;
           /* NULL to NOT NULL column change is safe for referenced columns */
           return fields_differ ? fk_column_change_type::DATA_CHANGE
                                : fk_column_change_type::SAFE_FOR_PARENT;
-||||||| 91a17cedb1e
-          *bad_column_name = column->str;
-          return FK_COLUMN_DATA_CHANGE;
-=======
-          *bad_column_name = column;
-          return FK_COLUMN_DATA_CHANGE;
->>>>>>> mysql-8.0.19
         }
       }
       DBUG_ASSERT(old_field->is_gcol() == new_field->is_gcol() &&
@@ -14729,16 +14714,8 @@ static fk_column_change_type fk_check_column_changes(
         field being dropped since it is easy to break referential
         integrity in this case.
       */
-<<<<<<< HEAD
-      *bad_column_name = column->str;
-      return fk_column_change_type::DROPPED;
-||||||| 91a17cedb1e
-      *bad_column_name = column->str;
-      return FK_COLUMN_DROPPED;
-=======
       *bad_column_name = column;
-      return FK_COLUMN_DROPPED;
->>>>>>> mysql-8.0.19
+      return fk_column_change_type::DROPPED;
     }
   }
 
@@ -14828,32 +14805,6 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE_LIST *table_list,
       enum fk_column_change_type changes;
       const char *bad_column_name;
 
-<<<<<<< HEAD
-    switch (changes) {
-      case fk_column_change_type::NO_CHANGE:
-      case fk_column_change_type::SAFE_FOR_PARENT:
-        /* No significant changes. We can proceed with ALTER! */
-        break;
-      case fk_column_change_type::DATA_CHANGE: {
-        char buff[NAME_LEN * 2 + 2];
-        strxnmov(buff, sizeof(buff) - 1, f_key->foreign_db->str, ".",
-                 f_key->foreign_table->str, NullS);
-        my_error(ER_FK_COLUMN_CANNOT_CHANGE_CHILD, MYF(0), bad_column_name,
-                 f_key->foreign_id->str, buff);
-        return true;
-||||||| 91a17cedb1e
-    switch (changes) {
-      case FK_COLUMN_NO_CHANGE:
-        /* No significant changes. We can proceed with ALTER! */
-        break;
-      case FK_COLUMN_DATA_CHANGE: {
-        char buff[NAME_LEN * 2 + 2];
-        strxnmov(buff, sizeof(buff) - 1, f_key->foreign_db->str, ".",
-                 f_key->foreign_table->str, NullS);
-        my_error(ER_FK_COLUMN_CANNOT_CHANGE_CHILD, MYF(0), bad_column_name,
-                 f_key->foreign_id->str, buff);
-        return true;
-=======
       auto fk_columns_lambda = [fk](uint i) {
         return fk->elements()[i]->referenced_column_name().c_str();
       };
@@ -14861,10 +14812,10 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE_LIST *table_list,
                                         fk_columns_lambda, &bad_column_name);
 
       switch (changes) {
-        case FK_COLUMN_NO_CHANGE:
+        case fk_column_change_type::NO_CHANGE:
           /* No significant changes. We can proceed with ALTER! */
           break;
-        case FK_COLUMN_DATA_CHANGE: {
+        case fk_column_change_type::DATA_CHANGE: {
           char buff[NAME_LEN * 2 + 2];
           strxnmov(buff, sizeof(buff) - 1, fk_p->child_schema_name().c_str(),
                    ".", fk_p->child_table_name().c_str(), NullS);
@@ -14872,13 +14823,13 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE_LIST *table_list,
                    fk->name().c_str(), buff);
           return true;
         }
-        case FK_COLUMN_RENAMED:
+        case fk_column_change_type::RENAMED:
           my_error(
               ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0), "ALGORITHM=COPY",
               ER_THD(thd, ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME),
               "ALGORITHM=INPLACE");
           return true;
-        case FK_COLUMN_DROPPED:
+        case fk_column_change_type::DROPPED:
           /*
             Should already have been checked in
             transfer_preexisting_foreign_keys().
@@ -14886,38 +14837,7 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE_LIST *table_list,
           DBUG_ASSERT(false);
         default:
           DBUG_ASSERT(0);
->>>>>>> mysql-8.0.19
       }
-<<<<<<< HEAD
-      case fk_column_change_type::RENAMED:
-        my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
-                 "ALGORITHM=COPY",
-                 ER_THD(thd, ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME),
-                 "ALGORITHM=INPLACE");
-        return true;
-      case fk_column_change_type::DROPPED:
-        /*
-          Should already have been checked in
-          transfer_preexisting_foreign_keys().
-        */
-        DBUG_ASSERT(false);
-||||||| 91a17cedb1e
-      case FK_COLUMN_RENAMED:
-        my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
-                 "ALGORITHM=COPY",
-                 ER_THD(thd, ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME),
-                 "ALGORITHM=INPLACE");
-        return true;
-      case FK_COLUMN_DROPPED:
-        /*
-          Should already have been checked in
-          transfer_preexisting_foreign_keys().
-        */
-        DBUG_ASSERT(false);
-      default:
-        DBUG_ASSERT(0);
-=======
->>>>>>> mysql-8.0.19
     }
   }
 
@@ -17236,12 +17156,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
           &dd_disabled_sec_keys);
     }
 
-    bool error = false;
+    bool error2 = false;
     if (copy_data_between_tables(thd, thd->m_stage_progress_psi, table,
                                  new_table, alter_info->create_list, &copied,
                                  &deleted, alter_info->keys_onoff, &alter_ctx,
                                  optimize_keys)) {
-      error = true;
+      error2 = true;
     }
 
     if (optimize_keys &&
@@ -17249,12 +17169,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
             thd, create_info, new_table, alter_info,
             is_tmp_table ? table->s->tmp_table_def : old_table_def, table_def,
             &dd_disabled_sec_keys)) {
-      error = true;
+      error2 = true;
     }
 
     new_table->file->ha_extra(HA_EXTRA_END_ALTER_COPY);
 
-    if (error) {
+    if (error2) {
       goto err_new_table_cleanup;
     }
 

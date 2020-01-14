@@ -277,7 +277,7 @@ ALTER TABLE t1 ADD COLUMN is_capital char(1) NOT NULL DEFAULT 'N' AFTER val;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `val` varchar(20) NOT NULL,
   `is_capital` char(1) NOT NULL DEFAULT 'N',
   PRIMARY KEY (`id`)

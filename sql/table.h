@@ -1170,19 +1170,15 @@ struct TABLE_SHARE {
     return is_primary_engine() && secondary_engine.str != nullptr;
   }
 
-<<<<<<< HEAD
+  /** Returns whether this table is referenced by a foreign key. */
+  bool is_referenced_by_foreign_key() const { return foreign_key_parents != 0; }
+
   /**
      Checks if TABLE_SHARE has at least one field with
      COLUMN_FORMAT_TYPE_COMPRESSED flag.
   */
   bool has_compressed_columns() const;
 
-||||||| 91a17cedb1e
-=======
-  /** Returns whether this table is referenced by a foreign key. */
-  bool is_referenced_by_foreign_key() const { return foreign_key_parents != 0; }
-
->>>>>>> mysql-8.0.19
  private:
   /// How many TABLE objects use this TABLE_SHARE.
   unsigned int m_ref_count{0};

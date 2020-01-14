@@ -337,18 +337,8 @@ uint64 hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec) {
       if (cs->mbmaxlen > 1 && (seg->flag & HA_PART_KEY_SEG)) {
         size_t char_length;
         char_length =
-<<<<<<< HEAD
             my_charpos(cs, pos, pos + length, seg->length / cs->mbmaxlen);
-        set_if_smaller(length, char_length);
-||||||| 91a17cedb1e
-            my_charpos(cs, pos + pack_length, pos + pack_length + length,
-                       seg->length / cs->mbmaxlen);
-        set_if_smaller(length, char_length);
-=======
-            my_charpos(cs, pos + pack_length, pos + pack_length + length,
-                       seg->length / cs->mbmaxlen);
         length = std::min(length, char_length);
->>>>>>> mysql-8.0.19
       }
       cs->coll->hash_sort(cs, pos, length, &nr, &nr2);
     } else {
@@ -569,44 +559,29 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec) {
     const CHARSET_INFO *cs = seg->charset;
     uint char_length = seg->length;
     const uchar *pos = rec + seg->start;
-<<<<<<< HEAD
-    if (seg->null_bit) *key++ = MY_TEST(rec[seg->null_pos] & seg->null_bit);
+    if (seg->null_bit) {
+      const bool rec_is_null = rec[seg->null_pos] & seg->null_bit;
+      *key++ = (rec_is_null ? 1 : 0);
+    }
     if (seg->flag & HA_BLOB_PART) {
       const uint tmp_length = hp_calc_blob_length(seg->bit_start, pos);
-      const uint length = MY_MIN(seg->length, tmp_length);
-
+      const uint length = std::min(static_cast<uint>(seg->length), tmp_length);
       memcpy(&pos, rec + seg->bit_start, sizeof(char *));
       if (cs->mbmaxlen > 1) {
         char_length =
             my_charpos(cs, pos, pos + seg->length, char_length / cs->mbmaxlen);
-        set_if_smaller(char_length, length); /* QQ: ok to remove? */
+        char_length = std::min(char_length, length); /* QQ: ok to remove? */
       }
       store_key_length_inc(key, char_length);
     } else {
       if (cs->mbmaxlen > 1 && (seg->flag & HA_PART_KEY_SEG)) {
         char_length =
             my_charpos(cs, pos, pos + seg->length, char_length / cs->mbmaxlen);
-        set_if_smaller(char_length, seg->length); /* QQ: ok to remove? */
+        char_length =
+            std::min<uint>(char_length, seg->length); /* QQ: ok to remove? */
       }
       if (seg->type == HA_KEYTYPE_VARTEXT1)
         char_length += seg->bit_start; /* Copy also length */
-||||||| 91a17cedb1e
-    if (seg->null_bit) *key++ = MY_TEST(rec[seg->null_pos] & seg->null_bit);
-    if (cs->mbmaxlen > 1 && (seg->flag & HA_PART_KEY_SEG)) {
-      char_length =
-          my_charpos(cs, pos, pos + seg->length, char_length / cs->mbmaxlen);
-      set_if_smaller(char_length, seg->length); /* QQ: ok to remove? */
-=======
-    if (seg->null_bit) {
-      bool rec_is_null = rec[seg->null_pos] & seg->null_bit;
-      *key++ = (rec_is_null ? 1 : 0);
-    }
-    if (cs->mbmaxlen > 1 && (seg->flag & HA_PART_KEY_SEG)) {
-      char_length =
-          my_charpos(cs, pos, pos + seg->length, char_length / cs->mbmaxlen);
-      char_length =
-          std::min(char_length, uint(seg->length)); /* QQ: ok to remove? */
->>>>>>> mysql-8.0.19
     }
     memcpy(key, rec + seg->start, (size_t)char_length);
     key += char_length;

@@ -564,14 +564,8 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
   HP_KEYDEF *keydef;
   HA_KEYSEG *seg;
   TABLE_SHARE *share = table_arg->s;
-<<<<<<< HEAD
-  bool found_real_auto_increment = 0;
-  uint blobs = 0;
-||||||| 91a17cedb1e
-  bool found_real_auto_increment = 0;
-=======
   bool found_real_auto_increment = false;
->>>>>>> mysql-8.0.19
+  uint blobs = 0;
 
   memset(hp_create_info, 0, sizeof(*hp_create_info));
 

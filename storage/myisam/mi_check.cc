@@ -2252,17 +2252,9 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
       info->state->data_file_length = sort_param.max_pos;
 
     param->read_cache.file = info->dfile; /* re-init read cache */
-<<<<<<< HEAD
     if (reinit_io_cache(&param->read_cache, READ_CACHE,
-                        share->pack.header_length, 1, 1))
+                        share->pack.header_length, true, true))
       goto err;
-||||||| 91a17cedb1e
-    reinit_io_cache(&param->read_cache, READ_CACHE, share->pack.header_length,
-                    1, 1);
-=======
-    reinit_io_cache(&param->read_cache, READ_CACHE, share->pack.header_length,
-                    true, true);
->>>>>>> mysql-8.0.19
   }
 
   if (param->testflag & T_WRITE_LOOP) {

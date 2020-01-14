@@ -2556,46 +2556,6 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
     cs = pc->thd->variables.collation_connection;
   }
 
-<<<<<<< HEAD
-  m_column.init(pc->thd,
-                m_name,                        // Alias
-                m_type->type,                  // Type
-                m_type->get_length(),          // Length
-                m_type->get_dec(),             // Decimals
-                m_type->get_type_flags(),      // Type modifier
-                nullptr,                       // Default value
-                nullptr,                       // On update value
-                &EMPTY_CSTR,                   // Comment
-                nullptr,                       // Change
-                m_type->get_interval_list(),   // Interval list
-                cs,                            // Charset & collation
-                m_collation != nullptr,        // Has "COLLATE" clause
-                m_type->get_uint_geom_type(),  // Geom type
-                nullptr,                       // Compression dictionary name
-                nullptr,                       // Gcol_info
-                nullptr,                       // Default gen expression
-                {},                            // SRID
-                dd::Column::enum_hidden_type::HT_VISIBLE);  // Hidden
-||||||| 91a17cedb1e
-  m_column.init(pc->thd,
-                m_name,                        // Alias
-                m_type->type,                  // Type
-                m_type->get_length(),          // Length
-                m_type->get_dec(),             // Decimals
-                m_type->get_type_flags(),      // Type modifier
-                nullptr,                       // Default value
-                nullptr,                       // On update value
-                &EMPTY_CSTR,                   // Comment
-                nullptr,                       // Change
-                m_type->get_interval_list(),   // Interval list
-                cs,                            // Charset & collation
-                m_collation != nullptr,        // Has "COLLATE" clause
-                m_type->get_uint_geom_type(),  // Geom type
-                nullptr,                       // Gcol_info
-                nullptr,                       // Default gen expression
-                {},                            // SRID
-                dd::Column::enum_hidden_type::HT_VISIBLE);  // Hidden
-=======
   m_column->init(pc->thd,
                  m_name,                        // Alias
                  m_type->type,                  // Type
@@ -2610,11 +2570,11 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
                  cs,                            // Charset & collation
                  m_collation != nullptr,        // Has "COLLATE" clause
                  m_type->get_uint_geom_type(),  // Geom type
+                 nullptr,                       // Compression dictionary name
                  nullptr,                       // Gcol_info
                  nullptr,                       // Default gen expression
                  {},                            // SRID
                  dd::Column::enum_hidden_type::HT_VISIBLE);  // Hidden
->>>>>>> mysql-8.0.19
   return false;
 }
 

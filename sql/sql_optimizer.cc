@@ -2708,10 +2708,10 @@ void JOIN::adjust_access_methods() {
         DBUG_ASSERT(tab->table()->covering_keys.is_clear_all());
         if (tab->position()->sj_strategy != SJ_OPT_LOOSE_SCAN) {
           Key_map clustering_keys;
-          for (uint i = 0; i < tab->table()->s->keys; i++) {
-            if (tab->keys().is_set(i) &&
-                tab->table()->file->index_flags(i, 0, 0) & HA_CLUSTERED_INDEX)
-              clustering_keys.set_bit(i);
+          for (uint i2 = 0; i2 < tab->table()->s->keys; i2++) {
+            if (tab->keys().is_set(i2) &&
+                tab->table()->file->index_flags(i2, 0, 0) & HA_CLUSTERED_INDEX)
+              clustering_keys.set_bit(i2);
           }
           uint index = find_shortest_key(tab->table(), &clustering_keys);
           if (index != MAX_KEY) {

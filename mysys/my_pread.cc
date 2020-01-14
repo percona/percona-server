@@ -77,15 +77,7 @@ ssize_t (*mock_pwrite)(int fd, const void *buf, size_t count,
 
 size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
                 myf MyFlags) {
-<<<<<<< HEAD
-  size_t readbytes;
   size_t total_readbytes = 0;
-  int error = 0;
-||||||| 91a17cedb1e
-  size_t readbytes;
-  int error = 0;
-=======
->>>>>>> mysql-8.0.19
   DBUG_TRACE;
   for (;;) {
     errno = 0; /* Linux, Windows don't reset this on EOF/success */
@@ -96,16 +88,11 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
 #else
         pread(Filedes, Buffer, Count, offset);
 #endif
-<<<<<<< HEAD
-    error = (readbytes != Count);
-    if (readbytes > 0) total_readbytes += readbytes;
-||||||| 91a17cedb1e
-    error = (readbytes != Count);
-=======
     const bool error = (readbytes != static_cast<int64_t>(Count));
->>>>>>> mysql-8.0.19
+    if (readbytes > 0) total_readbytes += readbytes;
     if (error) {
-      if (readbytes > 0 && readbytes < Count && errno == 0) {
+      if (readbytes > 0 && readbytes < static_cast<int64_t>(Count) &&
+          errno == 0) {
         /*
           pread() may return less bytes than requested even if enough bytes are
           available according to the Linux man page.
@@ -140,20 +127,9 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
         return MY_FILE_ERROR;
     }                                             // if (error)
     if (MyFlags & (MY_NABP | MY_FNABP)) return 0; /* Read went ok; Return 0 */
-<<<<<<< HEAD
     return total_readbytes;                       /* purecov: inspected */
   }
 } /* my_pread */
-||||||| 91a17cedb1e
-    return readbytes;                             /* purecov: inspected */
-  }
-} /* my_pread */
-=======
-    DBUG_ASSERT(readbytes >= 0);
-    return readbytes; /* purecov: inspected */
-  }                   // for (;;)
-}
->>>>>>> mysql-8.0.19
 
 /**
   Write a chunk of bytes to a file at a given position

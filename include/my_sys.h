@@ -569,23 +569,10 @@ extern void *my_once_alloc(size_t Size, myf MyFlags);
 extern void my_once_free(void);
 extern char *my_once_strdup(const char *src, myf myflags);
 extern void *my_once_memdup(const void *src, size_t len, myf myflags);
-<<<<<<< HEAD
 extern File my_open(const char *FileName, int Flags, myf MyFlags);
 #ifndef __WIN__
 extern File my_unix_socket_connect(const char *FileName, myf MyFlags) noexcept;
 #endif
-extern File my_register_filename(File fd, const char *FileName,
-                                 enum file_type type_of_file,
-                                 uint error_message_number, myf MyFlags);
-||||||| 91a17cedb1e
-extern File my_open(const char *FileName, int Flags, myf MyFlags);
-extern File my_register_filename(File fd, const char *FileName,
-                                 enum file_type type_of_file,
-                                 uint error_message_number, myf MyFlags);
-=======
-extern File my_open(const char *filename, int Flags, myf MyFlags);
-
->>>>>>> mysql-8.0.19
 extern File my_create(const char *FileName, int CreateFlags, int AccessFlags,
                       myf MyFlags);
 extern int my_close(File fd, myf MyFlags);

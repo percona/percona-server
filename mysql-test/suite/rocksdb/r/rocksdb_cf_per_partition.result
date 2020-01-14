@@ -401,9 +401,9 @@ cf_name
 unique_test_cf5
 INSERT INTO t2 VALUES (100, 0x12345, 0x1, 1, 0x2);
 INSERT INTO t2 VALUES (200, 0x12345, 0x1, 1, 0x2);
-ERROR 23000: Duplicate entry '\x01#E-1' for key 'col2'
+ERROR 23000: Duplicate entry '\x01#E-1' for key 't2.col2'
 INSERT INTO t2 VALUES (300, 0x12345, 0x1, 1, 0x2);
-ERROR 23000: Duplicate entry '\x01#E-1' for key 'col2'
+ERROR 23000: Duplicate entry '\x01#E-1' for key 't2.col2'
 INSERT INTO t2 VALUES (100, 0x23456, 0x2, 1, 0x3);
 INSERT INTO t2 VALUES (100, 0x34567, 0x4, 1, 0x5);
 INSERT INTO t2 VALUES (400, 0x89ABC, 0x4, 1, 0x5);

@@ -308,8 +308,7 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
     }
   }
   if (options & REFRESH_USER_RESOURCES)
-<<<<<<< HEAD
-    reset_mqh(thd, nullptr, 0); /* purecov: inspected */
+    reset_mqh(thd, nullptr, false); /* purecov: inspected */
   if (options & REFRESH_TABLE_STATS) {
     mysql_mutex_lock(&LOCK_global_table_stats);
     free_global_table_stats();
@@ -379,13 +378,6 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
             opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
     }
   }
-||||||| 91a17cedb1e
-    reset_mqh(thd, nullptr, 0); /* purecov: inspected */
-  if (*write_to_binlog != -1) *write_to_binlog = tmp_write_to_binlog;
-=======
-    reset_mqh(thd, nullptr, false); /* purecov: inspected */
-  if (*write_to_binlog != -1) *write_to_binlog = tmp_write_to_binlog;
->>>>>>> mysql-8.0.19
   /*
     If the query was killed then this function must fail.
   */

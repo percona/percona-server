@@ -20,9 +20,9 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
   `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext,
-  `TIME_MS` bigint(21) NOT NULL DEFAULT '0',
-  `ROWS_SENT` bigint(21) unsigned NOT NULL DEFAULT '0',
-  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0'
+  `TIME_MS` bigint NOT NULL DEFAULT '0',
+  `ROWS_SENT` bigint unsigned NOT NULL DEFAULT '0',
+  `ROWS_EXAMINED` bigint unsigned NOT NULL DEFAULT '0'
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
 # Ensure that the information about the own connection is correct.
 #--------------------------------------------------------------------------

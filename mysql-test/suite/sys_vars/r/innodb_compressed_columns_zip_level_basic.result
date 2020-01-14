@@ -46,7 +46,7 @@ SET GLOBAL innodb_compressed_columns_zip_level = "foo";
 ERROR 42000: Incorrect argument type to variable 'innodb_compressed_columns_zip_level'
 SET GLOBAL innodb_compressed_columns_zip_level = 10;
 Warnings:
-Warning	1292	Truncated incorrect innodb_compressed_columns_zip_le value: '10'
+Warning	1292	Truncated incorrect innodb_compressed_columns_zip_level value: '10'
 SELECT @@global.innodb_compressed_columns_zip_level;
 @@global.innodb_compressed_columns_zip_level
 9
@@ -56,7 +56,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 innodb_compressed_columns_zip_level	9
 SET GLOBAL innodb_compressed_columns_zip_level = -7;
 Warnings:
-Warning	1292	Truncated incorrect innodb_compressed_columns_zip_le value: '-7'
+Warning	1292	Truncated incorrect innodb_compressed_columns_zip_level value: '-7'
 SELECT @@global.innodb_compressed_columns_zip_level;
 @@global.innodb_compressed_columns_zip_level
 0

@@ -901,18 +901,8 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows) {
       params->info = info;
       params->keynr = i;
       /* Only allocate a 16'th of the buffer at a time */
-<<<<<<< HEAD
-      init_tree(&info->bulk_insert[i], cache_size * key[i].maxlength,
-                cache_size * key[i].maxlength, 0, keys_compare, 0, keys_free,
-                (void *)params++);
-||||||| 91a17cedb1e
-      init_tree(&info->bulk_insert[i], cache_size * key[i].maxlength,
-                cache_size * key[i].maxlength, 0, keys_compare, 0, keys_free,
-                params++);
-=======
-      init_tree(&info->bulk_insert[i], cache_size * key[i].maxlength, 0,
-                keys_compare, false, keys_free, params++);
->>>>>>> mysql-8.0.19
+      init_tree(&info->bulk_insert[i], cache_size * key[i].maxlength, false,
+                keys_compare, 0, keys_free, params++);
     } else
       info->bulk_insert[i].root = 0;
   }

@@ -1437,18 +1437,6 @@ dberr_t srv_undo_tablespaces_upgrade() {
   for (const auto space_id : *trx_sys_undo_spaces) {
     undo::Tablespace undo_space(space_id);
 
-<<<<<<< HEAD
-    dberr_t err =
-        fil_delete_tablespace(undo_space.id(), BUF_REMOVE_ALL_NO_WRITE);
-    if (err != DB_SUCCESS) {
-      ib::warn(ER_XB_UNDO_DELETE_FAILURE, undo_space.file_name());
-    }
-||||||| 91a17cedb1e
-    fil_space_close(undo_space.id());
-
-    os_file_delete_if_exists(innodb_data_file_key, undo_space.file_name(),
-                             NULL);
-=======
     fil_space_close(undo_space.id());
 
     auto err = fil_delete_tablespace(undo_space.id(), BUF_REMOVE_ALL_NO_WRITE);
@@ -1456,7 +1444,6 @@ dberr_t srv_undo_tablespaces_upgrade() {
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_57_UNDO_SPACE_DELETE_FAIL, undo_space.space_name());
     }
->>>>>>> mysql-8.0.19
   }
 
   /* Remove the tracking of these undo tablespaces from TRX_SYS page and

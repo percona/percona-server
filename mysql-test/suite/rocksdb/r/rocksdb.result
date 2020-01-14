@@ -40,7 +40,7 @@ create table t0 (a int primary key) engine=rocksdb;
 show create table t0;
 Table	Create Table
 t0	CREATE TABLE `t0` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t0;
@@ -325,7 +325,7 @@ DROP TABLE t15;
 create table t16 (pk int primary key, a char(8)) engine=RocksDB;
 insert into t16 values (1,'a'),(2,'b'),(3,'c'),(4,'d');
 update t16 set pk=100, a = 'updated' where a in ('b','c');
-ERROR 23000: Duplicate entry '100' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '100' for key 't16.PRIMARY'
 select * from t16;
 pk	a
 1	a
@@ -353,16 +353,16 @@ drop table t_very_long_table_name;
 create table t17 (pk varchar(12) primary key, col1 varchar(12)) engine=rocksdb;
 insert into t17 values ('row1', 'val1');
 insert into t17 values ('row1', 'val1-try2');
-ERROR 23000: Duplicate entry 'row1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'row1' for key 't17.PRIMARY'
 insert into t17 values ('ROW1', 'val1-try2');
-ERROR 23000: Duplicate entry 'ROW1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'ROW1' for key 't17.PRIMARY'
 insert into t17 values ('row2', 'val2');
 insert into t17 values ('row3', 'val3');
 # This is ok
 update t17 set pk='row4' where pk='row1';
 # This will try to overwrite another row:
 update t17 set pk='row3' where pk='row2';
-ERROR 23000: Duplicate entry 'row3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'row3' for key 't17.PRIMARY'
 select * from t17;
 pk	col1
 row2	val2
@@ -1312,7 +1312,7 @@ set session transaction_isolation='READ-COMMITTED';
 begin;
 insert into t1 values ('new-val1');
 insert into t1 select * from t2;
-ERROR 23000: Duplicate entry 'old-val1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'old-val1' for key 't1.PRIMARY'
 commit;
 set session transaction_isolation=@orig_tx_iso;
 select * from t1;
@@ -1382,7 +1382,7 @@ drop table t1;
 CREATE TABLE t1 (pk INT PRIMARY KEY, a SMALLINT, b INT, KEY (a)) ENGINE=RocksDB;
 INSERT IGNORE INTO t1 VALUES (1, 157, 0), (2, 1898, -504403), (1, -14659,  0);
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 SELECT * FROM t1;
 pk	a	b
 1	157	0
@@ -2371,7 +2371,7 @@ insert into t1 values (1), (2), (3);
 begin;
 insert into t1 values (4), (5), (6);
 insert into t1 values (7), (8), (2), (9);
-ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '2' for key 't1.PRIMARY'
 select * from t1;
 id
 1
@@ -2592,8 +2592,8 @@ create table r2 like r1;
 show create table r2;
 Table	Create Table
 r2	CREATE TABLE `r2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `value` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 begin;
@@ -2616,8 +2616,8 @@ create table r2 like r1;
 show create table r2;
 Table	Create Table
 r2	CREATE TABLE `r2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `value` int DEFAULT NULL,
   KEY `i` (`id`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 begin;

@@ -16,13 +16,9 @@ COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
 COLUMN_PRIVILEGES
 COLUMN_STATISTICS
-<<<<<<< HEAD:mysql-test/r/information_schema_db.result
 COMPRESSION_DICTIONARY
 COMPRESSION_DICTIONARY_TABLES
-||||||| 91a17cedb1e:mysql-test/r/information_schema_db.result
-=======
 ENABLED_ROLES
->>>>>>> mysql-8.0.19:mysql-test/suite/information_schema/r/information_schema_db.result
 ENGINES
 EVENTS
 FILES

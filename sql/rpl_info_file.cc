@@ -117,23 +117,13 @@ int Rpl_info_file::do_init_info() {
   }
   /* file exists */
   else if (ret_check == REPOSITORY_EXISTS) {
-<<<<<<< HEAD
     if (info_fd >= 0) {
-      if (reinit_io_cache(&info_file, READ_CACHE, 0L, 0, 0)) {
+      if (reinit_io_cache(&info_file, READ_CACHE, 0L, false, false)) {
         LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_RECREATE_CACHE_FOR_INFO_FILE,
                info_fname);
         error = 1;
       }
     } else {
-||||||| 91a17cedb1e
-    if (info_fd >= 0)
-      reinit_io_cache(&info_file, READ_CACHE, 0L, 0, 0);
-    else {
-=======
-    if (info_fd >= 0)
-      reinit_io_cache(&info_file, READ_CACHE, 0L, false, false);
-    else {
->>>>>>> mysql-8.0.19
       if ((info_fd = my_open(info_fname, O_RDWR, MYF(MY_WME))) < 0) {
         LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_OPEN_INFO_FILE, info_fname,
                my_errno());

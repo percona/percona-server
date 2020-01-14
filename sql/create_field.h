@@ -32,13 +32,9 @@
 #include "sql/dd/types/column.h"
 #include "sql/field.h"
 #include "sql/gis/srid.h"
-<<<<<<< HEAD
 #include "sql/sql_lex.h"
-||||||| 91a17cedb1e
-=======
 #include "sql/sql_list.h"
 #include "typelib.h"
->>>>>>> mysql-8.0.19
 
 class Item;
 class String;

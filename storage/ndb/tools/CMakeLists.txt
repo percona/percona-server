@@ -227,19 +227,9 @@ IF(NOT WIN32 AND NOT SOLARIS)
       TARGET_LINK_LIBRARIES(ndb_top perconaserverclient ${NCURSESW_LIB})
     ELSE()
       TARGET_LINK_LIBRARIES(ndb_top
-<<<<<<< HEAD
-                            perconaserverclient
-                            ${NCURSESW_LIB}
-                            ${NCURSES_TINFO_LIB})
-||||||| 91a17cedb1e
-                            mysqlclient
-                            ${NCURSESW_LIB}
-                            ${NCURSES_TINFO_LIB})
-=======
-        mysqlclient
+        perconaserverclient
         ${NCURSESW_LIB}
         ${NCURSES_TINFO_LIB})
->>>>>>> mysql-8.0.19
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR

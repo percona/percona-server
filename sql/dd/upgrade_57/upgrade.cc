@@ -1071,7 +1071,6 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
 
   if (bootstrap::initialize_dictionary(thd, in_progress(), d) ||
       dd::info_schema::create_system_views(thd) ||
-      dd::info_schema::create_non_dd_views(thd, true) ||
       dd::info_schema::store_server_I_S_metadata(thd)) {
     thd->pop_internal_handler();
     terminate(thd);

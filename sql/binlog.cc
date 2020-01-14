@@ -9216,7 +9216,6 @@ err1:
   return 1;
 }
 
-<<<<<<< HEAD
 /*
   Copy out the non-directory part of binlog position filename for the
   `binlog_snapshot_file' status variable, same way as it is done for
@@ -9279,8 +9278,6 @@ void MYSQL_BIN_LOG::xunlock(void) {
   mysql_mutex_unlock(&LOCK_log);
 }
 
-||||||| 91a17cedb1e
-=======
 void MYSQL_BIN_LOG::report_missing_purged_gtids(
     const Gtid_set *slave_executed_gtid_set, const char **errmsg) {
   DBUG_TRACE;
@@ -9403,7 +9400,6 @@ void MYSQL_BIN_LOG::report_missing_gtids(
   my_free(slave_executed_gtids);
 }
 
->>>>>>> mysql-8.0.19
 void MYSQL_BIN_LOG::update_binlog_end_pos(bool need_lock) {
   if (need_lock)
     lock_binlog_end_pos();

@@ -3854,7 +3854,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     /* If space id is already open with a different space name, then skip
     loading the space. It can happen because DDL log recovery might not
     have happened yet. */
-    table->ibd_file_missing = TRUE;
+    table->file_unreadable = TRUE;
 
     ut_free(shared_space_name);
     ut_free(filepath);
@@ -6167,7 +6167,6 @@ bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table) {
     return false;
   }
 }
-<<<<<<< HEAD
 
 /* Updates tablespace's DD flags.
 @param[in] Thread       THD
@@ -6329,9 +6328,6 @@ bool dd_fix_mysql_ibd_encryption_flag_if_needed(THD *thd,
   return dd_set_flags(thd, dict_sys_t::s_dd_space_name, space_flags,
                       &is_space_being_removed);
 }
-
-||||||| 91a17cedb1e
-=======
 
 void dict_table_t::get_table_name(std::string &schema, std::string &table) {
   std::string dict_table_name(name.m_name);
@@ -6855,5 +6851,4 @@ void rebuild(std::string &dict_name) {
 }
 
 }  // namespace dict_name
->>>>>>> mysql-8.0.19
 #endif /* !UNIV_HOTBACKUP */

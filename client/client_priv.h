@@ -178,13 +178,9 @@ enum options_client {
   OPT_DROP_COMPRESSION_DICTIONARY,
   OPT_ORDER_BY_PRIMARY_DESC,
   OPT_TLS_CIPHERSUITES,
-<<<<<<< HEAD
+  OPT_MYSQL_BINARY_AS_HEX,
   OPT_START_SQL_FILE,
   OPT_FINISH_SQL_FILE,
-||||||| 91a17cedb1e
-=======
-  OPT_MYSQL_BINARY_AS_HEX,
->>>>>>> mysql-8.0.19
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };

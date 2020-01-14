@@ -133,15 +133,11 @@ void *thd_get_ha_data(const void * thd, const struct handlerton *hton);
 void thd_set_ha_data(void * thd, const struct handlerton *hton,
                      const void *ha_data);
 void remove_ssl_err_thread_state();
-<<<<<<< HEAD
+unsigned int thd_get_num_vcpus();
 int thd_command(const void * thd);
 long long thd_start_time(const void * thd);
 void thd_kill(unsigned long id);
 int thd_get_ft_query_extra_word_chars(void);
-||||||| 91a17cedb1e
-=======
-unsigned int thd_get_num_vcpus();
->>>>>>> mysql-8.0.19
 struct st_mysql_keyring {
   int interface_version;
   bool (*mysql_key_store)(const char *key_id, const char *key_type,

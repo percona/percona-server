@@ -121,16 +121,10 @@ static const char *handler_error_messages[] = {
     "No more room in disk",
     "No session temporary tablespace available",
     "Invalid table name",
-<<<<<<< HEAD
-    "Path is too long for the OS",
-    "Destination schema does not exist"};
-||||||| 91a17cedb1e
-    "Path is too long for the OS"};
-=======
     "Path is too long for the OS",
     "Histogram sampling initialization failed",
+    "Destination schema does not exist",
 };
->>>>>>> mysql-8.0.19
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);

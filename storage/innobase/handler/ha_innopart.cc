@@ -257,10 +257,6 @@ dict_table_t **Ha_innopart_share::open_table_parts(THD *thd, const TABLE *table,
                                                    const dd::Table *dd_table,
                                                    partition_info *part_info,
                                                    const char *table_name) {
-<<<<<<< HEAD
-  size_t table_name_len;
-  char partition_name[FN_REFLEN];
-
   if (dd_table == nullptr) return (nullptr);
 
     /* Code below might read from data-dictionary. In the process
@@ -268,22 +264,6 @@ dict_table_t **Ha_innopart_share::open_table_parts(THD *thd, const TABLE *table,
     with it. OTOH when closing tables we lock LOCK_ha_data while holding
     lock for Table Cache. So to avoid deadlocks we should not be holding
     LOCK_ha_data while trying to access data-dictionary. */
-||||||| 91a17cedb1e
-  size_t table_name_len;
-  char partition_name[FN_REFLEN];
-
-  /* Code below might read from data-dictionary. In the process
-  it will access SQL-layer's Table Cache and acquire lock associated
-  with it. OTOH when closing tables we lock LOCK_ha_data while holding
-  lock for Table Cache. So to avoid deadlocks we should not be holding
-  LOCK_ha_data while trying to access data-dictionary. */
-=======
-  /* Code below might read from data-dictionary. In the process
-  it will access SQL-layer's Table Cache and acquire lock associated
-  with it. OTOH when closing tables we lock LOCK_ha_data while holding
-  lock for Table Cache. So to avoid deadlocks we should not be holding
-  LOCK_ha_data while trying to access data-dictionary. */
->>>>>>> mysql-8.0.19
 #ifdef UNIV_DEBUG
   if (table->s->tmp_table == NO_TMP_TABLE) {
     mysql_mutex_assert_not_owner(&table->s->LOCK_ha_data);

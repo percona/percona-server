@@ -59,13 +59,6 @@ eval INSERT INTO $I_S_view_names (name) VALUES
   ('TRIGGERS'),
   ('VIEW_ROUTINE_USAGE'),
   ('VIEW_TABLE_USAGE'),
-<<<<<<< HEAD:mysql-test/include/i_s_schema_assert_and_fill_table_names.inc
-  ('VIEWS'),
-  ('COMPRESSION_DICTIONARY'),
-  ('COMPRESSION_DICTIONARY_TABLES');
-||||||| 91a17cedb1e:mysql-test/include/i_s_schema_assert_and_fill_table_names.inc
-  ('VIEWS');
-=======
   ('VIEWS'),
   ('APPLICABLE_ROLES'),
   ('ADMINISTRABLE_ROLE_AUTHORIZATIONS'),
@@ -73,7 +66,8 @@ eval INSERT INTO $I_S_view_names (name) VALUES
   ('ROLE_TABLE_GRANTS'),
   ('ROLE_COLUMN_GRANTS'),
   ('ROLE_ROUTINE_GRANTS');
->>>>>>> mysql-8.0.19:mysql-test/suite/information_schema/include/i_s_schema_assert_and_fill_table_names.inc
+  ('COMPRESSION_DICTIONARY'),
+  ('COMPRESSION_DICTIONARY_TABLES');
 --enable_result_log
 --enable_query_log
 

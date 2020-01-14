@@ -247,7 +247,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
-<<<<<<< HEAD
 TABLE_NAME	COMPRESSION_DICTIONARY
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL
@@ -294,8 +293,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
-||||||| 91a17cedb1e
-=======
 TABLE_NAME	ENABLED_ROLES
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL
@@ -319,7 +316,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
->>>>>>> mysql-8.0.19
 TABLE_NAME	ENGINES
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL
@@ -1420,7 +1416,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
-<<<<<<< HEAD
 TABLE_NAME	COMPRESSION_DICTIONARY
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL
@@ -1467,8 +1462,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
-||||||| 91a17cedb1e
-=======
 TABLE_NAME	ENABLED_ROLES
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL
@@ -1492,7 +1485,6 @@ user_comment
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
->>>>>>> mysql-8.0.19
 TABLE_NAME	ENGINES
 TABLE_TYPE	SYSTEM VIEW
 ENGINE	NULL

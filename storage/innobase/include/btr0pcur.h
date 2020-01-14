@@ -736,16 +736,9 @@ inline dberr_t btr_pcur_t::open_no_init(dict_index_t *index,
         index, m_read_level, tuple, mode, cur, file, line, mtr,
         ((latch_mode & BTR_MODIFY_LEAF) ? true : false));
   } else {
-<<<<<<< HEAD
-    err = btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode, cur,
-                                      has_search_latch, file, line, mtr);
-||||||| 91a17cedb1e
-    btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode, cur,
-                                has_search_latch, file, line, mtr);
-=======
-    btr_cur_search_to_nth_level(index, m_read_level, tuple, mode, latch_mode,
-                                cur, has_search_latch, file, line, mtr);
->>>>>>> mysql-8.0.19
+    err = btr_cur_search_to_nth_level(index, m_read_level, tuple, mode,
+                                      latch_mode, cur, has_search_latch, file,
+                                      line, mtr);
   }
 
   m_pos_state = BTR_PCUR_IS_POSITIONED;

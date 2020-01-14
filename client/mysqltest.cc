@@ -4562,22 +4562,12 @@ static void do_change_user(struct st_command *command) {
   if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str)) {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
-<<<<<<< HEAD
     if (reconnect) {
-      mysql->reconnect = 1;
+      mysql->reconnect = true;
       mysql_reconnect(&cur_con->mysql);
     }
   } else
     handle_no_error(command);
-||||||| 91a17cedb1e
-    mysql->reconnect = 1;
-    mysql_reconnect(&cur_con->mysql);
-  }
-=======
-    mysql->reconnect = true;
-    mysql_reconnect(&cur_con->mysql);
-  }
->>>>>>> mysql-8.0.19
 
   dynstr_free(&ds_user);
   dynstr_free(&ds_passwd);

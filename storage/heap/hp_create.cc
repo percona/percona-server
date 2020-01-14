@@ -192,8 +192,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
       We store uchar* del_link inside the data area of deleted records,
       so the data length should be at least sizeof(uchar*)
     */
-<<<<<<< HEAD
-    set_if_bigger(chunk_dataspace_length, sizeof(uchar **));
+    chunk_dataspace_length =
+        std::max(chunk_dataspace_length, static_cast<uint>(sizeof(uchar **)));
 
     if (is_variable_size) {
       chunk_length = chunk_dataspace_length + VARIABLE_REC_OVERHEAD;
@@ -204,11 +204,6 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
     /* Align chunk length to the next pointer */
     chunk_length =
         (uint)(chunk_length + sizeof(uchar **) - 1) & ~(sizeof(uchar **) - 1);
-||||||| 91a17cedb1e
-    set_if_bigger(reclength, sizeof(uchar *));
-=======
-    reclength = std::max(reclength, uint(sizeof(uchar *)));
->>>>>>> mysql-8.0.19
 
     for (i = key_segs = max_length = 0, keyinfo = keydef; i < keys;
          i++, keyinfo++) {

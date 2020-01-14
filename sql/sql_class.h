@@ -37,49 +37,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-<<<<<<< HEAD
-
-#include <bitset>
-#include <memory>
-
-#include "m_ctype.h"
-#include "my_alloc.h"
-#include "my_compiler.h"
-#include "my_pointer_arithmetic.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_idle_bits.h"
-#include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/components/services/psi_statement_bits.h"
-#include "mysql/components/services/psi_thread_bits.h"
-#include "mysql/components/services/psi_transaction_bits.h"
-#include "mysql/psi/mysql_thread.h"
-#include "mysql/service_thread_scheduler.h"
-#include "pfs_thread_provider.h"
-#include "sql/psi_memory_key.h"
-#include "sql/resourcegroups/resource_group_basic_types.h"
-#include "sql/xa.h"
-||||||| 91a17cedb1e
-
-#include <memory>
-
-#include "m_ctype.h"
-#include "my_alloc.h"
-#include "my_compiler.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_idle_bits.h"
-#include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/components/services/psi_statement_bits.h"
-#include "mysql/components/services/psi_thread_bits.h"
-#include "mysql/components/services/psi_transaction_bits.h"
-#include "mysql/psi/mysql_thread.h"
-#include "pfs_thread_provider.h"
-#include "sql/psi_memory_key.h"
-#include "sql/resourcegroups/resource_group_basic_types.h"
-#include "sql/xa.h"
-=======
->>>>>>> mysql-8.0.19
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -94,12 +51,8 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
-<<<<<<< HEAD
 #include "mutex_lock.h"
-||||||| 91a17cedb1e
-=======
 #include "my_alloc.h"
->>>>>>> mysql-8.0.19
 #include "my_base.h"
 #include "my_command.h"
 #include "my_compiler.h"
@@ -123,6 +76,7 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/service_thread_scheduler.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
 #include "mysql_com_server.h"  // NET_SERVER
@@ -912,18 +866,6 @@ class Global_backup_lock final {
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
-/**
-<<<<<<< HEAD
-  Convert microseconds since epoch to timeval.
-  @param      micro_time  Microseconds.
-  @param[out] tm          A timeval variable to write to.
-*/
-static inline void my_micro_time_to_timeval(ulonglong micro_time,
-                                            struct timeval *tm) {
-  tm->tv_sec = (long)(micro_time / 1000000);
-  tm->tv_usec = (long)(micro_time % 1000000);
-}
-
 struct QUERY_START_TIME_INFO {
   struct timeval start_time;
   ulonglong start_utime;
@@ -989,20 +931,6 @@ class Bloom_filter final {
 };
 
 /**
-||||||| 91a17cedb1e
-  Convert microseconds since epoch to timeval.
-  @param      micro_time  Microseconds.
-  @param[out] tm          A timeval variable to write to.
-*/
-static inline void my_micro_time_to_timeval(ulonglong micro_time,
-                                            struct timeval *tm) {
-  tm->tv_sec = (long)(micro_time / 1000000);
-  tm->tv_usec = (long)(micro_time % 1000000);
-}
-
-/**
-=======
->>>>>>> mysql-8.0.19
   @class THD
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
@@ -3098,20 +3026,6 @@ class THD : public MDL_context_owner,
     user_time = *t;
     set_time();
   }
-<<<<<<< HEAD
-  void set_time_after_lock() {
-    /*
-      If mysql_lock_tables() is called multiple times,
-      we stick with the first timestamp. This prevents
-      anomalities with things like CREATE INDEX, where
-      otherwise, we'll get the lock timestamp for the
-      data dictionary update.
-    */
-    if (utime_after_lock != start_utime) return;
-    utime_after_lock = my_micro_time();
-    MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi,
-                                  (utime_after_lock - start_utime));
-  }
   void get_time(QUERY_START_TIME_INFO *time_info) const noexcept {
     time_info->start_time = start_time;
     time_info->start_utime = start_utime;
@@ -3120,23 +3034,8 @@ class THD : public MDL_context_owner,
     start_time = time_info.start_time;
     start_utime = time_info.start_utime;
   }
-||||||| 91a17cedb1e
-  void set_time_after_lock() {
-    /*
-      If mysql_lock_tables() is called multiple times,
-      we stick with the first timestamp. This prevents
-      anomalities with things like CREATE INDEX, where
-      otherwise, we'll get the lock timestamp for the
-      data dictionary update.
-    */
-    if (utime_after_lock != start_utime) return;
-    utime_after_lock = my_micro_time();
-    MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi,
-                                  (utime_after_lock - start_utime));
-  }
-=======
   void set_time_after_lock();
->>>>>>> mysql-8.0.19
+
   inline bool is_fsp_truncate_mode() const {
     return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
   }
@@ -3147,21 +3046,8 @@ class THD : public MDL_context_owner,
    Evaluate the current time, and if it exceeds the long-query-time
    setting, mark the query as slow.
   */
-<<<<<<< HEAD
-  void update_slow_query_status() {
-    utime_after_query = current_utime();
-    if (utime_after_query > utime_after_lock + variables.long_query_time)
-      server_status |= SERVER_QUERY_WAS_SLOW;
-  }
-||||||| 91a17cedb1e
-  void update_slow_query_status() {
-    if (my_micro_time() > utime_after_lock + variables.long_query_time)
-      server_status |= SERVER_QUERY_WAS_SLOW;
-  }
-=======
   void update_slow_query_status();
 
->>>>>>> mysql-8.0.19
   ulonglong found_rows() const { return previous_found_rows; }
 
   /*
@@ -4641,183 +4527,11 @@ inline bool secondary_engine_lock_tables_mode(const THD &cthd) {
           cthd.locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES);
 }
 
-<<<<<<< HEAD
-/**
-  A simple holder for Internal_error_handler.
-  The class utilizes RAII technique to not forget to pop the handler.
-
-  @tparam Error_handler      Internal_error_handler to instantiate.
-  @tparam Error_handler_arg  Type of the error handler ctor argument.
-*/
-template <typename Error_handler, typename Error_handler_arg>
-class Internal_error_handler_holder {
-  THD *m_thd;
-  bool m_activate;
-  Error_handler m_error_handler;
-
- public:
-  Internal_error_handler_holder(THD *thd, bool activate, Error_handler_arg *arg)
-      : m_thd(thd), m_activate(activate), m_error_handler(arg) {
-    if (activate) thd->push_internal_handler(&m_error_handler);
-  }
-
-  ~Internal_error_handler_holder() {
-    if (m_activate) m_thd->pop_internal_handler();
-  }
-};
-
 /* Returns string as 'IP' for the client-side of the connection represented by
    'client'. Does not allocate memory. May return "".
 */
 const char *get_client_host(const THD &client) noexcept;
 
-/**
-  A simple holder for the Prepared Statement Query_arena instance in THD.
-  The class utilizes RAII technique to not forget to restore the THD arena.
-*/
-class Prepared_stmt_arena_holder {
- public:
-  /**
-    Constructs a new object, activates the persistent arena if requested and if
-    a prepared statement or a stored procedure statement is being executed.
-
-    @param thd                    Thread context.
-    @param activate_now_if_needed Attempt to activate the persistent arena in
-                                  the constructor or not.
-  */
-  Prepared_stmt_arena_holder(THD *thd, bool activate_now_if_needed = true)
-      : m_thd(thd), m_arena(NULL) {
-    if (activate_now_if_needed && !m_thd->stmt_arena->is_regular() &&
-        m_thd->mem_root != m_thd->stmt_arena->mem_root) {
-      m_thd->swap_query_arena(*m_thd->stmt_arena, &m_backup);
-      m_arena = m_thd->stmt_arena;
-    }
-  }
-
-  /**
-    Deactivate the persistent arena (restore the previous arena) if it has
-    been activated.
-  */
-  ~Prepared_stmt_arena_holder() {
-    if (is_activated()) m_thd->swap_query_arena(m_backup, m_arena);
-  }
-
-  bool is_activated() const { return m_arena != NULL; }
-
- private:
-  /// The thread context to work with.
-  THD *const m_thd;
-
-  /// The arena set by this holder (by activate()).
-  Query_arena *m_arena;
-
-  /// The arena state to be restored.
-  Query_arena m_backup;
-};
-
-/**
-  RAII class for column privilege checking
-*/
-class Column_privilege_tracker {
- public:
-  Column_privilege_tracker(THD *thd, ulong privilege)
-      : thd(thd), saved_privilege(thd->want_privilege) {
-    thd->want_privilege = privilege;
-  }
-  ~Column_privilege_tracker() { thd->want_privilege = saved_privilege; }
-
- private:
-  THD *const thd;
-  const ulong saved_privilege;
-};
-
-||||||| 91a17cedb1e
-/**
-  A simple holder for Internal_error_handler.
-  The class utilizes RAII technique to not forget to pop the handler.
-
-  @tparam Error_handler      Internal_error_handler to instantiate.
-  @tparam Error_handler_arg  Type of the error handler ctor argument.
-*/
-template <typename Error_handler, typename Error_handler_arg>
-class Internal_error_handler_holder {
-  THD *m_thd;
-  bool m_activate;
-  Error_handler m_error_handler;
-
- public:
-  Internal_error_handler_holder(THD *thd, bool activate, Error_handler_arg *arg)
-      : m_thd(thd), m_activate(activate), m_error_handler(arg) {
-    if (activate) thd->push_internal_handler(&m_error_handler);
-  }
-
-  ~Internal_error_handler_holder() {
-    if (m_activate) m_thd->pop_internal_handler();
-  }
-};
-
-/**
-  A simple holder for the Prepared Statement Query_arena instance in THD.
-  The class utilizes RAII technique to not forget to restore the THD arena.
-*/
-class Prepared_stmt_arena_holder {
- public:
-  /**
-    Constructs a new object, activates the persistent arena if requested and if
-    a prepared statement or a stored procedure statement is being executed.
-
-    @param thd                    Thread context.
-    @param activate_now_if_needed Attempt to activate the persistent arena in
-                                  the constructor or not.
-  */
-  Prepared_stmt_arena_holder(THD *thd, bool activate_now_if_needed = true)
-      : m_thd(thd), m_arena(NULL) {
-    if (activate_now_if_needed && !m_thd->stmt_arena->is_regular() &&
-        m_thd->mem_root != m_thd->stmt_arena->mem_root) {
-      m_thd->swap_query_arena(*m_thd->stmt_arena, &m_backup);
-      m_arena = m_thd->stmt_arena;
-    }
-  }
-
-  /**
-    Deactivate the persistent arena (restore the previous arena) if it has
-    been activated.
-  */
-  ~Prepared_stmt_arena_holder() {
-    if (is_activated()) m_thd->swap_query_arena(m_backup, m_arena);
-  }
-
-  bool is_activated() const { return m_arena != NULL; }
-
- private:
-  /// The thread context to work with.
-  THD *const m_thd;
-
-  /// The arena set by this holder (by activate()).
-  Query_arena *m_arena;
-
-  /// The arena state to be restored.
-  Query_arena m_backup;
-};
-
-/**
-  RAII class for column privilege checking
-*/
-class Column_privilege_tracker {
- public:
-  Column_privilege_tracker(THD *thd, ulong privilege)
-      : thd(thd), saved_privilege(thd->want_privilege) {
-    thd->want_privilege = privilege;
-  }
-  ~Column_privilege_tracker() { thd->want_privilege = saved_privilege; }
-
- private:
-  THD *const thd;
-  const ulong saved_privilege;
-};
-
-=======
->>>>>>> mysql-8.0.19
 /** A short cut for thd->get_stmt_da()->set_ok_status(). */
 void my_ok(THD *thd, ulonglong affected_rows = 0, ulonglong id = 0,
            const char *message = nullptr);

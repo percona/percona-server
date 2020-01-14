@@ -53,7 +53,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 innodb_compressed_columns_threshold	4294967295
 SET GLOBAL innodb_compressed_columns_threshold = -7;
 Warnings:
-Warning	1292	Truncated incorrect innodb_compressed_columns_thresh value: '-7'
+Warning	1292	Truncated incorrect innodb_compressed_columns_threshold value: '-7'
 SELECT @@global.innodb_compressed_columns_threshold;
 @@global.innodb_compressed_columns_threshold
 1
@@ -63,7 +63,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 innodb_compressed_columns_threshold	1
 SET GLOBAL innodb_compressed_columns_threshold = 0;
 Warnings:
-Warning	1292	Truncated incorrect innodb_compressed_columns_thresh value: '0'
+Warning	1292	Truncated incorrect innodb_compressed_columns_threshold value: '0'
 SELECT @@global.innodb_compressed_columns_threshold;
 @@global.innodb_compressed_columns_threshold
 1

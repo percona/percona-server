@@ -363,30 +363,20 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 {
   byte value[sizeof(ib_uint32_t)];
 
-<<<<<<< HEAD
   fil_space_t *space = fil_space_get(table->space);
   // The table is read locked so it will not be dropped
   ut_ad(space != NULL);
-
-  /* Write the meta-data version number. */
-  if (space->crypt_data != NULL &&
-      space->crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
-    mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1_WITH_RK);
-  } else {
-    mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V3);
-  }
-||||||| 91a17cedb1e
-  /* Write the meta-data version number. */
-  mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V3);
-=======
   /* Write the current meta-data version number. */
   uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V4;
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_3",
                   cfg_version = IB_EXPORT_CFG_VERSION_V3;);
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_99",
                   cfg_version = IB_EXPORT_CFG_VERSION_V99;);
+  if (space->crypt_data != NULL &&
+      space->crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
+    cfg_version = IB_EXPORT_CFG_VERSION_V1_WITH_RK;
+  }
   mach_write_to_4(value, cfg_version);
->>>>>>> mysql-8.0.19
 
   DBUG_EXECUTE_IF("ib_export_io_write_failure_4", close(fileno(file)););
 

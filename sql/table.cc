@@ -2047,8 +2047,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     handler_file->upgrade_update_field_with_zip_dict_info(thd, NULL);
 
   /* Use share mem root for zip dict name and data */
-  for (uint i = 0; i < share->fields; ++i) {
-    Field *field = share->field[i];
+  for (uint i2 = 0; i2 < share->fields; ++i2) {
+    Field *field = share->field[i2];
     if (field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
       if (field->zip_dict_data.str != nullptr) {
         LEX_CSTRING saved_data = field->zip_dict_data;

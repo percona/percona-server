@@ -1088,21 +1088,11 @@ mysql_mutex_t LOCK_tls_ctx_options;
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-<<<<<<< HEAD
-bool opt_old_style_user_limits = 0, trust_function_creators = 0;
-bool check_proxy_users = 0, mysql_native_password_proxy_users = 0,
-     sha256_password_proxy_users = 0;
-bool opt_userstat = false;
-bool opt_thread_statistics = false;
-||||||| 91a17cedb1e
-bool opt_old_style_user_limits = 0, trust_function_creators = 0;
-bool check_proxy_users = 0, mysql_native_password_proxy_users = 0,
-     sha256_password_proxy_users = 0;
-=======
 bool opt_old_style_user_limits = false, trust_function_creators = false;
 bool check_proxy_users = false, mysql_native_password_proxy_users = false,
      sha256_password_proxy_users = false;
->>>>>>> mysql-8.0.19
+bool opt_userstat = false;
+bool opt_thread_statistics = false;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -6445,17 +6435,11 @@ int mysqld_main(int argc, char **argv)
   init_pfs_instrument_array();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
-<<<<<<< HEAD
   /* init_error_log() is required by error_log_printf() in
      option_error_reporter() */
   //  Init error log subsystem. This does not actually open the log yet.
   if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
-  ho_error = handle_early_options();
-||||||| 91a17cedb1e
-  ho_error = handle_early_options();
-=======
   heo_error = handle_early_options();
->>>>>>> mysql-8.0.19
 
   init_sql_statement_names();
   sys_var_init();

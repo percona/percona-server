@@ -33,13 +33,9 @@ The tablespace memory cache */
 #include <fcntl.h>
 #include <sys/types.h>
 
-<<<<<<< HEAD
 #include "mysqld.h"  // server_uuid
 
-||||||| 91a17cedb1e
-=======
 #include "arch0page.h"
->>>>>>> mysql-8.0.19
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
@@ -1625,7 +1621,6 @@ class Fil_system {
 }
 #endif /* UNIV_HOTBACKUP */
 
-<<<<<<< HEAD
 private :
     /** Open an ibd tablespace and add it to the InnoDB data structures.
     This is similar to fil_ibd_open() except that it is used while
@@ -1669,6 +1664,9 @@ dd_fil::Tablespaces m_moved;
 /** Tablespace directories scanned at startup */
 Tablespace_dirs m_dirs;
 
+/** Old file paths during 5.7 upgrade. */
+std::vector<std::string> m_old_paths;
+
 // Disable copying
 Fil_system(Fil_system &&) = delete;
 Fil_system(const Fil_system &) = delete;
@@ -1680,112 +1678,6 @@ friend class Fil_shard;
 static void wait_for_changed_page_tracker() noexcept;
 }
 ;
-||||||| 91a17cedb1e
- private:
-  /** Open an ibd tablespace and add it to the InnoDB data structures.
-  This is similar to fil_ibd_open() except that it is used while
-  processing the redo log, so the data dictionary is not available
-  and very little validation is done. The tablespace name is extracted
-  from the dbname/tablename.ibd portion of the filename, which assumes
-  that the file is a file-per-table tablespace.  Any name will do for
-  now.  General tablespace names will be read from the dictionary after
-  it has been recovered.  The tablespace flags are read at this time
-  from the first page of the file in validate_for_recovery().
-  @param[in]	space_id	tablespace ID
-  @param[in]	path		path/to/databasename/tablename.ibd
-  @param[out]	space		the tablespace, or nullptr on error
-  @return status of the operation */
-  fil_load_status ibd_open_for_recovery(space_id_t space_id,
-                                        const std::string &path,
-                                        fil_space_t *&space)
-      MY_ATTRIBUTE((warn_unused_result));
-
- private:
-  /** Fil_shards managed */
-  Fil_shards m_shards;
-
-  /** n_open is not allowed to exceed this */
-  const size_t m_max_n_open;
-
-  /** Maximum space id in the existing tables, or assigned during
-  the time mysqld has been up; at an InnoDB startup we scan the
-  data dictionary and set here the maximum of the space id's of
-  the tables there */
-  space_id_t m_max_assigned_id;
-
-  /** true if fil_space_create() has issued a warning about
-  potential space_id reuse */
-  bool m_space_id_reuse_warned;
-
-  /** List of tablespaces that have been relocated. We need to
-  update the DD when it is safe to do so. */
-  dd_fil::Tablespaces m_moved;
-
-  /** Tablespace directories scanned at startup */
-  Tablespace_dirs m_dirs;
-
-  // Disable copying
-  Fil_system(Fil_system &&) = delete;
-  Fil_system(const Fil_system &) = delete;
-  Fil_system &operator=(const Fil_system &) = delete;
-
-  friend class Fil_shard;
-};
-=======
- private:
-  /** Open an ibd tablespace and add it to the InnoDB data structures.
-  This is similar to fil_ibd_open() except that it is used while
-  processing the redo log, so the data dictionary is not available
-  and very little validation is done. The tablespace name is extracted
-  from the dbname/tablename.ibd portion of the filename, which assumes
-  that the file is a file-per-table tablespace.  Any name will do for
-  now.  General tablespace names will be read from the dictionary after
-  it has been recovered.  The tablespace flags are read at this time
-  from the first page of the file in validate_for_recovery().
-  @param[in]	space_id	tablespace ID
-  @param[in]	path		path/to/databasename/tablename.ibd
-  @param[out]	space		the tablespace, or nullptr on error
-  @return status of the operation */
-  fil_load_status ibd_open_for_recovery(space_id_t space_id,
-                                        const std::string &path,
-                                        fil_space_t *&space)
-      MY_ATTRIBUTE((warn_unused_result));
-
- private:
-  /** Fil_shards managed */
-  Fil_shards m_shards;
-
-  /** n_open is not allowed to exceed this */
-  const size_t m_max_n_open;
-
-  /** Maximum space id in the existing tables, or assigned during
-  the time mysqld has been up; at an InnoDB startup we scan the
-  data dictionary and set here the maximum of the space id's of
-  the tables there */
-  space_id_t m_max_assigned_id;
-
-  /** true if fil_space_create() has issued a warning about
-  potential space_id reuse */
-  bool m_space_id_reuse_warned;
-
-  /** List of tablespaces that have been relocated. We need to
-  update the DD when it is safe to do so. */
-  dd_fil::Tablespaces m_moved;
-
-  /** Tablespace directories scanned at startup */
-  Tablespace_dirs m_dirs;
-
-  /** Old file paths during 5.7 upgrade. */
-  std::vector<std::string> m_old_paths;
-
-  // Disable copying
-  Fil_system(Fil_system &&) = delete;
-  Fil_system(const Fil_system &) = delete;
-  Fil_system &operator=(const Fil_system &) = delete;
-
-  friend class Fil_shard;
-};
->>>>>>> mysql-8.0.19
 
 /** The tablespace memory cache. This variable is nullptr before the module is
 initialized. */

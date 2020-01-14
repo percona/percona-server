@@ -396,12 +396,6 @@ struct MDL_key {
     SRID,
     ACL_CACHE,
     COLUMN_STATISTICS,
-<<<<<<< HEAD
-    BACKUP_LOCK, /* Oracle LOCK INSTANCE FOR BACKUP */
-||||||| 91a17cedb1e
-    BACKUP_LOCK,
-=======
->>>>>>> mysql-8.0.19
     RESOURCE_GROUPS,
     FOREIGN_KEY,
     CHECK_CONSTRAINT,

@@ -129,19 +129,13 @@ static bool verbose = false, opt_no_create_info = false, opt_no_data = false,
             opt_network_timeout = false, stats_tables_included = false,
             column_statistics = false,
             opt_show_create_table_skip_secondary_engine = false;
-<<<<<<< HEAD
 static bool opt_compressed_columns = false,
             opt_compressed_columns_with_dictionaries = false,
             opt_drop_compression_dictionary = true,
             opt_order_by_primary_desc = false, opt_lock_for_backup = false,
             opt_innodb_optimize_keys = false;
-static bool insert_pat_inited = 0, debug_info_flag = 0, debug_check_flag = 0;
-||||||| 91a17cedb1e
-static bool insert_pat_inited = 0, debug_info_flag = 0, debug_check_flag = 0;
-=======
 static bool insert_pat_inited = false, debug_info_flag = false,
             debug_check_flag = false;
->>>>>>> mysql-8.0.19
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection, *mysql = 0;
 static DYNAMIC_STRING insert_pat;
@@ -1869,7 +1863,8 @@ static char *quote_name(char *name, char *buff, bool force) {
    @return Pointer to unquoted string (either original opt_quoted_name or
    buff).
 */
-static const char *unquote_name(const char *opt_quoted_name, char *buff) noexcept {
+static const char *unquote_name(const char *opt_quoted_name,
+                                char *buff) noexcept {
   if (!opt_quoted) return (const char *)opt_quoted_name;
 
   const char qtype = ansi_quotes_mode ? '\"' : '`';
@@ -2774,7 +2769,7 @@ static bool contains_autoinc_column(const char *autoinc_column,
       Check only the first (for PRIMARY KEY) or the second (for secondary keys)
       quoted identifier.
     */
-    if (idnum == 1 + MY_TEST(type != key_type_t::PRIMARY)) break;
+    if (idnum == 1 + (type != key_type_t::PRIMARY)) break;
 
     keydef = to + 1;
   }
@@ -4302,16 +4297,6 @@ static void dump_table(char *table, char *db) {
     return;
   }
 
-<<<<<<< HEAD
-||||||| 91a17cedb1e
-  result_table = quote_name(table, table_buff, 1);
-  opt_quoted_table = quote_name(table, table_buff2, 0);
-
-=======
-  result_table = quote_name(table, table_buff, true);
-  opt_quoted_table = quote_name(table, table_buff2, false);
-
->>>>>>> mysql-8.0.19
   verbose_msg("-- Sending SELECT query...\n");
 
   init_dynamic_string_checked(&query_string, "", 1024, 1024);
@@ -5556,43 +5541,9 @@ static int do_show_master_status(MYSQL *mysql_con,
     file = binlog_pos_file;
     offset = binlog_pos_offset;
   } else {
-<<<<<<< HEAD
     MYSQL_RES *master;
     if (mysql_query_with_error_report(mysql_con, &master,
                                       "SHOW MASTER STATUS")) {
-||||||| 91a17cedb1e
-    row = mysql_fetch_row(master);
-    if (row && row[0] && row[1]) {
-      /* SHOW MASTER STATUS reports file and position */
-      print_comment(md_result_file, 0,
-                    "\n--\n-- Position to start replication or point-in-time "
-                    "recovery from\n--\n\n");
-      fprintf(md_result_file,
-              "%sCHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
-              comment_prefix, row[0], row[1]);
-      check_io(md_result_file);
-    } else if (!opt_force) {
-      /* SHOW MASTER STATUS reports nothing and --force is not enabled */
-      my_printf_error(0, "Error: Binlogging on server not active", MYF(0));
-      mysql_free_result(master);
-      maybe_exit(EX_MYSQLERR);
-=======
-    row = mysql_fetch_row(master);
-    if (row && row[0] && row[1]) {
-      /* SHOW MASTER STATUS reports file and position */
-      print_comment(md_result_file, false,
-                    "\n--\n-- Position to start replication or point-in-time "
-                    "recovery from\n--\n\n");
-      fprintf(md_result_file,
-              "%sCHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
-              comment_prefix, row[0], row[1]);
-      check_io(md_result_file);
-    } else if (!opt_force) {
-      /* SHOW MASTER STATUS reports nothing and --force is not enabled */
-      my_printf_error(0, "Error: Binlogging on server not active", MYF(0));
-      mysql_free_result(master);
-      maybe_exit(EX_MYSQLERR);
->>>>>>> mysql-8.0.19
       return 1;
     }
     MYSQL_ROW row = mysql_fetch_row(master);
@@ -6039,19 +5990,11 @@ static char *primary_key_fields(const char *table_name, const bool desc) {
     quoted_field = quote_name(row[4], buff, false);
     end = my_stpcpy(result, quoted_field);
     while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1) {
-<<<<<<< HEAD
-      quoted_field = quote_name(row[4], buff, 0);
+      quoted_field = quote_name(row[4], buff, false);
       end = strxmov(end, desc ? "DESC," : ",", quoted_field, NullS);
     }
     if (desc) {
       end = my_stpmov(end, " DESC");
-||||||| 91a17cedb1e
-      quoted_field = quote_name(row[4], buff, 0);
-      end = strxmov(end, ",", quoted_field, NullS);
-=======
-      quoted_field = quote_name(row[4], buff, false);
-      end = strxmov(end, ",", quoted_field, NullS);
->>>>>>> mysql-8.0.19
     }
   }
 

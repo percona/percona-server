@@ -19,16 +19,10 @@ if ($explicit_default_counter)
   --let $wait_counter= $explicit_default_counter
 }
 if ($VALGRIND_TEST) {
-<<<<<<< HEAD
   --let $wait_counter= 30000
-||||||| 91a17cedb1e
-  --let $wait_counter= 20000
-=======
-  --let $wait_counter= 20000
   if ($add_wait_counter) {
     --expr $wait_counter= $wait_counter + $add_wait_counter
   }
->>>>>>> mysql-8.0.19
 }
 if ($TSAN_OPTIONS) {
   --let $wait_counter= 15000

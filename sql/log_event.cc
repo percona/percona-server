@@ -4204,19 +4204,11 @@ void Query_log_event::print_query_header(
   end = my_stpcpy(end, print_event_info->delimiter);
   *end++ = '\n';
   DBUG_ASSERT(end < buff + sizeof(buff));
-<<<<<<< HEAD
   MY_ATTRIBUTE((unused))
   int write_res = my_b_write(file, (uchar *)buff, (uint)(end - buff));
   DBUG_ASSERT(write_res == 0);
-  if ((!print_event_info->thread_id_printed ||
-||||||| 91a17cedb1e
-  my_b_write(file, (uchar *)buff, (uint)(end - buff));
-  if ((!print_event_info->thread_id_printed ||
-=======
-  my_b_write(file, (uchar *)buff, (uint)(end - buff));
   if (!print_event_info->require_row_format &&
       (!print_event_info->thread_id_printed ||
->>>>>>> mysql-8.0.19
        ((common_header->flags & LOG_EVENT_THREAD_SPECIFIC_F) &&
         thread_id != print_event_info->thread_id))) {
     // If --short-form, print deterministic value instead of pseudo_thread_id.

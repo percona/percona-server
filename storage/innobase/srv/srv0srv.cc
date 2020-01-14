@@ -114,17 +114,13 @@ bool srv_downgrade_logs = false;
 bool srv_upgrade_old_undo_found = false;
 #endif /* INNODB_DD_TABLE */
 
-<<<<<<< HEAD
+/* Revert to old partition file name if upgrade fails. */
+bool srv_downgrade_partition_files = false;
+
 #ifdef UNIV_DEBUG
 bool srv_is_uuid_ready = false;
 #endif /* UNIV_DEBUG */
 
-||||||| 91a17cedb1e
-=======
-/* Revert to old partition file name if upgrade fails. */
-bool srv_downgrade_partition_files = false;
-
->>>>>>> mysql-8.0.19
 /* The following is the maximum allowed duration of a lock wait. */
 ulong srv_fatal_semaphore_wait_threshold = 600;
 

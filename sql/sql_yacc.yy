@@ -443,13 +443,7 @@ void warn_about_deprecated_binary(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-<<<<<<< HEAD
-%expect 102
-||||||| 91a17cedb1e
-%expect 99
-=======
-%expect 91
->>>>>>> mysql-8.0.19
+%expect 94
 
 /*
    MAINTAINER:
@@ -1249,6 +1243,24 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> FAILED_LOGIN_ATTEMPTS_SYM     /* MYSQL */
 
 /*
+   Tokens from Percona Server 5.7 and older
+*/
+%token<lexer.keyword> CHANGED_PAGE_BITMAPS_SYM
+%token<lexer.keyword> CLIENT_STATS_SYM
+%token CLUSTERING_SYM
+%token<lexer.keyword> COMPRESSION_DICTIONARY_SYM
+%token<lexer.keyword> INDEX_STATS_SYM
+%token<lexer.keyword> TABLE_STATS_SYM
+%token<lexer.keyword> THREAD_STATS_SYM
+%token<lexer.keyword> USER_STATS_SYM
+%token<lexer.keyword> ENCRYPTION_KEY_ID_SYM
+
+/*
+   Tokens from Percona Server 8.0
+*/
+%token<lexer.keyword> EFFECTIVE_SYM
+
+/*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
 
@@ -1267,24 +1279,6 @@ void warn_about_deprecated_binary(THD *thd)
 %left KEYWORD_USED_AS_IDENT
 %nonassoc TEXT_STRING
 %left KEYWORD_USED_AS_KEYWORD
-
-/*
-   Tokens from Percona Server 5.7 and older
-*/
-%token<lexer.keyword> CHANGED_PAGE_BITMAPS_SYM
-%token<lexer.keyword> CLIENT_STATS_SYM
-%token CLUSTERING_SYM
-%token<lexer.keyword> COMPRESSION_DICTIONARY_SYM
-%token<lexer.keyword> INDEX_STATS_SYM
-%token<lexer.keyword> TABLE_STATS_SYM
-%token<lexer.keyword> THREAD_STATS_SYM
-%token<lexer.keyword> USER_STATS_SYM
-%token<lexer.keyword> ENCRYPTION_KEY_ID_SYM
-
-/*
-   Tokens from Percona Server 8.0
-*/
-%token<lexer.keyword> EFFECTIVE_SYM
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against

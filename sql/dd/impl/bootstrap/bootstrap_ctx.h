@@ -116,16 +116,12 @@ class DD_bootstrap_ctx {
     m_actual_dd_version = actual_dd_version;
   }
 
-<<<<<<< HEAD
-  void set_dd_encrypted() noexcept { m_dd_encrypted = true; }
-
-||||||| 91a17cedb1e
-=======
   void set_actual_I_S_version(uint actual_I_S_version) {
     m_actual_I_S_version = actual_I_S_version;
   }
 
->>>>>>> mysql-8.0.19
+  void set_dd_encrypted() noexcept { m_dd_encrypted = true; }
+
   uint get_actual_dd_version() const { return m_actual_dd_version; }
 
   uint get_actual_I_S_version() const { return m_actual_I_S_version; }

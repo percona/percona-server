@@ -335,16 +335,10 @@ static int examine_log(const char *file_name, char **table_names) {
     }
   }
 
-<<<<<<< HEAD
-  if (init_io_cache(&cache, file, 0, READ_CACHE, start_offset, 0, MYF(0))) {
+  if (init_io_cache(&cache, file, 0, READ_CACHE, start_offset, false, MYF(0))) {
     if (write_file != nullptr) my_fclose(write_file, MYF(0));
     my_close(file, MYF(0));
   }
-||||||| 91a17cedb1e
-  init_io_cache(&cache, file, 0, READ_CACHE, start_offset, 0, MYF(0));
-=======
-  init_io_cache(&cache, file, 0, READ_CACHE, start_offset, false, MYF(0));
->>>>>>> mysql-8.0.19
   memset(com_count, 0, sizeof(com_count));
   init_tree(&tree, 0, sizeof(file_info), file_info_compare, true,
             file_info_free, nullptr);

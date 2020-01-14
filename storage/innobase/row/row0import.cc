@@ -1253,22 +1253,13 @@ matches the in memory table definition.
 dberr_t row_import::match_schema(THD *thd,
                                  const dd::Table *dd_table) UNIV_NOTHROW {
   /* Do some simple checks. */
-  const auto relevant_flags = m_flags & ~DICT_TF_MASK_DATA_DIR;
-  const auto relevant_table_flags = m_table->flags & ~DICT_TF_MASK_DATA_DIR;
 
-  if (relevant_flags != relevant_table_flags) {
-    if (dict_tf_to_row_format_string(relevant_flags) !=
-        dict_tf_to_row_format_string(relevant_table_flags)) {
+  if (m_flags != m_table->flags) {
+    if (dict_tf_to_row_format_string(m_flags) !=
+        dict_tf_to_row_format_string(m_table->flags)) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
               "Table flags don't match, server table has %s"
               " and the meta-data file has %s",
-<<<<<<< HEAD
-              (const char *)dict_tf_to_row_format_string(relevant_table_flags),
-              (const char *)dict_tf_to_row_format_string(relevant_flags));
-||||||| 91a17cedb1e
-              (const char *)dict_tf_to_row_format_string(m_table->flags),
-              (const char *)dict_tf_to_row_format_string(m_flags));
-=======
               (const char *)dict_tf_to_row_format_string(m_table->flags),
               (const char *)dict_tf_to_row_format_string(m_flags));
     } else if (DICT_TF_HAS_DATA_DIR(m_flags) !=
@@ -1280,12 +1271,11 @@ dberr_t row_import::match_schema(THD *thd,
               "flag = %lu and the meta-data file has data_dir flag = %lu",
               (ulint)DICT_TF_HAS_DATA_DIR(m_table->flags),
               (ulint)DICT_TF_HAS_DATA_DIR(m_flags));
->>>>>>> mysql-8.0.19
     } else {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
               "Table flags don't match, server table has 0x%x "
               "and the meta-data file has 0x%x",
-              relevant_table_flags, relevant_flags);
+              m_table->flags, m_flags);
     }
     return (DB_ERROR);
   } else if (m_table->n_cols != m_n_cols) {
@@ -3766,18 +3756,10 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     fsp_flags_set_encryption(fsp_flags);
   }
 
-<<<<<<< HEAD
   Keyring_encryption_info keyring_encryption_info;
 
-  std::string tablespace_name;
-  dd_filename_to_spacename(table->name.m_name, &tablespace_name);
-||||||| 91a17cedb1e
-  std::string tablespace_name;
-  dd_filename_to_spacename(table->name.m_name, &tablespace_name);
-=======
   std::string tablespace_name(table->name.m_name);
   dict_name::convert_to_space(tablespace_name);
->>>>>>> mysql-8.0.19
 
   err = fil_ibd_open(true, FIL_TYPE_IMPORT, table->space, fsp_flags,
                      tablespace_name.c_str(), table->name.m_name, filepath,

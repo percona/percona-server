@@ -1988,21 +1988,12 @@ static char *os_file_get_parent_dir(const char *path) {
     return (NULL);
   }
 
-<<<<<<< HEAD
-  /* Make sure that mem_strdupl() will get non-negative "ulint len" */
-  if (last_slash - path < 0) {
-    return (NULL);
-  }
-
-||||||| 91a17cedb1e
-=======
   if (last_slash - path < 0) {
     /* Sanity check, it prevents gcc from trying to handle this case which
      * results in warnings for some optimized builds */
     return (NULL);
   }
 
->>>>>>> mysql-8.0.19
   /* Non-trivial directory component */
 
   return (mem_strdupl(path, last_slash - path));

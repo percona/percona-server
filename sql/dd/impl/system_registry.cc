@@ -27,28 +27,14 @@
 #include "sql/dd/impl/system_views/character_sets.h"     // Character_sets
 #include "sql/dd/impl/system_views/check_constraints.h"  // Check_constraints
 #include "sql/dd/impl/system_views/collation_charset_applicability.h"  // Collati...
-<<<<<<< HEAD
 #include "sql/dd/impl/system_views/collations.h"         // Collations
 #include "sql/dd/impl/system_views/column_statistics.h"  // Column_statistics
 #include "sql/dd/impl/system_views/columns.h"            // Columns
 #include "sql/dd/impl/system_views/compression_dictionary.h"  // Compression_dictionary
 #include "sql/dd/impl/system_views/compression_dictionary_tables.h"  // Compression_dictionary_tables
-#include "sql/dd/impl/system_views/events.h"                         // Events
-#include "sql/dd/impl/system_views/files.h"                          // Files
-||||||| 91a17cedb1e
-#include "sql/dd/impl/system_views/collations.h"           // Collations
-#include "sql/dd/impl/system_views/column_statistics.h"    // Column_statistics
-#include "sql/dd/impl/system_views/columns.h"              // Columns
-#include "sql/dd/impl/system_views/events.h"               // Events
-#include "sql/dd/impl/system_views/files.h"                // Files
-=======
-#include "sql/dd/impl/system_views/collations.h"           // Collations
-#include "sql/dd/impl/system_views/column_statistics.h"    // Column_statistics
-#include "sql/dd/impl/system_views/columns.h"              // Columns
 #include "sql/dd/impl/system_views/enabled_roles.h"        // Enabled_roles
 #include "sql/dd/impl/system_views/events.h"               // Events
 #include "sql/dd/impl/system_views/files.h"                // Files
->>>>>>> mysql-8.0.19
 #include "sql/dd/impl/system_views/innodb_datafiles.h"     // Innodb_datafiles
 #include "sql/dd/impl/system_views/innodb_fields.h"        // Innodb_fields
 #include "sql/dd/impl/system_views/innodb_foreign.h"       // Innodb_foreign
@@ -258,14 +244,8 @@ void System_tables::add_remaining_dd_tables() {
 void System_views::init() {
   // Register system views with the server.
   dd::System_views::Types is = dd::System_views::Types::INFORMATION_SCHEMA;
-<<<<<<< HEAD
-  dd::System_views::Types is_non_dd =
-      dd::System_views::Types::INFORMATION_SCHEMA_NON_DD;
-||||||| 91a17cedb1e
-=======
   dd::System_views::Types non_dd_based_is =
       dd::System_views::Types::NON_DD_BASED_INFORMATION_SCHEMA;
->>>>>>> mysql-8.0.19
 
   register_view<dd::system_views::Enabled_roles>(non_dd_based_is);
   register_view<dd::system_views::Applicable_roles>(non_dd_based_is);
@@ -277,8 +257,9 @@ void System_views::init() {
   register_view<dd::system_views::Collation_charset_applicability>(is);
   register_view<dd::system_views::Columns>(is);
   register_view<dd::system_views::Column_statistics>(is);
-  register_view<dd::system_views::Compression_dictionary>(is_non_dd);
-  register_view<dd::system_views::Compression_dictionary_tables>(is_non_dd);
+  register_view<dd::system_views::Compression_dictionary>(non_dd_based_is);
+  register_view<dd::system_views::Compression_dictionary_tables>(
+      non_dd_based_is);
   register_view<dd::system_views::Events>(is);
   register_view<dd::system_views::Files>(is);
   register_view<dd::system_views::Innodb_datafiles>(is);

@@ -476,38 +476,6 @@ SHOW CREATE FUNCTION очень_очень_очень_очень_очень_оч
 DROP FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 
 SET NAMES default;
-<<<<<<< HEAD
-
---echo #
---echo # Bug#97682 - Handler fails to trigger on Error 1049 or SQLSTATE 42000 or plain sqlexception
---echo #
-
-DELIMITER |;
-
-CREATE FUNCTION handler_func() RETURNS INTEGER
-BEGIN
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
-  SELECT fake_col INTO @a FROM fake_table;
-RETURN 1;
-END|
-
-CREATE FUNCTION handler_func2() RETURNS INTEGER
-BEGIN
-  DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
-  SELECT fake_col INTO @a FROM fake_db.fake_table;
-RETURN 1;
-END|
-
-DELIMITER ;|
-
-SELECT handler_func();
-SELECT handler_func2();
-
-DROP FUNCTION handler_func;
-DROP FUNCTION handler_func2;
-||||||| 91a17cedb1e
-=======
-
 
 --echo #
 --echo # Bug#30034972 - Deterministic function returns different value after
@@ -536,4 +504,31 @@ EXECUTE stmt USING @var;
 SET @var = '2019-01-01 00:00:00';
 EXECUTE stmt USING @var;
 DEALLOCATE PREPARE stmt;
->>>>>>> mysql-8.0.19
+
+--echo #
+--echo # Bug#97682 - Handler fails to trigger on Error 1049 or SQLSTATE 42000 or plain sqlexception
+--echo #
+
+DELIMITER |;
+
+CREATE FUNCTION handler_func() RETURNS INTEGER
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
+  SELECT fake_col INTO @a FROM fake_table;
+RETURN 1;
+END|
+
+CREATE FUNCTION handler_func2() RETURNS INTEGER
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
+  SELECT fake_col INTO @a FROM fake_db.fake_table;
+RETURN 1;
+END|
+
+DELIMITER ;|
+
+SELECT handler_func();
+SELECT handler_func2();
+
+DROP FUNCTION handler_func;
+DROP FUNCTION handler_func2;

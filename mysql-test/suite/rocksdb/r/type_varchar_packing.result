@@ -2,15 +2,15 @@
 CREATE TABLE t_armscii8 (pk_varchar VARCHAR(64) CHARACTER SET armscii8 COLLATE armscii8_bin, pk_char CHAR(64) CHARACTER SET armscii8 COLLATE armscii8_bin, d_varchar VARCHAR(64) CHARACTER SET armscii8 COLLATE armscii8_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_armscii8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_armscii8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_armscii8.PRIMARY'
 INSERT INTO t_armscii8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_armscii8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_armscii8.PRIMARY'
 INSERT INTO t_armscii8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_armscii8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_armscii8 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_armscii8.PRIMARY'
 INSERT INTO t_armscii8 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_armscii8;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -24,15 +24,15 @@ DROP TABLE t_armscii8;
 CREATE TABLE t_ascii (pk_varchar VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin, pk_char CHAR(64) CHARACTER SET ascii COLLATE ascii_bin, d_varchar VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_ascii VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ascii VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_ascii.PRIMARY'
 INSERT INTO t_ascii VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_ascii VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_ascii.PRIMARY'
 INSERT INTO t_ascii VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_ascii VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_ascii VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_ascii.PRIMARY'
 INSERT INTO t_ascii VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_ascii;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -46,15 +46,15 @@ DROP TABLE t_ascii;
 CREATE TABLE t_big5 (pk_varchar VARCHAR(64) CHARACTER SET big5 COLLATE big5_bin, pk_char CHAR(64) CHARACTER SET big5 COLLATE big5_bin, d_varchar VARCHAR(64) CHARACTER SET big5 COLLATE big5_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_big5 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_big5 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_big5.PRIMARY'
 INSERT INTO t_big5 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_big5 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_big5.PRIMARY'
 INSERT INTO t_big5 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_big5 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_big5 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_big5.PRIMARY'
 INSERT INTO t_big5 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_big5;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -68,15 +68,15 @@ DROP TABLE t_big5;
 CREATE TABLE t_cp1250 (pk_varchar VARCHAR(64) CHARACTER SET cp1250 COLLATE cp1250_bin, pk_char CHAR(64) CHARACTER SET cp1250 COLLATE cp1250_bin, d_varchar VARCHAR(64) CHARACTER SET cp1250 COLLATE cp1250_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_cp1250 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_cp1250 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_cp1250.PRIMARY'
 INSERT INTO t_cp1250 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_cp1250 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_cp1250.PRIMARY'
 INSERT INTO t_cp1250 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_cp1250 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_cp1250 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_cp1250.PRIMARY'
 INSERT INTO t_cp1250 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_cp1250;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -90,15 +90,15 @@ DROP TABLE t_cp1250;
 CREATE TABLE t_cp1251 (pk_varchar VARCHAR(64) CHARACTER SET cp1251 COLLATE cp1251_bin, pk_char CHAR(64) CHARACTER SET cp1251 COLLATE cp1251_bin, d_varchar VARCHAR(64) CHARACTER SET cp1251 COLLATE cp1251_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_cp1251 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_cp1251 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_cp1251.PRIMARY'
 INSERT INTO t_cp1251 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_cp1251 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_cp1251.PRIMARY'
 INSERT INTO t_cp1251 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_cp1251 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_cp1251 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_cp1251.PRIMARY'
 INSERT INTO t_cp1251 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_cp1251;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -112,15 +112,15 @@ DROP TABLE t_cp1251;
 CREATE TABLE t_cp1256 (pk_varchar VARCHAR(64) CHARACTER SET cp1256 COLLATE cp1256_bin, pk_char CHAR(64) CHARACTER SET cp1256 COLLATE cp1256_bin, d_varchar VARCHAR(64) CHARACTER SET cp1256 COLLATE cp1256_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_cp1256 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_cp1256 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_cp1256.PRIMARY'
 INSERT INTO t_cp1256 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_cp1256 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_cp1256.PRIMARY'
 INSERT INTO t_cp1256 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_cp1256 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_cp1256 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_cp1256.PRIMARY'
 INSERT INTO t_cp1256 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_cp1256;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -134,15 +134,15 @@ DROP TABLE t_cp1256;
 CREATE TABLE t_cp1257 (pk_varchar VARCHAR(64) CHARACTER SET cp1257 COLLATE cp1257_bin, pk_char CHAR(64) CHARACTER SET cp1257 COLLATE cp1257_bin, d_varchar VARCHAR(64) CHARACTER SET cp1257 COLLATE cp1257_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_cp1257 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_cp1257 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_cp1257.PRIMARY'
 INSERT INTO t_cp1257 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_cp1257 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_cp1257.PRIMARY'
 INSERT INTO t_cp1257 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_cp1257 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_cp1257 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_cp1257.PRIMARY'
 INSERT INTO t_cp1257 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_cp1257;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -156,15 +156,15 @@ DROP TABLE t_cp1257;
 CREATE TABLE t_cp850 (pk_varchar VARCHAR(64) CHARACTER SET cp850 COLLATE cp850_bin, pk_char CHAR(64) CHARACTER SET cp850 COLLATE cp850_bin, d_varchar VARCHAR(64) CHARACTER SET cp850 COLLATE cp850_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_cp850 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_cp850 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_cp850.PRIMARY'
 INSERT INTO t_cp850 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_cp850 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_cp850.PRIMARY'
 INSERT INTO t_cp850 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_cp850 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_cp850 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_cp850.PRIMARY'
 INSERT INTO t_cp850 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_cp850;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -178,15 +178,15 @@ DROP TABLE t_cp850;
 CREATE TABLE t_cp852 (pk_varchar VARCHAR(64) CHARACTER SET cp852 COLLATE cp852_bin, pk_char CHAR(64) CHARACTER SET cp852 COLLATE cp852_bin, d_varchar VARCHAR(64) CHARACTER SET cp852 COLLATE cp852_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_cp852 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_cp852 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_cp852.PRIMARY'
 INSERT INTO t_cp852 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_cp852 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_cp852.PRIMARY'
 INSERT INTO t_cp852 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_cp852 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_cp852 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_cp852.PRIMARY'
 INSERT INTO t_cp852 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_cp852;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -200,15 +200,15 @@ DROP TABLE t_cp852;
 CREATE TABLE t_cp866 (pk_varchar VARCHAR(64) CHARACTER SET cp866 COLLATE cp866_bin, pk_char CHAR(64) CHARACTER SET cp866 COLLATE cp866_bin, d_varchar VARCHAR(64) CHARACTER SET cp866 COLLATE cp866_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_cp866 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_cp866 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_cp866.PRIMARY'
 INSERT INTO t_cp866 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_cp866 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_cp866.PRIMARY'
 INSERT INTO t_cp866 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_cp866 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_cp866 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_cp866.PRIMARY'
 INSERT INTO t_cp866 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_cp866;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -222,15 +222,15 @@ DROP TABLE t_cp866;
 CREATE TABLE t_cp932 (pk_varchar VARCHAR(64) CHARACTER SET cp932 COLLATE cp932_bin, pk_char CHAR(64) CHARACTER SET cp932 COLLATE cp932_bin, d_varchar VARCHAR(64) CHARACTER SET cp932 COLLATE cp932_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_cp932 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_cp932 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_cp932.PRIMARY'
 INSERT INTO t_cp932 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_cp932 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_cp932.PRIMARY'
 INSERT INTO t_cp932 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_cp932 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_cp932 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_cp932.PRIMARY'
 INSERT INTO t_cp932 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_cp932;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -244,15 +244,15 @@ DROP TABLE t_cp932;
 CREATE TABLE t_dec8 (pk_varchar VARCHAR(64) CHARACTER SET dec8 COLLATE dec8_bin, pk_char CHAR(64) CHARACTER SET dec8 COLLATE dec8_bin, d_varchar VARCHAR(64) CHARACTER SET dec8 COLLATE dec8_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_dec8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_dec8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_dec8.PRIMARY'
 INSERT INTO t_dec8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_dec8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_dec8.PRIMARY'
 INSERT INTO t_dec8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_dec8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_dec8 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_dec8.PRIMARY'
 INSERT INTO t_dec8 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_dec8;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -266,15 +266,15 @@ DROP TABLE t_dec8;
 CREATE TABLE t_eucjpms (pk_varchar VARCHAR(64) CHARACTER SET eucjpms COLLATE eucjpms_bin, pk_char CHAR(64) CHARACTER SET eucjpms COLLATE eucjpms_bin, d_varchar VARCHAR(64) CHARACTER SET eucjpms COLLATE eucjpms_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_eucjpms VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_eucjpms VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_eucjpms.PRIMARY'
 INSERT INTO t_eucjpms VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_eucjpms VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_eucjpms.PRIMARY'
 INSERT INTO t_eucjpms VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_eucjpms VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_eucjpms VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_eucjpms.PRIMARY'
 INSERT INTO t_eucjpms VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_eucjpms;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -288,15 +288,15 @@ DROP TABLE t_eucjpms;
 CREATE TABLE t_euckr (pk_varchar VARCHAR(64) CHARACTER SET euckr COLLATE euckr_bin, pk_char CHAR(64) CHARACTER SET euckr COLLATE euckr_bin, d_varchar VARCHAR(64) CHARACTER SET euckr COLLATE euckr_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_euckr VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_euckr VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_euckr.PRIMARY'
 INSERT INTO t_euckr VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_euckr VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_euckr.PRIMARY'
 INSERT INTO t_euckr VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_euckr VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_euckr VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_euckr.PRIMARY'
 INSERT INTO t_euckr VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_euckr;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -310,15 +310,15 @@ DROP TABLE t_euckr;
 CREATE TABLE t_gb18030 (pk_varchar VARCHAR(64) CHARACTER SET gb18030 COLLATE gb18030_bin, pk_char CHAR(64) CHARACTER SET gb18030 COLLATE gb18030_bin, d_varchar VARCHAR(64) CHARACTER SET gb18030 COLLATE gb18030_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_gb18030 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_gb18030 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_gb18030.PRIMARY'
 INSERT INTO t_gb18030 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_gb18030 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_gb18030.PRIMARY'
 INSERT INTO t_gb18030 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_gb18030 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_gb18030 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_gb18030.PRIMARY'
 INSERT INTO t_gb18030 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_gb18030;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -332,15 +332,15 @@ DROP TABLE t_gb18030;
 CREATE TABLE t_gb2312 (pk_varchar VARCHAR(64) CHARACTER SET gb2312 COLLATE gb2312_bin, pk_char CHAR(64) CHARACTER SET gb2312 COLLATE gb2312_bin, d_varchar VARCHAR(64) CHARACTER SET gb2312 COLLATE gb2312_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_gb2312 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_gb2312 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_gb2312.PRIMARY'
 INSERT INTO t_gb2312 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_gb2312 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_gb2312.PRIMARY'
 INSERT INTO t_gb2312 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_gb2312 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_gb2312 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_gb2312.PRIMARY'
 INSERT INTO t_gb2312 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_gb2312;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -354,15 +354,15 @@ DROP TABLE t_gb2312;
 CREATE TABLE t_gbk (pk_varchar VARCHAR(64) CHARACTER SET gbk COLLATE gbk_bin, pk_char CHAR(64) CHARACTER SET gbk COLLATE gbk_bin, d_varchar VARCHAR(64) CHARACTER SET gbk COLLATE gbk_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_gbk VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_gbk VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_gbk.PRIMARY'
 INSERT INTO t_gbk VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_gbk VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_gbk.PRIMARY'
 INSERT INTO t_gbk VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_gbk VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_gbk VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_gbk.PRIMARY'
 INSERT INTO t_gbk VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_gbk;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -376,15 +376,15 @@ DROP TABLE t_gbk;
 CREATE TABLE t_geostd8 (pk_varchar VARCHAR(64) CHARACTER SET geostd8 COLLATE geostd8_bin, pk_char CHAR(64) CHARACTER SET geostd8 COLLATE geostd8_bin, d_varchar VARCHAR(64) CHARACTER SET geostd8 COLLATE geostd8_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_geostd8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_geostd8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_geostd8.PRIMARY'
 INSERT INTO t_geostd8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_geostd8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_geostd8.PRIMARY'
 INSERT INTO t_geostd8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_geostd8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_geostd8 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_geostd8.PRIMARY'
 INSERT INTO t_geostd8 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_geostd8;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -398,15 +398,15 @@ DROP TABLE t_geostd8;
 CREATE TABLE t_greek (pk_varchar VARCHAR(64) CHARACTER SET greek COLLATE greek_bin, pk_char CHAR(64) CHARACTER SET greek COLLATE greek_bin, d_varchar VARCHAR(64) CHARACTER SET greek COLLATE greek_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_greek VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_greek VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_greek.PRIMARY'
 INSERT INTO t_greek VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_greek VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_greek.PRIMARY'
 INSERT INTO t_greek VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_greek VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_greek VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_greek.PRIMARY'
 INSERT INTO t_greek VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_greek;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -420,15 +420,15 @@ DROP TABLE t_greek;
 CREATE TABLE t_hebrew (pk_varchar VARCHAR(64) CHARACTER SET hebrew COLLATE hebrew_bin, pk_char CHAR(64) CHARACTER SET hebrew COLLATE hebrew_bin, d_varchar VARCHAR(64) CHARACTER SET hebrew COLLATE hebrew_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_hebrew VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_hebrew VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_hebrew.PRIMARY'
 INSERT INTO t_hebrew VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_hebrew VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_hebrew.PRIMARY'
 INSERT INTO t_hebrew VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_hebrew VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_hebrew VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_hebrew.PRIMARY'
 INSERT INTO t_hebrew VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_hebrew;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -442,15 +442,15 @@ DROP TABLE t_hebrew;
 CREATE TABLE t_hp8 (pk_varchar VARCHAR(64) CHARACTER SET hp8 COLLATE hp8_bin, pk_char CHAR(64) CHARACTER SET hp8 COLLATE hp8_bin, d_varchar VARCHAR(64) CHARACTER SET hp8 COLLATE hp8_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_hp8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_hp8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_hp8.PRIMARY'
 INSERT INTO t_hp8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_hp8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_hp8.PRIMARY'
 INSERT INTO t_hp8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_hp8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_hp8 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_hp8.PRIMARY'
 INSERT INTO t_hp8 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_hp8;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -464,15 +464,15 @@ DROP TABLE t_hp8;
 CREATE TABLE t_keybcs2 (pk_varchar VARCHAR(64) CHARACTER SET keybcs2 COLLATE keybcs2_bin, pk_char CHAR(64) CHARACTER SET keybcs2 COLLATE keybcs2_bin, d_varchar VARCHAR(64) CHARACTER SET keybcs2 COLLATE keybcs2_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_keybcs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_keybcs2 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_keybcs2.PRIMARY'
 INSERT INTO t_keybcs2 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_keybcs2 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_keybcs2.PRIMARY'
 INSERT INTO t_keybcs2 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_keybcs2 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_keybcs2 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_keybcs2.PRIMARY'
 INSERT INTO t_keybcs2 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_keybcs2;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -486,15 +486,15 @@ DROP TABLE t_keybcs2;
 CREATE TABLE t_koi8r (pk_varchar VARCHAR(64) CHARACTER SET koi8r COLLATE koi8r_bin, pk_char CHAR(64) CHARACTER SET koi8r COLLATE koi8r_bin, d_varchar VARCHAR(64) CHARACTER SET koi8r COLLATE koi8r_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_koi8r VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_koi8r VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_koi8r.PRIMARY'
 INSERT INTO t_koi8r VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_koi8r VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_koi8r.PRIMARY'
 INSERT INTO t_koi8r VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_koi8r VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_koi8r VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_koi8r.PRIMARY'
 INSERT INTO t_koi8r VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_koi8r;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -508,15 +508,15 @@ DROP TABLE t_koi8r;
 CREATE TABLE t_koi8u (pk_varchar VARCHAR(64) CHARACTER SET koi8u COLLATE koi8u_bin, pk_char CHAR(64) CHARACTER SET koi8u COLLATE koi8u_bin, d_varchar VARCHAR(64) CHARACTER SET koi8u COLLATE koi8u_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_koi8u VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_koi8u VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_koi8u.PRIMARY'
 INSERT INTO t_koi8u VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_koi8u VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_koi8u.PRIMARY'
 INSERT INTO t_koi8u VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_koi8u VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_koi8u VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_koi8u.PRIMARY'
 INSERT INTO t_koi8u VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_koi8u;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -530,15 +530,15 @@ DROP TABLE t_koi8u;
 CREATE TABLE t_latin1 (pk_varchar VARCHAR(64) CHARACTER SET latin1 COLLATE latin1_bin, pk_char CHAR(64) CHARACTER SET latin1 COLLATE latin1_bin, d_varchar VARCHAR(64) CHARACTER SET latin1 COLLATE latin1_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_latin1 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_latin1 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_latin1.PRIMARY'
 INSERT INTO t_latin1 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_latin1 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_latin1.PRIMARY'
 INSERT INTO t_latin1 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_latin1 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_latin1 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_latin1.PRIMARY'
 INSERT INTO t_latin1 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_latin1;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -552,15 +552,15 @@ DROP TABLE t_latin1;
 CREATE TABLE t_latin2 (pk_varchar VARCHAR(64) CHARACTER SET latin2 COLLATE latin2_bin, pk_char CHAR(64) CHARACTER SET latin2 COLLATE latin2_bin, d_varchar VARCHAR(64) CHARACTER SET latin2 COLLATE latin2_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_latin2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_latin2 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_latin2.PRIMARY'
 INSERT INTO t_latin2 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_latin2 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_latin2.PRIMARY'
 INSERT INTO t_latin2 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_latin2 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_latin2 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_latin2.PRIMARY'
 INSERT INTO t_latin2 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_latin2;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -574,15 +574,15 @@ DROP TABLE t_latin2;
 CREATE TABLE t_latin5 (pk_varchar VARCHAR(64) CHARACTER SET latin5 COLLATE latin5_bin, pk_char CHAR(64) CHARACTER SET latin5 COLLATE latin5_bin, d_varchar VARCHAR(64) CHARACTER SET latin5 COLLATE latin5_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_latin5 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_latin5 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_latin5.PRIMARY'
 INSERT INTO t_latin5 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_latin5 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_latin5.PRIMARY'
 INSERT INTO t_latin5 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_latin5 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_latin5 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_latin5.PRIMARY'
 INSERT INTO t_latin5 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_latin5;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -596,15 +596,15 @@ DROP TABLE t_latin5;
 CREATE TABLE t_latin7 (pk_varchar VARCHAR(64) CHARACTER SET latin7 COLLATE latin7_bin, pk_char CHAR(64) CHARACTER SET latin7 COLLATE latin7_bin, d_varchar VARCHAR(64) CHARACTER SET latin7 COLLATE latin7_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_latin7 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_latin7 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_latin7.PRIMARY'
 INSERT INTO t_latin7 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_latin7 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_latin7.PRIMARY'
 INSERT INTO t_latin7 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_latin7 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_latin7 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_latin7.PRIMARY'
 INSERT INTO t_latin7 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_latin7;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -618,15 +618,15 @@ DROP TABLE t_latin7;
 CREATE TABLE t_macce (pk_varchar VARCHAR(64) CHARACTER SET macce COLLATE macce_bin, pk_char CHAR(64) CHARACTER SET macce COLLATE macce_bin, d_varchar VARCHAR(64) CHARACTER SET macce COLLATE macce_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_macce VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_macce VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_macce.PRIMARY'
 INSERT INTO t_macce VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_macce VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_macce.PRIMARY'
 INSERT INTO t_macce VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_macce VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_macce VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_macce.PRIMARY'
 INSERT INTO t_macce VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_macce;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -640,15 +640,15 @@ DROP TABLE t_macce;
 CREATE TABLE t_macroman (pk_varchar VARCHAR(64) CHARACTER SET macroman COLLATE macroman_bin, pk_char CHAR(64) CHARACTER SET macroman COLLATE macroman_bin, d_varchar VARCHAR(64) CHARACTER SET macroman COLLATE macroman_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_macroman VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_macroman VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_macroman.PRIMARY'
 INSERT INTO t_macroman VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_macroman VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_macroman.PRIMARY'
 INSERT INTO t_macroman VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_macroman VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_macroman VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_macroman.PRIMARY'
 INSERT INTO t_macroman VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_macroman;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -662,15 +662,15 @@ DROP TABLE t_macroman;
 CREATE TABLE t_sjis (pk_varchar VARCHAR(64) CHARACTER SET sjis COLLATE sjis_bin, pk_char CHAR(64) CHARACTER SET sjis COLLATE sjis_bin, d_varchar VARCHAR(64) CHARACTER SET sjis COLLATE sjis_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_sjis VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_sjis VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_sjis.PRIMARY'
 INSERT INTO t_sjis VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_sjis VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_sjis.PRIMARY'
 INSERT INTO t_sjis VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_sjis VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_sjis VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_sjis.PRIMARY'
 INSERT INTO t_sjis VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_sjis;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -684,15 +684,15 @@ DROP TABLE t_sjis;
 CREATE TABLE t_swe7 (pk_varchar VARCHAR(64) CHARACTER SET swe7 COLLATE swe7_bin, pk_char CHAR(64) CHARACTER SET swe7 COLLATE swe7_bin, d_varchar VARCHAR(64) CHARACTER SET swe7 COLLATE swe7_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_swe7 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_swe7 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_swe7.PRIMARY'
 INSERT INTO t_swe7 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_swe7 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_swe7.PRIMARY'
 INSERT INTO t_swe7 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_swe7 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_swe7 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_swe7.PRIMARY'
 INSERT INTO t_swe7 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_swe7;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -706,15 +706,15 @@ DROP TABLE t_swe7;
 CREATE TABLE t_tis620 (pk_varchar VARCHAR(64) CHARACTER SET tis620 COLLATE tis620_bin, pk_char CHAR(64) CHARACTER SET tis620 COLLATE tis620_bin, d_varchar VARCHAR(64) CHARACTER SET tis620 COLLATE tis620_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_tis620 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_tis620 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_tis620.PRIMARY'
 INSERT INTO t_tis620 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_tis620 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_tis620.PRIMARY'
 INSERT INTO t_tis620 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_tis620 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_tis620 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_tis620.PRIMARY'
 INSERT INTO t_tis620 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_tis620;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -728,15 +728,15 @@ DROP TABLE t_tis620;
 CREATE TABLE t_ucs2 (pk_varchar VARCHAR(64) CHARACTER SET ucs2 COLLATE ucs2_bin, pk_char CHAR(64) CHARACTER SET ucs2 COLLATE ucs2_bin, d_varchar VARCHAR(64) CHARACTER SET ucs2 COLLATE ucs2_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_ucs2 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ucs2 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_ucs2.PRIMARY'
 INSERT INTO t_ucs2 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_ucs2 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_ucs2.PRIMARY'
 INSERT INTO t_ucs2 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_ucs2 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_ucs2 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_ucs2.PRIMARY'
 INSERT INTO t_ucs2 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_ucs2;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -750,15 +750,15 @@ DROP TABLE t_ucs2;
 CREATE TABLE t_ujis (pk_varchar VARCHAR(64) CHARACTER SET ujis COLLATE ujis_bin, pk_char CHAR(64) CHARACTER SET ujis COLLATE ujis_bin, d_varchar VARCHAR(64) CHARACTER SET ujis COLLATE ujis_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_ujis VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_ujis VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_ujis.PRIMARY'
 INSERT INTO t_ujis VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_ujis VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_ujis.PRIMARY'
 INSERT INTO t_ujis VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_ujis VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_ujis VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_ujis.PRIMARY'
 INSERT INTO t_ujis VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_ujis;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -772,15 +772,15 @@ DROP TABLE t_ujis;
 CREATE TABLE t_utf16 (pk_varchar VARCHAR(64) CHARACTER SET utf16 COLLATE utf16_bin, pk_char CHAR(64) CHARACTER SET utf16 COLLATE utf16_bin, d_varchar VARCHAR(64) CHARACTER SET utf16 COLLATE utf16_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_utf16 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_utf16 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf16.PRIMARY'
 INSERT INTO t_utf16 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_utf16 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf16.PRIMARY'
 INSERT INTO t_utf16 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_utf16 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_utf16 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf16.PRIMARY'
 INSERT INTO t_utf16 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf16;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -794,15 +794,15 @@ DROP TABLE t_utf16;
 CREATE TABLE t_utf16le (pk_varchar VARCHAR(64) CHARACTER SET utf16le COLLATE utf16le_bin, pk_char CHAR(64) CHARACTER SET utf16le COLLATE utf16le_bin, d_varchar VARCHAR(64) CHARACTER SET utf16le COLLATE utf16le_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_utf16le VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_utf16le VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf16le.PRIMARY'
 INSERT INTO t_utf16le VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_utf16le VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf16le.PRIMARY'
 INSERT INTO t_utf16le VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_utf16le VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_utf16le VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf16le.PRIMARY'
 INSERT INTO t_utf16le VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf16le;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -816,15 +816,15 @@ DROP TABLE t_utf16le;
 CREATE TABLE t_utf32 (pk_varchar VARCHAR(64) CHARACTER SET utf32 COLLATE utf32_bin, pk_char CHAR(64) CHARACTER SET utf32 COLLATE utf32_bin, d_varchar VARCHAR(64) CHARACTER SET utf32 COLLATE utf32_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_utf32 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_utf32 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf32.PRIMARY'
 INSERT INTO t_utf32 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_utf32 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf32.PRIMARY'
 INSERT INTO t_utf32 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_utf32 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_utf32 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf32.PRIMARY'
 INSERT INTO t_utf32 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf32;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -845,15 +845,15 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t_utf8 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_utf8 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8.PRIMARY'
 INSERT INTO t_utf8 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_utf8 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8.PRIMARY'
 INSERT INTO t_utf8 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_utf8 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_utf8 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8.PRIMARY'
 INSERT INTO t_utf8 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -867,15 +867,15 @@ DROP TABLE t_utf8;
 CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin, pk_char CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin, d_varchar VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb4.PRIMARY'
 INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb4.PRIMARY'
 INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_utf8mb4 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb4.PRIMARY'
 INSERT INTO t_utf8mb4 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)
@@ -889,15 +889,15 @@ DROP TABLE t_utf8mb4;
 CREATE TABLE t_utf8mb4 (pk_varchar VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, pk_char CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, d_varchar VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, d_char CHAR(64), PRIMARY KEY(pk_varchar, pk_char)) ENGINE=rocksdb;
 INSERT INTO t_utf8mb4 VALUES('a ', 'a ', 'a ', 'a ');
 INSERT INTO t_utf8mb4 VALUES ('a', 'a', 'a', 'a');
-ERROR 23000: Duplicate entry 'a-a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a-a' for key 't_utf8mb4.PRIMARY'
 INSERT INTO t_utf8mb4 VALUES('b  ', 'b  ', 'b  ', 'b  ');;
 INSERT INTO t_utf8mb4 VALUES('b', 'b', 'b', 'b');
-ERROR 23000: Duplicate entry 'b-b' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'b-b' for key 't_utf8mb4.PRIMARY'
 INSERT INTO t_utf8mb4 VALUES('a\t', 'a\t', 'a\t', 'a\t');
 INSERT INTO t_utf8mb4 VALUES('a \t', 'a \t', 'a \t', 'a \t');
 # Try longer values
 INSERT INTO t_utf8mb4 VALUES(concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)), concat('a', repeat(' ',10)));
-ERROR 23000: Duplicate entry 'a          -a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a          -a' for key 't_utf8mb4.PRIMARY'
 INSERT INTO t_utf8mb4 VALUES(concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)), concat('c', repeat(' ',10)));
 SELECT pk_varchar, length(pk_varchar), hex(pk_varchar), pk_char, length(pk_char), hex(pk_char), d_varchar, length(d_varchar), hex(d_varchar), d_char, length(d_char), hex(d_char) FROM t_utf8mb4;
 pk_varchar	length(pk_varchar)	hex(pk_varchar)	pk_char	length(pk_char)	hex(pk_char)	d_varchar	length(d_varchar)	hex(d_varchar)	d_char	length(d_char)	hex(d_char)

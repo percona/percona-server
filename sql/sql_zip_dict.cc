@@ -110,6 +110,8 @@ bool bootstrap(THD *thd) {
     dict_table_str_enc += " ENCRYPTION='Y'";
   }
 
+  dd::end_transaction(thd, false);
+
   // Create mysql.compression_dictionary table
   if (execute_query(thd, dict_table_str_enc)) {
     return true;
@@ -396,7 +398,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
   }
 
   table->next_number_field->set_null();
-  //table->auto_increment_field_not_null = true;
+  // table->auto_increment_field_not_null = true;
   table->record[0][0] = ts->default_values[0];
   table->file->ha_start_bulk_insert(1);  // 1 is the estimated rows to insert
 
@@ -411,7 +413,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
     my_error(error, MYF(0), name, 64);
     table->file->ha_release_auto_increment();
     table->file->ha_end_bulk_insert();
-    //table->auto_increment_field_not_null = false;
+    // table->auto_increment_field_not_null = false;
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
     DBUG_RETURN(error);
@@ -483,7 +485,7 @@ int create_zip_dict(THD *thd, const char *name, ulong name_len,
 
   table->file->ha_release_auto_increment();
   table->file->ha_end_bulk_insert();
-  //table->auto_increment_field_not_null = false;
+  // table->auto_increment_field_not_null = false;
 
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();

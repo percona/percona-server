@@ -141,13 +141,9 @@ SET(DD_SOURCES
   dd/impl/system_views/collation_charset_applicability.cc
   dd/impl/system_views/columns.cc
   dd/impl/system_views/column_statistics.cc
-<<<<<<< HEAD
+  dd/impl/system_views/enabled_roles.cc
   dd/impl/system_views/compression_dictionary.cc
   dd/impl/system_views/compression_dictionary_tables.cc
-||||||| 91a17cedb1e
-=======
-  dd/impl/system_views/enabled_roles.cc
->>>>>>> mysql-8.0.19
   dd/impl/system_views/events.cc
   dd/impl/system_views/files.cc
   dd/impl/system_views/innodb_datafiles.cc
@@ -348,12 +344,8 @@ SET(SQL_SHARED_SOURCES
   auth/sha2_password_common.cc
   auth/sha2_password.cc
   ssl_wrapper_service.cc
-<<<<<<< HEAD
-  binlog_crypt_data.cc
-||||||| 91a17cedb1e
-=======
   bka_iterator.cc
->>>>>>> mysql-8.0.19
+  binlog_crypt_data.cc
   bootstrap.cc
   check_stack.cc
   conn_handler/connection_handler_manager.cc 

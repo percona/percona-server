@@ -553,20 +553,8 @@ struct recv_sys_t {
   /** event to signal that the page cleaner has finished the request */
   os_event_t flush_end;
 
-<<<<<<< HEAD
-||||||| 91a17cedb1e
-  /** type of the flush request. BUF_FLUSH_LRU: flush end of LRU,
-  keeping free blocks.  BUF_FLUSH_LIST: flush all of blocks. */
-  buf_flush_t flush_type;
-
-=======
-  /** type of the flush request. BUF_FLUSH_LRU: flush end of LRU,
-  keeping free blocks.  BUF_FLUSH_LIST: flush all of blocks. */
-  buf_flush_t flush_type;
-
 #else  /* !UNIV_HOTBACKUP */
   bool apply_file_operations;
->>>>>>> mysql-8.0.19
 #endif /* !UNIV_HOTBACKUP */
 
   /** This is true when log rec application to pages is allowed;

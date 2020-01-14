@@ -975,7 +975,11 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 */
 
 void remove_ssl_err_thread_state();
-<<<<<<< HEAD
+
+/**
+  Interface to get the number of VCPUs.
+*/
+unsigned int thd_get_num_vcpus();
 
 int thd_command(const MYSQL_THD thd);
 long long thd_start_time(const MYSQL_THD thd);
@@ -989,14 +993,6 @@ void thd_kill(unsigned long id);
 */
 int thd_get_ft_query_extra_word_chars(void);
 
-||||||| 91a17cedb1e
-=======
-
-/**
-  Interface to get the number of VCPUs.
-*/
-unsigned int thd_get_num_vcpus();
->>>>>>> mysql-8.0.19
 #ifdef __cplusplus
 }
 #endif

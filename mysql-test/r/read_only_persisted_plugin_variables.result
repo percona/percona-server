@@ -126,16 +126,10 @@ VARIABLE_NAME	VARIABLE_VALUE
 innodb_log_buffer_size	16777216
 slave_type_conversions	
 back_log	80
-<<<<<<< HEAD
-binlog_gtid_simple_recovery	1
-binlog_space_limit	134217728
-||||||| 91a17cedb1e
-binlog_gtid_simple_recovery	1
-=======
 binlog_gtid_simple_recovery	ON
->>>>>>> mysql-8.0.19
+binlog_space_limit	134217728
 disabled_storage_engines	
-encrypt_tmp_files	1
+encrypt_tmp_files	ON
 enforce_storage_engine	MyISAM
 ft_max_word_len	84
 ft_min_word_len	4
@@ -214,14 +208,8 @@ performance_schema_session_connect_attrs_size	512
 performance_schema_setup_actors_size	-1
 performance_schema_setup_objects_size	-1
 performance_schema_users_size	-1
-<<<<<<< HEAD
 proxy_protocol_networks	*
-relay_log_recovery	0
-||||||| 91a17cedb1e
-relay_log_recovery	0
-=======
 relay_log_recovery	OFF
->>>>>>> mysql-8.0.19
 relay_log_space_limit	0
 report_host	
 report_password	

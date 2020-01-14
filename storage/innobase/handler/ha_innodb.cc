@@ -229,13 +229,7 @@ static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
 mysql_cond_t resume_encryption_cond;
 mysql_mutex_t resume_encryption_cond_m;
-<<<<<<< HEAD
 bool innodb_inited = false;
-||||||| 91a17cedb1e
-static bool innodb_inited = 0;
-=======
-static bool innodb_inited = false;
->>>>>>> mysql-8.0.19
 
 #define EQ_CURRENT_THD(thd) ((thd) == current_thd)
 
@@ -5059,51 +5053,7 @@ static int innodb_init_params() {
   inside InnoDB: this is the 'sync wait array' size, as well as the
   maximum number of threads that can wait in the 'srv_conc array' for
   their time to enter InnoDB. */
-
-<<<<<<< HEAD
-  srv_max_n_threads = 1     /* io_ibuf_thread */
-                      + 1   /* io_log_thread */
-                      + 1   /* lock_wait_timeout_thread */
-                      + 1   /* srv_error_monitor_thread */
-                      + 1   /* srv_monitor_thread */
-                      + 1   /* srv_master_thread */
-                      + 1   /* srv_purge_coordinator_thread */
-                      + 1   /* buf_dump_thread */
-                      + 1   /* dict_stats_thread */
-                      + 1   /* fts_optimize_thread */
-                      + 1   /* trx_rollback_or_clean_all_recovered */
-                      + 128 /* added as margin, for use of
-                            InnoDB Memcached etc. */
-                      + max_connections + srv_n_read_io_threads +
-                      srv_n_write_io_threads + srv_n_purge_threads +
-                      srv_n_page_cleaners
-                      /* FTS Parallel Sort */
-                      +
-                      fts_sort_pll_degree * FTS_NUM_AUX_INDEX * max_connections;
-||||||| 91a17cedb1e
-  srv_max_n_threads = 1     /* io_ibuf_thread */
-                      + 1   /* io_log_thread */
-                      + 1   /* lock_wait_timeout_thread */
-                      + 1   /* srv_error_monitor_thread */
-                      + 1   /* srv_monitor_thread */
-                      + 1   /* srv_master_thread */
-                      + 1   /* srv_purge_coordinator_thread */
-                      + 1   /* buf_dump_thread */
-                      + 1   /* dict_stats_thread */
-                      + 1   /* fts_optimize_thread */
-                      + 1   /* recv_writer_thread */
-                      + 1   /* trx_rollback_or_clean_all_recovered */
-                      + 128 /* added as margin, for use of
-                            InnoDB Memcached etc. */
-                      + max_connections + srv_n_read_io_threads +
-                      srv_n_write_io_threads + srv_n_purge_threads +
-                      srv_n_page_cleaners
-                      /* FTS Parallel Sort */
-                      +
-                      fts_sort_pll_degree * FTS_NUM_AUX_INDEX * max_connections;
-=======
   srv_max_n_threads = 100 * 1024;
->>>>>>> mysql-8.0.19
 
   /* This is the first time univ_page_size is used.
   It was initialized to 16k pages before srv_page_size was set */
@@ -7631,14 +7581,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     }
     dict_table_close(ib_table, FALSE, FALSE);
     ib_table = NULL;
-<<<<<<< HEAD
-    is_part = NULL;
-||||||| 91a17cedb1e
-    is_part = NULL;
-
-=======
-
->>>>>>> mysql-8.0.19
     free_share(m_share);
     return error;
   }
@@ -8075,15 +8017,9 @@ int innobase_fts_nocase_compare(const CHARSET_INFO *cs, const fts_string_t *s1,
                                 const fts_string_t *s2) {
   ulint newlen;
 
-<<<<<<< HEAD
-  if (!my_binary_compare(charset)) {
-    my_casedn_str(charset, (char *)s2->f_str);
+  if (!my_binary_compare(cs)) {
+    my_casedn_str(cs, (char *)s2->f_str);
   }
-||||||| 91a17cedb1e
-  my_casedn_str(charset, (char *)s2->f_str);
-=======
-  my_casedn_str(cs, (char *)s2->f_str);
->>>>>>> mysql-8.0.19
 
   newlen = strlen((const char *)s2->f_str);
 
@@ -24357,25 +24293,13 @@ void innobase_init_vc_templ(dict_table_t *table) {
 #ifdef UNIV_DEBUG
     bool ret =
 #endif /* UNIV_DEBUG */
-<<<<<<< HEAD
-        handler::my_prepare_gcolumn_template(thd, t_dbname, t_tbname,
-                                             &innobase_build_v_templ_callback,
-                                             static_cast<void *>(table));
+
+        handler::my_prepare_gcolumn_template(
+            thd, schema_name.c_str(), table_name.c_str(),
+            &innobase_build_v_templ_callback, static_cast<void *>(table));
     ut_ad(!ret);
   }
 
-||||||| 91a17cedb1e
-      handler::my_prepare_gcolumn_template(thd, t_dbname, t_tbname,
-                                           &innobase_build_v_templ_callback,
-                                           static_cast<void *>(table));
-  ut_ad(!ret);
-=======
-      handler::my_prepare_gcolumn_template(
-          thd, schema_name.c_str(), table_name.c_str(),
-          &innobase_build_v_templ_callback, static_cast<void *>(table));
-  ut_ad(!ret);
-
->>>>>>> mysql-8.0.19
   mutex_exit(&dict_sys->mutex);
 }
 

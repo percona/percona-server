@@ -21,10 +21,10 @@ std::string uuid = generate_uuid();
 namespace keyring__vault_io_unittest {
 using namespace keyring;
 
+using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
-using ::testing::_;
 
 std::string credential_file_url = "./keyring_vault.conf";
 
@@ -270,7 +270,7 @@ TEST_F(Vault_io_test, RetrieveKeyTypeAndValue) {
   EXPECT_TRUE(*key.get_key_signature() ==
               get_key_signature(uuid, "key1", "rob"));
   ASSERT_TRUE(memcmp(key.get_key_data(), "Robi", key.get_key_data_size()) == 0);
-  EXPECT_STREQ("AES", key.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key.get_key_type_as_string()->c_str());
 
   Vault_key key_to_remove(key_1_id, nullptr, "rob", nullptr, 0);
   key_to_remove.set_key_operation(REMOVE_KEY);
@@ -300,7 +300,7 @@ TEST_F(Vault_io_test, FlushKeyRetrieveDeleteInit) {
               get_key_signature(uuid, "key1", "rob"));
   ASSERT_TRUE(
       memcmp(key1_id.get_key_data(), "Robi", key1_id.get_key_data_size()) == 0);
-  EXPECT_STREQ("AES", key1_id.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key1_id.get_key_type_as_string()->c_str());
 
   Vault_key key_to_remove(key);
   key_to_remove.set_key_operation(REMOVE_KEY);

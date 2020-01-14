@@ -34,16 +34,6 @@
 #include <memory>
 #include <new>
 #include <string>
-<<<<<<< HEAD
-
-#include "keycache.h"    // dflt_key_cache
-#include "mutex_lock.h"  // MUTEX_LOCK
-#include "my_default.h"
-||||||| 91a17cedb1e
-
-#include "keycache.h"                                // dflt_key_cache
-#include "mutex_lock.h"                              // MUTEX_LOCK
-=======
 #include <vector>
 
 #include "decimal.h"
@@ -58,6 +48,7 @@
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_default.h"
 #include "my_hostname.h"
 #include "my_io.h"
 #include "my_loglevel.h"
@@ -66,7 +57,6 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread_local.h"
->>>>>>> mysql-8.0.19
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
@@ -2185,19 +2175,13 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   field_list.push_back(field = new Item_empty_string("State", 30));
   field->maybe_null = true;
   field_list.push_back(field = new Item_empty_string("Info", max_query_length));
-<<<<<<< HEAD
-  field->maybe_null = 1;
+  field->maybe_null = true;
   field_list.push_back(field = new Item_return_int("Rows_sent",
                                                    MY_INT64_NUM_DECIMAL_DIGITS,
                                                    MYSQL_TYPE_LONGLONG));
   field_list.push_back(field = new Item_return_int("Rows_examined",
                                                    MY_INT64_NUM_DECIMAL_DIGITS,
                                                    MYSQL_TYPE_LONGLONG));
-||||||| 91a17cedb1e
-  field->maybe_null = 1;
-=======
-  field->maybe_null = true;
->>>>>>> mysql-8.0.19
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return;
@@ -3636,14 +3620,13 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
 
     // COLUMN_KEY
     pos = pointer_cast<const uchar *>(
-	    (field->flags & PRI_KEY_FLAG)
-                        ? "PRI"
-                        : (field->flags & UNIQUE_KEY_FLAG)
-                              ? "UNI"
-                              : (field->flags & MULTIPLE_KEY_FLAG)
-                                    ? "MUL"
-                                    : (field->flags & CLUSTERING_FLAG) ? "CLU"
-                                                                       : "");
+        (field->flags & PRI_KEY_FLAG)
+            ? "PRI"
+            : (field->flags & UNIQUE_KEY_FLAG)
+                  ? "UNI"
+                  : (field->flags & MULTIPLE_KEY_FLAG)
+                        ? "MUL"
+                        : (field->flags & CLUSTERING_FLAG) ? "CLU" : "");
     table->field[TMP_TABLE_COLUMNS_COLUMN_KEY]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 

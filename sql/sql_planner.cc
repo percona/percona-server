@@ -631,18 +631,10 @@ Key_use *Optimize_table_order::find_best_ref(
         }
 
         // Limit the number of matched rows
-<<<<<<< HEAD
-        set_if_smaller(tmp_fanout, (double)thd->variables.max_seeks_for_key);
-        if (table->covering_keys.is_set(key) ||
-            (table->file->index_flags(key, 0, 0) & HA_CLUSTERED_INDEX)) {
-||||||| 91a17cedb1e
-        set_if_smaller(tmp_fanout, (double)thd->variables.max_seeks_for_key);
-        if (table->covering_keys.is_set(key)) {
-=======
         tmp_fanout =
             std::min(tmp_fanout, double(thd->variables.max_seeks_for_key));
-        if (table->covering_keys.is_set(key)) {
->>>>>>> mysql-8.0.19
+        if (table->covering_keys.is_set(key) ||
+            (table->file->index_flags(key, 0, 0) & HA_CLUSTERED_INDEX)) {
           // We can use only index tree
           const Cost_estimate index_read_cost =
               table->file->index_scan_cost(key, 1, tmp_fanout);

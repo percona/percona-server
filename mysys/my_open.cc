@@ -35,15 +35,11 @@
 #include <fcntl.h>
 #include <stddef.h>
 #include <sys/types.h>
-<<<<<<< HEAD
+#include <iostream>
+#include <thread>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
-||||||| 91a17cedb1e
-=======
-#include <iostream>
-#include <thread>
->>>>>>> mysql-8.0.19
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -93,7 +89,6 @@ File my_open(const char *filename, int Flags, myf MyFlags) {
   return fd;
 }
 
-<<<<<<< HEAD
 /*
   Connect to unix domain socket
 
@@ -134,21 +129,14 @@ File my_unix_socket_connect(const char *FileName, myf MyFlags) noexcept
     close(sd);
     sd = -1;
   }
-
-  DBUG_RETURN(my_register_filename(static_cast<File>(sd), FileName,
-                                   FILE_BY_OPEN, EE_FILENOTFOUND, MyFlags));
+  RegisterFilename(static_cast<File>(sd), FileName,
+                   file_info::OpenType::FILE_BY_OPEN);
+  DBUG_RETURN(sd);
 } /* my_unix_socket_connect */
 #endif
 
-/*
-  Close a file
-||||||| 91a17cedb1e
-/*
-  Close a file
-=======
 /**
-  Close a file.
->>>>>>> mysql-8.0.19
+  Close a file
 
   @param fd   File sescriptor
   @param MyFlags  Special Flags

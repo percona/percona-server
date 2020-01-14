@@ -1640,33 +1640,11 @@ std::pair<bool, space_id_t> dict_check_sys_tables(bool validate) {
     }
 
     /* Check that the .ibd file exists. */
-<<<<<<< HEAD
-    uint32_t fsp_flags = dict_tf_to_fsp_flags(flags);
-    /* Set tablespace encryption flag */
-    if (flags2 & DICT_TF2_ENCRYPTION_FILE_PER_TABLE) {
-      fsp_flags_set_encryption(fsp_flags);
-    }
-
     Keyring_encryption_info keyring_encryption_info;
 
     dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
                                fsp_flags, space_name, tbl_name, filepath, true,
                                true, keyring_encryption_info);
-||||||| 91a17cedb1e
-    uint32_t fsp_flags = dict_tf_to_fsp_flags(flags);
-    /* Set tablespace encryption flag */
-    if (flags2 & DICT_TF2_ENCRYPTION_FILE_PER_TABLE) {
-      fsp_flags_set_encryption(fsp_flags);
-    }
-
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, tbl_name, filepath, true, true);
-=======
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, tbl_name, filepath, true, true);
->>>>>>> mysql-8.0.19
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_194) << "Ignoring tablespace " << id_name_t(space_name)

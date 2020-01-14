@@ -701,16 +701,8 @@ static int merge_many_buff(MI_SORT_PARAM *info, uint keys, uchar **sort_keys,
   from_file = t_file;
   to_file = &t_file2;
   while (*maxbuffer >= MERGEBUFF2) {
-<<<<<<< HEAD
-    if (reinit_io_cache(from_file, READ_CACHE, 0L, 0, 0)) goto cleanup;
-    if (reinit_io_cache(to_file, WRITE_CACHE, 0L, 0, 0)) goto cleanup;
-||||||| 91a17cedb1e
-    reinit_io_cache(from_file, READ_CACHE, 0L, 0, 0);
-    reinit_io_cache(to_file, WRITE_CACHE, 0L, 0, 0);
-=======
-    reinit_io_cache(from_file, READ_CACHE, 0L, false, false);
-    reinit_io_cache(to_file, WRITE_CACHE, 0L, false, false);
->>>>>>> mysql-8.0.19
+    if (reinit_io_cache(from_file, READ_CACHE, 0L, false, false)) goto cleanup;
+    if (reinit_io_cache(to_file, WRITE_CACHE, 0L, false, false)) goto cleanup;
     lastbuff = buffpek;
     for (i = 0; i <= *maxbuffer - MERGEBUFF * 3 / 2; i += MERGEBUFF) {
       if (merge_buffers(info, keys, from_file, to_file, sort_keys, lastbuff++,

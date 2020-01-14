@@ -800,7 +800,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
     uint dup_key_found;
 
-<<<<<<< HEAD
     error = table->file->ha_fast_update(thd, *update_field_list,
                                         *update_value_list, conds);
     if (error == 0)
@@ -813,54 +812,16 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         error = iterator->Read();
         if (error || thd->killed) break;
         thd->inc_examined_row_count(1);
-        bool skip_record;
-        if (qep_tab.skip_record(thd, &skip_record)) {
-          error = 1;
-          break;
-        }
-        if (skip_record) {
-          table->file
-              ->unlock_row();  // Row failed condition check, release lock
-          thd->get_stmt_da()->inc_current_row_for_condition();
-          continue;
+        if (qep_tab.condition() != nullptr) {
+          const bool skip_record = qep_tab.condition()->val_int() == 0;
+          if (skip_record) {
+            table->file
+                ->unlock_row();  // Row failed condition check, release lock
+            thd->get_stmt_da()->inc_current_row_for_condition();
+            continue;
+          }
         }
         DBUG_ASSERT(!thd->is_error());
-||||||| 91a17cedb1e
-    while (true) {
-      error = iterator->Read();
-      if (error || thd->killed) break;
-      thd->inc_examined_row_count(1);
-      bool skip_record;
-      if (qep_tab.skip_record(thd, &skip_record)) {
-        error = 1;
-        break;
-      }
-      if (skip_record) {
-        table->file->unlock_row();  // Row failed condition check, release lock
-        thd->get_stmt_da()->inc_current_row_for_condition();
-        continue;
-      }
-      DBUG_ASSERT(!thd->is_error());
-=======
-    while (true) {
-      error = iterator->Read();
-      if (error || thd->killed) break;
-      thd->inc_examined_row_count(1);
-      if (qep_tab.condition() != nullptr) {
-        const bool skip_record = qep_tab.condition()->val_int() == 0;
-        if (thd->is_error()) {
-          error = 1;
-          break;
-        }
-        if (skip_record) {
-          table->file
-              ->unlock_row();  // Row failed condition check, release lock
-          thd->get_stmt_da()->inc_current_row_for_condition();
-          continue;
-        }
-      }
-      DBUG_ASSERT(!thd->is_error());
->>>>>>> mysql-8.0.19
 
         if (table->file->was_semi_consistent_read())
           continue; /* repeat the read of the same row if it still exists */
@@ -868,7 +829,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         table->clear_partial_update_diffs();
 
         store_record(table, record[1]);
-      bool is_row_changed = false;
+        bool is_row_changed = false;
         if (fill_record_n_invoke_before_triggers(
                 thd, &update, *update_field_list, *update_value_list, table,
                 TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
@@ -888,26 +849,26 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
               break;
             }
           }
-        /*
-          Existing rows in table should normally satisfy CHECK constraints. So
-          it should be safe to check constraints only for rows that has really
-          changed (i.e. after compare_records()).
+          /*
+            Existing rows in table should normally satisfy CHECK constraints. So
+            it should be safe to check constraints only for rows that has really
+            changed (i.e. after compare_records()).
 
-          In future, once addition/enabling of CHECK constraints without their
-          validation is supported, we might encounter old rows which do not
-          satisfy CHECK constraints currently enabled. However, rejecting no-op
-          updates to such invalid pre-existing rows won't make them valid and is
-          probably going to be confusing for users. So it makes sense to stick
-          to current behavior.
-        */
-        if (invoke_table_check_constraints(thd, table)) {
-          if (thd->is_error()) {
-            error = 1;
-            break;
+            In future, once addition/enabling of CHECK constraints without their
+            validation is supported, we might encounter old rows which do not
+            satisfy CHECK constraints currently enabled. However, rejecting
+            no-op updates to such invalid pre-existing rows won't make them
+            valid and is probably going to be confusing for users. So it makes
+            sense to stick to current behavior.
+          */
+          if (invoke_table_check_constraints(thd, table)) {
+            if (thd->is_error()) {
+              error = 1;
+              break;
+            }
+            // continue when IGNORE clause is used.
+            continue;
           }
-          // continue when IGNORE clause is used.
-          continue;
-        }
 
           if (will_batch) {
             /*

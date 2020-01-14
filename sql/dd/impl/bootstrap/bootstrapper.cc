@@ -1013,9 +1013,7 @@ static bool check_and_create_compression_dict_tables(THD *thd) {
   // Create the compression dictionary tables
   if (compression_dict::bootstrap(thd)) return true;
 
-  if (dd::info_schema::create_non_dd_views(thd, false)) {
-    return true;
-  }
+  dd::info_schema::create_system_views(thd, true, true);
 
   /*
     We must commit the transaction before executing a new query, which

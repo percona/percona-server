@@ -455,21 +455,6 @@ class System_tables {
 
 class System_views {
  public:
-<<<<<<< HEAD
-  // Classification of system views.
-  enum class Types {
-    // I_S views created on dictionary tables
-    INFORMATION_SCHEMA,
-    // I_S views that are based on non dictionary tables like user, host,
-    // compression_dictionary etc
-    INFORMATION_SCHEMA_NON_DD
-  };
-||||||| 91a17cedb1e
-  // Classification of system views.
-  enum class Types {
-    INFORMATION_SCHEMA,
-  };
-=======
   /*
     Classification of system views.
 
@@ -482,21 +467,14 @@ class System_views {
 
   */
   enum class Types { INFORMATION_SCHEMA, NON_DD_BASED_INFORMATION_SCHEMA };
->>>>>>> mysql-8.0.19
 
   // Map from system view type to string description, e.g. for debugging.
   static const char *type_name(Types type) {
     switch (type) {
       case Types::INFORMATION_SCHEMA:
         return "INFORMATION_SCHEMA";
-<<<<<<< HEAD
-      case Types::INFORMATION_SCHEMA_NON_DD:
-        return "INFORMATION_SCHEMA_NON_DD";
-||||||| 91a17cedb1e
-=======
       case Types::NON_DD_BASED_INFORMATION_SCHEMA:
         return "NON_DD_BASED_INFORMATION_SCHEMA";
->>>>>>> mysql-8.0.19
       default:
         return "";
     }

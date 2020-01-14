@@ -190,13 +190,7 @@ size_t Key::get_key_pod_size() const {
 
 void Key::xor_data(uchar *data, size_t data_len) {
   static const char *obfuscate_str = "*305=Ljt0*!@$Hnm(*-9-w;:";
-<<<<<<< HEAD
-  for (uint i = 0, l = 0; i < data_len;
-||||||| 91a17cedb1e
-  for (uint i = 0, l = 0; i < key_len;
-=======
-  for (size_t i = 0, l = 0; i < key_len;
->>>>>>> mysql-8.0.19
+  for (size_t i = 0, l = 0; i < data_len;
        ++i, l = ((l + 1) % strlen(obfuscate_str)))
     data[i] ^= obfuscate_str[l];
 }

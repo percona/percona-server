@@ -394,53 +394,7 @@ class PT_limit_clause : public Parse_tree_node {
   PT_limit_clause(const Limit_options &limit_options_arg)
       : limit_options(limit_options_arg) {}
 
-<<<<<<< HEAD
-  bool contextualize(Parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
-
-    if (limit_options.is_offset_first && limit_options.opt_offset != NULL &&
-        limit_options.opt_offset->itemize(pc, &limit_options.opt_offset))
-      return true;
-
-    if (limit_options.limit->itemize(pc, &limit_options.limit)) return true;
-
-    if (!limit_options.is_offset_first && limit_options.opt_offset != NULL &&
-        limit_options.opt_offset->itemize(pc, &limit_options.opt_offset))
-      return true;
-
-    pc->select->select_limit = limit_options.limit;
-    pc->select->offset_limit = limit_options.opt_offset;
-    pc->select->explicit_limit = true;
-
-    if (pc->select->select_limit->fixed &&
-        pc->select->select_limit->val_int() != 0)
-      pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
-    return false;
-  }
-||||||| 91a17cedb1e
-  bool contextualize(Parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
-
-    if (limit_options.is_offset_first && limit_options.opt_offset != NULL &&
-        limit_options.opt_offset->itemize(pc, &limit_options.opt_offset))
-      return true;
-
-    if (limit_options.limit->itemize(pc, &limit_options.limit)) return true;
-
-    if (!limit_options.is_offset_first && limit_options.opt_offset != NULL &&
-        limit_options.opt_offset->itemize(pc, &limit_options.opt_offset))
-      return true;
-
-    pc->select->select_limit = limit_options.limit;
-    pc->select->offset_limit = limit_options.opt_offset;
-    pc->select->explicit_limit = true;
-
-    pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
-    return false;
-  }
-=======
   bool contextualize(Parse_context *pc) override;
->>>>>>> mysql-8.0.19
 };
 
 class PT_cross_join;

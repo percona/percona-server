@@ -66,22 +66,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in,out]	table	dict table object
 @param[in,out]	trx	transaction instance
 @return DB_SUCCESS or error code */
-<<<<<<< HEAD
 dberr_t dict_build_table_def(
     dict_table_t *table, trx_t *trx, fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
-  char db_buf[NAME_LEN + 1];
-  char tbl_buf[NAME_LEN + 1];
-||||||| 91a17cedb1e
-dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx) {
-  char db_buf[NAME_LEN + 1];
-  char tbl_buf[NAME_LEN + 1];
-=======
-dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx) {
   std::string db_name;
   std::string tbl_name;
   dict_name::get_table(table->name.m_name, db_name, tbl_name);
->>>>>>> mysql-8.0.19
 
   bool is_dd_table =
       dd::get_dictionary()->is_dd_table_name(db_name.c_str(), tbl_name.c_str());
@@ -96,18 +86,13 @@ dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx) {
   server started on mysql datadir. In that scenario, we should
   use the next available table id */
   if (is_dd_table ||
-      (compression_dict::is_hardcoded(db_buf, tbl_buf) && dd_table_id != 1)) {
+      (compression_dict::is_hardcoded(db_name.c_str(), tbl_name.c_str()) &&
+       dd_table_id != 1)) {
     table->id = dd_table_id++;
     table->is_dd_table = true;
 
-<<<<<<< HEAD
-    ut_ad(compression_dict::is_hardcoded(db_buf, tbl_buf) ||
-          strcmp(tbl_buf, innodb_dd_table[table->id - 1].name) == 0);
-||||||| 91a17cedb1e
-    ut_ad(strcmp(tbl_buf, innodb_dd_table[table->id - 1].name) == 0);
-=======
-    ut_ad(strcmp(tbl_name.c_str(), innodb_dd_table[table->id - 1].name) == 0);
->>>>>>> mysql-8.0.19
+    ut_ad(compression_dict::is_hardcoded(db_name.c_str(), tbl_name.c_str()) ||
+          strcmp(tbl_name.c_str(), innodb_dd_table[table->id - 1].name) == 0);
 
   } else {
     dict_table_assign_new_id(table, trx);

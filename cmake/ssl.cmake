@@ -313,8 +313,6 @@ MACRO (MYSQL_CHECK_SSL)
       ENDIF()
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
       INCLUDE_DIRECTORIES(SYSTEM ${OPENSSL_INCLUDE_DIR})
-<<<<<<< HEAD
-      SET(SSL_INTERNAL_INCLUDE_DIRS "")
       INCLUDE(CMakePushCheckState)
       cmake_push_check_state()
       SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
@@ -322,10 +320,6 @@ MACRO (MYSQL_CHECK_SSL)
       CHECK_SYMBOL_EXISTS(X509_check_host "openssl/x509v3.h" HAVE_X509_CHECK_HOST)
       CHECK_SYMBOL_EXISTS(X509_check_ip "openssl/x509v3.h" HAVE_X509_CHECK_IP)
       cmake_pop_check_state()
-||||||| 91a17cedb1e
-      SET(SSL_INTERNAL_INCLUDE_DIRS "")
-=======
->>>>>>> mysql-8.0.19
     ELSE()
       RESET_SSL_VARIABLES()
       FATAL_SSL_NOT_FOUND_ERROR(

@@ -5298,17 +5298,9 @@ void THD::reset_for_next_command() {
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->reset_statement_cond_count();
 
-<<<<<<< HEAD
-  thd->rand_used = 0;
+  thd->rand_used = false;
 
   thd->clear_slow_extended();
-||||||| 91a17cedb1e
-  thd->rand_used = 0;
-  thd->m_sent_row_count = thd->m_examined_row_count = 0;
-=======
-  thd->rand_used = false;
-  thd->m_sent_row_count = thd->m_examined_row_count = 0;
->>>>>>> mysql-8.0.19
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags = 0;
@@ -5770,19 +5762,9 @@ bool Alter_info::add_field(
       new_field->init(thd, field_name->str, type, length, decimals,
                       type_modifier, default_value, on_update_value, comment,
                       change, interval_list, cs, has_explicit_collation,
-<<<<<<< HEAD
                       uint_geom_type, zip_dict, gcol_info, default_val_expr,
                       srid, hidden, is_array))
-    return 1;
-||||||| 91a17cedb1e
-                      uint_geom_type, gcol_info, default_val_expr, srid, hidden,
-                      is_array))
-    return 1;
-=======
-                      uint_geom_type, gcol_info, default_val_expr, srid, hidden,
-                      is_array))
     return true;
->>>>>>> mysql-8.0.19
 
   create_list.push_back(new_field);
   if (opt_after != NULL) {

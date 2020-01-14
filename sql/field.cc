@@ -69,21 +69,11 @@
 #include "sql/mysqld.h"  // log_10
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-<<<<<<< HEAD
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // rpl_master_has_bug
-#include "sql/spatial.h"    // Geometry
-#include "sql/sql_base.h"
-||||||| 91a17cedb1e
-#include "sql/rpl_rli.h"                // Relay_log_info
-#include "sql/rpl_slave.h"              // rpl_master_has_bug
-#include "sql/spatial.h"                // Geometry
-=======
 #include "sql/rpl_rli.h"    // Relay_log_info
 #include "sql/rpl_slave.h"  // rpl_master_has_bug
 #include "sql/rpl_utility.h"
-#include "sql/spatial.h"                // Geometry
->>>>>>> mysql-8.0.19
+#include "sql/spatial.h"  // Geometry
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"              // THD
 #include "sql/sql_exception_handler.h"  // handle_std_exception
 #include "sql/sql_join_buffer.h"        // CACHE_FIELD

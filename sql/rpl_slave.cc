@@ -2409,24 +2409,8 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi) {
     return 0;
   };);
 
-<<<<<<< HEAD
-  DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID", {
-    const char act[] =
-        "now signal in_get_master_version_and_clock "
-        "wait_for signal.get_master_uuid";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-  };);
-||||||| 91a17cedb1e
-  DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID", {
-    const char act[] = "now wait_for signal.get_master_uuid";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-  };);
-=======
   DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
                   { rpl_slave_debug_point(DBUG_RPL_S_BEFORE_MASTER_UUID); };);
->>>>>>> mysql-8.0.19
 
   DBUG_EXECUTE_IF("dbug.simulate_busy_io",
                   { rpl_slave_debug_point(DBUG_RPL_S_SIMULATE_BUSY_IO); };);
@@ -2649,26 +2633,8 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
     Note: we could have put a @@SERVER_ID in the previous SELECT
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
   */
-<<<<<<< HEAD
-  DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID", {
-    const char act[] =
-        "now signal in_get_master_version_and_clock "
-        "wait_for signal.get_server_id";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-  };);
-||||||| 91a17cedb1e
-  DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID", {
-    const char act[] =
-        "now "
-        "wait_for signal.get_server_id";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-  };);
-=======
   DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID",
                   { rpl_slave_debug_point(DBUG_RPL_S_BEFORE_SERVER_ID); };);
->>>>>>> mysql-8.0.19
   master_res = nullptr;
   master_row = nullptr;
   DBUG_EXECUTE_IF("get_master_server_id.ER_NET_READ_INTERRUPTED", {
@@ -5449,10 +5415,10 @@ requesting master dump") ||
 
         DBUG_EXECUTE_IF(
             "relay_xid_trigger", if (event_len != packet_error) {
-              const uchar *event_buf =
+              const uchar *event_buf2 =
                   static_cast<const uchar *>(mysql->net.read_pos + 1);
               Log_event_type event_type =
-                  static_cast<Log_event_type>(event_buf[EVENT_TYPE_OFFSET]);
+                  static_cast<Log_event_type>(event_buf2[EVENT_TYPE_OFFSET]);
               if (event_type == binary_log::XID_EVENT) {
                 static constexpr char act[] =
                     "now signal relay_xid_reached wait_for resume";
@@ -5637,15 +5603,16 @@ ignore_log_space_limit=%d",
             "stop_io_after_reading_write_rows_log_event",
             if (event_buf[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT)
                 thd->killed = THD::KILLED_NO_VALUE;);
-         DBUG_EXECUTE_IF(
-             "stop_io_after_reading_unknown_event",
-             /*
-              * Cast to uchar, because of Percona's events
-              * which have values > 128. This causes ENUM_END_EVENT to be > 128
-              * but event_buf is char, so comparison does not work.
-              */
-              if (static_cast<uchar>(event_buf[EVENT_TYPE_OFFSET]) >= binary_log::ENUM_END_EVENT)
-                thd->killed = THD::KILLED_NO_VALUE;);
+        DBUG_EXECUTE_IF(
+            "stop_io_after_reading_unknown_event",
+            /*
+             * Cast to uchar, because of Percona's events
+             * which have values > 128. This causes ENUM_END_EVENT to be > 128
+             * but event_buf is char, so comparison does not work.
+             */
+            if (static_cast<uchar>(event_buf[EVENT_TYPE_OFFSET]) >=
+                binary_log::ENUM_END_EVENT) thd->killed =
+                THD::KILLED_NO_VALUE;);
         DBUG_EXECUTE_IF("stop_io_after_queuing_event",
                         thd->killed = THD::KILLED_NO_VALUE;);
         /*
@@ -7327,16 +7294,10 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   Gtid gtid = {0, 0};
   ulonglong immediate_commit_timestamp = 0;
   ulonglong original_commit_timestamp = 0;
-<<<<<<< HEAD
-  Log_event_type event_type =
-      (Log_event_type) static_cast<uchar>(buf[EVENT_TYPE_OFFSET]);
-||||||| 91a17cedb1e
-  Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
-=======
   bool info_error{false};
   binary_log::Log_event_basic_info log_event_info;
-  Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
->>>>>>> mysql-8.0.19
+  Log_event_type event_type =
+      (Log_event_type) static_cast<uchar>(buf[EVENT_TYPE_OFFSET]);
 
   DBUG_ASSERT(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF ||
               checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF ||

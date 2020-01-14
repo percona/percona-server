@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "my_dbug.h"
 #include "my_io.h"
 #include "os/file.h"
+#include "template_utils.h"
 #include "univ.i"
 
 #ifndef _WIN32

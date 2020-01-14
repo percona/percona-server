@@ -60,7 +60,7 @@ TEST_F(System_keys_container_test, StoreFetchPBkeyStoreFetchSystemKey) {
 
   std::string key_data_with_version = "0:" + key_data1;
   Key key(system_key->get_key_id()->c_str(),
-          system_key->get_key_type()->c_str(),
+          system_key->get_key_type_as_string()->c_str(),
           system_key->get_user_id()->c_str(), system_key->get_key_data(),
           system_key->get_key_data_size());
   key.xor_data();
@@ -69,7 +69,7 @@ TEST_F(System_keys_container_test, StoreFetchPBkeyStoreFetchSystemKey) {
   EXPECT_STREQ(key.get_key_id()->c_str(), "percona_binlog:0");
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", key.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key.get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   std::string key_data2("system_key_data_2");
@@ -88,7 +88,7 @@ TEST_F(System_keys_container_test, StoreFetchPBkeyStoreFetchSystemKey) {
 
   key_data_with_version = "0:" + key_data2;
   Key key_2(system_key->get_key_id()->c_str(),
-            system_key->get_key_type()->c_str(),
+            system_key->get_key_type_as_string()->c_str(),
             system_key->get_user_id()->c_str(), system_key->get_key_data(),
             system_key->get_key_data_size());
   key_2.xor_data();
@@ -97,7 +97,7 @@ TEST_F(System_keys_container_test, StoreFetchPBkeyStoreFetchSystemKey) {
   EXPECT_STREQ(key_2.get_key_id()->c_str(), "percona_innodb123:0");
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", key_2.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key_2.get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   delete key1;
@@ -126,7 +126,7 @@ TEST_F(System_keys_container_test,
       sys_keys_container->get_latest_key_if_system_key_without_version(&key_id);
 
   Key key(system_key->get_key_id()->c_str(),
-          system_key->get_key_type()->c_str(),
+          system_key->get_key_type_as_string()->c_str(),
           system_key->get_user_id()->c_str(), system_key->get_key_data(),
           system_key->get_key_data_size());
   key.xor_data();
@@ -136,7 +136,7 @@ TEST_F(System_keys_container_test,
   EXPECT_STREQ(key.get_key_id()->c_str(), "percona_binlog:1");
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", key.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key.get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   std::string key_data3("1234XXXYYYZZZZ5335");
@@ -159,7 +159,7 @@ TEST_F(System_keys_container_test,
       &system_key_id);
 
   Key key_sk(system_key->get_key_id()->c_str(),
-             system_key->get_key_type()->c_str(),
+             system_key->get_key_type_as_string()->c_str(),
              system_key->get_user_id()->c_str(), system_key->get_key_data(),
              system_key->get_key_data_size());
   key_sk.xor_data();
@@ -169,7 +169,7 @@ TEST_F(System_keys_container_test,
   EXPECT_STREQ(key_sk.get_key_id()->c_str(), "percona_system_key:1");
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", key_sk.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key_sk.get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   delete key1;
@@ -208,7 +208,7 @@ TEST_F(System_keys_container_test, StoreStoreStoreFetch) {
   ASSERT_TRUE(system_key != nullptr);
 
   Key key(system_key->get_key_id()->c_str(),
-          system_key->get_key_type()->c_str(),
+          system_key->get_key_type_as_string()->c_str(),
           system_key->get_user_id()->c_str(), system_key->get_key_data(),
           system_key->get_key_data_size());
   key.xor_data();
@@ -218,7 +218,7 @@ TEST_F(System_keys_container_test, StoreStoreStoreFetch) {
   EXPECT_STREQ(key.get_key_id()->c_str(), "percona_key:0:2");
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", key.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key.get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   delete key1;
@@ -247,7 +247,7 @@ TEST_F(System_keys_container_test, StoreKeyWithTheSameIdTwice) {
       sys_keys_container->get_latest_key_if_system_key_without_version(&key_id);
 
   Key key(system_key->get_key_id()->c_str(),
-          system_key->get_key_type()->c_str(),
+          system_key->get_key_type_as_string()->c_str(),
           system_key->get_user_id()->c_str(), system_key->get_key_data(),
           system_key->get_key_data_size());
   key.xor_data();
@@ -257,7 +257,7 @@ TEST_F(System_keys_container_test, StoreKeyWithTheSameIdTwice) {
   EXPECT_STREQ(key.get_key_id()->c_str(), "percona_binlog:0");
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", key.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key.get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   delete key1;
@@ -293,7 +293,7 @@ TEST_F(System_keys_container_test,
       sys_keys_container->get_latest_key_if_system_key_without_version(&key_id);
 
   Key key(system_key->get_key_id()->c_str(),
-          system_key->get_key_type()->c_str(),
+          system_key->get_key_type_as_string()->c_str(),
           system_key->get_user_id()->c_str(), system_key->get_key_data(),
           system_key->get_key_data_size());
   key.xor_data();
@@ -303,7 +303,7 @@ TEST_F(System_keys_container_test,
   EXPECT_STREQ(key.get_key_id()->c_str(), "percona_binlog:1");
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", key.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key.get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   delete key1;
@@ -339,7 +339,7 @@ TEST_F(System_keys_container_test, StoreKey1StoreKey1StoreKey2FetchKey1) {
       sys_keys_container->get_latest_key_if_system_key_without_version(&key_id);
 
   Key key(system_key->get_key_id()->c_str(),
-          system_key->get_key_type()->c_str(),
+          system_key->get_key_type_as_string()->c_str(),
           system_key->get_user_id()->c_str(), system_key->get_key_data(),
           system_key->get_key_data_size());
   key.xor_data();
@@ -349,7 +349,7 @@ TEST_F(System_keys_container_test, StoreKey1StoreKey1StoreKey2FetchKey1) {
   EXPECT_STREQ(key.get_key_id()->c_str(), "percona_binlog:1");
   EXPECT_STREQ(key_data_with_version.c_str(),
                reinterpret_cast<const char *>(key_data_fetched));
-  EXPECT_STREQ("AES", key.get_key_type()->c_str());
+  EXPECT_STREQ("AES", key.get_key_type_as_string()->c_str());
   ASSERT_TRUE(key_data_with_version.length() + 1 == key_data_fetched_size);
 
   delete key1;

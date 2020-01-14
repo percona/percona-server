@@ -728,17 +728,19 @@ void vio_proxy_cleanup() noexcept { my_free(vio_pp_networks); }
 
 /* Check whether a connection from this source address must provide the proxy
    protocol header */
-static bool vio_client_must_be_proxied(const struct sockaddr *addr) noexcept {
+static bool vio_client_must_be_proxied(const struct sockaddr *p_addr) noexcept {
   size_t i;
   for (i = 0; i < vio_pp_networks_nb; i++)
-    if (vio_pp_networks[i].family == addr->sa_family) {
+    if (vio_pp_networks[i].family == p_addr->sa_family) {
       if (vio_pp_networks[i].family == AF_INET) {
-        const struct in_addr *check = &((const struct sockaddr_in *)addr)->sin_addr;
+        const struct in_addr *check =
+            &((const struct sockaddr_in *)p_addr)->sin_addr;
         struct in_addr *addr = &vio_pp_networks[i].addr.in;
         struct in_addr *mask = &vio_pp_networks[i].mask.in;
         if ((check->s_addr & mask->s_addr) == addr->s_addr) return true;
       } else {
-        const struct in6_addr *check = &((const struct sockaddr_in6 *)addr)->sin6_addr;
+        const struct in6_addr *check =
+            &((const struct sockaddr_in6 *)p_addr)->sin6_addr;
         struct in6_addr *addr = &vio_pp_networks[i].addr.in6;
         struct in6_addr *mask = &vio_pp_networks[i].mask.in6;
         DBUG_ASSERT(vio_pp_networks[i].family == AF_INET6);

@@ -195,8 +195,8 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   Priority_queue<Merge_chunk *,
                  std::vector<Merge_chunk *, Malloc_allocator<Merge_chunk *>>,
                  decltype(greater)>
-  queue(greater,
-        Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
+      queue(greater,
+            Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
 
   if (queue.reserve(chunk_array.size())) return 1;
 
@@ -660,15 +660,9 @@ void Unique::reset() {
   */
   if (elements) {
     file_ptrs.clear();
-<<<<<<< HEAD
     MY_ATTRIBUTE((unused))
-    int reinit_res = reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
+    int reinit_res = reinit_io_cache(&file, WRITE_CACHE, 0L, false, true);
     DBUG_ASSERT(reinit_res == 0);
-||||||| 91a17cedb1e
-    reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
-=======
-    reinit_io_cache(&file, WRITE_CACHE, 0L, false, true);
->>>>>>> mysql-8.0.19
   }
   /*
     If table is used - finish index access and delete all records.
@@ -932,27 +926,15 @@ bool Unique::get(TABLE *table) {
       key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE), MYF(MY_ZEROFILL));
 
   if (!outfile || (!my_b_inited(outfile) &&
-<<<<<<< HEAD
                    open_cached_file_encrypted(outfile, mysql_tmpdir,
                                               TEMP_PREFIX, READ_RECORD_BUFFER,
                                               MYF(MY_WME), encrypt_tmp_files)))
-    return 1;
-  if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0) != 0) return 1;
+    return true;
+  if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0) != 0) return true;
 
   MY_ATTRIBUTE((unused))
   int reinit_res = reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0);
   DBUG_ASSERT(reinit_res == 0);
-||||||| 91a17cedb1e
-                   open_cached_file(outfile, mysql_tmpdir, TEMP_PREFIX,
-                                    READ_RECORD_BUFFER, MYF(MY_WME))))
-    return 1;
-  reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0);
-=======
-                   open_cached_file(outfile, mysql_tmpdir, TEMP_PREFIX,
-                                    READ_RECORD_BUFFER, MYF(MY_WME))))
-    return true;
-  reinit_io_cache(outfile, WRITE_CACHE, 0L, false, false);
->>>>>>> mysql-8.0.19
 
   Uniq_param uniq_param;
   uniq_param.max_rows = elements;

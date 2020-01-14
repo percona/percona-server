@@ -50,7 +50,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <list>
 #include <vector>
 
-<<<<<<< HEAD
 #include "fil0rkinfo.h"
 #include "keyring_encryption_key_info.h"
 
@@ -61,8 +60,6 @@ struct redo_log_key;
 /** Structure containing encryption specification */
 struct fil_space_crypt_t;
 
-||||||| 91a17cedb1e
-=======
 /** Maximum number of tablespaces to be scanned by a thread while scanning
 for available tablespaces during server startup. This is a hard maximum.
 If the number of files to be scanned is more than
@@ -86,7 +83,6 @@ on the machine.
 @return number of threads to be spawned for scanning the files */
 size_t fil_get_scan_threads(size_t num_files);
 
->>>>>>> mysql-8.0.19
 /** This tablespace name is used internally during file discovery to open a
 general tablespace before the data dictionary is recovered and available. */
 static constexpr char general_space_name[] = "innodb_general";
@@ -2138,7 +2134,13 @@ and old name are same, no update done.
 @param[in]	name		new name for tablespace */
 void fil_space_update_name(fil_space_t *space, const char *name);
 
-<<<<<<< HEAD
+/** Adjust file name for import for partition files in different letter case.
+@param[in]	table	Innodb dict table
+@param[in]	path	file path to open
+@param[in]	extn	file extension */
+void fil_adjust_name_import(dict_table_t *table, const char *path,
+                            ib_file_suffix extn);
+
 /** Mark space as corrupt
 @param space_id	space id */
 void fil_space_set_corrupt(space_id_t space_id);
@@ -2165,13 +2167,4 @@ void fil_unlock_shard_by_id(space_id_t space_id);
 @return true if the re-encrypt suceeds */
 bool encryption_rotate_low(fil_space_t *space);
 
-||||||| 91a17cedb1e
-=======
-/** Adjust file name for import for partition files in different letter case.
-@param[in]	table	Innodb dict table
-@param[in]	path	file path to open
-@param[in]	extn	file extension */
-void fil_adjust_name_import(dict_table_t *table, const char *path,
-                            ib_file_suffix extn);
->>>>>>> mysql-8.0.19
 #endif /* fil0fil_h */

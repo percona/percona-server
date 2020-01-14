@@ -877,12 +877,12 @@ size_t Rdb_key_def::get_unpack_header_size(char tag) {
  */
 void Rdb_key_def::get_lookup_bitmap(const TABLE *table, MY_BITMAP *map) const {
   DBUG_ASSERT(map->bitmap == nullptr);
-  bitmap_init(map, nullptr, MAX_REF_PARTS, false);
+  bitmap_init(map, nullptr, MAX_REF_PARTS);
   uint curr_bitmap_pos = 0;
 
   // Indicates which columns in the read set might be covered.
   MY_BITMAP maybe_covered_bitmap;
-  bitmap_init(&maybe_covered_bitmap, nullptr, table->read_set->n_bits, false);
+  bitmap_init(&maybe_covered_bitmap, nullptr, table->read_set->n_bits);
 
   for (uint i = 0; i < m_key_parts; i++) {
     if (table_has_hidden_pk(table) && i + 1 == m_key_parts) {
@@ -963,7 +963,7 @@ bool Rdb_key_def::covers_lookup(TABLE *const table,
 
   MY_BITMAP covered_bitmap;
   my_bitmap_map covered_bits;
-  bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS, false);
+  bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS);
   covered_bits = rdb_netbuf_to_uint16((const uchar *)unpack_header +
                                       sizeof(RDB_UNPACK_COVERED_DATA_TAG) +
                                       RDB_UNPACK_COVERED_DATA_LEN_SIZE);
@@ -1133,7 +1133,7 @@ uint Rdb_key_def::pack_record(
   MY_BITMAP covered_bitmap;
   my_bitmap_map covered_bits;
   uint curr_bitmap_pos = 0;
-  bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS, false);
+  bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS);
 
   for (uint i = 0; i < n_key_parts; i++) {
     // Fill hidden pk id into the last key part for secondary keys for tables
@@ -1266,17 +1266,17 @@ uint Rdb_key_def::pack_hidden_pk(const longlong &hidden_pk_id,
   return tuple - packed_tuple;
 }
 
-  /**
-    Function of type rdb_index_field_pack_t
+/**
+  Function of type rdb_index_field_pack_t
 
-    The following code (Rdb_key_def::pack_* and dependent functions) is pulled
-    directly from ./sql/field.cc from all of the various
-    Field_*::make_sort_key() functions.  These results of these functions within
-    the server code was never intended to be persisted and as such the encoding
-    and comparison can change over time without any notice.  To protect us from
-    such an event as well as to ensure binary upgrade compatibility, we have
-    copied that code here so that it is entirely within our control.
-  */
+  The following code (Rdb_key_def::pack_* and dependent functions) is pulled
+  directly from ./sql/field.cc from all of the various
+  Field_*::make_sort_key() functions.  These results of these functions within
+  the server code was never intended to be persisted and as such the encoding
+  and comparison can change over time without any notice.  To protect us from
+  such an event as well as to ensure binary upgrade compatibility, we have
+  copied that code here so that it is entirely within our control.
+*/
 
 #if !defined(DBL_EXP_DIG)
 #define DBL_EXP_DIG (sizeof(double) * 8 - DBL_MANT_DIG)
@@ -1546,7 +1546,7 @@ void Rdb_key_def::pack_double(
     float8get(&nr, ptr);
   } else
 #endif
-    doubleget(&nr, ptr);
+    nr = doubleget(ptr);
   if (length < 8) {
     uchar buff[8];
     change_double_for_sort(nr, buff);
@@ -2008,7 +2008,7 @@ int Rdb_key_def::unpack_record(TABLE *const table, uchar *const buf,
   const bool has_covered_bitmap =
       has_unpack_info && (unpack_header[0] == RDB_UNPACK_COVERED_DATA_TAG);
   if (has_covered_bitmap) {
-    bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS, false);
+    bitmap_init(&covered_bitmap, &covered_bits, MAX_REF_PARTS);
     covered_bits = rdb_netbuf_to_uint16((const uchar *)unpack_header +
                                         sizeof(RDB_UNPACK_COVERED_DATA_TAG) +
                                         RDB_UNPACK_COVERED_DATA_LEN_SIZE);
@@ -2188,11 +2188,11 @@ int Rdb_key_def::skip_max_length(const Rdb_field_packing *const fpi,
   return HA_EXIT_SUCCESS;
 }
 
-  /*
-    (RDB_ESCAPE_LENGTH-1) must be an even number so that pieces of lines are not
-    split in the middle of an UTF-8 character. See the implementation of
-    unpack_binary_or_utf8_varchar.
-  */
+/*
+  (RDB_ESCAPE_LENGTH-1) must be an even number so that pieces of lines are not
+  split in the middle of an UTF-8 character. See the implementation of
+  unpack_binary_or_utf8_varchar.
+*/
 
 #define RDB_ESCAPE_LENGTH 9
 #define RDB_LEGACY_ESCAPE_LENGTH RDB_ESCAPE_LENGTH
@@ -5203,7 +5203,8 @@ bool Rdb_dict_manager::get_index_info(
                     "data dictionary. This should never happen and it may be a "
                     "bug.",
                     index_info->m_index_dict_version, index_info->m_index_type,
-                    index_info->m_kv_version, (ulonglong)(index_info->m_ttl_duration));
+                    index_info->m_kv_version,
+                    (ulonglong)(index_info->m_ttl_duration));
     abort();
   }
 

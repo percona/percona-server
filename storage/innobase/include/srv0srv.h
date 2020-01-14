@@ -140,7 +140,23 @@ struct srv_stats_t {
 
   /** Number of rows inserted */
   ulint_ctr_64_t n_rows_inserted;
-<<<<<<< HEAD
+  /** Number of system rows read. */
+  ulint_ctr_64_t n_system_rows_read;
+
+  /** Number of system rows updated */
+  ulint_ctr_64_t n_system_rows_updated;
+
+  /** Number of system rows deleted */
+  ulint_ctr_64_t n_system_rows_deleted;
+
+  /** Number of system rows inserted */
+  ulint_ctr_64_t n_system_rows_inserted;
+
+  /** Number of sampled pages read */
+  ulint_ctr_64_t n_sampled_pages_read;
+
+  /** Number of sampled pages skipped */
+  ulint_ctr_64_t n_sampled_pages_skipped;
 
   ulint_ctr_1_t n_lock_max_wait_time;
 
@@ -176,27 +192,6 @@ struct srv_stats_t {
 
   /* Number of pages decrypted */
   ulint_ctr_64_t pages_decrypted;
-||||||| 91a17cedb1e
-=======
-
-  /** Number of system rows read. */
-  ulint_ctr_64_t n_system_rows_read;
-
-  /** Number of system rows updated */
-  ulint_ctr_64_t n_system_rows_updated;
-
-  /** Number of system rows deleted */
-  ulint_ctr_64_t n_system_rows_deleted;
-
-  /** Number of system rows inserted */
-  ulint_ctr_64_t n_system_rows_inserted;
-
-  /** Number of sampled pages read */
-  ulint_ctr_64_t n_sampled_pages_read;
-
-  /** Number of sampled pages skipped */
-  ulint_ctr_64_t n_sampled_pages_skipped;
->>>>>>> mysql-8.0.19
 };
 
 /** Structure which keeps shared future objects for InnoDB background
@@ -340,16 +335,12 @@ extern bool srv_downgrade_logs;
 extern bool srv_upgrade_old_undo_found;
 #endif /* INNODB_DD_TABLE */
 
-<<<<<<< HEAD
+extern bool srv_downgrade_partition_files;
+
 #ifdef UNIV_DEBUG
 extern bool srv_is_uuid_ready;
 #endif /* UNIV_DEBUG */
 
-||||||| 91a17cedb1e
-=======
-extern bool srv_downgrade_partition_files;
-
->>>>>>> mysql-8.0.19
 extern const char *srv_main_thread_op_info;
 
 /* The monitor thread waits on this event. */

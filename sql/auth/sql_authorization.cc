@@ -1483,17 +1483,9 @@ void get_sp_access_map(
       would be wrong from a security point of view.
     */
 
-<<<<<<< HEAD
-    if (!strcmp(acl_user->user, user) &&
-        hosts_match_for_grants(grant_proc->host, acl_user->host.get_host(),
-                               host, effective_grants)) {
-||||||| 91a17cedb1e
-    if (!strcmp(acl_user->user, user) &&
-        !my_strcasecmp(system_charset_info, acl_user->host.get_host(), host)) {
-=======
     if (!strcmp(acl_user_user, user) &&
-        !my_strcasecmp(system_charset_info, acl_user_host, host)) {
->>>>>>> mysql-8.0.19
+        hosts_match_for_grants(grant_proc->host, acl_user_host, host,
+                               effective_grants)) {
       ulong proc_access = grant_proc->privs;
       if (proc_access != 0) {
         String key;
@@ -3416,13 +3408,13 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
     /* go through users in user_list */
     grant_version++;
     while ((target_user = str_list++)) {
-    if (acl_is_utility_user(target_user->user.str, target_user->host.str,
-                            nullptr)) {
-      my_error(ER_NONEXISTING_GRANT, MYF(0), target_user->user.str,
-               target_user->host.str);
-      error = true;
-      continue;
-    }
+      if (acl_is_utility_user(target_user->user.str, target_user->host.str,
+                              nullptr)) {
+        my_error(ER_NONEXISTING_GRANT, MYF(0), target_user->user.str,
+                 target_user->host.str);
+        error = true;
+        continue;
+      }
       if (!(user = get_current_user(thd, target_user))) {
         error = true;
         continue;
@@ -4694,13 +4686,8 @@ void get_privilege_access_maps(
 */
 bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
                        const List_of_auth_id_refs &using_roles,
-<<<<<<< HEAD
-                       bool show_mandatory_roles, bool effective_grants) {
-||||||| 91a17cedb1e
-                       bool show_mandatory_roles) {
-=======
-                       bool show_mandatory_roles, bool have_using_clause) {
->>>>>>> mysql-8.0.19
+                       bool show_mandatory_roles, bool have_using_clause,
+                       bool effective_grants) {
   int error = 0;
   ACL_USER *acl_user = NULL;
   char buff[1024];

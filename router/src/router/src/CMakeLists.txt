@@ -71,20 +71,8 @@ ELSE()
   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
 ENDIF()
 TARGET_LINK_LIBRARIES(router_lib
-<<<<<<< HEAD
-  ${CMAKE_DL_LIBS} harness-library perconaserverclient ${SSL_LIBRARIES})
-IF(WIN32)
-  TARGET_LINK_LIBRARIES(router_lib crypt32)
-ENDIF()
-||||||| 91a17cedb1e
-  ${CMAKE_DL_LIBS} harness-library mysqlclient ${SSL_LIBRARIES})
-IF(WIN32)
-  TARGET_LINK_LIBRARIES(router_lib crypt32)
-ENDIF()
-=======
-  ${CMAKE_DL_LIBS} harness-library mysqlclient ${SSL_LIBRARIES}
+  ${CMAKE_DL_LIBS} harness-library perconaserverclient ${SSL_LIBRARIES}
   )
->>>>>>> mysql-8.0.19
 TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
 
 SET_TARGET_PROPERTIES(router_lib PROPERTIES

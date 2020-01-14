@@ -386,18 +386,12 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
   info->error = 0;
   init_functions(info);
 
-<<<<<<< HEAD
   if (info->m_encryptor != nullptr)
     info->m_encryptor->set_stream_offset(seek_offset);
   if (info->m_decryptor != nullptr)
     info->m_decryptor->set_stream_offset(seek_offset);
 
-  return 0;
-||||||| 91a17cedb1e
-  return 0;
-=======
   return false;
->>>>>>> mysql-8.0.19
 } /* reinit_io_cache */
 
 /*

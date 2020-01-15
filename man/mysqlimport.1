@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlimport\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/27/2019
+.\"      Date: 12/17/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLIMPORT\FR" "1" "09/27/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLIMPORT\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,7 +43,7 @@ SQL statement\&. Most options to
 correspond directly to clauses of
 LOAD DATA
 syntax\&. See
-Section\ \&13.2.6, \(lqLOAD DATA Syntax\(rq\&.
+Section\ \&13.2.6, \(lqLOAD DATA Statement\(rq\&.
 .PP
 Invoke
 \fBmysqlimport\fR
@@ -338,7 +338,7 @@ This option was added in MySQL 5\&.7\&.10\&.
 .sp
 These options have the same meaning as the corresponding clauses for
 LOAD DATA\&. See
-Section\ \&13.2.6, \(lqLOAD DATA Syntax\(rq\&.
+Section\ \&13.2.6, \(lqLOAD DATA Statement\(rq\&.
 .RE
 .sp
 .RS 4
@@ -446,7 +446,7 @@ lines of the data file\&.
 This option has the same meaning as the corresponding clause for
 LOAD DATA\&. For example, to import Windows files that have lines terminated with carriage return/linefeed pairs, use
 \fB\-\-lines\-terminated\-by="\er\en"\fR\&. (You might have to double the backslashes, depending on the escaping conventions of your command interpreter\&.) See
-Section\ \&13.2.6, \(lqLOAD DATA Syntax\(rq\&.
+Section\ \&13.2.6, \(lqLOAD DATA Statement\(rq\&.
 .RE
 .sp
 .RS 4

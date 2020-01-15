@@ -3352,6 +3352,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
   if (tmp_tab_st == NULL) return true;
   tab = &tmp_tab_st->as_QEP_TAB();
   tab->set_table(tmp_table);
+  tab->set_idx(0);
   tab->ref().key = 0; /* The only temp table index. */
   tab->ref().key_length = tmp_key->key_length;
   tab->set_type((tmp_table->key_info[0].flags & HA_NOSAME) ? JT_EQ_REF

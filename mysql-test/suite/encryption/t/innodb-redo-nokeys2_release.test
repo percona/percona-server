@@ -58,11 +58,9 @@ let $cleanup= drop table t1,t2,t3,t4;
 --let $error_log=$MYSQLTEST_VARDIR/tmp/my_restart.err
 
 --echo # Start the server without keyring loaded
---let $restart_hide_args=1
---let $restart_parameters=restart:--early-plugin-load="" --log-error=$error_log --default-table-encryption=OFF
---source include/start_mysqld.inc
+--error 1
+--exec $MYSQLD_CMD --log-error=$error_log
 
---source include/shutdown_mysqld.inc
 
 # We should get error in error log as it should not be possible to apply redo logs
 # to encrypted tables

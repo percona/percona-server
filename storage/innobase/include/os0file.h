@@ -469,12 +469,17 @@ struct Encryption {
   static bool is_none(const char *algorithm) MY_ATTRIBUTE((warn_unused_result));
 
   /** Check if the NO algorithm was explicitly specified.
+  @param[in]      explicit_encryption was ENCRYPTION clause
+                  specified explicitly
   @param[in]      algorithm       Encryption algorithm to check
   @return true if no algorithm explicitly requested */
   static bool none_explicitly_specified(
-      ulong create_info_used_fields,
+      bool explicit_encryption,
       const char *algorithm) noexcept MY_ATTRIBUTE((warn_unused_result));
 
+  /** Check if the string is "y" or "Y".
+  @param[in]      algorithm       Encryption algorithm to check
+  @return true if no algorithm requested */
   static bool is_master_key_encryption(const char *algorithm)
       MY_ATTRIBUTE((warn_unused_result));
 
@@ -486,7 +491,7 @@ struct Encryption {
 
   static bool is_online_encryption_on() MY_ATTRIBUTE((warn_unused_result));
 
-  static bool should_be_keyring_encrypted(ulong create_info_used_fields,
+  static bool should_be_keyring_encrypted(bool explicit_encryption,
                                           const char *algorithm)
       MY_ATTRIBUTE((warn_unused_result));
 
@@ -1392,14 +1397,16 @@ The wrapper functions have the prefix of "innodb_". */
   pfs_os_aio_func(type, mode, name, file, buf, offset, n, read_only, message1, \
                   message2, space_id, trx, should_buffer, __FILE__, __LINE__)
 
-#define os_file_read_pfs(type, file_name, file, buf, offset, n) \
-  pfs_os_file_read_func(type, file_name, file, buf, offset, n, nullptr, __FILE__, __LINE__)
+#define os_file_read_pfs(type, file_name, file, buf, offset, n)         \
+  pfs_os_file_read_func(type, file_name, file, buf, offset, n, nullptr, \
+                        __FILE__, __LINE__)
 
 #define os_file_read_trx_pfs(file, buf, offset, n, trx) \
   pfs_os_file_read_func(file, buf, offset, n, trx, __FILE__, __LINE__)
 
-#define os_file_read_first_page_pfs(type, file_name, file, buf, n, exit) \
-  pfs_os_file_read_first_page_func(type, file_name, file, buf, n, __FILE__, __LINE__, exit)
+#define os_file_read_first_page_pfs(type, file_name, file, buf, n, exit)    \
+  pfs_os_file_read_first_page_func(type, file_name, file, buf, n, __FILE__, \
+                                   __LINE__, exit)
 
 #define os_file_copy_pfs(src, src_offset, dest, dest_offset, size)          \
   pfs_os_file_copy_func(src, src_offset, dest, dest_offset, size, __FILE__, \
@@ -1546,9 +1553,10 @@ os_file_read() which requests a synchronous read operation.
 @param[in]	src_line	line where the func invoked
 @return DB_SUCCESS if request was successful */
 UNIV_INLINE
-dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
-                              os_offset_t offset, ulint n, trx_t *trx,
-                              const char *src_file, uint src_line);
+dberr_t pfs_os_file_read_func(IORequest &type, const char *file_name,
+                              pfs_os_file_t file, void *buf, os_offset_t offset,
+                              ulint n, trx_t *trx, const char *src_file,
+                              uint src_line);
 
 /** NOTE! Please use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1565,8 +1573,8 @@ of page 0 of IBD file
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS if request was successful */
 UNIV_INLINE
-dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char* file_name, pfs_os_file_t file,
-                                         void *buf, ulint n,
+dberr_t pfs_os_file_read_first_page_func(IORequest &type, const char *file_name,
+                                         pfs_os_file_t file, void *buf, ulint n,
                                          const char *src_file, uint src_line,
                                          bool exit_on_err);
 
@@ -2009,8 +2017,9 @@ Requests a synchronous read operation.
 @param[in]	offset		file offset where to read
 @param[in]	n		number of bytes to read
 @return DB_SUCCESS if request was successful */
-dberr_t os_file_read_func(IORequest &type, const char* file_name, os_file_t file, void *buf,
-                          os_offset_t offset, ulint n, trx_t *trx)
+dberr_t os_file_read_func(IORequest &type, const char *file_name,
+                          os_file_t file, void *buf, os_offset_t offset,
+                          ulint n, trx_t *trx)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
@@ -2023,8 +2032,9 @@ Requests a synchronous read operation of page 0 of IBD file
 @param[in]	n		number of bytes to read
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS if request was successful */
-dberr_t os_file_read_first_page_func(IORequest &type, const char* file_name, os_file_t file, void *buf,
-                                     ulint n, bool exit_on_err)
+dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
+                                     os_file_t file, void *buf, ulint n,
+                                     bool exit_on_err)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** copy data from one file to another file. Data is read/written

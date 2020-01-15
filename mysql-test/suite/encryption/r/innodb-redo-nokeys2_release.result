@@ -22,7 +22,6 @@ insert into t4 (a,c,b) values (21, repeat('secre11',20), repeat('secre12',6000))
 COMMIT;
 # Kill the server
 # Start the server without keyring loaded
-# restart:<hidden args>
 # Restart mysqld with correct keyring
 # restart:<hidden args>
 drop table t1,t2,t3,t4;

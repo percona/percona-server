@@ -470,7 +470,10 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
     encrypt_tablespace = dd::is_encrypted(m_options->encryption);
     encrypt_type = dd::make_string_type(m_options->encryption);
   } else {
-    encrypt_tablespace = thd->variables.default_table_encryption;
+    encrypt_tablespace =
+        thd->variables.default_table_encryption == DEFAULT_TABLE_ENC_ON ||
+        global_system_variables.default_table_encryption ==
+            DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING;
     encrypt_type = encrypt_tablespace ? "Y" : "N";
   }
 
@@ -510,6 +513,8 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
   // - Disallow encryption='y', if SE does not support it.
   if (hton->flags & HTON_SUPPORTS_TABLE_ENCRYPTION) {
     tablespace->options().set("encryption", encrypt_type);
+    tablespace->options().set("explicit_encryption",
+                              m_options->encryption.str ? true : false);
   } else if (encrypt_tablespace) {
     my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "ENCRYPTION");
     return true;
@@ -939,6 +944,11 @@ bool Sql_cmd_alter_tablespace::execute(THD *thd) {
                                     &table_mdl_reqs))
         return true;
     }
+  }
+
+  if (hton->flags & HTON_SUPPORTS_TABLE_ENCRYPTION) {
+    tsmp.second->options().set("explicit_encryption",
+                               m_options->encryption.str ? true : false);
   }
 
   /*

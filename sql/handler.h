@@ -2743,6 +2743,11 @@ struct HA_CREATE_INFO {
   LEX_STRING encrypt_type{nullptr, 0};
   EncryptionKeyId encryption_key_id{FIL_DEFAULT_ENCRYPTION_KEY};
   bool was_encryption_key_id_set{false};
+  // explicit_encryption should be true if table was originally created with
+  // ENCRYPTION clause. We keep it separate from used_fields &
+  // HA_CREATE_USED_ENCRYPT which can indicate whether current ALTER used
+  // ENCRYPTION clause.
+  bool explicit_encryption{false};
 
   /**
    * Secondary engine of the table.

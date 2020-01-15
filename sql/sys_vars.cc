@@ -7146,11 +7146,7 @@ static bool check_set_default_table_encryption_access(
 }
 
 static const char *default_table_encryption_type_names[] = {
-    "OFF",
-    "ON",
-    "KEYRING_ON",
-    "ONLINE_TO_KEYRING",
-    "ONLINE_FROM_KEYRING_TO_UNENCRYPTED",
+    "OFF", "ON", "ONLINE_TO_KEYRING", "ONLINE_FROM_KEYRING_TO_UNENCRYPTED",
     nullptr};
 
 bool Sys_var_enum_default_table_encryption::global_update(THD *, set_var *var) {

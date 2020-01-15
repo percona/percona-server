@@ -1821,7 +1821,7 @@ void Fil_shard::space_add(fil_space_t *space, fil_encryption_t mode) {
       fil_crypt_threads_event &&
       (mode == FIL_ENCRYPTION_ON ||
        (mode == FIL_ENCRYPTION_DEFAULT &&
-        srv_default_table_encryption == DEFAULT_TABLE_ENC_KEYRING_ON))) {
+        srv_default_table_encryption == DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING))) {
     /* Key rotation is not enabled, need to inform background
     encryption threads. */
     UT_LIST_ADD_LAST(m_rotation_list, space);

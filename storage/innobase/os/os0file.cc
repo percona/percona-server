@@ -2158,10 +2158,20 @@ os_file_get_parent_dir(
 		return(NULL);
 	}
 
+<<<<<<< HEAD
 	if (last_slash - path < 0) {
 		return(NULL);
 	}
 
+||||||| merged common ancestors
+=======
+	if (last_slash - path < 0) {
+		/* Sanity check, it prevents gcc from trying to handle this case which
+		 * results in warnings for some optimized builds */
+		return (NULL);
+	}
+
+>>>>>>> 67891b7
 	/* Non-trivial directory component */
 
 	return(mem_strdupl(path, last_slash - path));

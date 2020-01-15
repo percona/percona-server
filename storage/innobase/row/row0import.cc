@@ -1321,25 +1321,13 @@ row_import::match_schema(
 	THD*		thd) UNIV_NOTHROW
 {
 	/* Do some simple checks. */
-	const unsigned relevant_flags = m_flags & ~DICT_TF_MASK_DATA_DIR;
-	const unsigned relevant_table_flags
-		= m_table->flags & ~DICT_TF_MASK_DATA_DIR;
 
-	if (relevant_flags != relevant_table_flags) {
-		if (dict_tf_to_row_format_string(relevant_flags) !=
-			dict_tf_to_row_format_string(relevant_table_flags)) {
+	if (m_flags != m_table->flags) {
+		if (dict_tf_to_row_format_string(m_flags) !=
+				dict_tf_to_row_format_string(m_table->flags)) {
 			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 				 "Table flags don't match, server table has %s"
 				 " and the meta-data file has %s",
-<<<<<<< HEAD
-				(const char*)dict_tf_to_row_format_string(
-					relevant_table_flags),
-				(const char*)dict_tf_to_row_format_string(
-					relevant_flags));
-||||||| merged common ancestors
-				(const char*)dict_tf_to_row_format_string(m_table->flags),
-				(const char*)dict_tf_to_row_format_string(m_flags));
-=======
 				(const char*)dict_tf_to_row_format_string(m_table->flags),
 				(const char*)dict_tf_to_row_format_string(m_flags));
 		} else if (DICT_TF_HAS_DATA_DIR(m_flags) !=
@@ -1353,7 +1341,6 @@ row_import::match_schema(
 				" the meta-data file has data_dir flag = %lu",
 				(ulint)DICT_TF_HAS_DATA_DIR(m_table->flags),
 				(ulint)DICT_TF_HAS_DATA_DIR(m_flags));
->>>>>>> 67891b7
 		} else {
 			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 				"Table flags don't match");
@@ -3699,7 +3686,7 @@ row_import_for_mysql(
 
 		/* If table is encrypted, but can't find cfp file,
                 return error. */
-		if (cfg.m_cfp_missing) {
+		if (cfg.m_cfp_missing && !cfg.m_is_keyring_encrypted) {
 			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				ER_TABLE_SCHEMA_MISMATCH,
 				"Table is in an encrypted tablespace, but the"
@@ -3794,28 +3781,12 @@ row_import_for_mysql(
 			return(row_import_error(prebuilt, trx, err));
 		}
 
-<<<<<<< HEAD
-		/* If table is set to encrypted, but can't find
-		cfp file, then return error. */
-		if (cfg.m_cfp_missing== true && !cfg.m_is_keyring_encrypted
-		    && ((space_flags != 0
-			 && FSP_FLAGS_GET_ENCRYPTION(space_flags))
-			|| dict_table_is_encrypted(table))) {
-||||||| merged common ancestors
-		/* If table is set to encrypted, but can't find
-		cfp file, then return error. */
-		if (cfg.m_cfp_missing== true
-		    && ((space_flags != 0
-			 && FSP_FLAGS_GET_ENCRYPTION(space_flags))
-			|| dict_table_is_encrypted(table))) {
-=======
 	} else {
 		rw_lock_s_unlock_gen(dict_operation_lock, 0);
 	}
 
 	if (err != DB_SUCCESS) {
 		if (err == DB_IO_NO_ENCRYPT_TABLESPACE) {
->>>>>>> 67891b7
 			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				ER_TABLE_SCHEMA_MISMATCH,
 				"Encryption attribute in the file does not"

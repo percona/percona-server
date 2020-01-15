@@ -48,12 +48,8 @@
 
 #include <list>
 #include <string>
-<<<<<<< HEAD
 #include "my_rnd.h"
-||||||| merged common ancestors
-=======
 #include <sstream>
->>>>>>> 67891b7
 
 using std::max;
 using std::min;
@@ -10618,7 +10614,6 @@ err1:
   return 1;
 }
 
-<<<<<<< HEAD
 /*
   Copy out the non-directory part of binlog position filename for the
   `binlog_snapshot_file' status variable, same way as it is done for
@@ -10696,8 +10691,6 @@ void MYSQL_BIN_LOG::xunlock(void)
 }
 
 
-||||||| merged common ancestors
-=======
 void MYSQL_BIN_LOG::report_missing_purged_gtids(const Gtid_set* slave_executed_gtid_set,
                                          const char** errmsg)
 {
@@ -10858,7 +10851,6 @@ void MYSQL_BIN_LOG::report_missing_gtids(const Gtid_set* previous_gtid_set,
   DBUG_VOID_RETURN;
 }
 
->>>>>>> 67891b7
 bool THD::is_binlog_cache_empty(bool is_transactional)
 {
   DBUG_ENTER("THD::is_binlog_cache_empty(bool)");

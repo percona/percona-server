@@ -795,12 +795,8 @@ retry:
 				<< ib::hex(space->flags) << ")!";
 		}
 
-		/* Validate the flags but do not compare the data directory
-		flag, in case this tablespace was relocated. */
-		unsigned relevant_space_flags
-			= space->flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		unsigned relevant_flags
-			= flags & ~FSP_FLAGS_MASK_DATA_DIR;
+		unsigned relevant_space_flags = space->flags;
+		unsigned relevant_flags = flags;
 
                 // in case of Keyring encryption it can so happen that there will be a crash after all pages of tablespace is rotated
                 // and DD is updated, but page0 of the tablespace has not been yet update. We handle this here.
@@ -7269,19 +7265,7 @@ fil_tablespace_iterate(
 		}
 
 		/* Check encryption is matched or not. */
-<<<<<<< HEAD
 		if (err == DB_SUCCESS && FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
-			ut_ad(iter.encryption_key != NULL);
-
-||||||| merged common ancestors
-		ulint	space_flags = callback.get_space_flags();
-		if (FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
-			ut_ad(table->encryption_key != NULL);
-
-=======
-		ulint	space_flags = callback.get_space_flags();
-		if (FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
->>>>>>> 67891b7
 			if (!dict_table_is_encrypted(table)) {
 				ib::error() << "Table is not in an encrypted"
 					" tablespace, but the data file"

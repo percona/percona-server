@@ -1,3 +1,4 @@
+--source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
 # saving global variables which will be changed in this test
@@ -93,7 +94,6 @@ SHOW ENGINE INNODB STATUS;
 --connection default
 SET DEBUG_SYNC='now SIGNAL autoinc_lock.continue';
 SET SESSION debug="-d,catch_autoinc_mutex_os_lock";
-SET DEBUG_SYNC = 'RESET';
 
 --connection con1
 --reap
@@ -109,4 +109,5 @@ DROP TABLE t1;
 
 # wait until all additional connections close
 --source include/wait_until_count_sessions.inc
+SET DEBUG_SYNC = 'RESET';
 

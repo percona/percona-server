@@ -15,7 +15,43 @@ Version Specific Information
   * :rn:`8.0.12-1` - the feature was ported from |Percona Server| 5.7.
 
 System Variables
-================================================================================
+================
+
+.. variable:: innodb_use_global_flush_log_at_trx_commit
+
+   :cli: Yes
+   :conf: Yes
+   :scope: Global
+   :dyn: Yes
+   :type: Boolean
+   :default: True
+   :range: True/False
+
+This variable enables or disables the effect of the per-session value of
+the `innodb_flush_log_at_trx_commit` variable.
+
+If the global variable  `innodb_use_global_flush_log_at_trx_commit` is
+set to ``1``, the session uses the current
+global value of `innodb_flush_log_at_trx_commit`. This is the
+upstream-compatible mode. If the user attempts to change the
+`innodb_flush_log_at_trx_commit` value for a
+session, the session value is ignored.
+
+If the global variable `innodb_use_global_flush_log_at_trx_commit` is set to
+``0``, a user can modify the
+``innodb_flush_log_at_trx_commit`` per-session using the following command:
+
+.. code-block:: MySQL
+
+    SET SESSION innodb_flush_log_at_trx_commit=0
+
+This modification only affects the transactions in that session. Other sessions,
+if they have not been individually modified, continue to use the
+global `innodb_use_flush_log_at_trx_commit` value.
+
+.. code-block:: mysql
+
+  SET innodb_use_global_flush_log_at_trx_commit=1
 
 .. variable:: innodb_flush_method
 
@@ -50,13 +86,15 @@ This variable affects the parallel doublewrite buffer as follows
      - Use ``O_DIRECT`` to open the data files but don't use ``fsync()`` system
        call to flush doublewrite files.
 
-   
+   :allowed: ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``, ``ALL_O_DIRECT``
+
+
 Status Variables
-================================================================================
+==============================================================================
 
-The following information has been added to ``SHOW ENGINE INNODB STATUS`` to confirm the checkpointing activity: 
+The following information has been added to ``SHOW ENGINE INNODB STATUS`` to confirm the checkpointing activity:
 
-.. code-block:: guess 
+.. code-block:: guess
 
    The max checkpoint age
    The current checkpoint age target
@@ -75,5 +113,3 @@ The following information has been added to ``SHOW ENGINE INNODB STATUS`` to con
    Checkpoint age      4243362
    0 pending log writes, 0 pending chkp writes
    ...
-
-

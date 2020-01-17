@@ -2017,6 +2017,7 @@ void srv_mon_process_existing_counter(
     case MONITOR_OVLD_MAX_AGE_SYNC:
       value = log_sys->m_capacity.adaptive_flush_max_age();
       break;
+
     case MONITOR_OVLD_ADAPTIVE_HASH_SEARCH:
       value = btr_cur_n_sea;
       break;

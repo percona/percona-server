@@ -137,4 +137,9 @@ extern bool srv_startup_is_before_trx_rollback_phase;
 /** true if a raw partition is in use */
 extern bool srv_start_raw_disk_in_use;
 
+/** check if there is no encryption conflicts when setting
+either Master Key or Keyring encryption for undo */
+dberr_t check_mk_and_keyring_encrypt_exclusion_for_undo(
+    bool should_acquire_space, THD *thd);
+
 #endif

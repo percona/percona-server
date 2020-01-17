@@ -1744,7 +1744,7 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
     data_len += 8;
   } else if (page_type == FIL_PAGE_ENCRYPTED && m_type == Encryption::KEYRING &&
              !type.is_page_zip_compressed()) {
-  	data_len -= 4;  // Last 4 bytes are not encrypted
+    data_len -= 4;  // Last 4 bytes are not encrypted
   }
 
   main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;

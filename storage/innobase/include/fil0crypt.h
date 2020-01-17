@@ -318,13 +318,32 @@ struct redo_log_key final {
 };
 
 /**
-Exclude tablespace from encryption threads rotation
+Exclude tablespace from encryption threads rotation. This is "permament"
+exclusion, i.e. ENCRYPTION of a tablespace was explicitly set to 'N'.
 @param[in] space tablespace to exclude
 @return false tablespace cannot be excluded because there are encryption
               threads currently operating on it.
         true  success
 */
-bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space);
+bool fil_crypt_exclude_tablespace_from_rotation_permanently(fil_space_t *space);
+
+/**
+Exclude tablespace from encryption threads rotation. This is "temporary"
+exclusion, i.e. tablespace ENCRYPTION is set to Y for Master Key encryption
+or to N for Master Key decryption. While the Master Key encryption/decryption
+is running, encryption threads should not interfere.
+@param[in] space tablespace to exclude
+@return false tablespace cannot be excluded because there are encryption
+              threads currently operating on it.
+        true  success
+*/
+bool fil_crypt_exclude_tablespace_from_rotation_temporarily(fil_space_t *space);
+
+/**
+Re-adds temporarily excluded tablespace to rotation threads
+@param[in] space tablespace to re-added
+*/
+void fil_crypt_readd_space_to_rotation(space_id_t space_id);
 
 /*********************************************************************
 Init space crypt */

@@ -1584,7 +1584,8 @@ static dberr_t srv_sys_enable_encryption(bool create_new_db) {
     return (DB_ERROR);
   }
 
-  if (create_new_db && srv_sys_tablespace_encrypt) {
+  if (create_new_db &&
+      srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
     fsp_flags_set_encryption(space->flags);
     srv_sys_space.set_flags(space->flags);
 
@@ -1594,16 +1595,29 @@ static dberr_t srv_sys_enable_encryption(bool create_new_db) {
     const auto fsp_flags = srv_sys_space.m_files.begin()->flags();
     const bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
 
-    if (is_encrypted && !srv_sys_tablespace_encrypt &&
-        !srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+    if (srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+      if (srv_sys_tablespace_encrypt != SYS_TABLESPACE_ENCRYPT_ON) {
+        return (DB_SUCCESS);
+      }
+
+      ib::error()
+          << "The system tablespace was (or is) encrypted with keyring. "
+             "Since then the system tablespace encryption is governed by "
+             "encryption threads. Use them to encrypt/decrypt system "
+             "tablespace. ";
+      return (DB_ERROR);
+    }
+
+    if (is_encrypted &&
+        srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_OFF) {
       ib::error() << "The system tablespace is encrypted but"
                   << " --innodb_sys_tablespace_encrypt is"
                   << " OFF. Enable the option and start server";
       return (DB_ERROR);
     }
 
-    if (!is_encrypted && srv_sys_tablespace_encrypt &&
-        !srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+    if (!is_encrypted &&
+        srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
       ib::error() << "The system tablespace is not encrypted but"
                   << " --innodb_sys_tablespace_encrypt is"
                   << " ON. This instance was not bootstrapped"
@@ -2487,6 +2501,10 @@ dberr_t srv_start(bool create_new_db) {
     err = srv_undo_tablespaces_init(false);
 
     if (err != DB_SUCCESS && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+      return (srv_init_abort(err));
+    }
+
+    if (err != DB_SUCCESS) {
       return (srv_init_abort(err));
     }
 

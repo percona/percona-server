@@ -503,7 +503,11 @@ struct fil_space_t {
 
   bool is_space_encrypted;
 
-  bool exclude_from_rotation;
+  // Used by encryption threads to check whether a space was
+  // excluded from encryption/decryption. We use atomic because
+  // this variable can be check by encryption threads without
+  // them acquiring any locks.
+  std::atomic<bool> exclude_from_rotation;
 
   // List of all spaces
   List_node space_list;

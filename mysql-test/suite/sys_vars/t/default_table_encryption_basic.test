@@ -118,31 +118,10 @@ SELECT @@session.default_table_encryption = false;
 SET GLOBAL default_table_encryption=false;
 SELECT @@global.default_table_encryption = false;
 
-SELECT @@session.default_table_encryption;
---error ER_WRONG_VALUE_FOR_VAR
-SET SESSION default_table_encryption=KEYRING_ON;
-SELECT @@session.default_table_encryption;
-
-SET SESSION default_table_encryption=ONLINE_TO_KEYRING;
-SELECT @@session.default_table_encryption;
-
-SET SESSION default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-SELECT @@session.default_table_encryption;
-
 SET GLOBAL default_table_encryption=OFF;
 SELECT @@global.default_table_encryption;
 
 SET PERSIST default_table_encryption=ON;
-SELECT @@global.default_table_encryption;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET PERSIST default_table_encryption=KEYRING_ON;
-SELECT @@global.default_table_encryption;
-
-SET PERSIST default_table_encryption=ONLINE_TO_KEYRING;
-SELECT @@global.default_table_encryption;
-
-SET PERSIST default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SELECT @@global.default_table_encryption;
 
 SET PERSIST default_table_encryption=ON;
@@ -170,16 +149,6 @@ SET SESSION default_table_encryption=ON;
 SELECT @@session.default_table_encryption;
 
 SET GLOBAL default_table_encryption=OFF;
-SELECT @@global.default_table_encryption;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET PERSIST default_table_encryption=KEYRING_ON;
-SELECT @@global.default_table_encryption;
-
-SET PERSIST default_table_encryption=ONLINE_TO_KEYRING;
-SELECT @@global.default_table_encryption;
-
-SET PERSIST default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 SELECT @@global.default_table_encryption;
 
 SET PERSIST default_table_encryption=ON;

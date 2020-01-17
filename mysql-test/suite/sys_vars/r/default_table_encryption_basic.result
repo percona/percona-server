@@ -109,22 +109,6 @@ SELECT @@global.default_table_encryption = false;
 1
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'OFF'
-SELECT @@session.default_table_encryption;
-@@session.default_table_encryption
-OFF
-SET SESSION default_table_encryption=KEYRING_ON;
-ERROR 42000: Variable 'default_table_encryption' can't be set to the value of 'KEYRING_ON'
-SELECT @@session.default_table_encryption;
-@@session.default_table_encryption
-OFF
-SET SESSION default_table_encryption=ONLINE_TO_KEYRING;
-SELECT @@session.default_table_encryption;
-@@session.default_table_encryption
-ONLINE_TO_KEYRING
-SET SESSION default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-SELECT @@session.default_table_encryption;
-@@session.default_table_encryption
-ONLINE_FROM_KEYRING_TO_UNENCRYPTED
 SET GLOBAL default_table_encryption=OFF;
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
@@ -133,19 +117,6 @@ SET PERSIST default_table_encryption=ON;
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
 ON
-SET PERSIST default_table_encryption=KEYRING_ON;
-ERROR 42000: Variable 'default_table_encryption' can't be set to the value of 'KEYRING_ON'
-SELECT @@global.default_table_encryption;
-@@global.default_table_encryption
-ON
-SET PERSIST default_table_encryption=ONLINE_TO_KEYRING;
-SELECT @@global.default_table_encryption;
-@@global.default_table_encryption
-ONLINE_TO_KEYRING
-SET PERSIST default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-SELECT @@global.default_table_encryption;
-@@global.default_table_encryption
-ONLINE_FROM_KEYRING_TO_UNENCRYPTED
 SET PERSIST default_table_encryption=ON;
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
@@ -176,19 +147,6 @@ SET GLOBAL default_table_encryption=OFF;
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption
 OFF
-SET PERSIST default_table_encryption=KEYRING_ON;
-ERROR 42000: Variable 'default_table_encryption' can't be set to the value of 'KEYRING_ON'
-SELECT @@global.default_table_encryption;
-@@global.default_table_encryption
-OFF
-SET PERSIST default_table_encryption=ONLINE_TO_KEYRING;
-SELECT @@global.default_table_encryption;
-@@global.default_table_encryption
-ONLINE_TO_KEYRING
-SET PERSIST default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
-SELECT @@global.default_table_encryption;
-@@global.default_table_encryption
-ONLINE_FROM_KEYRING_TO_UNENCRYPTED
 SET PERSIST default_table_encryption=ON;
 SELECT @@global.default_table_encryption;
 @@global.default_table_encryption

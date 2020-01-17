@@ -49,17 +49,5 @@ FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t ${test}-t.cc)
   TARGET_LINK_LIBRARIES(${test}-t gr_unit_test_resource)
   TARGET_LINK_LIBRARIES(${test}-t gunit_small)
-<<<<<<< HEAD
-  # mysys_ssl/libmysys_ssl.a already includes SSL objects on Solaris
-  IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
-    TARGET_LINK_LIBRARIES(${test}-t perconaserverclient)
-  ENDIF()
-||||||| merged common ancestors
-  # mysys_ssl/libmysys_ssl.a already includes SSL objects on Solaris
-  IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
-    TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
-  ENDIF()
-=======
->>>>>>> mysql-5.7.29
   ADD_TEST(${test} ${test}-t)
 ENDFOREACH()

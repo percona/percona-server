@@ -4136,7 +4136,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   int pkt_len;
   String scramble_response_packet;
   int cipher_length = 0;
-  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
+  unsigned char plain_text[MAX_CIPHER_LENGTH + 1] = "";
   RSA *private_key = NULL;
   RSA *public_key = NULL;
 

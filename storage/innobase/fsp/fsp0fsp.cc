@@ -4169,6 +4169,11 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
   /* Confirm that all pages are covered. */
   ut_ad(progress_monitor.is_completed());
 #endif
+
+  // Tablespace could have been temporarily removed from rotation
+  // to not interfere with encryption threads. Now that Master
+  // Key encryption/decryption was finished - readd it to rotation.
+  fil_crypt_readd_space_to_rotation(space_id);
 }
 
 /** Encrypt/Unencrypt a tablespace.

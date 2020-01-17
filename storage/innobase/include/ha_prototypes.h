@@ -415,15 +415,5 @@ InnoDB extended statistics should be collected.
 MY_NODISCARD
 trx_t *innobase_get_trx_for_slow_log(void) noexcept;
 
-enum srv_encrypt_tables_values {
-  SRV_ENCRYPT_TABLES_OFF = 0,
-  SRV_ENCRYPT_TABLES_ON = 1,
-  SRV_ENCRYPT_TABLES_FORCE = 2,
-  SRV_ENCRYPT_TABLES_KEYRING_FORCE = 3,
-  SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING = 4,
-  SRV_ENCRYPT_TABLES_ONLINE_TO_KEYRING_FORCE = 5,
-  SRV_ENCRYPT_TABLES_ONLINE_FROM_KEYRING_TO_UNENCRYPTED = 6
-};
-
 extern bool innodb_inited;
 #endif /* HA_INNODB_PROTOTYPES_H */

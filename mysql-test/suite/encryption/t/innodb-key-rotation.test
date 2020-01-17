@@ -10,7 +10,10 @@ SET GLOBAL innodb_file_per_table = ON;
 create table t1 (a varchar(255)) engine=innodb encryption='KEYRING';
 create table t2 (a varchar(255)) engine=innodb encryption_key_id=5;
 create table t3 (a varchar(255)) engine=innodb;
+# Temporary disable online to keyring encryption to create MK encrypted table
+SET GLOBAL default_table_encryption=OFF;
 create table t4 (a varchar(255)) engine=innodb encryption='Y'; # MK encryption - should get re-encrypted to KEYRING
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 create table t5 (a varchar(255)) engine=innodb;
 create table t6 (a varchar(255)) engine=innodb encryption='N';
 

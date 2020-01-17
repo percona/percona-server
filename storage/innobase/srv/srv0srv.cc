@@ -188,7 +188,7 @@ unsigned long long srv_max_undo_tablespace_size;
 bool srv_tmp_tablespace_encrypt;
 
 /** Option to enable encryption of system tablespace. */
-bool srv_sys_tablespace_encrypt;
+ulong srv_sys_tablespace_encrypt;
 
 /** Enable or disable encryption of pages in parallel doublewrite buffer
 file */

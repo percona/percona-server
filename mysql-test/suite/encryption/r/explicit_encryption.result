@@ -35,6 +35,10 @@ t4_dup	CREATE TABLE `t4_dup` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE DATABASE test_enc_n DEFAULT ENCRYPTION='N';
+ERROR HY000: Database default encryption cannot be set to N (explicitly request for tables in database to be unencrypted) while default_table_encryption is set to ONLINE_TO_KEYRING. If you want to exclude table from being encrypted by encryption threads you can still do it while creating table. For that you need to explicitly specify ENCRYPTION='N' while creating a table.
+SET GLOBAL default_table_encryption=OFF;
+CREATE DATABASE test_enc_n DEFAULT ENCRYPTION='N';
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 USE test_enc_n;
 CREATE TABLE t6 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255));
 USE test;
@@ -150,6 +154,9 @@ include/assert.inc [Make sure ts1 is encrypted]
 # Tablespaces, apart from t4 should be encrypted after restart
 ALTER TABLE t1 ENCRYPTION='N';
 include/assert.inc [Make sure t1 is marked as excluded in INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION]
+ALTER DATABASE test DEFAULT ENCRYPTION='Y';
+ERROR HY000: Database default encryption cannot be set to Y (Master Key encryption) while default_table_encryption is set to ONLINE_TO_KEYRING. It does not make sense to create new Master Key encrypted tables if the intention is to re-encrypt them to KEYRING encryption.
+SET GLOBAL default_table_encryption=ON;
 ALTER DATABASE test DEFAULT ENCRYPTION='Y';
 SHOW CREATE TABLE t4;
 Table	Create Table

@@ -2000,6 +2000,87 @@ static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
   return (flushed_lsn);
 }
 
+static dberr_t check_online_to_keyring_and_mk_encrypt_exclusions(
+    bool create_new_db) {
+  if (srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
+    if (create_new_db) {
+      ib::error()
+          << "Online to Keyring encryption cannot be turned ON, when "
+             "system tablespace is to be Master Key encrypted. Please choose "
+             "if system tablespace should be encrypted with "
+             "Master Key or KEYRING.";
+    } else {
+      ib::error()
+          << "Online to Keyring encryption cannot be turned ON, when "
+             "system tablespace is Master Key encrypted. Please set "
+             "--innodb-sys_tablespace_encrypt to RE_ENCRYPING_TO_KEYRING "
+             "to allow encryption threads to re-encrypt system tablespace "
+             "with KEYRING encryption.";
+    }
+    return (DB_ERROR);
+  }
+  if (srv_sys_tablespace_encrypt == SYS_TABLESPACE_RE_ENCRYPTING_TO_KEYRING &&
+      create_new_db) {
+    ib::error()
+        << "You are bootstrapping server with --srv_sys_tablespace_encrypt="
+           "RE_ENCRYPTING_TO_KEYRING and Online to keyring encryption ON. "
+           "RE_ENCRYPTING_TO_KEYRING does not make sense in this case as "
+           "system tablespace has not yet been encrypted. Please set "
+           "--srv_sys_tablespace_encrypt to OFF and activate encryption "
+           "threads "
+           "if you want it to be encrypted with KEYRING encryption by "
+           "encryption threads or set it to ON and turn off online "
+           "encryption to "
+           "keyring if you want it to be encrypted with Master Key "
+           "encryption.";
+    return (DB_ERROR);
+  }
+  if (srv_undo_log_encrypt) {
+    ib::error() << "Online encryption to keyring cannot be turned ON "
+                   "as Undo log Master Key encryption is turned ON. "
+                   "You can encrypt Undo log with either Master key encryption "
+                   "or with KEYRING encryption, but you have to choose one.";
+    return (DB_ERROR);
+  }
+  return (DB_SUCCESS);
+}
+
+dberr_t check_mk_and_keyring_encrypt_exclusion_for_undo(
+    bool should_acquire_space, THD *thd) {
+  undo::spaces->s_lock();
+  for (auto undo_space : undo::spaces->m_spaces) {
+    fil_space_t *space = should_acquire_space
+                             ? fil_space_acquire_silent(undo_space->id())
+                             : fil_space_get(undo_space->id());
+    ut_ad(space != nullptr);
+    fil_space_crypt_t *crypt_data = space->crypt_data;
+    if (crypt_data != nullptr && crypt_data->type != CRYPT_SCHEME_UNENCRYPTED) {
+      static const char *err_msg =
+          " Undo log cannot be"
+          " encrypted with Master Key encryption"
+          " while there are undo tablespaces encrypted with "
+          "KEYRING encryption."
+          " Please decrypt them first with encryption threads.";
+      if (thd) {
+        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                            "%s", err_msg);
+      } else {
+        ib::error() << err_msg;
+      }
+      if (should_acquire_space) {
+        fil_space_release(space);
+      }
+      undo::spaces->s_unlock();
+      return (DB_ERROR);
+    }
+    if (should_acquire_space) {
+      fil_space_release(space);
+    }
+  }
+  undo::spaces->s_unlock();
+  return (DB_SUCCESS);
+}
+
 /** Enable encryption of system tablespace if requested. At
 startup load the encryption information from first datafile
 to tablespace object
@@ -2017,7 +2098,8 @@ static dberr_t srv_sys_enable_encryption(bool create_new_db) {
     return (DB_ERROR);
   }
 
-  if (create_new_db && srv_sys_tablespace_encrypt) {
+  if (create_new_db &&
+      srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
     fsp_flags_set_encryption(space->flags);
     srv_sys_space.set_flags(space->flags);
 
@@ -2027,16 +2109,29 @@ static dberr_t srv_sys_enable_encryption(bool create_new_db) {
     const auto fsp_flags = srv_sys_space.m_files.begin()->flags();
     const bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
 
-    if (is_encrypted && !srv_sys_tablespace_encrypt &&
-        !srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+    if (srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+      if (srv_sys_tablespace_encrypt != SYS_TABLESPACE_ENCRYPT_ON) {
+        return (DB_SUCCESS);
+      }
+
+      ib::error()
+          << "The system tablespace was (or is) encrypted with keyring. "
+             "Since then the system tablespace encryption is governed by "
+             "encryption threads. Use them to encrypt/decrypt system "
+             "tablespace. ";
+      return (DB_ERROR);
+    }
+
+    if (is_encrypted &&
+        srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_OFF) {
       ib::error() << "The system tablespace is encrypted but"
                   << " --innodb_sys_tablespace_encrypt is"
                   << " OFF. Enable the option and start server";
       return (DB_ERROR);
     }
 
-    if (!is_encrypted && srv_sys_tablespace_encrypt &&
-        !srv_sys_space.keyring_encryption_info.page0_has_crypt_data) {
+    if (!is_encrypted &&
+        srv_sys_tablespace_encrypt == SYS_TABLESPACE_ENCRYPT_ON) {
       ib::error() << "The system tablespace is not encrypted but"
                   << " --innodb_sys_tablespace_encrypt is"
                   << " ON. This instance was not bootstrapped"
@@ -2375,6 +2470,19 @@ dberr_t srv_start(bool create_new_db) {
 
   if (create_new_db) {
     recv_sys_free();
+  }
+
+  /* We cannot use srv_default_encryption here because it is
+  set by server using fix_default_table_encryption() handlerton API
+  after InnoDB initialization is done and we need the variable
+  as part of InnoDB initialization. So we directly use the server
+  global variable structure */
+
+  if (global_system_variables.default_table_encryption ==
+          DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING &&
+      check_online_to_keyring_and_mk_encrypt_exclusions(create_new_db) ==
+          DB_ERROR) {
+    return (srv_init_abort(DB_ERROR));
   }
 
   /* Open or create the data files. */
@@ -2920,6 +3028,14 @@ files_checked:
     err = srv_undo_tablespaces_init(false);
 
     if (err != DB_SUCCESS && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+      return (srv_init_abort(err));
+    }
+
+    if (srv_undo_log_encrypt) {
+      err = check_mk_and_keyring_encrypt_exclusion_for_undo(false, nullptr);
+    }
+
+    if (err != DB_SUCCESS) {
       return (srv_init_abort(err));
     }
 

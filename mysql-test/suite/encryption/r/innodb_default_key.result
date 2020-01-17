@@ -82,10 +82,13 @@ include/assert.inc [Table t6 and t7 should NOT be included in INNODB_TABLESPACES
 # restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4 --innodb-default-encryption-key-id=6
 #Wait for all tables to get encrypted (without temporary tablespace)
 include/assert.inc [Table t6 should be included in INNODB_TABLESPACES_ENCRYPTION with MIN_KEY_VERION 1 (encrypted) and CURRENT_KEY_ID = 6]
-# Both statements should produce warnings
+SET GLOBAL default_table_encryption=OFF;
+# should produce warnings
 CREATE TABLE t8 (a varchar(255)) ENCRYPTION="Y" ENCRYPTION_KEY_ID=5 ENGINE=innodb;
 Warnings:
 Warning	140	InnoDB: Ignored ENCRYPTION_KEY_ID 5 when Master Key encryption is enabled.
+SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
+# should produce warnings
 CREATE TABLE t9 (a varchar(255)) ENCRYPTION="N" ENCRYPTION_KEY_ID=5 ENGINE=innodb;
 Warnings:
 Warning	140	InnoDB: Ignored ENCRYPTION_KEY_ID 5 when encryption is disabled.

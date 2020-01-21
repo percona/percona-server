@@ -5,6 +5,7 @@
 --source include/have_debug.inc
 --source include/not_embedded.inc
 
+call mtr.add_suppression("Last tracked LSN in \'\.\/ib_modified_log_[0-9_]+.xdb\' is [0-9]+, but the last checkpoint LSN is [0-9]+.  This might be due to a server crash or a very fast shutdown");
 SELECT 1;
 --source include/shutdown_mysqld.inc
 --error 1

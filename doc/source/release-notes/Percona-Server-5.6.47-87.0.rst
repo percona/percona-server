@@ -35,5 +35,3 @@ Bugs Fixed
   not list a default value
 * :psbug:`5521`: Documentation - :variable:`tokudb_cache_size` definition
   missing
-
-

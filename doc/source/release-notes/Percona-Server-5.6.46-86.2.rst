@@ -19,22 +19,17 @@ Bugs Fixed
 ===============================================================================
 
 - The Audit log filtering by user was not working. Bug fixed :psbug:`5707`.
-- Added a package version for the Red Hat Package Manager (rpm). Bug fixed :psbug:`5650`.
-
 
 Other Bugs Fixed
 ================================================================================
 
-:psbug:`5427`,
 :psbug:`5988`,
 :psbug:`5216`,
 :psbug:`5327`,
 :psbug:`5761`,
 :psbug:`5933`,
-:psbug:`5941`,
-:psbug:`5997`, and
-:psbug:`6017`
-
+:psbug:`5941`, and
+:psbug:`5997`,
 
 Find the release notes for Percona Server for MySQL 5.6.46-86.2 in our
 `online documentation

@@ -8022,7 +8022,13 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
       slayage if both are string-equal.
     */
 
-    if ((thd->security_ctx->master_access & SUPER_ACL) ||
+    const bool is_utility_connection =
+        acl_is_utility_user(tmp->security_ctx->priv_user,
+                            tmp->security_ctx->get_host()->ptr(),
+                            tmp->security_ctx->get_ip()->ptr());
+
+
+    if (((thd->security_ctx->master_access & SUPER_ACL) && !is_utility_connection) ||
         thd->security_ctx->user_matches(tmp->security_ctx))
     {
       /* process the kill only if thread is not already undergoing any kill

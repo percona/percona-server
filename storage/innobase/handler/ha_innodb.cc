@@ -12553,7 +12553,8 @@ static int validate_tablespace_name(ts_command_type ts_command,
   }
 
   /* The tablespace name cannot contain a '/'. */
-  if (memchr(name, '/', strlen(name)) != NULL) {
+  if (ts_command != ALTER_TABLESPACE &&
+      memchr(name, '/', strlen(name)) != NULL) {
     my_printf_error(ER_WRONG_TABLESPACE_NAME,
                     "InnoDB: A general tablespace name cannot"
                     " contain '/'.",

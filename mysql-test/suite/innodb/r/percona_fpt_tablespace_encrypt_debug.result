@@ -1,0 +1,28 @@
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+ALTER TABLESPACE `test/t1` ENCRYPTION='Y';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+SET DEBUG='+d, skip_dd_table_access_check';
+include/assert.inc [t1 dd::Table should have encryption attribute set as 'Y']
+include/assert.inc [t1 dd::Tablespace should have encryption attribute set as 'Y']
+ALTER TABLESPACE `test/t1` ENCRYPTION='N';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/assert.inc [t1 dd::Table should have encryption attribute set as 'N']
+include/assert.inc [t1 dd::Tablespace should have encryption attribute set as 'N']
+ALTER TABLESPACE `test/t1` RENAME TO `test/t2`;
+ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
+ALTER TABLESPACE `test/t1` RENAME TO `ts2`;
+ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+ALTER TABLESPACE ts1 RENAME TO `test/t2`;
+ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
+DROP TABLESPACE ts1;
+DROP TABLE t1;

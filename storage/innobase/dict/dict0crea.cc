@@ -201,7 +201,6 @@ static ibt::Tablespace *determine_session_temp_tblsp(
   bool encrypted = false;
   switch (srv_default_table_encryption) {
     case DEFAULT_TABLE_ENC_ON:
-    case DEFAULT_TABLE_ENC_KEYRING_ON:
     case DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING:
       encrypted = true;
       break;

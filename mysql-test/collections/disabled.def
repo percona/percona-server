@@ -168,7 +168,6 @@ tokudb_rpl.rpl_deadlock_tokudb : BUG#0 temporarily disabled until properly debug
 tokudb_rpl.rpl_partition_tokudb : BUG#0 exchange partition is not supported
 
 # encryption suite tests
-encryption.encryption_force : BUG#5817 Align Keyring encryption and default_table_encryption
 encryption.innodb_lotoftables : BUG#5817 Align Keyring encryption and default_table_encryption
 encryption.innodb-bad-key-change2 : BUG#5322 Keyring encrypted tablespace import/export is broken
 encryption.innodb-bad-key-change3 : BUG#5322 Keyring encrypted tablespace import/export is broken

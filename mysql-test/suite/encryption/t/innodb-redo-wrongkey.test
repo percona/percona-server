@@ -5,7 +5,7 @@
 # should fail to apply redo logs to those tables since the tables will be garbage, as incorrect key was
 # used.
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL default_table_encryption = KEYRING_ON;
+SET GLOBAL default_table_encryption = ONLINE_TO_KEYRING;
 
 create table t1(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed ENCRYPTION='KEYRING' encryption_key_id=2;
 create table t2(a int not null primary key, c char(200), b blob, index(b(10))) engine=innodb row_format=compressed;

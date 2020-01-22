@@ -14,7 +14,7 @@ jobs:
     CCACHE_COMPRESSLEVEL: 9
     CCACHE_CPP2: 1
     CCACHE_MAXSIZE: 4G
-    Agent.Source.Git.ShallowFetchDepth: 256
+    Agent.Source.Git.ShallowFetchDepth: 512
 
   strategy:
     matrix:

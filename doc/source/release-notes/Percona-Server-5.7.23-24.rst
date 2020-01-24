@@ -29,7 +29,6 @@ New Features
 - :psbug:`4556`: InnoDB :ref:`ps.data-at-rest-encryption.redo-log` has been implemented
 - :psbug:`3839`: :ref:`InnoDB Data Scrubbing <data-at-rest-encryption.data-scrubbing>` has been implemented
 - :psbug:`3834`: :ref:`InnoDB Log Scrubbing <data-at-rest-encryption.variable.innodb-scrub-log>` has been implemented
-- :psbug:`3829`: :ref:`InnoDB Key Rotation <data-at-rest-encryption.key-rotation>`
 
 Bugs Fixed
 ================================================================================

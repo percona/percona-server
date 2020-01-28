@@ -59,8 +59,8 @@ This variable changes the size of transaction log records. The default size of 5
    :scope: Global
    :Dyn: No
    :vartype: Enumeration
-   :default: ``fdatasync``
-   :allowed: ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``, ``ALL_O_DIRECT``
+   :default: NULL
+   :allowed: ``fsync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``, ``littlesync``, ``nosync``
 
 This is an existing |MySQL| 5.6 system variable that has a new allowed value ``ALL_O_DIRECT``. It determines the method |InnoDB| uses to flush its data and log files. (See ``innodb_flush_method`` in the |MySQL| 5.6 `Reference Manual <https://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
 

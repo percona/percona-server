@@ -3182,7 +3182,15 @@ class Gtid_state {
   int warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
 #endif
 
+  /* Allow to snapshot last executed GTID */
+  void get_snapshot_last_executed_gtid(Gtid &snapshot_last_executed_gtid,
+                                       rpl_sid &snapshot_last_executed_sid);
+
  private:
+  /* Track last executed GTID */
+  Gtid last_executed_gtid;
+  rpl_sid last_executed_sid;
+
   /**
     Remove the GTID owned by thread from owned GTIDs.
 

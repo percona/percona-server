@@ -254,6 +254,7 @@ static ulonglong binlog_global_snapshot_position;
 
 // Binlog position variables for SHOW STATUS
 static char binlog_snapshot_file[FN_REFLEN];
+static char binlog_snapshot_gtid_last_executed[Gtid::MAX_TEXT_LENGTH + 1];
 static ulonglong binlog_snapshot_position;
 
 static SHOW_VAR binlog_status_vars_detail[] = {
@@ -261,6 +262,8 @@ static SHOW_VAR binlog_status_vars_detail[] = {
      SHOW_SCOPE_GLOBAL},
     {"snapshot_position", (char *)&binlog_snapshot_position, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
+    {"snapshot_gtid_last_executed", (char *)&binlog_snapshot_gtid_last_executed,
+     SHOW_CHAR, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
 /**
@@ -1122,6 +1125,8 @@ class binlog_cache_mngr {
   binlog_trx_cache_data trx_cache;
 
   LOG_INFO binlog_info;
+  Gtid snapshot_last_executed_gtid;
+  rpl_sid snapshot_last_executed_sid;
 
   /*
     The bool flag is for preventing do_binlog_xa_commit_rollback()
@@ -2111,6 +2116,9 @@ static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd) {
 
   /* Server layer calls us with LOCK_log locked, so this is safe. */
   mysql_bin_log.raw_get_current_log(&cache_mngr->binlog_info);
+  gtid_state->get_snapshot_last_executed_gtid(
+      cache_mngr->snapshot_last_executed_gtid,
+      cache_mngr->snapshot_last_executed_sid);
 
   trans_register_ha(thd, true, hton, nullptr);
 
@@ -2147,6 +2155,10 @@ static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
+  cache_mngr->snapshot_last_executed_gtid =
+      from_cache_mngr->snapshot_last_executed_gtid;
+  cache_mngr->snapshot_last_executed_sid =
+      from_cache_mngr->snapshot_last_executed_sid;
   cache_mngr->binlog_info.pos = pos;
   strmake(cache_mngr->binlog_info.log_file_name, log_file_name,
           sizeof(cache_mngr->binlog_info.log_file_name) - 1);
@@ -11759,12 +11771,20 @@ static int show_binlog_vars(THD *thd, SHOW_VAR *var,
   if (have_snapshot) {
     set_binlog_snapshot_file(cache_mngr->binlog_info.log_file_name);
     binlog_snapshot_position = cache_mngr->binlog_info.pos;
+
+    if (!cache_mngr->snapshot_last_executed_gtid.is_empty() &&
+        cache_mngr->snapshot_last_executed_gtid.sidno > 0)
+      cache_mngr->snapshot_last_executed_gtid.to_string(
+          cache_mngr->snapshot_last_executed_sid,
+          binlog_snapshot_gtid_last_executed);
   } else if (mysql_bin_log.is_open()) {
     set_binlog_snapshot_file(binlog_global_snapshot_file);
     binlog_snapshot_position = binlog_global_snapshot_position;
+    strcpy(binlog_snapshot_gtid_last_executed, "not-in-consistent-snapshot");
   } else {
     binlog_snapshot_file[0] = '\0';
     binlog_snapshot_position = 0;
+    binlog_snapshot_gtid_last_executed[0] = '\0';
   }
   var->type = SHOW_ARRAY;
   var->value = reinterpret_cast<char *>(&binlog_status_vars_detail);

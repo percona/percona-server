@@ -1,0 +1,25 @@
+SET @session.autocommit = 0;
+CREATE TABLE t1 (a INT);
+COMMIT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+include/assert.inc [@@GTID_EXECUTED=MASTER_UUID:1 and Binlog_snapshot_gtid_last_executed=MASTER_UUID:1]
+INSERT INTO t1 VALUES(1);
+COMMIT;
+include/assert.inc [@@GTID_EXECUTED=MASTER_UUID:1-2 and Binlog_snapshot_gtid_last_executed=not-in-consistent-snapshot]
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+include/assert.inc [@@GTID_EXECUTED=MASTER_UUID:1-2 and Binlog_snapshot_gtid_last_executed=MASTER_UUID:2]
+INSERT INTO t1 VALUES(2);
+COMMIT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+include/assert.inc [@@GTID_EXECUTED=MASTER_UUID:1-3 and Binlog_snapshot_gtid_last_executed=MASTER_UUID:3]
+# Test START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
+SET @session.autocommit = 0;
+include/assert.inc [@@GTID_EXECUTED=MASTER_UUID:1-3 and Binlog_snapshot_gtid_last_executed=not-in-consistent-snapshot]
+INSERT INTO t1 VALUES(3);
+COMMIT;
+include/assert.inc [@@GTID_EXECUTED=MASTER_UUID:1-4 and Binlog_snapshot_gtid_last_executed=not-in-consistent-snapshot]
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id;
+include/assert.inc [@@GTID_EXECUTED=MASTER_UUID:1-4 and Binlog_snapshot_gtid_last_executed=MASTER_UUID:3]
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+include/assert.inc [@@GTID_EXECUTED=MASTER_UUID:1-4 and Binlog_snapshot_gtid_last_executed=MASTER_UUID:4]
+DROP TABLE t1;

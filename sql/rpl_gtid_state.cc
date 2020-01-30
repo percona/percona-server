@@ -150,6 +150,14 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd) {
   }
 }
 
+void Gtid_state::get_snapshot_last_executed_gtid(
+    Gtid &snapshot_last_executed_gtid, rpl_sid &snapshot_last_executed_sid) {
+  global_sid_lock->wrlock();
+  snapshot_last_executed_gtid = last_executed_gtid;
+  snapshot_last_executed_sid = last_executed_sid;
+  global_sid_lock->unlock();
+}
+
 void Gtid_state::update_commit_group(THD *first_thd) {
   DBUG_TRACE;
 
@@ -858,6 +866,9 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit) {
       into global executed_gtids, lost_gtids and gtids_only_in_table.
     */
     executed_gtids._add_gtid(thd->owned_gtid);
+    last_executed_gtid = thd->owned_gtid;
+    last_executed_sid = thd->owned_sid;
+
     thd->rpl_thd_ctx.session_gtids_ctx().notify_after_gtid_executed_update(thd);
     if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates) {
       lost_gtids._add_gtid(thd->owned_gtid);

@@ -1,0 +1,81 @@
+--source include/assert_gtid_mode_on.inc
+
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--source include/count_sessions.inc
+
+SET @session.autocommit = 0;
+CREATE TABLE t1 (a INT);
+COMMIT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--let $gtid_last_executed = query_get_value(SHOW STATUS LIKE "Binlog_snapshot_gtid_last_executed", Value, 1)
+--let $assert_text= @@GTID_EXECUTED=MASTER_UUID:1 and Binlog_snapshot_gtid_last_executed=MASTER_UUID:1
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$gtid_last_executed"
+--source include/assert.inc
+
+INSERT INTO t1 VALUES(1);
+COMMIT;
+
+--let $gtid_last_executed = query_get_value(SHOW STATUS LIKE "Binlog_snapshot_gtid_last_executed", Value, 1)
+--let $assert_text= @@GTID_EXECUTED=MASTER_UUID:1-2 and Binlog_snapshot_gtid_last_executed=not-in-consistent-snapshot
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-2" AND "$gtid_last_executed" = "not-in-consistent-snapshot"
+--source include/assert.inc
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--let $gtid_last_executed = query_get_value(SHOW STATUS LIKE "Binlog_snapshot_gtid_last_executed", Value, 1)
+--let $assert_text= @@GTID_EXECUTED=MASTER_UUID:1-2 and Binlog_snapshot_gtid_last_executed=MASTER_UUID:2
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-2" AND "$gtid_last_executed" = "$master_uuid:2"
+--source include/assert.inc
+
+INSERT INTO t1 VALUES(2);
+COMMIT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--let $gtid_last_executed = query_get_value(SHOW STATUS LIKE "Binlog_snapshot_gtid_last_executed", Value, 1)
+--let $assert_text= @@GTID_EXECUTED=MASTER_UUID:1-3 and Binlog_snapshot_gtid_last_executed=MASTER_UUID:3
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3" AND "$gtid_last_executed" = "$master_uuid:3"
+--source include/assert.inc
+
+
+--echo # Test START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
+--let $donor_id=`SELECT CONNECTION_ID()`
+
+--connect(con1,localhost,root,,)
+SET @session.autocommit = 0;
+
+--let $gtid_last_executed = query_get_value(SHOW STATUS LIKE "Binlog_snapshot_gtid_last_executed", Value, 1)
+--let $assert_text= @@GTID_EXECUTED=MASTER_UUID:1-3 and Binlog_snapshot_gtid_last_executed=not-in-consistent-snapshot
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3" AND "$gtid_last_executed" = "not-in-consistent-snapshot"
+--source include/assert.inc
+
+INSERT INTO t1 VALUES(3);
+COMMIT;
+
+--let $gtid_last_executed = query_get_value(SHOW STATUS LIKE "Binlog_snapshot_gtid_last_executed", Value, 1)
+--let $assert_text= @@GTID_EXECUTED=MASTER_UUID:1-4 and Binlog_snapshot_gtid_last_executed=not-in-consistent-snapshot
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "3" AND "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4" AND "$gtid_last_executed" = "not-in-consistent-snapshot"
+--source include/assert.inc
+
+--disable_query_log
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--enable_query_log
+
+--let $gtid_last_executed = query_get_value(SHOW STATUS LIKE "Binlog_snapshot_gtid_last_executed", Value, 1)
+--let $assert_text= @@GTID_EXECUTED=MASTER_UUID:1-4 and Binlog_snapshot_gtid_last_executed=MASTER_UUID:3
+--let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "2" AND "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4" AND "$gtid_last_executed" = "$master_uuid:3"
+--source include/assert.inc
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--let $gtid_last_executed = query_get_value(SHOW STATUS LIKE "Binlog_snapshot_gtid_last_executed", Value, 1)
+--let $assert_text= @@GTID_EXECUTED=MASTER_UUID:1-4 and Binlog_snapshot_gtid_last_executed=MASTER_UUID:4
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4" AND "$gtid_last_executed" = "$master_uuid:4"
+--source include/assert.inc
+
+--disconnect con1
+--connection default
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

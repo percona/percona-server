@@ -78,13 +78,16 @@ Installing |Percona Server| from Percona ``yum`` repository
 
 1. Install the Percona repository 
    
-   You can install Percona yum repository by running the following command as a ``root`` user or with sudo:
+A Percona Server installation or upgrade, by default, creates the mysqld.cnf file.
+This file is defined as the default configuration and located in the /etc/percona-server.conf.d 
+directory. The directory is created if that directory does not exist. 
+
+You can install Percona yum repository by running the following command as a
+``root`` user or with sudo:
 
    .. code-block:: bash
 
-  
-      $ yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm 
-
+        $ yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
    .. admonition:: Output example
 
@@ -99,7 +102,6 @@ Installing |Percona Server| from Percona ``yum`` repository
    .. code-block:: bash
 
       $ yum install http://repo.percona.com/centos/7/RPMS/x86_64/Percona-Server-selinux-56-5.6.42-rel84.2.el7.noarch.rpm
-
 
 2. Testing the repository
    

@@ -47,6 +47,9 @@ bool PFS_index_ees_by_thread_by_error::match(PFS_thread *pfs) {
     if (!m_key_1.match(pfs)) {
       return false;
     }
+    if (pfs->m_disable_instrumentation) {
+      return false;
+    }
   }
 
   return true;

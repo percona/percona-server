@@ -149,7 +149,7 @@ Threads_running	2
 SELECT * FROM performance_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
 SELECT * FROM performance_schema.users WHERE USER="frank";
-USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS	MAX_SESSION_CONTROLLED_MEMORY	MAX_SESSION_TOTAL_MEMORY
 SELECT COUNT(*) from performance_schema.events_statements_current WHERE SQL_TEXT LIKE "%performance_schema.event_statements%";
 COUNT(*)
 0
@@ -157,18 +157,21 @@ SELECT CURRENT_CONNECTIONS, TOTAL_CONNECTIONS FROM performance_schema.hosts WHER
 CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 2	2
 SELECT * FROM performance_schema.accounts WHERE USER="frank";
-USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS	MAX_SESSION_CONTROLLED_MEMORY	MAX_SESSION_TOTAL_MEMORY
 SELECT * FROM performance_schema.session_account_connect_attrs;
 PROCESSLIST_ID	ATTR_NAME	ATTR_VALUE	ORDINAL_POSITION
 SELECT COUNT(DISTINCT PROCESSLIST_ID) FROM performance_schema.session_connect_attrs;
 COUNT(DISTINCT PROCESSLIST_ID)
 1
-SELECT COUNT(*) from performance_schema.threads where type='FOREGROUND';
+SELECT COUNT(*) FROM performance_schema.threads where type='FOREGROUND';
 COUNT(*)
 3
 KILL 9;
 ERROR HY000: You are not owner of thread 9
 REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';
+CREATE ROLE r1;
+GRANT r1 TO frank@'%';
+ERROR HY000: Unknown authorization ID `frank`@`%`
 CREATE USER u1 IDENTIFIED BY 'password';
 GRANT ALL ON *.* TO u1 WITH GRANT OPTION;
 ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass';
@@ -191,3 +194,4 @@ FOUND /Wrong format of --utility-user-dynamic-privileges parameter value: ,SYSTE
 # restart:<hidden args>
 FOUND /Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER;PRIVILEGE_1/ in my_restart.err
 # restart
+DROP ROLE r1;

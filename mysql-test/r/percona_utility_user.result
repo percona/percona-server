@@ -147,7 +147,7 @@ Threads_connected	2
 Threads_created	2
 Threads_running	2
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+Id	User	Host	db	Command	Time	State	Info	Time_ms	Rows_sent	Rows_examined
 SELECT * FROM performance_schema.users WHERE USER="frank";
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 SELECT COUNT(*) from performance_schema.events_statements_current WHERE SQL_TEXT LIKE "%performance_schema.event_statements%";
@@ -163,12 +163,15 @@ PROCESSLIST_ID	ATTR_NAME	ATTR_VALUE	ORDINAL_POSITION
 SELECT COUNT(DISTINCT PROCESSLIST_ID) FROM performance_schema.session_connect_attrs;
 COUNT(DISTINCT PROCESSLIST_ID)
 1
-SELECT COUNT(*) from performance_schema.threads where type='FOREGROUND';
+SELECT COUNT(*) FROM performance_schema.threads where type='FOREGROUND';
 COUNT(*)
 3
 KILL 9;
 ERROR HY000: You are not owner of thread 9
 REVOKE PROXY ON 'frank'@'%' FROM 'root'@'localhost';
+CREATE ROLE r1;
+GRANT r1 TO frank@'%';
+ERROR HY000: Unknown authorization ID `frank`@`%`
 CREATE USER u1 IDENTIFIED BY 'password';
 GRANT ALL ON *.* TO u1 WITH GRANT OPTION;
 ALTER USER 'u1'@'%' IDENTIFIED BY 'newpass';
@@ -191,3 +194,4 @@ FOUND /Wrong format of --utility-user-dynamic-privileges parameter value: ,SYSTE
 # restart:<hidden args>
 FOUND /Wrong format of --utility-user-dynamic-privileges parameter value: SYSTEM_USER;PRIVILEGE_1/ in my_restart.err
 # restart
+DROP ROLE r1;

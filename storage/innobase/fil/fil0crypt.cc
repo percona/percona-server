@@ -1021,15 +1021,22 @@ static void fil_crypt_write_crypt_data_to_page0(fil_space_t *space) {
 }
 
 bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space) {
-  IB_mutex_guard fil_crypt_threads_mutex_guard(&fil_crypt_threads_mutex);
+  // We acquire fil_crypt_threads_mutex to stop encryption threads from
+  // generating crypt_data for tablespaces that they are about to encrypt.
+  // Generating crypt_data is the fist step in encryption process.
+  mutex_enter(&fil_crypt_threads_mutex);
 
   if (space->crypt_data == nullptr) {
     space->crypt_data = fil_space_create_crypt_data(FIL_ENCRYPTION_OFF,
                                                     FIL_DEFAULT_ENCRYPTION_KEY);
     fil_crypt_write_crypt_data_to_page0(space);
+    mutex_exit(&fil_crypt_threads_mutex);
     return true;
   }
 
+  mutex_exit(&fil_crypt_threads_mutex);
+
+  // crypt_data already existed.
   fil_space_crypt_t *crypt_data = space->crypt_data;
   IB_mutex_guard crypt_data_mutex_guard(&crypt_data->mutex);
 
@@ -1038,6 +1045,8 @@ bool fil_crypt_exclude_tablespace_from_rotation(fil_space_t *space) {
     return true;
   }
 
+  // if there are any encryption threads "running" on this tablespace we cannot
+  // exclude it from rotation.
   if (crypt_data->rotate_state.active_threads != 0 ||
       crypt_data->rotate_state.starting || crypt_data->rotate_state.flushing) {
     return false;
@@ -1644,6 +1653,16 @@ static bool fil_crypt_start_rotate_space(const key_state_t *key_state,
     crypt_data->rotate_state.create_flush_observer(state->space->id);
 
   mutex_enter(&crypt_data->mutex);
+
+  // It is possible that tablespace was excluded from rotation in the meantime.
+  // I.e. fil_crypt_exclude_tablespace_from_rotation was called. Check it here.
+  if (crypt_data->is_encryption_disabled()) {
+    mutex_exit(&crypt_data->mutex);
+    crypt_data->rotate_state.destroy_flush_observer();
+    mutex_exit(&crypt_data->start_rotate_mutex);
+    return false;
+  }
+
   ut_ad(key_state->key_id == crypt_data->key_id);
 
   if (crypt_data->rotate_state.active_threads == 0) {

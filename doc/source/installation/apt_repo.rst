@@ -10,9 +10,9 @@ repositories and the `Percona downloads`_ page.
 Supported Releases:
 
 - |debian-last|
-- |ubuntu| 16.04 (xenial) 
+- |ubuntu| 16.04 (xenial)
 - |ubuntu-lts|
-  
+
 Supported Platforms:
 
  * x86_64 (also known as ``amd64``)
@@ -44,19 +44,23 @@ What's in each DEB package?
      - The client shared library. The version is incremented when there is an
        ABI change that requires software using the client library to be
        recompiled or its source code modified.
-                   
+
 Installing |Percona Server| from Percona ``apt`` repository
 ===========================================================
 
-|tip.run-all.root|
+1. Install ``GnuPG``, the GNU Privacy Guard:
 
-1. Fetch the repository packages from Percona web: 
+   .. code-block:: bash
+
+      $ sudo apt-get install gnupg2
+
+2. Fetch the repository packages from Percona web:
 
    .. code-block:: bash
 
       $ wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb
 
-#. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`: 
+#. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`:
 
    .. code-block:: bash
 
@@ -78,7 +82,7 @@ Installing |Percona Server| from Percona ``apt`` repository
 
       $ sudo apt-get install percona-server-server
 
-.. note:: 
+.. note::
 
    |ps-last| comes with the :ref:`TokuDB storage engine
    <tokudb_intro>` and :ref:`MyRocks <myrocks_intro>` storage engines. These
@@ -141,7 +145,7 @@ After you unpack the bundle you should see the following packages:
   .. admonition:: Output
 
      .. code-block:: guess
-     		  
+
         libperconaserverclient21-dev_8.0.13-3-1.stretch_amd64.deb
         libperconaserverclient21_8.0.13-3-1.stretch_amd64.deb
         percona-server-dbg_8.0.13-3-1.stretch_amd64.deb
@@ -156,7 +160,7 @@ After you unpack the bundle you should see the following packages:
 
 Now, you can install |Percona Server| using |dpkg|. |tip.run-this.root|
 
-  .. code-block:: bash 
+  .. code-block:: bash
 
     $ sudo dpkg -i *.deb
 
@@ -175,7 +179,7 @@ storage engine).
    <tokudb_intro>`. You can find more information on how to install and enable
    the |TokuDB| storage in the :ref:`tokudb_installation` guide.
 
-.. warning:: 
+.. warning::
 
    When installing packages manually like this, you'll need to make sure to
    resolve all the dependencies and install missing packages yourself. Following
@@ -190,7 +194,7 @@ Running |Percona Server|
 default. You can find the configuration file that is used to manage |Percona
 Server| in :file:`/etc/mysql/my.cnf`.
 
-.. note:: 
+.. note::
 
    *Debian* and *Ubuntu* installation doesn't automatically create a special
     ``debian-sys-maint`` user which can be used by the control scripts to
@@ -215,13 +219,13 @@ Server| in :file:`/etc/mysql/my.cnf`.
 
 #. Restarting the service. :bash:`service mysql restart`
 
-.. note:: 
+.. note::
 
    |debian-last| and |ubuntu-lts| come with `systemd
    <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and
    service manager. You can invoke all the above commands with ``systemctl``
    instead of ``service``. Currently both are supported.
-     
+
 Uninstalling |Percona Server|
 =============================
 
@@ -234,7 +238,7 @@ suits you.
 
 1. Stop the |Percona Server| service: :bash:`service mysql stop`
 2. Remove the packages
-   
+
    a) Remove the packages. This will leave the data files (databases, tables, logs, configuration, etc.) behind. In case you don't need them you'll need to remove them manually: :bash:`apt-get remove percona-server*`
 
    b) Purge the packages. **NOTE**: This will remove all the packages and delete all the data files (databases, tables, logs, etc.): :bash:`apt-get purge percona-server*`

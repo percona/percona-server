@@ -17,17 +17,17 @@ Bugs Fixed
 ================================================================================
 
 * :jirabug:`PS-1469`: The Memory storage engine detected an incorrect "is full" condition when the space contained reusable memory chunks that could be reused.
-* :jirabug:`PS-6113`: If ANALYZE TABLE with persistent statistics ran more than 600 seconds calling a diagnostic query may cause a server exit. (Upstream :mysqlbug:`97828`)
-* :jirabug:`PS-5813`: Setting :variable:`slow_query_log_use_global_control` to "none" could cause an error.
-* :jirabug:`PS-6150`: Executing SHOW ENGINE INNODB STATUS to show locked mutexes could cause a server exit.
-* :jirabug:`PS-6750`: Installing client packages could cause a file conflict in Red Hat Enterprise Linux 8.
+* :jirabug:`PS-6113`: If ANALYZE TABLE with persistent statistics ran more than 600 seconds the execution of a diagnostic query may cause a server exit. (Upstream :mysqlbug:`97828`)
+* :jirabug:`PS-5813`: To set the :variable:`slow_query_log_use_global_control` to "none" could cause an error.
+* :jirabug:`PS-6150`: The execution of SHOW ENGINE INNODB STATUS to show locked mutexes could cause a server exit.
+* :jirabug:`PS-6750`: The installation of client packages could cause a file conflict in Red Hat Enterprise Linux 8.
 * :jirabug:`PS-5940`: When a temporary table was dropped, the server exited. (Upstream :mysqlbug:`96766`)
 * :jirabug:`PS-5675`: Concurrent INSERT ... ON DUPLICATE KEY UPDATE statements could cause a failure with a unique index violation. (Upstream :mysqlbug:`96578`)
 * :jirabug:`PS-5421`: MyRocks: Corrected documentation for :variable:`rocksdb_db_write_buffer_size`.
 * :jirabug:`PS-4794`: Documented that using ps-admin to enable MyRocks does not disable Transparent Huge Pages.
-* :jirabug:`PS-6093`: Executing SHOW ENGINE INNODB STATUS to show locked mutexes with simultaneous access to a compressed table could cause a server exit.
-* :jirabug:`PS-6148`: If ANALYZE TABLE with transient statistics runs more than 600 seconds the execution of a diagnostic query may cause a server exit. (Upstream :mysqlbug:`97828`)
-* :jirabug:`PS-6125`: MyRocks: Setting :variable:`rocksdb_update_cf_options` with a non-existant column family created a partially-defined column family which could cause a server exit.
+* :jirabug:`PS-6093`: The execution of SHOW ENGINE INNODB STATUS to show locked mutexes with simultaneous access to a compressed table could cause a server exit.
+* :jirabug:`PS-6148`: If ANALYZE TABLE with transient statistics ran more than 600 seconds the execution of a diagnostic query may cause a server exit. (Upstream :mysqlbug:`97828`)
+* :jirabug:`PS-6125`: MyRocks: To set :variable:`rocksdb_update_cf_options` with a non-existant column family created a partially-defined column family which could cause a server exit.
 * :jirabug:`PS-6123`: A Debian/Ubuntu init script used an incorrect comparison which could cause the service command to return before the server start.
 * :jirabug:`PS-5956`: Root session could kill :ref:`psaas_utility_user` session.
 * :jirabug:`PS-5952`: :ref:`psaas_utility_user` was visible in performance_schema.threads.

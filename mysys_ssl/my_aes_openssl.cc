@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -147,10 +147,14 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   int u_len, f_len;
   /* The real key to be used for encryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
-  my_aes_create_key(key, key_length, rkey, mode);
 
+  my_aes_create_key(key, key_length, rkey, mode);
   if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
     goto aes_error;                             /* Error */
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_init(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   if (!EVP_EncryptInit(ctx, cipher, rkey, iv))
     goto aes_error;                             /* Error */
@@ -186,7 +190,6 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
                    my_bool padding)
 {
-
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX stack_ctx;
   EVP_CIPHER_CTX *ctx= &stack_ctx;
@@ -206,6 +209,9 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
     goto aes_error;                             /* Error */
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_init(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   if (!EVP_DecryptInit(ctx, aes_evp_type(mode), rkey, iv))
     goto aes_error;                             /* Error */
   if (!EVP_CIPHER_CTX_set_padding(ctx, padding))

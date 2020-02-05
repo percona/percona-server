@@ -27,8 +27,6 @@ Bugs Fixed
 
 - The TokuDB hot backup library continually dumps TRACE information to the Server error log. The user cannot enable or disable the dump of this information. Bug fixed :psbug:`4850`.
 
-- Key rotation is redesigned to allow ``SELECT rotate_system_key("percona_redo")``. The currently used key version is displayed in the :variable:`innodb_redo_key_version` status. Bug fixed :psbug:`5565`.
-
 - The TokuDBBackupPlugin is optional at cmake time. Bug fixed :psbug:`5748`.
 
 - A multi-table ``DELETE`` with a foreign key breaks replication. Bug fixed :psbug:`3845`.
@@ -57,7 +55,6 @@ Other bugs fixed:
 :psbug:`5743`,
 :psbug:`5742`,
 :psbug:`5740`,
-:psbug:`5711`,
 :psbug:`5695`,
 :psbug:`5681`,
 :psbug:`5669`,

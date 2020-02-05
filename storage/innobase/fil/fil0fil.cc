@@ -795,12 +795,8 @@ retry:
 				<< ib::hex(space->flags) << ")!";
 		}
 
-		/* Validate the flags but do not compare the data directory
-		flag, in case this tablespace was relocated. */
-		unsigned relevant_space_flags
-			= space->flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		unsigned relevant_flags
-			= flags & ~FSP_FLAGS_MASK_DATA_DIR;
+		unsigned relevant_space_flags = space->flags;
+		unsigned relevant_flags = flags;
 
                 // in case of Keyring encryption it can so happen that there will be a crash after all pages of tablespace is rotated
                 // and DD is updated, but page0 of the tablespace has not been yet update. We handle this here.
@@ -7270,14 +7266,22 @@ fil_tablespace_iterate(
 
 		/* Check encryption is matched or not. */
 		if (err == DB_SUCCESS && FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
-			ut_ad(iter.encryption_key != NULL);
-
 			if (!dict_table_is_encrypted(table)) {
 				ib::error() << "Table is not in an encrypted"
-					" tablespace, but the data file which"
-					" trying to import is an encrypted"
+					" tablespace, but the data file"
+                                        " intended for import is an encrypted"
 					" tablespace";
 				err = DB_IO_NO_ENCRYPT_TABLESPACE;
+			} else {
+				/* encryption_key must have been populated
+                                while reading CFP file. */
+				ut_ad(table->encryption_key != NULL &&
+				table->encryption_iv != NULL);
+
+				if (table->encryption_key == NULL ||
+					table->encryption_iv == NULL) {
+					err = DB_ERROR;
+				}
 			}
 		}
 

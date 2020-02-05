@@ -6,6 +6,7 @@
    :maxdepth: 1
 
    Percona-Server-5.7.29-32
+   Percona-Server-5.7.28-31
    Percona-Server-5.7.27-30
    Percona-Server-5.7.26-29
    Percona-Server-5.7.25-28

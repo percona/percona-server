@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/27/2019
+.\"      Date: 12/17/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "09/27/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -90,7 +90,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.332.\ \&Command\-line options for the ndb_restore program
+.B Table\ \&21.290.\ \&Command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -102,6 +102,8 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+l l l
+l l l
 l l l
 l l l
 l l l
@@ -383,6 +385,15 @@ All MySQL 5.7 based releases
 T}
 T{
 .PP
+--num-slices=#,
+T}:T{
+Number of slices to restore
+T}:T{
+.PP
+ADDED: NDB 7.6.13
+T}
+T{
+.PP
 --nodeid=#,
 .PP
 -n
@@ -575,6 +586,15 @@ Causes schema objects not recognized by ndb_restore to be ignored when
 T}:T{
 .PP
 All MySQL 5.7 based releases
+T}
+T{
+.PP
+--slice-id=#,
+T}:T{
+ID of slice to restore
+T}:T{
+.PP
+ADDED: NDB 7.6.13
 T}
 T{
 .PP
@@ -788,9 +808,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.16 to a cluster running NDB Cluster 7\&.4\&.26, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.17 to a cluster running NDB Cluster 7\&.4\&.27, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.16 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.17 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1196,7 +1216,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.333.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
+.B Table\ \&21.291.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1614,7 +1634,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.334.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
+.B Table\ \&21.292.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -2003,6 +2023,124 @@ When restoring to a cluster with different number of data nodes from that where 
 the section called \(lqRestoring to a different number of data nodes\(rq, for additional information and examples\&.
 .sp
 In NDB 7\&.5\&.13 and later, and in NDB 7\&.6\&.9 and later, this option is required\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-num\-slices\fR=\fI#\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--num-slices=#
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+5.7.29-ndb-7.6.13
+T}
+T{
+\fBType\fR
+T}:T{
+Integer
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+1
+T}
+T{
+\fBMinimum Value\fR
+T}:T{
+1
+T}
+T{
+\fBMaximum Value\fR
+T}:T{
+1024
+T}
+.TE
+.sp 1
+When restoring a backup by slices, this option sets the number of slices into which to divide the backup\&. This allows multiple instances of
+\fBndb_restore\fR
+to restore disjoint subsets in parallel, potentially reducing the amount of time required to perform the restore operation\&.
+.sp
+A
+\fIslice\fR
+is a subset of the data in a given backup; that is, it is a set of fragments having the same slice ID, specified using the
+\fB\-\-slice\-id\fR
+option\&. The two options must always be used together, and the value set by
+\fB\-\-slice\-id\fR
+must always be less than the number of slices\&.
+.sp
+\fBndb_restore\fR
+encounters fragments and assigns each one a fragment counter\&. When restoring by slices, a slice ID is assigned to each fragment; this slice ID is in the range 0 to 1 less than the number of slices\&. For a table that is not a
+BLOB
+table, the slice to which a given fragment belongs is determined using the formula shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[\fIslice_ID\fR] = [\fIfragment_counter\fR] % [\fInumber_of_slices\fR]
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+For a
+BLOB
+table, a fragment counter is not used; the fragment number is used instead, along with the ID of the main table for the
+BLOB
+table (recall that
+NDB
+stores
+\fIBLOB\fR
+values in a separate table internally)\&. In this case, the slice ID for a given fragment is calculated as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[\fIslice_ID\fR] =
+([\fImain_table_ID\fR] + [\fIfragment_ID\fR]) % [\fInumber_of_slices\fR]
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Thus, restoring by
+\fIN\fR
+slices means running
+\fIN\fR
+instances of
+\fBndb_restore\fR, all with
+\fB\-\-num\-slices=\fR\fB\fIN\fR\fR
+(along with any other necessary options) and one each with
+\fB\-\-slice\-id=1\fR,
+\fB\-\-slice\-id=2\fR,
+\fB\-\-slice\-id=3\fR, and so on through
+\fBslice\-id=\fR\fB\fIN\fR\fR\fB\-1\fR\&.
 .RE
 .sp
 .RS 4
@@ -3099,6 +3237,71 @@ backup\&. This can be used for restoring a backup made from a cluster running (f
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-slice\-id\fR=\fI#\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--slice-id=#
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+5.7.29-ndb-7.6.13
+T}
+T{
+\fBType\fR
+T}:T{
+Integer
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+0
+T}
+T{
+\fBMinimum Value\fR
+T}:T{
+0
+T}
+T{
+\fBMaximum Value\fR
+T}:T{
+1023
+T}
+.TE
+.sp 1
+When restoring by slices, this is the ID of the slice to restore\&. This option is always used together with
+\fB\-\-num\-slices\fR, and its value must be always less than that of
+\fB\-\-num\-slices\fR\&.
+.sp
+For more information, see the description of the
+\fB\-\-num\-slices\fR
+elsewhere in this section\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tab\fR=\fIdir_name\fR,
 \fB\-T\fR
 \fIdir_name\fR
@@ -3248,8 +3451,7 @@ file:
 .RS 4
 .\}
 .nf
-[ndbd]
-NodeId=2
+[ndbd]NodeId=2
 HostName=host2
 [ndbd]
 NodeId=4

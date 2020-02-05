@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/27/2019
+.\"      Date: 12/17/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/27/2019" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "12/17/2019" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1429,6 +1429,10 @@ Ignore
 SIGINT
 signals (typically the result of typing
 Control+C)\&.
+.sp
+Without this option, typing
+Control+C
+interrupts the current statement if there is one, or cancels any partial input line otherwise\&.
 .RE
 .sp
 .RS 4
@@ -1941,7 +1945,7 @@ is set to something other than the default of
 ;, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&27.8.16, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&27.7.15, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
 Section\ \&23.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
@@ -2184,8 +2188,8 @@ Reset the connection to clear the session state\&.
 Resetting a connection has effects similar to
 mysql_change_user()
 or an auto\-reconnect except that the connection is not closed and reopened, and re\-authentication is not done\&. See
-Section\ \&27.8.7.3, \(lqmysql_change_user()\(rq, and
-Section\ \&27.8.20, \(lqC API Automatic Reconnection Control\(rq\&.
+Section\ \&27.7.6.3, \(lqmysql_change_user()\(rq, and
+Section\ \&27.7.19, \(lqC API Automatic Reconnection Control\(rq\&.
 .sp
 This example shows how
 resetconnection
@@ -4036,7 +4040,7 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&27.8.20, \(lqC API Automatic Reconnection Control\(rq\&.
+Section\ \&27.7.19, \(lqC API Automatic Reconnection Control\(rq\&.
 mysql Client Parser Versus Server Parser.PP
 The
 \fBmysql\fR

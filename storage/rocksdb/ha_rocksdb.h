@@ -23,6 +23,7 @@
 
 /* C++ standard header files */
 #include <cinttypes>
+#include <map>
 #include <regex>
 #include <set>
 #include <string>
@@ -1080,5 +1081,32 @@ struct Rdb_hton_init_state {
 
 // file name indicating RocksDB data corruption
 std::string rdb_corruption_marker_file_name();
+
+// Holds the compaction stats for ongoing compaction jobs. This class contains a
+// thread safe map which being accessed under a mutex lock
+class Active_compaction_stats {
+ public:
+  std::map<uint64_t, rocksdb::CompactionJobInfo> get_current_stats() {
+    std::lock_guard<std::mutex> guard(map_mutex);
+    return std::map<uint64_t, rocksdb::CompactionJobInfo>(
+        active_compaction_stats_map);
+  }
+
+  void put(const uint64_t &thread_id, const rocksdb::CompactionJobInfo info) {
+    std::lock_guard<std::mutex> guard(map_mutex);
+    active_compaction_stats_map.insert({thread_id, info});
+  }
+
+  void remove(const uint64_t &thread_id) {
+    std::lock_guard<std::mutex> guard(map_mutex);
+    active_compaction_stats_map.erase(thread_id);
+  }
+
+ private:
+  std::map<uint64_t, rocksdb::CompactionJobInfo> active_compaction_stats_map;
+  std::mutex map_mutex;
+};
+
+extern Active_compaction_stats active_compaction_stats;
 
 }  // namespace myrocks

@@ -179,6 +179,24 @@ Reporting Errors
   | tokudb backup couldn't create needed directories. |
   +---------------------------------------------------+
 
+
+Create a Backup with a Timestamp
+*********************************
+
+If you plan to store more than one backup in a location, you should add a
+timestamp to the backup directory name.
+
+A sample Bash script has this information:
+
+.. code-block:: bash
+
+   #!/bin/bash
+
+   tm=$(date "+%Y-%m-%d-%H-%M-%S");
+   backup_dir=$PWD/backup/$tm;
+   mkdir -p $backup_dir;
+   bin/mysql -uroot -e "set tokudb_backup_dir='$backup_dir'"
+  
 Limitations and known issues
 ----------------------------
 

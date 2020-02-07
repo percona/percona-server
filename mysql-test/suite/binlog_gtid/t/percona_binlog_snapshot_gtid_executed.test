@@ -1,0 +1,123 @@
+--source include/assert_gtid_mode_on.inc
+--source include/have_log_bin.inc
+--source include/count_sessions.inc
+
+# MTR test framework can reuse server instance, so current @@GLOBAL.GTID_EXECUTED may be anything.
+# Reset it to the initial state.
+RESET BINARY LOGS AND GTIDS;
+
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+CREATE TABLE t1 (a INT);
+
+#Simulate replicated transactions
+SET SESSION GTID_NEXT='11111111-AAAA-2222-BBBB-000000000000:5';
+INSERT INTO t1 VALUES(10);
+SET SESSION GTID_NEXT='11111111-AAAA-2222-BBBB-000000000000:6';
+INSERT INTO t1 VALUES(11);
+SET SESSION GTID_NEXT = AUTOMATIC;
+
+--let $rpl_gtid_range = 11111111-AAAA-2222-BBBB-000000000000:5-6
+--let $rpl_gtid_range_2 = 11111111-AAAA-2222-BBBB-000000000000:5-7
+
+
+# Just be sure that we did more than 1 transaction since the db was configured and server started, 
+# so gtid has range format like UUID:low-high, not UUID:1
+# This will make the following test easier to implement.
+INSERT INTO t1 VALUES(1);
+
+#
+# Test that Binlog_snapshot_gtid_executed is available when in TWCS
+#
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--let expected_gtid_executed = $rpl_gtid_range,$master_uuid:1-2
+--let expected_snapshot_gtid_executed = $rpl_gtid_range,$master_uuid:1-2
+--source include/validate_binlog_snapshot_gtid.inc
+
+INSERT INTO t1 VALUES(2);
+COMMIT;
+
+#
+# Test that Binlog_snapshot_gtid_executed is not available when not in TWCS
+#
+
+--let expected_gtid_executed = $rpl_gtid_range,$master_uuid:1-3
+--let expected_snapshot_gtid_executed = not-in-consistent-snapshot
+--source include/validate_binlog_snapshot_gtid.inc
+
+#
+# Test that Binlog_snapshot_gtid_executed is available when in TWCS
+# and corresponding values have been update.
+#
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--let expected_gtid_executed = $rpl_gtid_range,$master_uuid:1-3
+--let expected_snapshot_gtid_executed = $rpl_gtid_range,$master_uuid:1-3
+--source include/validate_binlog_snapshot_gtid.inc
+
+INSERT INTO t1 VALUES(3);
+COMMIT;
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--let expected_gtid_executed = $rpl_gtid_range,$master_uuid:1-4
+--let expected_snapshot_gtid_executed = $rpl_gtid_range,$master_uuid:1-4
+--source include/validate_binlog_snapshot_gtid.inc
+
+--let $donor_id=`SELECT CONNECTION_ID()`
+
+--connect(con1,localhost,root,,)
+
+--let expected_gtid_executed = $rpl_gtid_range,$master_uuid:1-4
+--let expected_snapshot_gtid_executed = not-in-consistent-snapshot
+--source include/validate_binlog_snapshot_gtid.inc
+
+INSERT INTO t1 VALUES(4);
+SET SESSION GTID_NEXT='11111111-AAAA-2222-BBBB-000000000000:7';
+INSERT INTO t1 VALUES(13);
+SET SESSION GTID_NEXT = AUTOMATIC;
+
+#
+# Check that gtid snapshot didn't change in TWCS (but GTID_EXECUTED changed!)
+#
+
+--connection default
+--let expected_gtid_executed = $rpl_gtid_range_2,$master_uuid:1-5
+--let expected_snapshot_gtid_executed = $rpl_gtid_range,$master_uuid:1-4
+--source include/validate_binlog_snapshot_gtid.inc
+
+#
+# Test START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
+#
+
+--connection con1
+--let expected_gtid_executed = $rpl_gtid_range_2,$master_uuid:1-5
+--let expected_snapshot_gtid_executed = not-in-consistent-snapshot
+--source include/validate_binlog_snapshot_gtid.inc
+
+--disable_query_log
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--enable_query_log
+
+# Here we expect exactly the same state as in default connection which opened TWCS
+
+--let expected_gtid_executed = $rpl_gtid_range_2,$master_uuid:1-5
+--let expected_snapshot_gtid_executed = $rpl_gtid_range,$master_uuid:1-4
+--source include/validate_binlog_snapshot_gtid.inc
+
+# now start new TWCS
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--let expected_gtid_executed = $rpl_gtid_range_2,$master_uuid:1-5
+--let expected_snapshot_gtid_executed = $rpl_gtid_range_2,$master_uuid:1-5
+--source include/validate_binlog_snapshot_gtid.inc
+
+--disconnect con1
+--connection default
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

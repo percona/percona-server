@@ -51,6 +51,8 @@
 
 class Table_ref;
 
+#include <vector>
+
 PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
 using Tsid = mysql::gtid::Tsid;
@@ -153,6 +155,16 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd) {
   } else if (thd->owned_gtid.sidno > 0) {
     broadcast_sidno(thd->owned_gtid.sidno);
   }
+}
+
+void Gtid_state::get_snapshot_gtid_executed(
+    std::string &snapshot_gtid_executed) {
+  global_tsid_lock->wrlock();
+  size_t size = executed_gtids.get_string_length() + 1;
+  std::vector<char> buf(size);
+  executed_gtids.to_string(buf.data());
+  snapshot_gtid_executed = buf.data();
+  global_tsid_lock->unlock();
 }
 
 void Gtid_state::update_commit_group(THD *first_thd) {

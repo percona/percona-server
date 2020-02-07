@@ -310,6 +310,7 @@ static ulonglong binlog_global_snapshot_position;
 // Binlog position variables for SHOW STATUS
 static char binlog_snapshot_file[FN_REFLEN];
 static ulonglong binlog_snapshot_position;
+static std::string binlog_snapshot_gtid_executed;
 
 static SHOW_VAR binlog_status_vars_detail[] = {
     {"snapshot_file", (char *)&binlog_snapshot_file, SHOW_CHAR,
@@ -1325,10 +1326,35 @@ class binlog_cache_mngr {
             !is_binlog_empty());
   }
 
+  /**
+    Check if manager contains consistent snapshot of log coordinates
+    and gtid_executed.
+
+    @return true  Consistent snapshot available
+    @return false Otherwise
+   */
+  bool has_consistent_snapshot() const {
+    /**
+      snapshot_gtid_executed can be empty string
+      if gtid_mode=OFF.
+     */
+
+    return binlog_info.log_file_name[0] != '\0';
+  }
+
+  /**
+    Removes consistent snapshot from cache.
+   */
+  void drop_consistent_snapshot() {
+    binlog_info.log_file_name[0] = '\0';
+    snapshot_gtid_executed.clear();
+  }
+
   binlog_stmt_cache_data stmt_cache;
   binlog_trx_cache_data trx_cache;
 
   LOG_INFO binlog_info;
+  std::string snapshot_gtid_executed;
 
  private:
   binlog_cache_mngr &operator=(const binlog_cache_mngr &info);
@@ -2692,6 +2718,7 @@ static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd) {
 
   /* Server layer calls us with LOCK_log locked, so this is safe. */
   mysql_bin_log.raw_get_current_log(&cache_mngr->binlog_info);
+  gtid_state->get_snapshot_gtid_executed(cache_mngr->snapshot_gtid_executed);
 
   trans_register_ha(thd, true, hton, nullptr);
 
@@ -2728,6 +2755,7 @@ static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
+  cache_mngr->snapshot_gtid_executed = from_cache_mngr->snapshot_gtid_executed;
   cache_mngr->binlog_info.pos = pos;
   strmake(cache_mngr->binlog_info.log_file_name, log_file_name,
           sizeof(cache_mngr->binlog_info.log_file_name) - 1);
@@ -2898,7 +2926,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     */
     if (cache_mngr != nullptr) {
       mysql_mutex_lock(&thd->LOCK_thd_data);
-      cache_mngr->binlog_info.log_file_name[0] = '\0';
+      cache_mngr->drop_consistent_snapshot();
       mysql_mutex_unlock(&thd->LOCK_thd_data);
     }
     if ((error = trx_coordinator::rollback_in_engines(thd, all))) goto end;
@@ -8444,7 +8472,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
   */
   if (all) {
     mysql_mutex_lock(&thd->LOCK_thd_data);
-    cache_mngr->binlog_info.log_file_name[0] = '\0';
+    cache_mngr->drop_consistent_snapshot();
     mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
 
@@ -12058,19 +12086,22 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, const char *query_arg,
   return 0;
 }
 
-static int show_binlog_vars(THD *thd, SHOW_VAR *var,
-                            char *buff MY_ATTRIBUTE((unused))) {
-  mysql_mutex_assert_owner(&LOCK_status);
-
+static const binlog_cache_mngr *get_cache_mngr(THD *thd) {
   const binlog_cache_mngr *cache_mngr =
       (thd && opt_bin_log)
           ? static_cast<binlog_cache_mngr *>(thd_get_ha_data(thd, binlog_hton))
           : nullptr;
 
-  const bool have_snapshot =
-      (cache_mngr && cache_mngr->binlog_info.log_file_name[0] != '\0');
+  return cache_mngr;
+}
 
-  if (have_snapshot) {
+static int show_binlog_vars(THD *thd, SHOW_VAR *var,
+                            char *buff [[maybe_unused]]) {
+  mysql_mutex_assert_owner(&LOCK_status);
+
+  const binlog_cache_mngr *cache_mngr = get_cache_mngr(thd);
+
+  if (cache_mngr && cache_mngr->has_consistent_snapshot()) {
     set_binlog_snapshot_file(cache_mngr->binlog_info.log_file_name);
     binlog_snapshot_position = cache_mngr->binlog_info.pos;
   } else if (mysql_bin_log.is_open()) {
@@ -12085,8 +12116,29 @@ static int show_binlog_vars(THD *thd, SHOW_VAR *var,
   return 0;
 }
 
+static int show_binlog_snapshot_gtid_executed(THD *thd, SHOW_VAR *var,
+                                              char *buff [[maybe_unused]]) {
+  mysql_mutex_assert_owner(&LOCK_status);
+
+  const binlog_cache_mngr *cache_mngr = get_cache_mngr(thd);
+
+  if (cache_mngr && cache_mngr->has_consistent_snapshot()) {
+    binlog_snapshot_gtid_executed = cache_mngr->snapshot_gtid_executed;
+  } else if (mysql_bin_log.is_open()) {
+    binlog_snapshot_gtid_executed = "not-in-consistent-snapshot";
+  } else {
+    binlog_snapshot_gtid_executed.clear();
+  }
+
+  var->type = SHOW_CHAR;
+  var->value = const_cast<char *>(binlog_snapshot_gtid_executed.c_str());
+  return 0;
+}
+
 static SHOW_VAR binlog_status_vars_top[] = {
     {"Binlog", (char *)&show_binlog_vars, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Binlog_snapshot_gtid_executed",
+     (char *)&show_binlog_snapshot_gtid_executed, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
 namespace {

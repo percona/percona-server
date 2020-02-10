@@ -4,9 +4,9 @@
  Support for Fake Changes
 ==========================
 
-.. note:: 
+.. note::
 
-  This feature implementation is considered *BETA* quality.
+  This feature implementation is considered *Experimental* quality.
 
 Unless multi-threaded slaves are used, replication is single threaded in nature, and it's important from the standpoint of performance to make sure that the queries executed by the replication thread or the events applied should be executed as fast as possible. A single event taking too long to apply is going to cause entire replication to stall, slowing down the rate at which replication catches up. This is especially painful when the slave server is restarted because with cold buffer pool individual events take far too long to complete. The slave is also generally I/O bound because of the difference of workload on master and the slave, and the biggest problem with single replication thread is that it has to read data to execute queries and most of the time is spent reading data then actually updating it.
 
@@ -27,7 +27,7 @@ The :variable:`innodb_fake_changes` option, by enabling rollbacks on ``COMMITs``
 Caveats
 =======
 
-.. warning:: 
+.. warning::
 
   This feature is only safe to use with an InnoDB-only server, because it is implemented in |InnoDB| only. Using it with any other storage engine, such as |MyISAM| or |TokuDB|,  will cause data inconsistencies because ``COMMITs`` will not be rolled back on those storage engines.
 
@@ -39,7 +39,7 @@ Currently only ``DML`` operations **are supported**, i.e. ``UPDATE``, ``INSERT``
 ``DDL`` operations **are not supported**
 ----------------------------------------
 
-``DDL`` operations **are not supported**, i.e. ``ALTER TABLE`` and ``TRUNCATE TABLE``. Running the ``DDL`` operations with :variable:`innodb_fake_changes` enabled would return an error and the subsequent ``DML`` operations may fail (from missing column etc.). 
+``DDL`` operations **are not supported**, i.e. ``ALTER TABLE`` and ``TRUNCATE TABLE``. Running the ``DDL`` operations with :variable:`innodb_fake_changes` enabled would return an error and the subsequent ``DML`` operations may fail (from missing column etc.).
 
 Explicit ``COMMIT`` will lead to an error
 -----------------------------------------
@@ -53,10 +53,10 @@ How to use InnoDB Fake Changes
 
 A separate tool would be needed to read the relay log and replay the queries, the only purpose of :variable:`innodb_fake_changes` is to prevent actual data modifications. There are two different tools developed by Facebook that rely on :variable:`innodb_fake_changes` and can be used for the purpose of slave prefetching:
 
-* One tool is built using python and is named `prefetch <http://bazaar.launchpad.net/~mysqlatfacebook/mysqlatfacebook/tools/files/head:/prefetch/>`_ . 
-* Second tool is built in C and is named `faker <http://bazaar.launchpad.net/~mysqlatfacebook/mysqlatfacebook/tools/files/head:/faker/>`_. 
+* One tool is built using python and is named `prefetch <http://bazaar.launchpad.net/~mysqlatfacebook/mysqlatfacebook/tools/files/head:/prefetch/>`_ .
+* Second tool is built in C and is named `faker <http://bazaar.launchpad.net/~mysqlatfacebook/mysqlatfacebook/tools/files/head:/faker/>`_.
 
-Both the tools rely on the |Percona Server| :variable:`innodb_fake_changes` option. 
+Both the tools rely on the |Percona Server| :variable:`innodb_fake_changes` option.
 
 Any other utility that can read the relay logs and replay them using multiple threads, would achieve what the above two tools achieve. Making sure that data is not modified by the tool would be done by enabling :variable:`innodb_fake_changes` option, but only on the ``SESSION`` level.
 
@@ -64,7 +64,7 @@ System Variables
 ================
 
 .. variable:: innodb_fake_changes
-   
+
    :version 5.6.11-60.3: Introduced
    :scope: Global, Session
    :type: Boolean
@@ -80,7 +80,7 @@ System Variables
    :type: Boolean
    :dyn: Yes
    :default: ON
- 
+
    When this variable is set to ``OFF``, fake transactions will not take any row locks. This feature was implemented because, although fake change transactions downgrade the requested exclusive (X) row locks to shared (S) locks, these S locks prevent X locks from being taken and block the real changes. However, this option is not safe to set to ``OFF`` by default, because the fake changes implementation is not ready for lock-less operation for all workloads. Namely, if a real transaction will remove a row that a fake transaction is doing a secondary index maintenance for, the latter will fail. This option is considered experimental and might be removed in the future if lockless operation mode fixes are implemented.
 
 Implementation Details

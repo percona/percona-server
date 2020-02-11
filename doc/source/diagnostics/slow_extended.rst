@@ -27,6 +27,41 @@ Other Information
   * Author / Origin:
     Maciej Dobrzanski
 
+Enabling Slow Log Query
+=======================
+
+To enable the slow query log, enter the following:
+
+.. code-block:: MySQL
+
+    mysql> SET GLOBAL slow_query_log = 'ON';
+
+To verify if the query log is enabled, log out and log in to reload the session
+variables. Enter the following statement with a value larger than the
+long_query_time setting.
+
+For more information, see the MySQL documenation on the `slow_query_log parameter <https://dev.mysql.com/doc/refman/5.6/en/server-system-variables.html#sysvar_slow_query_log>`__.
+
+.. code-block:: MySQL
+
+    mysql> SELECT SLEEP(100);
+
+The slow query log file should have information about the query.
+
+Disabling Slow Query Log
+========================
+
+To disable the slow query log, enter the following:
+
+.. code-block:: MySQL
+
+    mysql> SET GLOBAL slow_query_log = 'OFF';
+
+.. note::
+
+    You should only enable a slow query log for the length of time to
+    troubleshoot the performance issue.
+
 System Variables
 ================
 
@@ -99,12 +134,12 @@ Decision "log or no" calculated in following manner:
 
  * if ``log_slow_rate_limit`` is 1 - log every query
 
- * If ``log_slow_rate_limit`` > 1 - randomly log every 1/``log_slow_rate_limit`` query. 
+ * If ``log_slow_rate_limit`` > 1 - randomly log every 1/``log_slow_rate_limit`` query.
 
 This allows flexible setup logging behavior.
 
 For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In |Percona Server| :rn:`5.6.13-60.6` information about the :variable:`log_slow_rate_limit` has been added to the slow query log. This means that if the :variable:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
- 
+
   Log_slow_rate_type: query  Log_slow_rate_limit: 10
 
 Prior to :rn:`5.6.17-65.0` implementation of the :variable:`log_slow_rate_type` set to ``query`` with :variable:`log_slow_rate_limit` feature would log every nth query deterministically. With the current implementation each query has a non-deterministic probability of 1/n to get logged.
@@ -311,19 +346,19 @@ Another example (:variable:`log_slow_verbosity` ``=profiling``): ::
   # Schema: imdb  Last_errno: 0  Killed: 0
   # Query_time: 7.815071  Lock_time: 0.000261  Rows_sent: 4  Rows_examined: 1543720  Rows_affected: 0
   # Bytes_sent: 272
-  # Profile_starting: 0.000125 Profile_starting_cpu: 0.000120 
-  Profile_checking_permissions: 0.000021 Profile_checking_permissions_cpu: 0.000021 
-  Profile_Opening_tables: 0.000049 Profile_Opening_tables_cpu: 0.000048 Profile_init: 0.000048 
-  Profile_init_cpu: 0.000049 Profile_System_lock: 0.000049 Profile_System_lock_cpu: 0.000048 
-  Profile_optimizing: 0.000024 Profile_optimizing_cpu: 0.000024 Profile_statistics: 0.000036 
-  Profile_statistics_cpu: 0.000037 Profile_preparing: 0.000029 Profile_preparing_cpu: 0.000029 
-  Profile_executing: 0.000012 Profile_executing_cpu: 0.000012 Profile_Sending_data: 7.814583 
-  Profile_Sending_data_cpu: 7.811634 Profile_end: 0.000013 Profile_end_cpu: 0.000012 
-  Profile_query_end: 0.000014 Profile_query_end_cpu: 0.000014 Profile_closing_tables: 0.000023 
-  Profile_closing_tables_cpu: 0.000023 Profile_freeing_items: 0.000051 
-  Profile_freeing_items_cpu: 0.000050 Profile_logging_slow_query: 0.000006 
-  Profile_logging_slow_query_cpu: 0.000006 
-  # Profile_total: 7.815085 Profile_total_cpu: 7.812127 
+  # Profile_starting: 0.000125 Profile_starting_cpu: 0.000120
+  Profile_checking_permissions: 0.000021 Profile_checking_permissions_cpu: 0.000021
+  Profile_Opening_tables: 0.000049 Profile_Opening_tables_cpu: 0.000048 Profile_init: 0.000048
+  Profile_init_cpu: 0.000049 Profile_System_lock: 0.000049 Profile_System_lock_cpu: 0.000048
+  Profile_optimizing: 0.000024 Profile_optimizing_cpu: 0.000024 Profile_statistics: 0.000036
+  Profile_statistics_cpu: 0.000037 Profile_preparing: 0.000029 Profile_preparing_cpu: 0.000029
+  Profile_executing: 0.000012 Profile_executing_cpu: 0.000012 Profile_Sending_data: 7.814583
+  Profile_Sending_data_cpu: 7.811634 Profile_end: 0.000013 Profile_end_cpu: 0.000012
+  Profile_query_end: 0.000014 Profile_query_end_cpu: 0.000014 Profile_closing_tables: 0.000023
+  Profile_closing_tables_cpu: 0.000023 Profile_freeing_items: 0.000051
+  Profile_freeing_items_cpu: 0.000050 Profile_logging_slow_query: 0.000006
+  Profile_logging_slow_query_cpu: 0.000006
+  # Profile_total: 7.815085 Profile_total_cpu: 7.812127
   SET timestamp=1370073800;
   SELECT id,title,production_year FROM title WHERE title = 'Bambi';
 
@@ -357,7 +392,7 @@ Values and context:
 Memory Footprint
 ----------------
 
-The feature provides information about the amount of bytes sent for the result of the query and the number of temporary tables created for its execution - differentiated by whether they were created on memory or on disk - with the total number of bytes used by them. :: 
+The feature provides information about the amount of bytes sent for the result of the query and the number of temporary tables created for its execution - differentiated by whether they were created on memory or on disk - with the total number of bytes used by them. ::
 
   # Bytes_sent: 8053  Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: 950528
 

@@ -21,7 +21,7 @@ To install |Percona TokuBackup|:
 1. Run ``ps-admin --enable-tokubackup`` to add the ``preload-hotbackup`` option into **[mysqld_safe]** section of :file:`my.cnf`.
 
   .. code-block:: bash
-    
+
     $ sudo ps-admin --enable-tokubackup
     Checking SELinux status...
     INFO: SELinux is disabled.
@@ -40,13 +40,13 @@ To install |Percona TokuBackup|:
 
   .. code-block:: bash
 
-    $ sudo service mysql restart 
+    $ sudo service mysql restart
 
 3. Run ``ps-admin --enable-tokubackup`` again to finish installation of |TokuBackup| plugin
 
   .. code-block:: bash
-    
-    $ sudo ps-admin --enable-tokubackup                                     
+
+    $ sudo ps-admin --enable-tokubackup
     Checking SELinux status...
     INFO: SELinux is disabled.
 
@@ -94,7 +94,7 @@ Since attributes of files are preserved, in most cases you will need to change t
 
   $ chown -R mysql:mysql /var/lib/mysql
 
-If you have changed default |TokuDB| data directory (:variable:`tokudb_data_dir`) or |TokuDB| log directory (:variable:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately: 
+If you have changed default |TokuDB| data directory (:variable:`tokudb_data_dir`) or |TokuDB| log directory (:variable:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately:
 
 .. code-block:: bash
 
@@ -171,7 +171,7 @@ Reporting Errors
   +----------------------------+
   |                         17 |
   +----------------------------+
- 
+
   mysql> SELECT @@tokudb_backup_last_error_string;
   +---------------------------------------------------+
   | @@tokudb_backup_last_error_string                 |
@@ -179,11 +179,28 @@ Reporting Errors
   | tokudb backup couldn't create needed directories. |
   +---------------------------------------------------+
 
+Create a Backup with a Timestamp
+*********************************
+
+If you plan to store more than one backup in a location, you should add a
+timestamp to the backup directory name.
+
+A sample Bash script has this information:
+
+.. code-block:: bash
+
+   #!/bin/bash
+
+   tm=$(date "+%Y-%m-%d-%H-%M-%S");
+   backup_dir=$PWD/backup/$tm;
+   mkdir -p $backup_dir;
+   bin/mysql -uroot -e "set tokudb_backup_dir='$backup_dir'"
+
 Limitations and known issues
 ----------------------------
 
 * You must disable |InnoDB| asynchronous IO if backing up |InnoDB| tables with |TokuBackup|. Otherwise you will have inconsistent, unrecoverable backups. The appropriate setting is ``innodb_use_native_aio=0``.
-  
+
 * To be able to run Point-In-Time-Recovery you'll need to manually get the binary log position.
 
 * Transactional storage engines (|TokuDB| and |InnoDB|) will perform recovery on the backup copy of the database when it is first started.
@@ -198,12 +215,10 @@ Limitations and known issues
 
 * |TokuBackup| does not follow symbolic links.
 
-* |TokuBackup| does not backup |MySQL| configuration file(s). 
+* |TokuBackup| does not backup |MySQL| configuration file(s).
 
 * |TokuBackup| does not backup tablespaces if they are out of :variable:`datadir`.
 
 * Due to upstream bug :mysqlbug:`80183`, |TokuBackup| can't recover backed-up table data if backup was taken while running ``OPTIMIZE TABLE`` or ``ALTER TABLE ... TABLESPACE``.
 
 * |TokuBackup| doesn't support incremental backups.
-
-

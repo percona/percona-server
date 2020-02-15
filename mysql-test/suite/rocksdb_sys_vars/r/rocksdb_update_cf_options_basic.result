@@ -1,7 +1,8 @@
 call mtr.add_suppression("MyRocks: NULL is not a valid option for updates to column family settings.");
 call mtr.add_suppression("Invalid cf options, '=' expected *");
+call mtr.add_suppression("Failed to find options pair in override options *");
 call mtr.add_suppression("MyRocks: failed to parse the updated column family options = *");
-call mtr.add_suppression("Invalid cf config for default in override options *");
+call mtr.add_suppression("Invalid cf config for 'default' in override options: *");
 CREATE TABLE `t1` (
 `col1` bigint(20) NOT NULL,
 `col2` varbinary(64) NOT NULL,
@@ -109,7 +110,7 @@ SELECT * FROM INFORMATION_SCHEMA.ROCKSDB_CF_OPTIONS WHERE CF_NAME='cf1' AND OPTI
 CF_NAME	OPTION_TYPE	VALUE
 cf1	TARGET_FILE_SIZE_BASE	2097152
 SET @@global.rocksdb_update_cf_options = 'default={foo=bar};';;
-ERROR 42000: Variable 'rocksdb_update_cf_options' can't be set to the value of 'default={foo=bar};'
+ERROR 42000: Invalid cf config for 'default' in override options: Unable to parse the specified CF option foo (options: default={foo=bar};)
 SELECT @@global.rocksdb_update_cf_options;
 @@global.rocksdb_update_cf_options
 cf3={target_file_size_base=24m};

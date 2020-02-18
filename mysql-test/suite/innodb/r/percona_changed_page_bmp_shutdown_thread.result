@@ -1,3 +1,4 @@
+call mtr.add_suppression("Last tracked LSN in \'\.\/ib_modified_log_[0-9_]+.xdb\' is [0-9]+, with the last checkpoint LSN is [0-9]+.");
 SELECT 1;
 1
 1

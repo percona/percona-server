@@ -236,7 +236,12 @@ int Asynchronous_channels_state_observer::applier_log_event(
       - It should not contain 'ON DELETE/UPDATE CASCADE' referential action
     */
     for (uint table = 0; table < trans_param->number_of_tables; table++) {
+#if defined(GROUP_REPLICATION_WITH_ROCKSDB)
+      if (trans_param->tables_info[table].db_type != DB_TYPE_INNODB &&
+          trans_param->tables_info[table].db_type != DB_TYPE_ROCKSDB) {
+#else
       if (trans_param->tables_info[table].db_type != DB_TYPE_INNODB) {
+#endif
         LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NEEDS_INNODB_TABLE,
                      trans_param->tables_info[table].table_name);
         out++;

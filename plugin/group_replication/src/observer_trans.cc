@@ -137,7 +137,12 @@ int group_replication_trans_before_dml(Trans_param *param, int &out) {
     - It should not contain 'ON DELETE/UPDATE CASCADE' referential action
    */
   for (uint table = 0; out == 0 && table < param->number_of_tables; table++) {
+#if defined(GROUP_REPLICATION_WITH_ROCKSDB)
+    if (param->tables_info[table].db_type != DB_TYPE_INNODB &&
+        param->tables_info[table].db_type != DB_TYPE_ROCKSDB) {
+#else
     if (param->tables_info[table].db_type != DB_TYPE_INNODB) {
+#endif
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NEEDS_INNODB_TABLE,
                    param->tables_info[table].table_name);
       out++;

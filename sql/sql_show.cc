@@ -3164,6 +3164,19 @@ static bool show_status_array(THD *thd, const char *wild,
         const char *pos;
         size_t length;
 
+        DBUG_EXECUTE_IF("catch_show_gtid_mode", {
+          String gtid_mode;
+          static const char *gm= "gtid\\_mode";
+          unsigned int errors;
+          gtid_mode.copy(gm, strlen(gm), &my_charset_latin1, system_charset_info,
+                         &errors);
+
+          if (!my_strcasecmp(system_charset_info, wild,
+                             gtid_mode.c_ptr())) {
+            DEBUG_SYNC_C("before_show_gtid_executed");
+          }
+        });
+
         mysql_mutex_lock(&LOCK_global_system_variables);
         pos= get_one_variable(thd, var, value_type, show_type, status_var,
                               &charset, buff, &length);

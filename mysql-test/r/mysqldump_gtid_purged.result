@@ -1,0 +1,85 @@
+#################################################
+# Testing mysqldump with options: --single-transaction --source-data
+#################################################
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = 'now WAIT_FOR before_show_gtid_executed.reached';
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL before_show_gtid_executed.continue';
+SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
+Pattern found.
+Pattern not found.
+grep_pattern: origin: Binlog_snapshot_gtid_executed
+Pattern found.
+grep_pattern: origin: @@global.gtid_executed
+Pattern not found.
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+#################################################
+# Testing mysqldump with options: --single-transaction
+#################################################
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = 'now WAIT_FOR before_show_gtid_executed.reached';
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL before_show_gtid_executed.continue';
+SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
+Pattern found.
+Pattern not found.
+grep_pattern: origin: Binlog_snapshot_gtid_executed
+Pattern found.
+grep_pattern: origin: @@global.gtid_executed
+Pattern not found.
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+#################################################
+# Testing mysqldump with options: --lock-for-backup --single-transaction
+#################################################
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = 'now WAIT_FOR before_show_gtid_executed.reached';
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL before_show_gtid_executed.continue';
+SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
+Pattern found.
+Pattern not found.
+grep_pattern: origin: Binlog_snapshot_gtid_executed
+Pattern found.
+grep_pattern: origin: @@global.gtid_executed
+Pattern not found.
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+#################################################
+# Testing mysqldump with options: --lock-for-backup
+#################################################
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = 'now WAIT_FOR before_show_gtid_executed.reached';
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL before_show_gtid_executed.continue';
+SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
+Pattern not found.
+Pattern not found.
+grep_pattern: origin: Binlog_snapshot_gtid_executed
+Pattern not found.
+grep_pattern: origin: @@global.gtid_executed
+Pattern found.
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+#################################################
+# Testing mysqldump with options: --lock-all-tables
+#################################################
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC = 'now WAIT_FOR before_show_gtid_executed.reached';
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL before_show_gtid_executed.continue';
+SET DEBUG_SYNC = 'now WAIT_FOR mysqldump.finished';
+Pattern not found.
+Pattern not found.
+grep_pattern: origin: Binlog_snapshot_gtid_executed
+Pattern not found.
+grep_pattern: origin: @@global.gtid_executed
+Pattern found.
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';

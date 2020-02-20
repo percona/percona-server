@@ -290,6 +290,18 @@ Query_block *build_show_session_variables(const POS &pos, THD *thd,
                                           Item *where_cond) {
   static const LEX_CSTRING table_name = {STRING_WITH_LEN("session_variables")};
 
+  DBUG_EXECUTE_IF("catch_show_gtid_mode", {
+    String gtid_mode;
+    static const char *gm = "gtid_mode";
+    unsigned int errors;
+    gtid_mode.copy(gm, strlen(gm), &my_charset_latin1, wild->charset(),
+                   &errors);
+    if (!my_strcasecmp(wild->charset(), const_cast<String *>(wild)->c_ptr(),
+                       gtid_mode.c_ptr())) {
+      DEBUG_SYNC_C("before_show_gtid_executed");
+    }
+  });
+
   return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild,
                      where_cond);
 }

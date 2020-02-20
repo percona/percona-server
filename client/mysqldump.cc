@@ -166,6 +166,9 @@ static char *current_user = nullptr, *current_host = nullptr, *path = nullptr,
             *where = nullptr, *opt_compatible_mode_str = nullptr,
             *opt_ignore_error = nullptr, *log_error_file = nullptr;
 static Multi_option opt_init_commands;
+#ifndef NDEBUG
+static char *start_sql_file = nullptr, *finish_sql_file = nullptr;
+#endif
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static bool ansi_mode = false;  ///< Force the "ANSI" SQL_MODE.
 /* Server supports character_set_results session variable? */
@@ -674,6 +677,20 @@ static struct my_option my_long_options[] = {
     {"socket", 'S', "The socket file to use for connection.",
      &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
      0, 0, 0, nullptr, 0, nullptr},
+#ifndef NDEBUG
+    {"start-sql-file", OPT_START_SQL_FILE,
+     "Execute SQL statements from the file at the mysqldump start. "
+     "Each line has to contain one statement terminated with a semicolon. "
+     "Line length limit is 1023 characters.",
+     &start_sql_file, &start_sql_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
+    {"finish-sql-file", OPT_FINISH_SQL_FILE,
+     "Execute SQL statements from the file at the mysqldump finish. "
+     "Each line has to contain one statement terminated  with a semicolon. "
+     "Line length limit is 1023 characters.",
+     &finish_sql_file, &finish_sql_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
+#endif  // DEBUF_OFF
 #include "client/include/caching_sha2_passwordopt-longopts.h"
 #include "client/include/sslopt-longopts.h"
 
@@ -1492,6 +1509,30 @@ static int fetch_db_collation(const char *db_name, char *db_cl_name,
   mysql_free_result(db_cl_res);
 
   return err_status ? 1 : 0;
+}
+
+/*
+  Check if server supports binlog_snapshot_gtid_executed.
+  Returns 1 supported, 0 if not.
+ */
+static bool consistent_gtid_executed_supported(MYSQL *mysql_con) {
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  bool found = false;
+
+  if (mysql_query_with_error_report(
+          mysql_con, &res, "SHOW STATUS LIKE 'binlog_snapshot_gtid_executed'"))
+    return 0;
+
+  while ((row = mysql_fetch_row(res))) {
+    if (0 == strcmp(row[0], "Binlog_snapshot_gtid_executed")) {
+      found = true;
+      break;
+    }
+  }
+  mysql_free_result(res);
+
+  return found;
 }
 
 /*
@@ -6584,6 +6625,7 @@ static void set_session_binlog(bool flag) {
   dump file.
 
   @param[in]  mysql_con     connection to the server
+  @param[in]  ftwrl_done    FLUSH TABLES WITH READ LOCK query was issued
 
   @retval     false         successfully printed GTID_PURGED sets
                              in the dump file.
@@ -6591,21 +6633,60 @@ static void set_session_binlog(bool flag) {
 
 */
 
-static bool add_set_gtid_purged(MYSQL *mysql_con) {
-  MYSQL_RES *gtid_purged_res;
+static bool add_set_gtid_purged(MYSQL *mysql_con, bool ftwrl_done) {
+  MYSQL_RES *gtid_purged_res = nullptr;
   MYSQL_ROW gtid_set;
   ulonglong num_sets, idx;
+  int value_idx = 1;
+  bool capture_raw_gtid_executed = true;
 
-  /* query to get the GTID_EXECUTED */
-  if (mysql_query_with_error_report(mysql_con, &gtid_purged_res,
-                                    "SELECT @@GLOBAL.GTID_EXECUTED"))
-    return true;
+  /*
+   Check if we didn't already acquire FTWRL
+   and we are in transaction with consistent snapshot.
+   If we are, and snapshot of gtid_executed is supported by server - use it.
+  */
+  if (!ftwrl_done && opt_single_transaction) {
+    if (!consistent_gtid_executed_supported(mysql_con) ||
+        mysql_query_with_error_report(
+            mysql_con, &gtid_purged_res,
+            "SHOW STATUS LIKE 'Binlog_snapshot_gtid_executed'")) {
+      fprintf(stderr,
+              "\nWARNING: Server does not support consistent snapshot of "
+              "GTID_EXECUTED."
+              "\nThe value provided for GTID_PURGED may be inaccurate!"
+              "\nTo overcome this issue, start mysqldump with "
+              "--lock-all-tables.\n");
+
+      fprintf(md_result_file,
+              "\n\n--"
+              "\n-- WARNING: Server does not support consistent snapshot of "
+              "GTID_EXECUTED."
+              "\n-- The value provided for GTID_PURGED may be inaccurate!"
+              "\n-- To overcome this issue, start mysqldump with "
+              "--lock-all-tables."
+              "\n--\n");
+    } else {
+      capture_raw_gtid_executed = false;
+    }
+  }
+
+  if (capture_raw_gtid_executed) {
+    /* query to get the GTID_EXECUTED */
+    value_idx = 0;
+    if (mysql_query_with_error_report(mysql_con, &gtid_purged_res,
+                                      "SELECT @@GLOBAL.GTID_EXECUTED"))
+      return true;
+  }
 
   /* Proceed only if gtid_purged_res is non empty */
   if ((num_sets = mysql_num_rows(gtid_purged_res)) > 0) {
     if (opt_comments)
       fprintf(md_result_file,
-              "\n--\n-- GTID state at the beginning of the backup \n--\n\n");
+              "\n--\n-- GTID state at the beginning of the backup"
+              "\n-- (origin: %s)"
+              "\n--\n\n",
+              capture_raw_gtid_executed ? "@@global.gtid_executed"
+                                        : "Binlog_snapshot_gtid_executed");
 
     const char *comment_suffix = "";
     if (opt_set_gtid_purged_mode == SET_GTID_PURGED_COMMENTED) {
@@ -6618,12 +6699,13 @@ static bool add_set_gtid_purged(MYSQL *mysql_con) {
     /* formatting is not required, even for multiple gtid sets */
     for (idx = 0; idx < num_sets - 1; idx++) {
       gtid_set = mysql_fetch_row(gtid_purged_res);
-      fprintf(md_result_file, "%s,", (char *)gtid_set[0]);
+      fprintf(md_result_file, "%s,", (char *)gtid_set[value_idx]);
     }
     /* for the last set */
     gtid_set = mysql_fetch_row(gtid_purged_res);
     /* close the SET expression */
-    fprintf(md_result_file, "%s';%s\n", (char *)gtid_set[0], comment_suffix);
+    fprintf(md_result_file, "%s';%s\n", (char *)gtid_set[value_idx],
+            comment_suffix);
   }
   mysql_free_result(gtid_purged_res);
 
@@ -6637,13 +6719,15 @@ static bool add_set_gtid_purged(MYSQL *mysql_con) {
 
   @param[in]          mysql_con     the connection to the server
   @param[in]          is_gtid_enabled  true if server has gtid_mode on
+  @param[in]          ftwrl_done    FLUSH TABLES WITH READ LOCK query was issued
 
   @retval             false         successful according to the value
                                     of opt_set_gtid_purged.
   @retval             true          fail.
 */
 
-static bool process_set_gtid_purged(MYSQL *mysql_con, bool is_gtid_enabled) {
+static bool process_set_gtid_purged(MYSQL *mysql_con, bool is_gtid_enabled,
+                                    bool ftwrl_done) {
   if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
     return false; /* nothing to be done */
 
@@ -6664,7 +6748,7 @@ static bool process_set_gtid_purged(MYSQL *mysql_con, bool is_gtid_enabled) {
     }
 
     set_session_binlog(false);
-    if (add_set_gtid_purged(mysql_con)) {
+    if (add_set_gtid_purged(mysql_con, ftwrl_done)) {
       return true;
     }
   } else /* gtid_mode is off */
@@ -6943,7 +7027,6 @@ static bool has_session_variables_like(MYSQL *mysql_con,
 
    @returns  TRUE if there is support, FALSE otherwise.
 */
-
 static bool server_supports_backup_locks(void) noexcept {
   MYSQL_RES *res;
   if (mysql_query_with_error_report(mysql, &res,
@@ -6963,11 +7046,79 @@ static bool server_supports_backup_locks(void) noexcept {
   return rc;
 }
 
+/*
+ This function executes all sql statements from the given file.
+ Each statement lenght is limited to 1023 characters including
+ trailing semicolon.
+ Each statement has to be in its own line.
+
+  @param[in]   sql_file      File name containing sql statements to be
+                             executed.
+  @retval  1 failure
+           0 success
+*/
+#ifndef NDEBUG
+#define SQL_STATEMENT_MAX_LEN 1024  // 1023 chars for statement + trailing 0
+static int execute_sql_file(const char *sql_file) {
+  static const char *win_eol = "\r\n";
+  static const char *linux_eol = "\n";
+  static const char *win_semicolon = ";\r\n";
+  static const char *linux_semicolon = ";\n";
+  static const char *semicolon = ";";
+  static const char *comment = "#";
+
+  FILE *file;
+  char buf[SQL_STATEMENT_MAX_LEN];
+
+  if (!sql_file) return 0;
+
+  if (!(file = fopen(sql_file, "r"))) {
+    fprintf(stderr, "Cannot open file %s\n", sql_file);
+    return 1;
+  }
+
+  while (fgets(buf, SQL_STATEMENT_MAX_LEN, file)) {
+    // simple validation
+    size_t query_len = strlen(buf);
+
+    // empty file
+    if (query_len == 0) {
+      fclose(file);
+      return 1;
+    }
+
+    // If this is empty or comment line, skip it
+    if (strcmp(buf, linux_eol) == 0 || strcmp(buf, win_eol) == 0 ||
+        strstr(buf, comment) == buf) {
+      continue;
+    }
+
+    // we need line ending with semicolon and optionally a new line
+    // which differs on Windows and Linux
+    if (strstr(buf, linux_semicolon) == 0 && strstr(buf, win_semicolon) == 0 &&
+        strstr(buf, semicolon) == 0) {
+      fclose(file);
+      return 1;
+    }
+
+    if (mysql_query_with_error_report(mysql, 0, buf)) {
+      fclose(file);
+      return 1;
+    }
+  }
+
+  fclose(file);
+  return 0;
+}
+#endif  // NDEBUG
+
 int main(int argc, char **argv) {
   bool server_has_gtid_enabled = false;
   char bin_log_name[FN_REFLEN];
   int exit_code, md_result_fd = 0;
-  bool consistent_binlog_pos = false;
+  bool has_consistent_binlog_pos = false;
+  bool has_consistent_gtid_executed = false;
+  bool ftwrl_done = false;
   MY_INIT("mysqldump");
 
   default_charset = mysql_universal_client_charset;
@@ -6994,6 +7145,10 @@ int main(int argc, char **argv) {
     free_resources();
     exit(EX_MYSQLERR);
   }
+
+#ifndef NDEBUG
+  if (execute_sql_file(start_sql_file)) goto err;
+#endif
 
   stats_tables_included = is_innodb_stats_tables_included(argc, argv);
 
@@ -7028,12 +7183,35 @@ int main(int argc, char **argv) {
       See if we can avoid FLUSH TABLES WITH READ LOCK with Binlog_snapshot_*
       variables.
     */
-    consistent_binlog_pos = check_consistent_binlog_pos(nullptr, nullptr);
+    has_consistent_binlog_pos = check_consistent_binlog_pos(nullptr, nullptr);
   }
 
-  if (opt_lock_all_tables || (opt_source_data && !consistent_binlog_pos) ||
+  has_consistent_gtid_executed = consistent_gtid_executed_supported(mysql);
+
+  /*
+   NOTE:
+   1. --lock-all-tables and --single-transaction are mutually exclusive
+   2. has_consistent_binlog_pos == true => opt_single_transaction == true
+   3. --source-data => implicitly adds --lock-all-tables
+   4. --source-data + --single-transaction =>
+                   does not add implicit --lock-all-tables
+
+   We require FTWRL if any of the following:
+   1. explicitly requested by --lock-all-tables
+   2. --source-data requested, but server does not provide consistent
+      binlog position (or does not support consistent gtid_executed)
+      Having consistent gtid_executed condition is here to be compatible with
+      upstream behavior on servers which support consistent binlog position,
+      but do not support consistent gtid_executed.
+      In such case we need FTWRL.
+   3. --single-transaction and --flush-logs
+   */
+  if (opt_lock_all_tables ||
+      (opt_source_data &&
+       (!has_consistent_binlog_pos || !has_consistent_gtid_executed)) ||
       (opt_single_transaction && flush_logs)) {
     if (do_flush_tables_read_lock(mysql)) goto err;
+    ftwrl_done = true;
   } else if (opt_lock_for_backup && do_lock_tables_for_backup(mysql))
     goto err;
 
@@ -7072,15 +7250,43 @@ int main(int argc, char **argv) {
   /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required.
    */
   server_has_gtid_enabled = get_gtid_mode(mysql);
-  if (process_set_gtid_purged(mysql, server_has_gtid_enabled)) goto err;
+  if (process_set_gtid_purged(mysql, server_has_gtid_enabled, ftwrl_done))
+    goto err;
 
   if (opt_source_data &&
-      do_show_binary_log_status(mysql, consistent_binlog_pos))
+      do_show_binary_log_status(mysql, has_consistent_binlog_pos))
     goto err;
   if (opt_replica_data && do_show_replica_status(mysql)) goto err;
-  if (opt_single_transaction && (!opt_lock_for_backup || opt_source_data) &&
-      do_unlock_tables(mysql)) /* unlock but no commit! */
-    goto err;
+
+  /**
+    Note:
+    opt_single_transaction == true => opt_lock_all_tables == false
+    and vice versa
+
+    We acquired the lock (FTWRL or LTFB) if
+    1. --lock-all-tables => FTWRL + opt_single_transaction == false
+    2. --lock-for-backup => LTFB + opt_single_transaction == true
+    3. --source-data => (--lock-all-tables) FTWRL
+                                            + opt_single_transaction == false
+    4. --source-data + --single-transaction =>
+         FTWRL if consistent snapshot not supported
+         + opt_single_transaction == true
+    5. --single-transaction + --flush-logs =>  FTWRL
+                                               + opt_single_transaction == true
+
+    We have to unlock in cases: 4, 5
+
+    We need to keep the lock up to the end of backup if:
+    1. we have --lock-for-backup
+    2. we have --lock-all-tables (so opt_single_transaction == false)
+    We unlock if none of above.
+
+    If not locked previously, unlocking will not do any harm.
+   */
+  if (!(opt_lock_all_tables || opt_lock_for_backup)) {
+    if (do_unlock_tables(mysql)) /* unlock but no commit! */
+      goto err;
+  }
 
   if (column_statistics &&
       mysql_get_server_version(mysql) < FIRST_COLUMN_STATISTICS_VERSION) {
@@ -7162,6 +7368,10 @@ int main(int argc, char **argv) {
     server.
   */
 err:
+#ifndef NDEBUG
+  execute_sql_file(finish_sql_file);
+#endif
+
   dbDisconnect(current_host);
   if (!path) write_footer(md_result_file);
   free_resources();

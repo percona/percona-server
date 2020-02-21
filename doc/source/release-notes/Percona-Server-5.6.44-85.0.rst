@@ -32,7 +32,7 @@ Bugs Fixed
 - ``FLUSH`` commands written to the binary log could cause errors in case of
   replication. Bug fixed :psbug:`1827` (upstream :mysqlbug:`88720`).
 
-- TokuDB storage engine couldn't be enabled on Docker images. Bug fixed :bug:`5283`. 
+- TokuDB storage engine couldn't be enabled on Docker images. Bug fixed :bug:`5283`.
 
 - the ``ACCESS_DENIED`` field of the :table:`information_schema.user_statistics`
   table was not updated correctly. Bugs fixed :psbug:`3956`, :psbug:`4996`.
@@ -58,7 +58,6 @@ Bugs Fixed
   Bug fixed :psbug:`5501`.
 
 Other bugs fixed:
-:psbug:`5428`,
 :psbug:`5512`,
 :psbug:`5550`,
 :psbug:`5578`,

@@ -32,7 +32,7 @@
 -- source include/rpl_row_img_set.inc
 
 -- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
--- source suite/rocksdb.rpl/include/rpl_rocksdb_row_img_general_loop.inc
+-- source suite/rocksdb_rpl/include/rpl_rocksdb_row_img_general_loop.inc
 
 ## MINIMAL
 
@@ -40,7 +40,7 @@
 -- source include/rpl_row_img_set.inc
 
 -- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
--- source suite/rocksdb.rpl/include/rpl_rocksdb_row_img_general_loop.inc
+-- source suite/rocksdb_rpl/include/rpl_rocksdb_row_img_general_loop.inc
 
 ## FULL
 
@@ -48,7 +48,7 @@
 -- source include/rpl_row_img_set.inc
 
 -- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
--- source suite/rocksdb.rpl/include/rpl_rocksdb_row_img_general_loop.inc
+-- source suite/rocksdb_rpl/include/rpl_rocksdb_row_img_general_loop.inc
 
 
 -- source include/rpl_end.inc

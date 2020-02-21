@@ -4,6 +4,20 @@
 # present in error log
 --let $test_error_log=$MYSQL_TMP_DIR/error_log.err
 
+# Keys in std_data/keys2 and std_data/keys3 belong to the server with uuid b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99. In order for MTR server
+# to be able to read those keys we need to assign this uuid to server_uuid via auto.conf file.
+--let $uuid_file= auto.cnf
+--let $original_server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $datadir= query_get_value(SELECT @@DATADIR, @@DATADIR, 1)
+--copy_file $datadir/$uuid_file $datadir/original_$uuid_file
+
+--remove_file $datadir/$uuid_file
+--write_file $datadir/$uuid_file
+[auto]
+server_uuid=b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99
+EOF
+
 --echo # Start server with keys2.txt
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt --log-error=$test_error_log
@@ -28,7 +42,7 @@ SELECT * FROM t1;
 --echo #### Missing key errors ####
 --echo # Make sure that there is no error in error log related to missing key for t1
 
---let SEARCH_PATTERN=Tablespace id 5 in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring
+--let SEARCH_PATTERN=Tablespace id . in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring
 --let ABORT_ON=FOUND
 --let SEARCH_FILE=$test_error_log
 --source include/search_pattern_in_file.inc
@@ -47,7 +61,7 @@ DROP TABLE t1;
 
 --source include/shutdown_mysqld.inc
 
---let SEARCH_PATTERN=Tablespace id 5 in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring
+--let SEARCH_PATTERN=Tablespace id . in file t1\.ibd is encrypted but keyring or used key_id 2 is not available\. Can't continue reading table\. Please provide the correct keyring
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$test_error_log
 --source include/search_pattern_in_file.inc
@@ -136,13 +150,15 @@ DROP TABLE t2;
 --let ABORT_ON=NOT_FOUND
 --let SEARCH_FILE=$test_error_log
 --source include/search_pattern_in_file.inc
---let SEARCH_PATTERN=The page \[page id: space=6, page number=4\] in file '\./test/t2\.ibd' cannot be decrypted\. Are you using correct keyring?
+--let SEARCH_PATTERN=The page \[page id: space=[0-9], page number=[0-9]\] in file '\./test/t2\.ibd' cannot be decrypted\. Are you using correct keyring?
 --source include/search_pattern_in_file.inc
 
---echo
---echo # Start server with keys2.txt
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
--- let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
--- source include/start_mysqld.inc
-
 --remove_file $test_error_log
+--remove_file $datadir/$uuid_file
+--move_file $datadir/original_$uuid_file $datadir/$uuid_file
+
+--echo
+--echo # Start server with initial mysecret_keyring
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$MYSQL_TMP_DIR/mysecret_keyring
+--source include/start_mysqld.inc

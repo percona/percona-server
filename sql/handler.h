@@ -1481,7 +1481,8 @@ enum class Tablespace_type {
   SPACE_TYPE_IMPLICIT
 };
 
-using is_there_mk_to_keyring_rotation_t = bool (*)();
+using is_tablespace_keyring_v1_encrypted_t =
+    bool (*)(const dd::Tablespace &space, int &error);
 
 /**
   Get the tablespace type from the SE.
@@ -2385,7 +2386,7 @@ struct handlerton {
   upgrade_space_version_t upgrade_space_version;
   get_tablespace_type_t get_tablespace_type;
   get_tablespace_type_by_name_t get_tablespace_type_by_name;
-  is_there_mk_to_keyring_rotation_t is_there_mk_to_keyring_rotation;
+  is_tablespace_keyring_v1_encrypted_t is_tablespace_keyring_v1_encrypted;
   upgrade_logs_t upgrade_logs;
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;

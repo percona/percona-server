@@ -441,7 +441,18 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
 
     log_space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
 
-    redo_log_key *mkey = redo_log_key_mgr.generate_new_key_without_storing();
+    ut_ad(strlen(server_uuid) == 0);
+    redo_log_key *mkey =
+        redo_log_key_mgr.fetch_or_generate_default_key(nullptr);
+
+    if (mkey == nullptr) {
+      ib::error(ER_REDO_ENCRYPTION_CANT_FETCH_DEFAULT_KEY);
+      return (DB_ERROR);
+    }
+
+    // default percona_redo should be of version 0, which is invalid - thus no
+    // version
+    ut_ad(mkey->version == REDO_LOG_ENCRYPT_NO_VERSION);
 
     fsp_flags_set_encryption(log_space->flags);
     err = fil_set_encryption(log_space->id, alg,
@@ -452,7 +463,12 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
       return (DB_ERROR);
     }
     log_space->encryption_redo_key = mkey;
+    // We always store here REDO_LOG_ENCRYPT_NO_VERSION. For keyring encryption
+    // this is indication that default percona_redo key was used and should
+    // be rotated.
     log_space->encryption_key_version = REDO_LOG_ENCRYPT_NO_VERSION;
+    // we do not have server_uuid yet
+    ut_ad(log_space->encryption_redo_key_uuid == nullptr);
 
     ut_ad(err == DB_SUCCESS);
   }
@@ -504,7 +520,8 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
   if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags) &&
       !log_write_encryption(
           log_space->encryption_key, log_space->encryption_iv, true,
-          static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt))) {
+          static_cast<redo_log_encrypt_enum>(srv_redo_log_encrypt),
+          log_space->encryption_key_version)) {
     return (DB_ERROR);
   }
 
@@ -736,6 +753,11 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   if (crypt_data == nullptr) {
     crypt_data = fil_space_read_crypt_data(space_page_size, first_page);
     space->crypt_data = crypt_data;
+  }
+
+  if (is_space_keyring_v1_encrypted(space)) {
+    ib::error(ER_UPGRADE_KEYRING_V1_ENCRYPTION);
+    return (DB_FAIL);
   }
 
   /* Return if the encryption metadata is empty. */
@@ -1978,6 +2000,15 @@ to tablespace object
 static dberr_t srv_sys_enable_encryption(bool create_new_db) {
   fil_space_t *space = fil_space_get(TRX_SYS_SPACE);
   dberr_t err = DB_SUCCESS;
+
+  // Fail startup if sys space is encrypted with crypt_data v1
+  // This should only happen on upgrade
+  if (srv_sys_space.keyring_encryption_info.page0_has_crypt_data &&
+      srv_sys_space.keyring_encryption_info.type != CRYPT_SCHEME_UNENCRYPTED &&
+      srv_sys_space.keyring_encryption_info.private_version == 1) {
+    ib::error(ER_UPGRADE_KEYRING_V1_ENCRYPTION);
+    return (DB_ERROR);
+  }
 
   if (create_new_db && srv_sys_tablespace_encrypt) {
     fsp_flags_set_encryption(space->flags);

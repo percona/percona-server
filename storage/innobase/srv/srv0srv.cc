@@ -112,7 +112,6 @@ Srv_cpu_usage srv_cpu_usage;
 bool srv_is_upgrade_mode = false;
 bool srv_downgrade_logs = false;
 bool srv_upgrade_old_undo_found = false;
-bool srv_has_crypt_data_v1_rotating_from_mk{false};
 #endif /* INNODB_DD_TABLE */
 
 #ifdef UNIV_DEBUG
@@ -2836,10 +2835,19 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
 
   // load latest key & write version
 
-  redo_log_key *mkey = redo_log_key_mgr.load_latest_key(thd, true);
+  redo_log_key *mkey =
+      strlen(server_uuid) > 0
+          ? redo_log_key_mgr.load_latest_key(thd, true)
+          : redo_log_key_mgr.fetch_or_generate_default_key(thd);
   if (mkey == nullptr) {
     return true;
   }
+
+  // if server_uuid is not available we should be using default percona_redo
+  // key, which does not have version - i.e. has version 0
+  // (REDO_LOG_ENCRYPT_NO_VERSION)
+  ut_ad(strlen(server_uuid) > 0 ||
+        mkey->version == REDO_LOG_ENCRYPT_NO_VERSION);
 
   version = mkey->version;
   srv_redo_log_key_version = version;
@@ -2849,7 +2857,7 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
   fprintf(stderr, "Fetched redo key: %s.\n", key);
 #endif
 
-  if (!log_write_encryption(key, iv, false, REDO_LOG_ENCRYPT_RK)) {
+  if (!log_write_encryption(key, iv, false, REDO_LOG_ENCRYPT_RK, version)) {
     if (thd != nullptr) {
       ib::error(ER_IB_MSG_1243);
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1243);
@@ -2862,6 +2870,19 @@ bool srv_enable_redo_encryption_rk(THD *thd) {
   space->encryption_redo_key = mkey;
   space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
   space->encryption_key_version = version;
+  space->encryption_redo_key_uuid.reset(
+      new (std::nothrow) char[ENCRYPTION_SERVER_UUID_LEN + 1]);
+  if (space->encryption_redo_key_uuid.get() == nullptr) {
+    if (thd != nullptr) {
+      ib::error(ER_IB_MSG_1244);
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1244);
+    } else {
+      ib::fatal(ER_IB_MSG_1244);
+    }
+  }
+
+  memcpy(space->encryption_redo_key_uuid.get(), server_uuid,
+         ENCRYPTION_SERVER_UUID_LEN + 1);
   dberr_t err = fil_set_encryption(space->id, Encryption::KEYRING, key, iv);
 
   if (err != DB_SUCCESS) {

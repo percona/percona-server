@@ -162,7 +162,7 @@ struct fil_space_crypt_t {
   /** Constructor. Does not initialize the members!
   The object is expected to be placed in a buffer that
   has been zero-initialized. */
-  fil_space_crypt_t(uint new_type, uint new_min_key_version, uint new_key_id,
+  fil_space_crypt_t(uint new_min_key_version, uint new_key_id, const char *uuid,
                     fil_encryption_t new_encryption,
                     Crypt_key_operation key_operation,
                     Encryption_rotation encryption_rotation =
@@ -287,6 +287,8 @@ struct fil_space_crypt_t {
   // One starting with magic PSA and the second one starting with PSB.
   // Here we store which magic we read : 1 - PSA, 2 - PSB.
   size_t private_version{2};
+
+  char uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
 };
 
 /** Status info about encryption */
@@ -330,8 +332,6 @@ struct redo_log_key final {
   ulint read_count;
   ulint write_count;
   bool present;
-
-  bool persisted() const noexcept { return version != 0; }
 };
 
 /** Handles the fetching/generation/storing/etc of keyring redo log keys.
@@ -353,22 +353,39 @@ class redo_log_keys final {
   MY_NODISCARD
   redo_log_key *load_latest_key(THD *thd, bool generate);
   MY_NODISCARD
-  redo_log_key *load_key_version(THD *thd, uint version);
+  redo_log_key *load_key_version(THD *thd, const char *uuid, uint version);
 
   MY_NODISCARD
   redo_log_key *generate_and_store_new_key(THD *thd);
 
-  /** These two methods are used during bootstrap encryption, when wo do not yet
-  have an uuid */
+  /** Fetch if exists default percona_redo key, in case it does not
+  exist - generate it in keyring. Should be used when server_uuid is not
+  yet available
+  @param[in] thd - connection thread
+  @return percona_redo default key */
   MY_NODISCARD
-  redo_log_key *generate_new_key_without_storing();
-
-  MY_NODISCARD
-  bool store_used_keys() noexcept;
+  redo_log_key *fetch_or_generate_default_key(THD *thd);
 
   void unload_old_keys() noexcept;
 
  private:
+  /**
+  Get KEYRING encryption redo key name
+  @param[in] - uuid key's UUID
+  @param[in] - key_version key's version
+  @return KEYRING encryption redo key name */
+  std::string get_key_name(const char *uuid, uint key_version);
+  /**
+  Get KEYRING encryption redo key name
+  @param[in] uuid - key's UUID
+  @return KEYRING encryption redo key name */
+  std::string get_key_name(const char *uuid);
+  /**
+  Get KEYRING encryption redo key name
+  @param[in,out]  oss - output string stream
+  @param[in] uuid - key's UUID */
+  void get_key_name(std::ostringstream &oss, const char *uuid);
+
   using key_map = std::map<ulint, redo_log_key>;
   key_map m_keys;
 };
@@ -401,7 +418,7 @@ Create a fil_space_crypt_t object
 @param[in]	key_id		Encryption key id
 @return crypt object */
 fil_space_crypt_t *fil_space_create_crypt_data(
-    fil_encryption_t encrypt_mode, uint key_id,
+    fil_encryption_t encrypt_mode, uint key_id, const char *uuid,
     Crypt_key_operation key_operation =
         Crypt_key_operation::FETCH_OR_GENERATE_KEY)
     MY_ATTRIBUTE((warn_unused_result));
@@ -555,7 +572,26 @@ return 0 if data found */
 void fil_space_get_scrub_status(const fil_space_t *space,
                                 fil_space_scrub_status_t *status);
 
-//#include "fil0crypt.ic"
+/**
+Checks if tablespace is encrypted with KEYRING encryption v1
+
+@param[in] space Tablespace
+return true - fully or partially encrypted with keyring
+              encryption v1
+       false - is not encrypted, fully or partially with
+              keyring encryption v1 */
+bool is_space_keyring_v1_encrypted(fil_space_t *space);
+
+/**
+Checks if tablespace is encrypted with KEYRING encryption v1
+
+@param[in] space_id Tablespace's id
+return true - fully or partially encrypted with keyring
+              encryption v1
+       false - is not encrypted, fully or partially with
+              keyring encryption v1 */
+bool is_space_keyring_v1_encrypted(space_id_t space_id);
+
 #endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* fil0crypt_h */

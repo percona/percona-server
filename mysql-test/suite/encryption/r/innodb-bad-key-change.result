@@ -95,5 +95,5 @@ include/assert.inc [It should contain text]
 DROP TABLE t2;
 # Make sure that log contains t2 decryption errors
 
-# Start server with keys2.txt
-# restart:--keyring-file-data=MYSQLTEST_VARDIR/std_data/keys2.txt
+# Start server with initial mysecret_keyring
+# restart:--keyring-file-data=MYSQL_TMP_DIR/mysecret_keyring

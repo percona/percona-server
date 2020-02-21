@@ -753,13 +753,8 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
         }
       }
     } else {
-      if (!srv_has_crypt_data_v1_rotating_from_mk &&
-          crypt_data->encryption_rotation ==
-              Encryption_rotation::MASTER_KEY_TO_KEYRING &&
-          crypt_data->private_version == 1) {
-        srv_has_crypt_data_v1_rotating_from_mk = true;
-      }
-      if (Encryption::tablespace_key_exists(crypt_data->key_id) == false) {
+      // for version 1 and encrypted table we will fail the upgrade.
+      if (crypt_data->private_version == 2 && !crypt_data->key_found) {
         ut_ad(m_filename != nullptr);
         ib::warn(ER_XB_MSG_5, space_id, m_filename, crypt_data->key_id);
 

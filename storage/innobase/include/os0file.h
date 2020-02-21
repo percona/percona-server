@@ -274,7 +274,13 @@ static const char ENCRYPTION_KEY_MAGIC_V2[] = "lCB";
 information version. */
 static const char ENCRYPTION_KEY_MAGIC_V3[] = "lCC";
 
-static const char ENCRYPTION_KEY_MAGIC_RK[] = "lRK";
+/** Encryption magic bytes before 8.0.19, it's for checking KEYRING
+redo log information version. */
+static const char ENCRYPTION_KEY_MAGIC_RK_V1[] = "lRK";
+
+/** Encryption magic bytes for 8.0.19+, it's for checking KEYRING
+redo log information version. */
+static const char ENCRYPTION_KEY_MAGIC_RK_V2[] = "RKB";
 
 static const char ENCRYPTION_KEY_MAGIC_PS_V1[] = "PSA";
 
@@ -376,7 +382,9 @@ struct Encryption {
         m_key_version(0),
         m_key_id(0),
         m_checksum(0),
-        m_encryption_rotation(Encryption_rotation::NO_ROTATION) {}
+        m_encryption_rotation(Encryption_rotation::NO_ROTATION) {
+    m_key_id_uuid[0] = '\0';
+  }
 
   /** Specific constructor
   @param[in]	type		Algorithm type */
@@ -391,6 +399,7 @@ struct Encryption {
         m_key_id(0),
         m_checksum(0),
         m_encryption_rotation(Encryption_rotation::NO_ROTATION) {
+    m_key_id_uuid[0] = '\0';
 #ifdef UNIV_DEBUG
     switch (m_type) {
       case NONE:
@@ -422,6 +431,10 @@ struct Encryption {
     std::swap(m_key_id, other.m_key_id);
     std::swap(m_checksum, other.m_checksum);
     std::swap(m_encryption_rotation, other.m_encryption_rotation);
+    char tmp[ENCRYPTION_SERVER_UUID_LEN + 1];
+    memcpy(tmp, m_key_id_uuid, ENCRYPTION_SERVER_UUID_LEN + 1);
+    memcpy(m_key_id_uuid, other.m_key_id_uuid, ENCRYPTION_SERVER_UUID_LEN + 1);
+    memcpy(other.m_key_id_uuid, tmp, ENCRYPTION_SERVER_UUID_LEN + 1);
   }
 
   ~Encryption();
@@ -501,31 +514,35 @@ struct Encryption {
 
   /** Create tablespace key
   @param[in,out]	tablespace_key	tablespace key - null if failure
-  @param[in]		key_id		tablespace key id */
-  static void create_tablespace_key(byte **tablespace_key, uint key_id);
+  @param[in]		key_id		tablespace key id
+  @param[in]  uuid tablespace key uuid */
+  static void create_tablespace_key(byte **tablespace_key, uint key_id,
+                                    const char *uuid);
 
   /** Create new master key for key rotation.
   @param[in,out]	master_key	master key */
   static void create_master_key(byte **master_key);
 
   static bool tablespace_key_exists_or_create_new_one_if_does_not_exist(
-      uint key_id);
+      uint key_id, const char *uuid);
 
-  static bool tablespace_key_exists(uint key_id);
+  static bool tablespace_key_exists(uint key_id, const char *uuid);
 
   static bool is_encrypted_and_compressed(const byte *page);
 
-  static uint encryption_get_latest_version(uint key_id);
+  static uint encryption_get_latest_version(uint key_id, const char *uuid);
 
   // TODO:Robert: Te dwa są potrzebne.
-  static void get_latest_tablespace_key(uint key_id,
+  static void get_latest_tablespace_key(uint key_id, const char *uuid,
                                         uint *tablespace_key_version,
                                         byte **tablespace_key);
 
-  static void get_latest_tablespace_key_or_create_new_one(
-      uint key_id, uint *tablespace_key_version, byte **tablespace_key);
+  static void get_latest_key_or_create(uint tablespace_key_id, const char *uuid,
+                                       uint *tablespace_key_version,
+                                       byte **tablespace_key);
 
-  static bool get_tablespace_key(uint key_id, uint tablespace_key_version,
+  static bool get_tablespace_key(uint key_id, const char *uuid,
+                                 uint tablespace_key_version,
                                  byte **tablespace_key, size_t *key_len);
 
   /** Create tablespace key
@@ -546,6 +563,10 @@ struct Encryption {
   @param[in,out]	master_key	master key */
   static void get_master_key(ulint *master_key_id, byte **master_key);
 
+  /** Checks if keyring is installed and it is operational.
+   *  This is done by trying to fetch/create
+   *  dummy percona_keyring_test key
+  @return true if success */
   static bool is_keyring_alive();
 
   static bool can_page_be_keyring_encrypted(ulint page_type);
@@ -667,6 +688,9 @@ struct Encryption {
 
   byte *m_tablespace_key;
 
+  char m_key_id_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];  // uuid that is part of
+                                                       // the full key id of a
+                                                       // percona system key
   uint m_key_version;
 
   uint m_key_id;
@@ -689,9 +713,10 @@ struct Encryption {
   static void get_latest_system_key(const char *system_key_name, byte **key,
                                     uint *key_version, size_t *key_length);
 
-  static void fill_key_name(char *key_name, uint key_id);
+  static void fill_key_name(char *key_name, uint key_id, const char *uuid);
 
-  static void fill_key_name(char *key_name, uint key_id, uint key_version);
+  static void fill_key_name(char *key_name, uint key_id, const char *uuid,
+                            uint key_version);
 };
 
 /** Types for AIO operations @{ */
@@ -923,12 +948,19 @@ class IORequest {
   @param[in] key_len	length of the encryption key
   @param[in] iv		The encryption iv to use */
   void encryption_key(byte *key, ulint key_len, bool key_allocated, byte *iv,
-                      uint key_version, uint key_id, byte *tablespace_key) {
+                      uint key_version, uint key_id, byte *tablespace_key,
+                      const char *uuid) {
     m_encryption.set_key(key, key_len, key_allocated);
     m_encryption.m_iv = iv;
     m_encryption.m_key_version = key_version;
     m_encryption.m_key_id = key_id;
     m_encryption.m_tablespace_key = tablespace_key;
+    if (uuid == nullptr) {
+      m_encryption.m_key_id_uuid[0] = '\0';
+    } else {
+      memcpy(m_encryption.m_key_id_uuid, uuid, ENCRYPTION_SERVER_UUID_LEN);
+      m_encryption.m_key_id_uuid[ENCRYPTION_SERVER_UUID_LEN] = '\0';
+    }
   }
 
   void encryption_rotation(Encryption_rotation encryption_rotation) {

@@ -1,7 +1,21 @@
 --source include/have_64bit.inc
 
-call mtr.add_suppression("\\[InnoDB\\] The page \\[page id: space=4, page number=4\\] in file '\./test/t1\.ibd' cannot be decrypted\. Are you using correct keyring?");
+call mtr.add_suppression("\\[InnoDB\\] The page \\[page id: space=[0-9], page number=[0-9]\\] in file '\./test/t1\.ibd' cannot be decrypted\. Are you using correct keyring?");
 call mtr.add_suppression("\\[InnoDB\\] Table test/t1 is encrypted but decryption failed\. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?");
+
+# Keys in std_data/keys2 and std_data/keys3 belong to the server with uuid b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99. In order for MTR server
+# to be able to read those keys we need to assign this uuid to server_uuid via auto.conf file.
+--let $uuid_file= auto.cnf
+--let $original_server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $datadir= query_get_value(SELECT @@DATADIR, @@DATADIR, 1)
+--copy_file $datadir/$uuid_file $datadir/original_$uuid_file
+
+--remove_file $datadir/$uuid_file
+--write_file $datadir/$uuid_file
+[auto]
+server_uuid=b3665c10-e6c0-11e9-8e47-9cb6d0d5dc99
+EOF
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --let $restart_parameters=restart:--keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
@@ -35,3 +49,11 @@ OPTIMIZE TABLE t1;
 --source include/restart_mysqld.inc
 
 DROP TABLE t1;
+
+# restore initial keyring_file and server_uuid
+--remove_file $datadir/$uuid_file
+--move_file $datadir/original_$uuid_file $datadir/$uuid_file
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart:--keyring-file-data=$MYSQL_TMP_DIR/mysecret_keyring
+--source include/restart_mysqld.inc

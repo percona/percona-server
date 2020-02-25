@@ -132,7 +132,8 @@ class Session_impl : public XSession {
                                        const char *, const uint32_t);
 
   std::pair<XError, std::vector<std::string>> validate_and_adjust_auth_methods(
-      std::vector<Auth> auth_methods, const bool can_use_plain);
+      const std::vector<Auth> &auth_methods, bool can_use_plain);
+  Argument_value get_compression_capability() const;
 
   Argument_object m_required_capabilities;
   Argument_object m_optional_capabilities;

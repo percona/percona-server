@@ -31,7 +31,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <math.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <cctype>
@@ -75,6 +74,9 @@
 #include "sql/sql_udf.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "sql_time.h"  // str_to_datetime
+#include "sql_udf.h"
+#include "tztime.h"  // adjust_time_zone
 
 /**
   @addtogroup GROUP_PARSER
@@ -650,28 +652,6 @@ class Bin_instantiator {
   }
 };
 
-class Degrees_instantiator {
- public:
-  static const uint Min_argcount = 1;
-  static const uint Max_argcount = 1;
-
-  Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root)
-        Item_func_units(POS(), "degrees", (*args)[0], 180.0 / M_PI, 0.0);
-  }
-};
-
-class Radians_instantiator {
- public:
-  static const uint Min_argcount = 1;
-  static const uint Max_argcount = 1;
-
-  Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root)
-        Item_func_units(POS(), "radians", (*args)[0], M_PI / 180.0, 0.0);
-  }
-};
-
 class Oct_instantiator {
  public:
   static const uint Min_argcount = 1;
@@ -690,7 +670,7 @@ class Weekday_instantiator {
   static const uint Max_argcount = 1;
 
   Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], 0);
+    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], false);
   }
 };
 
@@ -746,7 +726,7 @@ class Dayofweek_instantiator {
   static const uint Max_argcount = 1;
 
   Item *instantiate(THD *thd, PT_item_list *args) {
-    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], 1);
+    return new (thd->mem_root) Item_func_weekday(POS(), (*args)[0], true);
   }
 };
 
@@ -763,7 +743,7 @@ class From_unixtime_instantiator {
         Item *ut =
             new (thd->mem_root) Item_func_from_unixtime(POS(), (*args)[0]);
         return new (thd->mem_root)
-            Item_func_date_format(POS(), ut, (*args)[1], 0);
+            Item_func_date_format(POS(), ut, (*args)[1], false);
       }
       default:
         DBUG_ASSERT(false);
@@ -781,11 +761,12 @@ class Round_instantiator {
     switch (args->elements()) {
       case 1: {
         Item *i0 = new (thd->mem_root) Item_int_0(POS());
-        return new (thd->mem_root) Item_func_round(POS(), (*args)[0], i0, 0);
+        return new (thd->mem_root)
+            Item_func_round(POS(), (*args)[0], i0, false);
       }
       case 2:
         return new (thd->mem_root)
-            Item_func_round(POS(), (*args)[0], (*args)[1], 0);
+            Item_func_round(POS(), (*args)[0], (*args)[1], false);
       default:
         DBUG_ASSERT(false);
         return nullptr;
@@ -1365,7 +1346,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"DAYOFMONTH", SQL_FN(Item_func_dayofmonth, 1)},
     {"DAYOFWEEK", SQL_FACTORY(Dayofweek_instantiator)},
     {"DAYOFYEAR", SQL_FN(Item_func_dayofyear, 1)},
-    {"DEGREES", SQL_FACTORY(Degrees_instantiator)},
+    {"DEGREES", SQL_FN(Item_func_degrees, 1)},
     {"ELT", SQL_FN_V(Item_func_elt, 2, MAX_ARGLIST_SIZE)},
     {"EXP", SQL_FN(Item_func_exp, 1)},
     {"EXPORT_SET", SQL_FN_V(Item_func_export_set, 3, 5)},
@@ -1482,7 +1463,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"PS_CURRENT_THREAD_ID", SQL_FN(Item_func_pfs_current_thread_id, 0)},
     {"PS_THREAD_ID", SQL_FN(Item_func_pfs_thread_id, 1)},
     {"QUOTE", SQL_FN(Item_func_quote, 1)},
-    {"RADIANS", SQL_FACTORY(Radians_instantiator)},
+    {"RADIANS", SQL_FN(Item_func_radians, 1)},
     {"RAND", SQL_FN_V(Item_func_rand, 0, 1)},
     {"RANDOM_BYTES", SQL_FN(Item_func_random_bytes, 1)},
     {"REGEXP_INSTR", SQL_FN_V_LIST(Item_func_regexp_instr, 2, 6)},
@@ -1725,7 +1706,19 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"CONVERT_INTERVAL_TO_USER_INTERVAL",
      SQL_FN_INTERNAL(Item_func_convert_interval_to_user_interval, 2)},
     {"INTERNAL_GET_DD_COLUMN_EXTRA",
-     SQL_FN_LIST_INTERNAL(Item_func_internal_get_dd_column_extra, 6)}};
+     SQL_FN_LIST_INTERNAL(Item_func_internal_get_dd_column_extra, 6)},
+    {"INTERNAL_GET_USERNAME",
+     SQL_FN_LIST_INTERNAL_V(Item_func_internal_get_username, 0, 1)},
+    {"INTERNAL_GET_HOSTNAME",
+     SQL_FN_LIST_INTERNAL_V(Item_func_internal_get_hostname, 0, 1)},
+    {"INTERNAL_GET_ENABLED_ROLE_JSON",
+     SQL_FN_INTERNAL(Item_func_internal_get_enabled_role_json, 0)},
+    {"INTERNAL_GET_MANDATORY_ROLES_JSON",
+     SQL_FN_INTERNAL(Item_func_internal_get_mandatory_roles_json, 0)},
+    {"INTERNAL_IS_MANDATORY_ROLE",
+     SQL_FN_INTERNAL(Item_func_internal_is_mandatory_role, 2)},
+    {"INTERNAL_IS_ENABLED_ROLE",
+     SQL_FN_INTERNAL(Item_func_internal_is_enabled_role, 2)}};
 
 using Native_functions_hash = std::unordered_map<std::string, Create_func *>;
 static const Native_functions_hash *native_functions_hash;
@@ -2024,9 +2017,13 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
       if (!propagate_datetime_overflow(
               thd, &status.warnings,
               str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
-          ltime.time_type == MYSQL_TIMESTAMP_DATETIME && !status.warnings)
-        item = new (thd->mem_root)
-            Item_datetime_literal(&ltime, status.fractional_digits);
+          (ltime.time_type == MYSQL_TIMESTAMP_DATETIME ||
+           ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) &&
+          !status.warnings) {
+        adjust_time_zone_displacement(thd->time_zone(), &ltime);
+        item = new (thd->mem_root) Item_datetime_literal(
+            &ltime, status.fractional_digits, thd->time_zone());
+      }
       break;
     case MYSQL_TYPE_TIME:
       if (!str_to_time(cs, str, length, &ltime, 0, &status) &&

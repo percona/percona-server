@@ -216,22 +216,20 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     // Error: Cannot create file in directory /etc/passwd/mysqlrouter.log: Not a
     // directory
     const std::string out = router.get_full_output();
+    const std::string prefix("Cannot create file in directory " + logging_dir +
+                             ": ");
 #ifndef _WIN32
-    EXPECT_THAT(out.c_str(), HasSubstr("Cannot create file in directory " +
-                                       logging_dir + ": Not a directory\n"));
+    EXPECT_THAT(out.c_str(), HasSubstr(prefix + "Not a directory\n"));
 #else
     // on Windows emulate (wine) we get ENOTDIR
     // with native windows we get ENOENT
 
     EXPECT_THAT(
         out.c_str(),
-        ::testing::AllOf(
-            ::testing::HasSubstr("Cannot create file in directory " +
-                                 logging_dir),
-            ::testing::AnyOf(
-                ::testing::EndsWith("Directory name invalid.\n\n"),
-                ::testing::EndsWith(
-                    "The system cannot find the path specified.\n\n"))));
+        ::testing::AnyOf(
+            ::testing::HasSubstr(prefix + "Directory name invalid.\n"),
+            ::testing::HasSubstr(
+                prefix + "The system cannot find the path specified.\n")));
 #endif
   }
 }
@@ -1479,7 +1477,7 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   // than the stuff that follows it).
   // Router should report the error on STDERR and exit
 
-  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
   TempDirectory bootstrap_dir;
 
   const auto server_port = port_pool_.get_next_available();
@@ -1532,7 +1530,7 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
  * bootstrap configuration file is not provided.
  */
 TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
-  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   TempDirectory bootstrap_dir;
 
@@ -1566,7 +1564,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
  * log_level is set to DEBUG in bootstrap configuration file.
  */
 TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
-  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   TempDirectory bootstrap_dir;
   TempDirectory bootstrap_conf;
@@ -1610,7 +1608,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
  * bootstrap if loggin_folder is provided in bootstrap configuration file
  */
 TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
-  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   TempDirectory bootstrap_dir;
   TempDirectory bootstrap_conf;
@@ -1662,7 +1660,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
  * @test verify that logs are not written to stdout during bootstrap.
  */
 TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
-  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   TempDirectory bootstrap_dir;
   TempDirectory bootstrap_conf;

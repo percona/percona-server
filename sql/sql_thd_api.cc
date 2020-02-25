@@ -48,10 +48,10 @@
 #include "sql/mysqld.h"  // key_thread_one_connection
 #include "sql/protocol_classic.h"
 #include "sql/query_options.h"
-#include "sql/rpl_rli.h"  // is_mts_worker
-#include "sql/rpl_slave_commit_order_manager.h"
+#include "sql/resourcegroups/platform/thread_attrs_api.h"  // num_vcpus
+#include "sql/rpl_rli.h"                                   // is_mts_worker
+#include "sql/rpl_slave_commit_order_manager.h"  // check_and_report_deadlock
 #include "sql/sql_alter.h"
-// commit_order_manager_check_deadlock
 #include "sql/sql_callback.h"  // MYSQL_CALLBACK
 #include "sql/sql_class.h"     // THD
 #include "sql/sql_error.h"
@@ -313,9 +313,10 @@ int thd_tablespace_op(const MYSQL_THD thd) {
   if (thd->lex->sql_command != SQLCOM_ALTER_TABLE) return 0;
   DBUG_ASSERT(thd->lex->alter_info != NULL);
 
-  return MY_TEST(
-      (thd->lex->alter_info->flags & (Alter_info::ALTER_DISCARD_TABLESPACE |
-                                      Alter_info::ALTER_IMPORT_TABLESPACE)));
+  return (thd->lex->alter_info->flags & (Alter_info::ALTER_DISCARD_TABLESPACE |
+                                         Alter_info::ALTER_IMPORT_TABLESPACE))
+             ? 1
+             : 0;
 }
 
 static void set_thd_stage_info(MYSQL_THD thd, const PSI_stage_info *new_stage,
@@ -652,7 +653,7 @@ void thd_report_row_lock_wait(THD *self, THD *wait_for) {
 
   if (self != NULL && wait_for != NULL && is_mts_worker(self) &&
       is_mts_worker(wait_for))
-    commit_order_manager_check_deadlock(self, wait_for);
+    Commit_order_manager::check_and_report_deadlock(self, wait_for);
 }
 
 /**
@@ -663,4 +664,8 @@ void remove_ssl_err_thread_state() {
 #if !defined(HAVE_OPENSSL11)
   ERR_remove_thread_state(nullptr);
 #endif
+}
+
+unsigned int thd_get_num_vcpus() {
+  return resourcegroups::platform::num_vcpus();
 }

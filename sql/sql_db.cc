@@ -84,6 +84,7 @@
 #include "sql/mysqld.h"          // key_file_misc
 #include "sql/psi_memory_key.h"  // key_memory_THD_db
 #include "sql/rpl_gtid.h"
+#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
 #include "sql/session_tracker.h"
 #include "sql/sp.h"         // lock_db_routines
 #include "sql/sql_base.h"   // lock_table_names
@@ -436,8 +437,6 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
 
   if (lock_schema_name(thd, db)) return true;
 
-  set_db_default_charset(thd, create_info);
-
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Schema *schema = nullptr;
   if (thd->dd_client()->acquire_for_modification(db, &schema)) return true;
@@ -447,8 +446,12 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     return true;
   }
 
-  // Set new collation ID.
-  schema->set_default_collation_id(create_info->default_table_charset->number);
+  // Set new collation ID if submitted in the statement.
+  if (create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) {
+    set_db_default_charset(thd, create_info);
+    schema->set_default_collation_id(
+        create_info->default_table_charset->number);
+  }
 
   // Set encryption type.
   if (create_info->encrypt_type.length > 0)
@@ -469,8 +472,13 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   */
   if (trans_commit_stmt(thd) || trans_commit(thd)) return true;
 
-  /* Change options if current database is being altered. */
-  if (thd->db().str && !strcmp(thd->db().str, db)) {
+  /*
+    Change collation options if the current database is being
+    altered and the clause is explicitly submitted in the ALTER
+    statement.
+  */
+  if (create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET &&
+      thd->db().str && !my_strcasecmp(table_alias_charset, thd->db().str, db)) {
     thd->db_charset = create_info->default_table_charset
                           ? create_info->default_table_charset
                           : thd->variables.collation_server;
@@ -925,7 +933,7 @@ static bool rm_dir_w_symlink(const char *org_path, bool send_error) {
   pos = strend(path);
   if (pos > path && pos[-1] == FN_LIBCHAR) *--pos = 0;
 
-  if ((error = my_readlink(tmp2_path, path, MYF(MY_WME))) < 0) return 1;
+  if ((error = my_readlink(tmp2_path, path, MYF(MY_WME))) < 0) return true;
   if (!error) {
     if (mysql_file_delete(key_file_misc, path, MYF(send_error ? MY_WME : 0))) {
       return send_error;
@@ -942,9 +950,9 @@ static bool rm_dir_w_symlink(const char *org_path, bool send_error) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno,
              my_strerror(errbuf, MYSQL_ERRMSG_SIZE, errno));
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }
 
 /*
@@ -1007,7 +1015,7 @@ long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path) {
     If the directory is a symbolic link, remove the link first, then
     remove the directory the symbolic link pointed at
   */
-  if (!found_other_files && rm_dir_w_symlink(org_path, 0)) return -1;
+  if (!found_other_files && rm_dir_w_symlink(org_path, false)) return -1;
   return deleted;
 
 err:

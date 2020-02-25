@@ -75,6 +75,9 @@
 #include "sql/transaction.h"                    // trans_commit()
 #include "storage/perfschema/pfs_dd_version.h"  // PFS_DD_VERSION
 
+extern Cost_constant_cache *cost_constant_cache;  // defined in
+                                                  // opt_costconstantcache.cc
+
 ///////////////////////////////////////////////////////////////////////////
 
 namespace dd {
@@ -115,7 +118,11 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
     Upgrade process needs heap engine initialized, hence parameter 'true'
     is passed to the function.
   */
-  init_optimizer_cost_module(true);
+  bool cost_constant_inited = false;
+  if (cost_constant_cache == nullptr) {
+    init_optimizer_cost_module(true);
+    cost_constant_inited = true;
+  }
 
   // Disable table encryption privilege checks for system threads.
   bool saved_table_encryption_privilege_check =
@@ -166,11 +173,18 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
         nullptr, nullptr, &dd::info_schema::update_I_S_metadata,
         SYSTEM_THREAD_DD_INITIALIZE);
 
+  // Creation of non-dd-based INFORMATION_SCHEMA system views.
+  else if (dd_init ==
+           enum_dd_init_type::DD_INITIALIZE_NON_DD_BASED_SYSTEM_VIEWS)
+    result = ::bootstrap::run_bootstrap_thread(
+        nullptr, nullptr, &dd::info_schema::init_non_dd_based_system_view,
+        SYSTEM_THREAD_DD_INITIALIZE);
+
   // Restore the table_encryption_privilege_check.
   opt_table_encryption_privilege_check = saved_table_encryption_privilege_check;
 
   /* Now that the dd is initialized, delete the cost model. */
-  delete_optimizer_cost_module();
+  if (cost_constant_inited) delete_optimizer_cost_module();
 
   return result;
 }
@@ -449,6 +463,15 @@ static bool acquire_mdl(THD *thd, MDL_key::enum_mdl_namespace lock_namespace,
     }
   } else if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
     return true;
+
+  /*
+    Unlike in other places where we acquire protection against global read
+    lock, the read_only state is not checked here since it is handled by
+    the caller or extra steps are taken to correctly ignore it. Also checking
+    read_only state can be problematic for background threads like drop table
+    thread and purge thread which can be initiated on behalf of statements
+    executed by replication thread where the read_only state does not apply.
+  */
 
   if (out_mdl_ticket) *out_mdl_ticket = mdl_request.ticket;
 

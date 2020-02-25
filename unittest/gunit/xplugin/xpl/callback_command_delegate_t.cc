@@ -25,10 +25,11 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <sys/types.h>
+#include <cstdint>
 #include <memory>
 
-#include "my_inttypes.h"
 #include "plugin/x/src/callback_command_delegate.h"
+#include "unittest/gunit/mysys_util.h"
 
 namespace ngs {
 
@@ -51,13 +52,13 @@ const longlong EXPECTED_IS_LONGLONG_UNSIGNED = true;
 const longlong EXPECTED_IS_LONGLONG_UNSIGNED_DEFAULT = false;
 const decimal_t EXPECTED_VALUE_DECIMAL = {0, 1, 2, false, NULL};
 const double EXPECTED_VALUE_DOUBLE = 20.0;
-const MYSQL_TIME EXPECTED_VALUE_DATATIME = {
-    2017, 12, 20, 20, 30, 00, 0, 0, MYSQL_TIMESTAMP_DATETIME};
+const MysqlTime EXPECTED_VALUE_DATATIME(2017, 12, 20, 20, 30, 00, 0, false,
+                                        MYSQL_TIMESTAMP_DATETIME);
 const char *EXPECTED_VALUE_STRING = "TEST STRING";
 
 }  // namespace
 
-using namespace ::testing;
+using namespace ::testing;  // NOLINT(build/namespaces)
 
 class Mock_callback_commands {
  public:
@@ -133,8 +134,8 @@ class Callback_command_delegate_testsuite : public Test {
   }
 
   void assert_sut_handle_ok_and_its_status() {
-    const uint expected_status = 1;
-    const uint expected_wrn_count = 2;
+    const uint32_t expected_status = 1;
+    const uint32_t expected_wrn_count = 2;
     const ulonglong expected_affected_rows = 3;
     const ulonglong expected_last_inserted_id = 4;
     const std::string expected_message = "Test message";

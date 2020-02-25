@@ -92,7 +92,7 @@ bool SortFileIndirectIterator::Init() {
   // to reset it here.
   table()->file->ha_index_or_rnd_end();
 
-  int error = table()->file->ha_rnd_init(0);
+  int error = table()->file->ha_rnd_init(false);
   if (error) {
     PrintError(error);
     return true;
@@ -190,7 +190,7 @@ int SortFileIndirectIterator::CachedRead() {
   for (;;) {
     if (m_cache_pos != m_cache_end) {
       if (m_cache_pos[m_error_offset]) {
-        shortget(&error, m_cache_pos);
+        error = shortget(m_cache_pos);
         if (error == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows) {
           m_cache_pos += m_reclength;
           continue;
@@ -414,7 +414,7 @@ bool SortBufferIndirectIterator::Init() {
   // to reset it here.
   table()->file->ha_index_or_rnd_end();
 
-  int error = table()->file->ha_rnd_init(0);
+  int error = table()->file->ha_rnd_init(false);
   if (error) {
     PrintError(error);
     return true;
@@ -618,7 +618,7 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
     if (qep_tab->type() != JT_REF_OR_NULL && qep_tab->type() != JT_FT) {
       DBUG_ASSERT(qep_tab->type() == JT_REF || qep_tab->type() == JT_EQ_REF);
       // Update ref value
-      if (cp_buffer_from_ref(thd(), table, &qep_tab->ref()) &&
+      if (construct_lookup_ref(thd(), table, &qep_tab->ref()) &&
           thd()->is_fatal_error())
         return -1;  // out of memory
     }

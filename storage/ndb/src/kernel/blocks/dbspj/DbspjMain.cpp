@@ -3294,6 +3294,7 @@ void
 Dbspj::abort(Signal* signal, Ptr<Request> requestPtr, Uint32 errCode)
 {
   jam();
+<<<<<<< HEAD
 
   /**
    * Need to handle online upgrade as the protocol for
@@ -3319,6 +3320,34 @@ Dbspj::abort(Signal* signal, Ptr<Request> requestPtr, Uint32 errCode)
     }
   }
 
+||||||| 91a17cedb1e
+
+  /**
+   * Need to handle online upgrade as the protocol for 
+   * signaling errors for Lookup-request changed in 7.2.5.
+   * If API-version is <= 7.2.4 we increase the severity 
+   * of the error to a 'NodeFailure' as this is the only
+   * errorcode for which the API will stop further
+   * 'outstanding-counting' in pre 7.2.5.
+   * (Starting from 7.2.5 we will stop counting for all 'hard errors')
+   * 
+   * In case we are only partially connected, there might be no 
+   * valid 'API-version' info yet: We do the optimistic assumption that
+   * version > 7.2.4 rather than sending a NodeFailure (bug#23049170)
+   * (Partly based on assumption that there are few/no left on <= 7.2.4)
+   */
+  if (requestPtr.p->isLookup())
+  {
+    const Uint32 API_version = getNodeInfo(getResultRef(requestPtr)).m_version;
+    if (unlikely(API_version != 0 && !ndbd_fixed_lookup_query_abort(API_version)))
+    {
+      jam();
+      errCode = DbspjErr::NodeFailure;
+    }
+  }
+
+=======
+>>>>>>> mysql-8.0.19
   if ((requestPtr.p->m_state & Request::RS_ABORTING) != 0)
   {
     jam();
@@ -5350,14 +5379,6 @@ Dbspj::lookup_send(Signal* signal,
       CLEAR_ERROR_INSERT_VALUE;
       releaseSections(handle);
       err = DbspjErr::NodeFailure;
-      break;
-    }
-    // Test for online downgrade.
-    if (unlikely(!ndbd_join_pushdown(getNodeInfo(Tnode).m_version)))
-    {
-      jam();
-      releaseSections(handle);
-      err = 4003; // Function not implemented.
       break;
     }
 
@@ -7718,6 +7739,7 @@ Dbspj::scanFrag_send(Signal* signal,
       req->fragmentNoKeyLen = fragPtr.p->m_fragId;
       req->variableData[0] = batchRange;
 
+<<<<<<< HEAD
       // Test for online downgrade.
       if (unlikely(ref != 0 &&
                    !ndbd_join_pushdown(getNodeInfo(refToNode(ref)).m_version)))
@@ -7727,6 +7749,18 @@ Dbspj::scanFrag_send(Signal* signal,
         break;
       }
 
+||||||| 91a17cedb1e
+      // Test for online downgrade.
+      if (unlikely(ref != 0 && 
+                   !ndbd_join_pushdown(getNodeInfo(refToNode(ref)).m_version)))
+      {
+        jam();
+        err = 4003; // Function not implemented.
+        break;
+      }
+
+=======
+>>>>>>> mysql-8.0.19
       /**
        * Set up the key-/attrInfo to be sent with the SCAN_FRAGREQ.
        * Determine whether these should released as part of the

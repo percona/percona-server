@@ -39,6 +39,7 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_variables.h"
 #include "plugin/group_replication/include/services/message_service/message_service.h"
+#include "plugin/group_replication/include/sql_service/sql_service_interface.h"
 #include "plugin/group_replication/include/udf/udf_registration.h"
 #include "plugin/group_replication/include/udf/udf_utils.h"
 
@@ -423,7 +424,10 @@ int plugin_group_replication_start(char **) {
       check_recovery_ssl_string(ov.recovery_ssl_crlpath_var,
                                 "ssl_crlpath_pointer") ||
       check_recovery_ssl_string(ov.recovery_public_key_path_var,
-                                "public_key_path")) {
+                                "public_key_path") ||
+      check_recovery_ssl_string(ov.recovery_tls_version_var, "tls_version") ||
+      check_recovery_ssl_string(ov.recovery_tls_ciphersuites_var,
+                                "tls_ciphersuites")) {
     error = GROUP_REPLICATION_CONFIGURATION_ERROR;
     goto err;
   }
@@ -540,14 +544,14 @@ int initialize_plugin_and_join(
   bool is_restart_after_clone = is_server_restarting_after_clone();
   if (is_restart_after_clone) {
     Replication_thread_api gr_channel("group_replication_applier");
-    gr_channel.purge_logs(true);
+    gr_channel.purge_logs(false);
 
     gr_channel.set_channel_name("group_replication_recovery");
     gr_channel.purge_logs(false);
     gr_channel.initialize_channel(const_cast<char *>("<NULL>"), 0, NULL, NULL,
-                                  NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                                  NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false,
-                                  NULL, false, NULL, 0);
+                                  false, NULL, NULL, NULL, NULL, NULL, NULL,
+                                  NULL, false, DEFAULT_THREAD_PRIORITY, 1,
+                                  false, NULL, false, NULL, 0, NULL, NULL);
   }
 
   Sql_service_command_interface *sql_command_interface =
@@ -667,6 +671,7 @@ err:
 
     auto modules_to_terminate = gr_modules::all_modules;
     modules_to_terminate.reset(gr_modules::ASYNC_REPL_CHANNELS);
+    modules_to_terminate.reset(gr_modules::BINLOG_DUMP_THREAD_KILL);
     leave_group_and_terminate_plugin_modules(modules_to_terminate, nullptr);
 
     if (!lv.server_shutdown_status && server_engine_initialized() &&
@@ -1347,6 +1352,8 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
       if (!error) error = GROUP_REPLICATION_COMMAND_FAILURE;
     }
   }
+  if (modules_to_terminate[gr_modules::BINLOG_DUMP_THREAD_KILL])
+    Replication_thread_api::rpl_binlog_dump_thread_kill();
 
   /*
     Group Partition Handler module.
@@ -1426,6 +1433,7 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::GCS_EVENTS_HANDLER, true);
   modules_mask.set(gr_modules::REMOTE_CLONE_HANDLER, true);
   modules_mask.set(gr_modules::MESSAGE_SERVICE_HANDLER, true);
+  modules_mask.set(gr_modules::BINLOG_DUMP_THREAD_KILL, true);
   /*
     The first step is to issue a GCS leave() operation. This is done because
     the join() operation will assume that the GCS layer is not initiated and
@@ -1545,6 +1553,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   log_bs = nullptr;
   if (init_logging_service_for_plugin(&lv.reg_srv, &log_bi, &log_bs)) return 1;
 
+  if (Charset_service::init(lv.reg_srv)) return 1;
+
 // Register all PSI keys at the time plugin init
 #ifdef HAVE_PSI_INTERFACE
   register_all_group_replication_psi_keys();
@@ -1622,6 +1632,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
 
   bool const error = register_udfs();
   if (error) return 1;
+
+  if (sql_service_interface_init()) return 1;
 
   // Initialize the recovery SSL option map
   initialize_ssl_option_map();
@@ -1750,6 +1762,7 @@ int plugin_group_replication_deinit(void *p) {
   }
 
   unregister_udfs();
+  sql_service_interface_deinit();
 
   if (hold_transactions) delete hold_transactions;
   delete transaction_consistency_manager;
@@ -1770,6 +1783,8 @@ int plugin_group_replication_deinit(void *p) {
   lv.online_wait_mutex = NULL;
 
   lv.plugin_info_ptr = NULL;
+
+  Charset_service::deinit(lv.reg_srv);
 
   deinit_logging_service_for_plugin(&lv.reg_srv, &log_bi, &log_bs);
 
@@ -1938,6 +1953,24 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
                                       member_expel_timeout_stream_buffer.str());
   gcs_module_parameters.add_parameter(
       "xcom_cache_size", std::to_string(ov.message_cache_size_var));
+
+  /*
+   We will add GCS-level join retries for those scenarios where a node
+   crashes and comes back immediately, but it still has a reencarnation
+   in the system ready to be expel.
+
+   The chosen values relate with START GROUP_REPLICATION timeout which is
+   60 seconds.
+
+   This will cover most cases. If a user changes the parameter
+   member_expel_timeout this mechanism for sure will not have the same
+   effect.
+  */
+  // Enable only if autorejoin is not running.
+  if (!autorejoin_module->is_autorejoin_ongoing()) {
+    gcs_module_parameters.add_parameter("join_attempts", "10");
+    gcs_module_parameters.add_parameter("join_sleep_time", "5");
+  }
 
   // Compression parameter
   if (ov.compression_threshold_var > 0) {
@@ -2143,7 +2176,8 @@ int initialize_recovery_module() {
       ov.recovery_ssl_capath_var, ov.recovery_ssl_cert_var,
       ov.recovery_ssl_cipher_var, ov.recovery_ssl_key_var,
       ov.recovery_ssl_crl_var, ov.recovery_ssl_crlpath_var,
-      ov.recovery_ssl_verify_server_cert_var);
+      ov.recovery_ssl_verify_server_cert_var, ov.recovery_tls_version_var,
+      ov.recovery_tls_ciphersuites_var);
   recovery_module->set_recovery_completion_policy(
       (enum_recovery_completion_policies)ov.recovery_completion_policy_var);
   recovery_module->set_recovery_donor_retry_count(ov.recovery_retry_count_var);
@@ -2609,7 +2643,7 @@ static int check_recovery_ssl_string(const char *str, const char *var_name,
                                      bool is_var_update) {
   DBUG_TRACE;
 
-  if (strlen(str) > FN_REFLEN) {
+  if (str != NULL && strlen(str) > FN_REFLEN) {
     if (!is_var_update)
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_SSL_RECOVERY_STRING,
                    var_name);
@@ -2638,7 +2672,8 @@ static int check_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var, void *save,
   int length = sizeof(buff);
   if ((str = value->val_str(value, buff, &length)))
     str = thd->strmake(str, length);
-  else {
+  /* group_replication_tls_ciphersuites option can be set to NULL */
+  else if (strcmp(var->name, "group_replication_recovery_tls_ciphersuites")) {
     mysql_mutex_unlock(&lv.plugin_running_mutex); /* purecov: inspected */
     return 1;                                     /* purecov: inspected */
   }
@@ -2696,6 +2731,14 @@ static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var, void *var_ptr,
     case ov.RECOVERY_SSL_PUBLIC_KEY_PATH_OPT:
       if (recovery_module != NULL)
         recovery_module->set_recovery_public_key_path(new_option_val);
+      break;
+    case ov.RECOVERY_TLS_VERSION_OPT:
+      if (recovery_module != NULL)
+        recovery_module->set_recovery_tls_version(new_option_val);
+      break;
+    case ov.RECOVERY_TLS_CIPHERSUITES_OPT:
+      if (recovery_module != NULL)
+        recovery_module->set_recovery_tls_ciphersuites(new_option_val);
       break;
     default:
       DBUG_ASSERT(0); /* purecov: inspected */
@@ -3817,6 +3860,26 @@ static MYSQL_SYSVAR_BOOL(recovery_ssl_verify_server_cert,        /* name */
                          update_ssl_server_cert_verification, /* update func*/
                          0);                                  /* default*/
 
+static MYSQL_SYSVAR_STR(
+    recovery_tls_version,        /* name */
+    ov.recovery_tls_version_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | malloc string*/
+    "A list of permissible versions to use for TLS encryption.",
+    check_recovery_ssl_option,        /* check func*/
+    update_recovery_ssl_option,       /* update func*/
+    "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"); /* default*/
+
+static MYSQL_SYSVAR_STR(
+    recovery_tls_ciphersuites,        /* name */
+    ov.recovery_tls_ciphersuites_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | malloc string*/
+    "A list of permissible ciphersuites to use for TLS 1.3 encryption.",
+    check_recovery_ssl_option,  /* check func*/
+    update_recovery_ssl_option, /* update func*/
+    NULL);                      /* default*/
+
 // Public key path information
 
 static MYSQL_SYSVAR_STR(
@@ -3859,6 +3922,11 @@ static void initialize_ssl_option_map() {
   SYS_VAR *public_key_path_var = MYSQL_SYSVAR(recovery_public_key_path);
   ov.recovery_ssl_opt_map[public_key_path_var->name] =
       ov.RECOVERY_SSL_PUBLIC_KEY_PATH_OPT;
+  SYS_VAR *tls_version_var = MYSQL_SYSVAR(recovery_tls_version);
+  ov.recovery_ssl_opt_map[tls_version_var->name] = ov.RECOVERY_TLS_VERSION_OPT;
+  SYS_VAR *tls_ciphersuites_var = MYSQL_SYSVAR(recovery_tls_ciphersuites);
+  ov.recovery_ssl_opt_map[tls_ciphersuites_var->name] =
+      ov.RECOVERY_TLS_CIPHERSUITES_OPT;
 }
 
 // Recovery threshold options
@@ -4332,6 +4400,8 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(member_expel_timeout),
     MYSQL_SYSVAR(message_cache_size),
     MYSQL_SYSVAR(clone_threshold),
+    MYSQL_SYSVAR(recovery_tls_version),
+    MYSQL_SYSVAR(recovery_tls_ciphersuites),
     NULL,
 };
 

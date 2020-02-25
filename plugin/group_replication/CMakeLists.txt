@@ -143,7 +143,7 @@ MYSQL_ADD_PLUGIN(group_replication
   LINK_LIBRARIES
   ${LZ4_LIBRARY}
   ${SSL_LIBRARIES}
-  ${GCS_LIBRARY}
+  mysqlgcs
   MODULE_ONLY
   MODULE_OUTPUT_NAME "group_replication"
   )

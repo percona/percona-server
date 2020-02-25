@@ -183,6 +183,8 @@ enum dberr_t {
   DB_ABORT_INCOMPLETE_CLONE,
   /** Btree level limit exceeded. */
   DB_BTREE_LEVEL_LIMIT_EXCEEDED,
+  /* Schema mismatch between the metadata and data being imported. */
+  DB_SCHEMA_MISMATCH,
 
   DB_PAGE_CORRUPTED = 999, /*!< Page read from tablespace is
                            corrupted. */
@@ -197,6 +199,8 @@ enum dberr_t {
   DB_RECORD_NOT_FOUND = 1500,
   DB_END_OF_BLOCK,
   DB_END_OF_INDEX,
+  DB_END_SAMPLE_READ,
+
   /** Generic error code for "Not found" type of errors */
   DB_NOT_FOUND,
 

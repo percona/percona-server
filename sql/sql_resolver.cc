@@ -36,7 +36,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <functional>
+#include <utility>
 
+#include "field_types.h"
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
@@ -68,6 +71,7 @@
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
+#include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"  // Query_result
 #include "sql/sql_base.h"      // setup_fields
@@ -81,7 +85,7 @@
 #include "sql/sql_test.h"  // print_where
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/table_function.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "template_utils.h"
@@ -148,6 +152,11 @@ bool SELECT_LEX::prepare(THD *thd) {
   DBUG_ASSERT(join == NULL);
   DBUG_ASSERT(!thd->is_error());
 
+  // If this query block is a table value constructor, a lot of the preparation
+  // done in SELECT_LEX::prepare becomes irrelevant. Thus we call our own
+  // SELECT_LEX::prepare_values in this case.
+  if (is_table_value_constructor) return prepare_values(thd);
+
   SELECT_LEX_UNIT *const unit = master_unit();
 
   if (top_join_list.elements > 0) propagate_nullability(&top_join_list, false);
@@ -169,7 +178,7 @@ bool SELECT_LEX::prepare(THD *thd) {
                              : outer_select()->allow_merge_derived);
 
   Opt_trace_context *const trace = &thd->opt_trace;
-  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_wrapper_prepare(trace);
   Opt_trace_object trace_prepare(trace, "join_preparation");
   trace_prepare.add_select_number(select_number);
   Opt_trace_array trace_steps(trace, "steps");
@@ -478,6 +487,75 @@ bool SELECT_LEX::prepare(THD *thd) {
 }
 
 /**
+  Prepare a table value constructor query block for optimization.
+
+  In the case of a table value constructor SELECT_LEX, we return the result of
+  this function from SELECT_LEX::prepare, instead of doing the standard prepare
+  routine.
+
+  For a table value constructor block, most preparation of a standard SELECT_LEX
+  becomes irrelevant (in particular INTO, FROM, WHERE, GROUP, HAVING and
+  WINDOW). We therefore substitute the standard resolving routine with this one,
+  which is simply responsible for resolving the expressions contained in VALUES,
+  as well as the query result.
+
+  @param thd    thread handler
+
+  @returns false if success, true if error
+ */
+
+bool SELECT_LEX::prepare_values(THD *thd) {
+  SELECT_LEX_UNIT *const unit = master_unit();
+
+  if (resolve_table_value_constructor_values(thd)) return true;
+
+  // Setup the HAVING clause, duplicating code from SELECT_LEX::prepare. This is
+  // strictly necessary in the case of PREPARE statements, where
+  // resolve_subquery may rewrite its SELECT_LEX to use m_having_cond.
+  //
+  // For example, a query like `SELECT * FROM t WHERE (a, b) IN (VALUES ROW(1,
+  // 10))` may be rewritten such that the SELECT_LEX within the IN subquery has
+  // a HAVING clause with an Item_cond_and. This must be taken into account
+  // during the second preparation that is done when the prepared statement is
+  // _executed_; we now have to resolve m_having_cond properly.
+  //
+  // Note that this duplicated code should be removed in the future. TODO: for
+  // wl#9384, which refactors DML statement preparation to be done only once.
+  if (m_having_cond) {
+    DBUG_ASSERT(m_having_cond->is_bool_func());
+    thd->where = "having clause";
+    having_fix_field = true;
+    resolve_place = RESOLVE_HAVING;
+    if (!m_having_cond->fixed &&
+        (m_having_cond->fix_fields(thd, &m_having_cond) ||
+         m_having_cond->check_cols(1)))
+      return true; /* purecov: inspected */
+
+    DBUG_ASSERT(!m_having_cond->const_item());
+
+    having_fix_field = false;
+    resolve_place = RESOLVE_NONE;
+  }
+
+  // Again, duplicating checks that are also done in SELECT_LEX::prepare for
+  // resolving subqueries. This should, like the resolving of m_having_clause
+  // above, be refactored such that there is less duplication of code from
+  // SELECT_LEX::prepare.
+  if (unit->item &&                     // This is a subquery
+      this != unit->fake_select_lex &&  // A real query block
+                                        // Not normalizing a view
+      !thd->lex->is_view_context_analysis()) {
+    // Query block represents a subquery within an IN/ANY/ALL/EXISTS predicate
+    if (resolve_subquery(thd)) return true;
+  }
+
+  if (query_result() && query_result()->prepare(thd, item_list, unit))
+    return true; /* purecov: inspected */
+
+  return false;
+}
+
+/**
   Check whether the given table function or lateral derived table depends on a
   table which it's RIGHT JOINed to. An error is thrown if such dependency is
   found. For example:
@@ -746,18 +824,18 @@ bool Item_in_subselect::subquery_allows_materialization(
 
     List_iterator<Item> it(unit->first_select()->item_list);
     for (uint i = 0; i < elements; i++) {
-      Item *const inner = it++;
-      Item *const outer = left_expr->element_index(i);
-      if (!types_allow_materialization(outer, inner)) {
+      Item *const inner_item = it++;
+      Item *const outer_item = left_expr->element_index(i);
+      if (!types_allow_materialization(outer_item, inner_item)) {
         cause = "type mismatch";
         break;
       }
-      if (inner->is_blob_field())  // 6
+      if (inner_item->is_blob_field())  // 6
       {
         cause = "inner blob";
         break;
       }
-      has_nullables |= inner->maybe_null;
+      has_nullables |= inner_item->maybe_null;
     }
 
     if (!cause) {
@@ -2032,6 +2110,70 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
       for "prepared stmt"). So there's no problem.
     */
   }
+}
+
+/**
+  Fix used tables information for a subquery after query transformations.
+  This is for transformations where the subquery remains a subquery - it is
+  not merged, it merely moves up by effect of a transformation on a containing
+  query block.
+  Most actions here involve re-resolving information for conditions
+  and items belonging to the subquery.
+  If the subquery contains an outer reference into removed_select or
+  parent_select, the relevant information is updated by
+  Item_ident::fix_after_pullout().
+*/
+void SELECT_LEX_UNIT::fix_after_pullout(SELECT_LEX *parent_select,
+                                        SELECT_LEX *removed_select)
+
+{
+  // Go through all query specification objects of the subquery and re-resolve
+  // all relevant expressions belonging to them.
+  for (SELECT_LEX *sel = first_select(); sel; sel = sel->next_select()) {
+    sel->fix_after_pullout(parent_select, removed_select);
+  }
+  // @todo figure out if we need to do it for fake_select_lex too.
+}
+
+/// @see SELECT_LEX_UNIT::fix_after_pullout
+void SELECT_LEX::fix_after_pullout(SELECT_LEX *parent_select,
+                                   SELECT_LEX *removed_select) {
+  if (where_cond())
+    where_cond()->fix_after_pullout(parent_select, removed_select);
+
+  /*
+    User-created join conditions cannot have any outer reference, but
+    derived table merging changes WHERE to a join condition, which thus can
+    have an outer reference. So we have to call fix_after_pullout() on join
+    conditions. The reference may also be located in a derived table used by
+    this subquery. fix_tables_after_pullout() will handle the two cases.
+    table_adjust is 0 because we're not merging these tables up;
+    lateral_deps_tables is unused as the unit's m_lateral_deps will contain
+    necessary information for callers (see fix_tables_after_pullout()).
+  */
+  table_map unused;
+  TABLE_LIST *tr;
+  List_iterator_fast<TABLE_LIST> table_li(top_join_list);
+  while ((tr = table_li++)) {
+    fix_tables_after_pullout(parent_select, removed_select, tr,
+                             /*table_adjust=*/0,
+                             /*lateral_dep_tables=*/&unused);
+  }
+
+  if (having_cond())
+    having_cond()->fix_after_pullout(parent_select, removed_select);
+
+  List_iterator<Item> li(item_list);
+  Item *item;
+  while ((item = li++)) item->fix_after_pullout(parent_select, removed_select);
+
+  /* Re-resolve ORDER BY and GROUP BY fields */
+
+  for (ORDER *order = order_list.first; order; order = order->next)
+    (*order->item)->fix_after_pullout(parent_select, removed_select);
+
+  for (ORDER *group = group_list.first; group; group = group->next)
+    (*group->item)->fix_after_pullout(parent_select, removed_select);
 }
 
 /**
@@ -3475,8 +3617,8 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
       oto1.add("chosen", false);
     }
     Item_subselect::trans_res res;
-    subq_item->changed = 0;
-    subq_item->fixed = 0;
+    subq_item->changed = false;
+    subq_item->fixed = false;
 
     SELECT_LEX *save_select_lex = thd->lex->current_select();
     thd->lex->set_current_select(subq_item->unit->first_select());
@@ -3488,8 +3630,8 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
 
     if (res == Item_subselect::RES_ERROR) return true;
 
-    subq_item->changed = 1;
-    subq_item->fixed = 1;
+    subq_item->changed = true;
+    subq_item->fixed = true;
 
     /*
       If the Item has been substituted with another Item (e.g an
@@ -3805,7 +3947,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       return true;
     }
     order->item = &ref_item_array[count - 1];
-    order->in_field_list = 1;
+    order->in_field_list = true;
     order->is_position = true;
     return false;
   }
@@ -3878,7 +4020,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
             ->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                    NULL);
       order->item = &ref_item_array[counter];
-      order->in_field_list = 1;
+      order->in_field_list = true;
       if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
         order->used_alias = true;
       return false;
@@ -3900,7 +4042,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     }
   }
 
-  order->in_field_list = 0;
+  order->in_field_list = false;
   /*
     The call to order_item->fix_fields() means that here we resolve
     'order_item' to a column from a table in the list 'tables', or to
@@ -4157,7 +4299,6 @@ bool SELECT_LEX::setup_group(THD *thd) {
 static bool find_and_change_grouped_expr(
     THD *thd, SELECT_LEX *select, uint i, Item *func_or_cond, Item *item,
     bool wf, bool *arg_changed, std::function<void(Item *)> update_functor) {
-  Item *real_item = item->real_item();
   const bool is_grouping_func =
       (wf ? false
           : (func_or_cond->type() == Item::FUNC_ITEM &&
@@ -4166,7 +4307,8 @@ static bool find_and_change_grouped_expr(
 
   bool found_match = false;
   for (ORDER *group = select->group_list.first; group; group = group->next) {
-    if (real_item->eq((*group->item)->real_item(), 0)) {
+    Item *real_item = item->real_item();
+    if (real_item->eq((*group->item)->real_item(), false)) {
       // If to-be-replaced Item is alias, make replacing Item an alias.
       bool alias_of_expr = (item->type() == Item::FIELD_ITEM ||
                             item->type() == Item::REF_ITEM) &&
@@ -4409,7 +4551,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
   for (ORDER *order = order_list.first; order; order = order->next) {
     Item *order_item = *order->item;
 
-    order->in_field_list = 0;
+    order->in_field_list = false;
     bool ret =
         (!order_item->fixed && (order_item->fix_fields(thd, order->item) ||
                                 (order_item = *order->item)->check_cols(1)));
@@ -4484,7 +4626,7 @@ bool validate_gc_assignment(List<Item> *fields, List<Item> *values,
   List_iterator_fast<Item> f(*fields), v(*values);
   Item *value;
   while ((value = v++)) {
-    Field *rfield;
+    const Field *rfield;
 
     if (!use_table_field)
       rfield = (down_cast<Item_field *>((f++)->real_item()))->field;
@@ -4585,6 +4727,105 @@ Item **SELECT_LEX::add_hidden_item(Item *item) {
   base_ref_items[el] = item;
   all_fields.push_front(item);
   return &base_ref_items[el];
+}
+
+/**
+  Resolve the rows of a table value constructor and aggregate the type of each
+  column across rows.
+
+  @param thd    thread handler
+
+  @returns false if success, true if error
+*/
+
+bool SELECT_LEX::resolve_table_value_constructor_values(THD *thd) {
+  // Item_values_column objects may be allocated; they should be persistent for
+  // PREPARE statements.
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+  size_t num_rows = row_value_list->size();
+  size_t row_degree = row_value_list->head()->size();
+
+  // All table row value expressions shall be of the same degree. Note that
+  // non-scalar subqueries are not allowed; we can simply count the number of
+  // elements.
+  if (row_degree > MAX_FIELDS) {
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
+    return true;
+  }
+
+  size_t row_index = 0;
+  for (List<Item> &values_row : *row_value_list) {
+    if (values_row.size() != row_degree) {
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), row_index + 1);
+      return true;
+    } else if (values_row.size() == 0) {
+      // A table value constructor with empty row objects is a syntax error,
+      // except when used as the source for an INSERT statement.
+      my_error(ER_TABLE_VALUE_CONSTRUCTOR_MUST_HAVE_COLUMNS, MYF(0));
+      return true;
+    }
+
+    size_t item_index = 0;
+    Item *item;
+    List_iterator<Item> it(values_row);
+    while ((item = it++)) {
+      if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
+          (item = *(it.ref()))->check_cols(1))
+        return true; /* purecov: inspected */
+
+      if (item->type() == Item::DEFAULT_VALUE_ITEM) {
+        my_error(ER_TABLE_VALUE_CONSTRUCTOR_CANNOT_HAVE_DEFAULT, MYF(0));
+        return true;
+      }
+
+      if (row_index == 0) {
+        // If single row, we skip setting up indirections.
+        if (num_rows != 1 && first_execution) {
+          Item_values_column *column = new Item_values_column(thd, item);
+          if (column == nullptr) return true;
+          column->add_used_tables(item);
+          item = column;
+        }
+        // Make sure to also replace the reference in item_list. In the case
+        // where fix_fields transforms an item, it.ref() will only update the
+        // reference of values_row.
+        if (first_execution) item_list.replace(item_index, item);
+      } else {
+        Item_values_column *column =
+            down_cast<Item_values_column *>(item_list[item_index]);
+        if (column->join_types(thd, item)) return true;
+        column->add_used_tables(item);
+        column->fixed = true;  // Does not have regular fix_fields()
+      }
+
+      ++item_index;
+    }
+
+    ++row_index;
+  }
+
+  // base_ref_items is used during row_value_in_to_exists_transformer to set up
+  // equality checks when transforming IN subquery predicates.
+  if (setup_base_ref_items(thd)) return true;
+
+  size_t name_len;
+  char buff[NAME_LEN + 1];
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, pointer_cast<uchar *>(buff)))
+    return true; /* purecov: inspected */
+
+  size_t item_index = 0;
+  for (Item &column : item_list) {
+    base_ref_items[item_index] = &column;
+
+    // Name the columns column_0, column_1, ...
+    name_len = snprintf(buff, NAME_LEN, "column_%zu", item_index);
+    column.item_name.copy(buff, name_len);
+
+    ++item_index;
+  }
+
+  return false;
 }
 
 /**

@@ -310,7 +310,7 @@ class MDL_checker {
     DBUG_ASSERT(srs->id() <= UINT_MAX32);
 
     char id_str[11];  // uint32 => max 10 digits + \0
-    int10_to_str(static_cast<long>(srs->id()), id_str, 10);
+    longlong10_to_str(srs->id(), id_str, 10);
 
     return thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SRID, "",
                                                         id_str, lock_type);
@@ -2690,8 +2690,7 @@ void Dictionary_client::remove_uncommitted_objects(
 #ifndef DBUG_OFF
   // Note: The ifdef'ed block below is only for consistency checks in
   // debug builds.
-  typename Multi_map_base<typename T::Cache_partition>::Const_iterator it;
-  for (it = m_registry_dropped.begin<typename T::Cache_partition>();
+  for (auto it = m_registry_dropped.begin<typename T::Cache_partition>();
        it != m_registry_dropped.end<typename T::Cache_partition>(); it++) {
     const typename T::Cache_partition *dropped_object = it->second->object();
     DBUG_ASSERT(dropped_object != nullptr);

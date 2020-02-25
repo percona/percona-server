@@ -584,8 +584,8 @@ static bool create_full_part_field_array(THD *thd, TABLE *table,
     result = true;
     goto end;
   }
-  if (bitmap_init(&part_info->full_part_field_set, bitmap_buf, table->s->fields,
-                  false)) {
+  if (bitmap_init(&part_info->full_part_field_set, bitmap_buf,
+                  table->s->fields)) {
     mem_alloc_error(table->s->fields);
     result = true;
     goto end;
@@ -726,7 +726,6 @@ static void clear_field_flag(TABLE *table) {
 
 static bool handle_list_of_fields(List_iterator<char> it, TABLE *table,
                                   partition_info *part_info, bool is_sub_part) {
-  Field *field;
   bool result;
   char *field_name;
   bool is_list_empty = true;
@@ -734,7 +733,7 @@ static bool handle_list_of_fields(List_iterator<char> it, TABLE *table,
 
   while ((field_name = it++)) {
     is_list_empty = false;
-    field = find_field_in_table_sef(table, field_name);
+    Field *field = find_field_in_table_sef(table, field_name);
     if (likely(field != 0))
       field->flags |= GET_FIXED_FIELDS_FLAG;
     else {
@@ -1775,7 +1774,7 @@ static int add_int(File fptr, longlong number) {
 
 static int add_uint(File fptr, ulonglong number) {
   char buff[32];
-  longlong2str(number, buff, 10);
+  ullstr(number, buff);
   return add_string(fptr, buff);
 }
 
@@ -4811,10 +4810,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "DROP");
         goto err;
       }
-      if (table->file->is_fk_defined_on_table_or_index(MAX_KEY)) {
-        my_error(ER_ROW_IS_REFERENCED, MYF(0));
-        goto err;
-      }
       tab_part_info->num_parts -= num_parts_dropped;
     } else if (alter_info->flags & Alter_info::ALTER_REBUILD_PARTITION) {
       set_engine_all_partitions(tab_part_info,
@@ -5894,7 +5889,7 @@ static int get_part_iter_for_interval_via_mapping(
       */
       store_key_image_to_rec(field, min_value, field_len);
       bool include_endp = !(flags & NEAR_MIN);
-      part_iter->part_nums.start = get_endpoint(part_info, 1, include_endp);
+      part_iter->part_nums.start = get_endpoint(part_info, true, include_endp);
       if (!can_match_multiple_values && part_info->part_expr->null_value) {
         /* col = x and F(x) = NULL -> only search NULL partition */
         part_iter->part_nums.cur = part_iter->part_nums.start = 0;
@@ -5924,7 +5919,7 @@ static int get_part_iter_for_interval_via_mapping(
   else {
     store_key_image_to_rec(field, max_value, field_len);
     bool include_endp = !(flags & NEAR_MAX);
-    part_iter->part_nums.end = get_endpoint(part_info, 0, include_endp);
+    part_iter->part_nums.end = get_endpoint(part_info, false, include_endp);
     if (check_zero_dates && !zero_in_start_date &&
         !part_info->part_expr->null_value) {
       MYSQL_TIME end_date;
@@ -6218,64 +6213,6 @@ static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter) {
   if (part_iter->part_info->get_subpartition_id(part_iter->part_info, &res))
     return NOT_A_PARTITION_ID;
   return res;
-}
-
-/*
-  Create partition names
-
-  SYNOPSIS
-    create_partition_name()
-    out:out                   Created partition name string
-    in1                       First part
-    in2                       Second part
-
-  RETURN VALUE
-    NONE
-
-  DESCRIPTION
-    This method is used to calculate the partition name, service routine to
-    the del_ren_cre_table method.
-*/
-
-void create_partition_name(char *out, const char *in1, const char *in2,
-                           bool translate) {
-  char transl_part_name[FN_REFLEN];
-  const char *transl_part;
-
-  if (translate) {
-    tablename_to_filename(in2, transl_part_name, FN_REFLEN);
-    transl_part = transl_part_name;
-  } else
-    transl_part = in2;
-  strxmov(out, in1, "#P#", transl_part, NullS);
-}
-
-/*
-  Create subpartition name
-
-  SYNOPSIS
-    create_subpartition_name()
-    out:out                   Created partition name string
-    in1                       First part
-    in2                       Second part
-    in3                       Third part
-
-  RETURN VALUE
-    NONE
-
-  DESCRIPTION
-  This method is used to calculate the subpartition name, service routine to
-  the del_ren_cre_table method.
-*/
-
-void create_subpartition_name(char *out, const char *in1, const char *in2,
-                              const char *in3) {
-  char transl_part_name[FN_REFLEN], transl_subpart_name[FN_REFLEN];
-
-  tablename_to_filename(in2, transl_part_name, FN_REFLEN);
-  tablename_to_filename(in3, transl_subpart_name, FN_REFLEN);
-  strxmov(out, in1, "#P#", transl_part_name, "#SP#", transl_subpart_name,
-          NullS);
 }
 
 uint get_partition_field_store_length(Field *field) {

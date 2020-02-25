@@ -27,17 +27,34 @@ ENDIF()
 
 # Add tests
 SET(TESTS
-    group_replication_member_info
-    group_replication_compatibility_module
-    group_replication_member_version
-    group_replication_mysql_version_gcs_protocol_map
-   )
+  group_replication_member_info
+  group_replication_compatibility_module
+  group_replication_member_version
+  group_replication_mysql_version_gcs_protocol_map
+  )
 
 FOREACH(test ${TESTS})
+<<<<<<< HEAD
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc ADD_TEST ${test})
   TARGET_LINK_LIBRARIES(${test}-t
     gr_unit_test_resource gunit_small ${GCS_LIBRARY})
   SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(${test}-t perconaserverclient)
+||||||| 91a17cedb1e
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc ADD_TEST ${test})
+  TARGET_LINK_LIBRARIES(${test}-t
+    gr_unit_test_resource gunit_small ${GCS_LIBRARY})
+  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
+  TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
+=======
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
+    ADD_TEST ${test}
+    ENABLE_EXPORTS
+    LINK_LIBRARIES
+    gr_unit_test_resource
+    gunit_small
+    mysqlclient
+    mysqlgcs
+    )
+>>>>>>> mysql-8.0.19
 ENDFOREACH()
-

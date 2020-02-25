@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -455,6 +455,7 @@ class System_tables {
 
 class System_views {
  public:
+<<<<<<< HEAD
   // Classification of system views.
   enum class Types {
     // I_S views created on dictionary tables
@@ -463,14 +464,39 @@ class System_views {
     // compression_dictionary etc
     INFORMATION_SCHEMA_NON_DD
   };
+||||||| 91a17cedb1e
+  // Classification of system views.
+  enum class Types {
+    INFORMATION_SCHEMA,
+  };
+=======
+  /*
+    Classification of system views.
+
+    Both of these types represent server INFORMATION_SCHEMA tables. The
+    difference is that NON_DD_BASED_INFORMATION_SCHEMA indicates that the
+    system view is based on ACL tables like role_edges, default_roles etc.
+    NON_DD_BASED_INFORMATION_SCHEMA are created after creation of ACL
+    tables defined in mysql_system_tables.sql and not with regular
+    INFORMATION_SCHEMA tables that are created during bootstrap.
+
+  */
+  enum class Types { INFORMATION_SCHEMA, NON_DD_BASED_INFORMATION_SCHEMA };
+>>>>>>> mysql-8.0.19
 
   // Map from system view type to string description, e.g. for debugging.
   static const char *type_name(Types type) {
     switch (type) {
       case Types::INFORMATION_SCHEMA:
         return "INFORMATION_SCHEMA";
+<<<<<<< HEAD
       case Types::INFORMATION_SCHEMA_NON_DD:
         return "INFORMATION_SCHEMA_NON_DD";
+||||||| 91a17cedb1e
+=======
+      case Types::NON_DD_BASED_INFORMATION_SCHEMA:
+        return "NON_DD_BASED_INFORMATION_SCHEMA";
+>>>>>>> mysql-8.0.19
       default:
         return "";
     }

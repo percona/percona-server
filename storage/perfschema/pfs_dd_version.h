@@ -127,10 +127,18 @@
   performance_schema tables changed in MySQL 8.0.18
   - replication_connection_configuration, added column
   MASTER_COMPRESSION_ALGORITHMS, MASTER_COMPRESSION_LEVEL
+  - replication_applier_configuration, added column
+  PRIVILEGE_CHECKS_USER
 
-  Version published is now 800172.
+  80019:
+
+  performance_schema tables changed in MySQL 8.0.19
+  - replication_connection_configuration, added column
+  TLS_CIPHERSUITES
+  - replication_applier_configuration, added column
+  REQUIRE_ROW_FORMAT
 */
 
-static const uint PFS_DD_VERSION = 80018;
+static const uint PFS_DD_VERSION = 80019;
 
 #endif /* PFS_DD_VERSION_H */

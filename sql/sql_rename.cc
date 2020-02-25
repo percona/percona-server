@@ -292,8 +292,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
     return true;
 
   const dd::Table *table_def = nullptr;
-  TABLE_LIST *table;
-  for (table = table_list; table && table->next_local;
+  for (TABLE_LIST *table = table_list; table && table->next_local;
        table = table->next_local) {
     if (thd->dd_client()->acquire(table->db, table->table_name, &table_def)) {
       return true;
@@ -768,7 +767,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
           the above changes we need to clean-up them before returning.
         */
         if (*int_commit_done && (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
-          Disable_gtid_state_update_guard disabler(thd);
+          Implicit_substatement_state_guard substatement_guard(thd);
           trans_rollback_stmt(thd);
           // Full rollback in case we have THD::transaction_rollback_request.
           trans_rollback(thd);
@@ -786,7 +785,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
         rename and changes to FK we need to do it now.
       */
       if (*int_commit_done && (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
-        Disable_gtid_state_update_guard disabler(thd);
+        Implicit_substatement_state_guard substatement_guard(thd);
 
         if (trans_commit_stmt(thd) || trans_commit(thd)) {
           /*
@@ -830,7 +829,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
       }
 
       /* Rename view in the data-dictionary. */
-      Disable_gtid_state_update_guard disabler(thd);
+      Implicit_substatement_state_guard substatement_guard(thd);
 
       // Set schema id and view name.
       from_at->set_name(new_alias);

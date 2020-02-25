@@ -1,5 +1,5 @@
 # Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -42,6 +42,17 @@ SET(DISABLE_PSI_DEFINITIONS
 
 # Set these in the cache to make them available globally
 SET(DISABLE_PSI_DEFINITIONS ${DISABLE_PSI_DEFINITIONS} CACHE INTERNAL "")
+
+# Set up valgrind options to use with ctest.
+# Use `ctest (...) -D ExperimentalMemCheck` to run.
+IF(LINUX OR FREEBSD)
+  FIND_PROGRAM(MEMORYCHECK_COMMAND valgrind)
+  SET(MEMORYCHECK_COMMAND_OPTIONS
+    "--leak-check=full --errors-for-leak-kinds=definite,indirect --error-exitcode=42"
+    CACHE INTERNAL "")
+  SET(MEMORYCHECK_SUPPRESSIONS_FILE "${PROJECT_SOURCE_DIR}/mysql-test/valgrind.supp"
+    CACHE INTERNAL "")
+ENDIF()
 
 MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
 
@@ -95,7 +106,7 @@ ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
 ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/share")
 ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 
-# Add tests (link them with gunit/gmock libraries) 
+# Add tests (link them with gunit/gmock libraries)
 SET(TESTS
   alignment
   bounds_checked_array
@@ -110,6 +121,7 @@ SET(TESTS
   filesort_compare
   float_compare
   inplace_vector
+  integer_digits
   intrusive_list_iterator
   key
   like_range
@@ -169,7 +181,7 @@ FOREACH(test ${TESTS})
   LIST(APPEND ALL_SMALL_TESTS ${test}-t.cc)
 ENDFOREACH()
 
-# Add tests (link them with gunit/gmock libraries and the server libraries) 
+# Add tests (link them with gunit/gmock libraries and the server libraries)
 SET(SERVER_TESTS
   character_set_deprecation
   copy_info
@@ -238,6 +250,7 @@ SET(SERVER_TESTS
   sql_table
   subquery_syntax
   table_cache
+  table_list
   table_factor_syntax
   tc_log_mmap
   temptable_allocator
@@ -261,13 +274,16 @@ IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(segfault-t.cc COMPILE_FLAGS ${HAS_WARN_FLAG})
 ENDIF()
 
+# Warnings about missing PGO profile data are not useful for unit tests.
+DISABLE_MISSING_PROFILE_WARNING()
+
 SET(ALL_LARGE_TESTS)
 FOREACH(test ${SERVER_TESTS})
   LIST(APPEND ALL_LARGE_TESTS ${test}-t.cc)
 ENDFOREACH()
 
-SET(SQL_GUNIT_LIB_SOURCE 
-  ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc 
+SET(SQL_GUNIT_LIB_SOURCE
+  ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc
   ${CMAKE_SOURCE_DIR}/sql/mdl.cc
   ${CMAKE_SOURCE_DIR}/sql/stream_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/sql_list.cc
@@ -299,9 +315,7 @@ MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
 
 TARGET_LINK_LIBRARIES(merge_large_tests-t
   gunit_large
-  perfschema
-  sql_main
-  ${ICU_LIBRARIES}
+  server_unittest_library
   )
 
 FOREACH(test ${TESTS})
@@ -333,9 +347,7 @@ FOREACH(test ${SERVER_TESTS})
 
   TARGET_LINK_LIBRARIES(${test}-t
     gunit_large
-    perfschema
-    sql_main
-    ${ICU_LIBRARIES}
+    server_unittest_library
     )
 ENDFOREACH()
 

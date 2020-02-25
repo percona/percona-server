@@ -764,6 +764,12 @@ bool lock_schema_name(THD *thd, const char *db) {
                                      thd->variables.lock_wait_timeout))
     return true;
 
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true)) return true;
+
   DEBUG_SYNC(thd, "after_wait_locked_schema_name");
   return false;
 }
@@ -885,6 +891,12 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                                      thd->variables.lock_wait_timeout))
     return true;
 
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true)) return true;
+
   DEBUG_SYNC(thd, "after_wait_locked_pname");
   return false;
 }
@@ -992,7 +1004,16 @@ bool acquire_shared_global_read_lock(THD *thd,
   MDL_REQUEST_INIT(&grl_request, MDL_key::GLOBAL, "", "",
                    MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
 
-  return thd->mdl_context.acquire_lock(&grl_request, lock_wait_timeout);
+  if (thd->mdl_context.acquire_lock(&grl_request, lock_wait_timeout))
+    return true;
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true)) return true;
+
+  return false;
 }
 
 /**
@@ -1031,7 +1052,7 @@ bool Global_read_lock::lock_global_read_lock(THD *thd) {
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout)) {
       Global_read_lock::m_atomic_active_requests--;
-      return 1;
+      return true;
     }
 
     m_mdl_global_shared_lock = mdl_request.ticket;
@@ -1045,7 +1066,7 @@ bool Global_read_lock::lock_global_read_lock(THD *thd) {
     forbid it before, or we can have a 3-thread deadlock if 2 do SELECT FOR
     UPDATE and one does FLUSH TABLES WITH READ LOCK).
   */
-  return 0;
+  return false;
 }
 
 /**
@@ -1095,7 +1116,7 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd) {
     If we didn't succeed lock_global_read_lock(), or if we already suceeded
     make_global_read_lock_block_commit(), do nothing.
   */
-  if (m_state != GRL_ACQUIRED) return 0;
+  if (m_state != GRL_ACQUIRED) return false;
 
   MDL_REQUEST_INIT(&mdl_request, MDL_key::COMMIT, "", "", MDL_SHARED,
                    MDL_EXPLICIT);

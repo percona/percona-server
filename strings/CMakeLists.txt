@@ -20,6 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+ADD_WSHADOW_WARNING()
+
 SET(STRINGS_SOURCES
   ctype-big5.cc
   ctype-bin.cc
@@ -45,7 +47,6 @@ SET(STRINGS_SOURCES
   decimal.cc
   dtoa.cc
   int2str.cc
-  longlong2str.cc
   my_strchr.cc
   my_strtoll10.cc
   str2int.cc

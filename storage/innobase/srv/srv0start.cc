@@ -1068,7 +1068,7 @@ static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
   std::string scanned_name = fil_system_open_fetch(space_id);
 
   if (scanned_name.length() != 0 &&
-      !Fil_path::equal(undo_space.file_name(), scanned_name.c_str())) {
+      !Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str())) {
     ib::error(ER_IB_MSG_FOUND_WRONG_UNDO_SPACE, undo_space.file_name(),
               ulong{space_id}, scanned_name.c_str());
 
@@ -1111,7 +1111,7 @@ static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
   must match the default undo filename and must be found in
   srv_undo_directory. */
   bool has_implicit_name =
-      Fil_path::equal(undo_space.file_name(), scanned_name.c_str());
+      Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str());
 
   if (is_default || has_implicit_name) {
     if (!has_implicit_name) {
@@ -1437,11 +1437,26 @@ dberr_t srv_undo_tablespaces_upgrade() {
   for (const auto space_id : *trx_sys_undo_spaces) {
     undo::Tablespace undo_space(space_id);
 
+<<<<<<< HEAD
     dberr_t err =
         fil_delete_tablespace(undo_space.id(), BUF_REMOVE_ALL_NO_WRITE);
     if (err != DB_SUCCESS) {
       ib::warn(ER_XB_UNDO_DELETE_FAILURE, undo_space.file_name());
     }
+||||||| 91a17cedb1e
+    fil_space_close(undo_space.id());
+
+    os_file_delete_if_exists(innodb_data_file_key, undo_space.file_name(),
+                             NULL);
+=======
+    fil_space_close(undo_space.id());
+
+    auto err = fil_delete_tablespace(undo_space.id(), BUF_REMOVE_ALL_NO_WRITE);
+
+    if (err != DB_SUCCESS) {
+      ib::warn(ER_IB_MSG_57_UNDO_SPACE_DELETE_FAIL, undo_space.space_name());
+    }
+>>>>>>> mysql-8.0.19
   }
 
   /* Remove the tracking of these undo tablespaces from TRX_SYS page and
@@ -2057,10 +2072,8 @@ static dberr_t srv_sys_enable_encryption(bool create_new_db) {
 
 /** Start InnoDB.
 @param[in]	create_new_db		Whether to create a new database
-@param[in]	scan_directories	Scan directories for .ibd files for
-                                        recovery "dir1;dir2; ... dirN"
 @return DB_SUCCESS or error code */
-dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
+dberr_t srv_start(bool create_new_db) {
   lsn_t flushed_lsn;
 
   /* just for assertions */
@@ -2191,6 +2204,26 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
   fil_init(srv_max_n_open_files);
 
+  /* This is the default directory for IBD and IBU files. Put it first
+  in the list of known directories. */
+  fil_set_scan_dir(MySQL_datadir_path.path());
+
+  /* Add --innodb-data-home-dir as a known location for IBD and IBU files
+  if it is not already there. */
+  ut_ad(srv_data_home != nullptr && *srv_data_home != '\0');
+  fil_set_scan_dir(Fil_path::remove_quotes(srv_data_home));
+
+  /* Add --innodb-directories as known locations for IBD and IBU files. */
+  if (srv_innodb_directories != nullptr && *srv_innodb_directories != 0) {
+    fil_set_scan_dirs(Fil_path::remove_quotes(srv_innodb_directories));
+  }
+
+  /* For the purpose of file discovery at startup, we need to scan
+  --innodb-undo-directory also. */
+  fil_set_scan_dir(Fil_path::remove_quotes(MySQL_undo_path), true);
+
+  ib::info(ER_IB_MSG_378) << "Directories to scan '" << fil_get_dirs() << "'";
+
   /* Must replace clone files before scanning directories. When
   clone replaces current database, cloned files are moved to data files
   at this stage. */
@@ -2200,7 +2233,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
     return (srv_init_abort(err));
   }
 
-  err = fil_scan_for_tablespaces(scan_directories);
+  err = fil_scan_for_tablespaces();
 
   if (err != DB_SUCCESS) {
     return (srv_init_abort(err));
@@ -2231,14 +2264,6 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
       if (!srv_monitor_file) {
         return (srv_init_abort(DB_ERROR));
       }
-    }
-
-    mutex_create(LATCH_ID_SRV_DICT_TMPFILE, &srv_dict_tmpfile_mutex);
-
-    srv_dict_tmpfile = os_file_create_tmpfile(NULL);
-
-    if (!srv_dict_tmpfile) {
-      return (srv_init_abort(DB_ERROR));
     }
 
     mutex_create(LATCH_ID_SRV_MISC_TMPFILE, &srv_misc_tmpfile_mutex);
@@ -3753,6 +3778,14 @@ void srv_shutdown() {
     ib::warn(ER_IB_MSG_1154, ulonglong{srv_conc_get_active_threads()});
   }
 
+  /* Need to revert partition file names if minor upgrade fails. */
+  uint data_version = MYSQL_VERSION_ID;
+
+  if (!fsp_header_dict_get_server_version(&data_version) &&
+      data_version != MYSQL_VERSION_ID) {
+    srv_downgrade_partition_files = true;
+  }
+
   ib::info(ER_IB_MSG_1247);
 
   ut_a(!srv_is_being_started);
@@ -3809,9 +3842,6 @@ void srv_shutdown() {
   if (srv_monitor_file) {
     fclose(srv_monitor_file);
   }
-  if (srv_dict_tmpfile) {
-    fclose(srv_dict_tmpfile);
-  }
   if (srv_misc_tmpfile) {
     fclose(srv_misc_tmpfile);
   }
@@ -3837,11 +3867,6 @@ void srv_shutdown() {
       ut_free(srv_monitor_file_name);
     }
     mutex_free(&srv_monitor_file_mutex);
-  }
-
-  if (srv_dict_tmpfile) {
-    srv_dict_tmpfile = 0;
-    mutex_free(&srv_dict_tmpfile_mutex);
   }
 
   if (srv_misc_tmpfile) {
@@ -3898,30 +3923,14 @@ void srv_shutdown() {
   srv_start_state = SRV_START_STATE_NONE;
 }
 
-/** Get the encryption-data filename from the table name for a
-single-table tablespace.
-@param[in]	table		table object
-@param[out]	filename	filename
-@param[in]	max_len		filename max length
-@param[in]	convert		convert table_name to lower case*/
 void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
-                                      ulint max_len, bool convert) {
+                                      ulint max_len) {
   /* Make sure the data_dir_path is set. */
   dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
 
   std::string path = dict_table_get_datadir(table);
-  char table_name[OS_FILE_MAX_PATH];
 
-  char *name;
-  if (convert) {
-    strcpy(table_name, table->name.m_name);
-    innobase_casedn_str(table_name);
-    name = table_name;
-  } else {
-    name = table->name.m_name;
-  }
-
-  auto filepath = Fil_path::make(path, name, CFP, true);
+  auto filepath = Fil_path::make(path, table->name.m_name, CFP, true);
 
   size_t len = strlen(filepath);
   ut_a(max_len >= len);

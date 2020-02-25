@@ -91,7 +91,6 @@ struct System_status_var;
 namespace dd {
 class Properties;
 }  // namespace dd
-struct FOREIGN_KEY_INFO;
 struct KEY_CACHE;
 struct LEX;
 struct MY_BITMAP;
@@ -704,7 +703,7 @@ enum enum_binlog_command {
   LOGCOM_DROP_DB,
 };
 
-enum class enum_sampling_method { SYSTEM };
+enum class enum_sampling_method { SYSTEM, NONE };
 
 /* Bits in used_fields */
 #define HA_CREATE_USED_AUTO (1L << 0)
@@ -4021,23 +4020,6 @@ class Ft_hints {
     init_table_handle_for_HANDLER()
 
   -------------------------------------------------------------------------
-  MODULE foreign key support
-  -------------------------------------------------------------------------
-  The following methods are used to implement foreign keys as supported by
-  InnoDB and NDB.
-  get_foreign_key_create_info is used by SHOW CREATE TABLE to get a textual
-  description of how the CREATE TABLE part to define FOREIGN KEY's is done.
-  free_foreign_key_create_info is used to free the memory area that provided
-  this description.
-
-  Methods:
-    get_parent_foreign_key_list()
-    get_foreign_key_create_info()
-    free_foreign_key_create_info()
-    get_foreign_key_list()
-    referenced_by_foreign_key()
-
-  -------------------------------------------------------------------------
   MODULE fulltext index
   -------------------------------------------------------------------------
   Fulltext index support.
@@ -4350,7 +4332,7 @@ class handler {
         ref_length(sizeof(my_off_t)),
         ft_handler(0),
         inited(NONE),
-        implicit_emptied(0),
+        implicit_emptied(false),
         pushed_cond(0),
         pushed_idx_cond(NULL),
         pushed_idx_cond_keyno(MAX_KEY),
@@ -4790,10 +4772,41 @@ class handler {
 
   double index_in_memory_estimate(uint keyno) const;
 
-  int ha_sample_init(double sampling_percentage, int sampling_seed,
-                     enum_sampling_method sampling_method);
-  int ha_sample_next(uchar *buf);
-  int ha_sample_end();
+  /**
+    Initialize sampling.
+
+    @param[out] scan_ctx  A scan context created by this method that has to be
+    used in sample_next
+    @param[in]  sampling_percentage percentage of records that need to be
+    sampled
+    @param[in]  sampling_seed       random seed that the random generator will
+    use
+    @param[in]  sampling_method     sampling method to be used; currently only
+    SYSTEM sampling is supported
+
+    @return 0 for success, else one of the HA_xxx values in case of error.
+  */
+  int ha_sample_init(void *&scan_ctx, double sampling_percentage,
+                     int sampling_seed, enum_sampling_method sampling_method);
+
+  /**
+    Get the next record for sampling.
+
+    @param[in]  scan_ctx  Scan context of the sampling
+    @param[in]  buf       buffer to place the read record
+
+    @return 0 for success, else one of the HA_xxx values in case of error.
+  */
+  int ha_sample_next(void *scan_ctx, uchar *buf);
+
+  /**
+    End sampling.
+
+    @param[in] scan_ctx  Scan context of the sampling
+
+    @return 0 for success, else one of the HA_xxx values in case of error.
+  */
+  int ha_sample_end(void *scan_ctx);
 
  private:
   int check_collation_compatibility();
@@ -4988,15 +5001,15 @@ class handler {
   uint get_index(void) const { return active_index; }
 
   /**
-    @retval  0   Bulk update used by handler
-    @retval  1   Bulk update not used, normal operation used
+    @retval  false   Bulk update used by handler
+    @retval  true    Bulk update not used, normal operation used
   */
-  virtual bool start_bulk_update() { return 1; }
+  virtual bool start_bulk_update() { return true; }
   /**
-    @retval  0   Bulk delete used by handler
-    @retval  1   Bulk delete not used, normal operation used
+    @retval  false   Bulk delete used by handler
+    @retval  true    Bulk delete not used, normal operation used
   */
-  virtual bool start_bulk_delete() { return 1; }
+  virtual bool start_bulk_delete() { return true; }
   /**
     After this call all outstanding updates must be performed. The number
     of duplicate key errors are reported in the duplicate key parameter.
@@ -5440,79 +5453,9 @@ class handler {
 
   virtual int indexes_are_disabled(void) { return 0; }
   virtual void append_create_info(String *packet MY_ATTRIBUTE((unused))) {}
-  /**
-    If index == MAX_KEY then a check for table is made and if index <
-    MAX_KEY then a check is made if the table has foreign keys and if
-    a foreign key uses this index (and thus the index cannot be dropped).
-
-    @param  index            Index to check if foreign key uses it
-
-    @retval   true            Foreign key defined on table or index
-    @retval   false           No foreign key defined
-  */
-  virtual bool is_fk_defined_on_table_or_index(
-      uint index MY_ATTRIBUTE((unused))) {
-    return false;
-  }
-  virtual char *get_foreign_key_create_info() {
-    return (NULL);
-  } /* gets foreign key create string from InnoDB */
-  /**
-    Get the list of foreign keys in this table.
-
-    @remark Returns the set of foreign keys where this table is the
-            dependent or child table.
-
-    @param thd  The thread handle.
-    @param [out] f_key_list  The list of foreign keys.
-
-    @return The handler error code or zero for success.
-  */
-  virtual int get_foreign_key_list(THD *thd MY_ATTRIBUTE((unused)),
-                                   List<FOREIGN_KEY_INFO> *f_key_list
-                                       MY_ATTRIBUTE((unused))) {
-    return 0;
-  }
-  /**
-    Get the list of foreign keys referencing this table.
-
-    @remark Returns the set of foreign keys where this table is the
-            referenced or parent table.
-
-    @param thd  The thread handle.
-    @param [out] f_key_list  The list of foreign keys.
-
-    @return The handler error code or zero for success.
-  */
-  virtual int get_parent_foreign_key_list(THD *thd MY_ATTRIBUTE((unused)),
-                                          List<FOREIGN_KEY_INFO> *f_key_list
-                                              MY_ATTRIBUTE((unused))) {
-    return 0;
-  }
-  /**
-    Get the list of tables which are direct or indirect parents in foreign
-    key with cascading actions for this table.
-
-    @remarks Returns the set of parent tables connected by FK clause that
-    can modify the given table.
-
-    @param      thd             The thread handle.
-    @param[out] fk_table_list   List of parent tables (including indirect
-    parents). Elements of the list as well as buffers for database and schema
-    names are allocated from the current memory root.
-
-    @return The handler error code or zero for success
-  */
-  virtual int get_cascade_foreign_key_table_list(
-      THD *thd MY_ATTRIBUTE((unused)),
-      List<st_handler_tablename> *fk_table_list MY_ATTRIBUTE((unused))) {
-    return 0;
-  }
-  virtual uint referenced_by_foreign_key() { return 0; }
   virtual void init_table_handle_for_HANDLER() {
     return;
   } /* prepare InnoDB for HANDLER */
-  virtual void free_foreign_key_create_info(char *) {}
   /** The following can be called without an open handler */
   virtual const char *table_type() const = 0;
 
@@ -5546,7 +5489,7 @@ class handler {
     return 1;
   }
 
-  virtual bool low_byte_first() const { return 1; }
+  virtual bool low_byte_first() const { return true; }
   virtual ha_checksum checksum() const { return 0; }
 
   /**
@@ -5556,7 +5499,7 @@ class handler {
     @retval false Not crashed
   */
 
-  virtual bool is_crashed() const { return 0; }
+  virtual bool is_crashed() const { return false; }
 
   void update_global_table_stats();
   void update_global_index_stats();
@@ -5575,7 +5518,7 @@ class handler {
     @retval false Cannot be auto repaired
   */
 
-  virtual bool auto_repair() const { return 0; }
+  virtual bool auto_repair() const { return false; }
 
   /**
     Get number of lock objects returned in store_lock.
@@ -6411,9 +6354,28 @@ class handler {
     return false;
   }
 
-  virtual int sample_init();
-  virtual int sample_next(uchar *buf);
-  virtual int sample_end();
+  /** Initialize sampling.
+  @param[out] scan_ctx  A scan context created by this method that has to be
+  used in sample_next
+  @param[in]  sampling_percentage percentage of records that need to be sampled
+  @param[in]  sampling_seed       random seed
+  @param[in]  sampling_method     sampling method to be used; currently only
+  SYSTEM sampling is supported
+  @return 0 for success, else failure. */
+  virtual int sample_init(void *&scan_ctx, double sampling_percentage,
+                          int sampling_seed,
+                          enum_sampling_method sampling_method);
+
+  /** Get the next record for sampling.
+  @param[in] scan_ctx   Scan context of the sampling
+  @param[in] buf        buffer to place the read record
+  @return 0 for success, else failure. */
+  virtual int sample_next(void *scan_ctx, uchar *buf);
+
+  /** End sampling.
+  @param[in] scan_ctx  Scan context of the sampling
+  @return 0 for success, else failure. */
+  virtual int sample_end(void *scan_ctx);
 
   /**
    * Prepares secondary engine for loading a table.
@@ -7059,7 +7021,9 @@ int ha_store_binlog_info(THD *thd);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock = false);
 int ha_commit_attachable(THD *thd);
 int ha_rollback_trans(THD *thd, bool all);
-int ha_prepare(THD *thd);
+
+/* interface to handlerton function to prepare XA transaction */
+int ha_xa_prepare(THD *thd);
 
 /**
   recover() step of xa.
@@ -7136,8 +7100,18 @@ const char *get_canonical_filename(handler *file, const char *path,
 
 const char *table_case_name(const HA_CREATE_INFO *info, const char *name);
 
-void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
-void print_keydup_error(TABLE *table, KEY *key, myf errflag);
+void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag,
+                        const char *org_table_name);
+void print_keydup_error(TABLE *table, KEY *key, myf errflag,
+                        const char *org_table_name);
+
+inline void print_keydup_error(TABLE *table, KEY *key, const char *msg,
+                               myf errflag) {
+  print_keydup_error(table, key, msg, errflag, nullptr);
+}
+inline void print_keydup_error(TABLE *table, KEY *key, myf errflag) {
+  print_keydup_error(table, key, errflag, nullptr);
+}
 
 void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
 bool ha_is_storage_engine_disabled(handlerton *se_engine);
@@ -7148,8 +7122,7 @@ bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type);
 
-int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
-int commit_owned_gtid_by_partial_command(THD *thd);
+std::pair<int, bool> commit_owned_gtids(THD *thd, bool all);
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot);
 
 /** Generate a string representation of an `ha_rkey_function` enum value.

@@ -351,7 +351,7 @@ int table_events_waits_common::make_socket_object_columns(
                                     safe_socket->m_addr_len);
 
     /* Convert port number to a string (length includes ':') */
-    size_t port_len = int10_to_str(port, (port_str + 1), 10) - port_str + 1;
+    size_t port_len = longlong10_to_str(port, (port_str + 1), 10) - port_str;
 
     /* OBJECT NAME */
     m_row.m_object_name_length = ip_len + port_len;
@@ -839,7 +839,8 @@ int table_events_waits_common::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 7: /* TIMER_WAIT */
-          if (m_row.m_timer_wait != 0) {
+          /* TIMER_START != 0 when TIMED=YES. */
+          if (m_row.m_timer_start != 0) {
             set_field_ulonglong(f, m_row.m_timer_wait);
           } else {
             f->set_null();

@@ -30,6 +30,7 @@
 #include <sstream>
 #include <utility>
 
+#include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -196,6 +197,7 @@ void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info) {
   channel_ssl_info->ssl_cipher = 0;
   channel_ssl_info->tls_version = 0;
   channel_ssl_info->ssl_verify_server_cert = 0;
+  channel_ssl_info->tls_ciphersuites = 0;
 }
 
 void initialize_channel_connection_info(Channel_connection_info *channel_info) {
@@ -239,6 +241,13 @@ static void set_mi_ssl_options(LEX_MASTER_INFO *lex_mi,
 
   if (channel_ssl_info->ssl_cipher != nullptr) {
     lex_mi->ssl_cipher = channel_ssl_info->ssl_cipher;
+  }
+
+  if (channel_ssl_info->tls_ciphersuites != nullptr) {
+    lex_mi->tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_STRING;
+    lex_mi->tls_ciphersuites_string = channel_ssl_info->tls_ciphersuites;
+  } else {
+    lex_mi->tls_ciphersuites = LEX_MASTER_INFO::SPECIFIED_NULL;
   }
 
   lex_mi->ssl_verify_server_cert = (channel_ssl_info->ssl_verify_server_cert)
@@ -483,7 +492,7 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
   mi->channel_wrlock();
   lock_slave_threads(mi);
 
-  init_thread_mask(&server_thd_mask, mi, 0 /* not inverse*/);
+  init_thread_mask(&server_thd_mask, mi, false /* not inverse*/);
 
   if ((threads_to_stop & CHANNEL_APPLIER_THREAD) &&
       (server_thd_mask & SLAVE_SQL)) {
@@ -577,6 +586,29 @@ int channel_stop_all(int threads_to_stop, long timeout,
   return error;
 }
 
+class Kill_binlog_dump : public Do_THD_Impl {
+ public:
+  Kill_binlog_dump() {}
+
+  virtual void operator()(THD *thd_to_kill) {
+    if (thd_to_kill->get_command() == COM_BINLOG_DUMP ||
+        thd_to_kill->get_command() == COM_BINLOG_DUMP_GTID) {
+      DBUG_ASSERT(thd_to_kill != current_thd);
+      MUTEX_LOCK(thd_data_lock, &thd_to_kill->LOCK_thd_data);
+      thd_to_kill->duplicate_slave_id = true;
+      thd_to_kill->awake(THD::KILL_CONNECTION);
+    }
+  }
+};
+
+int binlog_dump_thread_kill() {
+  DBUG_TRACE;
+  Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
+  Kill_binlog_dump kill_binlog_dump;
+  thd_manager->do_for_all_thd(&kill_binlog_dump);
+  return 0;
+}
+
 int channel_purge_queue(const char *channel, bool reset_all) {
   DBUG_TRACE;
 
@@ -616,7 +648,7 @@ bool channel_is_active(const char *channel,
     return false;
   }
 
-  init_thread_mask(&thread_mask, mi, 0 /* not inverse*/);
+  init_thread_mask(&thread_mask, mi, false /* not inverse*/);
 
   channel_map.unlock();
 

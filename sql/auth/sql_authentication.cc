@@ -94,6 +94,7 @@
 #include "sql/tztime.h"  // Time_zone
 #include "sql_common.h"  // mpvio_info
 #include "sql_string.h"
+#include "template_utils.h"
 #include "violite.h"
 
 struct MEM_ROOT;
@@ -1448,6 +1449,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   int2store(end + 5, protocol->get_client_capabilities() >> 16);
   end[7] = data_len;
   DBUG_EXECUTE_IF("poison_srv_handshake_scramble_len", end[7] = -100;);
+  DBUG_EXECUTE_IF("increase_srv_handshake_scramble_len", end[7] = 50;);
   memset(end + 8, 0, 10);
   end += 18;
   /* write scramble tail */
@@ -1637,11 +1639,18 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
   if (initialized)
     mpvio->status = MPVIO_EXT::FAILURE;  // the status is no longer RESTART
 
-  const char *client_auth_plugin =
-      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+  std::string client_auth_plugin(
+      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
+          ->client_auth_plugin);
 
-  DBUG_ASSERT(client_auth_plugin);
+  DBUG_ASSERT(client_auth_plugin.c_str());
 
+  DBUG_EXECUTE_IF("invalidate_client_auth_plugin", {
+    client_auth_plugin.clear();
+    client_auth_plugin = std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("mysql_native_password");
+  });
   /*
     If we're dealing with an older client we can't just send a change plugin
     packet to re-initiate the authentication handshake, because the client
@@ -1656,33 +1665,33 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
     DBUG_ASSERT(mpvio->cached_client_reply.pkt);
     /* get the status back so the read can process the cached result */
     mpvio->status = MPVIO_EXT::RESTART;
-    return 0;
+    return false;
   }
 
-  DBUG_PRINT("info",
-             ("requesting client to use the %s plugin", client_auth_plugin));
-  return net_write_command(mpvio->protocol->get_net(),
-                           switch_plugin_request_buf[0],
-                           pointer_cast<const uchar *>(client_auth_plugin),
-                           strlen(client_auth_plugin) + 1,
-                           pointer_cast<const uchar *>(data), data_len);
+  DBUG_PRINT("info", ("requesting client to use the %s plugin",
+                      client_auth_plugin.c_str()));
+  return net_write_command(
+      mpvio->protocol->get_net(), switch_plugin_request_buf[0],
+      pointer_cast<const uchar *>(client_auth_plugin.c_str()),
+      client_auth_plugin.size() + 1, pointer_cast<const uchar *>(data),
+      data_len);
 }
 
 /* Return true if there is no users that can match the given host */
 
 bool acl_check_host(THD *thd, const char *host, const char *ip) {
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(false)) return 1;
+  if (!acl_cache_lock.lock(false)) return true;
 
-  if (allow_all_hosts) return 0;
+  if (allow_all_hosts) return false;
 
   if ((host && acl_check_hosts->count(host) != 0) ||
       (ip && acl_check_hosts->count(ip) != 0))
-    return 0;  // Found host
+    return false;  // Found host
 
   for (ACL_HOST_AND_IP *acl = acl_wild_hosts->begin();
        acl != acl_wild_hosts->end(); ++acl) {
-    if (acl->compare_hostname(host, ip)) return 0;  // Host ok
+    if (acl->compare_hostname(host, ip)) return false;  // Host ok
   }
 
   if (ip != NULL) {
@@ -1691,7 +1700,7 @@ bool acl_check_host(THD *thd, const char *host, const char *ip) {
     errors.m_host_acl = 1;
     inc_host_errors(ip, &errors);
   }
-  return 1;  // Host is not allowed
+  return true;  // Host is not allowed
 }
 
 /**
@@ -1731,6 +1740,7 @@ ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
   user->use_default_password_history = true;
   user->password_history_length = 0;
   user->password_require_current = Lex_acl_attrib_udyn::DEFAULT;
+  user->password_locked_state.set_parameters(0, 0);
 
   if (is_initialized) {
     Auth_id key(user);
@@ -1844,7 +1854,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(thd, COM_CONNECT, "%s",
                                    ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
-    return 1;
+    return true;
   }
 
   mpvio->auth_info.auth_string =
@@ -1869,10 +1879,11 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
               ", plugin=%s",
               mpvio->auth_info.user_name, mpvio->auth_info.auth_string,
               mpvio->auth_info.authenticated_as, mpvio->acl_user->plugin.str));
-  return 0;
+  return false;
 }
 
-static bool read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
+static bool read_client_connect_attrs(THD *thd, char **ptr,
+                                      size_t *max_bytes_available,
                                       MPVIO_EXT *mpvio MY_ATTRIBUTE((unused))) {
   size_t length, length_length;
   char *ptr_save;
@@ -1905,8 +1916,14 @@ static bool read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
            auth_info->host_or_ip, auth_info->authenticated_as,
            mpvio->can_authenticate() ? "yes" : "no");
 #endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  // assign the connection attributes in the current thread
+  thd->m_connection_attributes = std::vector<char>(length);
+  std::copy(*ptr, *ptr + length, thd->m_connection_attributes.begin());
+
   *max_bytes_available -= length;
   *ptr = *ptr + length;
+
   return false;
 }
 
@@ -1926,7 +1943,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
   switch (acl_user->ssl_type) {
     case SSL_TYPE_NOT_SPECIFIED:  // Impossible
     case SSL_TYPE_NONE:           // SSL is not required
-      return 0;
+      return false;
 #if defined(HAVE_OPENSSL)
     case SSL_TYPE_ANY:  // Any kind of SSL is ok
       return vio_type(vio) != VIO_TYPE_SSL;
@@ -1942,26 +1959,26 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
           SSL_get_verify_result(ssl) == X509_V_OK &&
           (cert = SSL_get_peer_certificate(ssl))) {
         X509_free(cert);
-        return 0;
+        return false;
       }
-      return 1;
+      return true;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
       /* If a cipher name is specified, we compare it to actual cipher in use.
        */
       if (vio_type(vio) != VIO_TYPE_SSL ||
           SSL_get_verify_result(ssl) != X509_V_OK)
-        return 1;
+        return true;
       if (acl_user->ssl_cipher) {
         DBUG_PRINT("info", ("comparing ciphers: '%s' and '%s'",
                             acl_user->ssl_cipher, SSL_get_cipher(ssl)));
         if (strcmp(acl_user->ssl_cipher, SSL_get_cipher(ssl))) {
           LogErr(INFORMATION_LEVEL, ER_X509_CIPHERS_MISMATCH,
                  acl_user->ssl_cipher, SSL_get_cipher(ssl));
-          return 1;
+          return true;
         }
       }
       /* Prepare certificate (if exists) */
-      if (!(cert = SSL_get_peer_certificate(ssl))) return 1;
+      if (!(cert = SSL_get_peer_certificate(ssl))) return true;
       /* If X509 issuer is specified, we check it... */
       if (acl_user->x509_issuer) {
         char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
@@ -1972,7 +1989,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
                  acl_user->x509_issuer, ptr);
           OPENSSL_free(ptr);
           X509_free(cert);
-          return 1;
+          return true;
         }
         OPENSSL_free(ptr);
       }
@@ -1986,12 +2003,12 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
                  acl_user->x509_subject, ptr);
           OPENSSL_free(ptr);
           X509_free(cert);
-          return 1;
+          return true;
         }
         OPENSSL_free(ptr);
       }
       X509_free(cert);
-      return 0;
+      return false;
 #else  /* HAVE_OPENSSL */
     default:
       /*
@@ -2001,7 +2018,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
       return 1;
 #endif /* HAVE_OPENSSL */
   }
-  return 1;
+  return true;
 }
 
 /**
@@ -2206,8 +2223,8 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   size_t bytes_remaining_in_packet = end - ptr;
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
-      read_client_connect_attrs(&ptr, &bytes_remaining_in_packet, mpvio))
-    return packet_error;
+      read_client_connect_attrs(thd, &ptr, &bytes_remaining_in_packet, mpvio))
+    return true;
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
   /*
@@ -2689,7 +2706,7 @@ skip_to_ssl:
   }
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
-      read_client_connect_attrs(&end, &bytes_remaining_in_packet, mpvio))
+      read_client_connect_attrs(thd, &end, &bytes_remaining_in_packet, mpvio))
     return packet_error;
 
   NET_SERVER *ext = static_cast<NET_SERVER *>(protocol->get_net()->extension);
@@ -3205,6 +3222,55 @@ static inline bool check_restrictions_for_com_connect_command(THD *thd) {
   return false;
 }
 
+static void check_and_update_password_lock_state(MPVIO_EXT &mpvio, THD *thd,
+                                                 int &res) {
+  if (mpvio.acl_user && initialized &&
+      mpvio.acl_user->password_locked_state.is_active()) {
+    /* update user lock status and check if the account is locked */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+
+    acl_cache_lock.lock();
+    const ACL_USER *acl_user = mpvio.acl_user;
+
+    ACL_USER *acl_user_ptr = find_acl_user(
+        acl_user->host.get_host(), acl_user->user ? acl_user->user : "", true);
+    long days_remaining = 0;
+    DBUG_ASSERT(acl_user_ptr != nullptr);
+    if (acl_user_ptr && acl_user_ptr->password_locked_state.update(
+                            thd, res == CR_OK, &days_remaining)) {
+      uint failed_logins =
+          acl_user_ptr->password_locked_state.get_failed_login_attempts();
+      int blocked_for_days =
+          acl_user_ptr->password_locked_state.get_password_lock_time_days();
+      acl_cache_lock.unlock();
+      char str_blocked_for_days[30], str_days_remaining[30];
+      if (blocked_for_days > 0)
+        snprintf(str_blocked_for_days, sizeof(str_blocked_for_days), "%d",
+                 blocked_for_days);
+      else
+        strncpy(str_blocked_for_days, "unlimited",
+                sizeof(str_blocked_for_days));
+      if (days_remaining > 0)
+        snprintf(str_days_remaining, sizeof(str_days_remaining), "%ld",
+                 days_remaining);
+      else
+        strncpy(str_days_remaining, "unlimited", sizeof(str_days_remaining));
+
+      my_error(ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK,
+               MYF(0), mpvio.acl_user->user ? mpvio.acl_user->user : "",
+               mpvio.auth_info.host_or_ip ? mpvio.auth_info.host_or_ip : "",
+               str_blocked_for_days, str_days_remaining, failed_logins);
+      LogErr(INFORMATION_LEVEL,
+             ER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK,
+             mpvio.acl_user->user ? mpvio.acl_user->user : "",
+             mpvio.auth_info.host_or_ip ? mpvio.auth_info.host_or_ip : "",
+             str_blocked_for_days, str_days_remaining, failed_logins);
+      res = CR_ERROR;
+    } else
+      acl_cache_lock.unlock();
+  }
+}
+
 /**
   Perform the handshake, authorize the client and update thd sctx variables.
 
@@ -3286,6 +3352,8 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   }
 
   server_mpvio_update_thd(thd, &mpvio);
+
+  check_and_update_password_lock_state(mpvio, thd, res);
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_connection_type)(thd->get_vio_type());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -3325,10 +3393,10 @@ int acl_authenticate(THD *thd, enum_server_command command) {
     }
 
     /*
-      Assign account user/host data to the current THD. This information is used
-      when the authentication fails after this point and we call audit api
-      notification event. Client user/host connects to the existing account is
-      easily distinguished from other connects.
+      Assign account user/host data to the current THD. This information is
+      used when the authentication fails after this point and we call audit
+      api notification event. Client user/host connects to the existing
+      account is easily distinguished from other connects.
     */
     if (mpvio.can_authenticate())
       assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
@@ -3472,9 +3540,9 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       }
 
       /*
-        OK. Let's check the SSL. Historically it was checked after the password,
-        as an additional layer, not instead of the password
-        (in which case it would've been a plugin too).
+        OK. Let's check the SSL. Historically it was checked after the
+        password, as an additional layer, not instead of the password (in
+        which case it would've been a plugin too).
       */
       if (acl_check_ssl(thd, acl_user)) {
         Host_errors errors;
@@ -3937,10 +4005,10 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
         return CR_AUTH_USER_CREDENTIALS;
       } else {
         if (second) {
-          MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
+          MPVIO_EXT *mpvio_second = pointer_cast<MPVIO_EXT *>(vio);
           const char *username =
               *info->authenticated_as ? info->authenticated_as : "";
-          const char *hostname = mpvio->acl_user->host.get_host();
+          const char *hostname = mpvio_second->acl_user->host.get_host();
           LogPluginErr(
               INFORMATION_LEVEL,
               ER_MYSQL_NATIVE_PASSWORD_SECOND_PASSWORD_USED_INFORMATION,
@@ -4225,8 +4293,8 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
     /*
       Client sent a "public key request"-packet ?
-      If the first packet is 1 then the client will require a public key before
-      encrypting the password.
+      If the first packet is 1 then the client will require a public key
+      before encrypting the password.
     */
     if (pkt_len == 1 && *pkt == 1) {
       uint pem_length =
@@ -4352,9 +4420,9 @@ typedef std::string Sql_string_t;
 static bool resize_no_exception(Sql_string_t &content, size_t size) {
   try {
     content.resize(size);
-  } catch (const std::length_error &le) {
+  } catch (const std::length_error &) {
     return false;
-  } catch (std::bad_alloc &ba) {
+  } catch (std::bad_alloc &) {
     return false;
   }
   return true;

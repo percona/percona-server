@@ -1207,14 +1207,14 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
 
   Parallel_reader::Config config(full_scan, m_prebuilt->table->first_index());
 
-  auto success =
+  dberr_t err =
       adapter->add_scan(trx, config, [=](const Parallel_reader::Ctx *ctx) {
         return (adapter->process_rows(ctx));
       });
 
-  if (!success) {
+  if (err != DB_SUCCESS) {
     UT_DELETE(adapter);
-    return (HA_ERR_GENERIC);
+    return (convert_error_code_to_mysql(err, 0, ha_thd()));
   }
 
   scan_ctx = adapter;
@@ -5655,6 +5655,12 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
         }
       }
 
+      /*
+        Since we check that foreign key to be dropped exists on SQL-layer,
+        we should not come here unless there is some bug and data-dictionary
+        and InnoDB dictionary cache got out of sync.
+      */
+      DBUG_ASSERT(0);
       my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop->name);
       goto err_exit;
     found_fk:
@@ -6264,7 +6270,8 @@ oom:
               &ha_alter_info->key_info_buffer[m_prebuilt->trx->error_key_num];
         }
       }
-      print_keydup_error(altered_table, dup_key, MYF(0));
+      print_keydup_error(altered_table, dup_key, MYF(0),
+                         table_share->table_name.str);
       break;
     case DB_ONLINE_LOG_TOO_BIG:
       DBUG_ASSERT(ctx->online);
@@ -6933,7 +6940,8 @@ inline MY_ATTRIBUTE((warn_unused_result)) bool commit_try_rebuild(
             dup_key = &ha_alter_info->key_info_buffer[err_key];
           }
         }
-        print_keydup_error(altered_table, dup_key, MYF(0));
+        print_keydup_error(altered_table, dup_key, MYF(0),
+                           old_table->s->table_name.str);
         return true;
       case DB_ONLINE_LOG_TOO_BIG:
         my_error(ER_INNODB_ONLINE_LOG_TOO_BIG, MYF(0),
@@ -7494,19 +7502,17 @@ bool ha_innobase::commit_inplace_alter_table_impl(
         static_cast<ha_innobase_inplace_ctx *>(*pctx);
 
     if (ctx->need_rebuild()) {
-      char db_buf[NAME_LEN + 1];
-      char tbl_buf[NAME_LEN + 1];
-      MDL_ticket *mdl_ticket = NULL;
-
       ctx->tmp_name = dict_mem_create_temporary_tablename(
           ctx->heap, ctx->new_table->name.m_name, ctx->new_table->id);
 
-      /* Acquire mdl lock on the temporary table name. */
-      dd_parse_tbl_name(ctx->tmp_name, db_buf, tbl_buf, nullptr, nullptr,
-                        nullptr);
+      std::string db_str;
+      std::string tbl_str;
+      dict_name::get_table(ctx->tmp_name, db_str, tbl_str);
 
-      if (dd::acquire_exclusive_table_mdl(thd, db_buf, tbl_buf, false,
-                                          &mdl_ticket)) {
+      /* Acquire mdl lock on the temporary table name. */
+      MDL_ticket *mdl_ticket = NULL;
+      if (dd::acquire_exclusive_table_mdl(thd, db_str.c_str(), tbl_str.c_str(),
+                                          false, &mdl_ticket)) {
         return true;
       }
     }
@@ -8066,7 +8072,7 @@ class Altered_partitions {
     m_ins_nodes[new_part_id] = prebuilt->ins_node;
     m_trx_ids[new_part_id] = prebuilt->trx_id;
     if (!prebuilt->sql_stat_start) {
-      m_sql_stat_start.set(new_part_id, 0);
+      m_sql_stat_start.set(new_part_id, false);
     }
   }
 
@@ -8259,9 +8265,9 @@ class alter_part {
   /** Build the partition name for specified partition
   @param[in]	dd_part		dd::Partition
   @param[in]	temp		True if this is a temporary name
-  @param[in,out]	name		Partition name buffer, which is of
-                                  length FN_REFLEN */
-  void build_partition_name(const dd::Partition *dd_part, bool temp,
+  @param[out]	name		Partition name buffer of length FN_REFLEN
+  @return true if successful. */
+  bool build_partition_name(const dd::Partition *dd_part, bool temp,
                             char *name);
 
   /** Create a new partition
@@ -8303,44 +8309,29 @@ class alter_part {
   dict_table_t *m_new;
 };
 
-/** Build the partition name for specified partition
-@param[in]	dd_part		dd::Partition
-@param[in]	temp		True if this is a temporary name
-@param[in,out]	name		Partition name buffer, which is of
-                                length FN_REFLEN */
-void alter_part::build_partition_name(const dd::Partition *dd_part, bool temp,
+bool alter_part::build_partition_name(const dd::Partition *dd_part, bool temp,
                                       char *name) {
-  size_t len = 0;
-  const char *table_name;
-
-  /* Just get the 'db/table' part. In embedded server, m_table_name
-  could be a full path */
-  table_name = strrchr(m_table_name, OS_PATH_SEPARATOR);
-  ut_a(table_name != nullptr);
-  while (*(--table_name) != OS_PATH_SEPARATOR)
-    ;
-  ++table_name;
-
-  strcpy(name, table_name);
-#if OS_PATH_SEPARATOR != '/'
-  char *slash = strchr(name, OS_PATH_SEPARATOR);
-  ut_a(slash != nullptr);
-  *slash = '/';
-#endif
-
-  len += strlen(table_name);
-  ut_ad(len < FN_REFLEN);
-
-  size_t post_len = Ha_innopart_share::create_partition_postfix(
-      name + len, FN_REFLEN - len, dd_part);
-
-  len += post_len;
-  ut_ad(len < FN_REFLEN);
-
-  if (temp) {
-    strcpy(name + len, TMP_POSTFIX);
-    ut_ad(len + sizeof TMP_POSTFIX < FN_REFLEN);
+  if (!normalize_table_name(name, m_table_name)) {
+    /* purecov: begin inspected */
+    ut_ad(false);
+    return (false);
+    /* purecov: end */
   }
+
+  std::string partition;
+  /* Build the partition name. */
+  dict_name::build_partition(dd_part, partition);
+
+  std::string partition_name;
+  /* Build the partitioned table name. */
+  dict_name::build_table("", name, partition, temp, false, partition_name);
+  ut_ad(partition_name.length() < FN_REFLEN);
+
+  /* Copy partition table name. */
+  auto name_len = partition_name.copy(name, FN_REFLEN - 1);
+  name[name_len] = '\0';
+
+  return (true);
 }
 
 /** Create a new partition
@@ -8835,7 +8826,9 @@ class alter_part_add : public alter_part {
       return (HA_ERR_INTERNAL_ERROR);
     }
 
-    build_partition_name(new_part, need_rename(), part_name);
+    if (!build_partition_name(new_part, need_rename(), part_name)) {
+      return (HA_ERR_TOO_LONG_PATH); /* purecov: inspected */
+    }
 
     int error = create(part_name, new_part, altered_table, m_tablespace,
                        m_file_per_table, m_autoinc);
@@ -8869,10 +8862,15 @@ class alter_part_add : public alter_part {
     if (need_rename()) {
       char old_name[FN_REFLEN];
       char new_name[FN_REFLEN];
-      build_partition_name(new_part, true, old_name);
-      build_partition_name(new_part, false, new_name);
-      error = innobase_basic_ddl::rename_impl<dd::Partition>(
-          m_trx->mysql_thd, old_name, new_name, new_part, new_part);
+
+      if (build_partition_name(new_part, true, old_name) &&
+          build_partition_name(new_part, false, new_name)) {
+        error = innobase_basic_ddl::rename_impl<dd::Partition>(
+            m_trx->mysql_thd, old_name, new_name, new_part, new_part);
+
+      } else {
+        error = HA_ERR_TOO_LONG_PATH; /* purecov: inspected */
+      }
     }
 
     if (m_new != nullptr) {
@@ -8969,7 +8967,10 @@ class alter_part_drop : public alter_part {
     int error;
     char part_name[FN_REFLEN];
     THD *thd = m_trx->mysql_thd;
-    build_partition_name(old_part, false, part_name);
+
+    if (!build_partition_name(old_part, false, part_name)) {
+      return (HA_ERR_TOO_LONG_PATH); /* purecov: inspected */
+    }
 
     if (!m_conflict) {
       error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, part_name,
@@ -8983,18 +8984,18 @@ class alter_part_drop : public alter_part {
       use the #tmp name, because it could be already used
       by the corresponding new partition. */
       mem_heap_t *heap = mem_heap_create(FN_REFLEN);
-      char db_buf[NAME_LEN + 1];
-      char tbl_buf[NAME_LEN + 1];
-      MDL_ticket *mdl_ticket = nullptr;
 
       char *temp_name = dict_mem_create_temporary_tablename(
           heap, (*m_old)->name.m_name, (*m_old)->id);
 
-      /* Acquire mdl lock on the temporary table name. */
-      dd_parse_tbl_name(temp_name, db_buf, tbl_buf, nullptr, nullptr, nullptr);
+      std::string db_str;
+      std::string tbl_str;
+      dict_name::get_table(temp_name, db_str, tbl_str);
 
-      if (dd::acquire_exclusive_table_mdl(thd, db_buf, tbl_buf, false,
-                                          &mdl_ticket)) {
+      /* Acquire mdl lock on the temporary table name. */
+      MDL_ticket *mdl_ticket = nullptr;
+      if (dd::acquire_exclusive_table_mdl(thd, db_str.c_str(), tbl_str.c_str(),
+                                          false, &mdl_ticket)) {
         mem_heap_free(heap);
         return (HA_ERR_GENERIC);
       }
@@ -9128,7 +9129,10 @@ int alter_part_change::prepare(TABLE *altered_table,
   same table name for two tables, which is confusing. So the temporary
   name is used always and final rename is necessary too */
   char part_name[FN_REFLEN];
-  build_partition_name(new_part, true, part_name);
+
+  if (!build_partition_name(new_part, true, part_name)) {
+    return (HA_ERR_TOO_LONG_PATH); /* purecov: inspected */
+  }
 
   int error = create(part_name, new_part, altered_table, m_tablespace,
                      m_file_per_table, m_autoinc);
@@ -9163,8 +9167,7 @@ int alter_part_change::try_commit(const TABLE *table, TABLE *altered_table,
   ut_ad(old_part->name() == new_part->name());
 
   THD *thd = m_trx->mysql_thd;
-  char db_buf[NAME_LEN + 1];
-  char tbl_buf[NAME_LEN + 1];
+
   char *temp_old_name = dict_mem_create_temporary_tablename(
       (*m_old)->heap, (*m_old)->name.m_name, (*m_old)->id);
 
@@ -9173,19 +9176,24 @@ int alter_part_change::try_commit(const TABLE *table, TABLE *altered_table,
   mutex_exit(&dict_sys->mutex);
   dd_table_close(*m_old, nullptr, nullptr, false);
 
-  /* Acquire mdl lock on the temporary table name. */
-  dd_parse_tbl_name(temp_old_name, db_buf, tbl_buf, nullptr, nullptr, nullptr);
+  std::string db_str;
+  std::string tbl_str;
+  dict_name::get_table(temp_old_name, db_str, tbl_str);
 
+  /* Acquire mdl lock on the temporary table name. */
   MDL_ticket *mdl_ticket = nullptr;
-  if (dd::acquire_exclusive_table_mdl(thd, db_buf, tbl_buf, false,
-                                      &mdl_ticket)) {
+  if (dd::acquire_exclusive_table_mdl(thd, db_str.c_str(), tbl_str.c_str(),
+                                      false, &mdl_ticket)) {
     return (HA_ERR_GENERIC);
   }
 
   char old_name[FN_REFLEN];
   char temp_name[FN_REFLEN];
-  build_partition_name(new_part, false, old_name);
-  build_partition_name(new_part, true, temp_name);
+
+  if (!build_partition_name(new_part, false, old_name) ||
+      !build_partition_name(new_part, true, temp_name)) {
+    return (HA_ERR_TOO_LONG_PATH); /* purecov: inspected */
+  }
 
   int error;
 
@@ -9982,14 +9990,14 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
 
     Parallel_reader::Config config(FULL_SCAN, m_prebuilt->table->first_index());
 
-    auto success =
+    dberr_t err =
         adapter->add_scan(trx, config, [=](const Parallel_reader::Ctx *ctx) {
           return (adapter->process_rows(ctx));
         });
 
-    if (!success) {
+    if (err != DB_SUCCESS) {
       UT_DELETE(adapter);
-      return (HA_ERR_GENERIC);
+      return (convert_error_code_to_mysql(err, 0, ha_thd()));
     }
   }
 
@@ -10790,17 +10798,12 @@ void exchange_partition_adjust_datadir(THD *thd, dict_table_t *table_p,
 
 /** Exchange partition.
 Low-level primitive which implementation is provided here.
-@param[in]	part_table_path		data file path of the partitioned table
-@param[in]	swap_table_path		data file path of the to be
-swapped table
 @param[in]	part_id			The id of the partition to be exchanged
 @param[in]	part_table		partitioned table to be exchanged
 @param[in]	swap_table		table to be exchanged
 @return error number
 @retval 0	on success */
-int ha_innopart::exchange_partition_low(const char *part_table_path,
-                                        const char *swap_table_path,
-                                        uint part_id, dd::Table *part_table,
+int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
                                         dd::Table *swap_table) {
   DBUG_TRACE;
 
@@ -10812,6 +10815,10 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
   ut_ad(innobase_strcasecmp(part_table->name().c_str(),
                             table_share->table_name.str) == 0);
   ut_ad(part_id < m_tot_parts);
+  std::vector<dd::Partition_index *> part_indexes;
+  std::vector<dd::Partition_index *>::iterator p_iter;
+  std::vector<dd::Index *> swap_indexes;
+  std::vector<dd::Index *>::iterator s_iter;
 
   if (high_level_read_only) {
     my_error(ER_READ_ONLY_MODE, MYF(0));
@@ -10861,7 +10868,6 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
   ut_ad(swap->n_ref_count == 1);
 
   /* Declare earlier before 'goto' */
-  auto swap_i = swap_table->indexes()->begin();
   ut_d(auto part_table_i = part_table->indexes()->begin());
   dd::Object_id p_se_id = dd_part->se_private_id();
 
@@ -10876,7 +10882,8 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
 
   /* Define the temporary table name, by appending TMP_POSTFIX */
   char temp_name[FN_REFLEN];
-  snprintf(temp_name, sizeof temp_name, "%s%s", swap_name, TMP_POSTFIX);
+  snprintf(temp_name, sizeof temp_name, "%s%s", swap_name,
+           dict_name::TMP_POSTFIX);
 
   int error = 0;
   error = innobase_basic_ddl::rename_impl<dd::Table>(thd, swap_name, temp_name,
@@ -10902,15 +10909,31 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
     exchange_partition_adjust_datadir(thd, swap, part);
   }
 
+  std::copy(dd_part->indexes()->begin(), dd_part->indexes()->end(),
+            std::back_inserter(part_indexes));
+  std::copy(swap_table->indexes()->begin(), swap_table->indexes()->end(),
+            std::back_inserter(swap_indexes));
+
+  /* Sort the index pointers according to the index names because the index
+  ordanility of the partition being exchanged may be different than the
+  table being swapped */
+  std::sort(part_indexes.begin(), part_indexes.end(),
+            [](dd::Partition_index *a, dd::Partition_index *b) {
+              return (a->name() < b->name());
+            });
+  std::sort(swap_indexes.begin(), swap_indexes.end(),
+            [](dd::Index *a, dd::Index *b) { return (a->name() < b->name()); });
+
   /* Swap the se_private_data and options between indexes.
   The se_private_data should be swapped between every index of
   dd_part and swap_table; however, options should be swapped(checked)
   between part_table and swap_table */
-  for (auto part_index : *dd_part->indexes()) {
-    ut_ad(swap_i != swap_table->indexes()->end());
-    auto swap_index = *swap_i;
-    ++swap_i;
-
+  ut_ad(part_indexes.size() == swap_indexes.size());
+  for (p_iter = part_indexes.begin(), s_iter = swap_indexes.begin();
+       p_iter < part_indexes.end() && s_iter < swap_indexes.end();
+       p_iter++, s_iter++) {
+    auto part_index = *p_iter;
+    auto swap_index = *s_iter;
     dd::Object_id p_tablespace_id = part_index->tablespace_id();
     part_index->set_tablespace_id(swap_index->tablespace_id());
     swap_index->set_tablespace_id(p_tablespace_id);
@@ -10937,7 +10960,6 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
           swap_index->options().raw_string());
   }
   ut_ad(part_table_i == part_table->indexes()->end());
-  ut_ad(swap_i == swap_table->indexes()->end());
 
   /* Swap the se_private_data and options of the two tables.
   Only the max autoinc should be set to both tables */

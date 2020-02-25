@@ -606,7 +606,7 @@ alter table t1 comment '123';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='123'
 drop table t1;
 CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
@@ -725,12 +725,12 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
 CREATE TABLE t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
 CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 drop table if exists t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
@@ -749,7 +749,7 @@ a	b
 100	100
 TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t2;
 a	b
 drop table t2;
@@ -778,7 +778,7 @@ a	b
 100	100
 TRUNCATE table t2;
 INSERT INTO t2 select * from t1;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't2.PRIMARY'
 SELECT * from t2;
 a	b
 drop table t1,t2;
@@ -1567,8 +1567,8 @@ CREATE TABLE t1 (f1 INTEGER PRIMARY KEY COMMENT 'My ID#', f2 INTEGER DEFAULT NUL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL COMMENT 'My ID#',
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL COMMENT 'My ID#',
+  `f2` int DEFAULT NULL,
   `f3` char(10) DEFAULT 'My ID#',
   PRIMARY KEY (`f1`),
   KEY `f2_ref` (`f2`),
@@ -1636,14 +1636,14 @@ k	a	c
 2	7	NULL
 insert ignore into t2 values (null,6,1),(10,8,1);
 Warnings:
-Warning	1062	Duplicate entry '6' for key 'idx_1'
+Warning	1062	Duplicate entry '6' for key 't2.idx_1'
 select last_insert_id();
 last_insert_id()
 0
 insert ignore into t2 values (null,6,1),(null,8,1),(null,15,1),(null,20,1);
 Warnings:
-Warning	1062	Duplicate entry '6' for key 'idx_1'
-Warning	1062	Duplicate entry '8' for key 'idx_1'
+Warning	1062	Duplicate entry '6' for key 't2.idx_1'
+Warning	1062	Duplicate entry '8' for key 't2.idx_1'
 select last_insert_id();
 last_insert_id()
 11
@@ -1850,8 +1850,8 @@ FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION) engine=innodb;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
+  `c` int NOT NULL,
+  `d` int NOT NULL,
   PRIMARY KEY (`c`,`d`),
   CONSTRAINT `c1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
   CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
@@ -2981,7 +2981,7 @@ constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `x` (`fk`),
   CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3071,11 +3071,12 @@ INSERT INTO t2 VALUES (1, '1');
 EXPLAIN
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	t2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t2`) where (`test`.`t1`.`a` = 1)
+Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t2`) where (`test`.`t1`.`a` = `<subquery2>`.`1`)
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 b
 1
@@ -3157,8 +3158,8 @@ UNIQUE KEY (b(8) desc, a asc, d)) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `d` int NOT NULL,
   `b` text NOT NULL,
   `c` text,
   UNIQUE KEY `b` (`b`(8) DESC,`a`,`d`)

@@ -171,7 +171,7 @@ static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
         Move tables using this key cache to the default key cache
         and clear the old key cache.
       */
-      key_cache->in_init = 1;
+      key_cache->in_init = true;
       mysql_mutex_unlock(&LOCK_global_system_variables);
       key_cache->param_buff_size = 0;
       ha_resize_key_cache(key_cache);
@@ -181,7 +181,7 @@ static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
         the key cache code with a pointer to the deleted (empty) key cache
       */
       mysql_mutex_lock(&LOCK_global_system_variables);
-      key_cache->in_init = 0;
+      key_cache->in_init = false;
     }
     return error;
   }
@@ -189,7 +189,7 @@ static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
   key_cache->param_buff_size = new_value;
 
   /* If key cache didn't exist initialize it, else resize it */
-  key_cache->in_init = 1;
+  key_cache->in_init = true;
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   if (!key_cache->key_cache_inited)
@@ -198,7 +198,7 @@ static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
     error = ha_resize_key_cache(key_cache);
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  key_cache->in_init = 0;
+  key_cache->in_init = false;
 
   return error;
 }
@@ -210,12 +210,12 @@ static bool update_keycache_param(THD *, KEY_CACHE *key_cache, ptrdiff_t offset,
 
   keycache_var(key_cache, offset) = new_value;
 
-  key_cache->in_init = 1;
+  key_cache->in_init = true;
   mysql_mutex_unlock(&LOCK_global_system_variables);
   error = ha_resize_key_cache(key_cache);
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  key_cache->in_init = 0;
+  key_cache->in_init = false;
 
   return error;
 }
@@ -1884,13 +1884,13 @@ static Sys_var_dbug Sys_dbug("debug", "Debug log", sys_var::SESSION,
 export bool fix_delay_key_write(sys_var *, THD *, enum_var_type) {
   switch (delay_key_write_options) {
     case DELAY_KEY_WRITE_NONE:
-      myisam_delay_key_write = 0;
+      myisam_delay_key_write = false;
       break;
     case DELAY_KEY_WRITE_ON:
-      myisam_delay_key_write = 1;
+      myisam_delay_key_write = true;
       break;
     case DELAY_KEY_WRITE_ALL:
-      myisam_delay_key_write = 1;
+      myisam_delay_key_write = true;
       ha_open_options |= HA_OPEN_DELAY_KEY_WRITE;
       break;
   }
@@ -3670,7 +3670,7 @@ static Sys_var_charptr Sys_secure_file_priv(
 static bool fix_server_id(sys_var *, THD *thd, enum_var_type) {
   // server_id is 'MYSQL_PLUGIN_IMPORT ulong'
   // So we cast here, rather than change its type.
-  server_id_supplied = 1;
+  server_id_supplied = true;
   thd->server_id = static_cast<uint32>(server_id);
   return false;
 }
@@ -3916,7 +3916,7 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var) {
 
   if (check_purge) mysql_bin_log.purge();
 
-  return 0;
+  return false;
 }
 
 bool Sys_var_gtid_next::session_update(THD *thd, set_var *var) {
@@ -5879,6 +5879,13 @@ static Sys_var_bool Sys_general_log(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
     ON_UPDATE(fix_general_log_state));
 
+static Sys_var_bool Sys_log_raw(
+    "log_raw",
+    "Log to general log before any rewriting of the query. For use in "
+    "debugging, not production as sensitive information may be logged.",
+    GLOBAL_VAR(opt_general_log_raw), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static bool fix_slow_log_state(sys_var *, THD *thd, enum_var_type) {
   bool new_state = opt_slow_log, res = false;
 
@@ -7243,3 +7250,41 @@ static Sys_var_charptr Sys_protocol_compression_algorithms(
     DEFAULT(const_cast<char *>(PROTOCOL_COMPRESSION_DEFAULT_VALUE)),
     NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_set_protocol_compression_algorithms), ON_UPDATE(0));
+
+static bool check_set_require_row_format(sys_var *, THD *thd, set_var *var) {
+  /*
+   Should own SUPER or SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN
+   when the value is changing to NO, no privileges are needed to set to YES
+  */
+  longlong previous_val = thd->variables.require_row_format;
+  longlong val = (longlong)var->save_result.ulonglong_value;
+  DBUG_ASSERT(!var->is_global_persist());
+
+  // if it was true and we are changing it
+  if (previous_val && val != previous_val) {
+    if (thd->security_context()->check_access(SUPER_ACL) ||
+        thd->security_context()
+            ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+            .first ||
+        thd->security_context()
+            ->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
+            .first)
+      return false;
+
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
+    return true;
+  }
+  return false;
+}
+
+/**
+   Session only flag to limit the application of queries to row based events
+   and DDLs with the exception of temporary table creation/deletion
+*/
+static Sys_var_bool Sys_var_require_row_format(
+    "require_row_format",
+    "Limit the application of queries to row based events "
+    "and DDLs with the exception of temporary table creation/deletion.",
+    SESSION_ONLY(require_row_format), NO_CMD_LINE, DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_set_require_row_format));

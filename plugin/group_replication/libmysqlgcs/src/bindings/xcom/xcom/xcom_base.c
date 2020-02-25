@@ -1874,7 +1874,6 @@ static inline int is_config(cargo_type x) {
 }
 
 static int wait_for_cache(pax_machine **pm, synode_no synode, double timeout);
-static void terminate_and_exit();
 
 /* Send messages by fetching from the input queue and trying to get it accepted
    by a Paxos instance */
@@ -2760,7 +2759,7 @@ bool_t handle_event_horizon(app_data_ptr a) {
   return TRUE;
 }
 
-static void terminate_and_exit() {
+void terminate_and_exit() {
   XCOM_FSM(xa_terminate, int_arg(0)); /* Tell xcom to stop */
   XCOM_FSM(xa_exit, int_arg(0));      /* Tell xcom to exit */
   if (xcom_expel_cb) xcom_expel_cb(0);
@@ -4030,6 +4029,7 @@ bool should_handle_boot(site_def const *site, pax_msg *p) {
     /* Defensively accept only messages with a single identity. */
     if (sender_advertises_one_identity) {
       node_address *sender_identity = p->a->body.app_u_u.nodes.node_list_val;
+
       should_handle = node_exists_with_uid(sender_identity, &site->nodes);
     }
   } else {
@@ -4553,7 +4553,9 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       pm = get_cache(p->synode);
       assert(pm);
 
-      if (client_boot_done) handle_alive(site, reply_queue, p);
+      if (client_boot_done) {
+        handle_alive(site, reply_queue, p);
+      }
 
       handle_read(site, pm, reply_queue, p);
       break;
@@ -4879,6 +4881,10 @@ again:
     } else {
       TASK_CALL(read_msg(&ep->rfd, ep->p, ep->srv, &n));
     }
+
+    if (ep->srv && !ep->srv->invalid && ((int)ep->p->op != (int)client_msg))
+      server_detected(ep->srv);
+
     if (((int)ep->p->op < (int)client_msg || ep->p->op > LAST_OP)) {
       /* invalid operation, ignore message */
       delete_pax_msg(ep->p);
@@ -5126,7 +5132,14 @@ int reply_handler_task(task_arg arg) {
      */
     if (ep->reply->op == need_boot_op) {
       pax_msg *p = ep->reply;
-      server_handle_need_snapshot(ep->s, find_site_def(p->synode), p->from);
+
+      int should_boot = should_handle_boot(find_site_def(p->synode), p);
+
+      if (should_boot) {
+        server_handle_need_snapshot(ep->s, find_site_def(p->synode), p->from);
+      } else {
+        ep->s->invalid = 1;
+      }
     } else {
       // We only handle messages from this connection is the server is valid.
       if (ep->s->invalid == 0)
@@ -6602,11 +6615,12 @@ xcom_send_app_wait_result xcom_send_app_wait_and_get(connection_descriptor *fd,
         case REQUEST_OK:
           return REQUEST_OK_RECEIVED;
         case REQUEST_FAIL:
+
           G_DEBUG("cli_err %d", cli_err);
           return REQUEST_FAIL_RECEIVED;
         case REQUEST_RETRY:
-          if (retry_count > 1) my_xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
           G_DEBUG("cli_err %d", cli_err);
+          if (retry_count > 1) my_xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
           xcom_sleep(1);
           break;
         default:

@@ -130,7 +130,7 @@ static handler *myisammrg_create_handler(handlerton *hton, TABLE_SHARE *table,
 */
 
 ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
-    : handler(hton, table_arg), file(0), is_cloned(0) {
+    : handler(hton, table_arg), file(0), is_cloned(false) {
   init_sql_alloc(rg_key_memory_children, &children_mem_root, FN_REFLEN, 0);
 }
 
@@ -144,7 +144,7 @@ static const char *ha_myisammrg_exts[] = {".MRG", NullS};
 static void split_file_name(const char *file_name, LEX_CSTRING *db,
                             LEX_CSTRING *name);
 
-extern "C" void myrg_print_wrong_table(const char *table_name) {
+void myrg_print_wrong_table(const char *table_name) {
   LEX_CSTRING db = {nullptr, 0}, name;
   char buf[FN_REFLEN];
   split_file_name(table_name, &db, &name);
@@ -839,14 +839,6 @@ int ha_myisammrg::attach_children(void) {
       if (&child_l->next_global == this->children_last_l) break;
     }
   }
-#if SIZEOF_OFF_T == 4
-  /* Merge table has more than 2G rows */
-  if (table->s->crashed) {
-    DBUG_PRINT("error", ("MERGE table marked crashed"));
-    error = HA_ERR_WRONG_MRG_TABLE_DEF;
-    goto err;
-  }
-#endif
 
 end:
   return 0;
@@ -1138,11 +1130,6 @@ int ha_myisammrg::info(uint flag) {
   */
   stats.records = (ha_rows)mrg_info.records;
   stats.deleted = (ha_rows)mrg_info.deleted;
-#if SIZEOF_OFF_T == 4
-  if ((mrg_info.records >= (ulonglong)1 << 32) ||
-      (mrg_info.deleted >= (ulonglong)1 << 32))
-    table->s->crashed = 1;
-#endif
   stats.data_file_length = mrg_info.data_file_length;
   if (mrg_info.errkey >= (int)table_share->keys) {
     /*
@@ -1176,11 +1163,7 @@ int ha_myisammrg::info(uint flag) {
   if (file->tables) stats.block_size = myisam_block_size / file->tables;
 
   stats.update_time = 0;
-#if SIZEOF_OFF_T > 4
   ref_length = 6;  // Should be big enough
-#else
-  ref_length = 4;  // Can't be > than my_off_t
-#endif
   if (flag & HA_STATUS_CONST) {
     if (table->s->key_parts && mrg_info.rec_per_key) {
       memcpy((char *)table->key_info[0].rec_per_key,
@@ -1379,7 +1362,7 @@ int ha_myisammrg::create(const char *name, TABLE *, HA_CREATE_INFO *create_info,
   return myrg_create(
       fn_format(buff, name, "", "",
                 MY_RESOLVE_SYMLINKS | MY_UNPACK_FILENAME | MY_APPEND_EXT),
-      table_names, create_info->merge_insert_method, (bool)0);
+      table_names, create_info->merge_insert_method, false);
 }
 
 void ha_myisammrg::append_create_info(String *packet) {

@@ -73,6 +73,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <iterator>
 #include <memory> /* std::unique_ptr */
 #include <set>
+#include <string>
 #include <vector>
 
 #include "fil0rkinfo.h"
@@ -1246,6 +1247,15 @@ struct dict_index_t {
 
     return (0);
   }
+
+ public:
+  /** Get the page size of the tablespace to which this index belongs.
+  @return the page size. */
+  page_size_t get_page_size() const;
+
+  /** Get the space id of the tablespace to which this index belongs.
+  @return the space id. */
+  space_id_t space_id() const { return space; }
 };
 
 /** The status of online index creation */
@@ -1354,28 +1364,6 @@ struct dict_foreign_different_tables {
   bool operator()(const dict_foreign_t *foreign) const {
     return (foreign->foreign_table != foreign->referenced_table);
   }
-};
-
-/** A function object to check if the foreign key constraint has the same
-name as given.  If the full name of the foreign key constraint doesn't match,
-then, check if removing the database name from the foreign key constraint
-matches. Return true if it matches, false otherwise. */
-struct dict_foreign_matches_id {
-  dict_foreign_matches_id(const char *id) : m_id(id) {}
-
-  bool operator()(const dict_foreign_t *foreign) const {
-    if (0 == innobase_strcasecmp(foreign->id, m_id)) {
-      return (true);
-    }
-    if (const char *pos = strchr(foreign->id, '/')) {
-      if (0 == innobase_strcasecmp(m_id, pos + 1)) {
-        return (true);
-      }
-    }
-    return (false);
-  }
-
-  const char *m_id;
 };
 
 typedef std::set<dict_foreign_t *, dict_foreign_compare,
@@ -1573,6 +1561,11 @@ struct dict_table_t {
   void set_file_readable() { file_unreadable = false; }
 
 #ifndef UNIV_HOTBACKUP
+  /** Get schema and table name in system character set.
+  @param[out]	schema	schema name
+  @param[out]	table	table name */
+  void get_table_name(std::string &schema, std::string &table);
+
   /** Mutex of the table for concurrency access. */
   ib_mutex_t *mutex;
 
@@ -1715,6 +1708,10 @@ struct dict_table_t {
 
   /** Virtual column names */
   const char *v_col_names;
+
+  /** True if the table belongs to a system database (mysql, information_schema
+  or performance_schema) */
+  bool is_system_table;
 
   /** Hash chain node. */
   hash_node_t name_hash;

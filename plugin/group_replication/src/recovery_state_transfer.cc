@@ -51,6 +51,7 @@ Recovery_state_transfer::Recovery_state_transfer(
       recovery_use_ssl(false),
       recovery_get_public_key(false),
       recovery_ssl_verify_server_cert(false),
+      recovery_tls_ciphersuites_null(true),
       max_connection_attempts_to_donors(0),
       donor_reconnect_interval(0) {
   // set the recovery SSL options to 0
@@ -62,6 +63,8 @@ Recovery_state_transfer::Recovery_state_transfer(
   (void)strncpy(recovery_ssl_crl, "", 1);
   (void)strncpy(recovery_ssl_crlpath, "", 1);
   (void)strncpy(recovery_public_key_path, "", 1);
+  (void)strncpy(recovery_tls_version, "", 1);
+  (void)strncpy(recovery_tls_ciphersuites, "", 1);
 
   this->member_uuid = member_uuid;
 
@@ -352,7 +355,9 @@ void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
   }
 
   if (suitable_donors.size() > 1) {
-    std::random_shuffle(suitable_donors.begin(), suitable_donors.end());
+    std::random_device rng;
+    std::mt19937 urng(rng());
+    std::shuffle(suitable_donors.begin(), suitable_donors.end(), urng);
   }
 
   // no need for errors if no donors exist, we thrown it in the connection
@@ -481,7 +486,9 @@ int Recovery_state_transfer::initialize_donor_connection() {
       recovery_ssl_key, recovery_ssl_crl, recovery_ssl_crlpath,
       recovery_ssl_verify_server_cert, DEFAULT_THREAD_PRIORITY, 1, false,
       recovery_public_key_path, recovery_get_public_key,
-      recovery_compression_algorithm, recovery_zstd_compression_level);
+      recovery_compression_algorithm, recovery_zstd_compression_level,
+      recovery_tls_version,
+      recovery_tls_ciphersuites_null ? nullptr : recovery_tls_ciphersuites);
 
   if (!error) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ESTABLISHING_CONN_GRP_REC_DONOR,
@@ -602,9 +609,9 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos() {
     /* purecov: end */
   }
   error = donor_connection_interface.initialize_channel(
-      const_cast<char *>("<NULL>"), 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false, NULL, false,
-      NULL, 0);
+      const_cast<char *>("<NULL>"), 0, NULL, NULL, false, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, false, DEFAULT_THREAD_PRIORITY, 1, false, NULL,
+      false, NULL, 0, NULL, NULL);
 
   return error;
 }
@@ -616,13 +623,20 @@ int Recovery_state_transfer::state_transfer(
   int error = 0;
 
   while (!donor_transfer_finished && !recovery_aborted) {
-    // If an applier error happened: stop the receiver thread and purge the logs
+    /*
+      If an applier error happened: stop the slave threads.
+      We do not purge logs or reset channel configuration to
+      preserve the error information on performance schema
+      tables until the next recovery attempt.
+      Recovery_state_transfer::initialize_donor_connection() will
+      take care of that.
+    */
     if (donor_channel_thread_error) {
       // Unsubscribe the listener until it connects again.
       channel_observation_manager->unregister_channel_observer(
           recovery_channel_observer);
 
-      if ((error = terminate_recovery_slave_threads())) {
+      if ((error = terminate_recovery_slave_threads(false))) {
         /* purecov: begin inspected */
         LogPluginErr(ERROR_LEVEL,
                      ER_GRP_RPL_UNABLE_TO_KILL_CONN_REC_DONOR_APPLIER);

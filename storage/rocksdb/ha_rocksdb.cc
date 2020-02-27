@@ -462,7 +462,7 @@ static const constexpr ulong RDB_DEADLOCK_DETECT_DEPTH = 50;
 static long long rocksdb_block_cache_size = RDB_DEFAULT_BLOCK_CACHE_SIZE;
 static long long rocksdb_sim_cache_size = 0;
 static double rocksdb_cache_high_pri_pool_ratio = 0.0;
-static my_bool rocksdb_cache_dump = FALSE;
+static bool rocksdb_cache_dump = false;
 /* Use unsigned long long instead of uint64_t because of MySQL compatibility */
 static unsigned long long  // NOLINT(runtime/int)
     rocksdb_rate_limiter_bytes_per_sec = 0;
@@ -526,7 +526,7 @@ static uint32_t rocksdb_stats_recalc_rate = 0;
 static bool rocksdb_no_create_column_family = false;
 static uint32_t rocksdb_debug_manual_compaction_delay = 0;
 static uint32_t rocksdb_max_manual_compactions = 0;
-static my_bool rocksdb_rollback_on_timeout = FALSE;
+static bool rocksdb_rollback_on_timeout = false;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -1446,7 +1446,7 @@ static MYSQL_SYSVAR_BOOL(
     rollback_on_timeout, rocksdb_rollback_on_timeout, PLUGIN_VAR_OPCMDARG,
     "Whether to roll back the complete transaction or a single statement on "
     "lock wait timeout (a single statement by default)",
-    NULL, NULL, FALSE);
+    NULL, NULL, false);
 
 static MYSQL_SYSVAR_UINT(
     debug_manual_compaction_delay, rocksdb_debug_manual_compaction_delay,
@@ -2041,7 +2041,8 @@ class Rdb_transaction {
         convert_error_code_to_mysql() does: force a statement
         rollback before returning HA_ERR_LOCK_WAIT_TIMEOUT:
         */
-      thd->mark_transaction_to_rollback(static_cast<bool>(rocksdb_rollback_on_timeout));
+      thd->mark_transaction_to_rollback(
+          static_cast<bool>(rocksdb_rollback_on_timeout));
 
       rocksdb_row_lock_wait_timeouts++;
 
@@ -4488,7 +4489,8 @@ static int rocksdb_init_func(void *const p) {
     }
     std::shared_ptr<rocksdb::Cache> block_cache = rocksdb::NewLRUCache(
         rocksdb_block_cache_size, -1 /*num_shard_bits*/,
-        false /*strict_capcity_limit*/, rocksdb_cache_high_pri_pool_ratio, memory_allocator);
+        false /*strict_capcity_limit*/, rocksdb_cache_high_pri_pool_ratio,
+        memory_allocator);
     if (rocksdb_sim_cache_size > 0) {
       // Simulated cache enabled
       // Wrap block cache inside a simulated cache and pass it to RocksDB
@@ -8424,7 +8426,7 @@ int ha_rocksdb::index_next_with_direction(uchar *const buf, bool move_forward) {
       if (m_skip_scan_it_next_call) {
         m_skip_scan_it_next_call = false;
       } else if (!m_scan_it->Valid()) {
-      DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+        DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
       } else {
         if (move_forward)
           m_scan_it->Next(); /* this call cannot fail */
@@ -8548,8 +8550,9 @@ int ha_rocksdb::index_first_intern(uchar *const buf) {
     m_skip_scan_it_next_call = true;
 
     rc = index_next_with_direction(buf, true);
-    if (rc != HA_ERR_ROCKSDB_STATUS_BUSY || !is_new_snapshot)
-      break;  // exit the loop
+    if (!should_recreate_snapshot(rc, is_new_snapshot)) {
+      break; /* exit the loop */
+    }
 
     // release the snapshot and iterator so they will be regenerated
     tx->release_snapshot();

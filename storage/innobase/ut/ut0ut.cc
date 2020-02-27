@@ -499,8 +499,6 @@ const char *ut_strerr(dberr_t num) {
       return (
           "Failed to find a doublewrite buffer "
           "in the system tablespace");
-    case DB_PAGE_CORRUPTED:
-      return ("Page read from tablespace is corrupted.");
     case DB_INVALID_ENCRYPTION_META:
       return ("Invalid encryption meta-data information");
     case DB_ABORT_INCOMPLETE_CLONE:

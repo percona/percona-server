@@ -94,9 +94,8 @@ affects the free space.  It is unsafe to increment the bits in a
 separately committed mini-transaction, because in crash recovery, the
 free bits could momentarily be set too high. */
 
-/** Creates the insert buffer data structure at a database startup.
-@return DB_SUCCESS or failure */
-dberr_t ibuf_init_at_db_start(void);
+/** Creates the insert buffer data structure at a database startup. */
+void ibuf_init_at_db_start(void);
 /** Updates the max_size value for ibuf. */
 void ibuf_max_size_update(ulint new_val); /*!< in: new value in terms of
                                           percentage of the buffer pool size */

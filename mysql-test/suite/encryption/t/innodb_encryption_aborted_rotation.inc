@@ -56,8 +56,8 @@ if (!$is_mk_encrypted)
 }
 --source include/assert.inc
 
---echo # We want only first 100 pages to be rotated
-SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
+--echo # We want only first 100(x=100 by default) pages to be rotated
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
 
 --echo # Start rotation unnencrypted => encrypted (tables do not have crypt data stored in page 0)
 SET GLOBAL innodb_encryption_threads = 4;
@@ -81,7 +81,7 @@ SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 --echo # Disable rotation threads
 SET GLOBAL innodb_encryption_threads = 0;
 --echo # Disable rotation of only first 100 pages
-SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
 
 --let $grep_log=`SELECT !$is_t1_compressed && !$is_mk_encrypted`
 
@@ -119,7 +119,7 @@ if (!$is_t1_compressed)
 
 --echo # Now we try rotation encrypted => unencrypted
 --echo # Enable rotation of only first 100 pages
-SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
 
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 
@@ -138,7 +138,7 @@ SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 --echo # Disable rotation threads
 SET GLOBAL innodb_encryption_threads = 0;
 --echo # Disable rotation of only first 100 pages
-SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
 
 --source include/shutdown_mysqld.inc
 
@@ -171,7 +171,7 @@ if (!$is_t1_compressed)
 
 --echo # Now we try rotation => unencrypted => encrypted (now tables have crypt data in page 0)
 --echo # Enable rotation of only first 100 pages
-SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
 
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 
@@ -191,7 +191,7 @@ SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 --echo # Disable rotation threads
 SET GLOBAL innodb_encryption_threads = 0;
 --echo # Disable rotation of only first 100 pages
-SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
 
 --source include/shutdown_mysqld.inc
 
@@ -249,8 +249,10 @@ if (!$is_t1_compressed)
 }
 
 --echo # First restart the server after crash so any redo logs for t1 were proceed. If there are any logs available
---echo # t1 will be opened without validating idb file to DD.
---let $restart_parameters=restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=0
+--echo # t1 will be opened without validating idb file to DD. We set here innodb-encryption-threads to value > 0 - so
+--echo # in case there is no redo for t1 and validation to DD would occur we would not get an error in the log
+--echo # to set innodb-encryption-threads to value > 0 to finish rotation. We grep for this error later.
+--let $restart_parameters=restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
 --source include/start_mysqld.inc
 
 SET GLOBAL debug="-d,crash_on_t1_flush_after_dd_update";
@@ -312,8 +314,10 @@ SET GLOBAL innodb_encryption_threads=4;
 --source include/wait_until_disconnected.inc
 
 --echo # First restart the server after crash so any redo logs for t1 were proceed. If there are any logs available
---echo # t1 will be opened without validating idb file to DD.
---let $restart_parameters=restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=0
+--echo # t1 will be opened without validating idb file to DD. We set here innodb-encryption-threads to value > 0 - so
+--echo # in case there is no redo for t1 and validation to DD would occur we would not get an error in the log
+--echo # to set innodb-encryption-threads to value > 0 to finish rotation. We grep for this error later.
+--let $restart_parameters=restart:--innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=1
 --source include/start_mysqld.inc
 
 SET GLOBAL debug="-d,crash_on_t1_flush_after_dd_update";

@@ -17,6 +17,7 @@ set autocommit=1;
 include/assert.inc [Make sure t1 is encrypted]
 # Wait for all tables to get encrypted
 # We want only first 100 pages to be rotated
+SET GLOBAL debug="+d,set_number_of_t1_pages_to_rotate_to_100";
 SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
 include/assert.inc [Make sure re-encryption will happen per every key rotation]
 include/assert.inc [Successful rotation of percona_innodb-0 to version 2]
@@ -26,6 +27,7 @@ include/assert.inc [Successful rotation of percona_innodb-0 to version 2]
 SET GLOBAL innodb_encryption_threads = 0;
 # Disable rotation of only first 100 pages
 SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="-d,set_number_of_t1_pages_to_rotate_to_100";
 # Make sure that t1 is still encrypted
 # t1 is only half rotatted, now we will check if the encryption can be completed after the restart
 # restart:--innodb-encryption-threads=4

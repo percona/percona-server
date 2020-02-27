@@ -75,9 +75,6 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
 
   auto block = get_block();
 
-  if (!block && !btr_cur_get_index(get_btr_cur())->table->is_readable())
-    return; /* decryption failure */
-
   SRV_CORRUPT_TABLE_CHECK(block, return;);
 
   auto index = btr_cur_get_index(get_btr_cur());
@@ -353,9 +350,6 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
   auto next_block =
       btr_block_get(page_id_t(block->page.id.space(), next_page_no),
                     block->page.size, mode, get_btr_cur()->index, mtr);
-
-  if (!next_block && !get_btr_cur()->index->table->is_readable())
-    return; /* decryption failure */
 
   auto next_page = buf_block_get_frame(next_block);
 

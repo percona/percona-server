@@ -2101,7 +2101,7 @@ void page_copy_rec_list_end_to_created_page(
   mtr_log_t log_mode;
 
   if (index->table->is_temporary() ||
-      index->table->file_unreadable /* IMPORT TABLESPACE */) {
+      index->table->ibd_file_missing /* IMPORT TABLESPACE */) {
     log_mode = mtr_get_log_mode(mtr);
   } else {
     log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);

@@ -196,9 +196,6 @@ enum dberr_t {
   /** System has run out of resources. */
   DB_OUT_OF_RESOURCES,
 
-  DB_PAGE_CORRUPTED = 999, /*!< Page read from tablespace is
-                           corrupted. */
-
   /* The following are partial failure codes */
 
   DB_FAIL = 1000,

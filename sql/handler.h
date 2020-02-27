@@ -1481,7 +1481,7 @@ enum class Tablespace_type {
   SPACE_TYPE_IMPLICIT
 };
 
-using is_tablespace_keyring_v1_encrypted_t =
+using is_tablespace_keyring_pre_v3_encrypted_t =
     bool (*)(const dd::Tablespace &space, int &error);
 
 /**
@@ -2391,7 +2391,8 @@ struct handlerton {
   upgrade_space_version_t upgrade_space_version;
   get_tablespace_type_t get_tablespace_type;
   get_tablespace_type_by_name_t get_tablespace_type_by_name;
-  is_tablespace_keyring_v1_encrypted_t is_tablespace_keyring_v1_encrypted;
+  is_tablespace_keyring_pre_v3_encrypted_t
+      is_tablespace_keyring_pre_v3_encrypted;
   upgrade_logs_t upgrade_logs;
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;

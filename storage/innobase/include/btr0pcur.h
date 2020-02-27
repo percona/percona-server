@@ -202,15 +202,15 @@ struct btr_pcur_t {
   @param[in]	    init_pcur	  whether to initialize pcur.
   @param[in]	    level		    level to search for (0=leaf).
   @param[in,out]	mtr		      mini-transaction */
-  dberr_t open_at_side(bool from_left, dict_index_t *index, ulint latch_mode,
-                       bool init_pcur, ulint level, mtr_t *mtr);
+  void open_at_side(bool from_left, dict_index_t *index, ulint latch_mode,
+                    bool init_pcur, ulint level, mtr_t *mtr);
 
   /** Opens a persistent cursor at first leaf page (low end). It will not call
   init().
   @param[in]	    index		    index
   @param[in]	    latch_mode	latch mode
   @param[in,out]	mtr		      mini-transaction */
-  dberr_t begin_leaf(dict_index_t *index, ulint latch_mode, mtr_t *mtr) {
+  void begin_leaf(dict_index_t *index, ulint latch_mode, mtr_t *mtr) {
     return open_at_side(true, index, latch_mode, false, 0, mtr);
   }
 
@@ -234,10 +234,10 @@ struct btr_pcur_t {
   @param[in]	    mtr	        Mtr
   @param[in]	    file	      File name.
   @param[in]	    line	      Line where called */
-  dberr_t open_no_init(dict_index_t *index, const dtuple_t *tuple,
-                       page_cur_mode_t mode, ulint latch_mode,
-                       ulint has_search_latch, mtr_t *mtr, const char *file,
-                       ulint line);
+  void open_no_init(dict_index_t *index, const dtuple_t *tuple,
+                    page_cur_mode_t mode, ulint latch_mode,
+                    ulint has_search_latch, mtr_t *mtr, const char *file,
+                    ulint line);
 
   /** If mode is PAGE_CUR_G or PAGE_CUR_GE, opens a persistent cursor
   on the first user record satisfying the search condition, in the case
@@ -279,9 +279,9 @@ struct btr_pcur_t {
   @param[in]	    mtr		      Mini-transaction.
   @param[in]	    file		    File name
   @param[in]	    line		    Line in file, from where called. */
-  dberr_t open(dict_index_t *index, ulint level, const dtuple_t *tuple,
-               page_cur_mode_t mode, ulint latch_mode, mtr_t *mtr,
-               const char *file, ulint line);
+  void open(dict_index_t *index, ulint level, const dtuple_t *tuple,
+            page_cur_mode_t mode, ulint latch_mode, mtr_t *mtr,
+            const char *file, ulint line);
 
   /** Restores the stored position of a persistent cursor bufferfixing
   the page and obtaining the specified latches. If the cursor position
@@ -620,10 +620,10 @@ the record!
 @param[in]	  mtr		          Mini-transaction.
 @param[in]	  file		        File name
 @param[in]	  line		        Line in file, from where called. */
-inline dberr_t btr_pcur_t::open(dict_index_t *index, ulint level,
-                                const dtuple_t *tuple, page_cur_mode_t mode,
-                                ulint latch_mode, mtr_t *mtr, const char *file,
-                                ulint line) {
+inline void btr_pcur_t::open(dict_index_t *index, ulint level,
+                             const dtuple_t *tuple, page_cur_mode_t mode,
+                             ulint latch_mode, mtr_t *mtr, const char *file,
+                             ulint line) {
   init();
 
   m_search_mode = mode;
@@ -635,7 +635,6 @@ inline dberr_t btr_pcur_t::open(dict_index_t *index, ulint level,
 
   ut_ad(!dict_index_is_spatial(index));
 
-  dberr_t err = DB_SUCCESS;
   if (index->table->is_intrinsic()) {
     ut_ad((latch_mode & BTR_MODIFY_LEAF) || (latch_mode & BTR_SEARCH_LEAF) ||
           (latch_mode & BTR_MODIFY_TREE));
@@ -646,27 +645,18 @@ inline dberr_t btr_pcur_t::open(dict_index_t *index, ulint level,
              ? true
              : false));
   } else {
-    err = btr_cur_search_to_nth_level(index, level, tuple, mode, latch_mode,
-                                      cur, 0, file, line, mtr);
-  }
-
-  if (err != DB_SUCCESS) {
-    ib::warn() << " Error code: " << err << " btr_pcur_t::open "
-               << " level: " << level << " called from file: " << file
-               << " line: " << line << " table: " << index->table->name
-               << " index: " << index->name;
+    btr_cur_search_to_nth_level(index, level, tuple, mode, latch_mode, cur, 0,
+                                file, line, mtr);
   }
 
   m_pos_state = BTR_PCUR_IS_POSITIONED;
 
   m_trx_if_known = nullptr;
-
-  return err;
 }
 
-inline dberr_t btr_pcur_t::open_at_side(bool from_left, dict_index_t *index,
-                                        ulint latch_mode, bool init_pcur,
-                                        ulint level, mtr_t *mtr) {
+inline void btr_pcur_t::open_at_side(bool from_left, dict_index_t *index,
+                                     ulint latch_mode, bool init_pcur,
+                                     ulint level, mtr_t *mtr) {
   m_latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
 
   m_search_mode = from_left ? PAGE_CUR_G : PAGE_CUR_L;
@@ -675,14 +665,12 @@ inline dberr_t btr_pcur_t::open_at_side(bool from_left, dict_index_t *index,
     init();
   }
 
-  dberr_t err = DB_SUCCESS;
-
   if (index->table->is_intrinsic()) {
     btr_cur_open_at_index_side_with_no_latch(from_left, index, get_btr_cur(),
                                              level, mtr);
   } else {
-    err = btr_cur_open_at_index_side(from_left, index, latch_mode,
-                                     get_btr_cur(), level, mtr);
+    btr_cur_open_at_index_side(from_left, index, latch_mode, get_btr_cur(),
+                               level, mtr);
   }
 
   m_pos_state = BTR_PCUR_IS_POSITIONED;
@@ -690,8 +678,6 @@ inline dberr_t btr_pcur_t::open_at_side(bool from_left, dict_index_t *index,
   m_old_stored = false;
 
   m_trx_if_known = nullptr;
-
-  return err;
 }
 
 inline bool btr_pcur_t::set_random_position(dict_index_t *index,
@@ -714,11 +700,10 @@ inline bool btr_pcur_t::set_random_position(dict_index_t *index,
   return (positioned);
 }
 
-inline dberr_t btr_pcur_t::open_no_init(dict_index_t *index,
-                                        const dtuple_t *tuple,
-                                        page_cur_mode_t mode, ulint latch_mode,
-                                        ulint has_search_latch, mtr_t *mtr,
-                                        const char *file, ulint line) {
+inline void btr_pcur_t::open_no_init(dict_index_t *index, const dtuple_t *tuple,
+                                     page_cur_mode_t mode, ulint latch_mode,
+                                     ulint has_search_latch, mtr_t *mtr,
+                                     const char *file, ulint line) {
   m_latch_mode = BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
 
   m_search_mode = mode;
@@ -727,8 +712,6 @@ inline dberr_t btr_pcur_t::open_no_init(dict_index_t *index,
 
   auto cur = get_btr_cur();
 
-  dberr_t err = DB_SUCCESS;
-
   if (index->table->is_intrinsic()) {
     ut_ad((latch_mode & BTR_MODIFY_LEAF) || (latch_mode & BTR_SEARCH_LEAF));
 
@@ -736,9 +719,8 @@ inline dberr_t btr_pcur_t::open_no_init(dict_index_t *index,
         index, m_read_level, tuple, mode, cur, file, line, mtr,
         ((latch_mode & BTR_MODIFY_LEAF) ? true : false));
   } else {
-    err = btr_cur_search_to_nth_level(index, m_read_level, tuple, mode,
-                                      latch_mode, cur, has_search_latch, file,
-                                      line, mtr);
+    btr_cur_search_to_nth_level(index, m_read_level, tuple, mode, latch_mode,
+                                cur, has_search_latch, file, line, mtr);
   }
 
   m_pos_state = BTR_PCUR_IS_POSITIONED;
@@ -746,8 +728,6 @@ inline dberr_t btr_pcur_t::open_no_init(dict_index_t *index,
   m_old_stored = false;
 
   m_trx_if_known = nullptr;
-
-  return err;
 }
 
 inline const btr_cur_t *btr_pcur_t::get_btr_cur() const { return (&m_btr_cur); }

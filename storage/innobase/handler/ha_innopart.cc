@@ -933,7 +933,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
 
     no_tablespace = false;
 
-  } else if (ib_table->file_unreadable) {
+  } else if (ib_table->ibd_file_missing) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING, norm_name);
 
     /* This means we have no idea what happened to the tablespace
@@ -1098,7 +1098,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   stats.block_size = UNIV_PAGE_SIZE;
 
   /* Only if the table has an AUTOINC column. */
-  if (m_prebuilt->table != nullptr && !m_prebuilt->table->file_unreadable &&
+  if (m_prebuilt->table != nullptr && !m_prebuilt->table->ibd_file_missing &&
       table->found_next_number_field != nullptr) {
     int error;
 
@@ -3073,7 +3073,7 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
     if (dict_table_is_discarded(part_table)) {
       ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, norm_name);
       return HA_ERR_NO_SUCH_TABLE;
-    } else if (!part_table->is_readable()) {
+    } else if (part_table->ibd_file_missing) {
       return HA_ERR_TABLESPACE_MISSING;
     }
 
@@ -3167,7 +3167,7 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
     if (dict_table_is_discarded(part_table)) {
       ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, table_name);
       return HA_ERR_NO_SUCH_TABLE;
-    } else if (!part_table->is_readable()) {
+    } else if (part_table->ibd_file_missing) {
       return HA_ERR_TABLESPACE_MISSING;
     }
 

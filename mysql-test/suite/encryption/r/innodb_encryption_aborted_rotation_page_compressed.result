@@ -17,8 +17,8 @@ commit;
 set autocommit=1;
 include/assert.inc [Make sure encryption is disabled]
 include/assert.inc [Make sure t1 is unencrypted]
-# We want only first 100 pages to be rotated
-SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
+# We want only first 100(x=100 by default) pages to be rotated
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
 # Start rotation unnencrypted => encrypted (tables do not have crypt data stored in page 0)
 SET GLOBAL innodb_encryption_threads = 4;
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
@@ -28,7 +28,7 @@ SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 # Disable rotation threads
 SET GLOBAL innodb_encryption_threads = 0;
 # Disable rotation of only first 100 pages
-SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
 # Make sure that t1 still contains foobar - as it is only encrypted in half
 # unless originaly table was compressed or MK encrypted - then it does not
 # make sense to check the table as table will not contain plaintext
@@ -39,28 +39,28 @@ SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
 # Make sure t1 is encrypted
 # Now we try rotation encrypted => unencrypted
 # Enable rotation of only first 100 pages
-SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
 SET GLOBAL default_table_encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED;
 # Table t1 should have min_key_version = 1 assigned and ROTATING_OR_FLUSHING=1 <= this means that only 100 pages
 # have been rotatted.
 # Disable rotation threads
 SET GLOBAL innodb_encryption_threads = 0;
 # Disable rotation of only first 100 pages
-SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
 # Make sure that t1 contains foobar - as it is only decrypted in half
 # t1 is only half rotatted, now we will check if the decryption can be completed after the restart
 # restart:--default-table-encryption=ONLINE_FROM_KEYRING_TO_UNENCRYPTED --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4
 # Make sure that t1 contains foobar - as it is decrypted
 # Now we try rotation => unencrypted => encrypted (now tables have crypt data in page 0)
 # Enable rotation of only first 100 pages
-SET GLOBAL debug="+d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="+d,rotate_only_first_x_pages_from_t1";
 SET GLOBAL default_table_encryption=ONLINE_TO_KEYRING;
 # Table t1 should have min_key_version = 0 assigned and ROTATING_OR_FLUSHING=1 <= this means that only 100 pages
 # have been rotatted.
 # Disable rotation threads
 SET GLOBAL innodb_encryption_threads = 0;
 # Disable rotation of only first 100 pages
-SET GLOBAL debug="-d,rotate_only_first_100_pages_from_t1";
+SET GLOBAL debug="-d,rotate_only_first_x_pages_from_t1";
 # Make sure that t1 contains foobar - as it is only encrypted in half
 # t1 is only half rotatted, now we will check if the decryption can be completed after the restart
 # restart:--default-table-encryption=ONLINE_TO_KEYRING --innodb-encryption-rotate-key-age=15 --innodb-encryption-threads=4

@@ -17,11 +17,11 @@ let $comment="";
 --source rocksdb_concurrent_delete.inc
 
 let $order=ASC;
-let $comment="rev:cf2";
+let $comment="cfname=rev:cf2";
 --source rocksdb_concurrent_delete.inc
 
 let $order=DESC;
-let $comment="rev:cf2";
+let $comment="cfname=rev:cf2";
 --source rocksdb_concurrent_delete.inc
 
 let $index=PRIMARY;

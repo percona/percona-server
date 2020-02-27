@@ -1712,7 +1712,7 @@ static bool innobase_get_tablespace_statistics(
     const char *tablespace_name, const char *file_name,
     const dd::Properties &ts_se_private_data, ha_tablespace_statistics *stats);
 
-static bool innobase_is_tablespace_keyring_v1_encrypted(
+static bool innobase_is_tablespace_keyring_pre_v3_encrypted(
     const dd::Tablespace &tablespace, int &error);
 /** Retrieve the tablespace type.
 
@@ -3887,6 +3887,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       continue;
     }
 
+    bool is_enc_in_progress{false};
     const auto &p = dd_tablespace->se_private_data();
     const auto &o = dd_tablespace->options();
     const char *space_name = dd_tablespace->name().c_str();
@@ -3915,6 +3916,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     if (dd_state == DD_SPACE_STATE_DISCARDED) {
       ++m_n_skipped;
       continue;
+    }
+
+    if (p.exists(se_key_value[DD_SPACE_ONLINE_ENC_PROGRESS]) &&
+        p.get(se_key_value[DD_SPACE_ONLINE_ENC_PROGRESS],
+              &is_enc_in_progress)) {
+      ++m_n_errors;
+      break;
     }
 
     /* Get the spacename for this tablespace from the DD. */
@@ -4143,7 +4151,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     filename is already in filename charset. */
     bool validate = recv_needed_recovery && srv_force_recovery == 0;
     dberr_t err = fil_ibd_open(
-        validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
+        validate || is_enc_in_progress, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
         space_name, filename, false, false, keyring_encryption_info);
 
     switch (err) {
@@ -5725,8 +5733,8 @@ static int innodb_init(void *p) {
   innobase_hton->get_tablespace_type_by_name =
       innobase_get_tablespace_type_by_name;
 
-  innobase_hton->is_tablespace_keyring_v1_encrypted =
-      innobase_is_tablespace_keyring_v1_encrypted;
+  innobase_hton->is_tablespace_keyring_pre_v3_encrypted =
+      innobase_is_tablespace_keyring_pre_v3_encrypted;
 
   innobase_hton->is_dict_readonly = innobase_is_dict_readonly;
 
@@ -8062,25 +8070,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     return error;
   }
 
-  // if (space() == NULL) {
-  // int ret_err= HA_ERR_TABLE_CORRUPT;
-  // if (ib_table->keyring_encryption_info.keyring_encryption_key_is_missing ||
-  // ib_table->keyring_encryption_info.page0_has_crypt_data) {
-  /* Proper error message has been already printed by
-   * Datafile::validate_first_page, thus we do not print anything here */
-  // ret_err= HA_ERR_DECRYPTION_FAILED;
-  //} else {
-  // my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-  // dict_table_close(ib_table, FALSE, FALSE);
-  // ib_table = NULL;
-  // is_part = NULL;
-  // free_share(m_share);
-
-  // DBUG_RETURN(ret_err);
-  //}
-  //}
-  //}
-
   if (nullptr == ib_table) {
     ib::warn(ER_IB_MSG_557)
         << "Cannot open table " << norm_name << TROUBLESHOOTING_MSG;
@@ -8097,7 +8086,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   MONITOR_INC(MONITOR_TABLE_OPEN);
 
   bool no_tablespace;
-  bool encrypted = false;
 
   if (dict_table_is_discarded(ib_table)) {
     /* If the op is an IMPORT, open the space without this warning. */
@@ -8126,19 +8114,10 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   if (!thd_tablespace_op(thd) && no_tablespace) {
     free_share_and_nullify(&m_share);
     set_my_errno(ENOENT);
-    int ret_err = HA_ERR_TABLESPACE_MISSING;
-
-    /* If table has no talespace but it has crypt data, check
-    is tablespace made unaccessible because encryption service
-    or used key_id is not available. */
-    if (encrypted) {
-      ib::warn(ER_XB_MSG_4, table_share->table_name.str);
-      ret_err = HA_ERR_DECRYPTION_FAILED;
-    }
 
     dict_table_close(ib_table, false, false);
 
-    return ret_err;
+    return HA_ERR_TABLESPACE_MISSING;
   }
 
   m_prebuilt = row_create_prebuilt(ib_table, table->s->reclength);
@@ -8297,7 +8276,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   /* Only if the table has an AUTOINC column. */
   if (m_prebuilt->table != nullptr && !m_prebuilt->table->ibd_file_missing &&
-      table->found_next_number_field != nullptr) {
+      table->found_next_number_field != NULL) {
     dict_table_t *ib_table = m_prebuilt->table;
 
     dict_table_autoinc_lock(ib_table);
@@ -16388,7 +16367,7 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
     return HA_ERR_NO_SUCH_TABLE;
   } else if (innodb_table->ibd_file_missing) {
     return innodb_table->keyring_encryption_info.page0_has_crypt_data == true
-               ? HA_ERR_DECRYPTION_FAILED
+               ? HA_ERR_ENCRYPTION_KEY_MISSING
                : HA_ERR_TABLESPACE_MISSING;
   }
 
@@ -18978,7 +18957,7 @@ static bool innobase_get_index_column_cardinality(
   return (failure);
 }
 
-static bool innobase_is_tablespace_keyring_v1_encrypted(
+static bool innobase_is_tablespace_keyring_pre_v3_encrypted(
     const dd::Tablespace &tablespace, int &error) {
   error = 0;
   space_id_t id = 0;
@@ -18998,13 +18977,14 @@ static bool innobase_is_tablespace_keyring_v1_encrypted(
   // If page0 was read and it has crypt - we can check if it is encrypted here
   // if crypt_data is null it means that page0 may not have yet been read - we
   // will read it in fil_space_open_if_needed and recheck if crypt_data is null
-  if (space->crypt_data != nullptr) return is_space_keyring_v1_encrypted(space);
+  if (space->crypt_data != nullptr)
+    return is_space_keyring_pre_v3_encrypted(space);
 
   fil_space_open_if_needed(space);
 
   // We do not need to care about mutexes as this function is only called during
   // the upgrade
-  return is_space_keyring_v1_encrypted(space);
+  return is_space_keyring_pre_v3_encrypted(space);
 }
 
 static bool innobase_get_tablespace_type(const dd::Tablespace &space,
@@ -19399,8 +19379,7 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
     return HA_ADMIN_CORRUPT;
 
-  } else if (m_prebuilt->table->ibd_file_missing &&
-             fil_space_get(m_prebuilt->table->space) == NULL) {
+  } else if (m_prebuilt->table->ibd_file_missing) {
     ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_MISSING,
                 table->s->table_name.str);
 
@@ -21047,13 +21026,7 @@ void ha_innobase::get_auto_increment(
 bool ha_innobase::get_error_message(int error, String *buf) {
   trx_t *trx = check_trx_exists(ha_thd());
 
-  if (error == HA_ERR_DECRYPTION_FAILED) {
-    const char *msg =
-        "Table encrypted but decryption failed. Seems that the encryption key "
-        "fetched from keyring is "
-        "not the correct one. Are you using the correct keyring?";
-    buf->copy(msg, (uint)strlen(msg), system_charset_info);
-  } else if (error == HA_ERR_ENCRYPTION_KEY_MISSING) {
+  if (error == HA_ERR_ENCRYPTION_KEY_MISSING) {
     const char *msg =
         "Table encrypted but decryption key was not found. "
         "Is correct keyring loaded?";

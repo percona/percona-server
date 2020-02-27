@@ -749,17 +749,32 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
   }
 
   if (crypt_data != nullptr) {
-    // for version 1 and encrypted table we will fail the upgrade.
-    if (crypt_data->private_version == 2 && !crypt_data->key_found) {
-      ut_ad(m_filename != nullptr);
-      ib::warn(ER_XB_MSG_5, space_id, m_filename, crypt_data->key_id);
+    if (crypt_data->type != CRYPT_SCHEME_UNENCRYPTED && !for_import &&
+        crypt_data->private_version == 3) {
+      // for versions 1,2 and encrypted table we will fail the upgrade.
+      Validation_key_verions_result valid_result{
+          crypt_data->key_found
+              ? crypt_data->validate_encryption_key_versions()
+              : Validation_key_verions_result::MISSING_KEY_VERSIONS};
+      if (!crypt_data->key_found ||
+          valid_result != Validation_key_verions_result::SUCCESS) {
+        ut_ad(m_filename != nullptr);
+        uint error =
+            !crypt_data->key_found
+                ? ER_XB_MSG_5
+                : (valid_result ==
+                           Validation_key_verions_result::MISSING_KEY_VERSIONS
+                       ? ER_TABLESPACE_ENCRYPTION_MISSING_KEY_VERSIONS
+                       : ER_TABLESPACE_ENCRYPTION_CORRUPTED_KEYS);
 
-      m_is_valid = false;
-      free_first_page();
-      fil_space_destroy_crypt_data(&crypt_data);
-      output.keyring_encryption_info.keyring_encryption_key_is_missing = true;
-      output.error = DB_INVALID_ENCRYPTION_META;
-      return output;
+        ib::warn(error, space_id, m_filename, crypt_data->key_id);
+        m_is_valid = false;
+        free_first_page();
+        fil_space_destroy_crypt_data(&crypt_data);
+        output.keyring_encryption_info.keyring_encryption_key_is_missing = true;
+        output.error = DB_INVALID_ENCRYPTION_META;
+        return output;
+      }
     }
     fil_space_destroy_crypt_data(&crypt_data);
   }
@@ -769,10 +784,6 @@ Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
   m_encryption_op_in_progress =
       fsp_header_encryption_op_type_in_progress(m_first_page, page_size);
 #endif /* UNIV_HOTBACKUP */
-
-  if (crypt_data != NULL) {
-    fil_space_destroy_crypt_data(&crypt_data);
-  }
 
   if (fil_space_read_name_and_filepath(m_space_id, &prev_name,
                                        &prev_filepath)) {

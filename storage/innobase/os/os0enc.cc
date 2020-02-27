@@ -201,6 +201,7 @@ constexpr char Encryption::KEY_MAGIC_RK_V1[];
 constexpr char Encryption::KEY_MAGIC_RK_V2[];
 constexpr char Encryption::KEY_MAGIC_PS_V1[];
 constexpr char Encryption::KEY_MAGIC_PS_V2[];
+constexpr char Encryption::KEY_MAGIC_PS_V3[];
 
 constexpr char Encryption::MASTER_KEY_PREFIX[];
 constexpr char Encryption::DEFAULT_MASTER_KEY[];
@@ -228,7 +229,8 @@ Encryption::Encryption(const Encryption &other) noexcept
       m_key_version(other.m_key_version),
       m_key_id(other.m_key_id),
       m_checksum(other.m_checksum),
-      m_encryption_rotation(other.m_encryption_rotation) {
+      m_encryption_rotation(other.m_encryption_rotation),
+      m_key_versions_cache(other.m_key_versions_cache) {
   memcpy(m_key_id_uuid, other.m_key_id_uuid, SERVER_UUID_LEN + 1);
 }
 
@@ -238,6 +240,11 @@ Encryption::~Encryption() {
 void Encryption::set_key(const byte *key, ulint key_len) noexcept {
   m_key = key;
   m_klen = key_len;
+}
+
+void Encryption::set_key_versions_cache(
+    std::map<uint, byte *> *key_versions_cache) noexcept {
+  m_key_versions_cache = key_versions_cache;
 }
 
 /** Tablespaces whose key needs to be reencrypted */
@@ -381,8 +388,9 @@ bool Encryption::get_tablespace_key(uint key_id, const char *uuid,
   get_keyring_key(key_name, tablespace_key, key_len);
 
   if (*tablespace_key == nullptr) {
-    ib::error() << "Encryption can't find tablespace key, please check"
-                   " the keyring plugin is loaded.";
+    ib::error() << "Encryption can't find tablespace key_id = " << key_id
+                << ", please check"
+                << " the keyring plugin is loaded.";
     result = false;
   }
 
@@ -1300,7 +1308,6 @@ bool Encryption::encrypt_low(const IORequest &type, byte *src, ulint src_len,
       } else {
         data_len = src_enc_len - FIL_PAGE_DATA;
       }
-
       /* Server encryption functions expect input data to be in multiples
       of MY_AES_BLOCK SIZE. Therefore we encrypt the overlapping data of
       the chunk_len and trailer_len twice. First we encrypt the bigger
@@ -1389,7 +1396,8 @@ bool Encryption::encrypt_low(const IORequest &type, byte *src, ulint src_len,
   }
 
   if (m_type == KEYRING) {
-    /* handle post encryption checksum */
+    /* assign key version to page and for master key to keyring rotation
+     * assign post encryption checksum */
     m_checksum = 0;
 
     ut_ad(*dst_len == src_len);
@@ -1403,22 +1411,24 @@ bool Encryption::encrypt_low(const IORequest &type, byte *src, ulint src_len,
                                        // the checksum
     }
 
-    if (type.is_page_zip_compressed())
-      memcpy(dst + FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC,
-             ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC,
-             ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN);
+#ifndef UNIV_INNOCHECKSUM
+    if (m_encryption_rotation == Encryption_rotation::MASTER_KEY_TO_KEYRING) {
+      if (type.is_page_zip_compressed())
+        memcpy(dst + FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC,
+               ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC,
+               ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN);
 
-#ifndef UNIV_INNOCHECKSUM  // TODO: Robert - this might need to be included in
-                           // innodbchecksum
-    uint page_size = *dst_len;
-    if (page_type == FIL_PAGE_COMPRESSED) {
-      page_size = static_cast<uint16_t>(
-          mach_read_from_2(dst + FIL_PAGE_COMPRESS_SIZE_V1));
-    } else if (type.is_page_zip_compressed()) {
-      page_size = type.get_zip_page_physical_size();
+      uint page_size = *dst_len;
+      if (page_type == FIL_PAGE_COMPRESSED) {
+        page_size = static_cast<uint16_t>(
+            mach_read_from_2(dst + FIL_PAGE_COMPRESS_SIZE_V1));
+      } else if (type.is_page_zip_compressed()) {
+        page_size = type.get_zip_page_physical_size();
+      }
+      m_checksum = fil_crypt_calculate_checksum(page_size, dst,
+                                                type.is_page_zip_compressed());
+      ut_ad(m_checksum != 0);
     }
-    m_checksum = fil_crypt_calculate_checksum(page_size, dst,
-                                              type.is_page_zip_compressed());
 #endif
     ut_ad(m_key_version != 0);  // Since we are encrypting key_version cannot be
                                 // 0 (i.e. page unencrypted)
@@ -1426,18 +1436,13 @@ bool Encryption::encrypt_low(const IORequest &type, byte *src, ulint src_len,
     mach_write_to_4(src + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
 
     if (page_type == FIL_PAGE_COMPRESSED) {
-      mach_write_to_4(dst + FIL_PAGE_DATA, m_checksum);
+      if (m_checksum != 0) mach_write_to_4(dst + FIL_PAGE_DATA, m_checksum);
     } else if (!type.is_page_zip_compressed()) {
       mach_write_to_4(dst + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
-      ut_ad(m_checksum != 0);
-      mach_write_to_4(dst + *dst_len - 4, m_checksum);
+      if (m_checksum != 0) mach_write_to_4(dst + *dst_len - 4, m_checksum);
     } else if (type.is_page_zip_compressed()) {
       mach_write_to_4(dst + FIL_PAGE_ENCRYPTION_KEY_VERSION, m_key_version);
       ut_ad(m_key_version != 0);
-      uint32 innodb_checksum = mach_read_from_4(dst + FIL_PAGE_SPACE_OR_CHKSUM);
-      uint32 xor_checksum = innodb_checksum ^ m_checksum;
-      mach_write_to_4(dst + FIL_PAGE_SPACE_OR_CHKSUM, xor_checksum);
-      ut_ad(m_checksum != 0);
     }
 #ifdef UNIV_ENCRYPT_DEBUG
     ut_ad(type.is_page_zip_compressed() ||
@@ -1666,15 +1671,6 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
     return DB_SUCCESS;
   }
 
-  if (m_type == KEYRING && type.is_page_zip_compressed()) {
-    uint32 post_enc_checksum = fil_crypt_calculate_checksum(
-        type.get_zip_page_physical_size(), src, type.is_page_zip_compressed());
-    uint32 xor_checksum = mach_read_from_4(src + FIL_PAGE_SPACE_OR_CHKSUM);
-    ut_ad(xor_checksum != 0);
-    uint32 innodb_checksum = xor_checksum ^ post_enc_checksum;
-    mach_write_to_4(src + FIL_PAGE_SPACE_OR_CHKSUM, innodb_checksum);
-  }
-
   /* For compressed page, we need to get the compressed size
   for decryption */
   const ulint page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
@@ -1702,7 +1698,6 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
   const page_id_t page_id(
       mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
       mach_read_from_4(src + FIL_PAGE_OFFSET));
-  auto page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
 
   {
     std::ostringstream msg;
@@ -1955,6 +1950,10 @@ bool Encryption::check_keyring() noexcept {
 Encryption::Type Encryption::get_type() const { return m_type; }
 
 void Encryption::set_type(Encryption::Type type) { m_type = type; }
+
+std::map<uint, byte *> *Encryption::get_key_versions_cache() const {
+  return m_key_versions_cache;
+}
 
 void Encryption::set_key(const byte *key) { m_key = key; }
 

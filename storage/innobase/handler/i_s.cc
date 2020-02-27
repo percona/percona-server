@@ -7550,35 +7550,42 @@ static ST_FIELD_INFO innodb_tablespaces_encryption_fields_info[] = {
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_CURRENT_KEY_VERSION 6
+#define TABLESPACES_ENCRYPTION_MAX_KEY_VERSION 6
+    {STRUCT_FLD(field_name, "MAX_KEY_VERSION"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define TABLESPACES_ENCRYPTION_CURRENT_KEY_VERSION 7
     {STRUCT_FLD(field_name, "CURRENT_KEY_VERSION"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_KEY_ROTATION_PAGE_NUMBER 7
+#define TABLESPACES_ENCRYPTION_KEY_ROTATION_PAGE_NUMBER 8
     {STRUCT_FLD(field_name, "KEY_ROTATION_PAGE_NUMBER"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
      STRUCT_FLD(old_name, ""), STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_KEY_ROTATION_MAX_PAGE_NUMBER 8
+#define TABLESPACES_ENCRYPTION_KEY_ROTATION_MAX_PAGE_NUMBER 9
     {STRUCT_FLD(field_name, "KEY_ROTATION_MAX_PAGE_NUMBER"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
      STRUCT_FLD(old_name, ""), STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_CURRENT_KEY_ID 9
+#define TABLESPACES_ENCRYPTION_CURRENT_KEY_ID 10
     {STRUCT_FLD(field_name, "CURRENT_KEY_ID"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define TABLESPACES_ENCRYPTION_ROTATING_OR_FLUSHING 10
+#define TABLESPACES_ENCRYPTION_ROTATING_OR_FLUSHING 11
     {STRUCT_FLD(field_name, "ROTATING_OR_FLUSHING"),
      STRUCT_FLD(field_length, 1), STRUCT_FLD(field_type, MYSQL_TYPE_LONG),
      STRUCT_FLD(value, 0), STRUCT_FLD(field_flags, MY_I_S_UNSIGNED),
@@ -7624,6 +7631,8 @@ static int i_s_dict_fill_tablespaces_encryption(THD *thd, fil_space_t *space,
       status.keyserver_requests, true));
   OK(fields[TABLESPACES_ENCRYPTION_MIN_KEY_VERSION]->store(
       status.min_key_version, true));
+  OK(fields[TABLESPACES_ENCRYPTION_MAX_KEY_VERSION]->store(
+      status.max_key_version, true));
   OK(fields[TABLESPACES_ENCRYPTION_CURRENT_KEY_VERSION]->store(
       status.current_key_version, true));
   OK(fields[TABLESPACES_ENCRYPTION_CURRENT_KEY_ID]->store(status.key_id, true));

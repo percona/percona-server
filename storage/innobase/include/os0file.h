@@ -552,8 +552,10 @@ class IORequest {
   @param[in] iv         The encryption iv to use */
   void encryption_key(const byte *key, ulint key_len, const byte *iv,
                       uint key_version, uint key_id, byte *tablespace_key,
-                      const char *uuid) {
+                      const char *uuid,
+                      std::map<uint, byte *> *key_versions_cache) {
     m_encryption.set_key(key, key_len);
+    m_encryption.set_key_versions_cache(key_versions_cache);
     m_encryption.set_initial_vector(iv);
     m_encryption.set_key_version(key_version);
     m_encryption.set_key_id(key_id);
@@ -590,6 +592,7 @@ class IORequest {
   void clear_encrypted() {
     m_encryption.set_key(nullptr, 0);
     m_encryption.set_initial_vector(nullptr);
+    m_encryption.set_key_versions_cache(nullptr);
     m_encryption.set_type(Encryption::NONE);
     m_encryption.set_encryption_rotation(Encryption_rotation::NO_ROTATION);
     m_encryption.set_key_id(0);

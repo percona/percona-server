@@ -884,9 +884,9 @@ class PageConverter : public AbstractCallback {
  private:
   /** Status returned by PageConverter::validate() */
   enum import_page_status_t {
-    IMPORT_PAGE_STATUS_OK,               /*!< Page is OK */
-    IMPORT_PAGE_STATUS_ALL_ZERO,         /*!< Page is all zeros */
-    IMPORT_PAGE_STATUS_CORRUPTED,        /*!< Page is corrupted */
+    IMPORT_PAGE_STATUS_OK,       /*!< Page is OK */
+    IMPORT_PAGE_STATUS_ALL_ZERO, /*!< Page is all zeros */
+    IMPORT_PAGE_STATUS_CORRUPTED /*!< Page is corrupted */
   };
 
   /** Update the page, set the space id, max trx id and index id.

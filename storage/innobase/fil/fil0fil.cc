@@ -6291,6 +6291,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   space = fil_space_create(space_name, space_id, flags, purpose, crypt_data);
 
   if (space == nullptr) {
+    if (crypt_data != nullptr) fil_space_destroy_crypt_data(&crypt_data);
     return DB_ERROR;
   }
 
@@ -6645,7 +6646,7 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
   fil_space_crypt_t *crypt_data =
       first_page
           ? fil_space_read_crypt_data(page_size_t(df.flags()), first_page)
-          : NULL;
+          : nullptr;
 
   fil_system->mutex_acquire_all();
 
@@ -8897,7 +8898,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
           encrypted_with_keyring ? iter.m_crypt_data->iv : iter.m_encryption_iv,
           0, iter.m_encryption_key_id,
           encrypted_with_keyring ? iter.m_crypt_data->tablespace_key : nullptr,
-          encrypted_with_keyring ? iter.m_crypt_data->uuid : nullptr);
+          encrypted_with_keyring ? iter.m_crypt_data->uuid : nullptr, nullptr);
 
       read_request.encryption_algorithm(Encryption::AES);
       if (iter.m_crypt_data) {
@@ -8951,13 +8952,14 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
       write_request.encryption_key(
           iter.m_encryption_key, Encryption::KEY_LEN, iter.m_encryption_iv,
           iter.m_encryption_key_version, iter.m_encryption_key_id, nullptr,
-          nullptr);
+          nullptr, nullptr);
       write_request.encryption_algorithm(Encryption::AES);
     } else if (offset != 0 && iter.m_crypt_data) {
       write_request.encryption_key(
           iter.m_encryption_key, Encryption::KEY_LEN, iter.m_encryption_iv,
           iter.m_encryption_key_version, iter.m_crypt_data->key_id, nullptr,
-          iter.m_crypt_data->uuid);
+          iter.m_crypt_data->uuid, nullptr);
+
       write_request.encryption_algorithm(Encryption::KEYRING);
 
       if (callback.get_page_size().is_compressed()) {
@@ -9613,6 +9615,7 @@ bool Fil_shard::needs_encryption_rotate(fil_space_t *space) {
       "ib_encryption_rotate_skip",
       ib::info(ER_IB_MSG_INJECT_FAILURE, "ib_encryption_rotate_skip");
       return false;);
+
   return true;
 }
 
@@ -12433,20 +12436,6 @@ void fil_space_set_corrupt(space_id_t space_id) {
   auto *const space = shard->get_space_by_id(space_id);
 
   if (space) space->is_corrupt = true;
-
-  shard->mutex_release();
-}
-
-/** Mark space as encrypted
-@param space_id space id */
-void fil_space_set_encrypted(space_id_t space_id) {
-  auto *const shard = fil_system->shard_by_id(space_id);
-
-  shard->mutex_acquire();
-
-  auto *const space = shard->get_space_by_id(space_id);
-
-  if (space) space->is_space_encrypted = true;
 
   shard->mutex_release();
 }

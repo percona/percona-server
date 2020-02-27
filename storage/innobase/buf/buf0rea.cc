@@ -560,12 +560,11 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
                                  cur_page_id, page_size, false, trx, true);
 
       if (err == DB_TABLESPACE_DELETED) {
-        ib::warn(ER_IB_MSG_140) << "Random readahead trying to"
+        ib::warn(ER_IB_MSG_142) << "linear readahead trying to"
                                    " access page "
-                                << cur_page_id
-                                << " in nonexisting or"
-                                   " being-dropped tablespace";
-        break;
+                                << page_id_t(page_id.space(), i)
+                                << " in nonexisting or being-dropped"
+                                   " tablespace";
       }
     }
   }

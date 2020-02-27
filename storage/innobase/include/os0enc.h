@@ -132,6 +132,8 @@ class Encryption {
 
   static constexpr char KEY_MAGIC_PS_V2[] = "PSB";
 
+  static constexpr char KEY_MAGIC_PS_V3[] = "PSC";
+
   /** Encryption master key prifix */
   static constexpr char MASTER_KEY_PREFIX[] = "INNODBKey";
 
@@ -143,6 +145,8 @@ class Encryption {
 
   /** Encryption magic bytes size */
   static constexpr size_t MAGIC_SIZE = 3;
+
+  static constexpr size_t SERVER_UUID_HEX_LEN = 16;
 
   /** Encryption master key prifix size */
   static constexpr size_t MASTER_KEY_PRIFIX_LEN = 9;
@@ -203,7 +207,8 @@ class Encryption {
         m_key_version(0),
         m_key_id(0),
         m_checksum(0),
-        m_encryption_rotation(Encryption_rotation::NO_ROTATION) {
+        m_encryption_rotation(Encryption_rotation::NO_ROTATION),
+        m_key_versions_cache(nullptr) {
     m_key_id_uuid[0] = '\0';
   }
 
@@ -252,11 +257,15 @@ class Encryption {
     std::swap(m_checksum, other.m_checksum);
     std::swap(m_encryption_rotation, other.m_encryption_rotation);
     std::swap(m_key_id_uuid, other.m_key_id_uuid);
+    std::swap(m_key_versions_cache, other.m_key_versions_cache);
   }
 
   ~Encryption();
 
   void set_key(const byte *key, ulint key_len) noexcept;
+
+  void set_key_versions_cache(
+      std::map<uint, byte *> *key_versions_cache) noexcept;
 
   /** Check if page is encrypted page or not
   @param[in]  page  page which need to check
@@ -544,6 +553,8 @@ class Encryption {
   @param[in]  type  encryption type **/
   void set_type(Type type);
 
+  std::map<uint, byte *> *get_key_versions_cache() const;
+
   /** Set encryption key
   @param[in]  key  encryption key **/
   void set_key(const byte *key);
@@ -644,6 +655,8 @@ class Encryption {
   uint32 m_checksum;
 
   Encryption_rotation m_encryption_rotation;
+
+  std::map<uint, byte *> *m_key_versions_cache;
 
   /** Current master key id */
   static uint32_t s_master_key_id;

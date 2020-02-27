@@ -4434,7 +4434,6 @@ void dict_table_set_corrupt_by_space(space_id_t space_id,
   while (table) {
     if (table->space == space_id) {
       table->is_corrupt = true;
-      table->ibd_file_missing = true;
       found = true;
     }
 

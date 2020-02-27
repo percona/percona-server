@@ -1695,51 +1695,47 @@ void os_file_read_string(FILE *file, char *str, ulint size) {
   }
 }
 
-static dberr_t verify_post_encryption_checksum(const IORequest &type,
-                                               Encryption &encryption,
-                                               byte *buf, ulint src_len) {
+/** In case we resume Master Key to Keyring re-encryption we need a way of
+telling which pages were already re-encrypted. For Keyring encrypted page during
+MK => Keyring re-encryption we calculate a checksum. In case this checksum
+matches it means that the page is Keyring encrypted, it not it means page is MK
+encrypted.
+@param[in] type IO context
+@param[in,out] encryption information. Gets m_type set to appropriate encryption
+               either Encryption::KEYRING or ENCRYPTION::AES
+@param[in] page - for which we are determining the encryption
+@param[in] page_size size of the page */
+static void verify_encryption_for_rotation(const IORequest &type,
+                                           Encryption &encryption, byte *page,
+                                           ulint page_size) {
+  ut_ad(encryption.get_type() == Encryption::KEYRING &&
+        encryption.get_encryption_rotation() ==
+            Encryption_rotation::MASTER_KEY_TO_KEYRING);
+
   bool is_crypt_checksum_correct =
       false;  // For MK encryption is_crypt_checksum_correct stays false
   ulint original_type =
-      static_cast<uint16_t>(mach_read_from_2(buf + FIL_PAGE_ORIGINAL_TYPE_V1));
+      static_cast<uint16_t>(mach_read_from_2(page + FIL_PAGE_ORIGINAL_TYPE_V1));
 
-  if (encryption.get_type() == Encryption::KEYRING &&
-      Encryption::can_page_be_keyring_encrypted(original_type)) {
+  if (Encryption::can_page_be_keyring_encrypted(original_type)) {
     if (type.is_page_zip_compressed()) {
       byte zip_magic[Encryption::ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN];
-      memcpy(zip_magic, buf + FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC,
+      memcpy(zip_magic, page + FIL_PAGE_ZIP_KEYRING_ENCRYPTION_MAGIC,
              Encryption::ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN);
       is_crypt_checksum_correct =
           memcmp(zip_magic, Encryption::ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC,
                  Encryption::ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN) == 0;
     } else {
       is_crypt_checksum_correct = fil_space_verify_crypt_checksum(
-          buf, src_len, type.is_page_zip_compressed(),
-          encryption.is_encrypted_and_compressed(buf));
+          page, page_size, type.is_page_zip_compressed(),
+          encryption.is_encrypted_and_compressed(page));
     }
 
-    if (encryption.get_encryption_rotation() ==
-            Encryption_rotation::NO_ROTATION &&
-        !is_crypt_checksum_correct) {  // There is no re-encryption going on
-      const auto space_id =
-          mach_read_from_4(buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-      const auto page_no = mach_read_from_4(buf + FIL_PAGE_OFFSET);
-      ib::error() << "Post - encryption checksum verification failed - "
-                     "decryption failed for space id = "
-                  << space_id << " page_no = " << page_no;
-      return (DB_IO_DECRYPT_FAIL);
-    }
-  }
-
-  if (encryption.get_encryption_rotation() ==
-      Encryption_rotation::MASTER_KEY_TO_KEYRING) {  // There is re-encryption
-                                                     // going on
     encryption.set_type(
         is_crypt_checksum_correct
             ? Encryption::KEYRING  // assume page is RK encrypted
             : Encryption::AES);    // assume page is MK encrypted
   }
-  return DB_SUCCESS;
 }
 
 static void assing_key_version(byte *buf, Encryption &encryption,
@@ -1771,22 +1767,13 @@ static bool load_key_needed_for_decryption(const IORequest &type,
     ut_ad(key_version_read_from_page != ENCRYPTION_KEY_VERSION_INVALID);
     ut_ad(key_version_read_from_page != ENCRYPTION_KEY_VERSION_NOT_ENCRYPTED);
 
-    // in rare cases - when (re-)encryption was aborted there can be pages
-    // encrypted with different key versions in a given tablespace - retrieve
-    // needed key here
+    ut_ad(encryption.get_key_versions_cache() != nullptr);
 
-    byte *key_read;
-
-    size_t key_len;
-    if (Encryption::get_tablespace_key(
-            encryption.get_key_id(), encryption.get_key_id_uuid(),
-            key_version_read_from_page, &key_read, &key_len) == false) {
-      return false;
+    if (encryption.get_key_version() != key_version_read_from_page) {
+      encryption.set_key(
+          (*encryption.get_key_versions_cache())[key_version_read_from_page],
+          Encryption::KEY_LEN);
     }
-
-    // TODO: Allocated or not depends on whether key was taken from cache or
-    // keyring
-    encryption.set_key(key_read, static_cast<ulint>(key_len));
     encryption.set_key_version(key_version_read_from_page);
   } else {
     ut_ad(encryption.get_type() == Encryption::AES);
@@ -1841,9 +1828,18 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
                                  : encryption.is_encrypted_page(buf);
 
     if (is_page_encrypted && encryption.get_type() != Encryption::NONE) {
-      dberr_t err =
-          verify_post_encryption_checksum(type, encryption, buf, src_len);
-      if (err != DB_SUCCESS) return err;
+      // for Master Key to Keyring re-encryption we do not have yet information
+      // whether the page we are going to decrypt is Master Key or Keyring
+      // encrypted. We differentiate it by looking at checksum generated for
+      // keyring encrypted pages. If the checksum is correct - it means the page
+      // was already encrypted with keyring encryption (important when we are
+      // resuming the re-encryption, which was previously stopped by shutdown or
+      // a crash).
+      if (encryption.get_type() == Encryption::KEYRING &&
+          encryption.get_encryption_rotation() ==
+              Encryption_rotation::MASTER_KEY_TO_KEYRING) {
+        verify_encryption_for_rotation(type, encryption, buf, src_len);
+      }
 
       if (!load_key_needed_for_decryption(type, encryption, buf))
         return DB_IO_DECRYPT_FAIL;
@@ -1890,20 +1886,6 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
 
     return (os_file_punch_hole(fh, offset, src_len - len));
   }
-
-#ifdef UNIV_DEBUG
-  if (type.is_write() &&
-      type.encryption_algorithm().get_type() == Encryption::KEYRING) {
-    Encryption encryption(type.encryption_algorithm());
-    bool was_page_encrypted = encryption.is_encrypted_page(buf);
-
-    // TODO:Robert czy bez type.is_page_zip_compressed to działa - powinno
-    ut_ad(!was_page_encrypted ||  //! type.is_page_zip_compressed() ||
-          fil_space_verify_crypt_checksum(
-              buf, src_len, type.is_page_zip_compressed(),
-              encryption.is_encrypted_and_compressed(buf)));
-  }
-#endif
 
   ut_ad(!type.is_log());
 

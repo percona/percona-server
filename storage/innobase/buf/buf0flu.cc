@@ -2569,6 +2569,9 @@ ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   }
 }
 
+/// TODO MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_AVG_TIME_EST, flush_tm /
+/// flush_pass);
+
 /** Set page flush target based on LSN change and checkpoint age.
 @param[in]  sync_flush            true iff this is sync flush mode
 @param[in]  sync_flush_limit_lsn  low limit for oldest_modification
@@ -3420,9 +3423,9 @@ static void buf_flush_page_coordinator_thread() {
       n_flushed = n_flushed_list;
 
       if (is_sync_flush) {
-        MONITOR_INC_VALUE_CUMULATIVE(
-            MONITOR_FLUSH_SYNC_TOTAL_PAGE, MONITOR_FLUSH_SYNC_COUNT,
-            MONITOR_FLUSH_SYNC_PAGES, n_flushed_list);
+        MONITOR_INC_VALUE_CUMULATIVE(MONITOR_FLUSH_SYNC_TOTAL_PAGE,
+                                     MONITOR_FLUSH_SYNC_COUNT,
+                                     MONITOR_FLUSH_SYNC_PAGES, n_flushed_list);
       } else {
         if (n_flushed_list) {
           MONITOR_INC_VALUE_CUMULATIVE(

@@ -106,28 +106,28 @@ class Rdb_tbl_card_coll {
 
 class Rdb_tbl_prop_coll : public rocksdb::TablePropertiesCollector {
  public:
- Rdb_tbl_prop_coll(Rdb_ddl_manager *const ddl_manager,
-                   const Rdb_compact_params &params, const uint32_t cf_id,
-                   const uint8_t table_stats_sampling_pct);
+  Rdb_tbl_prop_coll(Rdb_ddl_manager *const ddl_manager,
+                    const Rdb_compact_params &params, const uint32_t cf_id,
+                    const uint8_t table_stats_sampling_pct);
 
- /*
-   Override parent class's virtual methods of interest.
- */
+  /*
+    Override parent class's virtual methods of interest.
+  */
 
- virtual rocksdb::Status AddUserKey(const rocksdb::Slice &key,
-                                    const rocksdb::Slice &value,
-                                    rocksdb::EntryType type,
-                                    rocksdb::SequenceNumber seq,
-                                    uint64_t file_size) override;
+  virtual rocksdb::Status AddUserKey(const rocksdb::Slice &key,
+                                     const rocksdb::Slice &value,
+                                     rocksdb::EntryType type,
+                                     rocksdb::SequenceNumber seq,
+                                     uint64_t file_size) override;
 
- virtual rocksdb::Status
- Finish(rocksdb::UserCollectedProperties *properties) override;
+  virtual rocksdb::Status
+  Finish(rocksdb::UserCollectedProperties *properties) override;
 
- virtual const char *Name() const override { return "Rdb_tbl_prop_coll"; }
+  virtual const char *Name() const override { return "Rdb_tbl_prop_coll"; }
 
- rocksdb::UserCollectedProperties GetReadableProperties() const override;
+  rocksdb::UserCollectedProperties GetReadableProperties() const override;
 
- bool NeedCompact() const override;
+  bool NeedCompact() const override;
 
  public:
   uint64_t GetMaxDeletedRows() const { return m_max_deleted_rows; }

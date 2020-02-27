@@ -63,7 +63,7 @@ class Rdb_thread {
 
   virtual void run(void) = 0;
 
-  void signal(const bool &stop_thread = false);
+  void signal(const bool stop_thread = false);
 
   int join() { return my_thread_join(&m_handle, nullptr); }
 

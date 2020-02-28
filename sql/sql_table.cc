@@ -16428,6 +16428,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   DBUG_TRACE;
 
   /*
+   This change is necessary for MyRocks at
+   https://github.com/facebook/mysql-5.6/commit/1046d4f7074
+
+   Populate the actual user table name which is getting altered.
+   This flag will be used to put some additional constraints on user tables.*/
+  if (!dd::get_dictionary()->is_system_table_name(table_list->db,
+                                                  table_list->table_name)) {
+    create_info->actual_user_table_name = table_list->table_name;
+  }
+  /*
     Check if we attempt to alter mysql.slow_log or
     mysql.general_log table and return an error if
     it is the case.

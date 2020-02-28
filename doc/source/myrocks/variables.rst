@@ -100,6 +100,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_cache_dump`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_cache_index_and_filter_blocks`
      - Yes
      - No
@@ -816,6 +820,18 @@ as they are being written, asynchronously, in the background.
 This operation can be used to smooth out write I/O over time.
 Default value is ``0`` meaning that files are never synced.
 Allowed range is up to ``18446744073709551615``.
+
+.. variable:: rocksdb_cache_dump
+
+  :version 5.7.30-33: Implemented
+  :cli: ``-rocksdb-cache-dump``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+Includes RocksDB block cache content in core dump. This variable is
+enabled by default.
 
 .. variable:: rocksdb_cache_index_and_filter_blocks
 

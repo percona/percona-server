@@ -1,18 +1,12 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
+--source include/master-slave.inc
 
-source include/master-slave.inc;
-
-
-connection master;
---disable_warnings
-drop table if exists t1;
---enable_warnings
 
 # initialization/insert
-connection master;
+--source include/rpl_connection_master.inc
 --source suite/rocksdb/include/init_stats_procedure.inc
 
-create table t1 (id int primary key, value int);
+create table t1 (id int primary key, value int) Engine=RocksDB;
 insert into t1 values (1,1), (2,2), (3,3), (4,4);
 --source include/sync_slave_sql_with_master.inc
 
@@ -21,14 +15,14 @@ insert into t1 values (1,1), (2,2), (3,3), (4,4);
 --echo
 --echo # regular update/delete. With rocks_read_free_rpl_tables=.*, rocksdb_rows_read does not increase on slaves
 --echo
-connection slave;
+--source include/rpl_connection_slave.inc
 call save_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 update t1 set value=value+1 where id=1;
 delete from t1 where id=4;
 select * from t1;
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call get_read_stats();
 select * from t1;
 
@@ -36,18 +30,18 @@ select * from t1;
 --echo
 --echo # "rocks_read_free_rpl_tables=.*" makes "row not found error" not happen anymore
 --echo
-connection slave;
+--source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 delete from t1 where id in (2, 3);
 --source include/start_slave.inc
 call save_read_stats();
 
-connection master;
+--source include/rpl_connection_master.inc
 update t1 set value=value+1 where id=3;
 delete from t1 where id=2;
 select * from t1;
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call get_read_stats();
 select * from t1;
 
@@ -58,36 +52,36 @@ select * from t1;
 --echo
 --echo #no index
 --echo
-connection master;
+--source include/rpl_connection_master.inc
 drop table t1;
-create table t1 (c1 int, c2 int);
+create table t1 (c1 int, c2 int) Engine=RocksDB;
 insert into t1 values (1,1), (2,2),(3,3),(4,4),(5,5);
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call save_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 update t1 set c2=100 where c1=3;
 delete from t1 where c1 <= 2;
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call get_read_stats();
 select * from t1;
 
 --echo
 --echo #secondary index only
 --echo
-connection master;
+--source include/rpl_connection_master.inc
 drop table t1;
-create table t1 (c1 int, c2 int, index i(c1));
+create table t1 (c1 int, c2 int, index i(c1)) Engine=RocksDB;
 insert into t1 values (1,1), (2,2),(3,3),(4,4),(5,5);
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call save_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 update t1 set c2=100 where c1=3;
 delete from t1 where c1 <= 2;
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call get_read_stats();
 select * from t1;
 
@@ -96,9 +90,9 @@ select * from t1;
 --echo
 --echo ## large row operations -- primary key modification, secondary key modification
 --echo
-connection master;
+--source include/rpl_connection_master.inc
 drop table t1;
-create table t1 (id1 bigint, id2 bigint, c1 bigint, c2 bigint, c3 bigint, c4 bigint, c5 bigint, c6 bigint, c7 bigint, primary key (id1, id2), index i(c1, c2));
+create table t1 (id1 bigint, id2 bigint, c1 bigint, c2 bigint, c3 bigint, c4 bigint, c5 bigint, c6 bigint, c7 bigint, primary key (id1, id2), index i(c1, c2)) Engine=RocksDB;
 
 --disable_query_log
 let $i=1;
@@ -111,9 +105,9 @@ while ($i<=10000)
 --enable_query_log
 
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call save_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 
 --echo
 --echo #updating all seconary keys by 1
@@ -127,17 +121,17 @@ while ($i<=10000)
 }
 --enable_query_log
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call get_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 --source include/diff_tables.inc
 
 --echo
 --echo #updating all primary keys by 2
 --echo
-connection slave;
+--source include/rpl_connection_slave.inc
 call save_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 --disable_query_log
 let $i=1;
 while ($i<=10000)
@@ -147,50 +141,50 @@ while ($i<=10000)
 }
 --enable_query_log
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call get_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 --source include/diff_tables.inc
 
 --echo
 --echo #updating secondary keys after truncating t1 on slave
 --echo
-connection slave;
+--source include/rpl_connection_slave.inc
 truncate table t1;
 call save_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 update t1 set c2=c2+10;
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call get_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 --source include/diff_tables.inc
 
 --echo
 --echo #updating primary keys after truncating t1 on slave
 --echo
-connection slave;
+--source include/rpl_connection_slave.inc
 truncate table t1;
 call save_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 update t1 set id2=id2+10;
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call get_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 --source include/diff_tables.inc
 
 --echo
 --echo #deleting half rows
 --echo
-connection slave;
+--source include/rpl_connection_slave.inc
 call save_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 delete from t1 where id1 <= 5000;
 --source include/sync_slave_sql_with_master.inc
-connection slave;
+--source include/rpl_connection_slave.inc
 call get_read_stats();
-connection master;
+--source include/rpl_connection_master.inc
 --source include/diff_tables.inc
 
 #--echo
@@ -199,27 +193,27 @@ connection master;
 #--echo
 # The configuration is set up so the slave will do read-free replication on
 # all tables starting with 't'
-connection master;
+--source include/rpl_connection_master.inc
 --echo [on master]
-create table t2 (id int primary key, i1 int, i2 int, value int, index(i1), index(i2));
-create table u2 (id int primary key, i1 int, i2 int, value int, index(i1), index(i2));
+create table t2 (id int primary key, i1 int, i2 int, value int, index(i1), index(i2)) Engine=RocksDB;
+create table u2 (id int primary key, i1 int, i2 int, value int, index(i1), index(i2)) Engine=RocksDB;
 insert into t2 values (1,1,1,1),(2,2,2,2),(3,3,3,3);
 insert into u2 values (1,1,1,1),(2,2,2,2),(3,3,3,3);
 --source include/sync_slave_sql_with_master.inc
 
 # make a mismatch between the slave and the master
-connection slave;
+--source include/rpl_connection_slave.inc
 --echo [on slave]
 delete from t2 where id <= 2;
 delete from u2 where id <= 2;
 
 # make changes on the master
-connection master;
+--source include/rpl_connection_master.inc
 --echo [on master]
 update t2 set i2=100, value=100 where id=1;
 update u2 set i2=100, value=100 where id=1;
 
-connection slave;
+--source include/rpl_connection_slave.inc
 --echo [on slave]
 call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.u2.*Error_code.*");
 call mtr.add_suppression("Slave: Can't find record in 'u2'.*");
@@ -228,7 +222,7 @@ call mtr.add_suppression("Slave: Can't find record in 'u2'.*");
 --source include/wait_for_slave_sql_error.inc
 
 # query the t2 table on the slave
-connection slave;
+--source include/rpl_connection_slave.inc
 select count(*) from t2 force index(primary);
 select count(*) from t2 force index(i1);
 select count(*) from t2 force index(i2);
@@ -256,22 +250,22 @@ start slave sql_thread;
 --echo # some tables with read-free replication on and some with it off
 --echo # secondary keys have extra rows
 --echo
-connection master;
+--source include/rpl_connection_master.inc
 --echo [on master]
-create table t3 (id int primary key, i1 int, i2 int, value int, index(i1), index(i2));
-create table u3 (id int primary key, i1 int, i2 int, value int, index(i1), index(i2));
+create table t3 (id int primary key, i1 int, i2 int, value int, index(i1), index(i2)) Engine=RocksDB;
+create table u3 (id int primary key, i1 int, i2 int, value int, index(i1), index(i2)) Engine=RocksDB;
 insert into t3 values (1,1,1,1),(2,2,2,2),(3,3,3,3);
 insert into u3 values (1,1,1,1),(2,2,2,2),(3,3,3,3);
 --source include/sync_slave_sql_with_master.inc
 
 # make a mismatch between the slave and the master
-connection slave;
+--source include/rpl_connection_slave.inc
 --echo [on slave]
 update t3 set i1=100 where id=1;
 update u3 set i1=100 where id=1;
 
 # make changes on the master
-connection master;
+--source include/rpl_connection_master.inc
 --echo [on master]
 delete from t3 where id=1;
 delete from u3 where id=1;
@@ -280,7 +274,7 @@ delete from u3 where id=1;
 --source include/sync_slave_sql_with_master.inc
 
 # query the t3 table on the slave
-connection slave;
+--source include/rpl_connection_slave.inc
 --echo [on slave]
 select count(*) from t3 force index(primary);
 select count(*) from t3 force index(i1);
@@ -294,7 +288,7 @@ select count(*) from u3 force index(i2);
 select i1 from u3 where i1=100;
 
 # cleanup
-connection master;
+--source include/rpl_connection_master.inc
 drop table t1, t2, t3, u2, u3;
 --source suite/rocksdb/include/drop_stats_procedure.inc
 

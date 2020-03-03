@@ -1379,7 +1379,9 @@ private:
   virtual void rpl_after_delete_rows() override;
   virtual void rpl_before_update_rows() override;
   virtual void rpl_after_update_rows() override;
-  virtual bool use_read_free_rpl();
+  virtual bool rpl_lookup_rows() override;
+
+  virtual bool use_read_free_rpl(); // MyRocks only
 
  private:
   /* Flags tracking if we are inside different replication operation */

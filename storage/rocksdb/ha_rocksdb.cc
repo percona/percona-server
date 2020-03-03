@@ -13447,6 +13447,10 @@ void ha_rocksdb::rpl_after_update_rows() {
   DBUG_VOID_RETURN;
 }
 
+bool ha_rocksdb::rpl_lookup_rows() {
+  return !use_read_free_rpl();
+}
+
 /**
   @brief
   Read Free Replication can be used or not. Returning False means

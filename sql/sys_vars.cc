@@ -7408,6 +7408,10 @@ static Sys_var_enum Sys_terminology_use_previous(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
     DEPRECATED_VAR(""));
 
+#ifndef NDEBUG
+    Debug_shutdown_actions Debug_shutdown_actions::instance;
+#endif
+
 static Sys_var_bool Sys_xa_detatch_on_prepare(
     "xa_detach_on_prepare",
     "When set, XA transactions will be detached (AKA dissociated or "

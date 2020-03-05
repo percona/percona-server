@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -228,6 +228,7 @@ sub shutdown {
   my $shutdown_timeout= shift;
   my @processes= @_;
   _verbose("shutdown, timeout: $shutdown_timeout, @processes");
+  my $shutdown_status = 0;
 
   return if (@processes == 0);
 
@@ -254,6 +255,9 @@ sub shutdown {
     my $ret= $proc->wait_one($shutdown_timeout);
     if ($ret != 0) {
       push(@kill_processes, $proc);
+    } else {
+      my $exit_status = $proc->exit_status();
+      $shutdown_status = $exit_status if $exit_status;
     }
     # Only wait for the first process with shutdown timeout
     $shutdown_timeout= 0;
@@ -272,7 +276,7 @@ sub shutdown {
   }
 
   # Return if all servers has exited
-  return if (@kill_processes == 0);
+  return $shutdown_status if (@kill_processes == 0);
 
   foreach my $proc (@kill_processes){
     $proc->start_kill();
@@ -282,7 +286,7 @@ sub shutdown {
     $proc->wait_one(undef);
   }
 
-  return;
+  return $shutdown_status;
 }
 
 

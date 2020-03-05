@@ -55,6 +55,7 @@ our @EXPORT = qw(
 );
 
 use File::Spec;
+use My::Constants;
 use IO::Handle qw[ flush ];
 use POSIX qw(_exit floor);
 
@@ -612,7 +613,9 @@ sub mtr_report_stats ($$;$) {
     } elsif ($tinfo->{'result'} eq 'MTR_RES_SKIPPED') {
       # Test was skipped (disabled not counted)
       $tot_skipped++ unless $tinfo->{'disable'};
-      $tot_skipdetect++ if $tinfo->{'skip_detected_by_test'};
+      $tot_skipdetect++
+        if (defined $tinfo->{'skip_reason'}
+            and $tinfo->{skip_reason} eq MTR_SKIP_BY_TEST);
     } elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED' or
              $tinfo->{'result'} eq 'MTR_RES_OPT_PASSED') {
       # Test passed

@@ -1,1 +1,1 @@
---loose-rocksdb_debug_optimizer_n_rows=1000
+--sql-mode=NO_ENGINE_SUBSTITUTION --loose-rocksdb_debug_optimizer_n_rows=1000

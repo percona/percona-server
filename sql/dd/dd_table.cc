@@ -2122,7 +2122,12 @@ static bool fill_dd_table_from_create_info(
   // (ENCRYPTION clause was used with CREATE)).
   if ((create_info->used_fields & HA_CREATE_USED_ENCRYPT) ||
       create_info->explicit_encryption) {
-    table_options->set("explicit_encryption", true);
+    // clear explicit encryption if SE does not support encryption
+    if (!(hton->flags & HTON_SUPPORTS_TABLE_ENCRYPTION)) {
+      table_options->set("explicit_encryption", false);
+    } else {
+      table_options->set("explicit_encryption", true);
+    }
   } else {
     table_options->set("explicit_encryption", false);
   }

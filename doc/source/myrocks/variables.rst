@@ -432,6 +432,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_rollback_on_timeout`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_rpl_skip_tx_api`
      - Yes
      - Yes
@@ -2025,6 +2029,19 @@ Allowed range is up to ``2147483647``.
 
 Resets MyRocks internal statistics dynamically
 (without restarting the server).
+
+.. variable:: rocksdb_rollback_on_timeout
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-rollback-on-timeout``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``OFF``
+
+By default, only the last statement on a transaction is rolled back. If
+``--rocksdb-rollback-on-timeout=ON``, a transaction timeout causes a rollback of
+the entire transaction.
 
 .. variable:: rocksdb_rpl_skip_tx_api
 

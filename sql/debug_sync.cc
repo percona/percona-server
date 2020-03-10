@@ -468,7 +468,7 @@ static st_debug_sync_globals debug_sync_global; /* All globals in one object */
 /**
   Callback pointer for C files.
 */
-extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
+extern DebugSyncCallbackFp debug_sync_C_callback_ptr;
 
 /**
   Callbacks from C files.
@@ -758,7 +758,7 @@ static char *debug_sync_bmove_len(char *to, char *to_end, const char *from,
   DBUG_ASSERT(to);
   DBUG_ASSERT(to_end);
   DBUG_ASSERT(!length || from);
-  set_if_smaller(length, (size_t)(to_end - to));
+  length = std::min(length, size_t(to_end - to));
   memcpy(to, from, length);
   return (to + length);
 }
@@ -1018,7 +1018,8 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
   } else {
     /* Create a new action. */
     int dsp_idx = ds_control->ds_active++;
-    set_if_bigger(ds_control->dsp_max_active, ds_control->ds_active);
+    ds_control->dsp_max_active =
+        std::max(ds_control->dsp_max_active, ulonglong(ds_control->ds_active));
     if (ds_control->ds_active > ds_control->ds_allocated) {
       uint new_alloc = ds_control->ds_active + 3;
       void *new_action =
@@ -1594,7 +1595,8 @@ err:
       It can be NULL if an error message is already reported
       (e.g. by my_malloc()).
     */
-    set_if_smaller(token_length, 64); /* Limit error message length. */
+    token_length =
+        std::min(token_length, size_t(64)); /* Limit error message length. */
     my_printf_error(ER_PARSE_ERROR, errmsg, MYF(0), token_length, token);
   }
   if (action) debug_sync_remove_action(thd->debug_sync_control, action);
@@ -1980,6 +1982,19 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len) {
   value = strmake_root(thd->mem_root, action_str, len);
   rc = debug_sync_eval_action(thd, value);
   return rc;
+}
+
+void conditional_sync_point(std::string name) {
+  DBUG_EXECUTE_IF(("syncpoint_" + name).c_str(), {
+    std::string act =
+        "now SIGNAL reached_" + name + " WAIT_FOR continue_" + name;
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, act.c_str(), act.length()));
+  });
+}
+
+void conditional_sync_point_for_timestamp(std::string name) {
+  conditional_sync_point(name + "_" +
+                         std::to_string(current_thd->start_time.tv_sec));
 }
 
 #endif /* defined(ENABLED_DEBUG_SYNC) */

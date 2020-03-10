@@ -8,10 +8,10 @@ INSERT INTO t1 VALUES (1,'foo'),(2,'bar');
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t1	optimize	error	Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+test.t1	optimize	error	Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the' from InnoDB
 test.t1	optimize	status	Operation failed
 Warnings:
-Error	1296	Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring?' from InnoDB
+Error	1296	Got error 500 'Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the' from InnoDB
 include/assert.inc [One error message should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [It should contain text]

@@ -25,10 +25,9 @@
 #include "sql/sql_delete.h"
 
 #include <limits.h>
-#include <algorithm>
 #include <atomic>
 #include <memory>
-#include <new>
+#include <utility>
 
 #include "lex_string.h"
 #include "my_alloc.h"
@@ -41,6 +40,8 @@
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/binlog.h"            // mysql_bin_log
 #include "sql/composite_iterators.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/table.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/filesort.h"    // Filesort
 #include "sql/handler.h"
@@ -60,6 +61,7 @@
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_error.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -70,6 +72,8 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
+#include "sql/thd_raii.h"
+#include "sql/thr_malloc.h"
 #include "sql/timing_iterator.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
@@ -502,14 +506,17 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       DBUG_ASSERT(!thd->is_error());
       thd->inc_examined_row_count(1);
 
-      bool skip_record;
-      if (qep_tab.skip_record(thd, &skip_record)) {
-        error = 1;
-        break;
-      }
-      if (skip_record) {
-        table->file->unlock_row();  // Row failed condition check, release lock
-        continue;
+      if (qep_tab.condition() != nullptr) {
+        const bool skip_record = qep_tab.condition()->val_int() == 0;
+        if (thd->is_error()) {
+          error = 1;
+          break;
+        }
+        if (skip_record) {
+          // Row failed condition check, release lock
+          table->file->unlock_row();
+          continue;
+        }
       }
 
       DBUG_ASSERT(!thd->is_error());
@@ -856,9 +863,10 @@ bool Query_result_delete::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   @param  b     A table or database name
   @retval bool  True if the two names are equal
 */
-static bool db_or_table_name_equals(const char *a, const char *b) {
-  return lower_case_table_names ? my_strcasecmp(files_charset_info, a, b) == 0
-                                : strcmp(a, b) == 0;
+static bool db_or_table_name_equals(const char *a, dd::String_type const &b) {
+  return lower_case_table_names
+             ? my_strcasecmp(files_charset_info, a, b.c_str()) == 0
+             : strcmp(a, b.c_str()) == 0;
 }
 
 /**
@@ -871,27 +879,31 @@ static bool db_or_table_name_equals(const char *a, const char *b) {
 
   @retval bool       True if cascade parent found.
 */
-static bool has_cascade_dependency(THD *thd, const TABLE_LIST &table,
+static bool has_cascade_dependency(THD *thd, TABLE_LIST &table,
                                    TABLE_LIST *table_list) {
   DBUG_ASSERT(&table == const_cast<TABLE_LIST &>(table).updatable_base_table());
 
-  List<st_handler_tablename> fk_table_list;
-  List_iterator<st_handler_tablename> fk_table_list_it(fk_table_list);
-
-  table.table->file->get_cascade_foreign_key_table_list(thd, &fk_table_list);
-
-  st_handler_tablename *tbl_name;
-  while ((tbl_name = fk_table_list_it++)) {
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *table_obj = nullptr;
+  if (table.table->s->tmp_table)
+    table_obj = table.table->s->tmp_table_def;
+  else {
+    if (thd->dd_client()->acquire(
+            dd::String_type(table.table->s->db.str),
+            dd::String_type(table.table->s->table_name.str), &table_obj))
+      return true;
+  }
+  for (const dd::Foreign_key_parent *fk_p : table_obj->foreign_key_parents()) {
     for (TABLE_LIST *curr = table_list; curr; curr = curr->next_local) {
       const bool same_table_name =
-          db_or_table_name_equals(curr->table_name, tbl_name->tablename);
-      const bool same_db_name = db_or_table_name_equals(curr->db, tbl_name->db);
+          db_or_table_name_equals(curr->table_name, fk_p->child_table_name());
+      const bool same_db_name =
+          db_or_table_name_equals(curr->db, fk_p->child_schema_name());
       if (same_table_name && same_db_name) {
         return true;
       }
     }
   }
-
   return false;
 }
 
@@ -946,7 +958,7 @@ bool Query_result_delete::optimize() {
 
     // We are going to delete from this table
     // Don't use record cache
-    table->no_cache = 1;
+    table->no_cache = true;
     table->covering_keys.clear_all();
     if (table->file->has_transactions())
       transactional_table_map |= map;

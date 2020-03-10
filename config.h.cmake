@@ -90,7 +90,6 @@
 #cmakedefine HAVE_FDATASYNC 1
 #cmakedefine HAVE_DECL_FDATASYNC 1
 #cmakedefine HAVE_FEDISABLEEXCEPT 1
-#cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
 #cmakedefine HAVE_GETHRTIME 1
 #cmakedefine HAVE_GETNAMEINFO 1
@@ -98,7 +97,6 @@
 #cmakedefine HAVE_GETPASSPHRASE 1
 #cmakedefine HAVE_GETPWNAM 1
 #cmakedefine HAVE_GETPWUID 1
-#cmakedefine HAVE_GETRLIMIT 1
 #cmakedefine HAVE_GETRUSAGE 1
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
@@ -178,7 +176,6 @@
 #cmakedefine SIZEOF_SHORT     @SIZEOF_SHORT@
 #cmakedefine SIZEOF_INT       @SIZEOF_INT@
 #cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
-#cmakedefine SIZEOF_OFF_T     @SIZEOF_OFF_T@
 #cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
@@ -322,6 +319,7 @@
 /*
  * NDB
  */
+#cmakedefine HAVE_GETRLIMIT 1
 #cmakedefine WITH_NDBCLUSTER_STORAGE_ENGINE 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 

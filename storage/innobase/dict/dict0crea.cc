@@ -69,13 +69,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 dberr_t dict_build_table_def(
     dict_table_t *table, trx_t *trx, fil_encryption_t mode,
     const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
-  char db_buf[NAME_LEN + 1];
-  char tbl_buf[NAME_LEN + 1];
+  std::string db_name;
+  std::string tbl_name;
+  dict_name::get_table(table->name.m_name, db_name, tbl_name);
 
-  dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf, nullptr, nullptr,
-                    nullptr);
-
-  bool is_dd_table = dd::get_dictionary()->is_dd_table_name(db_buf, tbl_buf);
+  bool is_dd_table =
+      dd::get_dictionary()->is_dd_table_name(db_name.c_str(), tbl_name.c_str());
 
   /** In-memory counter used for assigning table_id
   of data dictionary table. This counter is only used
@@ -87,12 +86,13 @@ dberr_t dict_build_table_def(
   server started on mysql datadir. In that scenario, we should
   use the next available table id */
   if (is_dd_table ||
-      (compression_dict::is_hardcoded(db_buf, tbl_buf) && dd_table_id != 1)) {
+      (compression_dict::is_hardcoded(db_name.c_str(), tbl_name.c_str()) &&
+       dd_table_id != 1)) {
     table->id = dd_table_id++;
     table->is_dd_table = true;
 
-    ut_ad(compression_dict::is_hardcoded(db_buf, tbl_buf) ||
-          strcmp(tbl_buf, innodb_dd_table[table->id - 1].name) == 0);
+    ut_ad(compression_dict::is_hardcoded(db_name.c_str(), tbl_name.c_str()) ||
+          strcmp(tbl_name.c_str(), innodb_dd_table[table->id - 1].name) == 0);
 
   } else {
     dict_table_assign_new_id(table, trx);
@@ -327,9 +327,8 @@ dberr_t dict_build_tablespace_for_table(
     - page 3 will contain the root of the clustered index of
     the table we create here. */
 
-    std::string tablespace_name;
-
-    dd_filename_to_spacename(table->name.m_name, &tablespace_name);
+    std::string tablespace_name(table->name.m_name);
+    dict_name::convert_to_space(tablespace_name);
 
     err = fil_ibd_create(space, tablespace_name.c_str(), filepath, fsp_flags,
                          FIL_IBD_FILE_INITIAL_SIZE, mode,

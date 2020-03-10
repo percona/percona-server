@@ -30,7 +30,9 @@ SET(ngs_SRC
   ngs/src/notice_descriptor.cc
   ngs/src/protocol_decoder.cc
   ngs/src/protocol_encoder.cc
+  ngs/src/protocol_encoder_compression.cc
   ngs/src/protocol_flusher.cc
+  ngs/src/protocol_flusher_compression.cc
   ngs/src/scheduler.cc
   ngs/src/server.cc
   ngs/src/server_client_timeout.cc
@@ -46,6 +48,7 @@ SET(xplugin_SRC
   src/helper/multithread/mutex.cc
   src/helper/multithread/cond.cc
   src/helper/multithread/rw_lock.cc
+  src/helper/generate_hash.cc
   src/expect/expect.cc
   src/expect/expect_stack.cc
   src/expect/expect_condition_field.cc
@@ -84,11 +87,13 @@ SET(xplugin_SRC
   src/sha256_password_cache.cc
   src/account_verification_handler.cc
   src/admin_cmd_handler.cc
+  src/admin_cmd_collection_handler.cc
   src/admin_cmd_arguments.cc
   src/admin_cmd_index.cc
   src/query_formatter.cc
   src/query_string_builder.cc
   src/expr_generator.cc
+  src/json_generator.cc
   src/crud_cmd_handler.cc
   src/buffering_command_delegate.cc
   src/callback_command_delegate.cc
@@ -127,6 +132,7 @@ SET(xplugin_SRC
   src/capabilities/handler_tls.cc
   src/index_field.cc
   src/index_array_field.cc
+  src/capabilities/capability_compression.cc
 
   ${ngs_SRC}
 )

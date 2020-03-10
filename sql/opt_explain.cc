@@ -560,9 +560,9 @@ static bool explain_ref_key(Explain_format *fmt, uint key_parts,
 
   for (uint part_no = 0; part_no < key_parts; part_no++) {
     const store_key *const s_key = key_copy[part_no];
-    if (s_key == NULL) {
+    if (s_key == nullptr) {
       // Const keys don't need to be copied
-      if (fmt->entry()->col_ref.push_back(store_key_const_item::static_name))
+      if (fmt->entry()->col_ref.push_back(STORE_KEY_CONST_NAME))
         return true; /* purecov: inspected */
     } else if (fmt->entry()->col_ref.push_back(s_key->name()))
       return true; /* purecov: inspected */
@@ -654,9 +654,10 @@ bool Explain::explain_subqueries() {
 
       char buff_key_len[24];
       fmt->entry()->col_key_len.set(
-          buff_key_len, longlong2str(tmp_tab->table()->key_info[0].key_length,
-                                     buff_key_len, 10) -
-                            buff_key_len);
+          buff_key_len,
+          longlong10_to_str(tmp_tab->table()->key_info[0].key_length,
+                            buff_key_len, 10) -
+              buff_key_len);
 
       if (explain_ref_key(fmt, tmp_tab->ref().key_parts,
                           tmp_tab->ref().key_copy))
@@ -897,7 +898,7 @@ bool Explain_table_base::explain_key_and_len_index(int key, uint key_length,
   char buff_key_len[24];
   const KEY *key_info = table->key_info + key;
   const size_t length =
-      longlong2str(key_length, buff_key_len, 10) - buff_key_len;
+      longlong10_to_str(key_length, buff_key_len, 10) - buff_key_len;
   const bool ret = explain_key_parts(key, key_parts);
   return (ret || fmt->entry()->col_key.set(key_info->name) ||
           fmt->entry()->col_key_len.set(buff_key_len, length));
@@ -1590,8 +1591,6 @@ bool Explain_join::explain_extra() {
         buff.append("Block Nested Loop");
       else if (t == JOIN_CACHE::ALG_BKA)
         buff.append("Batched Key Access");
-      else if (t == JOIN_CACHE::ALG_BKA_UNIQUE)
-        buff.append("Batched Key Access (unique)");
       else
         DBUG_ASSERT(0); /* purecov: inspected */
       if (push_extra(ET_USING_JOIN_BUFFER, buff)) return true;
@@ -2142,8 +2141,8 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
 }
 
 /**
-  A query result handler that does nothing. It is used during EXPLAIN ANALYZE,
-  to ignore the output of the query when it's being run.
+  A query result handler that outputs nothing. It is used during EXPLAIN
+  ANALYZE, to ignore the output of the query when it's being run.
  */
 class Query_result_null : public Query_result_interceptor {
  public:
@@ -2152,8 +2151,20 @@ class Query_result_null : public Query_result_interceptor {
   bool send_result_set_metadata(THD *, List<Item> &, uint) override {
     return false;
   }
-  bool send_data(THD *, List<Item> &) override { return false; }
+  bool send_data(THD *thd, List<Item> &items) override {
+    // Evaluate all the items, to make sure that any subqueries in SELECT lists
+    // are evaluated. We don't get their timings added to any parents, but at
+    // least we will have real row counts and times printed out.
+    for (Item &item : items) {
+      item.val_str(&m_str);
+      if (thd->is_error()) return true;
+    }
+    return false;
+  }
   bool send_eof(THD *) override { return false; }
+
+ private:
+  String m_str;
 };
 
 /**

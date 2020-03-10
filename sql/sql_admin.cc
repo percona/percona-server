@@ -73,8 +73,9 @@
 #include "sql/protocol_classic.h"
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_gtid.h"
-#include "sql/sp.h"           // Sroutine_hash_entry
-#include "sql/sp_rcontext.h"  // sp_rcontext
+#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
+#include "sql/sp.h"                              // Sroutine_hash_entry
+#include "sql/sp_rcontext.h"                     // sp_rcontext
 #include "sql/sql_alter.h"
 #include "sql/sql_alter_instance.h"  // Alter_instance
 #include "sql/sql_backup_lock.h"     // acquire_shared_backup_lock
@@ -259,7 +260,7 @@ end:
   thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
   if (table == &tmp_table) {
     mysql_mutex_lock(&LOCK_open);
-    closefrm(table, 1);  // Free allocated memory
+    closefrm(table, true);  // Free allocated memory
     mysql_mutex_unlock(&LOCK_open);
   }
   /* In case of a temporary table there will be no metadata lock. */
@@ -477,7 +478,7 @@ static Check_result check_for_upgrade(THD *thd, dd::String_type &sname,
   }
   DBUG_ASSERT(t != nullptr);
 
-  if (t->is_checked_for_upgrade()) {
+  if (is_checked_for_upgrade(*t)) {
     DBUG_PRINT("admin", ("Table %s (%llu) already checked for upgrade, "
                          "skipping",
                          t->name().c_str(), t->id()));
@@ -544,6 +545,7 @@ static bool mysql_admin_table(
     being updated.
   */
   Disable_autocommit_guard autocommit_guard(thd);
+
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   TABLE_LIST *table;
@@ -562,14 +564,14 @@ static bool mysql_admin_table(
 
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(item = new Item_empty_string("Op", 10));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(item = new Item_empty_string("Msg_type", 10));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   field_list.push_back(
       item = new Item_empty_string("Msg_text", SQL_ADMIN_MSG_TEXT_SIZE));
-  item->maybe_null = 1;
+  item->maybe_null = true;
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
@@ -595,7 +597,7 @@ static bool mysql_admin_table(
   for (table = tables; table; table = table->next_local) {
     char table_name[NAME_LEN * 2 + 2];
     const char *db = table->db;
-    bool fatal_error = 0;
+    bool fatal_error = false;
     bool open_error;
 
     DBUG_PRINT("admin", ("table: '%s'.'%s'", table->db, table->table_name));
@@ -823,8 +825,14 @@ static bool mysql_admin_table(
       length = snprintf(buff, sizeof(buff), ER_THD(thd, ER_OPEN_AS_READONLY),
                         table_name);
       protocol->store_string(buff, length, system_charset_info);
-      trans_commit_stmt(thd, ignore_grl_on_analyze);
-      trans_commit(thd, ignore_grl_on_analyze);
+      {
+        /* Prevent intermediate commits to invoke commit order */
+        Implicit_substatement_state_guard substatement_guard(
+            thd, enum_implicit_substatement_guard_mode ::
+                     DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
+        trans_commit_stmt(thd, ignore_grl_on_analyze);
+        trans_commit(thd, ignore_grl_on_analyze);
+      }
       /* Make sure this table instance is not reused after the operation. */
       if (table->table) table->table->m_needs_reopen = true;
       close_thread_tables(thd);
@@ -863,7 +871,7 @@ static bool mysql_admin_table(
         XXX: hack: switch off open_for_modify to skip the
         flush that is made later in the execution flow.
       */
-      open_for_modify = 0;
+      open_for_modify = false;
     }
 
     if (table->table->s->crashed && operator_func == &handler::ha_check) {
@@ -1053,7 +1061,7 @@ static bool mysql_admin_table(
       case HA_ADMIN_CORRUPT:
         protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
         protocol->store_string(STRING_WITH_LEN("Corrupt"), system_charset_info);
-        fatal_error = 1;
+        fatal_error = true;
         break;
 
       case HA_ADMIN_INVALID:
@@ -1067,14 +1075,20 @@ static bool mysql_admin_table(
 
         /* Store the original value of alter_info->flags */
         save_flags = alter_info->flags;
-        /*
-          This is currently used only by InnoDB. ha_innobase::optimize() answers
-          "try with alter", so here we close the table, do an ALTER TABLE,
-          reopen the table and do ha_innobase::analyze() on it.
-          We have to end the row, so analyze could return more rows.
-        */
-        trans_commit_stmt(thd, ignore_grl_on_analyze);
-        trans_commit(thd, ignore_grl_on_analyze);
+        {
+          /* Prevent intermediate commits to invoke commit order */
+          Implicit_substatement_state_guard substatement_guard(
+              thd, enum_implicit_substatement_guard_mode ::
+                       DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
+          /*
+            This is currently used only by InnoDB. ha_innobase::optimize()
+            answers "try with alter", so here we close the table, do an ALTER
+            TABLE, reopen the table and do ha_innobase::analyze() on it. We have
+            to end the row, so analyze could return more rows.
+          */
+          trans_commit_stmt(thd, ignore_grl_on_analyze);
+          trans_commit(thd, ignore_grl_on_analyze);
+        }
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
 
@@ -1120,8 +1134,14 @@ static bool mysql_admin_table(
         */
         if (thd->get_stmt_da()->is_ok())
           thd->get_stmt_da()->reset_diagnostics_area();
-        trans_commit_stmt(thd, ignore_grl_on_analyze);
-        trans_commit(thd, ignore_grl_on_analyze);
+        {
+          /* Prevent intermediate commits to invoke commit order */
+          Implicit_substatement_state_guard substatement_guard(
+              thd, enum_implicit_substatement_guard_mode ::
+                       DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
+          trans_commit_stmt(thd, ignore_grl_on_analyze);
+          trans_commit(thd, ignore_grl_on_analyze);
+        }
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
         /* Clear references to TABLE and MDL_ticket after releasing them. */
@@ -1215,7 +1235,7 @@ static bool mysql_admin_table(
               snprintf(buf, sizeof(buf), ER_THD(thd, ER_TABLE_NEEDS_REBUILD),
                        table->table_name);
         protocol->store_string(buf, length, system_charset_info);
-        fatal_error = 1;
+        fatal_error = true;
         break;
       }
 
@@ -1244,7 +1264,7 @@ static bool mysql_admin_table(
                           "fix it!",
                           table->db, table->table_name);
         protocol->store_string(buf, length, system_charset_info);
-        fatal_error = 1;
+        fatal_error = true;
         break;
       }
 
@@ -1256,7 +1276,7 @@ static bool mysql_admin_table(
                                  result_code);
         protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
         protocol->store_string(buf, length, system_charset_info);
-        fatal_error = 1;
+        fatal_error = true;
         break;
       }
     }
@@ -1296,6 +1316,26 @@ static bool mysql_admin_table(
 
       if (trans_rollback_stmt(thd) || trans_rollback_implicit(thd)) goto err;
     } else {
+      enum_implicit_substatement_guard_mode mode =
+          enum_implicit_substatement_guard_mode ::
+              DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE;
+
+      if (strcmp(operator_name, "optimize") == 0 ||
+          strcmp(operator_name, "analyze") == 0 ||
+          strcmp(operator_name, "repair") == 0) {
+        mode = enum_implicit_substatement_guard_mode ::
+            ENABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE;
+      }
+
+      /*
+        It allows saving GTID and invoking commit order i.e. set
+        thd->is_operating_substatement_implicitly = false, when
+        slave-preserve-commit-order is enabled and any of OPTIMIZE TABLE,
+        ANALYZE TABLE and REPAIR TABLE command is getting executed,
+        otherwise saving GTID and invoking commit order is disabled.
+      */
+      Implicit_substatement_state_guard guard(thd, mode);
+
       if (trans_commit_stmt(thd, ignore_grl_on_analyze) ||
           trans_commit_implicit(thd, ignore_grl_on_analyze))
         goto err;
@@ -1362,8 +1402,8 @@ bool Sql_cmd_cache_index::assign_to_keycache(THD *thd, TABLE_LIST *tables) {
   check_opt.key_cache = key_cache;
   // ret is needed since DBUG_RETURN isn't friendly to function call parameters:
   const bool ret = mysql_admin_table(
-      thd, tables, &check_opt, "assign_to_keycache", TL_READ_NO_INSERT, 0, 0, 0,
-      0, &handler::assign_to_keycache, 0, m_alter_info, false);
+      thd, tables, &check_opt, "assign_to_keycache", TL_READ_NO_INSERT, false,
+      false, 0, 0, &handler::assign_to_keycache, 0, m_alter_info, false);
   return ret;
 }
 
@@ -1388,9 +1428,9 @@ bool Sql_cmd_load_index::preload_keys(THD *thd, TABLE_LIST *tables) {
     outdated information if parallel inserts into cache blocks happen.
   */
   // ret is needed since DBUG_RETURN isn't friendly to function call parameters:
-  const bool ret =
-      mysql_admin_table(thd, tables, 0, "preload_keys", TL_READ_NO_INSERT, 0, 0,
-                        0, 0, &handler::preload_keys, 0, m_alter_info, false);
+  const bool ret = mysql_admin_table(
+      thd, tables, 0, "preload_keys", TL_READ_NO_INSERT, false, false, 0, 0,
+      &handler::preload_keys, 0, m_alter_info, false);
   return ret;
 }
 
@@ -1430,6 +1470,12 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
       res = false;
     } else {
       Disable_autocommit_guard autocommit_guard(thd);
+
+      /* Prevent intermediate commits to invoke commit order */
+      Implicit_substatement_state_guard substatement_guard(
+          thd, enum_implicit_substatement_guard_mode ::
+                   DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
+
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
       switch (get_histogram_command()) {
         case Histogram_command::UPDATE_HISTOGRAM:
@@ -1500,8 +1546,8 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
     res = handle_histogram_command(thd, first_table);
   } else {
     res = mysql_admin_table(thd, first_table, &thd->lex->check_opt, "analyze",
-                            lock_type, 1, 0, 0, 0, &handler::ha_analyze, 0,
-                            m_alter_info, true);
+                            lock_type, true, false, 0, 0, &handler::ha_analyze,
+                            0, m_alter_info, true);
   }
 
   /* ! we write after unlocking the table */
@@ -1529,7 +1575,7 @@ bool Sql_cmd_check_table::execute(THD *thd) {
   thd->enable_slow_log = opt_log_slow_admin_statements;
 
   res = mysql_admin_table(thd, first_table, &thd->lex->check_opt, "check",
-                          lock_type, 0, 0, HA_OPEN_FOR_REPAIR, 0,
+                          lock_type, false, false, HA_OPEN_FOR_REPAIR, 0,
                           &handler::ha_check, 1, m_alter_info, true);
 
   thd->lex->select_lex->table_list.first = first_table;
@@ -1551,7 +1597,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd) {
   res = (specialflag & SPECIAL_NO_NEW_FUNC)
             ? mysql_recreate_table(thd, first_table, true)
             : mysql_admin_table(thd, first_table, &thd->lex->check_opt,
-                                "optimize", TL_WRITE, 1, 0, 0, 0,
+                                "optimize", TL_WRITE, true, false, 0, 0,
                                 &handler::ha_optimize, 0, m_alter_info, true);
   /* ! we write after unlocking the table */
   if (!res && !thd->lex->no_write_to_binlog) {
@@ -1577,7 +1623,7 @@ bool Sql_cmd_repair_table::execute(THD *thd) {
     goto error; /* purecov: inspected */
   thd->set_slow_log_for_admin_command();
   res = mysql_admin_table(
-      thd, first_table, &thd->lex->check_opt, "repair", TL_WRITE, 1,
+      thd, first_table, &thd->lex->check_opt, "repair", TL_WRITE, true,
       thd->lex->check_opt.sql_flags & TT_USEFRM, HA_OPEN_FOR_REPAIR,
       &prepare_for_repair, &handler::ha_repair, 0, m_alter_info, true);
 
@@ -1923,6 +1969,8 @@ bool Sql_cmd_create_role::execute(THD *thd) {
   thd->lex->alter_password.update_password_expired_fields = true;
   thd->lex->alter_password.update_password_require_current =
       Lex_acl_attrib_udyn::UNCHANGED;
+  thd->lex->alter_password.failed_login_attempts = 0;
+  thd->lex->alter_password.password_lock_time = 0;
 
   List_iterator<LEX_USER> it(*const_cast<List<LEX_USER> *>(roles));
   LEX_USER *role;
@@ -1973,7 +2021,7 @@ bool Sql_cmd_drop_role::execute(THD *thd) {
 
 bool Sql_cmd_set_role::execute(THD *thd) {
   DBUG_TRACE;
-  bool ret = 0;
+  bool ret = false;
   switch (role_type) {
     case role_enum::ROLE_NONE:
       ret = mysql_set_active_role_none(thd);
@@ -2041,18 +2089,19 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd) {
 
 bool Sql_cmd_show_grants::execute(THD *thd) {
   DBUG_TRACE;
-  bool show_mandatory_roles = false;
-  if (for_user == 0) show_mandatory_roles = true;
+  bool show_mandatory_roles = (for_user == 0);
+  bool have_using_clause = (using_users != 0 && using_users->elements > 0);
 
   if (for_user == 0 || for_user->user.str == 0) {
     /* SHOW PRIVILEGE FOR CURRENT_USER */
     LEX_USER current_user;
     get_default_definer(thd, &current_user);
-    if (using_users == 0 || using_users->elements == 0) {
+    if (!have_using_clause) {
       const List_of_auth_id_refs *active_list =
           thd->security_context()->get_active_roles();
       return mysql_show_grants(thd, &current_user, *active_list,
-                                    show_mandatory_roles, effective_grants);
+                               show_mandatory_roles, have_using_clause,
+                               effective_grants);
     }
   } else if (strcmp(thd->security_context()->priv_user().str,
                     for_user->user.str) != 0) {
@@ -2067,8 +2116,7 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
     }
   }
   List_of_auth_id_refs authid_list;
-  if (using_users != 0 && using_users->elements > 0) {
-    /* We have a USING clause */
+  if (have_using_clause) {
     for (const LEX_USER &user : *using_users) {
       authid_list.emplace_back(user.user, user.host);
     }
@@ -2076,8 +2124,8 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
 
   LEX_USER *tmp_user = const_cast<LEX_USER *>(for_user);
   tmp_user = get_current_user(thd, tmp_user);
-  return mysql_show_grants(thd, tmp_user, authid_list,
-                                show_mandatory_roles, effective_grants);
+  return mysql_show_grants(thd, tmp_user, authid_list, show_mandatory_roles,
+                           have_using_clause, effective_grants);
 }
 
 bool Sql_cmd_show::execute(THD *thd) {

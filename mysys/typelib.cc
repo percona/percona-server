@@ -131,21 +131,6 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags) {
 } /* find_type */
 
 /**
-  Get name of type nr
-
-  @note
-  first type is 1, 0 = empty field
-*/
-
-void make_type(char *to, uint nr, TYPELIB *typelib) {
-  DBUG_TRACE;
-  if (!nr)
-    to[0] = 0;
-  else
-    (void)my_stpcpy(to, get_type(typelib, nr - 1));
-} /* make_type */
-
-/**
   Get type
 
   @note
@@ -312,7 +297,7 @@ uint64_t find_set_from_flags(const TYPELIB *lib, size_t default_name,
                              uint *err_len) {
   const char *end = str + length;
   uint64_t flags_to_set = 0, flags_to_clear = 0, res;
-  bool set_defaults = 0;
+  bool set_defaults = false;
 
   *err_pos = 0; /* No error yet */
   if (str != end) {

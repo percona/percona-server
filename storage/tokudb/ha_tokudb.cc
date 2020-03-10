@@ -523,13 +523,13 @@ static ulonglong retrieve_auto_increment(uint16 type, uint32 offset,
     /* The remaining two cases should not be used but are included for
        compatibility */
     case HA_KEYTYPE_FLOAT:
-      float4get(&float_tmp, key); /* Note: float4get is a macro */
+      float_tmp = float4get(key); /* Note: float4get is a macro */
       signed_autoinc = (longlong)float_tmp;
       autoinc_type = signed_type;
       break;
 
     case HA_KEYTYPE_DOUBLE:
-      float8get(&double_tmp, key); /* Note: float8get is a macro */
+      double_tmp = float8get(key); /* Note: float8get is a macro */
       signed_autoinc = (longlong)double_tmp;
       autoinc_type = signed_type;
       break;

@@ -109,7 +109,7 @@ bool Query_result_send::send_eof(THD *thd) {
   */
   if (thd->is_error()) return true;
   ::my_eof(thd);
-  is_result_set_started = 0;
+  is_result_set_started = false;
   return false;
 }
 
@@ -122,7 +122,7 @@ static const String my_empty_string("", default_charset_info);
 sql_exchange::sql_exchange(const char *name, bool flag,
                            enum enum_filetype filetype_arg)
     : file_name(name), dumpfile(flag), skip_lines(0) {
-  field.opt_enclosed = 0;
+  field.opt_enclosed = false;
   filetype = filetype_arg;
   field.field_term = &default_field_term;
   field.enclosed = line.line_start = &my_empty_string;
@@ -246,7 +246,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
     (void)chmod(path, S_IRUSR | S_IWUSR | S_IRGRP);
 #endif
   }
-  if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME))) {
+  if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, true, MYF(MY_WME))) {
     mysql_file_close(file, MYF(0));
     /* Delete file on error, it was just created */
     if (new_file_created) mysql_file_delete(key_select_to_file, path, MYF(0));
@@ -392,7 +392,7 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
           ((uint64)res->length() / res->charset()->mbminlen + 1) *
               write_cs->mbmaxlen +
           1;
-      set_if_smaller(estimated_bytes, UINT_MAX32);
+      estimated_bytes = std::min(estimated_bytes, uint64(UINT_MAX32));
       if (cvt_str.mem_realloc((uint32)estimated_bytes)) {
         my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32)estimated_bytes);
         goto err;
@@ -760,5 +760,5 @@ bool Query_dumpvar::send_eof(THD *thd) {
   if (thd->is_error()) return true;
 
   ::my_ok(thd, row_count);
-  return 0;
+  return false;
 }

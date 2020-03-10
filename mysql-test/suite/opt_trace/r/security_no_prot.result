@@ -627,7 +627,7 @@ select 48 into b from dual	407	0
 freturn 3 36	20	0
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int
 begin
 declare b int;
 select 48 into b from dual;
@@ -685,7 +685,7 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
 set b@0 NULL	20	0
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	3203	0
+jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	3065	0
 select 22 into b from dual	407	0
 select a into b from t1 limit 1	2253	0
 insert into t1 values(current_user())	20	0
@@ -722,7 +722,7 @@ freturn 3 36	20	0
 # could see anyway:
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int
 begin
 declare b int;
 select 48 into b from dual;

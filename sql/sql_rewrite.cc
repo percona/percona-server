@@ -395,6 +395,7 @@ bool Rewriter_user::rewrite() const {
   rewrite_password_history(lex, rlb);
   rewrite_password_reuse(lex, rlb);
   rewrite_password_require_current(lex, rlb);
+  rewrite_account_lock_state(lex, rlb);
   return false;
 }
 /**
@@ -546,6 +547,30 @@ void Rewriter_user::rewrite_password_require_current(LEX *lex,
       DBUG_ASSERT(false);
   }
 }
+
+/**
+  Append the account lock state
+
+  Append FAILED_LOGIN_ATTEMPTS/PASSWORD_LOCK_TIME if account auto-lock
+  is active.
+
+  @param [in]       lex     LEX to retrieve data from
+  @param [in, out]  str     The string in which plugin info is suffixed
+*/
+void Rewriter_user::rewrite_account_lock_state(LEX *lex, String *str) const {
+  if (lex->alter_password.update_failed_login_attempts) {
+    append_int(str, false, STRING_WITH_LEN(" FAILED_LOGIN_ATTEMPTS"),
+               lex->alter_password.failed_login_attempts, true);
+  }
+  if (lex->alter_password.update_password_lock_time) {
+    if (lex->alter_password.password_lock_time >= 0)
+      append_int(str, false, STRING_WITH_LEN(" PASSWORD_LOCK_TIME"),
+                 lex->alter_password.password_lock_time, true);
+    else
+      str->append(STRING_WITH_LEN(" PASSWORD_LOCK_TIME UNBOUNDED"));
+  }
+}
+
 /**
   Append the authentication plugin name for the user
 
@@ -998,7 +1023,6 @@ bool Rewriter_grant::rewrite() const {
   rlb->mem_free();
 
   TABLE_LIST *first_table = lex->select_lex->table_list.first;
-  bool comma = false, comma_inner;
   bool proxy_grant = lex->type == TYPE_ENUM_PROXY;
   String cols(1024);
   int c;
@@ -1023,12 +1047,13 @@ bool Rewriter_grant::rewrite() const {
   else if (lex->grant_privilege)
     rlb->append(STRING_WITH_LEN("GRANT OPTION"));
   else {
+    bool comma = false;
     ulong priv;
 
     for (c = 0, priv = SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1) {
       if (priv == GRANT_ACL) continue;
 
-      comma_inner = false;
+      bool comma_inner = false;
 
       if (lex->columns.elements)  // show columns, if any
       {
@@ -1066,10 +1091,10 @@ bool Rewriter_grant::rewrite() const {
     /* List extended global privilege IDs */
     if (!first_table && !lex->current_select()->db) {
       List_iterator<LEX_CSTRING> it(lex->dynamic_privileges);
-      LEX_CSTRING *priv;
-      while ((priv = it++)) {
+      LEX_CSTRING *privilege;
+      while ((privilege = it++)) {
         comma_maybe(rlb, &comma);
-        rlb->append(priv->str, priv->length);
+        rlb->append(privilege->str, privilege->length);
       }
     }
     if (!comma)  // no privs, default to USAGE
@@ -1090,9 +1115,9 @@ bool Rewriter_grant::rewrite() const {
 
   LEX_USER *user_name, *tmp_user_name;
   List_iterator<LEX_USER> user_list(lex->users_list);
-  comma = false;
 
   if (proxy_grant) {
+    bool comma = false;
     tmp_user_name = user_list++;
     user_name = get_current_user(m_thd, tmp_user_name);
     if (user_name) append_auth_id(m_thd, user_name, comma, rlb);
@@ -1253,6 +1278,13 @@ bool Rewriter_change_master::rewrite() const {
       lex->mi.ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
 
   comma = append_str(rlb, comma, "MASTER_TLS_VERSION =", lex->mi.tls_version);
+  if (LEX_MASTER_INFO::SPECIFIED_NULL == lex->mi.tls_ciphersuites) {
+    comma_maybe(rlb, &comma);
+    rlb->append(STRING_WITH_LEN("MASTER_TLS_CIPHERSUITES = NULL"));
+  } else if (LEX_MASTER_INFO::SPECIFIED_STRING == lex->mi.tls_ciphersuites) {
+    comma = append_str(rlb, comma, "MASTER_TLS_CIPHERSUITES =",
+                       lex->mi.tls_ciphersuites_string);
+  }
 
   // Public key
   comma = append_str(rlb, comma,

@@ -24,6 +24,14 @@ INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
 
+IF(MYSQL_MAINTAINER_MODE)
+  IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7)
+    ADD_COMPILE_OPTIONS("-Wshadow=local")
+  ELSEIF(MY_COMPILER_IS_CLANG)
+    ADD_COMPILE_OPTIONS("-Wshadow-uncaptured-local")
+  ENDIF()
+ENDIF()
+
 SET(CONF_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc 
 )
@@ -125,12 +133,15 @@ SET(DD_SOURCES
   dd/impl/raw/raw_record_set.cc
   dd/impl/raw/raw_table.cc
 
+  dd/impl/system_views/administrable_role_authorizations.cc
+  dd/impl/system_views/applicable_roles.cc
   dd/impl/system_views/character_sets.cc
   dd/impl/system_views/check_constraints.cc
   dd/impl/system_views/collations.cc
   dd/impl/system_views/collation_charset_applicability.cc
   dd/impl/system_views/columns.cc
   dd/impl/system_views/column_statistics.cc
+  dd/impl/system_views/enabled_roles.cc
   dd/impl/system_views/compression_dictionary.cc
   dd/impl/system_views/compression_dictionary_tables.cc
   dd/impl/system_views/events.cc
@@ -146,6 +157,9 @@ SET(DD_SOURCES
   dd/impl/system_views/partitions.cc
   dd/impl/system_views/referential_constraints.cc
   dd/impl/system_views/resource_groups.cc
+  dd/impl/system_views/role_column_grants.cc
+  dd/impl/system_views/role_routine_grants.cc
+  dd/impl/system_views/role_table_grants.cc
   dd/impl/system_views/routines.cc
   dd/impl/system_views/schemata.cc
   dd/impl/system_views/statistics.cc
@@ -302,7 +316,9 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/page_track_service.cc
   server_component/mysql_current_thread_reader_imp.cc
   server_component/keyring_iterator_service_imp.cc
-  )
+  server_component/udf_metadata_imp.cc
+  server_component/mysql_connection_attributes_iterator_imp.cc
+)
 
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
@@ -328,6 +344,7 @@ SET(SQL_SHARED_SOURCES
   auth/sha2_password_common.cc
   auth/sha2_password.cc
   ssl_wrapper_service.cc
+  bka_iterator.cc
   binlog_crypt_data.cc
   bootstrap.cc
   check_stack.cc
@@ -473,6 +490,7 @@ SET(SQL_SHARED_SOURCES
   sql_cmd_ddl_table.cc
   sql_cmd_srs.cc
   sql_connect.cc
+  sql_constraint.cc
   sql_cursor.cc
   sql_data_change.cc
   sql_db.cc
@@ -853,6 +871,7 @@ SET(BINLOG_SOURCE
   binlog_reader.cc
   event_crypt.cc
   log_event.cc
+  rpl_commit_stage_manager.cc
   rpl_filter.cc
   rpl_gtid_execution.cc
   rpl_gtid_misc.cc

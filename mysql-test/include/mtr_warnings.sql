@@ -237,6 +237,9 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] Error pushing message into group communication engine."),
  ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
  ("\\[GCS\\] Automatically adding IPv. localhost address to the whitelist. It is mandatory that it is added."),
+ ("\\[GCS\\] Unable to announce tcp port .*. Port already in use\\?"),
+ ("\\[GCS\\] Error joining the group while waiting for the network layer to become ready."),
+ ("\\[GCS\\] The member was unable to join the group. Local port: .*"),
  ("Member with address .* has become unreachable."),
  ("This server is not able to reach a majority of members in the group.*"),
  ("Member with address .* is reachable again."),
@@ -264,6 +267,11 @@ INSERT INTO global_suppressions VALUES
    SSL Library instrumentation failed
  */
  ("The SSL library function CRYPTO_set_mem_functions failed"),
+
+ /*
+   binlog-less slave (WL#7846)
+ */
+ ("The transaction owned GTID is already in the gtid_executed table"),
 
  ("THE_LAST_SUPPRESSION");
 

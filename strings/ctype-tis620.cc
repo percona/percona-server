@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,8 @@
 
 #include <string.h>
 #include <sys/types.h>
+
+#include <algorithm>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -690,8 +692,8 @@ static size_t my_strnxfrm_tis620(const CHARSET_INFO *cs, uchar *dst,
   }
 
   len = thai2sortable(dst, len);
-  set_if_smaller(dstlen, nweights);
-  set_if_smaller(len, dstlen);
+  dstlen = std::min(dstlen, size_t(nweights));
+  len = std::min(len, size_t(dstlen));
   len = my_strxfrm_pad(cs, dst, dst + len, dst + dstlen, (uint)(dstlen - len),
                        flags);
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len < dstlen0) {
@@ -940,7 +942,7 @@ CHARSET_INFO my_charset_tis620_thai_ci = {
     0,                   /* min_sort_char */
     255,                 /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_handler,
     &my_collation_ci_handler,
@@ -975,7 +977,7 @@ CHARSET_INFO my_charset_tis620_bin = {
     0,                   /* min_sort_char */
     255,                 /* max_sort_char */
     ' ',                 /* pad char      */
-    0,                   /* escape_with_backslash_is_dangerous */
+    false,               /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_handler,
     &my_collation_8bit_bin_handler,

@@ -24,65 +24,112 @@
 
 #include "sql/sql_show.h"
 
-#include "my_config.h"
-
-#include <errno.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
-#include <time.h>
 #include <algorithm>
 #include <atomic>
 #include <functional>
 #include <memory>
 #include <new>
 #include <string>
+#include <vector>
 
-#include "keycache.h"    // dflt_key_cache
+#include "decimal.h"
+#include "field_types.h"
+#include "keycache.h"  // dflt_key_cache
+#include "m_ctype.h"
+#include "m_string.h"
 #include "mutex_lock.h"  // MUTEX_LOCK
+#include "my_alloc.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_default.h"
+#include "my_hostname.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_systime.h"
+#include "my_thread_local.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
-#include "mysql/plugin.h"                            // st_mysql_plugin
-#include "scope_guard.h"                             // Scope_guard
-#include "sql/auth/auth_acls.h"                      // DB_ACLS
+#include "mysql/components/services/log_shared.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"  // st_mysql_plugin
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
+#include "mysqld_error.h"
+#include "nullable.h"
+#include "scope_guard.h"         // Scope_guard
+#include "sql/auth/auth_acls.h"  // DB_ACLS
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"                 // is_encrypted
-#include "sql/dd/types/column.h"             // dd::Column
-#include "sql/dd/types/table.h"              // dd::Table
-#include "sql/debug_sync.h"                  // DEBUG_SYNC
-#include "sql/derror.h"                      // ER_THD
-#include "sql/error_handler.h"               // Internal_error_handler
-#include "sql/field.h"                       // Field
-#include "sql/filesort.h"                    // filesort_free_buffers
-#include "sql/item.h"                        // Item_empty_string
-#include "sql/log.h"                         // query_logger
-#include "sql/mysqld.h"                      // lower_case_table_names
-#include "sql/mysqld_thd_manager.h"          // Global_THD_manager
-#include "sql/opt_trace.h"                   // fill_optimizer_trace_info
-#include "sql/partition_info.h"              // partition_info
-#include "sql/protocol.h"                    // Protocol
-#include "sql/sp_head.h"                     // sp_head
-#include "sql/sql_base.h"                    // close_thread_tables
-#include "sql/sql_class.h"                   // THD
-#include "sql/sql_db.h"                      // get_default_db_collation
-#include "sql/sql_executor.h"                // QEP_TAB
-#include "sql/sql_lex.h"                     // LEX
-#include "sql/sql_optimizer.h"               // JOIN
-#include "sql/sql_parse.h"                   // command_name
-#include "sql/sql_partition.h"               // HA_USE_AUTO_PARTITION
-#include "sql/sql_plugin.h"                  // PLUGIN_IS_DELETED, LOCK_plugin
-#include "sql/sql_profile.h"                 // query_profile_statistics_info
-#include "sql/sql_table.h"                   // primary_key_name
-#include "sql/sql_tmp_table.h"               // create_ondisk_from_heap
-#include "sql/sql_trigger.h"                 // acquire_shared_mdl_for_trigger
-#include "sql/strfunc.h"                     // lex_string_strmake
-#include "sql/table_trigger_dispatcher.h"    // Table_trigger_dispatcher
-#include "sql/temp_table_param.h"            // Temp_table_param
-#include "sql/trigger.h"                     // Trigger
-#include "sql/tztime.h"                      // my_tz_SYSTEM
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"               // dd::Column
+#include "sql/dd/types/foreign_key.h"          // dd::Foreign_key
+#include "sql/dd/types/foreign_key_element.h"  // dd::Foreign_key_element
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"  // dd::Table
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"  // Internal_error_handler
+#include "sql/field.h"          // Field
+#include "sql/handler.h"
+#include "sql/item.h"  // Item_empty_string
+#include "sql/key.h"
+#include "sql/log.h"  // query_logger
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"              // lower_case_table_names
+#include "sql/mysqld_thd_manager.h"  // Global_THD_manager
+#include "sql/opt_trace.h"           // fill_optimizer_trace_info
+#include "sql/partition_info.h"      // partition_info
+#include "sql/protocol.h"            // Protocol
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/set_var.h"
+#include "sql/sp_head.h"   // sp_head
+#include "sql/sql_base.h"  // close_thread_tables
+#include "sql/sql_bitmap.h"
+#include "sql/sql_check_constraint.h"
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"  // get_default_db_collation
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"  // QEP_TAB
+#include "sql/sql_lex.h"       // LEX
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"  // JOIN
+#include "sql/sql_parse.h"      // command_name
+#include "sql/sql_partition.h"  // HA_USE_AUTO_PARTITION
+#include "sql/sql_plugin.h"     // PLUGIN_IS_DELETED, LOCK_plugin
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_profile.h"    // query_profile_statistics_info
+#include "sql/sql_table.h"      // primary_key_name
+#include "sql/sql_tmp_table.h"  // create_ondisk_from_heap
+#include "sql/sql_trigger.h"    // acquire_shared_mdl_for_trigger
+#include "sql/strfunc.h"        // lex_string_strmake
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
+#include "sql/temp_table_param.h"          // Temp_table_param
+#include "sql/trigger.h"                   // Trigger
+#include "sql/tztime.h"                    // my_tz_SYSTEM
+#include "sql_string.h"
+#include "template_utils.h"
+#include "thr_lock.h"
 
 /* @see dynamic_privileges_table.cc */
 bool iterate_all_dynamic_privileges(THD *thd,
@@ -512,6 +559,23 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
     }
     thd->pop_internal_handler();
     if (open_error && (thd->killed || thd->is_error())) goto exit;
+
+    /*
+      Table_function::print() only works after the table function has been
+      resolved. If resolving the view fails, and the view references an
+      unresolved table function, raise an error instead of calling print() on
+      the unresolved table function.
+    */
+    if (open_error && table_list->is_view()) {
+      for (TABLE_LIST *tl = table_list; tl != nullptr; tl = tl->next_global) {
+        if (tl->is_table_function() && tl->table == nullptr) {
+          my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                   "SHOW CREATE VIEW on a view that references a non-existent "
+                   "table and a table function.");
+          goto exit;
+        }
+      }
+    }
   }
 
   /* TODO: add environment variables show when it become possible */
@@ -608,7 +672,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
       db_access = sctx->db_acl({dbname, strlen(dbname)});
     } else {
       db_access = (acl_get(thd, sctx->host().str, sctx->ip().str,
-                           sctx->priv_user().str, dbname, 0) |
+                           sctx->priv_user().str, dbname, false) |
                    sctx->master_access(dbname ? dbname : ""));
     }
   }
@@ -1007,7 +1071,7 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
         tmp[1] = '\'';
         tmp[length] = '\'';
         type.length(length + 1);
-        quoted = 0;
+        quoted = false;
       } else
         field->val_str(&type);
       if (type.length()) {
@@ -1069,6 +1133,104 @@ static bool should_print_encryption_clause(THD *thd, TABLE_SHARE *share,
 }
 
 /**
+  Append definitions of FOREIGN KEY statements to SHOW CREATE TABLE statement
+  output for the table.
+
+  @param          thd         Thread context.
+  @param          db          Table's database.
+  @param          table_obj   dd::Table describing the table.
+  @param[in,out]  packet      Pointer to a string where CREATE TABLE statement
+                              describing the table is being constructed.
+*/
+static void print_foreign_key_info(THD *thd, const LEX_CSTRING *db,
+                                   const dd::Table *table_obj, String *packet) {
+  if (!table_obj) return;
+
+  for (const dd::Foreign_key *fk : table_obj->foreign_keys()) {
+    packet->append(STRING_WITH_LEN(",\n  "));
+    packet->append(STRING_WITH_LEN("CONSTRAINT "));
+    append_identifier(thd, packet, fk->name().c_str(), fk->name().length());
+    packet->append(STRING_WITH_LEN(" FOREIGN KEY ("));
+
+    bool first = true;
+    for (const dd::Foreign_key_element *fk_el : fk->elements()) {
+      if (!first)
+        packet->append(STRING_WITH_LEN(", "));
+      else
+        first = false;
+      append_identifier(thd, packet, fk_el->column().name().c_str(),
+                        fk_el->column().name().length());
+    }
+
+    packet->append(STRING_WITH_LEN(") REFERENCES "));
+
+    if (my_strcasecmp(table_alias_charset, db->str,
+                      fk->referenced_table_schema_name().c_str())) {
+      append_identifier(thd, packet, fk->referenced_table_schema_name().c_str(),
+                        fk->referenced_table_schema_name().length());
+      packet->append('.');
+    }
+    append_identifier(thd, packet, fk->referenced_table_name().c_str(),
+                      fk->referenced_table_name().length());
+    packet->append(STRING_WITH_LEN(" ("));
+
+    first = true;
+    for (const dd::Foreign_key_element *fk_el : fk->elements()) {
+      if (!first)
+        packet->append(STRING_WITH_LEN(", "));
+      else
+        first = false;
+      append_identifier(thd, packet, fk_el->referenced_column_name().c_str(),
+                        fk_el->referenced_column_name().length());
+    }
+    packet->append(")");
+
+    switch (fk->delete_rule()) {
+      case dd::Foreign_key::RULE_NO_ACTION:
+        // Don't print clause when default is used.
+        break;
+      case dd::Foreign_key::RULE_RESTRICT:
+        packet->append(STRING_WITH_LEN(" ON DELETE RESTRICT"));
+        break;
+      case dd::Foreign_key::RULE_CASCADE:
+        packet->append(STRING_WITH_LEN(" ON DELETE CASCADE"));
+        break;
+      case dd::Foreign_key::RULE_SET_NULL:
+        packet->append(STRING_WITH_LEN(" ON DELETE SET NULL"));
+        break;
+      case dd::Foreign_key::RULE_SET_DEFAULT:
+        // Future-proofing, we don't support this now.
+        packet->append(STRING_WITH_LEN(" ON DELETE SET DEFAULT"));
+        break;
+      default:
+        DBUG_ASSERT(0);
+        break;
+    }
+    switch (fk->update_rule()) {
+      case dd::Foreign_key::RULE_NO_ACTION:
+        // Don't print clause when default is used.
+        break;
+      case dd::Foreign_key::RULE_RESTRICT:
+        packet->append(STRING_WITH_LEN(" ON UPDATE RESTRICT"));
+        break;
+      case dd::Foreign_key::RULE_CASCADE:
+        packet->append(STRING_WITH_LEN(" ON UPDATE CASCADE"));
+        break;
+      case dd::Foreign_key::RULE_SET_NULL:
+        packet->append(STRING_WITH_LEN(" ON UPDATE SET NULL"));
+        break;
+      case dd::Foreign_key::RULE_SET_DEFAULT:
+        // Future-proofing, we don't support this now.
+        packet->append(STRING_WITH_LEN(" ON UPDATE SET DEFAULT"));
+        break;
+      default:
+        DBUG_ASSERT(0);
+        break;
+    }
+  }
+}
+
+/**
   Build a CREATE TABLE statement for a table.
 
   @param thd              The thread
@@ -1089,8 +1251,7 @@ static bool should_print_encryption_clause(THD *thd, TABLE_SHARE *share,
 
 bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                        HA_CREATE_INFO *create_info_arg, bool show_database) {
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128],
-      def_value_buf[MAX_FIELD_WIDTH];
+  char tmp[MAX_FIELD_WIDTH], buff[128], def_value_buf[MAX_FIELD_WIDTH];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
   String def_value(def_value_buf, sizeof(def_value_buf), system_charset_info);
@@ -1135,9 +1296,9 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     avoid having to update gazillions of tests and result files, but
     it also saves a few bytes of the binary log.
    */
+  const LEX_CSTRING *const db =
+      table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
   if (show_database) {
-    const LEX_CSTRING *const db =
-        table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
     if (!thd->db().str || strcmp(db->str, thd->db().str)) {
       append_identifier(thd, packet, db->str, db->length);
       packet->append(STRING_WITH_LEN("."));
@@ -1334,11 +1495,11 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
   for (uint i = 0; i < share->keys; i++, key_info++) {
     KEY_PART_INFO *key_part = key_info->key_part;
-    bool found_primary = 0;
+    bool found_primary = false;
     packet->append(STRING_WITH_LEN(",\n  "));
 
     if (i == primary_key && !strcmp(key_info->name, primary_key_name)) {
-      found_primary = 1;
+      found_primary = true;
       /*
         No space at end, because a space will be added after where the
         identifier would go, but that is not added for primary key.
@@ -1401,15 +1562,8 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     }
   }
 
-  /*
-    Get possible foreign key definitions stored in InnoDB and append them
-    to the CREATE TABLE statement
-  */
-
-  if ((for_str = file->get_foreign_key_create_info())) {
-    packet->append(for_str, strlen(for_str));
-    file->free_foreign_key_create_info(for_str);
-  }
+  // Append foreign key constraint definitions to the CREATE TABLE statement.
+  print_foreign_key_info(thd, db, table_obj, packet);
 
   /*
     Append check constraints to the CREATE TABLE statement. All check
@@ -1709,7 +1863,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       end = longlong10_to_str(key_info->block_size, buff, 10);
       packet->append(buff, (uint)(end - buff));
     }
-    DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) ==
+    DBUG_ASSERT(((key_info->flags & HA_USES_COMMENT) != 0) ==
                 (key_info->comment.length > 0));
     if (key_info->flags & HA_USES_COMMENT) {
       packet->append(STRING_WITH_LEN(" COMMENT "));
@@ -2014,14 +2168,14 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   field_list.push_back(new Item_empty_string("User", USERNAME_CHAR_LENGTH));
   field_list.push_back(new Item_empty_string("Host", HOSTNAME_LENGTH));
   field_list.push_back(field = new Item_empty_string("db", NAME_CHAR_LEN));
-  field->maybe_null = 1;
+  field->maybe_null = true;
   field_list.push_back(new Item_empty_string("Command", 16));
   field_list.push_back(field = new Item_return_int("Time", 7, MYSQL_TYPE_LONG));
-  field->unsigned_flag = 0;
+  field->unsigned_flag = false;
   field_list.push_back(field = new Item_empty_string("State", 30));
-  field->maybe_null = 1;
+  field->maybe_null = true;
   field_list.push_back(field = new Item_empty_string("Info", max_query_length));
-  field->maybe_null = 1;
+  field->maybe_null = true;
   field_list.push_back(field = new Item_return_int("Rows_sent",
                                                    MY_INT64_NUM_DECIMAL_DIGITS,
                                                    MYSQL_TYPE_LONGLONG));
@@ -2245,7 +2399,7 @@ static int fill_schema_processlist(THD *thd, TABLE_LIST *tables, Item *) {
 typedef std::vector<SHOW_VAR> Status_var_array;
 
 Status_var_array all_status_vars(0);
-bool status_vars_inited = 0;
+bool status_vars_inited = false;
 /* Version counter, protected by LOCK_STATUS. */
 ulonglong status_var_array_version = 0;
 
@@ -2321,7 +2475,7 @@ bool add_status_vars(const SHOW_VAR *list) {
     should be called as late as possible but before enabling multi-threading.
 */
 void init_status_vars() {
-  status_vars_inited = 1;
+  status_vars_inited = true;
   std::sort(all_status_vars.begin(), all_status_vars.end(), Show_var_cmp());
   status_var_array_version++;
 }
@@ -2530,19 +2684,19 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONG_STATUS:
       value = (char *)status_var + reinterpret_cast<size_t>(value);
-      end = int10_to_str(*pointer_cast<const long *>(value), buff, 10);
+      end = longlong10_to_str(*pointer_cast<const ulong *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_LONG:
       /* the difference lies in refresh_status() */
     case SHOW_LONG_NOFLUSH:
-      end = int10_to_str(*pointer_cast<const long *>(value), buff, 10);
+      end = longlong10_to_str(*pointer_cast<const ulong *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_SIGNED_LONG:
-      end = int10_to_str(*pointer_cast<const long *>(value), buff, -10);
+      end = longlong10_to_str(*pointer_cast<const long *>(value), buff, -10);
       value_charset = system_charset_info;
       break;
 
@@ -2581,14 +2735,12 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
       break;
 
     case SHOW_INT:
-      end = int10_to_str(
-          static_cast<long>(*pointer_cast<const uint32 *>(value)), buff, 10);
+      end = longlong10_to_str(*pointer_cast<const uint32 *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_SIGNED_INT:
-      end = int10_to_str(static_cast<long>(*pointer_cast<const int32 *>(value)),
-                         buff, -10);
+      end = longlong10_to_str(*pointer_cast<const int32 *>(value), buff, -10);
       value_charset = system_charset_info;
       break;
 
@@ -2628,7 +2780,7 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_KEY_CACHE_LONG:
       value = (char *)dflt_key_cache + reinterpret_cast<size_t>(value);
-      end = int10_to_str(*pointer_cast<const long *>(value), buff, 10);
+      end = longlong10_to_str(*pointer_cast<const ulong *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
@@ -3005,7 +3157,7 @@ bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error) {
 bool make_table_list(THD *thd, SELECT_LEX *sel, const LEX_CSTRING &db_name,
                      const LEX_CSTRING &table_name) {
   Table_ident *table_ident = new (thd->mem_root)
-      Table_ident(thd->get_protocol(), db_name, table_name, 1);
+      Table_ident(thd->get_protocol(), db_name, table_name, true);
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return true;
   return false;
@@ -3468,14 +3620,13 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
 
     // COLUMN_KEY
     pos = pointer_cast<const uchar *>(
-	    (field->flags & PRI_KEY_FLAG)
-                        ? "PRI"
-                        : (field->flags & UNIQUE_KEY_FLAG)
-                              ? "UNI"
-                              : (field->flags & MULTIPLE_KEY_FLAG)
-                                    ? "MUL"
-                                    : (field->flags & CLUSTERING_FLAG) ? "CLU"
-                                                                       : "");
+        (field->flags & PRI_KEY_FLAG)
+            ? "PRI"
+            : (field->flags & UNIQUE_KEY_FLAG)
+                  ? "UNI"
+                  : (field->flags & MULTIPLE_KEY_FLAG)
+                        ? "MUL"
+                        : (field->flags & CLUSTERING_FLAG) ? "CLU" : "");
     table->field[TMP_TABLE_COLUMNS_COLUMN_KEY]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 
@@ -3575,17 +3726,14 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
       table->field[0]->store(plug->name, strlen(plug->name), scs);
       table->field[1]->store(STRING_WITH_LEN("NO"), scs);
       table->field[2]->store(plug->descr, strlen(plug->descr), scs);
-      if (schema_table_store_record(thd, table)) return 1;
+      if (schema_table_store_record(thd, table)) return true;
     }
-    return 0;
+    return false;
   }
 
   if (!(hton->flags & HTON_HIDDEN)) {
     LEX_CSTRING *name = plugin_name(plugin);
     if (!(wild && wild[0] && wild_case_compare(scs, name->str, wild))) {
-      LEX_CSTRING yesno[2] = {{STRING_WITH_LEN("NO")},
-                              {STRING_WITH_LEN("YES")}};
-      LEX_CSTRING *tmp;
       const char *option_name = show_comp_option_name[(int)hton->state];
       restore_record(table, s->default_values);
 
@@ -3595,20 +3743,25 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
       table->field[1]->store(option_name, strlen(option_name), scs);
       table->field[2]->store(plugin_decl(plugin)->descr,
                              strlen(plugin_decl(plugin)->descr), scs);
-      tmp = &yesno[MY_TEST(hton->commit)];
+
+      LEX_CSTRING yes{STRING_WITH_LEN("YES")};
+      LEX_CSTRING no{STRING_WITH_LEN("NO")};
+      LEX_CSTRING *tmp;
+
+      tmp = (hton->commit != nullptr) ? &yes : &no;
       table->field[3]->store(tmp->str, tmp->length, scs);
       table->field[3]->set_notnull();
-      tmp = &yesno[MY_TEST(hton->prepare)];
+      tmp = (hton->prepare != nullptr) ? &yes : &no;
       table->field[4]->store(tmp->str, tmp->length, scs);
       table->field[4]->set_notnull();
-      tmp = &yesno[MY_TEST(hton->savepoint_set)];
+      tmp = (hton->savepoint_set != nullptr) ? &yes : &no;
       table->field[5]->store(tmp->str, tmp->length, scs);
       table->field[5]->set_notnull();
 
-      if (schema_table_store_record(thd, table)) return 1;
+      if (schema_table_store_record(thd, table)) return true;
     }
   }
-  return 0;
+  return false;
 }
 
 static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *) {
@@ -3687,7 +3840,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
 
       if (show_table->file) {
         // COLLATION
-        if (show_table->file->index_flags(i, j, 0) & HA_READ_ORDER) {
+        if (show_table->file->index_flags(i, j, false) & HA_READ_ORDER) {
           table->field[TMP_TABLE_KEYS_COLLATION]->store(
               ((key_part->key_part_flag & HA_REVERSE_SORT) ? "D" : "A"), 1, cs);
           table->field[TMP_TABLE_KEYS_COLLATION]->set_notnull();
@@ -3757,7 +3910,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       table->field[TMP_TABLE_KEYS_COMMENT]->set_notnull();
 
       // INDEX_COMMENT
-      DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) ==
+      DBUG_ASSERT(((key_info->flags & HA_USES_COMMENT) != 0) ==
                   (key_info->comment.length > 0));
       if (key_info->flags & HA_USES_COMMENT)
         table->field[TMP_TABLE_KEYS_INDEX_COMMENT]->store(
@@ -4029,16 +4182,16 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
 
   tmp_table_param->table_charset = cs;
   tmp_table_param->field_count = field_count;
-  tmp_table_param->schema_table = 1;
+  tmp_table_param->schema_table = true;
   SELECT_LEX *select_lex = thd->lex->current_select();
   if (!(table = create_tmp_table(
-            thd, tmp_table_param, field_list, (ORDER *)0, 0, 0,
+            thd, tmp_table_param, field_list, (ORDER *)0, false, false,
             select_lex->active_options() | TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR,
             table_list->alias)))
     return 0;
   my_bitmap_map *bitmaps =
       (my_bitmap_map *)thd->alloc(bitmap_buffer_size(field_count));
-  bitmap_init(&table->def_read_set, bitmaps, field_count, false);
+  bitmap_init(&table->def_read_set, bitmaps, field_count);
   table->read_set = &table->def_read_set;
   bitmap_clear_all(table->read_set);
   table_list->schema_table_param = tmp_table_param;
@@ -4118,7 +4271,7 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
   TABLE *table;
   DBUG_TRACE;
   if (!(table = table_list->schema_table->create_table(thd, table_list)))
-    return 1;
+    return true;
   table->s->tmp_table = SYSTEM_TMP_TABLE;
   table_list->grant.privilege = SELECT_ACL;
   /*
@@ -4137,7 +4290,7 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
   table->pos_in_table_list = table_list;
   if (table_list->select_lex->first_execution)
     table_list->select_lex->add_base_options(OPTION_SCHEMA_TABLE);
-  lex->safe_to_cache_query = 0;
+  lex->safe_to_cache_query = false;
 
   if (table_list->schema_table_reformed)  // show command
   {

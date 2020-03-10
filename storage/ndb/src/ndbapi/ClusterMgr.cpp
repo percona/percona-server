@@ -756,8 +756,6 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   if(node.m_info.m_version != apiRegReq->version){
     node.m_info.m_version = apiRegReq->version;
     node.m_info.m_mysql_version = apiRegReq->mysql_version;
-    if (node.m_info.m_version < NDBD_SPLIT_VERSION)
-      node.m_info.m_mysql_version = 0;
 
     if (getMajor(node.m_info.m_version) < getMajor(NDB_VERSION) ||
 	getMinor(node.m_info.m_version) < getMinor(NDB_VERSION)) {
@@ -814,8 +812,6 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
   if(node.m_info.m_version != apiRegConf->version){
     node.m_info.m_version = apiRegConf->version;
     node.m_info.m_mysql_version = apiRegConf->mysql_version;
-    if (node.m_info.m_version < NDBD_SPLIT_VERSION)
-      node.m_info.m_mysql_version = 0;
         
     if(theNodes[theFacade.ownId()].m_info.m_type == NodeInfo::MGM)
       node.compatible = ndbCompatible_mgmt_ndb(NDB_VERSION,
@@ -833,17 +829,7 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
     recalcMinDbVersion();
   }
 
-  if (node.m_info.m_version >= NDBD_255_NODES_VERSION)
-  {
-    node.m_state = apiRegConf->nodeState;
-  }
-  else
-  {
-    /**
-     * from 2 to 8 words = 6 words diff, 6*4 = 24
-     */
-    memcpy(&node.m_state, &apiRegConf->nodeState, sizeof(node.m_state) - 24);
-  }
+  node.m_state = apiRegConf->nodeState;
   
   if (node.m_info.m_type == NodeInfo::DB)
   {

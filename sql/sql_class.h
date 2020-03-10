@@ -37,43 +37,25 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-
-#include <bitset>
-#include <memory>
-
-#include "m_ctype.h"
-#include "my_alloc.h"
-#include "my_compiler.h"
-#include "my_pointer_arithmetic.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_idle_bits.h"
-#include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/components/services/psi_statement_bits.h"
-#include "mysql/components/services/psi_thread_bits.h"
-#include "mysql/components/services/psi_transaction_bits.h"
-#include "mysql/psi/mysql_thread.h"
-#include "mysql/service_thread_scheduler.h"
-#include "pfs_thread_provider.h"
-#include "sql/psi_memory_key.h"
-#include "sql/resourcegroups/resource_group_basic_types.h"
-#include "sql/xa.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
-#include <time.h>
 #include <atomic>
 #include <bitset>
+#include <memory>
 #include <new>
 #include <string>
 
 #include "dur_prop.h"  // durability_properties
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "map_helpers.h"
 #include "mutex_lock.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_command.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -82,13 +64,24 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/my_thread_bits.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_idle_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/psi_transaction_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/service_thread_scheduler.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
 #include "mysql_com_server.h"  // NET_SERVER
 #include "mysqld_error.h"
+#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"  // Security_context
 #include "sql/current_thd.h"
@@ -97,7 +90,9 @@
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"  // Opt_trace_context
+#include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/rpl_context.h"  // Rpl_thd_context
 #include "sql/rpl_gtid.h"
 #include "sql/session_tracker.h"  // Session_tracker
@@ -110,14 +105,15 @@
 #include "sql/sys_vars_resource_mgr.h"  // Session_sysvar_resource_manager
 #include "sql/system_variables.h"       // system_variables
 #include "sql/transaction_info.h"       // Ha_trx_info
+#include "sql/xa.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "thr_lock.h"
 #include "violite.h"
 
 enum enum_check_fields : int;
 enum enum_tx_isolation : int;
 enum ha_notification_type : int;
-class Field;
 class Item;
 class Parser_state;
 class PROFILING;
@@ -133,9 +129,9 @@ class sp_rcontext;
 class user_var_entry;
 struct LEX;
 struct LEX_USER;
-struct ORDER;
 struct TABLE;
 struct TABLE_LIST;
+struct timeval;
 struct User_level_lock;
 struct YYLTYPE;
 
@@ -156,7 +152,6 @@ class Time_zone;
 class sp_cache;
 struct Binlog_user_var_event;
 struct LOG_INFO;
-class Check_constraints_adjusted_names_map;
 
 extern bool opt_log_slow_admin_statements;
 extern ulong opt_log_slow_sp_statements;
@@ -871,17 +866,6 @@ class Global_backup_lock final {
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
-/**
-  Convert microseconds since epoch to timeval.
-  @param      micro_time  Microseconds.
-  @param[out] tm          A timeval variable to write to.
-*/
-static inline void my_micro_time_to_timeval(ulonglong micro_time,
-                                            struct timeval *tm) {
-  tm->tv_sec = (long)(micro_time / 1000000);
-  tm->tv_usec = (long)(micro_time % 1000000);
-}
-
 struct QUERY_START_TIME_INFO {
   struct timeval start_time;
   ulonglong start_utime;
@@ -1142,6 +1126,11 @@ class THD : public MDL_context_owner,
   struct System_status_var *initial_status_var; /* used by show status */
   // has status_var already been added to global_status_var?
   bool status_var_aggregated;
+
+  /**
+    Session's connection attributes for the connected client
+  */
+  std::vector<char> m_connection_attributes;
 
   /**
     Current query cost.
@@ -1724,7 +1713,49 @@ class THD : public MDL_context_owner,
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
 
+  /**
+    Determine if binlogging is currently disabled for this session.
+
+    There are two ways that binlogging can be disabled:
+
+     1. The binary log file is closed (globally). This can happen for
+        two reasons: either --skip-log-bin was used on the command line,
+        or a binlog write error happened when binlog_error_action=IGNORE_ERROR.
+
+     2. The binary log is disabled on session level. This can happen for
+        two reasons: either the user has set @@session.sql_log_bin = 0,
+        or the server code has internally disabled the binary log (by
+        either setting thd->variables.option_bits &= ~OPTION_BIN_LOG or
+        creating a Disable_binlog_guard object).
+
+    Even if this function returns true and the binary log is disabled,
+    it is possible that the statement will be written to the binary log,
+    in the cases where the server has merely temporarily disabled binary
+    logging.
+
+    And even if this function returns false and the binary log is
+    enabled, it is possible that the statement will not be written to
+    the binary log, e.g. in case it is a no-op, it fails, it gets rolled
+    back, or some other session closes the binary log due to a write
+    error when using binlog_error_action=IGNORE_ERROR.
+
+    @retval true The binary log is currently disabled for the statement.
+
+    @retval false The binary log is currently enabled for the statement.
+  */
   bool is_current_stmt_binlog_disabled() const;
+
+  /**
+    Determine if binlogging is currently disabled for this session.
+    If the binary log is disabled for this thread (either by log_bin=0 or
+    sql_log_bin=0 or by log_slave_updates=0 for a slave thread), then the
+    statement will not be written to the binary log.
+
+    @retval true The binary log is currently disabled for the statement.
+
+    @retval false The binary log is currently enabled for the statement.
+  */
+  bool is_current_stmt_binlog_log_slave_updates_disabled() const;
 
   /**
     Determine if binloging is enabled in row format and write set extraction is
@@ -2168,7 +2199,7 @@ class THD : public MDL_context_owner,
       /* It's the first time we read it */
       first_successful_insert_id_in_prev_stmt_for_binlog =
           first_successful_insert_id_in_prev_stmt;
-      stmt_depends_on_first_successful_insert_id_in_prev_stmt = 1;
+      stmt_depends_on_first_successful_insert_id_in_prev_stmt = true;
     }
     return first_successful_insert_id_in_prev_stmt;
   }
@@ -2985,38 +3016,15 @@ class THD : public MDL_context_owner,
                                       : default_charset_info;
   }
   inline Time_zone *time_zone() {
-    time_zone_used = 1;
+    time_zone_used = true;
     return variables.time_zone;
   }
   time_t query_start_in_secs() const { return start_time.tv_sec; }
   timeval query_start_timeval_trunc(uint decimals);
-  void set_time() {
-    start_utime = utime_after_lock = my_micro_time();
-    if (user_time.tv_sec || user_time.tv_usec)
-      start_time = user_time;
-    else
-      my_micro_time_to_timeval(start_utime, &start_time);
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_start_time)(query_start_in_secs());
-#endif
-  }
+  void set_time();
   void set_time(const struct timeval *t) {
     user_time = *t;
     set_time();
-  }
-  void set_time_after_lock() {
-    /*
-      If mysql_lock_tables() is called multiple times,
-      we stick with the first timestamp. This prevents
-      anomalities with things like CREATE INDEX, where
-      otherwise, we'll get the lock timestamp for the
-      data dictionary update.
-    */
-    if (utime_after_lock != start_utime) return;
-    utime_after_lock = my_micro_time();
-    MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi,
-                                  (utime_after_lock - start_utime));
   }
   void get_time(QUERY_START_TIME_INFO *time_info) const noexcept {
     time_info->start_time = start_time;
@@ -3026,6 +3034,8 @@ class THD : public MDL_context_owner,
     start_time = time_info.start_time;
     start_utime = time_info.start_utime;
   }
+  void set_time_after_lock();
+
   inline bool is_fsp_truncate_mode() const {
     return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
   }
@@ -3036,11 +3046,8 @@ class THD : public MDL_context_owner,
    Evaluate the current time, and if it exceeds the long-query-time
    setting, mark the query as slow.
   */
-  void update_slow_query_status() {
-    utime_after_query = current_utime();
-    if (utime_after_query > utime_after_lock + variables.long_query_time)
-      server_status |= SERVER_QUERY_WAS_SLOW;
-  }
+  void update_slow_query_status();
+
   ulonglong found_rows() const { return previous_found_rows; }
 
   /*
@@ -3800,6 +3807,7 @@ class THD : public MDL_context_owner,
     flag.
   */
   bool is_commit_in_middle_of_statement;
+
   /*
     True while the transaction is executing, if one of
     is_ddl_gtid_consistent or is_dml_gtid_consistent returned false.
@@ -4047,22 +4055,24 @@ class THD : public MDL_context_owner,
   */
   const String normalized_query();
 
-  /**
-    Assign a new value to thd->m_query_string.
-    Protected with the LOCK_thd_query mutex.
-  */
-  void set_query_for_display(const char *query_arg, size_t query_length_arg) {
+  void set_query_for_display(const char *query_arg MY_ATTRIBUTE((unused)),
+                             size_t query_length_arg MY_ATTRIBUTE((unused))) {
     MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg, query_length_arg);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
 #endif
   }
   void reset_query_for_display(void) { set_query_for_display(nullptr, 0); }
+
+  /**
+    Assign a new value to thd->m_query_string.
+    Protected with the LOCK_thd_query mutex.
+  */
   void set_query(const char *query_arg, size_t query_length_arg) {
     LEX_CSTRING tmp = {query_arg, query_length_arg};
     set_query(tmp);
   }
-  void set_query(const LEX_CSTRING &query_arg);
+  void set_query(LEX_CSTRING query_arg);
   void reset_query() { set_query(LEX_CSTRING()); }
 
   /**
@@ -4517,117 +4527,19 @@ inline bool secondary_engine_lock_tables_mode(const THD &cthd) {
           cthd.locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES);
 }
 
-/**
-  A simple holder for Internal_error_handler.
-  The class utilizes RAII technique to not forget to pop the handler.
-
-  @tparam Error_handler      Internal_error_handler to instantiate.
-  @tparam Error_handler_arg  Type of the error handler ctor argument.
-*/
-template <typename Error_handler, typename Error_handler_arg>
-class Internal_error_handler_holder {
-  THD *m_thd;
-  bool m_activate;
-  Error_handler m_error_handler;
-
- public:
-  Internal_error_handler_holder(THD *thd, bool activate, Error_handler_arg *arg)
-      : m_thd(thd), m_activate(activate), m_error_handler(arg) {
-    if (activate) thd->push_internal_handler(&m_error_handler);
-  }
-
-  ~Internal_error_handler_holder() {
-    if (m_activate) m_thd->pop_internal_handler();
-  }
-};
-
 /* Returns string as 'IP' for the client-side of the connection represented by
    'client'. Does not allocate memory. May return "".
 */
 const char *get_client_host(const THD &client) noexcept;
 
-/**
-  A simple holder for the Prepared Statement Query_arena instance in THD.
-  The class utilizes RAII technique to not forget to restore the THD arena.
-*/
-class Prepared_stmt_arena_holder {
- public:
-  /**
-    Constructs a new object, activates the persistent arena if requested and if
-    a prepared statement or a stored procedure statement is being executed.
-
-    @param thd                    Thread context.
-    @param activate_now_if_needed Attempt to activate the persistent arena in
-                                  the constructor or not.
-  */
-  Prepared_stmt_arena_holder(THD *thd, bool activate_now_if_needed = true)
-      : m_thd(thd), m_arena(NULL) {
-    if (activate_now_if_needed && !m_thd->stmt_arena->is_regular() &&
-        m_thd->mem_root != m_thd->stmt_arena->mem_root) {
-      m_thd->swap_query_arena(*m_thd->stmt_arena, &m_backup);
-      m_arena = m_thd->stmt_arena;
-    }
-  }
-
-  /**
-    Deactivate the persistent arena (restore the previous arena) if it has
-    been activated.
-  */
-  ~Prepared_stmt_arena_holder() {
-    if (is_activated()) m_thd->swap_query_arena(m_backup, m_arena);
-  }
-
-  bool is_activated() const { return m_arena != NULL; }
-
- private:
-  /// The thread context to work with.
-  THD *const m_thd;
-
-  /// The arena set by this holder (by activate()).
-  Query_arena *m_arena;
-
-  /// The arena state to be restored.
-  Query_arena m_backup;
-};
-
-/**
-  RAII class for column privilege checking
-*/
-class Column_privilege_tracker {
- public:
-  Column_privilege_tracker(THD *thd, ulong privilege)
-      : thd(thd), saved_privilege(thd->want_privilege) {
-    thd->want_privilege = privilege;
-  }
-  ~Column_privilege_tracker() { thd->want_privilege = saved_privilege; }
-
- private:
-  THD *const thd;
-  const ulong saved_privilege;
-};
-
 /** A short cut for thd->get_stmt_da()->set_ok_status(). */
-
-inline void my_ok(THD *thd, ulonglong affected_rows = 0, ulonglong id = 0,
-                  const char *message = NULL) {
-  thd->set_row_count_func(affected_rows);
-  thd->get_stmt_da()->set_ok_status(affected_rows, id, message);
-}
+void my_ok(THD *thd, ulonglong affected_rows = 0, ulonglong id = 0,
+           const char *message = nullptr);
 
 /** A short cut for thd->get_stmt_da()->set_eof_status(). */
-
-inline void my_eof(THD *thd) {
-  thd->set_row_count_func(-1);
-  thd->get_stmt_da()->set_eof_status(thd);
-  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-    ((Transaction_state_tracker *)thd->session_tracker.get_tracker(
-         TRANSACTION_INFO_TRACKER))
-        ->add_trx_state(thd, TX_RESULT_SET);
-  }
-}
+void my_eof(THD *thd);
 
 bool add_item_to_list(THD *thd, Item *item);
-void add_order_to_list(THD *thd, ORDER *order);
 
 /*************************************************************************/
 
@@ -4652,7 +4564,7 @@ void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
   @retval            false otherwise
 */
 
-static inline bool is_engine_substitution_allowed(const THD *thd) {
+inline bool is_engine_substitution_allowed(const THD *thd) {
   return !(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
 }
 

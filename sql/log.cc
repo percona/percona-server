@@ -137,23 +137,19 @@ static const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] = {
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("query_time")}, {STRING_WITH_LEN("time(6)")}, {NULL, 0}},
     {{STRING_WITH_LEN("lock_time")}, {STRING_WITH_LEN("time(6)")}, {NULL, 0}},
-    {{STRING_WITH_LEN("rows_sent")}, {STRING_WITH_LEN("int(11)")}, {NULL, 0}},
-    {{STRING_WITH_LEN("rows_examined")},
-     {STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
+    {{STRING_WITH_LEN("rows_sent")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
+    {{STRING_WITH_LEN("rows_examined")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("db")},
      {STRING_WITH_LEN("varchar(512)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("last_insert_id")},
-     {STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
-    {{STRING_WITH_LEN("insert_id")}, {STRING_WITH_LEN("int(11)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("last_insert_id")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
+    {{STRING_WITH_LEN("insert_id")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("server_id")},
-     {STRING_WITH_LEN("int(10) unsigned")},
+     {STRING_WITH_LEN("int unsigned")},
      {NULL, 0}},
     {{STRING_WITH_LEN("sql_text")}, {STRING_WITH_LEN("mediumblob")}, {NULL, 0}},
     {{STRING_WITH_LEN("thread_id")},
-     {STRING_WITH_LEN("bigint(21) unsigned")},
+     {STRING_WITH_LEN("bigint unsigned")},
      {NULL, 0}}};
 
 static const TABLE_FIELD_DEF slow_query_log_table_def = {
@@ -177,10 +173,10 @@ static const TABLE_FIELD_TYPE general_log_table_fields[GLT_FIELD_COUNT] = {
      {STRING_WITH_LEN("mediumtext")},
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("thread_id")},
-     {STRING_WITH_LEN("bigint(21) unsigned")},
+     {STRING_WITH_LEN("bigint unsigned")},
      {NULL, 0}},
     {{STRING_WITH_LEN("server_id")},
-     {STRING_WITH_LEN("int(10) unsigned")},
+     {STRING_WITH_LEN("int unsigned")},
      {NULL, 0}},
     {{STRING_WITH_LEN("command_type")},
      {STRING_WITH_LEN("varchar(64)")},
@@ -540,7 +536,7 @@ bool File_query_log::open() {
       goto err;
   }
 
-  if (init_io_cache(&log_file, file, IO_SIZE, WRITE_CACHE, pos, 0,
+  if (init_io_cache(&log_file, file, IO_SIZE, WRITE_CACHE, pos, false,
                     MYF(MY_WME | MY_NABP)))
     goto err;
 
@@ -769,7 +765,9 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
             " Start: %s End: %s Schema: %s Rows_affected: %llu\n",
             query_time_buff, lock_time_buff, (ulong)thd->get_sent_row_count(),
             (ulong)thd->get_examined_row_count(), (ulong)thd->thread_id(),
-            (ulong)thd->get_protocol_classic()->get_net()->last_errno,
+            (ulong)(thd->is_classic_protocol()
+                        ? thd->get_protocol_classic()->get_net()->last_errno
+                        : 0),
             (ulong)thd->killed,
             (ulong)(thd->status_var.bytes_received -
                     query_start->bytes_received),
@@ -906,7 +904,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     This ensures logs can be used to replicate queries accurately.
   */
   end = my_stpcpy(end, ",timestamp=");
-  end = int10_to_str((long)(query_start_utime / 1000000), end, 10);
+  end = longlong10_to_str(query_start_utime / 1000000, end, 10);
 
   if (end != buff) {
     *end++ = ';';
@@ -986,7 +984,7 @@ bool Log_to_csv_event_handler::log_general(
     goto err;
 
   if (table->file->ha_extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
-      table->file->ha_rnd_init(0))
+      table->file->ha_rnd_init(false))
     goto err;
 
   need_rnd_end = true;
@@ -1107,7 +1105,7 @@ bool Log_to_csv_event_handler::log_slow(
   }
 
   if (table->file->ha_extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
-      table->file->ha_rnd_init(0)) {
+      table->file->ha_rnd_init(false)) {
     reason = "mark log or init failed";
     goto err;
   }
@@ -1137,18 +1135,24 @@ bool Log_to_csv_event_handler::log_slow(
       839 hours (~35 days)
     */
     MYSQL_TIME t;
-    t.neg = 0;
+    t.neg = false;
+
+    // overflow TIME-max
+    DBUG_EXECUTE_IF("slow_log_table_max_rows_examined", {
+      query_utime = (longlong)1555826389LL * 1000000 + 1;
+      lock_utime = query_utime;
+    });
 
     /* fill in query_time field */
-    calc_time_from_sec(&t,
-                       static_cast<long>(min((longlong)(query_utime / 1000000),
-                                             (longlong)TIME_MAX_VALUE_SECONDS)),
+    query_utime = min((ulonglong)query_utime,
+                      (ulonglong)TIME_MAX_VALUE_SECONDS * 1000000LL);
+    calc_time_from_sec(&t, static_cast<long>(query_utime / 1000000LL),
                        query_utime % 1000000);
     table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t);
     /* lock_time */
-    calc_time_from_sec(&t,
-                       static_cast<long>(min((longlong)(lock_utime / 1000000),
-                                             (longlong)TIME_MAX_VALUE_SECONDS)),
+    lock_utime = min((ulonglong)lock_utime,
+                     (ulonglong)TIME_MAX_VALUE_SECONDS * 1000000LL);
+    calc_time_from_sec(&t, static_cast<long>(lock_utime / 1000000LL),
                        lock_utime % 1000000);
     table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t);
     /* rows_sent */

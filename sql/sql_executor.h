@@ -30,32 +30,42 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
+#include <vector>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "sql/item.h"
+#include "my_table_map.h"
 #include "sql/row_iterator.h"
-#include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
 
 class CacheInvalidatorIterator;
+class Cached_item;
 class Field;
 class Field_longlong;
 class Filesort;
+class FollowTailIterator;
+class Item;
 class Item_sum;
 class JOIN;
 class JOIN_TAB;
 class Opt_trace_object;
 class QEP_TAB;
 class QUICK_SELECT_I;
+class THD;
+class Window;
+enum class Window_retrieve_cached_row_reason;
 struct CACHE_FIELD;
 struct POSITION;
 template <class T>
 class List;
+template <typename Element_type>
+class Mem_root_array;
 
 /**
    Possible status of a "nested loop" operation (Next_select_func family of
@@ -89,6 +99,17 @@ typedef enum_nested_loop_state (*Next_select_func)(JOIN *, class QEP_TAB *,
                                                    bool);
 
 /*
+  Array of pointers to tables whose rowids compose the temporary table
+  record.
+*/
+struct SJ_TMP_TABLE_TAB {
+  QEP_TAB *qep_tab;
+  uint rowid_offset;
+  ushort null_byte;
+  uchar null_bit;
+};
+
+/*
   Temporary table used by semi-join DuplicateElimination strategy
 
   This consists of the temptable itself and data needed to put records
@@ -107,20 +128,9 @@ typedef enum_nested_loop_state (*Next_select_func)(JOIN *, class QEP_TAB *,
 
 class SJ_TMP_TABLE {
  public:
-  SJ_TMP_TABLE() : hash_field(NULL) {}
-  /*
-    Array of pointers to tables whose rowids compose the temporary table
-    record.
-  */
-  class TAB {
-   public:
-    QEP_TAB *qep_tab;
-    uint rowid_offset;
-    ushort null_byte;
-    uchar null_bit;
-  };
-  TAB *tabs;
-  TAB *tabs_end;
+  SJ_TMP_TABLE() : hash_field(nullptr) {}
+  SJ_TMP_TABLE_TAB *tabs;
+  SJ_TMP_TABLE_TAB *tabs_end;
 
   /*
     is_confluent==true means this is a special case where the temptable record
@@ -293,7 +303,8 @@ enum_nested_loop_state evaluate_join_record(JOIN *join, QEP_TAB *qep_tab,
 enum_nested_loop_state end_send_count(JOIN *join, QEP_TAB *qep_tab);
 
 MY_ATTRIBUTE((warn_unused_result))
-bool copy_fields(Temp_table_param *param, const THD *thd);
+bool copy_fields(Temp_table_param *param, const THD *thd,
+                 bool reverse_copy = false);
 
 enum Copy_func_type {
   /**
@@ -364,7 +375,7 @@ bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
   @retval false ref key copied successfully
   @retval true  error dectected during copying of key
 */
-bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
+bool construct_lookup_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 
 /** Help function when we get some an error from the table handler. */
 int report_handler_error(TABLE *table, int error);
@@ -401,7 +412,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
                        List<Item> *res_selected_fields,
                        List<Item> *res_all_fields);
 bool check_unique_constraint(TABLE *table);
-ulonglong unique_hash(Field *field, ulonglong *hash);
+ulonglong unique_hash(const Field *field, ulonglong *hash);
 
 class QEP_TAB : public QEP_shared_owner {
  public:
@@ -516,13 +527,7 @@ class QEP_TAB : public QEP_shared_owner {
   }
 
   bool use_order() const;  ///< Use ordering provided by chosen index?
-  bool sort_table();
   bool remove_duplicates();
-
-  inline bool skip_record(THD *thd, bool *skip_record_arg) {
-    *skip_record_arg = condition() ? condition()->val_int() == false : false;
-    return thd->is_error();
-  }
 
   /**
      Used to begin a new execution of a subquery. Necessary if this subquery
@@ -571,9 +576,6 @@ class QEP_TAB : public QEP_shared_owner {
     QEP_TAB, and match_tab points to the last QEP_TAB handled by the strategy.
     match_tab->found_match should be checked to see if the current value group
     had a match.
-    If doing a FirstMatch, check this QEP_TAB to see if there is a match.
-    Unless the FirstMatch performs a "split jump", this is equal to the
-    current QEP_TAB.
   */
   plan_idx match_tab;
 
@@ -850,12 +852,13 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
                                        bool *output_row_ready);
 bool buffer_windowing_record(THD *thd, Temp_table_param *param,
                              bool *new_partition);
-bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
-                          int64 rowno,
-                          enum Window::retrieve_cached_row_reason reason,
+bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
+                          int64 rowno, Window_retrieve_cached_row_reason reason,
                           int fno = 0);
 
 void ConvertItemsToCopy(List<Item> *items, Field **fields,
                         Temp_table_param *param, JOIN *join);
+std::string RefToString(const TABLE_REF &ref, const KEY *key,
+                        bool include_nulls);
 
 #endif /* SQL_EXECUTOR_INCLUDED */

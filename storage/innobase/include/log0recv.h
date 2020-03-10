@@ -95,8 +95,8 @@ struct recv_addr_t;
 mysqlbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
 extern bool meb_replay_file_ops;
-/** true if the redo log is copied during an online backup */
-extern volatile bool is_online_redo_copy;
+/** list of tablespaces, that experienced an inplace DDL during a backup op */
+extern std::list<std::pair<space_id_t, lsn_t>> index_load_list;
 /** the last redo log flush len as seen by MEB */
 extern volatile lsn_t backup_redo_log_flushed_lsn;
 /** TRUE when the redo log is being backed up */
@@ -116,7 +116,7 @@ than buf_len if log data ended here
 @param[out]	has_encrypted_log	set true, if buffer contains encrypted
 redo log, set false otherwise */
 void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
-                      ulint *scanned_checkpoint_no, ulint *block_no,
+                      uint32_t *scanned_checkpoint_no, uint32_t *block_no,
                       ulint *n_bytes_scanned, bool *has_encrypted_log);
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
@@ -553,6 +553,8 @@ struct recv_sys_t {
   /** event to signal that the page cleaner has finished the request */
   os_event_t flush_end;
 
+#else  /* !UNIV_HOTBACKUP */
+  bool apply_file_operations;
 #endif /* !UNIV_HOTBACKUP */
 
   /** This is true when log rec application to pages is allowed;

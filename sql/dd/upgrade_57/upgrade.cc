@@ -755,14 +755,16 @@ static bool migrate_stats(THD *thd) {
   error_handler.set_log_error(false);
   if (dd::execute_query(thd,
                         "INSERT IGNORE INTO mysql.innodb_table_stats "
-                        "SELECT * FROM mysql.innodb_table_stats_backup57"))
+                        "SELECT * FROM mysql.innodb_table_stats_backup57 "
+                        "WHERE table_name not like '%#P#%'"))
     LogErr(WARNING_LEVEL, ER_DD_UPGRADE_FAILED_TO_CREATE_TABLE_STATS);
   else
     LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE_TABLE_STATS_MIGRATE_COMPLETED);
 
   if (dd::execute_query(thd,
                         "INSERT IGNORE INTO mysql.innodb_index_stats "
-                        "SELECT * FROM mysql.innodb_index_stats_backup57"))
+                        "SELECT * FROM mysql.innodb_index_stats_backup57 "
+                        "WHERE table_name not like '%#P#%'"))
     LogErr(WARNING_LEVEL, ER_DD_UPGRADE_FAILED_TO_CREATE_INDEX_STATS);
   else
     LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE_TABLE_STATS_MIGRATE_COMPLETED);
@@ -1069,7 +1071,6 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
 
   if (bootstrap::initialize_dictionary(thd, in_progress(), d) ||
       dd::info_schema::create_system_views(thd) ||
-      dd::info_schema::create_non_dd_views(thd, true) ||
       dd::info_schema::store_server_I_S_metadata(thd)) {
     thd->pop_internal_handler();
     terminate(thd);

@@ -41,6 +41,7 @@
 #include "sql/tztime.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_timestamp.h"
+#include "unittest/gunit/mysys_util.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace item_unittest {
@@ -74,7 +75,18 @@ class Mock_field_long : public Field_long {
                    0,            // field_name_arg
                    false,        // zero_arg
                    false)        // unsigned_arg
-  {}
+  {
+    table = new Fake_TABLE(this);
+    ptr = table->record[0];
+
+    // Make it possible to write into this field
+    bitmap_set_bit(table->write_set, 0);
+  }
+
+  ~Mock_field_long() override {
+    delete static_cast<Fake_TABLE *>(table);
+    table = nullptr;
+  }
 
   // Avoid warning about hiding other overloaded versions of store().
   using Field_long::store;
@@ -107,7 +119,7 @@ class Mock_field_string : public Field_string {
     m_fake_tbl = new Fake_TABLE(this);
 
     // Allocate place for storing the field value
-    ptr = new uchar[length];
+    ptr = m_fake_tbl->record[0];
 
     // Make it possible to write into this field
     bitmap_set_bit(m_fake_tbl->write_set, 0);
@@ -120,8 +132,6 @@ class Mock_field_string : public Field_string {
   }
 
   ~Mock_field_string() {
-    delete[] ptr;
-    ptr = NULL;
     delete m_fake_tbl;
     m_fake_tbl = NULL;
   }
@@ -147,7 +157,7 @@ class Mock_field_varstring : public Field_varstring {
     m_fake_tbl = new Fake_TABLE(this);
 
     // Allocate place for storing the field value
-    ptr = new uchar[length + 1];
+    ptr = m_fake_tbl->record[0];
 
     // Make it possible to write into this field
     bitmap_set_bit(m_fake_tbl->write_set, 0);
@@ -160,8 +170,6 @@ class Mock_field_varstring : public Field_varstring {
   }
 
   ~Mock_field_varstring() {
-    delete[] ptr;
-    ptr = NULL;
     delete m_fake_tbl;
     m_fake_tbl = NULL;
   }
@@ -387,12 +395,12 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Bug#11765562 58545:
     EXPORT_SET() CAN BE USED TO MAKE ENTIRE SERVER COMPLETELY UNRESPONSIVE
    */
-  const ulong max_size = 1024;
-  const ulonglong repeat = max_size / 2;
+  const ulong max_packet_size = 1024;
+  const ulonglong repeat = max_packet_size / 2;
   Item *item_int_repeat = new Item_int(repeat);
   Item *string_x = new Item_string(STRING_WITH_LEN("x"), &my_charset_bin);
   String *const null_string = NULL;
-  thd()->variables.max_allowed_packet = max_size;
+  thd()->variables.max_allowed_packet = max_packet_size;
   {
     // Testing overflow caused by 'on-string'.
     Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);
@@ -598,9 +606,9 @@ TEST_F(ItemTest, ItemFuncXor) {
 */
 TEST_F(ItemTest, MysqlTimeCache) {
   String str_buff, *str;
-  MYSQL_TIME datetime6 = {
-      2011, 11, 7, 10, 20, 30, 123456, 0, MYSQL_TIMESTAMP_DATETIME};
-  MYSQL_TIME time6 = {0, 0, 0, 10, 20, 30, 123456, 0, MYSQL_TIMESTAMP_TIME};
+  MysqlTime datetime6(2011, 11, 7, 10, 20, 30, 123456, false,
+                      MYSQL_TIMESTAMP_DATETIME);
+  MysqlTime time6(0, 0, 0, 10, 20, 30, 123456, false, MYSQL_TIMESTAMP_TIME);
   struct timeval tv6 = {1320661230, 123456};
   const MYSQL_TIME *ltime;
   MYSQL_TIME_cache cache;
@@ -680,8 +688,8 @@ TEST_F(ItemTest, MysqlTimeCache) {
   /*
     Testing DATETIME(5)
   */
-  MYSQL_TIME datetime5 = {
-      2011, 11, 7, 10, 20, 30, 123450, 0, MYSQL_TIMESTAMP_DATETIME};
+  MysqlTime datetime5(2011, 11, 7, 10, 20, 30, 123450, false,
+                      MYSQL_TIMESTAMP_DATETIME);
   cache.set_datetime(&datetime5, 5);
   EXPECT_EQ(1840440237558456890LL, cache.val_packed());
   EXPECT_EQ(5, cache.decimals());
@@ -698,7 +706,7 @@ TEST_F(ItemTest, MysqlTimeCache) {
     Testing DATE.
     Initializing from MYSQL_TIME.
   */
-  MYSQL_TIME date = {2011, 11, 7, 0, 0, 0, 0, 0, MYSQL_TIMESTAMP_DATE};
+  MysqlTime date(2011, 11, 7, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE);
   cache.set_date(&date);
   EXPECT_EQ(1840439528385413120LL, cache.val_packed());
   EXPECT_EQ(0, cache.decimals());

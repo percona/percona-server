@@ -28,9 +28,9 @@ INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
 INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
 INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
 INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 INSERT INTO t1 (a,b) VALUES (3,'a'),(0,'');
-ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '3' for key 't1.PRIMARY'
 INSERT INTO t1 (a,b) VALUES (0,'');
 SELECT a,b FROM t1;
 a	b
@@ -46,7 +46,7 @@ a	b
 6	f
 INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
 Warnings:
-Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
 INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE b = CONCAT(b,b);
 SELECT a,b FROM t1;
 a	b

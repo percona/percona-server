@@ -26,6 +26,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -833,7 +835,7 @@ static Item *create_comparator(MY_XPATH *xpath, int oper, MY_XPATH_LEX *context,
   } else if (a->type() == Item::XPATH_NODESET &&
              b->type() == Item::XPATH_NODESET) {
     size_t len = xpath->query.end - context->beg;
-    set_if_smaller(len, 32);
+    len = std::min(len, size_t(32));
     my_printf_error(ER_UNKNOWN_ERROR,
                     "XPATH error: "
                     "comparison of two nodesets is not supported: '%.*s'",
@@ -1049,7 +1051,7 @@ static Item *create_func_string_length(MY_XPATH *xpath, Item **args,
 }
 
 static Item *create_func_round(MY_XPATH *, Item **args, uint) {
-  return new Item_func_round(args[0], new Item_int_0(), 0);
+  return new Item_func_round(args[0], new Item_int_0(), false);
 }
 
 static Item *create_func_last(MY_XPATH *xpath, Item **, uint) {
@@ -2218,7 +2220,7 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
       xpath->item = NULL;
       DBUG_ASSERT(xpath->query.end > dollar_pos);
       size_t len = xpath->query.end - dollar_pos;
-      set_if_smaller(len, 32);
+      len = std::min(len, size_t(32));
       my_printf_error(ER_UNKNOWN_ERROR, "Unknown XPATH variable at: '%.*s'",
                       MYF(0), static_cast<int>(len), dollar_pos);
     }
@@ -2323,7 +2325,7 @@ bool Item_xml_str_func::parse_xpath(Item *xpath_expr) {
 
   if (!rc) {
     size_t clen = xpath.query.end - xpath.lasttok.beg;
-    set_if_smaller(clen, 32);
+    clen = std::min(clen, size_t(32));
     my_printf_error(ER_UNKNOWN_ERROR, "XPATH syntax error: '%.*s'", MYF(0),
                     static_cast<int>(clen), xpath.lasttok.beg);
     return true;
@@ -2489,7 +2491,7 @@ String *Item_func_xml_extractvalue::val_str(String *str) {
   tmp_value.set("", 0, collation.collation);
   if (!nodeset_func || !(res = args[0]->val_str(str)) ||
       !parse_xml(res, &pxml) || !(res = nodeset_func->val_str(&tmp_value))) {
-    null_value = 1;
+    null_value = true;
     return 0;
   }
   return res;

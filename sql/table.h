@@ -677,7 +677,7 @@ struct TABLE_SHARE {
     @retval nullptr if no histogram is found
     @retval a pointer to a histogram if one is found
   */
-  const histograms::Histogram *find_histogram(uint field_index);
+  const histograms::Histogram *find_histogram(uint field_index) const;
 
   /** Category of this table. */
   TABLE_CATEGORY table_category{TABLE_UNKNOWN_CATEGORY};
@@ -955,7 +955,8 @@ struct TABLE_SHARE {
   /**
     Arrays with descriptions of foreign keys in which this table participates
     as child or parent. We only cache in them information from dd::Table object
-    which is sufficient for use by prelocking algorithm.
+    which is sufficient for use by prelocking algorithm/to check if table is
+    referenced by a foreign key.
   */
   uint foreign_keys{0};
   TABLE_SHARE_FOREIGN_KEY_INFO *foreign_key{nullptr};
@@ -1168,6 +1169,9 @@ struct TABLE_SHARE {
   bool has_secondary_engine() const {
     return is_primary_engine() && secondary_engine.str != nullptr;
   }
+
+  /** Returns whether this table is referenced by a foreign key. */
+  bool is_referenced_by_foreign_key() const { return foreign_key_parents != 0; }
 
   /**
      Checks if TABLE_SHARE has at least one field with
@@ -1684,7 +1688,7 @@ struct TABLE {
   void mark_columns_needed_for_insert(THD *thd);
   void mark_columns_per_binlog_row_image(THD *thd);
   void mark_generated_columns(bool is_update);
-  void mark_gcol_in_maps(Field *field);
+  void mark_gcol_in_maps(const Field *field);
   void mark_check_constraint_columns(bool is_update);
   void column_bitmaps_set(MY_BITMAP *read_set_arg, MY_BITMAP *write_set_arg);
   inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
@@ -2234,19 +2238,6 @@ enum enum_schema_table_state : int {
   PROCESSED_BY_JOIN_EXEC
 };
 
-struct FOREIGN_KEY_INFO {
-  LEX_STRING *foreign_id;
-  LEX_STRING *foreign_db;
-  LEX_STRING *foreign_table;
-  LEX_STRING *referenced_db;
-  LEX_STRING *referenced_table;
-  LEX_STRING *update_method;
-  LEX_STRING *delete_method;
-  LEX_STRING *referenced_key_name;
-  List<LEX_STRING> foreign_fields;
-  List<LEX_STRING> referenced_fields;
-};
-
 #define MY_I_S_MAYBE_NULL 1
 #define MY_I_S_UNSIGNED 2
 
@@ -2399,6 +2390,10 @@ struct LEX_ALTER {
   uint32 password_reuse_interval;
   bool use_default_password_reuse_interval;
   bool update_password_reuse_interval;
+  uint failed_login_attempts;
+  bool update_failed_login_attempts;
+  int password_lock_time;
+  bool update_password_lock_time;
   /* Holds the specification of 'PASSWORD REQUIRE CURRENT' clause. */
   Lex_acl_attrib_udyn update_password_require_current;
   void cleanup() {
@@ -2415,6 +2410,10 @@ struct LEX_ALTER {
     update_password_require_current = Lex_acl_attrib_udyn::UNCHANGED;
     password_history_length = 0;
     password_reuse_interval = 0;
+    update_password_lock_time = false;
+    update_failed_login_attempts = false;
+    failed_login_attempts = 0;
+    password_lock_time = 0;
   }
 };
 
@@ -2538,22 +2537,46 @@ struct TABLE_LIST {
       : TABLE_LIST(db_name, strlen(db_name), table_name, strlen(table_name),
                    table_name, lock_type) {}
 
+  /**
+    Creates a TABLE_LIST object with pre-allocated strings for database, table
+    and alias.
+  */
+  TABLE_LIST(TABLE *table_arg, const char *db_name_arg, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             const char *alias_arg, enum thr_lock_type lock_type_arg)
+      : db(db_name_arg),
+        table_name(table_name_arg),
+        alias(alias_arg),
+        m_map(1),
+        table(table_arg),
+        m_lock_descriptor{lock_type_arg},
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {
+    MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
+  }
+
   /// Constructor that can be used when the strings are null terminated.
   TABLE_LIST(const char *db_name, const char *table_name, const char *alias,
              enum thr_lock_type lock_type)
       : TABLE_LIST(db_name, strlen(db_name), table_name, strlen(table_name),
                    alias, lock_type) {}
 
-  TABLE_LIST(TABLE *table_arg, const char *alias_arg,
-             thr_lock_type lock_type_arg)
-      : db(table_arg->s->db.str),
-        table_name(table_arg->s->table_name.str),
+  /**
+    This constructor can be used when a TABLE_LIST is needed for an existing
+    temporary table. These typically have very long table names, since it is
+    a fully qualified path. For this reason, the table is set to the alias.
+    The database name is left blank. The lock descriptor is set to TL_READ.
+  */
+  TABLE_LIST(TABLE *table_arg, const char *alias_arg)
+      : db(""),
+        table_name(alias_arg),
         alias(alias_arg),
         m_map(1),
         table(table_arg),
-        m_lock_descriptor{lock_type_arg},
-        db_length(table_arg->s->db.length),
-        table_name_length(table_arg->s->table_name.length) {
+        m_lock_descriptor{TL_READ},
+        db_length(0),
+        table_name_length(strlen(alias_arg)) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
                      mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
   }
@@ -4124,5 +4147,24 @@ bool create_table_share_for_upgrade(THD *thd, const char *path,
                                     const char *table,
                                     bool is_fix_view_cols_and_deps);
 //////////////////////////////////////////////////////////////////////////
+
+/**
+  Create a copy of the key_info from TABLE_SHARE object to TABLE object.
+
+  Wherever prefix key is present, allocate a new Field object, having its
+  field_length set to the prefix key length, and point the table's matching
+  key_part->field to this new Field object.
+
+  This ensures that unpack_partition_info() reads the correct prefix length of
+  partitioned fields
+
+  @param  table   Table for which key_info is to be allocated
+  @param  root    MEM_ROOT in which to allocate key_info
+
+  @retval false   Success
+  @retval true    Failed to allocate memory for table.key_info in root
+*/
+
+bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root);
 
 #endif /* TABLE_INCLUDED */

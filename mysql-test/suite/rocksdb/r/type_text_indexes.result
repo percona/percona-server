@@ -160,7 +160,7 @@ b LONGTEXT CHARACTER SET "latin1" COLLATE "latin1_bin",
 PRIMARY KEY b (b(32))
 ) ENGINE=rocksdb;
 INSERT INTO t1 (b) VALUES (''), (_binary 0x0), (' ');
-ERROR 23000: Duplicate entry ' ' for key 'PRIMARY'
+ERROR 23000: Duplicate entry ' ' for key 't1.PRIMARY'
 INSERT INTO t1 (b) VALUES (''), (_binary 0x0);
 SELECT hex(b) FROM t1;
 hex(b)

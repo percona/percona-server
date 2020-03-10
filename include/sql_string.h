@@ -29,6 +29,7 @@
   See in particular the comment on String before you use anything from here.
 */
 
+#include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
 #include <new>
@@ -128,6 +129,8 @@ class String;
 struct CHARSET_INFO;
 struct IO_CACHE;
 
+bool validate_string(const CHARSET_INFO *cs, const char *str, size_t length,
+                     size_t *valid_length, bool *length_error);
 int sortcmp(const String *a, const String *b, const CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *to, String *from, size_t from_length);
 inline size_t copy_and_convert(char *to, size_t to_length,
@@ -471,6 +474,16 @@ class String {
   bool copy(const char *s, size_t arg_length, const CHARSET_INFO *cs);
   static bool needs_conversion(size_t arg_length, const CHARSET_INFO *cs_from,
                                const CHARSET_INFO *cs_to, size_t *offset);
+  bool needs_conversion(const CHARSET_INFO *cs_to) const {
+    size_t offset;
+    return needs_conversion(length(), charset(), cs_to, &offset);
+  }
+  bool is_valid_string(const CHARSET_INFO *cs_to) const {
+    size_t valid_length;
+    bool length_error;
+    return !validate_string(cs_to, ptr(), length(), &valid_length,
+                            &length_error);
+  }
   static bool needs_conversion_on_storage(size_t arg_length,
                                           const CHARSET_INFO *cs_from,
                                           const CHARSET_INFO *cs_to);
@@ -488,10 +501,9 @@ class String {
   bool append(const char *s, size_t arg_length, const CHARSET_INFO *cs);
   bool append_ulonglong(ulonglong val);
   bool append_longlong(longlong val);
-  bool append(IO_CACHE *file, size_t arg_length);
   bool append_with_prefill(const char *s, size_t arg_length, size_t full_length,
                            char fill_char);
-  bool append_parenthesized(long nr, int radix = 10);
+  bool append_parenthesized(int64_t nr);
   /**
     Search for a substring.
 
@@ -525,13 +537,12 @@ class String {
     if (m_length < m_alloced_length) {
       m_ptr[m_length++] = chr;
     } else {
-      if (mem_realloc_exp(m_length + 1)) return 1;
+      if (mem_realloc_exp(m_length + 1)) return true;
       m_ptr[m_length++] = chr;
     }
-    return 0;
+    return false;
   }
   bool fill(size_t max_length, char fill);
-  void strip_sp();
   friend int sortcmp(const String *a, const String *b, const CHARSET_INFO *cs);
   friend int stringcmp(const String *a, const String *b);
   friend String *copy_if_not_alloced(String *to, String *from,
@@ -643,9 +654,6 @@ inline LEX_CSTRING to_lex_cstring(const char *s) {
   LEX_CSTRING cstr = {s, s != NULL ? strlen(s) : 0};
   return cstr;
 }
-
-bool validate_string(const CHARSET_INFO *cs, const char *str, size_t length,
-                     size_t *valid_length, bool *length_error);
 
 bool append_escaped(String *to_str, const String *from_str);
 

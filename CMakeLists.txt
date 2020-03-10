@@ -25,6 +25,17 @@ MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 IF(WIN32)
   # CMake 3.8.0 is needed for Visual Studio 2017 and x64 toolset.
   CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
+  IF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_GENERATOR MATCHES "2019")
+    IF(CMAKE_VERSION MATCHES "MSVC")
+      # It is the bundled version, ignore version check,
+      # (although this seems to be buggy too).
+    ELSE()
+      # Bug in msbuild, install the latest in the 3.15 series as a workaround.
+      # https://gitlab.kitware.com/cmake/cmake/issues/19303
+      # custom commands are re-built every time
+      CMAKE_MINIMUM_REQUIRED(VERSION 3.15.3)
+    ENDIF()
+  ENDIF()
 ELSEIF(APPLE)
   # Version 3.12.4 is needed because the new build system of Xcode is not
   # supported by cmake. 3.12.4 will force using the legacy build system.
@@ -501,10 +512,10 @@ INCLUDE(component)
 INCLUDE(install_macros)
 INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
-INCLUDE(mysqlgcs)
 INCLUDE(curl)
 INCLUDE(prepend_append_cflags_if_supported)
 INCLUDE(rapidjson)
+INCLUDE(fprofile)
 
 OPTION(WITH_JEMALLOC "Use jemalloc rather than builtin malloc/free etc." OFF)
 IF(WITH_JEMALLOC)
@@ -779,13 +790,11 @@ IF(USE_LD_LLD)
   CMAKE_POP_CHECK_STATE()
 ENDIF()
 
-# Use gold if available and not explicitly disabled.
-IF(WIN32)
-  # Feature tests are expensive on Windows, and we only support MSVC,
-  # which does not use gold. Thus, default to off to save the test.
-  OPTION(USE_LD_GOLD "Use GNU gold linker" OFF)
-ELSE()
+# Use gold on x86 if available and not explicitly disabled.
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" AND NOT WIN32)
   OPTION(USE_LD_GOLD "Use GNU gold linker" ON)
+ELSE()
+  OPTION(USE_LD_GOLD "Use GNU gold linker" OFF)
 ENDIF()
 
 IF(LINUX)
@@ -816,7 +825,8 @@ IF (USE_LD_GOLD AND NOT (C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT))
 ENDIF()
 
 # Linker/binutils bug in Fedora 28, undefined reference to symbol '__bss_start'
-IF(LINUX_FEDORA_28)
+# Similar bug on 32bit Ubuntu.
+IF(LINUX_FEDORA_28 OR LINUX_UBUNTU_16_04)
   IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" AND
       NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold")
     STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
@@ -1046,17 +1056,23 @@ INCLUDE_DIRECTORIES(
   )
 
 
-SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
+IF(DEFINED WITH_LTO_DEFAULT)
+  SET(WITH_LTO_DEFAULT ${WITH_LTO_DEFAULT})
+ELSE()
+  SET(WITH_LTO_DEFAULT OFF)
+ENDIF()
 
 OPTION(WITH_LTO
-  "Enable the link-time optimizer. Currently works for gcc7/gcc8 only." OFF)
+  "Enable the link-time optimizer. Currently works for gcc7/gcc8 only."
+  ${WITH_LTO_DEFAULT}
+  )
 IF(WITH_LTO)
   MY_CHECK_CXX_COMPILER_FLAG("-flto" CXX_LTO_RESULT)
   IF(NOT CXX_LTO_RESULT)
     MESSAGE(FATAL_ERROR "Compiler does not support -flto")
   ENDIF()
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto")
+  STRING_APPEND(CMAKE_C_FLAGS   " -flto")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -flto")
 
   # Test for parallel linking.
   SET(NUM_PROCESSING_UNITS 4)
@@ -1073,14 +1089,11 @@ IF(WITH_LTO)
         SET(NUM_PROCESSING_UNITS ${NPROC_NUM})
       ENDIF()
     ENDIF()
-    SET(CMAKE_CXX_LINK_FLAGS
-      "${CMAKE_CXX_LINK_FLAGS} -flto=${NUM_PROCESSING_UNITS}")
-    SET(CMAKE_SHARED_LINKER_FLAGS
-      "${CMAKE_SHARED_LINKER_FLAGS} -flto=${NUM_PROCESSING_UNITS}")
+    STRING_APPEND(CMAKE_CXX_LINK_FLAGS      " -flto=${NUM_PROCESSING_UNITS}")
+    STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -flto=${NUM_PROCESSING_UNITS}")
   ELSE()
-    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -flto")
-    SET(CMAKE_SHARED_LINKER_FLAGS
-      "${CMAKE_SHARED_LINKER_FLAGS} -flto")
+    STRING_APPEND(CMAKE_CXX_LINK_FLAGS      " -flto")
+    STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -flto")
   ENDIF()
 
   # On some platforms (Fedora) we *must* use gcc-ar / gcc-ranlib
@@ -1114,11 +1127,7 @@ IF(WITH_LTO)
       SET(CMAKE_RANLIB ${GCC_RANLIB_EXECUTABLE})
     ENDIF()
   ENDIF()
-
-  # We must use -DWITH_PROTOBUF=system.
-  # There are also bugs exposed by LTO in the bundled ICU and editline sources.
-  SET(WITH_SYSTEM_LIBS_DEFAULT ON)
-ENDIF()
+ENDIF(WITH_LTO)
 
 # Explicit list of all -DWITH_XXX=system possibilities
 # *except* boost, which requires one specific version to be downloaded.
@@ -1138,6 +1147,7 @@ SET(SYSTEM_LIBRARIES
   ZSTD
   )
 
+SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
 OPTION(WITH_SYSTEM_LIBS
   "Use -DWITH_XXX=system for ${SYSTEM_LIBRARIES}" ${WITH_SYSTEM_LIBS_DEFAULT})
 
@@ -1331,6 +1341,20 @@ ADD_SUBDIRECTORY(libservices)
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(testclients)
   ADD_SUBDIRECTORY(sql)
+ENDIF()
+
+# Some unit tests need to link with the entire server, use this library:
+IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
+  SET(DUMMY_SOURCE_FILE ${CMAKE_BINARY_DIR}/server_unittest_library.c)
+  ADD_CUSTOM_COMMAND(
+    OUTPUT  ${DUMMY_SOURCE_FILE}
+    COMMAND ${CMAKE_COMMAND} -E touch ${DUMMY_SOURCE_FILE}
+    DEPENDS sql_main
+    )
+  ADD_LIBRARY(server_unittest_library STATIC ${DUMMY_SOURCE_FILE})
+  TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
+  TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
+  TARGET_LINK_LIBRARIES(server_unittest_library ${ICU_LIBRARIES})
 ENDIF()
 
 # scripts/mysql_config depends on client and server targets loaded above.

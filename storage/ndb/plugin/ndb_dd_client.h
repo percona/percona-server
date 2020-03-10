@@ -34,6 +34,7 @@
 #include "my_inttypes.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
+#include "sql/mdl.h"
 
 namespace dd {
 typedef String_type sdi_t;
@@ -85,7 +86,11 @@ class Ndb_dd_client {
   class THD *const m_thd;
   dd::cache::Dictionary_client *m_client;
   void *m_auto_releaser;  // Opaque pointer
+  // List of MDL locks taken in EXPLICIT scope by Ndb_dd_client
   std::vector<class MDL_ticket *> m_acquired_mdl_tickets;
+  // MDL savepoint which allows releasing MDL locks taken by called
+  // functions in TRANSACTIONAL and STATEMENT scope
+  const MDL_savepoint m_save_mdl_locks;
   ulonglong m_save_option_bits{0};
   bool m_comitted{false};
   bool m_auto_rollback{true};
@@ -99,8 +104,17 @@ class Ndb_dd_client {
 
   ~Ndb_dd_client();
 
-  // Metadata lock functions
-  bool mdl_lock_schema(const char *schema_name, bool exclusive_lock = false);
+  /**
+    @brief Acquire IX MDL on the schema
+
+    @param schema_name Schema name
+
+    @return true if the MDL was acquired successfully, false if not
+  */
+  bool mdl_lock_schema(const char *schema_name);
+  bool mdl_lock_schema_exclusive(const char *schema_name,
+                                 bool custom_lock_wait = false,
+                                 ulong lock_wait_timeout = 0);
   bool mdl_lock_table(const char *schema_name, const char *table_name);
   bool mdl_locks_acquire_exclusive(const char *schema_name,
                                    const char *table_name,
@@ -140,6 +154,7 @@ class Ndb_dd_client {
                     Ndb_referenced_tables_invalidator *invalidator = nullptr);
   bool remove_table(const char *schema_name, const char *table_name,
                     Ndb_referenced_tables_invalidator *invalidator = nullptr);
+  bool deserialize_table(const dd::sdi_t &sdi, dd::Table *table_def);
   bool install_table(const char *schema_name, const char *table_name,
                      const dd::sdi_t &sdi, int ndb_table_id,
                      int ndb_table_version, size_t ndb_num_partitions,
@@ -147,7 +162,7 @@ class Ndb_dd_client {
                      Ndb_referenced_tables_invalidator *invalidator = nullptr);
   bool migrate_table(const char *schema_name, const char *table_name,
                      const unsigned char *frm_data, unsigned int unpacked_len,
-                     bool force_overwrite);
+                     bool force_overwrite, bool compare_definitions = false);
   bool get_table(const char *schema_name, const char *table_name,
                  const dd::Table **table_def);
   bool table_exists(const char *schema_name, const char *table_name,
@@ -206,6 +221,8 @@ class Ndb_dd_client {
                          const char *undo_file_name);
   bool drop_logfile_group(const char *logfile_group_name,
                           bool fail_if_not_exists = true);
+  bool get_schema_uuid(dd::String_type *value) const;
+  bool update_schema_uuid(const char *value) const;
 };
 
 #endif

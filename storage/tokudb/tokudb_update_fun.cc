@@ -585,8 +585,7 @@ static int tokudb_hcad_update_fun(const DBT *old_val, const DBT *extra,
   // finish copying the null stuff
   old_null_bits_left = 8 * old_num_null_bytes - curr_old_null_pos;
   new_null_bits_left = 8 * new_num_null_bytes - curr_new_null_pos;
-  overall_null_bits_left = old_null_bits_left;
-  set_if_smaller(overall_null_bits_left, new_null_bits_left);
+  overall_null_bits_left = std::min(old_null_bits_left, new_null_bits_left);
   copy_null_bits(curr_old_null_pos, curr_new_null_pos, overall_null_bits_left,
                  old_null_bytes, new_null_bytes);
   // finish copying fixed field stuff

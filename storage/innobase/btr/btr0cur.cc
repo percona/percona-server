@@ -504,41 +504,60 @@ static bool btr_cur_will_modify_tree(dict_index_t *index, const page_t *page,
   if (lock_intention <= BTR_INTENTION_BOTH) {
     ulint margin;
 
-    /* check delete will cause. (BTR_INTENTION_BOTH
-    or BTR_INTENTION_DELETE) */
-    /* first, 2nd, 2nd-last and last records are 4 records */
-    if (page_get_n_recs(page) < 5) {
-      return (true);
-    }
-
-    /* is first, 2nd or last record */
-    if (page_rec_is_first(rec, page) ||
-        (mach_read_from_4(page + FIL_PAGE_NEXT) != FIL_NULL &&
-         (page_rec_is_last(rec, page) || page_rec_is_second_last(rec, page))) ||
-        (mach_read_from_4(page + FIL_PAGE_PREV) != FIL_NULL &&
-         page_rec_is_second(rec, page))) {
-      return (true);
-    }
-
     if (lock_intention == BTR_INTENTION_BOTH) {
+      ulint level = btr_page_get_level(page, mtr);
+
+      /* This value is the worst expectation for the node_ptr records to be
+      deleted from this page. It is used to expect whether the cursor position
+      can be the left_most record in this page or not. */
+      ulint max_nodes_deleted = 0;
+
+      /* By modifying tree operations from the under of this level,
+      logically (2 ^ (level - 1)) opportunities to deleting records in maximum
+      even unreally rare case. */
+      if (level > 7) {
+        /* TODO: adjust this practical limit, if needed. */
+        max_nodes_deleted = 64;
+      } else if (level > 0) {
+        max_nodes_deleted = (ulint)1 << (level - 1);
+      }
+
+      /* check delete will cause. (BTR_INTENTION_BOTH
+      or BTR_INTENTION_DELETE) */
+      if (page_get_n_recs(page) <= max_nodes_deleted * 2 ||
+          page_rec_is_first(rec, page)) {
+        /* The cursor record can be the left_most record in this page. */
+        return (true);
+      }
+
+      if (fil_page_get_prev(page) != FIL_NULL &&
+          page_rec_distance_is_at_most(page_get_infimum_rec(page), rec,
+                                       max_nodes_deleted)) {
+        return (true);
+      }
+
+      if (fil_page_get_next(page) != FIL_NULL &&
+          page_rec_distance_is_at_most(rec, page_get_supremum_rec(page),
+                                       max_nodes_deleted)) {
+        return (true);
+      }
+
       /* Delete at leftmost record in a page causes delete
       & insert at its parent page. After that, the delete
       might cause btr_compress() and delete record at its
-      parent page. Thus we should consider max 2 deletes. */
+      parent page. Thus we should consider max deletes. */
 
-      margin = rec_size * 2;
+      margin = rec_size * max_nodes_deleted;
     } else {
       ut_ad(lock_intention == BTR_INTENTION_DELETE);
 
       margin = rec_size;
     }
-    /* NOTE: call mach_read_from_4() directly to avoid assertion
-    failure. It is safe because we already have SX latch of the
-    index tree */
+    /* Safe because we already have SX latch of the index tree */
     if (page_get_data_size(page) <
             margin + BTR_CUR_PAGE_COMPRESS_LIMIT(index) ||
-        (mach_read_from_4(page + FIL_PAGE_NEXT) == FIL_NULL &&
-         mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL)) {
+        (fil_page_get_next(page) == FIL_NULL &&
+         fil_page_get_prev(page) == FIL_NULL)) {
       return (true);
     }
   }
@@ -1479,6 +1498,7 @@ retry_page_get:
         offsets2 =
             rec_get_offsets(first_rec, index, offsets2, ULINT_UNDEFINED, &heap);
         cmp_rec_rec_with_match(node_ptr, first_rec, offsets, offsets2, index,
+                               page_is_spatial_non_leaf(first_rec, index),
                                FALSE, &matched_fields);
 
         if (matched_fields >= rec_offs_n_fields(offsets) - 1) {
@@ -1493,7 +1513,8 @@ retry_page_get:
           offsets2 = rec_get_offsets(last_rec, index, offsets2, ULINT_UNDEFINED,
                                      &heap);
           cmp_rec_rec_with_match(node_ptr, last_rec, offsets, offsets2, index,
-                                 FALSE, &matched_fields);
+                                 page_is_spatial_non_leaf(last_rec, index),
+                                 false, &matched_fields);
           if (matched_fields >= rec_offs_n_fields(offsets) - 1) {
             detected_same_key_root = true;
           }
@@ -3899,46 +3920,14 @@ static void btr_cur_pess_upd_restore_supremum(
   lock_rec_reset_and_inherit_gap_locks(prev_block, block, PAGE_HEAP_NO_SUPREMUM,
                                        page_rec_get_heap_no(rec));
 }
-/** Performs an update of a record on a page of a tree. It is assumed
- that mtr holds an x-latch on the tree and on the cursor page. If the
- update is made on the leaf level, to avoid deadlocks, mtr must also
- own x-latches to brothers of page, if those brothers exist. We assume
- here that the ordering fields of the record do not change.
- @return DB_SUCCESS or error code */
-dberr_t btr_cur_pessimistic_update(
-    ulint flags,       /*!< in: undo logging, locking, and rollback
-                       flags */
-    btr_cur_t *cursor, /*!< in/out: cursor on the record to update;
-                       cursor may become invalid if *big_rec == NULL
-                       || !(flags & BTR_KEEP_POS_FLAG) */
-    ulint **offsets,   /*!< out: offsets on cursor->page_cur.rec */
-    mem_heap_t **offsets_heap,
-    /*!< in/out: pointer to memory heap
-    that can be emptied, or NULL */
-    mem_heap_t *entry_heap,
-    /*!< in/out: memory heap for allocating
-    big_rec and the index tuple */
-    big_rec_t **big_rec, /*!< out: big rec vector whose fields have to
-                         be stored externally by the caller, or NULL */
-    upd_t *update,       /*!< in/out: update vector; this is allowed to
-                         also contain trx id and roll ptr fields.
-                         Non-updated columns that are moved offpage will
-                         be appended to this. */
-    ulint cmpl_info,     /*!< in: compiler info on secondary index
-                       updates */
-    que_thr_t *thr,      /*!< in: query thread, or NULL if
-                         flags & (BTR_NO_UNDO_LOG_FLAG
-                         | BTR_NO_LOCKING_FLAG
-                         | BTR_CREATE_FLAG
-                         | BTR_KEEP_SYS_FLAG) */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    undo_no_t undo_no,
-    /*!< in: undo number of the transaction. This
-    is needed for rollback to savepoint of
-    partially updated LOB.*/
-    mtr_t *mtr) /*!< in/out: mini-transaction; must be
-                committed before latching any further pages */
-{
+
+dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
+                                   ulint **offsets, mem_heap_t **offsets_heap,
+                                   mem_heap_t *entry_heap, big_rec_t **big_rec,
+                                   upd_t *update, ulint cmpl_info,
+                                   que_thr_t *thr, trx_id_t trx_id,
+                                   undo_no_t undo_no, mtr_t *mtr,
+                                   btr_pcur_t *pcur) {
   DBUG_TRACE;
   big_rec_t *big_rec_vec = NULL;
   big_rec_t *dummy_big_rec;
@@ -3955,6 +3944,7 @@ dberr_t btr_cur_pessimistic_update(
   ulint n_reserved = 0;
   ulint n_ext;
   ulint max_ins_size = 0;
+  trx_t *const trx = (thr == nullptr) ? nullptr : thr_get_trx(thr);
 
   *offsets = NULL;
   *big_rec = NULL;
@@ -4035,32 +4025,9 @@ dberr_t btr_cur_pessimistic_update(
 
   ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
   ut_ad(rec_offs_validate(rec, index, *offsets));
-  n_ext += lob::btr_push_update_extern_fields(new_entry, update, entry_heap);
 
-  /* UNDO logging is also turned-off during normal operation on intrinsic
-  table so condition needs to ensure that table is not intrinsic. */
-  if ((flags & BTR_NO_UNDO_LOG_FLAG) && rec_offs_any_extern(*offsets) &&
-      !index->table->is_intrinsic()) {
-    /* We are in a transaction rollback undoing a row
-    update: we must free possible externally stored fields
-    which got new values in the update, if they are not
-    inherited values. They can be inherited if we have
-    updated the primary key to another value, and then
-    update it back again. */
-
-    ut_ad(big_rec_vec == NULL);
-    ut_ad(index->is_clustered());
-    ut_ad((flags & ~BTR_KEEP_POS_FLAG) ==
-              (BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG) ||
-          thr_get_trx(thr)->id == trx_id);
-
-    DBUG_EXECUTE_IF("ib_blob_update_rollback", DBUG_SUICIDE(););
-    RECOVERY_CRASH(99);
-
-    lob::BtrContext ctx(mtr, nullptr, index, rec, *offsets, block);
-
-    ctx.free_updated_extern_fields(trx_id, undo_no, update, true);
-  }
+  /* Get number of externally stored columns in updated record */
+  n_ext = new_entry->get_n_ext();
 
   if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry, n_ext),
                              page_is_comp(page), dict_index_get_n_fields(index),
@@ -4095,9 +4062,46 @@ dberr_t btr_cur_pessimistic_update(
   }
 
   if (optim_err == DB_OVERFLOW) {
+    /* We latch the space before latching any lob pages, to avoid deadlock with
+    threads which first latch the space to acquire a free page, which might be
+    one of the pages which we are about to free, but still hold an x-latch on.*/
+    fil_space_t *space = fil_space_get(index->space);
+    mtr_x_lock_space(space, mtr);
+  }
+
+  /* Check for an update that moved an ext field to inline */
+  lob::mark_not_partially_updatable(trx, index, update, mtr);
+
+  /* UNDO logging is also turned-off during normal operation on intrinsic
+  table so condition needs to ensure that table is not intrinsic. */
+  if ((flags & BTR_NO_UNDO_LOG_FLAG) && rec_offs_any_extern(*offsets) &&
+      !index->table->is_intrinsic()) {
+    /* We are in a transaction rollback undoing a row
+    update: we must free possible externally stored fields
+    which got new values in the update, if they are not
+    inherited values. They can be inherited if we have
+    updated the primary key to another value, and then
+    update it back again. */
+
+    ut_ad(big_rec_vec == NULL);
+    ut_ad(index->is_clustered());
+    ut_ad((flags & ~BTR_KEEP_POS_FLAG) ==
+              (BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG) ||
+          thr_get_trx(thr)->id == trx_id);
+
+    DBUG_EXECUTE_IF("ib_blob_update_rollback", DBUG_SUICIDE(););
+    RECOVERY_CRASH(99);
+
+    lob::BtrContext ctx(mtr, pcur, index, rec, *offsets, block);
+
+    ctx.free_updated_extern_fields(trx_id, undo_no, update, true);
+  }
+
+  if (optim_err == DB_OVERFLOW) {
     /* First reserve enough free space for the file segments
     of the index tree, so that the update will not fail because
     of lack of space */
+    DEBUG_SYNC_C("ib_blob_update_rollback_will_reserve");
 
     ulint n_extents = cursor->tree_height / 16 + 3;
 
@@ -4154,7 +4158,7 @@ dberr_t btr_cur_pessimistic_update(
     if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {
       /* The new inserted record owns its possible externally
       stored fields */
-      lob::BtrContext btr_ctx(mtr, NULL, index, rec, *offsets, block);
+      lob::BtrContext btr_ctx(mtr, pcur, index, rec, *offsets, block);
       btr_ctx.unmark_extern_fields();
     }
 
@@ -4770,42 +4774,11 @@ ibool btr_cur_optimistic_delete_func(
   return (no_compress_needed);
 }
 
-/** Removes the record on which the tree cursor is positioned. Tries
- to compress the page if its fillfactor drops below a threshold
- or if it is the only page on the level. It is assumed that mtr holds
- an x-latch on the tree and on the cursor page. To avoid deadlocks,
- mtr must also own x-latches to brothers of page, if those brothers
- exist.
- @return true if compression occurred and false if not or something
- wrong. */
-ibool btr_cur_pessimistic_delete(
-    dberr_t *err,               /*!< out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE;
-                                the latter may occur because we may have
-                                to update node pointers on upper levels,
-                                and in the case of variable length keys
-                                these may actually grow in size */
-    ibool has_reserved_extents, /*!< in: TRUE if the
-                  caller has already reserved enough free
-                  extents so that he knows that the operation
-                  will succeed */
-    btr_cur_t *cursor,          /*!< in: cursor on the record to delete;
-                                if compression does not occur, the cursor
-                                stays valid: it points to successor of
-                                deleted record on function exit */
-    ulint flags,                /*!< in: BTR_CREATE_FLAG or 0 */
-    bool rollback,              /*!< in: performing rollback? */
-    trx_id_t trx_id,            /*!< in: the current transaction id. */
-    undo_no_t undo_no,
-    /*!< in: the undo number within the
-    current trx, used for rollback to savepoint
-    for an LOB. */
-    ulint rec_type,
-    /*!< in: undo record type. */
-    mtr_t *mtr) /*!< in: mtr */
-{
+ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
+                                 btr_cur_t *cursor, ulint flags, bool rollback,
+                                 trx_id_t trx_id, undo_no_t undo_no,
+                                 ulint rec_type, mtr_t *mtr, btr_pcur_t *pcur) {
   DBUG_TRACE;
-
-  DBUG_LOG("btr", "rollback=" << rollback << ", trxid=" << trx_id);
 
   buf_block_t *block;
   page_t *page;
@@ -4861,12 +4834,34 @@ ibool btr_cur_pessimistic_delete(
   offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
   if (rec_offs_any_extern(offsets)) {
-    lob::BtrContext btr_ctx(mtr, NULL, index, rec, offsets, block);
+    lob::BtrContext btr_ctx(mtr, pcur, index, rec, offsets, block);
 
+    /* The following call will restart the btr_mtr, which could change the
+    cursor position. */
     btr_ctx.free_externally_stored_fields(trx_id, undo_no, rollback, rec_type);
 #ifdef UNIV_ZIP_DEBUG
     ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
+
+    /* The cursor position could have changed now. */
+    if (pcur != nullptr) {
+      cursor = pcur->get_btr_cur();
+      block = btr_cur_get_block(cursor);
+      page = buf_block_get_frame(block);
+      rec = btr_cur_get_rec(cursor);
+      rec_offs_make_valid(rec, index, offsets);
+    }
+
+    /* While purging LOBs, there are intermediate mtr commits which releases
+    the latches.  In that duration, it is possible that the clust_rec is reused.
+    In such situation, don't proceed further. */
+    if (!rollback && rec_type != 0 &&
+        !rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
+      /* This is the purge thread.  For the purge thread, rec_type will have a
+       * valid value. */
+      ret = TRUE;
+      goto return_after_reservations;
+    }
   }
 
   if (UNIV_UNLIKELY(page_get_n_recs(page) < 2) &&
@@ -5723,7 +5718,8 @@ bool btr_estimate_number_of_different_key_vals(
                                          ULINT_UNDEFINED, &heap);
 
       cmp_rec_rec_with_match(rec, next_rec, offsets_rec, offsets_next_rec,
-                             index, stats_null_not_equal, &matched_fields);
+                             index, page_is_spatial_non_leaf(next_rec, index),
+                             stats_null_not_equal, &matched_fields);
 
       for (j = matched_fields; j < n_cols; j++) {
         /* We add one if this index record has

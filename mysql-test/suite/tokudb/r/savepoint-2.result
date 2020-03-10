@@ -14,7 +14,7 @@ n	after commit
 commit;
 insert into t1 values (5);
 insert into t1 values (4);
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 't1.PRIMARY'
 commit;
 select n, "after commit" from t1;
 n	after commit
@@ -23,7 +23,7 @@ n	after commit
 set autocommit=1;
 insert into t1 values (6);
 insert into t1 values (4);
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 't1.PRIMARY'
 select n from t1;
 n
 4

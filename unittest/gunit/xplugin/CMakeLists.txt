@@ -72,6 +72,9 @@ SET(XPL_TEST_SRC
   xpl/account_verification_handler_t.cc
   xpl/admin_cmd_arguments_object_t.cc
   xpl/admin_cmd_index_t.cc
+  xpl/admin_create_collection_t.cc
+  xpl/admin_get_collection_options_t.cc
+  xpl/admin_modify_collection_options_t.cc
   xpl/broker_input_queue_task_t.cc
   xpl/callback_command_delegate_t.cc
   xpl/capabilities_configurator_t.cc
@@ -88,6 +91,7 @@ SET(XPL_TEST_SRC
   xpl/index_field_t.cc
   xpl/insert_statement_builder_t.cc
   xpl/json_utils_t.cc
+  xpl/json_generator_t.cc
   xpl/listener_tcp_t.cc
   xpl/listener_unix_socket_t.cc
   xpl/message_builder_t.cc
@@ -101,6 +105,7 @@ SET(XPL_TEST_SRC
   xpl/sasl_plain_auth_t.cc
   xpl/scheduler_t.cc
   xpl/server_client_timeout_t.cc
+  xpl/set_variable_adaptor_t.cc
   xpl/sha256_cache_t.cc
   xpl/socket_acceptor_task_t.cc
   xpl/sql_statement_builder_t.cc

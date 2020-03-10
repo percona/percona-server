@@ -84,6 +84,8 @@ IF(ENABLE_GCOV)
     CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
 ENDIF()
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 IF(WIN32)
   # Activate necessary dllexport/dllimport declarations.
   ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
@@ -125,10 +127,9 @@ INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 #
 # each target needs to add itself via
 #
-#   ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} ...)
+#   ADD_DEPENDENCIES(mysqlrouter_all ...)
 #
-SET(MYSQL_ROUTER_BUILD_ALL_TARGET mysqlrouter_all)
-ADD_CUSTOM_TARGET(${MYSQL_ROUTER_BUILD_ALL_TARGET})
+ADD_CUSTOM_TARGET(mysqlrouter_all)
 
 # Load all modules, including plugins
 ADD_SUBDIRECTORY(src)

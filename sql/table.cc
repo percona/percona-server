@@ -776,14 +776,14 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   } else if (part_of_key_not_extended) {
     field->part_of_prefixkey.set_bit(key_n);
   }
-  if ((handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY) &&
+  if ((handler_file->index_flags(key_n, key_part_n, false) & HA_KEYREAD_ONLY) &&
       field->type() != MYSQL_TYPE_GEOMETRY) {
     // Set the key as 'keys_for_keyread' even if it is prefix key.
     share->keys_for_keyread.set_bit(key_n);
   }
 
   if (full_length_key_part &&
-      (handler_file->index_flags(key_n, key_part_n, 1) & HA_READ_ORDER))
+      (handler_file->index_flags(key_n, key_part_n, true) & HA_READ_ORDER))
     field->part_of_sortkey.set_bit(key_n);
 
   if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
@@ -1302,7 +1302,7 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
                         ER_THD(thd, ER_TABLE_INCOMPATIBLE_DECIMAL_FIELD),
                         frm_context->fieldnames.type_names[field_idx],
                         share->table_name.str, share->table_name.str);
-    share->crashed = 1;  // Marker for CHECK TABLE
+    share->crashed = true;  // Marker for CHECK TABLE
   }
 
   if (field_type == MYSQL_TYPE_YEAR && field_length != 4) {
@@ -1313,7 +1313,7 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
                         ER_THD(thd, ER_TABLE_INCOMPATIBLE_YEAR_FIELD),
                         frm_context->fieldnames.type_names[field_idx],
                         share->table_name.str, share->table_name.str);
-    share->crashed = 1;
+    share->crashed = true;
   }
 
   FRM_context::utype unireg = (FRM_context::utype)MTYP_TYPENR(unireg_type);
@@ -1461,8 +1461,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     frm_context->frm_version = FRM_VER_TRUE_VARCHAR;
 
   if (*(head + 61) &&
-      !(frm_context->default_part_db_type =
-            ha_checktype(thd, (enum legacy_db_type)(uint) * (head + 61), 1, 0)))
+      !(frm_context->default_part_db_type = ha_checktype(
+            thd, (enum legacy_db_type)(uint) * (head + 61), true, false)))
     goto err;
   DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
   legacy_db_type = (enum legacy_db_type)(uint) * (head + 3);
@@ -1474,18 +1474,18 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   if (legacy_db_type > DB_TYPE_UNKNOWN &&
       legacy_db_type < DB_TYPE_FIRST_DYNAMIC)
     share->db_plugin =
-        ha_lock_engine(NULL, ha_checktype(thd, legacy_db_type, 0, 0));
+        ha_lock_engine(NULL, ha_checktype(thd, legacy_db_type, false, false));
   share->db_create_options = db_create_options = uint2korr(head + 30);
   share->db_options_in_use = share->db_create_options;
   share->mysql_version = uint4korr(head + 51);
-  frm_context->null_field_first = 0;
+  frm_context->null_field_first = false;
   if (!head[32])  // New frm file in 3.23
   {
     share->avg_row_length = uint4korr(head + 34);
     share->row_type = (row_type)head[40];
     share->table_charset =
         get_charset((((uint)head[41]) << 8) + (uint)head[38], MYF(0));
-    frm_context->null_field_first = 1;
+    frm_context->null_field_first = true;
     share->stats_sample_pages = uint2korr(head + 42);
     share->stats_auto_recalc = static_cast<enum_stats_auto_recalc>(head[44]);
   }
@@ -1633,13 +1633,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                                           keyinfo->comment.length);
       strpos += 2 + keyinfo->comment.length;
     }
-    DBUG_ASSERT(MY_TEST(keyinfo->flags & HA_USES_COMMENT) ==
+    DBUG_ASSERT(((keyinfo->flags & HA_USES_COMMENT) != 0) ==
                 (keyinfo->comment.length > 0));
   }
 
   share->reclength = uint2korr((head + 16));
   share->stored_rec_length = share->reclength;
-  if (*(head + 26) == 1) share->system = 1; /* one-record-database */
+  if (*(head + 26) == 1) share->system = true; /* one-record-database */
 
   record_offset = (ulong)(uint2korr(head + 6) + ((uint2korr(head + 14) == 0xffff
                                                       ? uint4korr(head + 47)
@@ -2047,8 +2047,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     handler_file->upgrade_update_field_with_zip_dict_info(thd, NULL);
 
   /* Use share mem root for zip dict name and data */
-  for (uint i = 0; i < share->fields; ++i) {
-    Field *field = share->field[i];
+  for (uint i2 = 0; i2 < share->fields; ++i2) {
+    Field *field = share->field[i2];
     if (field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
       if (field->zip_dict_data.str != nullptr) {
         LEX_CSTRING saved_data = field->zip_dict_data;
@@ -2211,7 +2211,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                                 "Please do \"ALTER TABLE `%s` FORCE\" to fix "
                                 "it!",
                                 share->table_name.str, share->table_name.str);
-            share->crashed = 1;  // Marker for CHECK TABLE
+            share->crashed = true;  // Marker for CHECK TABLE
             continue;
           }
           key_part->key_part_flag |= HA_PART_KEY_SEG;
@@ -2229,8 +2229,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 
       keyinfo->usable_key_parts = usable_parts;  // Filesort
 
-      set_if_bigger(share->max_key_length,
-                    keyinfo->key_length + keyinfo->user_defined_key_parts);
+      share->max_key_length =
+          std::max(share->max_key_length,
+                   keyinfo->key_length + keyinfo->user_defined_key_parts);
       share->total_key_length += keyinfo->key_length;
       /*
         MERGE tables do not have unique indexes. But every key could be
@@ -2238,7 +2239,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       */
       if ((keyinfo->flags & HA_NOSAME) ||
           (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
-        set_if_bigger(share->max_unique_length, keyinfo->key_length);
+        share->max_unique_length =
+            std::max(share->max_unique_length, keyinfo->key_length);
     }
 
     /*
@@ -2331,7 +2333,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   if (!(bitmaps =
             (my_bitmap_map *)share->mem_root.Alloc(share->column_bitmap_size)))
     goto err;
-  bitmap_init(&share->all_set, bitmaps, share->fields, false);
+  bitmap_init(&share->all_set, bitmaps, share->fields);
   bitmap_set_all(&share->all_set);
 
   destroy(handler_file);
@@ -2616,7 +2618,7 @@ bool Value_generator::register_base_columns(TABLE *table) {
   my_bitmap_map *bitbuf = static_cast<my_bitmap_map *>(
       table->mem_root.Alloc(bitmap_buffer_size(table->s->fields)));
   DBUG_ASSERT(num_non_virtual_base_cols == 0);
-  bitmap_init(&base_columns_map, bitbuf, table->s->fields, 0);
+  bitmap_init(&base_columns_map, bitbuf, table->s->fields);
 
   MY_BITMAP *save_old_read_set = table->read_set;
   table->read_set = &base_columns_map;
@@ -2893,6 +2895,67 @@ bool unpack_partition_info(THD *thd, TABLE *outparam, TABLE_SHARE *share,
 }
 
 /**
+  Create a copy of the key_info from TABLE_SHARE object to TABLE object.
+
+  Wherever prefix key is present, allocate a new Field object, having its
+  field_length set to the prefix key length, and point the table's matching
+  key_part->field to this new Field object.
+
+  This ensures that unpack_partition_info() reads the correct prefix length of
+  partitioned fields
+*/
+
+bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root) {
+  DBUG_TRACE;
+  TABLE_SHARE *share = table->s;
+  KEY *key_info = nullptr;
+  KEY_PART_INFO *key_part = nullptr;
+  uint n_length;
+
+  DBUG_ASSERT(share->key_parts);
+
+  n_length =
+      share->keys * sizeof(KEY) + share->key_parts * sizeof(KEY_PART_INFO);
+
+  // Allocate new memory for table.key_info
+  if (!(key_info = static_cast<KEY *>(root->Alloc(n_length)))) return true;
+
+  table->key_info = key_info;
+  key_part = (reinterpret_cast<KEY_PART_INFO *>(key_info + share->keys));
+
+  // Copy over the key_info from share to table.
+  memcpy(key_info, share->key_info, sizeof(*key_info) * share->keys);
+  memcpy(key_part, share->key_info[0].key_part,
+         (sizeof(*key_part) * share->key_parts));
+
+  for (KEY *key_info_end = key_info + share->keys; key_info < key_info_end;
+       key_info++) {
+    key_info->table = table;
+    key_info->key_part = key_part;
+
+    for (KEY_PART_INFO *key_part_end = key_part + key_info->actual_key_parts;
+         key_part < key_part_end; key_part++) {
+      Field *field = key_part->field = table->field[key_part->fieldnr - 1];
+
+      if (field->key_length() != key_part->length &&
+          !(field->flags & BLOB_FLAG)) {
+        /*
+          We are using only a prefix of the column as a key:
+          Create a new field for the key part that matches the index
+        */
+        field = key_part->field = field->new_field(root, table, false);
+        field->set_field_length(key_part->length);
+      }
+    }
+
+    // Skip unused key parts if they exist
+    key_part += key_info->unused_key_parts;
+  }
+
+  return false;
+}
+
+/**
   Open a table based on a TABLE_SHARE
 
   @param thd              Thread handler
@@ -3051,44 +3114,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   /* Fix key->name and key_part->field */
   if (share->key_parts) {
-    KEY *key_info, *key_info_end;
-    KEY_PART_INFO *key_part;
-    uint n_length;
-    n_length =
-        share->keys * sizeof(KEY) + share->key_parts * sizeof(KEY_PART_INFO);
-
-    if (!(key_info = (KEY *)root->Alloc(n_length))) goto err;
-    outparam->key_info = key_info;
-    key_part = (reinterpret_cast<KEY_PART_INFO *>(key_info + share->keys));
-
-    memcpy(key_info, share->key_info, sizeof(*key_info) * share->keys);
-    memcpy(key_part, share->key_info[0].key_part,
-           (sizeof(*key_part) * share->key_parts));
-
-    for (key_info_end = key_info + share->keys; key_info < key_info_end;
+    if (create_key_part_field_with_prefix_length(outparam, root)) goto err;
+    KEY *key_info = outparam->key_info;
+    for (KEY *key_info_end = key_info + share->keys; key_info < key_info_end;
          key_info++) {
-      KEY_PART_INFO *key_part_end;
-
-      key_info->table = outparam;
-      key_info->key_part = key_part;
-
-      for (key_part_end = key_part + key_info->actual_key_parts;
-           key_part < key_part_end; key_part++) {
-        Field *field = key_part->field = outparam->field[key_part->fieldnr - 1];
-
-        if (field->key_length() != key_part->length &&
-            !(field->flags & BLOB_FLAG)) {
-          /*
-            We are using only a prefix of the column as a key:
-            Create a new field for the key part that matches the index
-          */
-          field = key_part->field = field->new_field(root, outparam, 0);
-          field->set_field_length(key_part->length);
-        }
-      }
-      /* Skip unused key parts if they exist */
-      key_part += key_info->unused_key_parts;
-
       /* Set TABLE::fts_doc_id_field for tables with FT KEY */
       if ((key_info->flags & HA_FULLTEXT))
         outparam->fts_doc_id_field = fts_doc_id_field;
@@ -3128,23 +3157,19 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   bitmap_size = share->column_bitmap_size;
   if (!(bitmaps = root->ArrayAlloc<uchar>(bitmap_size * 7))) goto err;
-  bitmap_init(&outparam->def_read_set, (my_bitmap_map *)bitmaps, share->fields,
-              false);
+  bitmap_init(&outparam->def_read_set, (my_bitmap_map *)bitmaps, share->fields);
   bitmap_init(&outparam->def_write_set,
-              (my_bitmap_map *)(bitmaps + bitmap_size), share->fields, false);
+              (my_bitmap_map *)(bitmaps + bitmap_size), share->fields);
   bitmap_init(&outparam->tmp_set, (my_bitmap_map *)(bitmaps + bitmap_size * 2),
-              share->fields, false);
+              share->fields);
   bitmap_init(&outparam->cond_set, (my_bitmap_map *)(bitmaps + bitmap_size * 3),
-              share->fields, false);
+              share->fields);
   bitmap_init(&outparam->def_fields_set_during_insert,
-              (my_bitmap_map *)(bitmaps + bitmap_size * 4), share->fields,
-              false);
+              (my_bitmap_map *)(bitmaps + bitmap_size * 4), share->fields);
   bitmap_init(&outparam->fields_for_functional_indexes,
-              (my_bitmap_map *)(bitmaps + bitmap_size * 5), share->fields,
-              false);
+              (my_bitmap_map *)(bitmaps + bitmap_size * 5), share->fields);
   bitmap_init(&outparam->pack_row_tmp_set,
-              (my_bitmap_map *)(bitmaps + bitmap_size * 6), share->fields,
-              false);
+              (my_bitmap_map *)(bitmaps + bitmap_size * 6), share->fields);
   outparam->default_column_bitmaps();
 
   /* Fill record with default values */
@@ -3650,11 +3675,11 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res) {
   field->val_str(&str);
   if (!(length = str.length())) {
     res->length(0);
-    return 1;
+    return true;
   }
   if (!(to = strmake_root(mem, str.ptr(), length))) length = 0;  // Safety fix
   res->set(to, length, field->charset());
-  return 0;
+  return false;
 }
 
 /**
@@ -3815,7 +3840,7 @@ bool check_column_name(const char *name) {
         continue;
       }
     }
-    if (*name == NAMES_SEP_CHAR) return 1;
+    if (*name == NAMES_SEP_CHAR) return true;
     name++;
     name_length++;
   }
@@ -4052,7 +4077,8 @@ end:
   return result;
 }
 
-const histograms::Histogram *TABLE_SHARE::find_histogram(uint field_index) {
+const histograms::Histogram *TABLE_SHARE::find_histogram(
+    uint field_index) const {
   if (m_histograms == nullptr) return nullptr;
 
   const auto found = m_histograms->find(field_index);
@@ -4215,14 +4241,14 @@ void TABLE::init(THD *thd, TABLE_LIST *tl) {
 
   const_table = false;
   nullable = false;
-  force_index = 0;
-  force_index_order = 0;
-  force_index_group = 0;
+  force_index = false;
+  force_index_order = false;
+  force_index_group = false;
   set_not_started();
   insert_values = 0;
-  fulltext_searched = 0;
+  fulltext_searched = false;
   file->ft_handler = 0;
-  reginfo.impossible_range = 0;
+  reginfo.impossible_range = false;
 
   /* Catch wrong handling of the autoinc_field_has_explicit_non_null_value. */
   DBUG_ASSERT(!autoinc_field_has_explicit_non_null_value);
@@ -4294,7 +4320,7 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
   in_use = thd;
 
   share->blob_field = blob_fld;
-  share->db_low_byte_first = 1;  // True for HEAP and MyISAM
+  share->db_low_byte_first = true;  // True for HEAP and MyISAM
   share->increment_ref_count();
   share->primary_key = MAX_KEY;
   share->visible_indexes.init();
@@ -4307,7 +4333,7 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
   alias = alias_arg;
   reginfo.lock_type = TL_WRITE; /* Will be updated */
   db_stat = HA_OPEN_KEYFILE + HA_OPEN_RNDFILE;
-  copy_blobs = 1;
+  copy_blobs = true;
   quick_keys.init();
   possible_quick_keys.init();
   covering_keys.init();
@@ -4557,7 +4583,7 @@ void TABLE_LIST::reset() {
   table->set_not_started();
 
   table->force_index = force_index;
-  table->force_index_order = table->force_index_group = 0;
+  table->force_index_order = table->force_index_group = false;
   table->covering_keys = table->s->keys_for_keyread;
   table->merge_keys.clear_all();
   table->quick_keys.clear_all();
@@ -5541,6 +5567,7 @@ void TABLE::clear_column_bitmaps() {
   fields_set_during_insert = &def_fields_set_during_insert;
 
   bitmap_clear_all(&tmp_set);
+  bitmap_clear_all(&cond_set);
 
   if (m_partial_update_columns != nullptr)
     bitmap_clear_all(m_partial_update_columns);
@@ -6025,7 +6052,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name, bool invisible,
 
   // Code above didn't change TABLE; start with changing TABLE_SHARE:
   if (modify_share) {
-    set_if_bigger(s->max_key_length, key_len);
+    s->max_key_length = std::max(s->max_key_length, key_len);
     s->key_parts += key_part_count;
     DBUG_ASSERT(s->keys < s->max_tmp_keys);
     s->keys++;
@@ -6187,10 +6214,10 @@ void TABLE::drop_unused_tmp_keys(bool modify_share) {
 void TABLE::set_keyread(bool flag) {
   DBUG_ASSERT(file);
   if (flag && !key_read) {
-    key_read = 1;
+    key_read = true;
     if (is_created()) file->ha_extra(HA_EXTRA_KEYREAD);
   } else if (!flag && key_read) {
-    key_read = 0;
+    key_read = false;
     if (is_created()) file->ha_extra(HA_EXTRA_NO_KEYREAD);
   }
 }
@@ -6275,7 +6302,7 @@ void TABLE::mark_generated_columns(bool is_update) {
     MY_BITMAP dependent_fields;
     my_bitmap_map
         bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
-    bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
+    bitmap_init(&dependent_fields, bitbuf, s->fields);
 
     for (vfield_ptr = vfield; *vfield_ptr; vfield_ptr++) {
       tmp_vfield = *vfield_ptr;
@@ -6508,10 +6535,10 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl) {
       */
       if (tbl->s->keynames.type_names == 0 ||
           (pos = find_type(&tbl->s->keynames, hint->key_name.str,
-                           hint->key_name.length, 1)) <= 0 ||
+                           hint->key_name.length, true)) <= 0 ||
           !tbl->s->key_info[pos - 1].is_visible) {
         my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), hint->key_name.str, alias);
-        return 1;
+        return true;
       }
 
       pos--;
@@ -6534,7 +6561,7 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl) {
          !index_group[INDEX_HINT_USE].is_clear_all() || have_empty_use_group)) {
       my_error(ER_WRONG_USAGE, MYF(0), index_hint_type_name[INDEX_HINT_USE],
                index_hint_type_name[INDEX_HINT_FORCE]);
-      return 1;
+      return true;
     }
 
     /* process FORCE INDEX as USE INDEX with a flag */
@@ -6575,7 +6602,7 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl) {
 
   /* make sure covering_keys don't include indexes disabled with a hint */
   tbl->covering_keys.intersect(tbl->keys_in_use_for_query);
-  return 0;
+  return false;
 }
 
 /**
@@ -6596,8 +6623,17 @@ void init_mdl_requests(TABLE_LIST *table_list) {
   technical constraints.
 */
 bool TABLE_LIST::is_mergeable() const {
-  return is_view_or_derived() && algorithm != VIEW_ALGORITHM_TEMPTABLE &&
-         derived->is_mergeable();
+  if (!is_view_or_derived() || algorithm == VIEW_ALGORITHM_TEMPTABLE)
+    return false;
+  /*
+    If the table's content is non-deterministic and the query references it
+    multiple times, merging it has the risk of creating different contents.
+  */
+  Common_table_expr *cte = common_table_expr();
+  if (cte != nullptr && cte->references.size() >= 2 &&
+      derived->uncacheable & UNCACHEABLE_RAND)
+    return false;
+  return derived->is_mergeable();
 }
 
 bool TABLE_LIST::materializable_is_const() const {
@@ -7256,7 +7292,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
         (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
       }
 
-      error = vfield->gcol_info->expr_item->save_in_field(vfield, 0);
+      error = vfield->gcol_info->expr_item->save_in_field(vfield, false);
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
       if (error && !table->in_use->is_error()) {
         /*
@@ -7331,7 +7367,7 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
         }
 
         /* Generate the actual value of the generated fields */
-        error = vfield->gcol_info->expr_item->save_in_field(vfield, 0);
+        error = vfield->gcol_info->expr_item->save_in_field(vfield, false);
 
         DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
         if (error && !table->in_use->is_error()) error = 0;
@@ -7361,7 +7397,7 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
   - the gcol is virtual and we're reading it from the engine without using a
   covering index on it.
 */
-void TABLE::mark_gcol_in_maps(Field *field) {
+void TABLE::mark_gcol_in_maps(const Field *field) {
   bitmap_set_bit(write_set, field->field_index);
 
   /*
@@ -7461,8 +7497,13 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
       Lex_acl_attrib_udyn::UNCHANGED;
   ret->alter_status.password_history_length = 0;
   ret->alter_status.password_reuse_interval = 0;
+  ret->alter_status.failed_login_attempts = 0;
+  ret->alter_status.password_lock_time = 0;
+  ret->alter_status.update_failed_login_attempts = false;
+  ret->alter_status.update_password_lock_time = false;
   if (check_string_char_length(ret->user, ER_THD(thd, ER_USERNAME),
-                               USERNAME_CHAR_LENGTH, system_charset_info, 0) ||
+                               USERNAME_CHAR_LENGTH, system_charset_info,
+                               false) ||
       (host_arg && check_host_name(ret->host)))
     return NULL;
   if (host_arg) {
@@ -7493,15 +7534,13 @@ struct Partial_update_info {
 
     auto buffer = static_cast<my_bitmap_map *>(mem_root->Alloc(bitmap_size));
     if (buffer != nullptr) {
-      bitmap_init(&m_enabled_binary_diff_columns, buffer, table->s->fields,
-                  false);
+      bitmap_init(&m_enabled_binary_diff_columns, buffer, table->s->fields);
       bitmap_copy(&m_enabled_binary_diff_columns, columns);
     }
 
     buffer = static_cast<my_bitmap_map *>(mem_root->Alloc(bitmap_size));
     if (buffer != nullptr) {
-      bitmap_init(&m_enabled_logical_diff_columns, buffer, table->s->fields,
-                  false);
+      bitmap_init(&m_enabled_logical_diff_columns, buffer, table->s->fields);
       if (logical_diffs)
         bitmap_copy(&m_enabled_logical_diff_columns, columns);
       else
@@ -7576,8 +7615,7 @@ bool TABLE::mark_column_for_partial_update(const Field *field) {
     MY_BITMAP *map = new (&mem_root) MY_BITMAP;
     my_bitmap_map *buf =
         static_cast<my_bitmap_map *>(mem_root.Alloc(s->column_bitmap_size));
-    if (map == nullptr || buf == nullptr ||
-        bitmap_init(map, buf, s->fields, false))
+    if (map == nullptr || buf == nullptr || bitmap_init(map, buf, s->fields))
       return true; /* purecov: inspected */
     m_partial_update_columns = map;
   }
@@ -7938,7 +7976,7 @@ static bool read_frm_file(THD *thd, TABLE_SHARE *share,
   } else if (memcmp(head, STRING_WITH_LEN("TYPE=")) == 0) {
     if (memcmp(head + 5, "VIEW", 4) == 0) {
       // View found
-      share->is_view = 1;
+      share->is_view = true;
 
       /*
         Create view file parser and hold it in
@@ -8018,7 +8056,7 @@ bool TABLE::empty_result_table() {
       file->ha_delete_all_rows())
     return true;
   free_io_cache(this);
-  filesort_free_buffers(this, 0);
+  filesort_free_buffers(this, false);
   return false;
 }
 

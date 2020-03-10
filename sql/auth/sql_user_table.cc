@@ -253,17 +253,13 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
      {{STRING_WITH_LEN("ssl_cipher")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
      {{STRING_WITH_LEN("x509_issuer")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
      {{STRING_WITH_LEN("x509_subject")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
-     {{STRING_WITH_LEN("max_questions")},
-      {STRING_WITH_LEN("int(11)")},
-      {NULL, 0}},
-     {{STRING_WITH_LEN("max_updates")},
-      {STRING_WITH_LEN("int(11)")},
-      {NULL, 0}},
+     {{STRING_WITH_LEN("max_questions")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
+     {{STRING_WITH_LEN("max_updates")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
      {{STRING_WITH_LEN("max_connections")},
-      {STRING_WITH_LEN("int(11)")},
+      {STRING_WITH_LEN("int")},
       {NULL, 0}},
      {{STRING_WITH_LEN("max_user_connections")},
-      {STRING_WITH_LEN("int(11)")},
+      {STRING_WITH_LEN("int")},
       {NULL, 0}},
      {{STRING_WITH_LEN("plugin")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
      {{STRING_WITH_LEN("authentication_string")},
@@ -276,7 +272,7 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
       {STRING_WITH_LEN("timestamp")},
       {NULL, 0}},
      {{STRING_WITH_LEN("password_lifetime")},
-      {STRING_WITH_LEN("smallint(5)")},
+      {STRING_WITH_LEN("smallint")},
       {NULL, 0}},
      {{STRING_WITH_LEN("account_locked")},
       {STRING_WITH_LEN("enum('N','Y')")},
@@ -288,10 +284,10 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
       {STRING_WITH_LEN("enum('N','Y')")},
       {STRING_WITH_LEN("utf8")}},
      {{STRING_WITH_LEN("Password_reuse_history")},
-      {STRING_WITH_LEN("smallint(5)")},
+      {STRING_WITH_LEN("smallint")},
       {NULL, 0}},
      {{STRING_WITH_LEN("Password_reuse_time")},
-      {STRING_WITH_LEN("smallint(5)")},
+      {STRING_WITH_LEN("smallint")},
       {NULL, 0}},
      {{STRING_WITH_LEN("Password_require_current")},
       {STRING_WITH_LEN("enum('N','Y')")},
@@ -313,7 +309,7 @@ static const TABLE_FIELD_TYPE
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
         {{STRING_WITH_LEN("With_grant")},
-         {STRING_WITH_LEN("tinyint(1)")},
+         {STRING_WITH_LEN("tinyint")},
          {NULL, 0}},
         {{STRING_WITH_LEN("Grantor")},
          {STRING_WITH_LEN("varchar(288)")},
@@ -539,9 +535,13 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
 Acl_change_notification::Acl_change_notification(
     THD *thd, enum_sql_command op, const List<LEX_USER> *users,
     const List<LEX_CSTRING> *dynamic_privs)
-    : operation(op),
-      db(thd->db().str, thd->db().length),
-      query(thd->query().str, thd->query().length) {
+    : operation(op), db(thd->db().str, thd->db().length) {
+  if (thd->rewritten_query.length()) {
+    query.assign(thd->rewritten_query.c_ptr_safe(),
+                 thd->rewritten_query.length());
+  } else {
+    query.assign(thd->query().str, thd->query().length);
+  }
   if (users) {
     /* Copy data out of List<LEX_USER> */
     user_list.reserve(users->size());
@@ -742,7 +742,7 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
     mysql_rewrite_acl_query(thd, Consumer_type::TEXTLOG, rewrite_params);
   }
 
-  if (acl_end_trans_and_close_tables(thd, result)) result = 1;
+  if (acl_end_trans_and_close_tables(thd, result)) result = true;
 
   return result;
 }
@@ -795,7 +795,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
                      const LEX_USER &combo, ulong rights, bool revoke_grant) {
   uint i;
   ulong priv, store_rights;
-  bool old_row_exists = 0;
+  bool old_row_exists = false;
   int error;
   char what = (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
@@ -837,7 +837,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
       */
       return 1;
     }
-    old_row_exists = 0;
+    old_row_exists = false;
     restore_record(table, s->default_values);
     table->field[0]->store(combo.host.str, combo.host.length,
                            system_charset_info);
@@ -845,7 +845,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
     table->field[2]->store(combo.user.str, combo.user.length,
                            system_charset_info);
   } else {
-    old_row_exists = 1;
+    old_row_exists = true;
     store_record(table, record[1]);
   }
 
@@ -930,7 +930,7 @@ table_error:
 int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                                const LEX_USER *proxied_user,
                                bool with_grant_arg, bool revoke_grant) {
-  bool old_row_exists = 0;
+  bool old_row_exists = false;
   int error;
   uchar user_key[MAX_KEY_LENGTH];
   ACL_PROXY_USER new_grant;
@@ -955,7 +955,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
            table->key_info->key_length);
 
   get_grantor(thd, grantor);
-  error = table->file->ha_index_init(0, 1);
+  error = table->file->ha_index_init(0, true);
   DBUG_EXECUTE_IF("wl7158_replace_proxies_priv_table_1",
                   table->file->ha_index_end();
                   error = HA_ERR_LOCK_DEADLOCK;);
@@ -982,14 +982,14 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
       table->file->ha_index_end();
       return 1;
     }
-    old_row_exists = 0;
+    old_row_exists = false;
     restore_record(table, s->default_values);
     ACL_PROXY_USER::store_data_record(table, user->host, user->user,
                                       proxied_user->host, proxied_user->user,
                                       with_grant_arg, grantor);
   } else {
     DBUG_PRINT("info", ("Row found"));
-    old_row_exists = 1;
+    old_row_exists = true;
     store_record(table, record[1]);  // copy original row
     ACL_PROXY_USER::store_with_grant(table, with_grant_arg);
   }
@@ -1113,7 +1113,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
 
   List_iterator<LEX_COLUMN> iter(columns);
   class LEX_COLUMN *column;
-  error = table->file->ha_index_init(0, 1);
+  error = table->file->ha_index_init(0, true);
   DBUG_EXECUTE_IF("wl7158_replace_column_table_1", table->file->ha_index_end();
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
@@ -1123,7 +1123,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
 
   while ((column = iter++)) {
     ulong privileges = column->rights;
-    bool old_row_exists = 0;
+    bool old_row_exists = false;
     uchar user_key[MAX_KEY_LENGTH];
 
     key_restore(table->record[0], key, table->key_info, key_prefix_length);
@@ -1154,7 +1154,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
         result = 1;                           /* purecov: inspected */
         continue;                             /* purecov: inspected */
       }
-      old_row_exists = 0;
+      old_row_exists = false;
       restore_record(table, s->default_values);  // Get empty record
       key_restore(table->record[0], key, table->key_info, key_prefix_length);
       table->field[4]->store(column->column.ptr(), column->column.length(),
@@ -1167,7 +1167,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
         privileges = tmp & ~(privileges | rights);
       else
         privileges |= tmp;
-      old_row_exists = 1;
+      old_row_exists = true;
       store_record(table, record[1]);  // copy original row
     }
 
@@ -1925,7 +1925,7 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
       And their host- and user fields are not consecutive.
       Thus, we need to do a table scan to find all matching records.
     */
-    error = table->file->ha_rnd_init(1);
+    error = table->file->ha_rnd_init(true);
     DBUG_EXECUTE_IF("wl7158_handle_grant_table_2", table->file->ha_rnd_end();
                     error = HA_ERR_LOCK_DEADLOCK;);
 

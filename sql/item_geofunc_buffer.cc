@@ -129,8 +129,7 @@ void Item_func_buffer::set_strategies() {
     }
 
     const enum_buffer_strategies strat = (enum_buffer_strategies)snum;
-    double value;
-    float8get(&value, pstrat + 4);
+    double value = float8get(pstrat + 4);
     enum_buffer_strategy_types strategy_type = invalid_strategy_type;
 
     switch (strat) {
@@ -454,7 +453,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
     overflow in buffer calculation, as well as for performance purposes.
   */
   if (std::abs(dist) <= GIS_ZERO || is_empty_geocollection(geom)) {
-    null_value = 0;
+    null_value = false;
     str_result = obj;
     return str_result;
   }
@@ -600,9 +599,9 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
         String temp_result;
 
         res.set_srid((*i)->get_srid());
-        Geometry::wkbType gtype = (*i)->get_type();
-        if (dist < 0 && gtype != Geometry::wkb_multipolygon &&
-            gtype != Geometry::wkb_polygon) {
+        Geometry::wkbType g_type = (*i)->get_type();
+        if (dist < 0 && g_type != Geometry::wkb_multipolygon &&
+            g_type != Geometry::wkb_polygon) {
           my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
           return error_str();
         }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _my_bitmap_h_
-#define _my_bitmap_h_
+#ifndef MY_BITMAP_INCLUDED
+#define MY_BITMAP_INCLUDED
 
 /**
   @file include/my_bitmap.h
@@ -54,7 +54,7 @@ struct MY_BITMAP {
 
 extern void create_last_word_mask(MY_BITMAP *map);
 extern bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
-                        bool thread_safe);
+                        bool thread_safe = false);
 extern bool bitmap_is_clear_all(const MY_BITMAP *map);
 extern bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
 extern bool bitmap_is_set_all(const MY_BITMAP *map);
@@ -137,4 +137,4 @@ static inline void bitmap_set_all(MY_BITMAP *map) {
   memset(map->bitmap, 0xFF, 4 * no_words_in_map(map));
 }
 
-#endif /* _my_bitmap_h_ */
+#endif /* MY_BITMAP_INCLUDED */

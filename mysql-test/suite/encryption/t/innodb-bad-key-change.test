@@ -101,7 +101,7 @@ SET GLOBAL innodb_stats_persistent=ON;
 
 --error ER_GET_ERRMSG
 SELECT * FROM t2;
---let $expected_error_message=Got error 500 Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the correct one. Are you using the correct keyring? from InnoDB
+--let $expected_error_message=Got error 500 Table encrypted but decryption failed. Seems that the encryption key fetched from keyring is not the from InnoDB
 --source check_error_in_warnings.inc
 
 --error ER_GET_ERRMSG

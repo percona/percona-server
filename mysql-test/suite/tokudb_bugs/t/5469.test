@@ -31,6 +31,8 @@ DROP TABLE t1;
 
 create table t1 (a int, b int) engine=MyISAM;
 insert into t1 values (1,1),(1,2);
+--disable_result_log
 --error ER_DUP_ENTRY
 alter table t1 engine=TokuDB, add unique key (a);
+--enable_result_log
 drop table t1;

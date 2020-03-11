@@ -5,35 +5,35 @@ CREATE TABLE foo (a INT NOT NULL DEFAULT 0, b INT DEFAULT NULL);
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` int(11) DEFAULT NULL
+  `a` int NOT NULL DEFAULT '0',
+  `b` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE foo ALTER COLUMN a SET DEFAULT 100;
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) NOT NULL DEFAULT '100',
-  `b` int(11) DEFAULT NULL
+  `a` int NOT NULL DEFAULT '100',
+  `b` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE foo ALTER COLUMN a DROP DEFAULT;
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE foo ALTER COLUMN b SET DEFAULT 42;
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT '42'
+  `a` int NOT NULL,
+  `b` int DEFAULT '42'
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE foo ALTER COLUMN b DROP DEFAULT;
 SHOW CREATE TABLE foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) NOT NULL,
-  `b` int(11)
+  `a` int NOT NULL,
+  `b` int
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE foo;

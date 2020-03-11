@@ -5002,8 +5002,6 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
     }
   }
 
-  DBUG_EXECUTE_IF("crash_innodb_add_index_after", DBUG_SUICIDE(););
-
 error_handling:
 
   if (build_fts_common || fts_index) {

@@ -14386,8 +14386,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         if (skip_secondary && key->type & KEYTYPE_MULTIPLE) {
           delayed_key_list.push_back(key);
         }
-      } else  if (skip_secondary)
-      {
+      } else if (skip_secondary) {
         /*
           We are adding a foreign key so disable the secondary keys
           optimization.
@@ -17865,6 +17864,9 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd) {
 bool mysql_trans_commit_alter_copy_data(THD *thd) {
   bool error = false;
   DBUG_TRACE;
+
+  DBUG_EXECUTE_IF("crash_innodb_add_index_after", DBUG_SUICIDE(););
+
   /*
     Ensure that ha_commit_trans() which is implicitly called by
     ha_enable_transaction() doesn't update GTID and slave info states.

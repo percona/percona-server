@@ -6,7 +6,7 @@ Warning	140	InnoDB: Ignored ENCRYPTION_KEY_ID 4 when encryption is disabled.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `pk` int NOT NULL AUTO_INCREMENT,
   `c` varchar(256) DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

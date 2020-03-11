@@ -103,16 +103,8 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
-<<<<<<< HEAD:mysql-test/r/i_s_schema_definition_debug.result
-include/assert.inc [There are 34 system views.]
-include/assert.inc [There are 34 I_S system views in total.]
-||||||| 91a17cedb1e:mysql-test/r/i_s_schema_definition_debug.result
-include/assert.inc [There are 32 system views.]
-include/assert.inc [There are 32 I_S system views in total.]
-=======
-include/assert.inc [There are 38 system views.]
-include/assert.inc [There are 38 I_S system views in total.]
->>>>>>> mysql-8.0.19:mysql-test/suite/information_schema/r/i_s_schema_definition_debug.result
+include/assert.inc [There are 40 system views.]
+include/assert.inc [There are 40 I_S system views in total.]
 ########################################################################
 # No unexpected I_S tables must be present.
 ########################################################################
@@ -1470,43 +1462,6 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   CAN_ACCESS_TABLE(sch.name, vw.name)
   AND vw.type = 'VIEW'
 ");
-<<<<<<< HEAD:mysql-test/r/i_s_schema_definition_debug.result
-CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY AS SELECT 
-  dict.version AS DICT_VERSION,
-  dict.name AS DICT_NAME,
-  dict.data AS DICT_DATA FROM 
-  mysql.compression_dictionary dict
-
-INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY AS SELECT 
-  dict.version AS DICT_VERSION,
-  dict.name AS DICT_NAME,
-  dict.data AS DICT_DATA FROM 
-  mysql.compression_dictionary dict
-");
-CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY_TABLES AS SELECT 
-  sch.name AS TABLE_SCHEMA,
-  tbl.name AS TABLE_NAME,
-  col.name AS COLUMN_NAME,
-  dict.name AS DICT_NAME FROM 
-  mysql.compression_dictionary_cols cdc
-  JOIN mysql.tables tbl ON cdc.table_id=tbl.id
-  JOIN mysql.columns col ON col.table_id = cdc.table_id AND col.id = cdc.column_id
-  JOIN mysql.schemata sch ON tbl.schema_id=sch.id
-  JOIN mysql.compression_dictionary dict ON dict.id = cdc.dict_id
-
-INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY_TABLES AS SELECT 
-  sch.name AS TABLE_SCHEMA,
-  tbl.name AS TABLE_NAME,
-  col.name AS COLUMN_NAME,
-  dict.name AS DICT_NAME FROM 
-  mysql.compression_dictionary_cols cdc
-  JOIN mysql.tables tbl ON cdc.table_id=tbl.id
-  JOIN mysql.columns col ON col.table_id = cdc.table_id AND col.id = cdc.column_id
-  JOIN mysql.schemata sch ON tbl.schema_id=sch.id
-  JOIN mysql.compression_dictionary dict ON dict.id = cdc.dict_id
-");
-||||||| 91a17cedb1e:mysql-test/r/i_s_schema_definition_debug.result
-=======
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.APPLICABLE_ROLES AS WITH RECURSIVE role_graph (c_parent_user, c_parent_host,                                 c_from_user, c_from_host,                                 c_to_user, c_to_host, role_path,                                 c_with_admin, c_enabled) AS   ((SELECT       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       CAST('' as CHAR(64) CHARSET utf8mb4),       CAST('' as CHAR(255) CHARSET utf8mb4),       CAST(SHA2(CONCAT(QUOTE(INTERNAL_GET_USERNAME()),'@',                        QUOTE(INTERNAL_GET_HOSTNAME())), 256)            AS CHAR(17000) CHARSET utf8mb4),       CAST('N' as CHAR(1) CHARSET utf8mb4),       FALSE     UNION       SELECT         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         ROLE_NAME, ROLE_HOST,         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         CAST(SHA2(CONCAT(QUOTE(ROLE_NAME),'@',                   CONVERT(QUOTE(ROLE_HOST) using utf8mb4)), 256)              AS CHAR(17000) CHARSET utf8mb4),         CAST('N' as CHAR(1) CHARSET utf8mb4),         FALSE       FROM JSON_TABLE(INTERNAL_GET_MANDATORY_ROLES_JSON(),            '$[*]' COLUMNS (            ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',             ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')             ) mandatory_roles       WHERE CONCAT(QUOTE(ROLE_NAME),'@',                    CONVERT(QUOTE(ROLE_HOST) using utf8mb4)) NOT IN             (SELECT CONCAT(QUOTE(FROM_USER),'@',                        CONVERT(QUOTE(FROM_HOST) using utf8mb4))              FROM mysql.role_edges              WHERE TO_USER = INTERNAL_GET_USERNAME() AND              CONVERT(TO_HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())   )   UNION     SELECT c_parent_user, c_parent_host,       FROM_USER, FROM_HOST, TO_USER, TO_HOST,       IF(LOCATE(SHA2(CONCAT(QUOTE(FROM_USER),'@',                      CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256),                 role_path) = 0,          CONCAT(role_path,'->', SHA2(CONCAT(QUOTE(FROM_USER),'@',           CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256)), NULL),       WITH_ADMIN_OPTION,       IF(c_enabled OR        INTERNAL_IS_ENABLED_ROLE(FROM_USER, FROM_HOST), TRUE, FALSE)     FROM mysql.role_edges, role_graph     WHERE TO_USER = c_from_user AND           CONVERT(TO_HOST using utf8mb4)= c_from_host AND           role_path IS NOT NULL)
  SELECT DISTINCT 
   c_parent_user AS USER,
@@ -1671,7 +1626,40 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
    AND c_to_user != ''
    AND c_enabled = TRUE
 ");
->>>>>>> mysql-8.0.19:mysql-test/suite/information_schema/r/i_s_schema_definition_debug.result
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY AS SELECT 
+  dict.version AS DICT_VERSION,
+  dict.name AS DICT_NAME,
+  dict.data AS DICT_DATA FROM 
+  mysql.compression_dictionary dict
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY AS SELECT 
+  dict.version AS DICT_VERSION,
+  dict.name AS DICT_NAME,
+  dict.data AS DICT_DATA FROM 
+  mysql.compression_dictionary dict
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY_TABLES AS SELECT 
+  sch.name AS TABLE_SCHEMA,
+  tbl.name AS TABLE_NAME,
+  col.name AS COLUMN_NAME,
+  dict.name AS DICT_NAME FROM 
+  mysql.compression_dictionary_cols cdc
+  JOIN mysql.tables tbl ON cdc.table_id=tbl.id
+  JOIN mysql.columns col ON col.table_id = cdc.table_id AND col.id = cdc.column_id
+  JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+  JOIN mysql.compression_dictionary dict ON dict.id = cdc.dict_id
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COMPRESSION_DICTIONARY_TABLES AS SELECT 
+  sch.name AS TABLE_SCHEMA,
+  tbl.name AS TABLE_NAME,
+  col.name AS COLUMN_NAME,
+  dict.name AS DICT_NAME FROM 
+  mysql.compression_dictionary_cols cdc
+  JOIN mysql.tables tbl ON cdc.table_id=tbl.id
+  JOIN mysql.columns col ON col.table_id = cdc.table_id AND col.id = cdc.column_id
+  JOIN mysql.schemata sch ON tbl.schema_id=sch.id
+  JOIN mysql.compression_dictionary dict ON dict.id = cdc.dict_id
+");
 SET debug = '-d,skip_dd_table_access_check';
 SET debug = '-d,fetch_system_view_definition';
 ########################################################################
@@ -1683,11 +1671,5 @@ include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-<<<<<<< HEAD:mysql-test/r/i_s_schema_definition_debug.result
-The schema checksum corresponds to I_S version 80018-PS.
-||||||| 91a17cedb1e:mysql-test/r/i_s_schema_definition_debug.result
-The schema checksum corresponds to I_S version 80018.
-=======
 The schema checksum corresponds to I_S version 80020.
->>>>>>> mysql-8.0.19:mysql-test/suite/information_schema/r/i_s_schema_definition_debug.result
 include/assert.inc [The schema checksum corresponds to a known I_S version.]

@@ -814,6 +814,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         thd->inc_examined_row_count(1);
         if (qep_tab.condition() != nullptr) {
           const bool skip_record = qep_tab.condition()->val_int() == 0;
+          if (thd->is_error()) {
+            error = 1;
+            break;
+          }
           if (skip_record) {
             table->file
                 ->unlock_row();  // Row failed condition check, release lock

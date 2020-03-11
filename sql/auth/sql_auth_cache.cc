@@ -201,6 +201,20 @@ void init_acl_memory() {
 }
 
 /**
+  Check if the given host name is equal to "localhost".
+
+  @return a flag telling if the given host name is equal to "localhost".
+  @retval TRUE the given host name is equal to "localhost".
+  @retval FALSE the given host name is not equal to "localhost".
+}
+*/
+bool is_localhost_string(const char *hostname) {
+  if (!hostname) return false;
+
+  return !strcmp(hostname, "localhost");
+}
+
+/**
   Add an internal schema to the registry.
   @param name the schema name
   @param access the schema ACL specific rules
@@ -558,7 +572,7 @@ bool ACL_PROXY_USER::check_validity(bool check_no_resolve) {
   if (check_no_resolve &&
       (hostname_requires_resolving(host.get_host()) ||
        hostname_requires_resolving(proxied_host.get_host())) &&
-      strcmp(host.get_host(), "localhost") != 0) {
+      !is_localhost_string(host.get_host())) {
     LogErr(WARNING_LEVEL, ER_AUTHCACHE_PROXIES_PRIV_SKIPPED_NEEDS_RESOLVE,
            proxied_user ? proxied_user : "",
            proxied_host.get_host() ? proxied_host.get_host() : "",
@@ -2182,7 +2196,7 @@ static bool acl_load(THD *thd, Table_ref *tables) {
     }
     db.user = get_field(&global_acl_memory, table->field[MYSQL_DB_FIELD_USER]);
     if (check_no_resolve && hostname_requires_resolving(db.host.get_host()) &&
-        strcmp(db.host.get_host(), "localhost") != 0) {
+        !is_localhost_string(db.host.get_host())) {
       LogErr(WARNING_LEVEL, ER_AUTHCACHE_DB_SKIPPED_NEEDS_RESOLVE, db.db,
              db.user ? db.user : "",
              db.host.get_host() ? db.host.get_host() : "");
@@ -2857,7 +2871,7 @@ static bool grant_load(THD *thd, Table_ref *tables) {
 
       if (check_no_resolve) {
         if (hostname_requires_resolving(mem_check->host.get_host()) &&
-            strcmp(mem_check->host.get_host(), "localhost") != 0) {
+            !is_localhost_string(mem_check->host.get_host())) {
           LogErr(WARNING_LEVEL, ER_AUTHCACHE_TABLES_PRIV_SKIPPED_NEEDS_RESOLVE,
                  mem_check->tname, mem_check->user ? mem_check->user : "",
                  mem_check->host.get_host() ? mem_check->host.get_host() : "");

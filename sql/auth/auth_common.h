@@ -754,6 +754,7 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, const char *wildstr);
 int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
                       const char *wildstr, size_t wildstr_len);
 bool hostname_requires_resolving(const char *hostname);
+bool is_localhost_string(const char *hostname);
 bool acl_init(bool dont_read_acl_tables);
 bool is_acl_inited();
 void acl_free(bool end = false);

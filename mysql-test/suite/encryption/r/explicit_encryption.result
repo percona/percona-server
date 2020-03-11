@@ -30,7 +30,7 @@ include/assert.inc [Make sure ts_altered_to_n ENCRYPTION field is set to N]
 SHOW CREATE TABLE t4_dup;
 Table	Create Table
 t4_dup	CREATE TABLE `t4_dup` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -73,7 +73,7 @@ ALTER TABLE t1 ENGINE InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING'
@@ -81,7 +81,7 @@ ALTER TABLE t2 ENGINE InnoDB;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMPRESSION='zlib'
@@ -89,7 +89,7 @@ ALTER TABLE t3 ENGINE InnoDB;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -97,7 +97,7 @@ ALTER TABLE t4 ENGINE InnoDB;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -105,7 +105,7 @@ ALTER TABLE t4_dup ENGINE InnoDB;
 SHOW CREATE TABLE t4_dup;
 Table	Create Table
 t4_dup	CREATE TABLE `t4_dup` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -113,7 +113,7 @@ ALTER TABLE t5 ENGINE InnoDB;
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='KEYRING' ENCRYPTION_KEY_ID=2
@@ -121,7 +121,7 @@ ALTER TABLE test_enc_n.t6 ENGINE InnoDB;
 SHOW CREATE TABLE test_enc_n.t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -154,14 +154,14 @@ ALTER DATABASE test DEFAULT ENCRYPTION='Y';
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
 SHOW CREATE TABLE t4_dup;
 Table	Create Table
 t4_dup	CREATE TABLE `t4_dup` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'

@@ -89,13 +89,9 @@ Database: information_schema
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
 | COLUMNS                               |
-<<<<<<< HEAD
 | COMPRESSION_DICTIONARY                |
 | COMPRESSION_DICTIONARY_TABLES         |
-||||||| 91a17cedb1e
-=======
 | ENABLED_ROLES                         |
->>>>>>> mysql-8.0.19
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
@@ -183,13 +179,9 @@ Database: INFORMATION_SCHEMA
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
 | COLUMNS                               |
-<<<<<<< HEAD
 | COMPRESSION_DICTIONARY                |
 | COMPRESSION_DICTIONARY_TABLES         |
-||||||| 91a17cedb1e
-=======
 | ENABLED_ROLES                         |
->>>>>>> mysql-8.0.19
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |

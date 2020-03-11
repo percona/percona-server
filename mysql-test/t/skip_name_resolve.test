@@ -76,6 +76,22 @@ FLUSH PRIVILEGES;
 --let SEARCH_PATTERN='user' entry 'b20438524@localhost1' ignored in --skip-name-resolve mode
 source include/search_pattern.inc;
 
+--echo #
+--echo # Bug #98908: Crash in ACL_PROXY_USER::check_validity with --skip-name-resolve=1
+--echo #             https://bugs.mysql.com/bug.php?id=98908
+--echo #
+
+CREATE USER IF NOT EXISTS ''@'';
+CREATE USER IF NOT EXISTS dba@'localhost' IDENTIFIED BY 'pass';
+GRANT PROXY ON dba@'localhost' TO ''@'';
+
+--let $restart_parameters=restart:--skip-name-resolve=1
+--source include/restart_mysqld.inc
+
+--exec $MYSQL $AUTH_PAM_OPT -udba -ppass -e "SHOW GRANTS;"
+
+DROP USER dba@'localhost';
+DROP USER ''@'';
 
 --echo End of 5.7 tests
 

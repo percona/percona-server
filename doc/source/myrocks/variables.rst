@@ -480,6 +480,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_stats_level`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_stats_recalc_rate`
      - Yes
      - Yes
@@ -2210,6 +2214,18 @@ Specifies the period in seconds for performing a dump of the MyRocks statistics
 to the info log.
 Default value is ``600``.
 Allowed range is up to ``2147483647``.
+
+.. variable:: rocksdb_stats_level
+
+  :version 5.7.30-33: Implemented
+  :cli: ``--rocksdb-stats-level``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Numeric
+  :default: ``0``
+
+Controls the RocksDB statistics level. The default value is "0" (kExceptHistogramOrTimers),
+ which is the fastest level. The maximum value is "4".
 
 .. variable:: rocksdb_stats_recalc_rate
 

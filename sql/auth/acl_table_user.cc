@@ -1436,7 +1436,7 @@ void Acl_table_user_reader::read_account_name(ACL_USER &user) {
   user.user =
       get_field(&m_mem_root, m_table->field[m_table_schema->user_idx()]);
   if (check_no_resolve && hostname_requires_resolving(user.host.get_host()) &&
-      strcmp(user.host.get_host(), "localhost") != 0) {
+      !is_localhost_string(user.host.get_host())) {
     LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_SKIPPED_NEEDS_RESOLVE,
            user.user ? user.user : "",
            user.host.get_host() ? user.host.get_host() : "");

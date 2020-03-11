@@ -14386,14 +14386,14 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         if (skip_secondary && key->type & KEYTYPE_MULTIPLE) {
           delayed_key_list.push_back(key);
         }
-      } else  // if (skip_secondary)
+      } else  if (skip_secondary)
       {
         /*
           We are adding a foreign key so disable the secondary keys
           optimization.
         */
-        // skip_secondary = false;
-        // delayed_key_list.empty();
+        skip_secondary = false;
+        delayed_key_list.empty();
       }
     }
   }
@@ -14812,6 +14812,7 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE_LIST *table_list,
                                         fk_columns_lambda, &bad_column_name);
 
       switch (changes) {
+        case fk_column_change_type::SAFE_FOR_PARENT:
         case fk_column_change_type::NO_CHANGE:
           /* No significant changes. We can proceed with ALTER! */
           break;

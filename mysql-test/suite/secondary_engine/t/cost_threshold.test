@@ -40,8 +40,10 @@ let $q6 = SELECT * FROM t1 tt
 SHOW STATUS LIKE 'Last_query_cost';
 --eval EXPLAIN $q2
 SHOW STATUS LIKE 'Last_query_cost';
+--disable_warnings
 --eval EXPLAIN $q3
 SHOW STATUS LIKE 'Last_query_cost';
+--enable_warnings
 --eval EXPLAIN $q4
 SHOW STATUS LIKE 'Last_query_cost';
 --eval EXPLAIN $q5

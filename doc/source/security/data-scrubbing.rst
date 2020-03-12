@@ -5,14 +5,18 @@ Data Scrubbing
 
 :Availability: This feature is **Experimental** quality
 
-While data encryption ensures that the existing data are not stored in plain
-form, the data scrubbing literally removes the data once the user decides they
-should be deleted. Compare this behavior with how the ``DELETE`` statement works
-which only marks the affected data as *deleted* - the space claimed by this data
-is overwritten with new data later.
+Data encryption ensures the existing data is not stored in plain
+form, data scrubbing removes the data when the data is no longer needed.
 
-Once enabled, data scrubbing works automatically on each tablespace
-separately. To enable data scrubbing, you need to set the following variables:
+Currently, when a user runs a ``DELETE`` statement the selected data is
+marked as free, the space claimed by this data is overwritten with new data at a
+later time. 
+
+In data scrubbing, the data is removed by an automatic process. The background threads 
+scan tablespaces and marked data is removed. 
+
+To enable data scrubbing, you must set the following
+variables:
 
 - :variable:`innodb-background-scrub-data-uncompressed`
 - :variable:`innodb-background-scrub-data-compressed`

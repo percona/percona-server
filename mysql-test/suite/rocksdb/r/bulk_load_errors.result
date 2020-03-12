@@ -1,4 +1,5 @@
 call mtr.add_suppression("Error 213");
+call mtr.add_suppression("Error 214 finalizing last SST file while setting bulk loading variable");
 CREATE TABLE t1(pk INT, PRIMARY KEY(pk)) ENGINE=ROCKSDB;
 SET rocksdb_bulk_load=1;
 INSERT INTO t1 VALUES(10);

@@ -1,6 +1,7 @@
 --source include/have_rocksdb.inc
 
 call mtr.add_suppression("Error 213");
+call mtr.add_suppression("Error 214 finalizing last SST file while setting bulk loading variable");
 
 ### Bulk load ###
 CREATE TABLE t1(pk INT, PRIMARY KEY(pk)) ENGINE=ROCKSDB;

@@ -10,13 +10,17 @@ The easiest way to install the *Percona Yum* repository is to install an *RPM* t
 
 Supported Releases:
 
- * *CentOS* 6 and *RHEL* 6 (Current Stable) [#f1]_
+ * *RHEL* 6 
 
- * *CentOS* 7 and *RHEL* 7
+ * *RHEL* 7
 
  * *RHEL* 8
 
- * *Amazon Linux AMI* (works the same as *CentOS* 6)
+ * *Amazon Linux AMI* 
+
+.. note::
+
+    We support Red Hat Enterprise Linux (RHEL) and the derivatives CentOS, Oracle Enterprise Linux and Amazon Linux for the selected release version.
 
 The *CentOS* repositories should work well with *Red Hat Enterprise Linux* too, provided that :program:`yum` is installed on the server.
 

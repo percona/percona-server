@@ -460,7 +460,6 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 INSERT INTO t1 VALUES(0, 0);
 INSERT INTO t1 VALUES(1, 1);
 ALTER TABLE t1 CHANGE t1 t1 INT(10) auto_increment;
-ERROR 23000: Duplicate entry '1' for key '#sql-27c5_9.PRIMARY'
 DROP TABLE t1;
 create table t1 (a int primary key auto_increment, b int, c int, d timestamp default current_timestamp, unique(b),unique(c));
 insert into t1 values(null,1,1,now());

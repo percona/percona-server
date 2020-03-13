@@ -8,72 +8,78 @@
 
 Ready-to-use packages are available from the |Percona Server| software
 repositories and the `download page
-<http://www.percona.com/downloads/Percona-Server-8.0/>`_. The
-|Percona| :program:`yum` repository supports popular *RPM*-based
-operating systems, including the *Amazon Linux AMI*.
+<http://www.percona.com/downloads/Percona-Server-8.0/>`_.
 
 The easiest way to install the *Percona Yum* repository is to install an *RPM*
 that configures :program:`yum` and installs the `Percona GPG key
 <https://www.percona.com/downloads/RPM-GPG-KEY-percona>`_.
 
-Supported Releases:
+.. rubric:: Supported Platform and Releases
 
-- *CentOS* 6 and *RHEL* 6 (Current Stable)
-- *CentOS* 7 and *RHEL* 7
-- *RHEL* 8
-- *Amazon Linux AMI* (works the same as *CentOS* 6)
-- *Amazon Linux* 2
+The |Percona| :program:`yum` repository supports popular *RPM*-based
+operating systems, including *Amazon Linux AMI*. The *CentOS* repositories
+should work well with *Red Hat Enterprise Linux*, as long as the :program:`yum`
+is installed on the server.
 
-.. important::
-
-   "Current Stable": We support only the current stable RHEL6/CentOS6 release,
-   because there is no official (i.e. RedHat provided) method to support or
-   download the latest OpenSSL on RHEL/CentOS versions prior to 6.5. Similarly,
-   and also as a result thereof, there is no official Percona way to support the
-   latest builds of |Percona Server| on RHEL/CentOS versions prior to
-   6.5. Additionally, many users will need to upgrade to OpenSSL 1.0.1g or later
-   (due to the `Heartbleed vulnerability
-   <http://www.percona.com/resources/ceo-customer-advisory-heartbleed>`_), and
-   this OpenSSL version is not available for download from any official
-   RHEL/Centos repository for versions 6.4 and prior. For any officially
-   unsupported system, src.rpm packages may be used to rebuild |Percona Server|
-   for any environment. Please contact our `support service
-   <http://www.percona.com/products/mysql-support>`_ if you require further
-   information on this.
-
-The *CentOS* repositories should work well with *Red Hat Enterprise
-Linux* too, provided that :program:`yum` is installed on the server.
-
-.. important::
-
-     *CentOS* 6 offers an outdated version of the ``curl`` library required by the
-     :ref:`keyring Vault plugin <keyring_vault_plugin>` of |Percona Server|. The
-     version of the ``curl`` library in *CentOS* 6, which depends on the ``nss``
-     library, is known to create memory corruption issues. This bug is `registered in
-     Red Hat Bugzilla <https://bugzilla.redhat.com/show_bug.cgi?id=1057388>`_. Its
-     current status is `CLOSED WONTFIX`.
-
-     If you intend to use the keyring Vault plugin of |Percona Server|
-     make sure that you use the latest version of the ``curl`` library.
-     We recommend that you `build it from source
-     <https://curl.haxx.se/docs/install.html>`_ configuring with
-     ``ssl`` but without ``nss``:
-
-     .. code-block:: bash
-
-        $ ./configuration --with-ssl --without-nss --prefix=<INSTALATION DIRECTORY>
-
-     As soon as you install ``curl``, make sure that |Percona Server| will use
-     this version.
-
-    .. seealso::
-
-       How to install curl and libcurl
-          https://curl.haxx.se/docs/install.html
-
-Supported Platforms:
+Supported Platform:
 
  * x86_64 (also known as ``amd64``)
+
+
+
+Supported Releases:
+
+- *RHEL* 6 (Current Stable)
+- *RHEL* 7
+- *RHEL* 8
+- *Amazon Linux AMI* (works the same as *CentOS* 6)
+
+.. note::
+
+    We support Red Hat Enterprise Linux (RHEL) and the derivatives: CentOS,
+    Oracle Enterprise Linux, and Amazon Linux for the selected version.
+
+We support only the *current stable* version of the RHEL6/CentOS6
+release,
+because there is no official (i.e., RedHat provided) method to support or
+download the latest OpenSSL on RHEL/CentOS versions prior to 6.5. Similarly,
+and also as a result thereof, there is no official Percona way to support the
+latest builds of |Percona Server| on RHEL/CentOS versions prior to
+6.5. Additionally, many users will need to upgrade to OpenSSL 1.0.1g or later
+(due to the `Heartbleed vulnerability
+<http://www.percona.com/resources/ceo-customer-advisory-heartbleed>`_), and
+this OpenSSL version is not available for download from any official
+RHEL/CentOS repository for versions 6.4 and prior. For any officially
+unsupported system, src.rpm packages may be used to rebuild |Percona Server|
+for any environment. Please contact our `support service
+<http://www.percona.com/products/mysql-support>`_ if you require further
+information on this.
+
+*CentOS* 6 offers an outdated version of the ``curl`` library required by the
+:ref:`keyring Vault plugin <keyring_vault_plugin>` of |Percona Server|. The
+version of the ``curl`` library in *CentOS* 6, which depends on the ``nss``
+library, is known to create memory corruption issues. This bug is `registered in
+Red Hat Bugzilla <https://bugzilla.redhat.com/show_bug.cgi?id=1057388>`_. Its
+current status is `CLOSED WONTFIX`.
+
+If you intend to use the keyring Vault plugin of |Percona Server|
+make sure that you use the latest version of the ``curl`` library.
+We recommend that you `build it from source
+<https://curl.haxx.se/docs/install.html>`_ configuring with
+`ssl`` but without ``nss``:
+
+  .. code-block:: bash
+
+    $ ./configuration --with-ssl --without-nss --prefix=<INSTALATION DIRECTORY>
+
+As soon as you install ``curl``, verify that |Percona Server| will use
+this version.
+
+  .. seealso::
+
+    `How to install curl and libcurl <https://curl.haxx.se/docs/install.html>`_
+
+
 
 What's in each RPM package?
 ===========================
@@ -156,12 +162,12 @@ Percona `yum` Testing repository
 --------------------------------------------------------------------------------
 
 Percona offers pre-release builds from our testing repository. To
-subscribe to the testing repository, you'll need to enable the testing
+subscribe to the testing repository, you must enable the testing
 repository in :file:`/etc/yum.repos.d/percona-release.repo`. To do so,
 set both ``percona-testing-$basearch`` and ``percona-testing-noarch``
-to ``enabled = 1`` (Note that there are 3 sections in this file:
-release, testing and experimental - in this case it is the second
-section that requires updating). **NOTE:** You'll need to install the
+to ``enabled = 1`` (Note that there are three sections in this file:
+release, testing and experimental - the second
+section requires the updated information). **NOTE:** You must install the
 Percona repository first (ref above) if this hasn't been done already.
 
 
@@ -172,8 +178,9 @@ Installing |Percona Server| using downloaded rpm packages
 
 1. Download the packages of the desired series for your architecture from the
    `download page <http://www.percona.com/downloads/Percona-Server-8.0/>`_. The
-   easiest way is to download bundle which contains all the packages. Following
-   example will download |Percona Server| 8.0.13-3 release packages for *CentOS*
+   easiest way is to download the bundle which contains all of the packages.
+   The following
+   example downloads |Percona Server| 8.0.13-3 release packages for *CentOS*
    7:
 
    .. code-block:: bash
@@ -199,7 +206,8 @@ Installing |Percona Server| using downloaded rpm packages
 
   .. note::
 
-    For an RHEL 8 package installation, Percona Server requires the mysql module to be disabled.
+    For an RHEL 8 package installation, Percona Server requires disabling the
+    mysql module.
 
     .. code-block:: bash
 
@@ -214,12 +222,15 @@ Installing |Percona Server| using downloaded rpm packages
       percona-server-shared-80-8.0.13-3.el7.x86_64.rpm
 
 This will install only packages required to run the |Percona Server|
-8.0. Optionally you can install :ref:`TokuDB <tokudb_intro>` storage engine by
-adding the ``percona-server-tokudb-80-8.0.13-3.el7.x86_64.rpm`` to the command
-above. You can find more information on how to install and enable the |TokuDB|
-storage in the :ref:`tokudb_installation` guide.
+8.0.
 
-To install all the packages (for debugging, testing, etc.) you should run:
+Optionally, you can install the :ref:`TokuDB <tokudb_intro>` storage engine
+by
+adding the ``percona-server-tokudb-80-8.0.13-3.el7.x86_64.rpm`` to the command.
+More information on the |TokuDB|
+storage engine is available in the :ref:`tokudb_installation` guide.
+
+To install all of the packages (for debugging, testing, etc.) you should run:
 
    .. code-block:: bash
 
@@ -227,8 +238,8 @@ To install all the packages (for debugging, testing, etc.) you should run:
 
 .. note::
 
-   When installing packages manually like this, you'll need to make sure to
-   resolve all the dependencies and install missing packages yourself.
+   In a manual installation, you must resolve the dependencies and
+   install any missing packages.
 
 Running |Percona Server|
 ========================
@@ -239,8 +250,8 @@ Server| in :file:`/etc/my.cnf`.
 
 1. Starting the service
 
-   |Percona Server| is not started automatically on *RHEL* and *CentOS* after it
-   gets installed. You should start it by running:
+   |Percona Server| is not started automatically on *RHEL* and *CentOS* after
+   installation. You should run the following command to start the service:
 
    .. code-block:: bash
 
@@ -272,10 +283,10 @@ Server| in :file:`/etc/my.cnf`.
 
 .. note::
 
-   *RHEL* 7 and *CentOS* 7 come with `systemd
+   *RHEL* 7 or 8 and *CentOS* 7 or 8 come with `systemd
    <http://freedesktop.org/wiki/Software/systemd/>`_ as the default
    system and service manager so you can invoke all the above commands
-   with ``sytemctl`` instead of ``service``. Currently both are
+   with ``sytemctl`` instead of ``service``. Currently, both are
    supported.
 
 Uninstalling |Percona Server|

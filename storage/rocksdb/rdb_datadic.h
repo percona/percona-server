@@ -235,46 +235,60 @@ public:
 
   /*
     Get the first key that you need to position at to start iterating.
-
     Stores into *key a "supremum" or "infimum" key value for the index.
-
+    @parameters key    OUT  Big Endian, value is m_index_number or
+                            m_index_number + 1
+    @parameters size   OUT  key size, value is INDEX_NUMBER_SIZE
     @return Number of bytes in the key that are usable for bloom filter use.
   */
   inline int get_first_key(uchar *const key, uint *const size) const {
-    if (m_is_reverse_cf)
+    if (m_is_reverse_cf) {
       get_supremum_key(key, size);
-    else
+      /* Find out how many bytes of infimum are the same as m_index_number */
+      uchar unmodified_key[INDEX_NUMBER_SIZE];
+      rdb_netbuf_store_index(unmodified_key, m_index_number);
+      int i;
+      for (i = 0; i < INDEX_NUMBER_SIZE; i++) {
+        if (key[i] != unmodified_key[i]) {
+          break;
+        }
+      }
+      return i;
+    } else {
       get_infimum_key(key, size);
-
-    /* Find out how many bytes of infimum are the same as m_index_number */
-    uchar unmodified_key[INDEX_NUMBER_SIZE];
-    rdb_netbuf_store_index(unmodified_key, m_index_number);
-    int i;
-    for (i = 0; i < INDEX_NUMBER_SIZE; i++) {
-      if (key[i] != unmodified_key[i])
-        break;
+      // For infimum key, its value will be m_index_number
+      // Thus return its own size instead.
+      return INDEX_NUMBER_SIZE;
     }
-    return i;
   }
 
   /*
     The same as get_first_key, but get the key for the last entry in the index
+    @parameters key    OUT  Big Endian, value is m_index_number or
+                            m_index_number + 1
+    @parameters size   OUT  key size, value is INDEX_NUMBER_SIZE
+
+    @return Number of bytes in the key that are usable for bloom filter use.
   */
   inline int get_last_key(uchar *const key, uint *const size) const {
-    if (m_is_reverse_cf)
+    if (m_is_reverse_cf) {
       get_infimum_key(key, size);
-    else
+      // For infimum key, its value will be m_index_number
+      // Thus return its own size instead.
+      return INDEX_NUMBER_SIZE;
+    } else {
       get_supremum_key(key, size);
-
-    /* Find out how many bytes are the same as m_index_number */
-    uchar unmodified_key[INDEX_NUMBER_SIZE];
-    rdb_netbuf_store_index(unmodified_key, m_index_number);
-    int i;
-    for (i = 0; i < INDEX_NUMBER_SIZE; i++) {
-      if (key[i] != unmodified_key[i])
-        break;
+      /* Find out how many bytes are the same as m_index_number */
+      uchar unmodified_key[INDEX_NUMBER_SIZE];
+      rdb_netbuf_store_index(unmodified_key, m_index_number);
+      int i;
+      for (i = 0; i < INDEX_NUMBER_SIZE; i++) {
+        if (key[i] != unmodified_key[i]) {
+          break;
+        }
+      }
+      return i;
     }
-    return i;
   }
 
   /* Make a key that is right after the given key. */
@@ -308,8 +322,7 @@ public:
 
   void get_lookup_bitmap(const TABLE *table, MY_BITMAP *map) const;
 
-  bool covers_lookup(TABLE *const table,
-                     const rocksdb::Slice *const unpack_info,
+  bool covers_lookup(const rocksdb::Slice *const unpack_info,
                      const MY_BITMAP *const map) const;
 
   inline bool use_covered_bitmap_format() const {
@@ -822,7 +835,6 @@ public:
   std::string m_ttl_column;
 
  private:
-  friend class Rdb_tbl_def; // for m_index_number above
 
   /* Number of key parts in the primary key*/
   uint m_pk_key_parts;
@@ -1116,7 +1128,7 @@ public:
   bool m_is_mysql_system_table;
 
   bool put_dict(Rdb_dict_manager *const dict, rocksdb::WriteBatch *const batch,
-                uchar *const key, const size_t keylen);
+                const rocksdb::Slice &key);
 
   const std::string &full_tablename() const { return m_dbname_tablename; }
   const std::string &base_dbname() const { return m_dbname; }
@@ -1318,6 +1330,15 @@ private:
   static void dump_index_id(uchar *const netbuf,
                             Rdb_key_def::DATA_DICT_TYPE dict_type,
                             const GL_INDEX_ID &gl_index_id);
+  template <size_t T>
+  static void dump_index_id(Rdb_buf_writer<T> *buf_writer,
+                            Rdb_key_def::DATA_DICT_TYPE dict_type,
+                            const GL_INDEX_ID &gl_index_id) {
+    buf_writer->write_uint32(dict_type);
+    buf_writer->write_uint32(gl_index_id.cf_id);
+    buf_writer->write_uint32(gl_index_id.index_id);
+  }
+
   void delete_with_prefix(rocksdb::WriteBatch *const batch,
                           Rdb_key_def::DATA_DICT_TYPE dict_type,
                           const GL_INDEX_ID &gl_index_id) const;

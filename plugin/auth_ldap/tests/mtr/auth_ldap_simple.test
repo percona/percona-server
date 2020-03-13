@@ -1,0 +1,44 @@
+
+# This testcase requires the following ldap structure:
+# https://github.com/rroemhild/docker-test-openldap
+# The easiest way to run it is to use the provided docker image
+
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME LIKE 'authentication_ldap_simple%';
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+SET GLOBAL authentication_ldap_simple_bind_base_dn = 'ou=people,dc=planetexpress,dc=com';
+SET GLOBAL authentication_ldap_simple_server_host = '172.18.0.2';
+SET GLOBAL authentication_ldap_simple_server_port = 389;
+# For debugging:
+#SET GLOBAL authentication_ldap_simple_log_status = 4;
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+CREATE USER zoidberg IDENTIFIED WITH authentication_ldap_simple BY 'cn=John A. Zoidberg,ou=people,dc=planetexpress,dc=com';
+CREATE USER nonexistent IDENTIFIED WITH authentication_ldap_simple BY 'uid=nonexistent';
+
+--connect (con1,localhost,zoidberg,zoidberg,,,,CLEARTEXT)
+
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+
+--disconnect con1
+--connection default
+
+SET GLOBAL authentication_ldap_simple_server_host = 'badhost';
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,zoidberg,zoidberg,,,,CLEARTEXT)
+
+
+SET GLOBAL authentication_ldap_simple_server_host = '172.18.0.2';
+SET GLOBAL authentication_ldap_simple_server_port = 388;
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,zoidberg,zoidberg,,,,CLEARTEXT)
+
+SET GLOBAL authentication_ldap_simple_server_port = 389;
+--connect (con1,localhost,zoidberg,zoidberg,,,,CLEARTEXT)
+SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_simple%';
+--disconnect con1
+--connection default
+
+DROP USER zoidberg;
+DROP USER nonexistent;
+SET GLOBAL authentication_ldap_simple_bind_base_dn = '';
+SET GLOBAL authentication_ldap_simple_server_host = '';
+SET GLOBAL authentication_ldap_simple_log_status = 1;

@@ -2,14 +2,15 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/buildpack-deps:xenial
+      - image: circleci/buildpack-deps:bionic
     steps:
       - checkout
       - run:
           name: Clang-format test
           command: |
+            set -o xtrace
             curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
-            echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-8 main" | sudo tee -a /etc/apt/sources.list > /dev/null
+            echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-8 main" | sudo tee -a /etc/apt/sources.list > /dev/null
             sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
             sudo -E apt-get -yq --no-install-suggests --no-install-recommends install clang-format-8
             wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py

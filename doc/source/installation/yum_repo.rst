@@ -10,44 +10,39 @@ The easiest way to install the *Percona Yum* repository is to install an *RPM* t
 
 Supported Releases:
 
- * *CentOS* 6 and *RHEL* 6 (Current Stable) [#f1]_
+ * *RHEL* 6 (Current Stable) [#f1]_
 
- * *CentOS* 7 and *RHEL* 7
+ * *RHEL* 7
 
  * *RHEL* 8
 
- * *Amazon Linux AMI* (works the same as *CentOS* 6)
+ * *Amazon Linux AMI* (works the same as *CentOS*  6)
 
-The *CentOS* repositories should work well with *Red Hat Enterprise Linux* too, provided that :program:`yum` is installed on the server.
+ .. note:: 
+
+     We support red Hat Enterprise Linux (RHEL) and the derivatives: CentOS,
+     Oracle Enterprises Linux, and Amazon Linux for the selected version.
+
+The *CentOS* repositories should work well with *Red Hat Enterprise Linux* provided that :program:`yum` is installed on the server.
 
 .. important::
 
-   *CentOS* 6 offers an outdated version of the ``curl`` library
-    required by the :ref:`keyring Vault plugin <keyring_vault_plugin>`
-    of |Percona Server|. The version of the ``curl`` library in
-    *CentOS* 6, which depends on the ``nss`` library, is known to
-    create memory corruption issues. This bug is `registered in Red
-    Hat Bugzilla
-    <https://bugzilla.redhat.com/show_bug.cgi?id=1057388>`_. Its
-    current status is `CLOSED WONTFIX`.
-
-    If you intend to use the keyring Vault plugin of |Percona Server|
-    make sure that you use the latest version of the ``curl`` library.
-    We recommend that you `build it from source
-    <https://curl.haxx.se/docs/install.html>`_ configuring with
-    ``ssl`` but without ``nss``:
-
-    .. code-block:: bash
-
-       $ ./configuration --with-ssl --without-nss --prefix=<INSTALATION DIRECTORY>
-
-    As soon as you install ``curl``, make sure that |Percona Server| will use
-    this version.
+   *CentOS* 6 offers an outdated version of the ``curl`` library required by the :ref:`keyring Vault plugin <keyring_vault_plugin>` of |Percona
+   Server|. The version of the ``curl`` library in *CentOS* 6, which depends on the ``nss`` library, is known to create memory corruption issues. This
+   bug is `registered in Red Hat Bugzilla <https://bugzilla.redhat.com/show_bug.cgi?id=1057388>`_. The current status is `CLOSED WONTFIX`.
     
-    .. seealso::
-
-       How to install curl and libcurl
-          https://curl.haxx.se/docs/install.html
+   If you intend to use the keyring Vault plugin of |Percona Server|, make sure that you use the latest version of the ``curl`` library. We recommend
+   that you `build it from source <https://curl.haxx.se/docs/install.html>`_ configuring with ``ssl`` but without ``nss``:
+   
+   .. code-block:: bash
+   
+       $ ./configuration --with-ssl --without-nss --prefix=<INSTALATION DIRECTORY>
+       
+   As soon as you install ``curl``, make sure that |Percona Server| will use this version.
+   
+   .. seealso::
+       
+       `How to install curl and libcurl <https://curl.haxx.se/docs/install.html>`_
 
 Supported Platforms:
 
@@ -274,4 +269,4 @@ To completely uninstall |Percona Server| you'll need to remove all the installed
 
 .. rubric:: Footnotes
 
-.. [#f1] "Current Stable": We support only the current stable RHEL6/CentOS6 release, because there is no official (i.e. RedHat provided) method to support or download the latest OpenSSL on RHEL/CentOS versions prior to 6.5. Similarly, and also as a result thereof, there is no official Percona way to support the latest Percona Server builds on RHEL/CentOS versions prior to 6.5. Additionally, many users will need to upgrade to OpenSSL 1.0.1g or later (due to the `Heartbleed vulnerability <http://www.percona.com/resources/ceo-customer-advisory-heartbleed>`_), and this OpenSSL version is not available for download from any official RHEL/Centos repository for versions 6.4 and prior. For any officially unsupported system, src.rpm packages may be used to rebuild Percona Server for any environment. Please contact our `support service <http://www.percona.com/products/mysql-support>`_ if you require further information on this.
+.. [#f1] "Current Stable": We support only the current stable RHEL6/CentOS6 release because there is no official (i.e., RedHat provided) method to support or download the latest OpenSSL on RHEL/CentOS versions prior to 6.5. Similarly, and also as a result thereof, there is no official Percona way to support the latest Percona Server builds on RHEL/CentOS versions prior to 6.5. Additionally, many users will need to upgrade to OpenSSL 1.0.1g or later (due to the `Heartbleed vulnerability <http://www.percona.com/resources/ceo-customer-advisory-heartbleed>`_), and this OpenSSL version is not available for download from any official RHEL/CentOS repository for versions 6.4 or prior. For any officially unsupported system, src.rpm packages may be used to rebuild Percona Server for any environment. Please contact our `support service <http://www.percona.com/products/mysql-support>`_ if you require further information on this.

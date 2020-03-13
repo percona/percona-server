@@ -1,4 +1,3 @@
---skip Fails for some time
 #
 # Bug #23945: crash during drop table, AUTOCOMMIT=0, CREATE TABLE .. AS SELECT
 #

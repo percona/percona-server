@@ -150,4 +150,12 @@ CREATE TABLE t1(c1 INT UNSIGNED);
 ALTER TABLE t1 ADD c4 TIMESTAMP;
 ALTER TABLE t1 CHANGE c1 c1 INT SIGNED,ADD KEY(c1);
 DROP TABLE t1;
+
+--echo #
+--echo # PS-6903: CREATE TEMPORARY TABLE crashes with expand_fast index creation
+--echo #
+CREATE TEMPORARY TABLE t1 LIKE information_schema.processlist;
+
 SET SESSION expand_fast_index_creation=OFF;
+
+

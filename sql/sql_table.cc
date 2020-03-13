@@ -14172,7 +14172,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   const dd::Table *obj =
       (table->s->tmp_table ? table->s->tmp_table_def : src_table);
   bool skip_secondary = thd->variables.expand_fast_index_creation &&
-                        !obj->foreign_key_parents().empty();
+                        (obj == nullptr || obj->foreign_key_parents().empty());
 
   for (uint i = 0; i < table->s->keys; i++, key_info++) {
     const char *key_name = key_info->name;

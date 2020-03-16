@@ -24,8 +24,8 @@
 #include <vector>
 
 /* MySQL header files */
-#include "../sql/log.h"
-#include "./my_dir.h"
+#include "log.h"
+#include "my_dir.h"
 #include "sql_class.h"
 
 /* RocksDB header files */

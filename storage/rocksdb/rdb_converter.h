@@ -21,10 +21,10 @@
 #include <vector>
 
 // MySQL header files
-#include "./handler.h"    // handler
-#include "./my_global.h"  // ulonglong
-#include "./sql_string.h"
-#include "./ib_ut0counter.h"
+#include "handler.h"    // handler
+#include "my_global.h"  // ulonglong
+#include "sql_string.h"
+#include "ib_ut0counter.h"
 
 // MyRocks header files
 #include "./ha_rocksdb.h"

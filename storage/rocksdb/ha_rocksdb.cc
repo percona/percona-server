@@ -72,6 +72,7 @@
 #include "./logger.h"
 #include "./rdb_cf_manager.h"
 #include "./rdb_cf_options.h"
+#include "./rdb_converter.h"
 #include "./rdb_datadic.h"
 #include "./rdb_i_s.h"
 #include "./rdb_index_merge.h"
@@ -506,12 +507,22 @@ static my_bool rocksdb_large_prefix = FALSE;
 static my_bool rocksdb_allow_to_start_after_corruption = FALSE;
 static uint64_t rocksdb_write_policy =
     rocksdb::TxnDBWritePolicy::WRITE_COMMITTED;
+char *rocksdb_read_free_rpl_tables;
+std::mutex rocksdb_read_free_rpl_tables_mutex;
+#if defined(HAVE_PSI_INTERFACE)
+Regex rdb_read_free_regex_handler(key_rwlock_read_free_rpl_tables);
+#else
+Regex rdb_read_free_regex_handler;
+#endif
+enum read_free_rpl_type { OFF = 0, PK_ONLY, PK_SK };
+static uint64_t rocksdb_read_free_rpl = read_free_rpl_type::OFF;
 static my_bool rocksdb_error_on_suboptimal_collation = FALSE;
 static uint32_t rocksdb_stats_recalc_rate = 0;
 static my_bool rocksdb_no_create_column_family = FALSE;
 static uint32_t rocksdb_debug_manual_compaction_delay = 0;
 static uint32_t rocksdb_max_manual_compactions = 0;
 static my_bool rocksdb_rollback_on_timeout = FALSE;
+static my_bool rocksdb_enable_insert_with_update_caching = TRUE;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -519,6 +530,9 @@ std::atomic<uint64_t> rocksdb_snapshot_conflict_errors(0);
 std::atomic<uint64_t> rocksdb_wal_group_syncs(0);
 std::atomic<uint64_t> rocksdb_manual_compactions_processed(0);
 std::atomic<uint64_t> rocksdb_manual_compactions_running(0);
+#ifndef DBUG_OFF
+std::atomic<uint64_t> rocksdb_num_get_for_update_calls(0);
+#endif
 
 static std::unique_ptr<rocksdb::DBOptions> rdb_init_rocksdb_db_options(void) {
   auto o = std::unique_ptr<rocksdb::DBOptions>(new rocksdb::DBOptions());
@@ -550,6 +564,13 @@ static const char *write_policy_names[] = {"write_committed", "write_prepared",
 static TYPELIB write_policy_typelib = {array_elements(write_policy_names) - 1,
                                        "write_policy_typelib",
                                        write_policy_names, nullptr};
+
+/* This array needs to be kept up to date with myrocks::read_free_rpl_type */
+static const char *read_free_rpl_names[] = {"OFF", "PK_ONLY", "PK_SK", NullS};
+
+static TYPELIB read_free_rpl_typelib = {array_elements(read_free_rpl_names) - 1,
+                                        "read_free_rpl_typelib",
+                                        read_free_rpl_names, nullptr};
 
 /* This enum needs to be kept up to date with rocksdb::InfoLogLevel */
 static const char *info_log_level_names[] = {"debug_level", "info_level",
@@ -701,7 +722,6 @@ static MYSQL_THDVAR_BOOL(
     nullptr, nullptr, false);
 
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
-#define DEFAULT_READ_FREE_RPL_TABLES ""
 
 static MYSQL_THDVAR_BOOL(
     blind_delete_primary_key, PLUGIN_VAR_RQCMDARG,
@@ -709,11 +729,79 @@ static MYSQL_THDVAR_BOOL(
     " Blind delete is disabled if the table has secondary key",
     nullptr, nullptr, FALSE);
 
-static MYSQL_THDVAR_STR(
-    read_free_rpl_tables, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+#define DEFAULT_READ_FREE_RPL_TABLES ".*"
+
+static int get_regex_flags()
+{
+  int flags = MY_REG_EXTENDED | MY_REG_NOSUB;
+  if (lower_case_table_names)
+    flags |= MY_REG_ICASE;
+  return flags;
+}
+
+static int rocksdb_validate_read_free_rpl_tables(
+    THD *thd MY_ATTRIBUTE((__unused__)),
+    struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)), void *save,
+    struct st_mysql_value *value) {
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  int length = sizeof(buff);
+  const char *wlist_buf = value->val_str(value, buff, &length);
+  const auto wlist = wlist_buf ? wlist_buf : DEFAULT_READ_FREE_RPL_TABLES;
+
+#if defined(HAVE_PSI_INTERFACE)
+  Regex regex_handler(key_rwlock_read_free_rpl_tables);
+#else
+  Regex regex_handler;
+#endif
+
+  if (!regex_handler.compile(wlist, get_regex_flags(), table_alias_charset)) {
+    warn_about_bad_patterns(regex_handler, "rocksdb_read_free_rpl_tables");
+    return HA_EXIT_FAILURE;
+  }
+
+  *static_cast<const char **>(save) = my_strdup(PSI_NOT_INSTRUMENTED, wlist, MYF(MY_WME));
+  return HA_EXIT_SUCCESS;
+}
+
+static void rocksdb_update_read_free_rpl_tables(
+    THD *thd MY_ATTRIBUTE((__unused__)),
+    struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)), void *var_ptr,
+    const void *save) {
+  const auto wlist = *static_cast<const char *const *>(save);
+  DBUG_ASSERT(wlist != nullptr);
+
+  // This is bound to succeed since we've already checked for bad patterns in
+  // rocksdb_validate_read_free_rpl_tables
+  rdb_read_free_regex_handler.compile(wlist, get_regex_flags(), table_alias_charset);
+
+  // update all table defs
+  struct Rdb_read_free_rpl_updater : public Rdb_tables_scanner {
+    int add_table(Rdb_tbl_def *tdef) override {
+      tdef->check_and_set_read_free_rpl_table();
+      return HA_EXIT_SUCCESS;
+    }
+  } updater;
+  ddl_manager.scan_for_tables(&updater);
+
+  *static_cast<const char **>(var_ptr) = my_strdup(PSI_NOT_INSTRUMENTED, wlist, MYF(MY_WME));
+}
+
+static MYSQL_SYSVAR_STR(
+    read_free_rpl_tables, rocksdb_read_free_rpl_tables,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
     "Regex that describes set of tables that will use read-free replication "
     "on the slave (i.e. not lookup a row during replication)",
-    nullptr, nullptr, DEFAULT_READ_FREE_RPL_TABLES);
+    rocksdb_validate_read_free_rpl_tables, rocksdb_update_read_free_rpl_tables,
+    DEFAULT_READ_FREE_RPL_TABLES);
+
+static MYSQL_SYSVAR_ENUM(
+    read_free_rpl, rocksdb_read_free_rpl,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+    "Use read-free replication on the slave (i.e. no row lookup during "
+    "replication). Default is OFF, PK_SK will enable it on all tables with "
+    "primary key. PK_ONLY will enable it on tables where the only key is the "
+    "primary key (i.e. no secondary keys).",
+    nullptr, nullptr, read_free_rpl_type::OFF, &read_free_rpl_typelib);
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
 static MYSQL_SYSVAR_BOOL(
@@ -1610,6 +1698,13 @@ static MYSQL_SYSVAR_BOOL(
     "Do not allow creation of new Column Families through index comments.",
     nullptr, nullptr, false);
 
+static MYSQL_SYSVAR_BOOL(
+    enable_insert_with_update_caching,
+    rocksdb_enable_insert_with_update_caching, PLUGIN_VAR_OPCMDARG,
+    "Whether to enable optimization where we cache the read from a failed "
+    "insertion attempt in INSERT ON DUPLICATE KEY UPDATE",
+    nullptr, nullptr, true);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct st_mysql_sys_var *rocksdb_system_variables[] = {
@@ -1628,6 +1723,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(blind_delete_primary_key),
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
     MYSQL_SYSVAR(read_free_rpl_tables),
+    MYSQL_SYSVAR(read_free_rpl),
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
     MYSQL_SYSVAR(rpl_skip_tx_api),
     MYSQL_SYSVAR(bulk_load_size),
@@ -1769,6 +1865,8 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(max_manual_compactions),
     MYSQL_SYSVAR(manual_compaction_threads),
     MYSQL_SYSVAR(rollback_on_timeout),
+
+    MYSQL_SYSVAR(enable_insert_with_update_caching),
     nullptr};
 
 static rocksdb::WriteOptions
@@ -4268,6 +4366,9 @@ static int rocksdb_init_func(void *const p) {
     rocksdb_db_options->max_open_files = open_files_limit / 2;
   }
 
+  rdb_read_free_regex_handler.compile(DEFAULT_READ_FREE_RPL_TABLES,
+                                      get_regex_flags(), table_alias_charset);
+
   rocksdb_stats = rocksdb::CreateDBStatistics();
   rocksdb_db_options->statistics = rocksdb_stats;
 
@@ -4974,7 +5075,7 @@ ulonglong ha_rocksdb::load_auto_incr_value_from_index() {
   // appropriately and non-index-only lookup will not read the value)
   const bool save_keyread_only = m_keyread_only;
   m_keyread_only = true;
-  m_key_requested = true;
+  m_converter->set_is_key_requested(true);
 
   if (!index_last(table->record[0])) {
     Field *field =
@@ -5174,14 +5275,14 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
       m_scan_it_skips_bloom(false), m_scan_it_snapshot(nullptr),
       m_scan_it_lower_bound(nullptr), m_scan_it_upper_bound(nullptr),
       m_tbl_def(nullptr), m_pk_descr(nullptr), m_key_descr_arr(nullptr),
-      m_pk_can_be_decoded(false), m_maybe_unpack_info(false),
+      m_pk_can_be_decoded(false),
       m_pk_tuple(nullptr), m_pk_packed_tuple(nullptr),
       m_sk_packed_tuple(nullptr), m_end_key_packed_tuple(nullptr),
       m_sk_match_prefix(nullptr), m_sk_match_prefix_buf(nullptr),
       m_sk_packed_tuple_old(nullptr), m_dup_sk_packed_tuple(nullptr),
       m_dup_sk_packed_tuple_old(nullptr), m_pack_buffer(nullptr),
-      m_lock_rows(RDB_LOCK_NONE), m_keyread_only(false), m_encoder_arr(nullptr),
-      m_row_checksums_checked(0)
+      m_lock_rows(RDB_LOCK_NONE), m_keyread_only(false),
+      m_insert_with_update(false), m_dup_pk_found(false)
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
       ,
       m_in_rpl_delete_rows(false), m_in_rpl_update_rows(false)
@@ -5214,9 +5315,9 @@ bool ha_rocksdb::init_with_fields() {
     const uint key_parts = table_share->key_info[pk].user_defined_key_parts;
     check_keyread_allowed(m_pk_can_be_decoded, table_share, pk /*PK*/,
                           key_parts - 1, true);
-  } else
+  } else {
     m_pk_can_be_decoded = false;
-
+  }
   cached_table_flags = table_flags();
 
   DBUG_RETURN(false); /* Ok */
@@ -5297,279 +5398,26 @@ bool ha_rocksdb::should_hide_ttl_rec(const Rdb_key_def &kd,
   return is_hide_ttl;
 }
 
-void ha_rocksdb::rocksdb_skip_expired_records(const Rdb_key_def &kd,
-                                              rocksdb::Iterator *const iter,
-                                              bool seek_backward) {
+int ha_rocksdb::rocksdb_skip_expired_records(const Rdb_key_def &kd,
+                                             rocksdb::Iterator *const iter,
+                                             bool seek_backward) {
   if (kd.has_ttl()) {
+    THD *thd = ha_thd();
     while (iter->Valid() &&
            should_hide_ttl_rec(
                kd, iter->value(),
                get_or_create_tx(table->in_use)->m_snapshot_timestamp)) {
+      DEBUG_SYNC(thd, "rocksdb.check_flags_ser");
+      if (thd && thd->killed) {
+        return HA_ERR_QUERY_INTERRUPTED;
+      }
       rocksdb_smart_next(seek_backward, iter);
     }
   }
-}
-
-/**
-  Convert record from table->record[0] form into a form that can be written
-  into rocksdb.
-
-  @param pk_packed_slice      Packed PK tuple. We need it in order to compute
-                              and store its CRC.
-  @param packed_rec      OUT  Data slice with record data.
-*/
-
-int ha_rocksdb::convert_record_to_storage_format(
-    const struct update_row_info &row_info, rocksdb::Slice *const packed_rec) {
-  DBUG_ASSERT_IMP(m_maybe_unpack_info, row_info.new_pk_unpack_info);
-  DBUG_ASSERT(m_pk_descr != nullptr);
-
-  const rocksdb::Slice &pk_packed_slice = row_info.new_pk_slice;
-  Rdb_string_writer *const pk_unpack_info = row_info.new_pk_unpack_info;
-  bool has_ttl = m_pk_descr->has_ttl();
-  bool has_ttl_column = !m_pk_descr->m_ttl_column.empty();
-  bool ttl_in_pk = has_ttl_column && (row_info.ttl_pk_offset != UINT_MAX);
-
-  m_storage_record.length(0);
-
-  if (has_ttl) {
-    /* If it's a TTL record, reserve space for 8 byte TTL value in front. */
-    m_storage_record.fill(ROCKSDB_SIZEOF_TTL_RECORD + m_null_bytes_in_rec, 0);
-    m_ttl_bytes_updated = false;
-
-    /*
-      If the TTL is contained within the key, we use the offset to find the
-      TTL value and place it in the beginning of the value record.
-    */
-    if (ttl_in_pk) {
-      Rdb_string_reader reader(&pk_packed_slice);
-      const char *ts;
-      if (!reader.read(row_info.ttl_pk_offset) ||
-          !(ts = reader.read(ROCKSDB_SIZEOF_TTL_RECORD))) {
-        std::string buf;
-        buf = rdb_hexdump(pk_packed_slice.data(), pk_packed_slice.size(),
-                          RDB_MAX_HEXDUMP_LEN);
-        const GL_INDEX_ID gl_index_id = m_pk_descr->get_gl_index_id();
-        // NO_LINT_DEBUG
-        sql_print_error("Decoding ttl from PK failed during insert, "
-                        "for index (%u,%u), key: %s",
-                        gl_index_id.cf_id, gl_index_id.index_id, buf.c_str());
-        return HA_EXIT_FAILURE;
-      }
-
-      char *const data = const_cast<char *>(m_storage_record.ptr());
-      memcpy(data, ts, ROCKSDB_SIZEOF_TTL_RECORD);
-#if !defined(DBUG_OFF)
-      // Adjust for test case if needed
-      rdb_netbuf_store_uint64(
-          reinterpret_cast<uchar *>(data),
-          rdb_netbuf_to_uint64(reinterpret_cast<const uchar *>(data)) +
-              rdb_dbug_set_ttl_rec_ts());
-#endif  // !defined(DBUG_OFF)
-      // Also store in m_ttl_bytes to propagate to update_write_sk
-      memcpy(m_ttl_bytes, data, ROCKSDB_SIZEOF_TTL_RECORD);
-    } else if (!has_ttl_column) {
-      /*
-        For implicitly generated TTL records we need to copy over the old
-        TTL value from the old record in the event of an update. It was stored
-        in m_ttl_bytes.
-
-        Otherwise, generate a timestamp using the current time.
-      */
-      if (!row_info.old_pk_slice.empty()) {
-        char *const data = const_cast<char *>(m_storage_record.ptr());
-        memcpy(data, m_ttl_bytes, sizeof(uint64));
-      } else {
-        uint64 ts = static_cast<uint64>(std::time(nullptr));
-#if !defined(DBUG_OFF)
-        ts += rdb_dbug_set_ttl_rec_ts();
-#endif  // !defined(DBUG_OFF)
-        char *const data = const_cast<char *>(m_storage_record.ptr());
-        rdb_netbuf_store_uint64(reinterpret_cast<uchar *>(data), ts);
-        // Also store in m_ttl_bytes to propagate to update_write_sk
-        memcpy(m_ttl_bytes, data, ROCKSDB_SIZEOF_TTL_RECORD);
-      }
-    }
-  } else {
-    /* All NULL bits are initially 0 */
-    m_storage_record.fill(m_null_bytes_in_rec, 0);
-  }
-
-  // If a primary key may have non-empty unpack_info for certain values,
-  // (m_maybe_unpack_info=true), we write the unpack_info block. The block
-  // itself was prepared in Rdb_key_def::pack_record.
-  if (m_maybe_unpack_info) {
-    m_storage_record.append(reinterpret_cast<char *>(pk_unpack_info->ptr()),
-                            pk_unpack_info->get_current_pos());
-  }
-
-  for (uint i = 0; i < table->s->fields; i++) {
-    /* Don't pack decodable PK key parts */
-    if (m_encoder_arr[i].m_storage_type != Rdb_field_encoder::STORE_ALL) {
-      continue;
-    }
-
-    Field *const field = table->field[i];
-    if (m_encoder_arr[i].maybe_null()) {
-      char *data = const_cast<char *>(m_storage_record.ptr());
-      if (has_ttl) {
-        data += ROCKSDB_SIZEOF_TTL_RECORD;
-      }
-
-      if (field->is_null()) {
-        data[m_encoder_arr[i].m_null_offset] |= m_encoder_arr[i].m_null_mask;
-        /* Don't write anything for NULL values */
-        continue;
-      }
-    }
-
-    if (m_encoder_arr[i].m_field_type == MYSQL_TYPE_BLOB ||
-        m_encoder_arr[i].m_field_type == MYSQL_TYPE_JSON) {
-      my_core::Field_blob *blob = (my_core::Field_blob *)field;
-      /* Get the number of bytes needed to store length*/
-      const uint length_bytes = blob->pack_length() - portable_sizeof_char_ptr;
-
-      /* Store the length of the value */
-      m_storage_record.append(reinterpret_cast<char *>(blob->ptr),
-                              length_bytes);
-
-      /* Store the blob value itself */
-      char *data_ptr;
-      memcpy(&data_ptr, blob->ptr + length_bytes, sizeof(uchar **));
-      m_storage_record.append(data_ptr, blob->get_length());
-    } else if (m_encoder_arr[i].m_field_type == MYSQL_TYPE_VARCHAR) {
-      Field_varstring *const field_var = (Field_varstring *)field;
-      uint data_len;
-      /* field_var->length_bytes is 1 or 2 */
-      if (field_var->length_bytes == 1) {
-        data_len = field_var->ptr[0];
-      } else {
-        DBUG_ASSERT(field_var->length_bytes == 2);
-        data_len = uint2korr(field_var->ptr);
-      }
-      m_storage_record.append(reinterpret_cast<char *>(field_var->ptr),
-                              field_var->length_bytes + data_len);
-    } else {
-      /* Copy the field data */
-      const uint len = field->pack_length_in_rec();
-      m_storage_record.append(reinterpret_cast<char *>(field->ptr), len);
-
-      /*
-        Check if this is the TTL field within the table, if so store the TTL
-        in the front of the record as well here.
-      */
-      if (has_ttl && has_ttl_column &&
-          i == m_pk_descr->get_ttl_field_offset()) {
-        DBUG_ASSERT(len == ROCKSDB_SIZEOF_TTL_RECORD);
-        DBUG_ASSERT(field->real_type() == MYSQL_TYPE_LONGLONG);
-        DBUG_ASSERT(m_pk_descr->get_ttl_field_offset() != UINT_MAX);
-
-        char *const data = const_cast<char *>(m_storage_record.ptr());
-        uint64 ts = uint8korr(field->ptr);
-#if !defined(DBUG_OFF)
-        ts += rdb_dbug_set_ttl_rec_ts();
-#endif  // !defined(DBUG_OFF)
-        rdb_netbuf_store_uint64(reinterpret_cast<uchar *>(data), ts);
-
-        // If this is an update and the timestamp has been updated, take note
-        // so we can avoid updating SKs unnecessarily.
-        if (!row_info.old_pk_slice.empty()) {
-          m_ttl_bytes_updated =
-              memcmp(m_ttl_bytes, data, ROCKSDB_SIZEOF_TTL_RECORD);
-        }
-        // Store timestamp in m_ttl_bytes to propagate to update_write_sk
-        memcpy(m_ttl_bytes, data, ROCKSDB_SIZEOF_TTL_RECORD);
-      }
-    }
-  }
-
-  if (should_store_row_debug_checksums()) {
-    const ha_checksum key_crc32 = my_core::my_checksum(
-        0, rdb_slice_to_uchar_ptr(&pk_packed_slice), pk_packed_slice.size());
-    const ha_checksum val_crc32 =
-        my_core::my_checksum(0, rdb_mysql_str_to_uchar_str(&m_storage_record),
-                             m_storage_record.length());
-    uchar key_crc_buf[RDB_CHECKSUM_SIZE];
-    uchar val_crc_buf[RDB_CHECKSUM_SIZE];
-    rdb_netbuf_store_uint32(key_crc_buf, key_crc32);
-    rdb_netbuf_store_uint32(val_crc_buf, val_crc32);
-    m_storage_record.append((const char *)&RDB_CHECKSUM_DATA_TAG, 1);
-    m_storage_record.append((const char *)key_crc_buf, RDB_CHECKSUM_SIZE);
-    m_storage_record.append((const char *)val_crc_buf, RDB_CHECKSUM_SIZE);
-  }
-
-  *packed_rec =
-      rocksdb::Slice(m_storage_record.ptr(), m_storage_record.length());
-
   return HA_EXIT_SUCCESS;
 }
 
-/*
-  @brief
-    Setup which fields will be unpacked when reading rows
-
-  @detail
-    Three special cases when we still unpack all fields:
-    - When this table is being updated (m_lock_rows==RDB_LOCK_WRITE).
-    - When @@rocksdb_verify_row_debug_checksums is ON (In this mode, we need to
-  read all fields to find whether there is a row checksum at the end. We could
-  skip the fields instead of decoding them, but currently we do decoding.)
-    - On index merge as bitmap is cleared during that operation
-
-  @seealso
-    ha_rocksdb::setup_field_converters()
-    ha_rocksdb::convert_record_from_storage_format()
-*/
-void ha_rocksdb::setup_read_decoders() {
-  m_decoders_vect.clear();
-  m_key_requested = false;
-
-  int last_useful = 0;
-  int skip_size = 0;
-
-  for (uint i = 0; i < table->s->fields; i++) {
-    // bitmap is cleared on index merge, but it still needs to decode columns
-    const bool field_requested =
-        m_lock_rows == RDB_LOCK_WRITE || m_verify_row_debug_checksums ||
-        bitmap_is_clear_all(table->read_set) ||
-        bitmap_is_set(table->read_set, table->field[i]->field_index);
-
-    // We only need the decoder if the whole record is stored.
-    if (m_encoder_arr[i].m_storage_type != Rdb_field_encoder::STORE_ALL) {
-      // the field potentially needs unpacking
-      if (field_requested) {
-        // the field is in the read set
-        m_key_requested = true;
-      }
-      continue;
-    }
-
-    if (field_requested) {
-      // We will need to decode this field
-      m_decoders_vect.emplace_back(&m_encoder_arr[i], true, skip_size);
-      last_useful = m_decoders_vect.size();
-      skip_size = 0;
-    } else {
-      if (m_encoder_arr[i].uses_variable_len_encoding() ||
-          m_encoder_arr[i].maybe_null()) {
-        // For variable-length field, we need to read the data and skip it
-        m_decoders_vect.emplace_back(&m_encoder_arr[i], false, skip_size);
-        skip_size = 0;
-      } else {
-        // Fixed-width field can be skipped without looking at it.
-        // Add appropriate skip_size to the next field.
-        skip_size += m_encoder_arr[i].m_pack_length_in_rec;
-      }
-    }
-  }
-
-  // It could be that the last few elements are varchars that just do
-  // skipping. Remove them.
-  m_decoders_vect.erase(m_decoders_vect.begin() + last_useful,
-                        m_decoders_vect.end());
-}
-
-#if !defined(DBUG_OFF)
+#ifndef NDEBUG
 void dbug_append_garbage_at_end(rocksdb::PinnableSlice *on_disk_rec) {
   std::string str(on_disk_rec->data(), on_disk_rec->size());
   on_disk_rec->Reset();
@@ -5594,17 +5442,6 @@ void dbug_modify_rec_varchar12(rocksdb::PinnableSlice *on_disk_rec) {
   on_disk_rec->PinSelf(rocksdb::Slice(res));
 }
 
-void dbug_modify_key_varchar8(String &on_disk_rec) {
-  std::string res;
-  // The key starts with index number
-  res.append(on_disk_rec.ptr(), Rdb_key_def::INDEX_NUMBER_SIZE);
-
-  // Then, a mem-comparable form of a varchar(8) value.
-  res.append("ABCDE\0\0\0\xFC", 9);
-  on_disk_rec.length(0);
-  on_disk_rec.append(res.data(), res.size());
-}
-
 void dbug_create_err_inplace_alter() {
   my_printf_error(ER_UNKNOWN_ERROR,
                   "Intentional failure in inplace alter occurred.", MYF(0));
@@ -5624,92 +5461,6 @@ int ha_rocksdb::convert_record_from_storage_format(
   return convert_record_from_storage_format(key, &m_retrieved_record, buf);
 }
 
-int ha_rocksdb::convert_blob_from_storage_format(
-  my_core::Field_blob *const blob,
-  Rdb_string_reader *const   reader,
-  bool                       decode)
-{
-  /* Get the number of bytes needed to store length */
-  const uint length_bytes = blob->pack_length() - portable_sizeof_char_ptr;
-
-  const char *data_len_str;
-  if (!(data_len_str = reader->read(length_bytes))) {
-    return HA_ERR_ROCKSDB_CORRUPT_DATA;
-  }
-
-  memcpy(blob->ptr, data_len_str, length_bytes);
-
-  const uint32 data_len = blob->get_length(
-      reinterpret_cast<const uchar*>(data_len_str), length_bytes,
-      table->s->db_low_byte_first);
-  const char *blob_ptr;
-  if (!(blob_ptr = reader->read(data_len))) {
-    return HA_ERR_ROCKSDB_CORRUPT_DATA;
-  }
-
-  if (decode) {
-    // set 8-byte pointer to 0, like innodb does (relevant for 32-bit
-    // platforms)
-    memset(blob->ptr + length_bytes, 0, 8);
-    memcpy(blob->ptr + length_bytes, &blob_ptr, sizeof(uchar **));
-  }
-
-  return HA_EXIT_SUCCESS;
-}
-
-int ha_rocksdb::convert_varchar_from_storage_format(
-  my_core::Field_varstring *const field_var,
-  Rdb_string_reader *const        reader,
-  bool                            decode)
-{
-  const char *data_len_str;
-  if (!(data_len_str = reader->read(field_var->length_bytes)))
-    return HA_ERR_ROCKSDB_CORRUPT_DATA;
-
-  uint data_len;
-  /* field_var->length_bytes is 1 or 2 */
-  if (field_var->length_bytes == 1) {
-    data_len = (uchar)data_len_str[0];
-  } else {
-    DBUG_ASSERT(field_var->length_bytes == 2);
-    data_len = uint2korr(data_len_str);
-  }
-
-  if (data_len > field_var->field_length) {
-    /* The data on disk is longer than table DDL allows? */
-    return HA_ERR_ROCKSDB_CORRUPT_DATA;
-  }
-
-  if (!reader->read(data_len)) {
-    return HA_ERR_ROCKSDB_CORRUPT_DATA;
-  }
-
-  if (decode) {
-    memcpy(field_var->ptr, data_len_str, field_var->length_bytes + data_len);
-  }
-
-  return HA_EXIT_SUCCESS;
-}
-
-int ha_rocksdb::convert_field_from_storage_format(
-  my_core::Field *const    field,
-  Rdb_string_reader *const reader,
-  bool                     decode,
-  uint                     len)
-{
-  const char *data_bytes;
-  if (len > 0) {
-    if ((data_bytes = reader->read(len)) == nullptr) {
-      return HA_ERR_ROCKSDB_CORRUPT_DATA;
-    }
-
-    if (decode)
-      memcpy(field->ptr, data_bytes, len);
-  }
-
-  return HA_EXIT_SUCCESS;
-}
-
 /*
   @brief
   Unpack the record in this->m_retrieved_record and this->m_last_rowkey from
@@ -5726,8 +5477,8 @@ int ha_rocksdb::convert_field_from_storage_format(
     m_retrieved_record).
 
   @seealso
-    ha_rocksdb::setup_read_decoders()  Sets up data structures which tell which
-    columns to decode.
+    rdb_converter::setup_read_decoders()  Sets up data structures which tell
+  which columns to decode.
 
   @return
     0      OK
@@ -5740,249 +5491,7 @@ int ha_rocksdb::convert_record_from_storage_format(
   DBUG_ASSERT(key != nullptr);
   DBUG_ASSERT(buf != nullptr);
 
-  Rdb_string_reader reader(value);
-
-  /*
-    Decode PK fields from the key
-  */
-  DBUG_EXECUTE_IF("myrocks_simulate_bad_pk_read1",
-                  dbug_modify_key_varchar8(m_last_rowkey););
-
-  const rocksdb::Slice rowkey_slice(m_last_rowkey.ptr(),
-                                    m_last_rowkey.length());
-  const char *unpack_info = nullptr;
-  uint16 unpack_info_len = 0;
-  rocksdb::Slice unpack_slice;
-
-  /* If it's a TTL record, skip the 8 byte TTL value */
-  const char *ttl_bytes;
-  if (m_pk_descr->has_ttl()) {
-    if ((ttl_bytes = reader.read(ROCKSDB_SIZEOF_TTL_RECORD))) {
-      memcpy(m_ttl_bytes, ttl_bytes, ROCKSDB_SIZEOF_TTL_RECORD);
-    } else {
-      return HA_ERR_ROCKSDB_CORRUPT_DATA;
-    }
-  }
-
-  /* Other fields are decoded from the value */
-  const char *null_bytes = nullptr;
-  if (m_null_bytes_in_rec && !(null_bytes = reader.read(m_null_bytes_in_rec))) {
-    return HA_ERR_ROCKSDB_CORRUPT_DATA;
-  }
-
-  if (m_maybe_unpack_info) {
-    unpack_info = reader.get_current_ptr();
-    if (!unpack_info || !Rdb_key_def::is_unpack_data_tag(unpack_info[0]) ||
-        !reader.read(Rdb_key_def::get_unpack_header_size(unpack_info[0]))) {
-      return HA_ERR_ROCKSDB_CORRUPT_DATA;
-    }
-
-    unpack_info_len =
-        rdb_netbuf_to_uint16(reinterpret_cast<const uchar *>(unpack_info + 1));
-    unpack_slice = rocksdb::Slice(unpack_info, unpack_info_len);
-
-    reader.read(unpack_info_len -
-                Rdb_key_def::get_unpack_header_size(unpack_info[0]));
-  }
-
-  int err = HA_EXIT_SUCCESS;
-  if (m_key_requested) {
-    err = m_pk_descr->unpack_record(table, buf, &rowkey_slice,
-                                    unpack_info ? &unpack_slice : nullptr,
-                                    false /* verify_checksum */);
-  }
-
-  if (err != HA_EXIT_SUCCESS) {
-    return err;
-  }
-
-  for (auto it = m_decoders_vect.begin(); it != m_decoders_vect.end(); it++) {
-    const Rdb_field_encoder *const field_dec = it->m_field_enc;
-    const bool decode = it->m_decode;
-    const bool isNull =
-        field_dec->maybe_null() &&
-        ((null_bytes[field_dec->m_null_offset] & field_dec->m_null_mask) != 0);
-
-    Field *const field = table->field[field_dec->m_field_index];
-
-    /* Skip the bytes we need to skip */
-    if (it->m_skip && !reader.read(it->m_skip)) {
-      return HA_ERR_ROCKSDB_CORRUPT_DATA;
-    }
-
-    uint field_offset = field->ptr - table->record[0];
-    uint null_offset = field->null_offset();
-    bool maybe_null = field->real_maybe_null();
-    field->move_field(buf + field_offset,
-                      maybe_null ? buf + null_offset : nullptr,
-                      field->null_bit);
-    // WARNING! - Don't return before restoring field->ptr and field->null_ptr!
-
-    if (isNull) {
-      if (decode) {
-        /* This sets the NULL-bit of this record */
-        field->set_null();
-        /*
-          Besides that, set the field value to default value. CHECKSUM TABLE
-          depends on this.
-        */
-        memcpy(field->ptr, table->s->default_values + field_offset,
-               field->pack_length());
-      }
-    } else {
-      if (decode) {
-        field->set_notnull();
-      }
-
-      if (field_dec->m_field_type == MYSQL_TYPE_BLOB ||
-          field_dec->m_field_type == MYSQL_TYPE_JSON) {
-        err = convert_blob_from_storage_format(
-            (my_core::Field_blob *) field, &reader, decode);
-      } else if (field_dec->m_field_type == MYSQL_TYPE_VARCHAR) {
-        err = convert_varchar_from_storage_format(
-            (my_core::Field_varstring *) field, &reader, decode);
-      } else {
-        err = convert_field_from_storage_format(
-            field, &reader, decode, field_dec->m_pack_length_in_rec);
-      }
-    }
-
-    // Restore field->ptr and field->null_ptr
-    field->move_field(table->record[0] + field_offset,
-                      maybe_null ? table->record[0] + null_offset : nullptr,
-                      field->null_bit);
-
-    if (err != HA_EXIT_SUCCESS) {
-      return err;
-    }
-  }
-
-  if (m_verify_row_debug_checksums) {
-    if (reader.remaining_bytes() == RDB_CHECKSUM_CHUNK_SIZE &&
-        reader.read(1)[0] == RDB_CHECKSUM_DATA_TAG) {
-      uint32_t stored_key_chksum =
-          rdb_netbuf_to_uint32((const uchar *)reader.read(RDB_CHECKSUM_SIZE));
-      uint32_t stored_val_chksum =
-          rdb_netbuf_to_uint32((const uchar *)reader.read(RDB_CHECKSUM_SIZE));
-
-      const ha_checksum computed_key_chksum =
-          my_core::my_checksum(0, rdb_slice_to_uchar_ptr(key), key->size());
-      const ha_checksum computed_val_chksum =
-          my_core::my_checksum(0, rdb_slice_to_uchar_ptr(value),
-                               value->size() - RDB_CHECKSUM_CHUNK_SIZE);
-
-      DBUG_EXECUTE_IF("myrocks_simulate_bad_pk_checksum1",
-                      stored_key_chksum++;);
-
-      if (stored_key_chksum != computed_key_chksum) {
-        m_pk_descr->report_checksum_mismatch(true, key->data(), key->size());
-        return HA_ERR_ROCKSDB_CORRUPT_DATA;
-      }
-
-      DBUG_EXECUTE_IF("myrocks_simulate_bad_pk_checksum2",
-                      stored_val_chksum++;);
-      if (stored_val_chksum != computed_val_chksum) {
-        m_pk_descr->report_checksum_mismatch(false, value->data(),
-                                             value->size());
-        return HA_ERR_ROCKSDB_CORRUPT_DATA;
-      }
-
-      m_row_checksums_checked++;
-    }
-    if (reader.remaining_bytes())
-      return HA_ERR_ROCKSDB_CORRUPT_DATA;
-  }
-
-  return HA_EXIT_SUCCESS;
-}
-
-void ha_rocksdb::get_storage_type(Rdb_field_encoder *const encoder,
-                                  const uint kp) {
-  // STORE_SOME uses unpack_info.
-  if (m_pk_descr->has_unpack_info(kp)) {
-    DBUG_ASSERT(m_pk_descr->can_unpack(kp));
-    encoder->m_storage_type = Rdb_field_encoder::STORE_SOME;
-    m_maybe_unpack_info = true;
-  } else if (m_pk_descr->can_unpack(kp)) {
-    encoder->m_storage_type = Rdb_field_encoder::STORE_NONE;
-  }
-}
-
-/*
-  Setup data needed to convert table->record[] to and from record storage
-  format.
-
-  @seealso
-     ha_rocksdb::convert_record_to_storage_format,
-     ha_rocksdb::convert_record_from_storage_format
-*/
-
-void ha_rocksdb::setup_field_converters() {
-  uint i;
-  uint null_bytes = 0;
-  uchar cur_null_mask = 0x1;
-
-  DBUG_ASSERT(m_encoder_arr == nullptr);
-#ifdef HAVE_PSI_INTERFACE
-  m_encoder_arr = static_cast<Rdb_field_encoder *>(
-      my_malloc(rdb_handler_memory_key,
-                table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
-#else
-  m_encoder_arr = static_cast<Rdb_field_encoder *>(
-      my_malloc(PSI_NOT_INSTRUMENTED,
-                table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
-#endif
-  if (m_encoder_arr == nullptr) {
-    return;
-  }
-
-  for (i = 0; i < table->s->fields; i++) {
-    Field *const field = table->field[i];
-    m_encoder_arr[i].m_storage_type = Rdb_field_encoder::STORE_ALL;
-
-    /*
-      Check if this field is
-      - a part of primary key, and
-      - it can be decoded back from its key image.
-      If both hold, we don't need to store this field in the value part of
-      RocksDB's key-value pair.
-
-      If hidden pk exists, we skip this check since the field will never be
-      part of the hidden pk.
-    */
-    if (!has_hidden_pk(table)) {
-      KEY *const pk_info = &table->key_info[table->s->primary_key];
-      for (uint kp = 0; kp < pk_info->user_defined_key_parts; kp++) {
-        /* key_part->fieldnr is counted from 1 */
-        if (field->field_index + 1 == pk_info->key_part[kp].fieldnr) {
-          get_storage_type(&m_encoder_arr[i], kp);
-          break;
-        }
-      }
-    }
-
-    m_encoder_arr[i].m_field_type = field->real_type();
-    m_encoder_arr[i].m_field_index = i;
-    m_encoder_arr[i].m_pack_length_in_rec = field->pack_length_in_rec();
-
-    if (field->real_maybe_null()) {
-      m_encoder_arr[i].m_null_mask = cur_null_mask;
-      m_encoder_arr[i].m_null_offset = null_bytes;
-      if (cur_null_mask == 0x80) {
-        cur_null_mask = 0x1;
-        null_bytes++;
-      } else
-        cur_null_mask = cur_null_mask << 1;
-    } else {
-      m_encoder_arr[i].m_null_mask = 0;
-    }
-  }
-
-  /* Count the last, unfinished NULL-bits byte */
-  if (cur_null_mask != 0x1)
-    null_bytes++;
-
-  m_null_bytes_in_rec = null_bytes;
+  return m_converter->decode(m_pk_descr, buf, key, value);
 }
 
 int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
@@ -6149,28 +5658,6 @@ void ha_rocksdb::free_key_buffers() {
   m_scan_it_upper_bound = nullptr;
 }
 
-#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
-void ha_rocksdb::set_use_read_free_rpl(const char *const whitelist) {
-  const char *const wl = whitelist ? whitelist : DEFAULT_READ_FREE_RPL_TABLES;
-
-#if defined(HAVE_PSI_INTERFACE)
-  Regex regex_handler(key_rwlock_read_free_rpl_tables);
-#else
-  Regex regex_handler;
-#endif
-
-  int flags = MY_REG_EXTENDED | MY_REG_NOSUB;
-  if (lower_case_table_names)
-    flags |= MY_REG_ICASE;
-
-  if (!regex_handler.compile(wl, flags, table_alias_charset)) {
-    warn_about_bad_patterns(regex_handler, "read_free_rpl_tables");
-  }
-
-  m_use_read_free_rpl = regex_handler.match(m_tbl_def->base_tablename());
-}
-#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
-
 /**
   @return
     HA_EXIT_SUCCESS  OK
@@ -6211,8 +5698,8 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked) {
              "dictionary");
     DBUG_RETURN(HA_ERR_ROCKSDB_INVALID_TABLE);
   }
-  m_lock_rows = RDB_LOCK_NONE;
 
+  m_lock_rows = RDB_LOCK_NONE;
   m_key_descr_arr = m_tbl_def->m_key_descr_arr;
 
   /*
@@ -6241,7 +5728,15 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked) {
   */
   init_with_fields();
 
-  setup_field_converters();
+  /* Initialize decoder */
+  m_converter = std::make_shared<Rdb_converter>(ha_thd(), m_tbl_def, table);
+
+  /*
+     Update m_ttl_bytes address to same as Rdb_converter's m_ttl_bytes.
+     Remove this code after moving convert_record_to_storage_format() into
+     Rdb_converter class.
+  */
+  m_ttl_bytes = m_converter->get_ttl_bytes_buffer();
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
@@ -6249,11 +5744,10 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked) {
     The following load_XXX code calls row decode functions, and they do
     that without having done ::external_lock() or index_init()/rnd_init().
     (Note: this also means we're doing a read when there was no
-    setup_field_converters() call)
+    rdb_converter::setup_field_encoders() call)
 
     Initialize the necessary variables for them:
   */
-  m_verify_row_debug_checksums = false;
 
   /* Load auto_increment value only once on first use. */
   if (table->found_next_number_field && m_tbl_def->m_auto_incr_val == 0) {
@@ -6270,11 +5764,6 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked) {
   /* Index block size in MyRocks: used by MySQL in query optimization */
   stats.block_size = rocksdb_tbl_options->block_size;
 
-#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
-  /* Determine at open whether we can use Read Free Replication or not */
-  set_use_read_free_rpl(THDVAR(ha_thd(), read_free_rpl_tables));
-#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
-
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
@@ -6283,11 +5772,8 @@ int ha_rocksdb::close(void) {
 
   m_pk_descr = nullptr;
   m_key_descr_arr = nullptr;
-
+  m_converter = nullptr;
   free_key_buffers();
-
-  my_free(m_encoder_arr);
-  m_encoder_arr = nullptr;
 
   if (m_table_handler != nullptr) {
     rdb_open_tables.release_table_handler(m_table_handler);
@@ -6295,7 +5781,6 @@ int ha_rocksdb::close(void) {
   }
 
   // These are needed to suppress valgrind errors in rocksdb.partition
-  m_storage_record.mem_free();
   m_last_rowkey.mem_free();
   m_sk_tails.free();
   m_sk_tails_old.free();
@@ -7336,6 +6821,7 @@ int ha_rocksdb::read_key_exact(const Rdb_key_def &kd,
                                const int64_t ttl_filter_ts) {
   DBUG_ASSERT(iter != nullptr);
 
+  THD *thd = ha_thd();
   /*
     We are looking for the first record such that
       index_tuple= lookup_tuple.
@@ -7344,6 +6830,9 @@ int ha_rocksdb::read_key_exact(const Rdb_key_def &kd,
   rocksdb_smart_seek(kd.m_is_reverse_cf, iter, key_slice);
 
   while (iter->Valid() && kd.value_matches_prefix(iter->key(), key_slice)) {
+    if (thd && thd->killed) {
+      return HA_ERR_QUERY_INTERRUPTED;
+    }
     /*
       If TTL is enabled we need to check if the given key has already expired
       from the POV of the current transaction.  If it has, try going to the next
@@ -7368,6 +6857,7 @@ int ha_rocksdb::read_before_key(const Rdb_key_def &kd,
                                 const bool full_key_match,
                                 const rocksdb::Slice &key_slice,
                                 const int64_t ttl_filter_ts) {
+  THD *thd = ha_thd();
   /*
     We are looking for record with the biggest t.key such that
     t.key < lookup_tuple.
@@ -7375,6 +6865,9 @@ int ha_rocksdb::read_before_key(const Rdb_key_def &kd,
   rocksdb_smart_seek(!kd.m_is_reverse_cf, m_scan_it, key_slice);
 
   while (is_valid(m_scan_it)) {
+    if (thd && thd->killed) {
+      return HA_ERR_QUERY_INTERRUPTED;
+    }
     /*
       We are using full key and we've hit an exact match, or...
 
@@ -7399,6 +6892,7 @@ int ha_rocksdb::read_before_key(const Rdb_key_def &kd,
 int ha_rocksdb::read_after_key(const Rdb_key_def &kd,
                                const rocksdb::Slice &key_slice,
                                const int64_t ttl_filter_ts) {
+  THD *thd = ha_thd();
   /*
     We are looking for the first record such that
 
@@ -7416,6 +6910,9 @@ int ha_rocksdb::read_after_key(const Rdb_key_def &kd,
   */
   while (is_valid(m_scan_it) && kd.has_ttl() &&
          should_hide_ttl_rec(kd, m_scan_it->value(), ttl_filter_ts)) {
+    if (thd && thd->killed) {
+      return HA_ERR_QUERY_INTERRUPTED;
+    }
     rocksdb_smart_next(kd.m_is_reverse_cf, m_scan_it);
   }
 
@@ -7596,7 +7093,7 @@ int ha_rocksdb::read_row_from_secondary_key(uchar *const buf,
       rc = HA_ERR_ROCKSDB_CORRUPT_DATA;
     } else {
       rc = kd.unpack_record(table, buf, &rkey, &value,
-                            m_verify_row_debug_checksums);
+                            m_converter->get_verify_row_debug_checksums());
       global_stats.covered_secondary_key_lookups.inc();
     }
   } else {
@@ -7720,7 +7217,8 @@ int ha_rocksdb::secondary_index_read(const int keyno, uchar *const buf) {
           m_key_descr_arr[keyno]->covers_lookup(&value, &m_lookup_bitmap);
       if (covered_lookup && m_lock_rows == RDB_LOCK_NONE) {
         rc = m_key_descr_arr[keyno]->unpack_record(
-            table, buf, &key, &value, m_verify_row_debug_checksums);
+            table, buf, &key, &value,
+            m_converter->get_verify_row_debug_checksums());
         global_stats.covered_secondary_key_lookups.inc();
       } else {
         DEBUG_SYNC(ha_thd(), "rocksdb_concurrent_delete_sk");
@@ -7826,6 +7324,13 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
 
   int rc = 0;
 
+  THD *thd = ha_thd();
+  DEBUG_SYNC(thd, "rocksdb.check_flags_rmi");
+  if (thd && thd->killed) {
+    rc = HA_ERR_QUERY_INTERRUPTED;
+    DBUG_RETURN(rc);
+  }
+
   ha_statistic_increment(&SSV::ha_read_key_count);
   const Rdb_key_def &kd = *m_key_descr_arr[active_index];
   const uint actual_key_parts = kd.get_key_parts();
@@ -7918,6 +7423,11 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
   // Loop as long as we get a deadlock error AND we end up creating the
   // snapshot here (i.e. it did not exist prior to this)
   for (;;) {
+    DEBUG_SYNC(thd, "rocksdb.check_flags_rmi_scan");
+    if (thd && thd->killed) {
+      rc = HA_ERR_QUERY_INTERRUPTED;
+      break;
+    }
     /*
       This will open the iterator and position it at a record that's equal or
       greater than the lookup tuple.
@@ -7934,9 +7444,7 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
                                 slice, &move_forward, tx->m_snapshot_timestamp);
 
     if (rc) {
-      /* This status is returned on any error */
-      table->status = STATUS_NOT_FOUND;
-      DBUG_RETURN(rc);
+      break;
     }
 
     m_skip_scan_it_next_call = false;
@@ -7961,7 +7469,10 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
   }
 
   if (rc) {
-    /* the only possible error condition is record-not-found */
+    /*
+      This status is returned on any error
+      the only possible error condition is record-not-found
+    */
     table->status = STATUS_NOT_FOUND;
   } else {
     table->status = 0;
@@ -7997,9 +7508,17 @@ int ha_rocksdb::find_icp_matching_index_rec(const bool move_forward,
 
   if (pushed_idx_cond && pushed_idx_cond_keyno == active_index) {
     const Rdb_key_def &kd = *m_key_descr_arr[active_index];
+    THD *thd = ha_thd();
 
     while (1) {
-      rocksdb_skip_expired_records(kd, m_scan_it, !move_forward);
+      int rc = rocksdb_skip_expired_records(kd, m_scan_it, !move_forward);
+      if (rc != HA_EXIT_SUCCESS) {
+        return rc;
+      }
+
+      if (thd && thd->killed) {
+        return HA_ERR_QUERY_INTERRUPTED;
+      }
 
       if (!is_valid(m_scan_it)) {
         table->status = STATUS_NOT_FOUND;
@@ -8023,7 +7542,7 @@ int ha_rocksdb::find_icp_matching_index_rec(const bool move_forward,
 
       const rocksdb::Slice value = m_scan_it->value();
       int err = kd.unpack_record(table, buf, &rkey, &value,
-                                 m_verify_row_debug_checksums);
+                                 m_converter->get_verify_row_debug_checksums());
       if (err != HA_EXIT_SUCCESS) {
         return err;
       }
@@ -8042,14 +7561,6 @@ int ha_rocksdb::find_icp_matching_index_rec(const bool move_forward,
          * row. */
         break;
       }
-      /*
-        TODO: should we have this here, or RockDB handles this internally?
-        if (my_core::thd_killed(current_thd))
-        {
-          rc= HA_ERR_INTERNAL_ERROR; // doesn't matter
-          break;
-        }
-      */
     }
   }
   return HA_EXIT_SUCCESS;
@@ -8087,9 +7598,9 @@ int ha_rocksdb::check(THD *const thd, HA_CHECK_OPT *const check_opt) {
   // Rdb_transaction *tx= get_or_create_tx(table->in_use);
   // tx->snapshot= nullptr;
 
-  const bool save_verify_row_debug_checksums = m_verify_row_debug_checksums;
-  m_verify_row_debug_checksums = true;
-
+  bool save_verify_row_debug_checksums =
+      m_converter->get_verify_row_debug_checksums();
+  m_converter->set_verify_row_debug_checksums(true);
   /* For each secondary index, check that we can get a PK value from it */
   // NO_LINT_DEBUG
   sql_print_information("CHECKTABLE %s: Checking table %s", table_name,
@@ -8105,16 +7616,17 @@ int ha_rocksdb::check(THD *const thd, HA_CHECK_OPT *const check_opt) {
       ha_rows rows = 0;
       ha_rows checksums = 0;
       if (first_index)
-        row_checksums_at_start = m_row_checksums_checked;
+        row_checksums_at_start = m_converter->get_row_checksums_checked();
       int res;
       // NO_LINT_DEBUG
       sql_print_information("CHECKTABLE %s:   Checking index %s", table_name,
                             table->key_info[keyno].name);
       while (1) {
-        if (!rows)
+        if (!rows) {
           res = index_first(table->record[0]);
-        else
+        } else {
           res = index_next(table->record[0]);
+        }
 
         if (res == HA_ERR_END_OF_FILE)
           break;
@@ -8202,7 +7714,8 @@ int ha_rocksdb::check(THD *const thd, HA_CHECK_OPT *const check_opt) {
                             table_name, rows, checksums);
 
       if (first_index) {
-        row_checksums = m_row_checksums_checked - row_checksums_at_start;
+        row_checksums =
+            m_converter->get_row_checksums_checked() - row_checksums_at_start;
         first_index = false;
       }
       ha_index_end();
@@ -8215,7 +7728,7 @@ int ha_rocksdb::check(THD *const thd, HA_CHECK_OPT *const check_opt) {
   }
   extra(HA_EXTRA_NO_KEYREAD);
 
-  m_verify_row_debug_checksums = save_verify_row_debug_checksums;
+  m_converter->set_verify_row_debug_checksums(save_verify_row_debug_checksums);
   /*
     TODO: we should check also for PK records that are missing in the secondary
     indexes.
@@ -8224,7 +7737,7 @@ int ha_rocksdb::check(THD *const thd, HA_CHECK_OPT *const check_opt) {
   */
   DBUG_RETURN(HA_ADMIN_OK);
 error:
-  m_verify_row_debug_checksums = save_verify_row_debug_checksums;
+  m_converter->set_verify_row_debug_checksums(save_verify_row_debug_checksums);
   ha_index_or_rnd_end();
   extra(HA_EXTRA_NO_KEYREAD);
 
@@ -8278,6 +7791,9 @@ rocksdb::Status ha_rocksdb::get_for_update(
   rocksdb::Status s =
       tx->get_for_update(column_family, key, value, exclusive, do_validate);
 
+#ifndef DBUG_OFF
+  ++rocksdb_num_get_for_update_calls;
+#endif
   return s;
 }
 
@@ -8341,6 +7857,17 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
   if (m_lock_rows == RDB_LOCK_NONE) {
     tx->acquire_snapshot(true);
     s = tx->get(m_pk_descr->get_cf(), key_slice, &m_retrieved_record);
+  } else if (m_insert_with_update && m_dup_pk_found) {
+    DBUG_ASSERT(m_pk_descr->get_keyno() == m_dupp_errkey);
+    DBUG_ASSERT(m_dup_pk_retrieved_record.length() ==
+                m_retrieved_record.size());
+    DBUG_ASSERT(memcmp(m_dup_pk_retrieved_record.ptr(),
+                       m_retrieved_record.data(),
+                       m_retrieved_record.size()) == 0);
+
+    // do nothing - we already have the result in m_retrieved_record and
+    // already taken the lock
+    s = rocksdb::Status::OK();
   } else {
     s = get_for_update(tx, m_pk_descr->get_cf(), key_slice,
                        &m_retrieved_record);
@@ -8430,7 +7957,13 @@ int ha_rocksdb::index_next_with_direction(uchar *const buf, bool move_forward) {
   if (active_index == pk_index(table, m_tbl_def)) {
     rc = rnd_next_with_direction(buf, move_forward);
   } else {
+    THD *thd = ha_thd();
     for (;;) {
+      DEBUG_SYNC(thd, "rocksdb.check_flags_inwd");
+      if (thd && thd->killed) {
+        rc = HA_ERR_QUERY_INTERRUPTED;
+        break;
+      }
       if (m_skip_scan_it_next_call) {
         m_skip_scan_it_next_call = false;
       } else if (!m_scan_it->Valid()) {
@@ -8441,8 +7974,11 @@ int ha_rocksdb::index_next_with_direction(uchar *const buf, bool move_forward) {
         else
           m_scan_it->Prev();
       }
-      rocksdb_skip_expired_records(*m_key_descr_arr[active_index], m_scan_it,
-                                   !move_forward);
+      rc = rocksdb_skip_expired_records(*m_key_descr_arr[active_index],
+                                        m_scan_it, !move_forward);
+      if (rc != HA_EXIT_SUCCESS) {
+        break;
+      }
       rc = find_icp_matching_index_rec(move_forward, buf);
       if (!rc)
         rc = secondary_index_read(active_index, buf);
@@ -8692,12 +8228,13 @@ bool ha_rocksdb::skip_unique_check() const {
       2) the user set unique_checks option to 0, and the table does not have
          any indexes. If the table has secondary keys, then those might becomes
          inconsisted/corrupted
-
+      3) We're using read-free replication
   */
   return THDVAR(table->in_use, bulk_load) ||
          (my_core::thd_test_options(table->in_use,
                                     OPTION_RELAXED_UNIQUE_CHECKS) &&
-          m_tbl_def->m_key_count == 1);
+          m_tbl_def->m_key_count == 1) ||
+         use_read_free_rpl();
 }
 
 bool ha_rocksdb::commit_in_the_middle() {
@@ -8876,6 +8413,11 @@ int ha_rocksdb::write_row(uchar *const buf) {
     }
   }
 
+  // clear cache at beginning of write for INSERT ON DUPLICATE
+  // we may get multiple write->fail->read->update if there are multiple
+  // values from INSERT
+  m_dup_pk_found = false;
+
   const int rv = update_write_row(nullptr, buf, skip_unique_check());
 
   if (rv == 0) {
@@ -8926,10 +8468,9 @@ int ha_rocksdb::get_pk_for_update(struct update_row_info *const row_info) {
 
     row_info->new_pk_unpack_info = &m_pk_unpack_info;
 
-    size =
-        m_pk_descr->pack_record(table, m_pack_buffer, row_info->new_data,
-                                m_pk_packed_tuple, row_info->new_pk_unpack_info,
-                                false, 0, 0, nullptr, &row_info->ttl_pk_offset);
+    size = m_pk_descr->pack_record(
+        table, m_pack_buffer, row_info->new_data, m_pk_packed_tuple,
+        row_info->new_pk_unpack_info, false, 0, 0, nullptr);
   } else if (row_info->old_data == nullptr) {
     row_info->hidden_pk_id = update_hidden_pk_val();
     size =
@@ -8967,28 +8508,11 @@ int ha_rocksdb::get_pk_for_update(struct update_row_info *const row_info) {
 */
 int ha_rocksdb::check_and_lock_unique_pk(const uint key_id,
                                          const struct update_row_info &row_info,
-                                         bool *const found,
-                                         bool *const pk_changed) {
+                                         bool *const found) {
   DBUG_ASSERT(found != nullptr);
-  DBUG_ASSERT(pk_changed != nullptr);
 
-  *pk_changed = false;
-
-  /*
-    For UPDATEs, if the key has changed, we need to obtain a lock. INSERTs
-    always require locking.
-  */
-  if (row_info.old_pk_slice.size() > 0) {
-    /*
-      If the keys are the same, then no lock is needed
-    */
-    if (!row_info.new_pk_slice.compare(row_info.old_pk_slice)) {
-      *found = false;
-      return HA_EXIT_SUCCESS;
-    }
-
-    *pk_changed = true;
-  }
+  DBUG_ASSERT(row_info.old_pk_slice.size() == 0 ||
+              row_info.new_pk_slice.compare(row_info.old_pk_slice) != 0);
 
   /*
     Perform a read to determine if a duplicate entry exists. For primary
@@ -9017,7 +8541,35 @@ int ha_rocksdb::check_and_lock_unique_pk(const uint key_id,
                                          *m_key_descr_arr[key_id], m_tbl_def);
   }
 
-  *found = !s.IsNotFound();
+  bool key_found = !s.IsNotFound();
+
+  /*
+    If the pk key has ttl, we may need to pretend the row wasn't
+    found if it is already expired.
+  */
+  if (key_found && m_pk_descr->has_ttl() &&
+      should_hide_ttl_rec(*m_pk_descr, m_retrieved_record,
+                          (row_info.tx->m_snapshot_timestamp
+                               ? row_info.tx->m_snapshot_timestamp
+                               : static_cast<int64_t>(std::time(nullptr))))) {
+    key_found = false;
+  }
+
+  if (key_found && row_info.old_data == nullptr && m_insert_with_update) {
+    // In INSERT ON DUPLICATE KEY UPDATE ... case, if the insert failed
+    // due to a duplicate key, remember the last key and skip the check
+    // next time
+    m_dup_pk_found = true;
+
+#ifndef DBUG_OFF
+    // save it for sanity checking later
+    m_dup_pk_retrieved_record.copy(m_retrieved_record.data(),
+                                   m_retrieved_record.size(), &my_charset_bin);
+#endif
+  }
+
+  *found = key_found;
+
   return HA_EXIT_SUCCESS;
 }
 
@@ -9171,7 +8723,7 @@ int ha_rocksdb::check_and_lock_sk(const uint key_id,
     other            HA_ERR error code (can be SE-specific)
 */
 int ha_rocksdb::check_uniqueness_and_lock(
-    const struct update_row_info &row_info, bool *const pk_changed) {
+    const struct update_row_info &row_info, bool pk_changed) {
   /*
     Go through each index and determine if the index has uniqueness
     requirements. If it does, then try to obtain a row lock on the new values.
@@ -9183,7 +8735,12 @@ int ha_rocksdb::check_uniqueness_and_lock(
     int rc;
 
     if (is_pk(key_id, table, m_tbl_def)) {
-      rc = check_and_lock_unique_pk(key_id, row_info, &found, pk_changed);
+      if (row_info.old_pk_slice.size() > 0 && !pk_changed) {
+        found = false;
+        rc = HA_EXIT_SUCCESS;
+      } else {
+        rc = check_and_lock_unique_pk(key_id, row_info, &found);
+      }
     } else {
       rc = check_and_lock_sk(key_id, row_info, &found);
     }
@@ -9192,23 +8749,11 @@ int ha_rocksdb::check_uniqueness_and_lock(
       return rc;
     }
 
-    /*
-      If the pk key has ttl, we may need to pretend the row wasn't
-      found if it is already expired. The pk record is read into
-      m_retrieved_record by check_and_lock_unique_pk().
-    */
-    if (is_pk(key_id, table, m_tbl_def) && found && m_pk_descr->has_ttl() &&
-        should_hide_ttl_rec(*m_pk_descr, m_retrieved_record,
-                            (row_info.tx->m_snapshot_timestamp
-                                 ? row_info.tx->m_snapshot_timestamp
-                                 : static_cast<int64_t>(std::time(nullptr))))) {
-      found = false;
-    }
-
     if (found) {
       /* There is a row with this key already, so error out. */
       errkey = key_id;
       m_dupp_errkey = errkey;
+
       return HA_ERR_FOUND_DUPP_KEY;
     }
   }
@@ -9260,6 +8805,11 @@ int ha_rocksdb::bulk_load_key(Rdb_transaction *const tx, const Rdb_key_def &kd,
                               const rocksdb::Slice &value, bool sort) {
   DBUG_ENTER_FUNC();
   int res;
+  THD *thd = ha_thd();
+  if (thd && thd->killed) {
+    DBUG_RETURN(HA_ERR_QUERY_INTERRUPTED);
+  }
+
   rocksdb::ColumnFamilyHandle *cf = kd.get_cf();
 
   // In the case of unsorted inserts, m_sst_info allocated here is not
@@ -9376,7 +8926,10 @@ int ha_rocksdb::update_write_pk(const Rdb_key_def &kd,
   int rc = HA_EXIT_SUCCESS;
   rocksdb::Slice value_slice;
   /* Prepare the new record to be written into RocksDB */
-  if ((rc = convert_record_to_storage_format(row_info, &value_slice))) {
+  if ((rc = m_converter->encode_value_slice(
+           m_pk_descr, row_info.new_pk_slice, row_info.new_pk_unpack_info,
+           !row_info.old_pk_slice.empty(), should_store_row_debug_checksums(),
+           m_ttl_bytes, &m_ttl_bytes_updated, &value_slice))) {
     return rc;
   }
 
@@ -9448,19 +9001,18 @@ int ha_rocksdb::update_write_sk(const TABLE *const table_arg,
     return HA_EXIT_SUCCESS;
   }
 
-  const bool store_row_debug_checksums = should_store_row_debug_checksums();
-
+  bool store_row_debug_checksums = should_store_row_debug_checksums();
   new_packed_size =
       kd.pack_record(table_arg, m_pack_buffer, row_info.new_data,
                      m_sk_packed_tuple, &m_sk_tails, store_row_debug_checksums,
-                     row_info.hidden_pk_id, 0, nullptr, nullptr, m_ttl_bytes);
+                     row_info.hidden_pk_id, 0, nullptr, m_ttl_bytes);
 
   if (row_info.old_data != nullptr) {
     // The old value
     old_packed_size = kd.pack_record(
         table_arg, m_pack_buffer, row_info.old_data, m_sk_packed_tuple_old,
         &m_sk_tails_old, store_row_debug_checksums, row_info.hidden_pk_id, 0,
-        nullptr, nullptr, m_ttl_bytes);
+        nullptr, m_ttl_bytes);
 
     /*
       Check if we are going to write the same value. This can happen when
@@ -9570,6 +9122,11 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
                                  const bool skip_unique_check) {
   DBUG_ENTER_FUNC();
 
+  THD *thd = ha_thd();
+  if (thd && thd->killed) {
+    DBUG_RETURN(HA_ERR_QUERY_INTERRUPTED);
+  }
+
   bool pk_changed = false;
   struct update_row_info row_info;
 
@@ -9577,7 +9134,6 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
   row_info.new_data = new_data;
   row_info.skip_unique_check = skip_unique_check;
   row_info.new_pk_unpack_info = nullptr;
-
   set_last_rowkey(old_data);
 
   row_info.tx = get_or_create_tx(table->in_use);
@@ -9598,12 +9154,20 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
     DBUG_RETURN(rc);
   }
 
+  /*
+    For UPDATEs, if the key has changed, we need to obtain a lock. INSERTs
+    always require locking.
+  */
+  if (row_info.old_pk_slice.size() > 0) {
+    pk_changed = row_info.new_pk_slice.compare(row_info.old_pk_slice) != 0;
+  }
+
   if (!skip_unique_check) {
     /*
       Check to see if we are going to have failures because of unique
       keys.  Also lock the appropriate key values.
     */
-    rc = check_uniqueness_and_lock(row_info, &pk_changed);
+    rc = check_uniqueness_and_lock(row_info, pk_changed);
     if (rc != HA_EXIT_SUCCESS) {
       DBUG_RETURN(rc);
     }
@@ -9780,8 +9344,16 @@ void ha_rocksdb::setup_iterator_for_rnd_scan() {
 int ha_rocksdb::rnd_init(bool scan) {
   DBUG_ENTER_FUNC();
 
+  THD *thd = ha_thd();
+  if (thd && thd->killed) {
+    DBUG_RETURN(HA_ERR_QUERY_INTERRUPTED);
+  }
+
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
-  setup_read_decoders();
+
+  // when this table is being updated, decode all fields
+  m_converter->setup_field_decoders(table->read_set,
+                                    m_lock_rows == RDB_LOCK_WRITE);
 
   if (scan) {
     m_rnd_scan_is_new_snapshot = !tx->has_snapshot();
@@ -9835,6 +9407,7 @@ int ha_rocksdb::rnd_next_with_direction(uchar *const buf, bool move_forward) {
   DBUG_ENTER_FUNC();
 
   int rc;
+  THD *thd = ha_thd();
 
   table->status = STATUS_NOT_FOUND;
 
@@ -9851,6 +9424,12 @@ int ha_rocksdb::rnd_next_with_direction(uchar *const buf, bool move_forward) {
   }
 
   for (;;) {
+    DEBUG_SYNC(thd, "rocksdb.check_flags_rnwd");
+    if (thd && thd->killed) {
+      rc = HA_ERR_QUERY_INTERRUPTED;
+      break;
+    }
+
     if (m_skip_scan_it_next_call) {
       m_skip_scan_it_next_call = false;
     } else {
@@ -9947,10 +9526,17 @@ int ha_rocksdb::rnd_end() {
 int ha_rocksdb::index_init(uint idx, bool sorted) {
   DBUG_ENTER_FUNC();
 
+  THD *thd = ha_thd();
+  if (thd && thd->killed) {
+    DBUG_RETURN(HA_ERR_QUERY_INTERRUPTED);
+  }
+
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
   DBUG_ASSERT(tx != nullptr);
 
-  setup_read_decoders();
+  // when this table is being updated, decode all fields
+  m_converter->setup_field_decoders(table->read_set,
+                                    m_lock_rows == RDB_LOCK_WRITE);
 
   if (!m_keyread_only) {
     m_key_descr_arr[idx]->get_lookup_bitmap(table, &m_lookup_bitmap);
@@ -10369,7 +9955,7 @@ int ha_rocksdb::update_row(const uchar *const old_data, uchar *const new_data) {
   DBUG_ASSERT(new_data == table->record[0]);
 
   ha_statistic_increment(&SSV::ha_update_count);
-  const int rv = update_write_row(old_data, new_data, false);
+  const int rv = update_write_row(old_data, new_data, skip_unique_check());
 
   if (rv == 0) {
     update_row_stats(ROWS_UPDATED);
@@ -10461,7 +10047,8 @@ THR_LOCK_DATA **ha_rocksdb::store_lock(THD *const thd, THR_LOCK_DATA **to,
 
 void ha_rocksdb::read_thd_vars(THD *const thd) {
   m_store_row_debug_checksums = THDVAR(thd, store_row_debug_checksums);
-  m_verify_row_debug_checksums = THDVAR(thd, verify_row_debug_checksums);
+  m_converter->set_verify_row_debug_checksums(
+      THDVAR(thd, verify_row_debug_checksums));
   m_checksums_pct = THDVAR(thd, checksums_pct);
 }
 
@@ -11043,6 +10630,18 @@ int ha_rocksdb::extra(enum ha_extra_function operation) {
     */
     m_retrieved_record.Reset();
     break;
+  case HA_EXTRA_INSERT_WITH_UPDATE:
+    // INSERT ON DUPLICATE KEY UPDATE
+    if (rocksdb_enable_insert_with_update_caching) {
+      m_insert_with_update = true;
+    }
+    break;
+  case HA_EXTRA_NO_IGNORE_DUP_KEY:
+    // PAIRED with HA_EXTRA_INSERT_WITH_UPDATE or HA_EXTRA_WRITE_CAN_REPLACE
+    // that indicates the end of REPLACE / INSERT ON DUPLICATE KEY
+    m_insert_with_update = false;
+    break;
+
   default:
     break;
   }
@@ -11944,7 +11543,7 @@ int ha_rocksdb::inplace_populate_sk(
       const int new_packed_size = index->pack_record(
           new_table_arg, m_pack_buffer, table->record[0], m_sk_packed_tuple,
           &m_sk_tails, should_store_row_debug_checksums(), hidden_pk_id, 0,
-          nullptr, nullptr, m_ttl_bytes);
+          nullptr, m_ttl_bytes);
 
       const rocksdb::Slice key = rocksdb::Slice(
           reinterpret_cast<const char *>(m_sk_packed_tuple), new_packed_size);
@@ -11992,9 +11591,9 @@ int ha_rocksdb::inplace_populate_sk(
             is used inside print_keydup_error so that the error message shows
             the duplicate record.
           */
-          if (index->unpack_record(new_table_arg, new_table_arg->record[0],
-                                   &merge_key, &merge_val,
-                                   m_verify_row_debug_checksums)) {
+          if (index->unpack_record(
+                  new_table_arg, new_table_arg->record[0], &merge_key,
+                  &merge_val, m_converter->get_verify_row_debug_checksums())) {
             /* Should never reach here */
             DBUG_ASSERT(0);
           }
@@ -12661,6 +12260,10 @@ static SHOW_VAR rocksdb_status_vars[] = {
                        SHOW_LONGLONG),
     DEF_STATUS_VAR_PTR("number_sst_entry_other", &rocksdb_num_sst_entry_other,
                        SHOW_LONGLONG),
+#ifndef DBUG_OFF
+    DEF_STATUS_VAR_PTR("num_get_for_update_calls",
+                       &rocksdb_num_get_for_update_calls, SHOW_LONGLONG),
+#endif
     // the variables generated by SHOW_FUNC are sorted only by prefix (first
     // arg in the tuple below), so make sure it is unique to make sorting
     // deterministic as quick sort is not stable
@@ -12961,7 +12564,7 @@ bool ha_rocksdb::should_recreate_snapshot(const int rc,
  * using TX API and skipping row locking.
  */
 bool ha_rocksdb::can_assume_tracked(THD *thd) {
-  if (m_use_read_free_rpl || (THDVAR(thd, blind_delete_primary_key))) {
+  if (use_read_free_rpl() || (THDVAR(thd, blind_delete_primary_key))) {
     return false;
   }
   return true;
@@ -13708,18 +13311,33 @@ bool ha_rocksdb::rpl_lookup_rows() {
   return !use_read_free_rpl();
 }
 
+bool ha_rocksdb::is_read_free_rpl_table() const {
+  return table->s && m_tbl_def->m_is_read_free_rpl_table;
+}
+
 /**
   @brief
-  Read Free Replication can be used or not. Returning False means
-  Read Free Replication can be used. Read Free Replication can be used
-  on UPDATE or DELETE row events, and table must have user defined
-  primary key.
+  Read Free Replication can be used or not. Returning true means
+  Read Free Replication can be used.
 */
-bool ha_rocksdb::use_read_free_rpl() {
+bool ha_rocksdb::use_read_free_rpl() const {
   DBUG_ENTER_FUNC();
 
-  DBUG_RETURN((m_in_rpl_delete_rows || m_in_rpl_update_rows) &&
-              !has_hidden_pk(table) && m_use_read_free_rpl);
+  if (!ha_thd()->rli_slave || table->triggers || !is_read_free_rpl_table()) {
+    DBUG_RETURN(false);
+  }
+
+  switch (rocksdb_read_free_rpl) {
+  case read_free_rpl_type::OFF:
+    DBUG_RETURN(false);
+  case read_free_rpl_type::PK_ONLY:
+    DBUG_RETURN(!has_hidden_pk(table) && table->s->keys == 1);
+  case read_free_rpl_type::PK_SK:
+    DBUG_RETURN(!has_hidden_pk(table));
+  }
+
+  DBUG_ASSERT(false);
+  DBUG_RETURN(false);
 }
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 

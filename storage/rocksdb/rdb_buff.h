@@ -21,7 +21,7 @@
 #include <vector>
 
 /* MySQL header files */
-#include "./my_global.h"
+#include "my_global.h"
 
 /* MyRocks header files */
 #include "./rdb_global.h"

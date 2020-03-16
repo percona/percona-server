@@ -64,6 +64,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_blind_delete_primary_key`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_block_cache_size`
      - Yes
      - Yes
@@ -99,6 +103,10 @@ Also, all variables can exist in one or both of the following scopes:
    * - :variable:`rocksdb_bytes_per_sync`
      - Yes
      - Yes
+     - Global
+   * - :variable:`rocksdb_cache_dump`
+     - Yes
+     - No
      - Global
    * - :variable:`rocksdb_cache_index_and_filter_blocks`
      - Yes
@@ -212,6 +220,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_enable_insert_with_update_caching`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_enable_ttl`
      - Yes
      - No
@@ -312,6 +324,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_master_skip_tx_api`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_max_background_compactions`
      - Yes
      - Yes
@@ -412,6 +428,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_read_free_rpl`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_read_free_rpl_tables`
      - Yes
      - Yes
@@ -421,6 +441,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Global, Session
    * - :variable:`rocksdb_reset_stats`
+     - Yes
+     - Yes
+     - Global
+   * - :variable:`rocksdb_rollback_on_timeout`
      - Yes
      - Yes
      - Global
@@ -455,6 +479,10 @@ Also, all variables can exist in one or both of the following scopes:
    * - :variable:`rocksdb_stats_dump_period_sec`
      - Yes
      - No
+     - Global
+   * - :variable:`rocksdb_stats_level`
+     - Yes
+     - Yes
      - Global
    * - :variable:`rocksdb_stats_recalc_rate`
      - Yes
@@ -619,7 +647,7 @@ Disabled by default.
   :default: ``OFF``
 
 Specifies whether to allow server to restart once MyRocks reported data
-corruption. Disabled by default. 
+corruption. Disabled by default.
 
 Once corruption is detected server writes marker file (named
 ROCKSDB_CORRUPTED) in the data directory and aborts. If marker file exists,
@@ -673,6 +701,23 @@ Maximum depends on the :variable:`rocksdb_max_background_compactions`
 variable. This variable has been replaced in |Percona Server| :rn:`5.7.20-18`
 by :variable:`rocksdb_max_background_jobs`, which automatically decides how
 many threads to allocate towards flush/compaction.
+
+
+.. variable:: rocksdb_blind_delete_primary_key
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-blind-delete-primary-key``
+   :dyn: Yes
+   :scope: Global, Session
+   :vartype: Boolean
+   :default: ``OFF``
+
+Skips verifying if rows exists before executing deletes. The following conditions
+must be met:
+
+* The variable is enabled
+* Only a single table listed in the ``DELETE`` statement
+* The table has only a primary key with no secondary keys
 
 .. variable:: rocksdb_block_cache_size
 
@@ -816,6 +861,18 @@ as they are being written, asynchronously, in the background.
 This operation can be used to smooth out write I/O over time.
 Default value is ``0`` meaning that files are never synced.
 Allowed range is up to ``18446744073709551615``.
+
+.. variable:: rocksdb_cache_dump
+
+  :version 5.7.30-33: Implemented
+  :cli: ``-rocksdb-cache-dump``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+Includes RocksDB block cache content in core dump. This variable is
+enabled by default.
 
 .. variable:: rocksdb_cache_index_and_filter_blocks
 
@@ -1056,11 +1113,11 @@ By default, it is created in the current working directory.
   :vartype: Numeric
   :default: ``0``
 
-Specifies the size of the memtable used to store writes in MyRocks.
-This is the size per column family.
-When this size is reached, the memtable is flushed to persistent media.
-Default value is ``0``.
-Allowed range is up to ``18446744073709551615``.
+Specifies the maximum size of all memtables used to store writes in MyRocks
+across all column families. When this size is reached, the data is flushed
+to persistent media.
+The default value is ``0``.
+The allowed range is up to ``18446744073709551615``.
 
 .. variable:: rocksdb_deadlock_detect
 
@@ -1212,6 +1269,18 @@ in either ascending or descending order.
 Enabled by default.
 If disabled, bulk loading uses the normal write path via the memtable
 and does not require keys to be inserted in any order.
+
+.. variable:: rocksdb_enable_insert_with_update_caching
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-enable-insert-with-update-caching``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``ON``
+
+Specifies whether to enable optimization where the read is cached from a 
+failed insertion attempt in INSERT ON DUPLICATE KEY UPDATE.
 
 .. variable:: rocksdb_enable_ttl
 
@@ -1575,6 +1644,23 @@ Allowed range is up to ``18446744073709551615``.
 This variable can be used to disable automatic/timed WAL flushing and instead
 rely on the application to do the flushing.
 
+.. variable:: rocksdb_master_skip_tx_api
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-master-skip-tx-api``
+   :dyn: Yes
+   :scope: Global, Session
+   :vartype: Boolean
+   :default: ``OFF``
+
+When enabled, uses the WriteBatch API, which is faster. The session does not
+hold any lock on row access. This variable is not effective on slave.
+
+.. note::
+
+    Due to the disabled row locks, improper use of the variable can cause data 
+    corruption or inconsistency.
+
 .. variable:: rocksdb_max_background_compactions
 
   :version 5.7.19-17: Implemented
@@ -1679,17 +1765,17 @@ only one manifest file is used.
   :default: ``1000``
 
 Specifies the maximum number of file handles opened by MyRocks.
-Values in the range between ``0`` and ``open_files_limit`` 
-are taken as they are. If :variable:`rocksdb_max_open_files` value is 
-greater than ``open_files_limit``, it will be reset to 1/2 of 
+Values in the range between ``0`` and ``open_files_limit``
+are taken as they are. If :variable:`rocksdb_max_open_files` value is
+greater than ``open_files_limit``, it will be reset to 1/2 of
 ``open_files_limit``, and a warning will be emitted to the ``mysqld``
-error log. A value of ``-2`` denotes auto tuning: just sets 
-:variable:`rocksdb_max_open_files` value to 1/2 of ``open_files_limit``. 
+error log. A value of ``-2`` denotes auto tuning: just sets
+:variable:`rocksdb_max_open_files` value to 1/2 of ``open_files_limit``.
 Finally, ``-1`` means no limit, i.e. an infinite number of file handles.
 
 .. warning::
 
-  Setting :variable:`rocksdb_max_open_files` to ``-1`` is dangerous, 
+  Setting :variable:`rocksdb_max_open_files` to ``-1`` is dangerous,
   as server may quickly run out of file handles in this case.
 
 .. variable:: rocksdb_max_row_locks
@@ -1950,6 +2036,24 @@ via memtable flushes and compaction.
 Default value is ``0`` (write rate is not limited).
 Allowed range is up to ``9223372036854775807``.
 
+.. variable:: rocksdb_read_free_rpl
+
+  :version 5.7.30-33: Implemented
+  :cli: ``--rocksdb-read-free-rpl``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Enum
+  :default: ``OFF``
+
+Use read-free replication, which allows no row lookup during
+replication, on the slave. 
+
+The options are the following:
+
+* OFF - Disables the variable
+* PK_SK - Enables the variable on all tables with a primary key
+* PK_ONLY - Enables the variable on tables where the only key is the primary key
+            
 .. variable:: rocksdb_read_free_rpl_tables
 
   :version 5.7.19-17: Implemented
@@ -1989,6 +2093,19 @@ Allowed range is up to ``2147483647``.
 Resets MyRocks internal statistics dynamically
 (without restarting the server).
 
+.. variable:: rocksdb_rollback_on_timeout
+
+   :version 5.7.30-33: Implemented
+   :cli: ``--rocksdb-rollback-on-timeout``
+   :dyn: Yes
+   :scope: Global
+   :vartype: Boolean
+   :default: ``OFF``
+
+By default, only the last statement on a transaction is rolled back. If
+``--rocksdb-rollback-on-timeout=ON``, a transaction timeout causes a rollback of
+the entire transaction.
+
 .. variable:: rocksdb_rpl_skip_tx_api
 
   :version 5.7.19-17: Implemented
@@ -2002,7 +2119,7 @@ Resets MyRocks internal statistics dynamically
 
 Specifies whether write batches should be used for replication thread
 instead of the transaction API.
-Disabled by default. 
+Disabled by default.
 
 There are two conditions which are necessary to
 use it: row replication format and slave
@@ -2097,6 +2214,18 @@ Specifies the period in seconds for performing a dump of the MyRocks statistics
 to the info log.
 Default value is ``600``.
 Allowed range is up to ``2147483647``.
+
+.. variable:: rocksdb_stats_level
+
+  :version 5.7.30-33: Implemented
+  :cli: ``--rocksdb-stats-level``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Numeric
+  :default: ``0``
+
+Controls the RocksDB statistics level. The default value is "0" (kExceptHistogramOrTimers),
+ which is the fastest level. The maximum value is "4".
 
 .. variable:: rocksdb_stats_recalc_rate
 
@@ -2356,10 +2485,18 @@ Specifies the path to the directory where MyRocks stores WAL files.
   :vartype: Numeric
   :default: ``1``
 
-Specifies the level of tolerance when recovering WAL files
+Specifies the level of tolerance when recovering write-ahead logs (WAL) files
 after a system crash.
-Default is ``1``.
-Allowed range is from ``0`` to ``3``.
+
+The following are the options:
+
+ * ``0``: if the last WAL entry is corrupted, truncate the entry and either start the server normally or refuse to start.
+
+ * ``1`` (default): if a WAL entry is corrupted, the server fails to   start and does not recover from the crash.
+
+ * ``2``: if a corrupted WAL entry is detected, truncate all entries after the detected corrupted entry. You can select this setting for replication slaves.
+
+ * ``3``: If a corrupted WAL entry is detected, skip only the corrupted entry and continue the apply WAL entries. This option can be dangerous.
 
 .. variable:: rocksdb_wal_size_limit_mb
 
@@ -2455,5 +2592,5 @@ Allowed values are ``write_committed``, ``write_prepared``, and
 
 Default value is ``write_committed`` which means data are written at commit
 time. If the value is set to ``write_prepared``, then data are written after
-the prepare phase of a two-phase transaction. If the value is set to 
+the prepare phase of a two-phase transaction. If the value is set to
 ``write_unprepared``, then data are written before the prepare phase.

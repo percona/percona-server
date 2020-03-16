@@ -45,6 +45,8 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Will not open tablespace `test/.*`");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test`\.`.*` because the \.ibd file is missing");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test/.*` because it could not be opened.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace [0-9]+");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot save statistics for table `test`\.`.*` because the \.ibd file is missing.");
 --enable_query_log
 
 --echo #

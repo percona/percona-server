@@ -120,7 +120,7 @@ Rdb_cf_manager::get_or_create_cf(rocksdb::DB *const rdb,
     } else {
       RDB_MUTEX_UNLOCK_CHECK(m_mutex);
       my_error(ER_WRONG_ARGUMENTS, MYF(0),
-               "CREATE | ALTER | SET rocksdb_update_cf_options - can not find "
+               "CREATE | ALTER - can not find "
                "column family for storing index data and creation is not "
                "allowed.");
       return nullptr;
@@ -157,7 +157,7 @@ Rdb_cf_manager::get_cf(const std::string &cf_name_arg) const {
   return cf_handle;
 }
 
-rocksdb::ColumnFamilyHandle *Rdb_cf_manager::get_cf(const uint32_t &id) const {
+rocksdb::ColumnFamilyHandle *Rdb_cf_manager::get_cf(const uint32_t id) const {
   rocksdb::ColumnFamilyHandle *cf_handle = nullptr;
 
   RDB_MUTEX_LOCK_CHECK(m_mutex);

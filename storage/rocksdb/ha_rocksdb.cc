@@ -45,10 +45,6 @@
 #include "sql_partition.h"
 #include "sql_table.h"
 
-// Both MySQL and RocksDB define the same constant. To avoid compilation errors
-// till we make the fix in RocksDB, we'll temporary undefine it here.
-#undef CACHE_LINE_SIZE
-
 /* RocksDB includes */
 #include "monitoring/histogram.h"
 #include "rocksdb/compaction_filter.h"
@@ -471,6 +467,7 @@ static uint32_t rocksdb_force_compute_memtable_stats_cachetime =
 static my_bool rocksdb_debug_optimizer_no_zero_cardinality = TRUE;
 static uint32_t rocksdb_wal_recovery_mode =
     static_cast<uint32_t>(rocksdb::WALRecoveryMode::kAbsoluteConsistency);
+static uint32_t rocksdb_stats_level = 0;
 static uint32_t rocksdb_access_hint_on_compaction_start =
     rocksdb::Options::AccessHint::NORMAL;
 static char *rocksdb_compact_cf_name = nullptr;
@@ -590,6 +587,23 @@ static void rocksdb_set_rocksdb_info_log_level(
   rocksdb_info_log_level = *static_cast<const uint64_t *>(save);
   rocksdb_db_options->info_log->SetInfoLogLevel(
       static_cast<rocksdb::InfoLogLevel>(rocksdb_info_log_level));
+  RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
+}
+
+static void rocksdb_set_rocksdb_stats_level(THD *const thd,
+                                            struct st_mysql_sys_var *const var,
+                                            void *const var_ptr,
+                                            const void *const save) {
+  DBUG_ASSERT(save != nullptr);
+
+  RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
+  rocksdb_db_options->statistics->set_stats_level(
+      static_cast<rocksdb::StatsLevel>(
+          *static_cast<const uint64_t *>(save)));
+  // Actual stats level is defined at rocksdb dbopt::statistics::stats_level_
+  // so adjusting rocksdb_stats_level here to make sure it points to
+  // the correct stats level.
+  rocksdb_stats_level = rocksdb_db_options->statistics->get_stats_level();
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
@@ -729,7 +743,7 @@ static MYSQL_THDVAR_BOOL(
     " Blind delete is disabled if the table has secondary key",
     nullptr, nullptr, FALSE);
 
-#define DEFAULT_READ_FREE_RPL_TABLES ".*"
+static const char *DEFAULT_READ_FREE_RPL_TABLES = ".*";
 
 static int get_regex_flags()
 {
@@ -746,6 +760,7 @@ static int rocksdb_validate_read_free_rpl_tables(
   char buff[STRING_BUFFER_USUAL_SIZE];
   int length = sizeof(buff);
   const char *wlist_buf = value->val_str(value, buff, &length);
+  if (wlist_buf) wlist_buf= thd->strmake(wlist_buf, length); // make a temp copy
   const auto wlist = wlist_buf ? wlist_buf : DEFAULT_READ_FREE_RPL_TABLES;
 
 #if defined(HAVE_PSI_INTERFACE)
@@ -759,7 +774,7 @@ static int rocksdb_validate_read_free_rpl_tables(
     return HA_EXIT_FAILURE;
   }
 
-  *static_cast<const char **>(save) = my_strdup(PSI_NOT_INSTRUMENTED, wlist, MYF(MY_WME));
+  *static_cast<const char **>(save) = wlist;
   return HA_EXIT_SUCCESS;
 }
 
@@ -783,7 +798,7 @@ static void rocksdb_update_read_free_rpl_tables(
   } updater;
   ddl_manager.scan_for_tables(&updater);
 
-  *static_cast<const char **>(var_ptr) = my_strdup(PSI_NOT_INSTRUMENTED, wlist, MYF(MY_WME));
+  *static_cast<const char **>(var_ptr) = *static_cast<char *const *>(save);
 }
 
 static MYSQL_SYSVAR_STR(
@@ -988,6 +1003,14 @@ static MYSQL_SYSVAR_UINT(
     /* default */ (uint)rocksdb::WALRecoveryMode::kAbsoluteConsistency,
     /* min */ (uint)rocksdb::WALRecoveryMode::kTolerateCorruptedTailRecords,
     /* max */ (uint)rocksdb::WALRecoveryMode::kSkipAnyCorruptedRecords, 0);
+
+static MYSQL_SYSVAR_UINT(
+    stats_level, rocksdb_stats_level, PLUGIN_VAR_RQCMDARG,
+    "Statistics Level for RocksDB. Default is 0 (kExceptHistogramOrTimers)",
+    nullptr, rocksdb_set_rocksdb_stats_level,
+    /* default */ (uint)rocksdb::StatsLevel::kExceptHistogramOrTimers,
+    /* min */ (uint)rocksdb::StatsLevel::kExceptHistogramOrTimers,
+    /* max */ (uint)rocksdb::StatsLevel::kAll, 0);
 
 static MYSQL_SYSVAR_ULONG(compaction_readahead_size,
                           rocksdb_db_options->compaction_readahead_size,
@@ -1778,6 +1801,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(enable_thread_tracking),
     MYSQL_SYSVAR(perf_context_level),
     MYSQL_SYSVAR(wal_recovery_mode),
+    MYSQL_SYSVAR(stats_level),
     MYSQL_SYSVAR(access_hint_on_compaction_start),
     MYSQL_SYSVAR(new_table_reader_for_compaction_inputs),
     MYSQL_SYSVAR(compaction_readahead_size),
@@ -4370,6 +4394,9 @@ static int rocksdb_init_func(void *const p) {
                                       get_regex_flags(), table_alias_charset);
 
   rocksdb_stats = rocksdb::CreateDBStatistics();
+  rocksdb_stats->set_stats_level(
+      static_cast<rocksdb::StatsLevel>(rocksdb_stats_level));
+  rocksdb_stats_level = rocksdb_stats->get_stats_level();
   rocksdb_db_options->statistics = rocksdb_stats;
 
   if (rocksdb_rate_limiter_bytes_per_sec != 0) {

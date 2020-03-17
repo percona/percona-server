@@ -7451,7 +7451,6 @@ ulong ha_rocksdb::index_flags(bool &pk_can_be_decoded,
   if (check_keyread_allowed(pk_can_be_decoded, table_share, inx, part,
                             all_parts))
     base_flags |= HA_KEYREAD_ONLY;
-  }
 
   if (inx == table_share->primary_key) {
     /*

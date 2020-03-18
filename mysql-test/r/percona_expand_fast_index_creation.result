@@ -153,4 +153,36 @@ DROP TABLE t1;
 # PS-6903: CREATE TEMPORARY TABLE crashes with expand_fast index creation
 #
 CREATE TEMPORARY TABLE t1 LIKE information_schema.processlist;
+#
+# PS-6922: Running ALTER TABLE with with expand_fast_index_creation enabled can lead to a crash
+#
+# Below queries would crash the server. Check that they work OK now.
+ALTER TABLE mysql.db ORDER BY db DESC;
+Warnings:
+Warning	1105	ORDER BY ignored as there is a user-defined clustered index in the table 'db'
+1
+ALTER TABLE mysql.tables_priv MODIFY User CHAR DEFAULT'',MODIFY gRANTOR CHAR DEFAULT'';
+ERROR 01000: Data truncated for column 'User' at row 1
+CREATE TABLE t_part
+(a int,
+b int,
+c varchar(64),
+KEY (a),
+KEY (b),
+KEY (c,b))
+ENGINE = InnoDB
+ENCRYPTION='N'
+PARTITION BY HASH (a) PARTITIONS 5;
+ALTER TABLE t_part ORDER BY a DESC;
+CREATE TABLE t2_part
+(a int,
+b int,
+c varchar(64),
+KEY (a),
+KEY (b),
+KEY (c,b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 5;
+ALTER TABLE t2_part ENCRYPTION='N', ORDER BY a DESC;
+DROP TABLE t_part,t2_part;
 SET SESSION expand_fast_index_creation=OFF;

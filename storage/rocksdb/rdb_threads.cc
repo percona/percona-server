@@ -16,7 +16,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation // gcc: Class implementation
+#pragma implementation  // gcc: Class implementation
 #endif
 
 /* The C++ file's header */
@@ -39,7 +39,7 @@ void Rdb_thread::init(
     my_core::PSI_mutex_key stop_bg_psi_mutex_key,
     my_core::PSI_cond_key stop_bg_psi_cond_key
 #endif
-    ) {
+) {
   DBUG_ASSERT(!m_run_once);
   mysql_mutex_init(stop_bg_psi_mutex_key, &m_signal_mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(stop_bg_psi_cond_key, &m_signal_cond);
@@ -55,7 +55,7 @@ int Rdb_thread::create_thread(const std::string &thread_name
                               ,
                               PSI_thread_key background_psi_thread_key
 #endif
-                              ) {
+) {
   DBUG_ASSERT(!thread_name.empty());
 
   int err = mysql_thread_create(background_psi_thread_key, &m_handle, nullptr,
@@ -76,4 +76,4 @@ void Rdb_thread::signal(const bool stop_thread) {
   RDB_MUTEX_UNLOCK_CHECK(m_signal_mutex);
 }
 
-} // namespace myrocks
+}  // namespace myrocks

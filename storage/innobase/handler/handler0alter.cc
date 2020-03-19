@@ -654,9 +654,19 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_need_rebuild(
   Alter_inplace_info::HA_ALTER_FLAGS alter_inplace_flags =
       ha_alter_info->handler_flags & ~(INNOBASE_INPLACE_IGNORE);
 
-  if (Encryption::none_explicitly_specified(
-          ha_alter_info->create_info->explicit_encryption,
-          ha_alter_info->create_info->encrypt_type.str) ||
+  const bool was_none_explicitly_specified{
+      Encryption::none_explicitly_specified(old_table->s->explicit_encryption,
+                                            old_table->s->encrypt_type.str)};
+
+  const bool is_none_explicitly_specified{Encryption::none_explicitly_specified(
+      ha_alter_info->create_info->explicit_encryption,
+      ha_alter_info->create_info->encrypt_type.str)};
+
+  const bool is_file_per_table{
+      !tablespace_is_shared_space(ha_alter_info->create_info)};
+
+  if ((!was_none_explicitly_specified && is_none_explicitly_specified &&
+       is_file_per_table) ||
       (Encryption::is_keyring(ha_alter_info->create_info->encrypt_type.str) &&
        !Encryption::is_keyring(old_table->s->encrypt_type.str)) ||
       ha_alter_info->create_info->encryption_key_id !=

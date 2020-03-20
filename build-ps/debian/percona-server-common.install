@@ -1,6 +1,5 @@
 # localized error msgs
 usr/share/mysql/*/errmsg.sys
-usr/share/mysql/errmsg-utf8.txt
 # charsets
 usr/share/mysql/charsets/*.xml
 usr/share/mysql/charsets/README

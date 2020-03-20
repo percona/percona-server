@@ -8,7 +8,7 @@
 +TARGET_LINK_LIBRARIES(client_base mysqlclient)
 --- client/CMakeLists.txt	2018-08-18 03:29:59.708213642 -0400
 +++ client/CMakeLists.txt	2018-08-18 03:29:59.712547041 -0400
-@@ -34,13 +34,13 @@
+@@ -39,13 +39,13 @@
    mysql.cc
    pattern_matcher.cc
    readline.cc
@@ -24,7 +24,7 @@
      )
  ENDIF()
  
-@@ -63,24 +63,24 @@
+@@ -68,24 +68,24 @@
    COMPONENT Test
    DEPENDENCIES GenError GenClientError
    ENABLE_EXPORTS
@@ -54,8 +54,8 @@
    )
  MYSQL_ADD_EXECUTABLE(mysqlbinlog
    mysqlbinlog.cc
-@@ -103,7 +103,7 @@
-   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
+@@ -109,7 +109,7 @@
+   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/trx_boundary_parser.cpp
  
    DEPENDENCIES GenError
 -  LINK_LIBRARIES perconaserverclient client_base binlogevents_static
@@ -63,7 +63,7 @@
    )
  
  TARGET_COMPILE_DEFINITIONS(mysqlbinlog PRIVATE DISABLE_PSI_MUTEX)
-@@ -111,19 +111,19 @@
+@@ -117,19 +117,19 @@
  
  MYSQL_ADD_EXECUTABLE(mysqladmin
    mysqladmin.cc
@@ -347,10 +347,10 @@
  	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 --- storage/ndb/test/run-test/CMakeLists.txt	2018-08-18 03:33:54.833050942 -0400
 +++ storage/ndb/test/run-test/CMakeLists.txt	2018-08-18 03:33:54.837384341 -0400
-@@ -45,7 +45,7 @@
-   command.cpp
+@@ -46,7 +46,7 @@
    test_execution_resources.cpp
    DESTINATION mysql-test/ndb
+   ENABLE_EXPORTS
 -  LINK_LIBRARIES ndbNDBT ndbclient_static perconaserverclient
 +  LINK_LIBRARIES ndbNDBT ndbclient_static mysqlclient
    )
@@ -358,8 +358,8 @@
  FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
 --- testclients/CMakeLists.txt	2018-08-18 03:34:01.038478951 -0400
 +++ testclients/CMakeLists.txt	2018-08-18 03:34:01.042812350 -0400
-@@ -21,9 +21,9 @@
- # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+@@ -23,9 +23,9 @@
+ ADD_WSHADOW_WARNING()
  
  MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.cc COMPONENT Test)
 -TARGET_LINK_LIBRARIES(mysql_client_test perconaserverclient)
@@ -383,14 +383,15 @@
    IF(UNIX)
 --- unittest/gunit/group_replication/CMakeLists.txt     2018-08-22 01:55:48.775894920 -0400
 +++ unittest/gunit/group_replication/CMakeLists.txt     2018-08-22 01:56:19.804229110 -0400
-@@ -46,6 +46,6 @@
-   TARGET_LINK_LIBRARIES(${test}-t
-     gr_unit_test_resource gunit_small ${GCS_LIBRARY})
-   SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
--  TARGET_LINK_LIBRARIES(${test}-t perconaserverclient)
-+  TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
+@@ -40,7 +40,7 @@
+     LINK_LIBRARIES
+     gr_unit_test_resource
+     gunit_small
+-    perconaserverclient
++    mysqlclient
+     mysqlgcs
+     )
  ENDFOREACH()
- 
 --- unittest/gunit/xplugin/CMakeLists.txt	2018-08-22 02:34:45.000000000 -0400
 +++ unittest/gunit/xplugin/CMakeLists.txt 	2018-08-22 02:55:10.561454824 -0400
 @@ -164,7 +164,7 @@
@@ -470,11 +471,11 @@
    ADD_LIBRARY(router_lib STATIC ${lib_source_files})
  ENDIF()
  TARGET_LINK_LIBRARIES(router_lib
--  ${CMAKE_DL_LIBS} harness-library perconaserverclient ${SSL_LIBRARIES})
-+  ${CMAKE_DL_LIBS} harness-library mysqlclient ${SSL_LIBRARIES})
- IF(WIN32)
-   TARGET_LINK_LIBRARIES(router_lib crypt32)
- ENDIF()
+-  ${CMAKE_DL_LIBS} harness-library perconaserverclient ${SSL_LIBRARIES}
++  ${CMAKE_DL_LIBS} harness-library mysqlclient ${SSL_LIBRARIES}
+   )
+ TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
+ 
 --- router/tests/fuzzers/CMakeLists.txt 2019-12-04 10:04:41.996129551 +0200
 +++ router/tests/fuzzers/CMakeLists.txt 2019-12-04 10:11:53.090550318 +0200
 @@ -32,7 +32,7 @@

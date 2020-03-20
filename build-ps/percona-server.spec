@@ -1016,7 +1016,6 @@ fi
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %attr(755, root, root) %{_datadir}/percona-server/charsets/
-%attr(755, root, root) %{_datadir}/percona-server/errmsg-utf8.txt
 %attr(755, root, root) %{_datadir}/percona-server/bulgarian/
 %attr(755, root, root) %{_datadir}/percona-server/czech/
 %attr(755, root, root) %{_datadir}/percona-server/danish/

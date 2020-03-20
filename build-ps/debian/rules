@@ -90,6 +90,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
                 -DWITH_EDITLINE=bundled \
                 -DWITH_LIBEVENT=bundled \
                 -DWITH_NUMA=ON \
+                -DWITH_LDAP=ON \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_DEBUG) ..
 endif
 
@@ -134,6 +135,7 @@ endif
                 -DWITH_EDITLINE=bundled \
                 -DWITH_LIBEVENT=bundled \
                 -DWITH_NUMA=ON \
+                -DWITH_LDAP=ON \
 		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_RELEASE) ..
 
 	touch $@

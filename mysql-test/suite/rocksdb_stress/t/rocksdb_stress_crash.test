@@ -1,4 +1,7 @@
 # basic stress tests for myrocks, runs the load generator with periodic crashes
+--source include/have_rocksdb.inc
+
+SET @@session.default_storage_engine = ROCKSDB;
 
 # Don't test this under valgrind, memory leaks will occur
 --disable_warnings

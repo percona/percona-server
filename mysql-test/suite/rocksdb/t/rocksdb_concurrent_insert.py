@@ -41,7 +41,7 @@ class Inserter(threading.Thread):
       self.runme()
     except Exception as e:
       self.exception = traceback.format_exc()
-      print("caught (%s)" % e)
+      print("caught (%py)" % e)
     finally:
       self.finish()
   def runme(self):

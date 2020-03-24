@@ -115,9 +115,6 @@ TokuDB Changes and Fixes
 * A data race was fixed in minicron utility of the PerconaFT, as a contribution
   by Rik Prohaska. Bug fixed :psbug:`4281`.
 
-* Row count and cardinality decrease to zero took place after long-running
-  ``REPLACE`` load, ending up with full table scans for any action. Bug fixed
-  :psbug:`4296`.
 
 Other Bugs Fixed
 ================

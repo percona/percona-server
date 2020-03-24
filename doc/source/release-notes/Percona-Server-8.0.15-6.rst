@@ -136,15 +136,10 @@ Bugs Fixed
   Bug fixed :psbug:`5501`.
 
 Other bugs fixed:
-:psbug:`5537`,
 :psbug:`5243`,
-:psbug:`5371`,
-:psbug:`5475`,
 :psbug:`5484`,
 :psbug:`5512`,
-:psbug:`5514`,
 :psbug:`5523`,
-:psbug:`5528`,
 :psbug:`5536`,
 :psbug:`5550`,
 :psbug:`5570`,

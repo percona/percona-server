@@ -11,7 +11,8 @@ values(2, 2);
 insert into t1 (id1, id2)
 values(3, 3);
 set global rocksdb_force_flush_memtable_now = true;
-set @@global.rocksdb_update_cf_options= 'cf_secondary_key={};';
+create table create_cf ( id int, primary key (id) comment 'cf_secondary_key' ) engine=rocksdb;
+drop table create_cf;
 set @@global.debug = '+d,rocksdb_create_secondary_cf';
 set @@global.debug = '+d,rocksdb_drop_cf';
 alter table t1 add index secondary_key (id2) comment 'cf_secondary_key';
@@ -82,5 +83,4 @@ select count(*) > 0 from information_schema.rocksdb_cfstats where cf_name = 'cf_
 count(*) > 0
 1
 set @@global.debug = @old_debug;
-set @@global.rocksdb_update_cf_options= @save.rocksdb_update_cf_options;
 drop table t1;

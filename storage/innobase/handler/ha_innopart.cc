@@ -3310,6 +3310,17 @@ ha_innopart::records_in_range(
 	DBUG_ENTER("ha_innopart::records_in_range");
 	DBUG_PRINT("info", ("keynr %u min %p max %p", keynr, min_key, max_key));
 
+	ha_rows ret = innodb_records_in_range(ha_thd());
+	if (ret) {
+		DBUG_RETURN(ret);
+	}
+	if (table->force_index) {
+		const ha_rows force_rows = innodb_force_index_records_in_range(ha_thd());
+		if (force_rows) {
+			DBUG_RETURN(force_rows);
+		}
+	}
+
 	ut_a(m_prebuilt->trx == thd_to_trx(ha_thd()));
 
 	m_prebuilt->trx->op_info = (char*)"estimating records in index range";

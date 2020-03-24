@@ -625,6 +625,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   int2store(end + 5, protocol->get_client_capabilities() >> 16);
   end[7]= data_len;
   DBUG_EXECUTE_IF("poison_srv_handshake_scramble_len", end[7]= -100;);
+  DBUG_EXECUTE_IF("increase_srv_handshake_scramble_len", end[7]= 50;);
   memset(end + 8, 0, 10);
   end+= 18;
   /* write scramble tail */
@@ -2929,7 +2930,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
   String scramble_response_packet;
   int cipher_length= 0;
-  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
+  unsigned char plain_text[MAX_CIPHER_LENGTH + 1]= "";
   RSA *private_key= NULL;
   RSA *public_key= NULL;
 

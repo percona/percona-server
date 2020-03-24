@@ -7645,7 +7645,8 @@ ulong ha_rocksdb::index_flags(bool &pk_can_be_decoded,
       plans.
     */
     base_flags |= HA_KEYREAD_ONLY;
-  } else {
+  } else if (res) {
+    /* We can do ICP only if we are able to decode the key (res == true) */
     /*
       We can Index Condition Pushdown any key except the primary. With primary
       key, we get (pk, record) pair immediately, there is no place to put the
@@ -14368,26 +14369,28 @@ static int rocksdb_validate_update_cf_options(
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "rocksdb_update_cf_options", str);
     return HA_EXIT_FAILURE;
   }
-  // Loop through option_map and create missing column families
-  for (Rdb_cf_options::Name_to_config_t::iterator it = option_map.begin();
-       it != option_map.end(); ++it) {
-    // If the CF is removed at this point, i.e., cf_manager.drop_cf() has
-    // been called, it is OK to create a new CF.
-
-    const auto &cf_name = it->first;
-    {
-      std::lock_guard<Rdb_dict_manager> dm_lock(dict_manager);
-      auto cfh = cf_manager.get_or_create_cf(rdb, cf_name, !rocksdb_no_create_column_family);
-
-      if (!cfh) {
-        return HA_EXIT_FAILURE;
-      }
-
-      if (cf_manager.create_cf_flags_if_needed(&dict_manager, cfh->GetID(),
-                                               cf_name)) {
-        return HA_EXIT_FAILURE;
-      }
+  // Loop through option_map and check if all specified CFs exist.
+  std::vector<const std::string *> unknown_cfs;
+  for (const auto &option : option_map) {
+    if (!cf_manager.get_cf(option.first)) {
+      unknown_cfs.push_back(&(option.first));
     }
+  }
+
+  if (!unknown_cfs.empty()) {
+    std::string err(str);
+    err.append(" Unknown CF: ");
+    bool first = true;
+    for (const auto cf : unknown_cfs) {
+      if (first)
+        first = false;
+      else
+        err.append(", ");
+      err.append(*cf);
+    }
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "rocksdb_update_cf_options",
+             err.c_str());
+    return HA_EXIT_FAILURE;
   }
   return HA_EXIT_SUCCESS;
 }

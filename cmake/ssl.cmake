@@ -27,8 +27,7 @@
 #   or
 #     - cmake -DWITH_SSL=</path/to/custom/openssl>
 #
-# The default value for WITH_SSL is "system"
-# set in cmake/build_configurations/feature_set.cmake
+# The default value for WITH_SSL is "system".
 #
 # WITH_SSL="system" means: use the SSL library that comes with the operating
 # system. This typically means you have to do 'yum install openssl-devel'
@@ -37,7 +36,7 @@
 # For Windows or macOS, WITH_SSL="system" is handled a bit differently:
 # We assume you have installed
 #     https://slproweb.com/products/Win32OpenSSL.html
-#     We look for "C:/OpenSSL-Win64/"
+#     We look for "C:/Program Files/OpenSSL-Win64/"
 #     The .dll files must be in your PATH.
 # or
 #     http://brewformulas.org/Openssl
@@ -54,9 +53,6 @@ SET(WITH_SSL_DOC
   "${WITH_SSL_DOC}, \n</path/to/custom/openssl/installation>")
 
 STRING(REPLACE "\n" "| " WITH_SSL_DOC_STRING "${WITH_SSL_DOC}")
-MACRO (CHANGE_SSL_SETTINGS string)
-  SET(WITH_SSL ${string} CACHE STRING ${WITH_SSL_DOC_STRING} FORCE)
-ENDMACRO()
 
 MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
   MESSAGE(STATUS "\n${string}"
@@ -100,7 +96,7 @@ ENDMACRO()
 # WITH_SSL=[yes|system|<path/to/custom/installation>]
 MACRO (MYSQL_CHECK_SSL)
   IF(NOT WITH_SSL)
-    CHANGE_SSL_SETTINGS("system")
+    SET(WITH_SSL "system" CACHE STRING ${WITH_SSL_DOC_STRING} FORCE)
   ENDIF()
 
   # See if WITH_SSL is of the form </path/to/custom/installation>
@@ -122,10 +118,7 @@ MACRO (MYSQL_CHECK_SSL)
       IF(APPLE)
         SET(WITH_SSL_PATH "/usr/local/opt/openssl")
       ELSE()
-        SET(WITH_SSL_PATH "C:/OpenSSL-Win64/")
-        # OpenSSL-1.1 requires backport of the patch for
-        # Bug #28179051: ADD SUPPORT FOR OPENSSL 1.1 ON WINDOWS
-        # SET(WITH_SSL_PATH "C:/OpenSSL-1.1-Win64/")
+        SET(WITH_SSL_PATH "C:/Program Files/OpenSSL-Win64/")
       ENDIF()
     ENDIF()
 
@@ -149,13 +142,14 @@ MACRO (MYSQL_CHECK_SSL)
     IF (WIN32)
       FIND_FILE(OPENSSL_APPLINK_C
         NAMES openssl/applink.c
+        NO_DEFAULT_PATH
         HINTS ${OPENSSL_ROOT_DIR}/include
       )
       MESSAGE(STATUS "OPENSSL_APPLINK_C ${OPENSSL_APPLINK_C}")
     ENDIF()
 
     # On mac this list is <.dylib;.so;.a>
-    # We prefer static libraries, so we revert it here.
+    # We prefer static libraries, so we reverse it here.
     IF (WITH_SSL_PATH)
       LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
       MESSAGE(STATUS "suffixes <${CMAKE_FIND_LIBRARY_SUFFIXES}>")
@@ -194,6 +188,10 @@ MACRO (MYSQL_CHECK_SSL)
     ENDIF()
     IF("${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_FIX_VERSION}" VERSION_GREATER "1.1.0")
        ADD_DEFINITIONS(-DHAVE_TLSv13)
+       SET(HAVE_TLSv13 1)
+       IF(SOLARIS)
+         SET(FORCE_SSL_SOLARIS "-Wl,--undefined,address_of_sk_new_null")
+       ENDIF()
     ENDIF()
     IF(OPENSSL_INCLUDE_DIR AND
        OPENSSL_LIBRARY   AND
@@ -223,6 +221,9 @@ MACRO (MYSQL_CHECK_SSL)
         SET(MY_OPENSSL_LIBRARY imported_openssl)
         ADD_IMPORTED_LIBRARY(imported_openssl "${OPENSSL_LIBRARY}")
       ENDIF()
+      IF(CRYPTO_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".a")
+        SET(STATIC_SSL_LIBRARY 1)
+      ENDIF()
     ENDIF()
 
     MESSAGE(STATUS "OPENSSL_INCLUDE_DIR = ${OPENSSL_INCLUDE_DIR}")
@@ -233,9 +234,13 @@ MACRO (MYSQL_CHECK_SSL)
     MESSAGE(STATUS "OPENSSL_FIX_VERSION = ${OPENSSL_FIX_VERSION}")
 
     INCLUDE(CheckSymbolExists)
+
+    CMAKE_PUSH_CHECK_STATE()
     SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
     CHECK_SYMBOL_EXISTS(SHA512_DIGEST_LENGTH "openssl/sha.h"
                         HAVE_SHA512_DIGEST_LENGTH)
+    CMAKE_POP_CHECK_STATE()
+
     IF(OPENSSL_FOUND AND HAVE_SHA512_DIGEST_LENGTH)
       SET(SSL_SOURCES "")
       SET(SSL_LIBRARIES ${MY_OPENSSL_LIBRARY} ${MY_CRYPTO_LIBRARY})
@@ -247,7 +252,9 @@ MACRO (MYSQL_CHECK_SSL)
       ENDIF()
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
       IF(WIN32 AND WITH_SSL STREQUAL "system")
-        MESSAGE(STATUS "Please do\nPATH=${WITH_SSL_PATH}:$PATH")
+        MESSAGE(STATUS "Please do\nPATH=\"${WITH_SSL_PATH}bin\":$PATH")
+        FILE(TO_NATIVE_PATH "${WITH_SSL_PATH}" WITH_SSL_PATH_XX)
+        MESSAGE(STATUS "or\nPATH=\"${WITH_SSL_PATH_XX}bin\":$PATH")
       ENDIF()
       SET(SSL_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
       SET(SSL_INTERNAL_INCLUDE_DIRS "")

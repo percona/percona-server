@@ -1397,7 +1397,9 @@ void PFS_connection_status_visitor::visit_thread(PFS_thread *pfs)
 
 void PFS_connection_status_visitor::visit_THD(THD *thd)
 {
-  add_to_status(m_status_vars, &thd->status_var, false);
+  if (!thd->status_var_aggregated) {
+    add_to_status(m_status_vars, &thd->status_var, false);
+  }
 }
 
 

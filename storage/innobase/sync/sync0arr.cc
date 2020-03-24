@@ -312,8 +312,8 @@ sync_cell_get_event(
 
 		return(cell->latch.mutex->event());
 
-	} else if (type == SYNC_BUF_BLOCK) {
-
+	} else if (type == SYNC_BUF_BLOCK ||
+		   type == SYNC_DICT_AUTOINC_MUTEX) {
 		return(cell->latch.bpmutex->event());
 
 	} else if (type == RW_LOCK_X_WAIT) {
@@ -374,7 +374,8 @@ sync_array_reserve_cell(
 
 	if (cell->request_type == SYNC_MUTEX) {
 		cell->latch.mutex = reinterpret_cast<WaitMutex*>(object);
-	} else if (cell->request_type == SYNC_BUF_BLOCK) {
+	} else if (cell->request_type == SYNC_BUF_BLOCK ||
+		   cell->request_type == SYNC_DICT_AUTOINC_MUTEX) {
 		cell->latch.bpmutex = reinterpret_cast<BlockWaitMutex*>(object);
 	} else {
 		cell->latch.lock = reinterpret_cast<rw_lock_t*>(object);
@@ -534,7 +535,8 @@ sync_array_cell_print(
 			(ulong) policy.get_enter_line()
 #endif /* UNIV_DEBUG */
 		       );
-	} else if (type == SYNC_BUF_BLOCK) {
+	} else if (type == SYNC_BUF_BLOCK ||
+		   type == SYNC_DICT_AUTOINC_MUTEX) {
 		BlockWaitMutex*	mutex = cell->latch.bpmutex;
 
 		const BlockWaitMutex::MutexPolicy&	policy =
@@ -777,7 +779,8 @@ sync_array_detect_deadlock(
 		return(false);
 		}
 
-	case SYNC_BUF_BLOCK: {
+	case SYNC_BUF_BLOCK:
+	case SYNC_DICT_AUTOINC_MUTEX: {
 
 		BlockWaitMutex*	mutex = cell->latch.bpmutex;
 

@@ -532,6 +532,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
     pfs->m_stmt_lock.set_allocated();
     pfs->m_session_lock.set_allocated();
     pfs->set_enabled(true);
+    pfs->m_disable_instrumentation= false;
     pfs->set_history(true);
     pfs->m_class= klass;
     pfs->m_events_waits_current= & pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];

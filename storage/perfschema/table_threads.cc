@@ -249,12 +249,15 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_connection_type = pfs->m_connection_type;
 
 
-  m_row.m_enabled= pfs->m_enabled;
+  m_row.m_enabled= !pfs->m_disable_instrumentation && pfs->m_enabled;
   m_row.m_history= pfs->m_history;
   m_row.m_psi= pfs;
 
   if (pfs->m_lock.end_optimistic_lock(& lock))
     m_row_exists= true;
+
+  if(pfs->m_disable_instrumentation)
+    m_row_exists= false;
 }
 
 int table_threads::read_row_values(TABLE *table,

@@ -46,7 +46,13 @@ The ``libperconaserverclient20`` package contains the client shared library. The
 Installing |Percona Server| from Percona ``apt`` repository
 ===========================================================
 
-1. Fetch the repository packages from Percona web:
+1. Install ``GnuPG``, the GNU Privacy Guard:
+
+   .. code-block:: bash
+
+      $ sudo apt-get install gnupg2
+
+2. Fetch the repository packages from Percona web:
 
    .. code-block:: bash
 

@@ -515,6 +515,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(row_drop_list_mutex),
 	PSI_KEY(master_key_id_mutex),
 	PSI_KEY(scrub_stat_mutex),
+	PSI_KEY(analyze_index_mutex),
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -642,6 +643,26 @@ static MYSQL_THDVAR_UINT(default_encryption_key_id, PLUGIN_VAR_RQCMDARG,
 uint get_global_default_encryption_key_id_value()
 {
 	return THDVAR(NULL, default_encryption_key_id);
+}
+
+static MYSQL_THDVAR_UINT(records_in_range, PLUGIN_VAR_RQCMDARG,
+                         "Used to override the result of records_in_range(). "
+                         "Set to a positive number to override",
+                         NULL, NULL, 0,
+                         /* min */ 0, /* max */ INT_MAX, 0);
+
+static MYSQL_THDVAR_UINT(force_index_records_in_range, PLUGIN_VAR_RQCMDARG,
+                         "Used to override the result of records_in_range() "
+                         "when FORCE INDEX is used.",
+                         NULL, NULL, 0,
+                         /* min */ 0, /* max */ INT_MAX, 0);
+
+uint innodb_force_index_records_in_range(THD* thd) {
+	return THDVAR(thd, force_index_records_in_range);
+}
+
+uint innodb_records_in_range(THD* thd) {
+	return THDVAR(thd, records_in_range);
 }
 
 /** Set up InnoDB API callback function array */
@@ -7059,11 +7080,7 @@ ha_innobase::open(
 
 	innobase_copy_frm_flags_from_table_share(ib_table, table->s);
 
-	if (ib_table->is_readable()) {
-		dict_stats_init(ib_table);
-	} else {
-		ib_table->stat_initialized = 1;
-	}
+	dict_stats_init(ib_table);
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -8509,6 +8526,8 @@ ha_innobase::innobase_lock_autoinc(void)
 
 			/* Acquire the AUTOINC mutex. */
 			dict_table_autoinc_lock(ib_table);
+
+			DEBUG_SYNC_C("innobase_lock_autoinc");
 
 			/* We need to check that another transaction isn't
 			already holding the AUTOINC lock on the table. */
@@ -23029,6 +23048,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(background_scrub_data_compressed),
   MYSQL_SYSVAR(background_scrub_data_interval),
   MYSQL_SYSVAR(background_scrub_data_check_interval),
+  MYSQL_SYSVAR(records_in_range),
+  MYSQL_SYSVAR(force_index_records_in_range),
   NULL
 };
 

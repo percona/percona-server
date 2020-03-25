@@ -326,4 +326,4 @@ class Ensure_cleanup {
  private:
   std::function<void()> m_cleanup;
 };
-} // namespace myrocks
+}  // namespace myrocks

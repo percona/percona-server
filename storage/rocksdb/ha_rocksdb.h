@@ -309,10 +309,12 @@ class ha_rocksdb : public my_core::handler {
                  rocksdb::PinnableSlice *value) const;
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
-                       const uint rowid_size, const bool skip_ttl_check = true, const bool skip_lookup = false)
+                       const uint rowid_size, const bool skip_ttl_check = true,
+                       const bool skip_lookup = false)
       MY_ATTRIBUTE((__warn_unused_result__));
   int get_row_by_rowid(uchar *const buf, const uchar *const rowid,
-                       const uint rowid_size, const bool skip_ttl_check = true, const bool skip_lookup = false)
+                       const uint rowid_size, const bool skip_ttl_check = true,
+                       const bool skip_lookup = false)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__)) {
     return get_row_by_rowid(buf, reinterpret_cast<const char *>(rowid),
                             rowid_size, skip_ttl_check, skip_lookup);
@@ -941,14 +943,9 @@ class ha_rocksdb : public my_core::handler {
   ha_rows records_in_range(uint inx, key_range *const min_key,
                            key_range *const max_key) override
       MY_ATTRIBUTE((__warn_unused_result__));
-  int delete_non_partitioned_table(const char *const from)
-      MY_ATTRIBUTE((__warn_unused_result__));
-  int delete_partitioned_table(const char *const from,
-                               const std::string &partition_info_str)
-      MY_ATTRIBUTE((__warn_unused_result__));
 
   int delete_table(Rdb_tbl_def *const tbl);
-  int delete_table(const char *const from) override
+  int delete_table(const char *const from, const dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
   int create(const char *const name, TABLE *const form,
              HA_CREATE_INFO *const create_info, dd::Table *table_def) override
@@ -1009,7 +1006,7 @@ class ha_rocksdb : public my_core::handler {
   virtual void rpl_after_update_rows() override;
   virtual bool rpl_lookup_rows() override;
 
-  virtual bool use_read_free_rpl(); // MyRocks only
+  virtual bool use_read_free_rpl();  // MyRocks only
 
  private:
   /* Flags tracking if we are inside different replication operation */

@@ -14649,7 +14649,12 @@ void ha_rocksdb::rpl_after_update_rows() {
 bool ha_rocksdb::rpl_lookup_rows() { return !use_read_free_rpl(); }
 
 bool ha_rocksdb::is_read_free_rpl_table() const {
+#if 1  // Percona Server disabled rocksdb_read_free_rpl_tables as it's dangerous
+       // to use
+  return true;
+#else
   return table->s && m_tbl_def->m_is_read_free_rpl_table;
+#endif
 }
 
 /**

@@ -735,7 +735,7 @@ static MYSQL_THDVAR_BOOL(
     blind_delete_primary_key, PLUGIN_VAR_RQCMDARG,
     "Deleting rows by primary key lookup, without reading rows (Blind Deletes)."
     " Blind delete is disabled if the table has secondary key",
-    nullptr, nullptr, FALSE);
+    nullptr, nullptr, false);
 
 static MYSQL_THDVAR_STR(
     read_free_rpl_tables, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
@@ -2399,10 +2399,9 @@ class Rdb_transaction {
 
     const rocksdb::Status s = rdb->IngestExternalFiles(args);
     if (THDVAR(m_thd, trace_sst_api)) {
-      // NO_LINT_DEBUG
-      sql_print_information(
-          "SST Tracing: IngestExternalFile '%zu' files returned %s", file_count,
-          s.ok() ? "ok" : "not ok");
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "SST Tracing: IngestExternalFile '%zu' files returned %s",
+                      file_count, s.ok() ? "ok" : "not ok");
     }
 
     if (!s.ok()) {
@@ -3324,12 +3323,9 @@ static Rdb_transaction *get_or_create_tx(THD *const thd) {
   // TODO: this is called too many times.. O(#rows)
   if (tx == nullptr) {
     if ((rpl_skip_tx_api_var && thd->rli_slave) ||
-        (THDVAR(thd, master_skip_tx_api) && !thd->rli_slave))
-    {
+        (THDVAR(thd, master_skip_tx_api) && !thd->rli_slave)) {
       tx = new Rdb_writebatch_impl(thd);
-    }
-    else
-    {
+    } else {
       tx = new Rdb_transaction_impl(thd);
     }
     tx->set_params(THDVAR(thd, lock_wait_timeout), THDVAR(thd, max_row_locks));
@@ -8067,8 +8063,7 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
     const uint size = kd.pack_index_tuple(table, m_pack_buffer,
                                           m_pk_packed_tuple, key, keypart_map);
     bool skip_lookup = is_blind_delete_enabled();
-    rc = get_row_by_rowid(buf, m_pk_packed_tuple, size,
-                          false, skip_lookup);
+    rc = get_row_by_rowid(buf, m_pk_packed_tuple, size, false, skip_lookup);
     if (!rc && !skip_lookup) {
       update_row_stats(ROWS_READ);
     }
@@ -8489,15 +8484,12 @@ rocksdb::Status ha_rocksdb::get_for_update(
   return s;
 }
 
-bool ha_rocksdb::is_blind_delete_enabled()
-{
+bool ha_rocksdb::is_blind_delete_enabled() {
   THD *thd = ha_thd();
   return (THDVAR(thd, blind_delete_primary_key) &&
           thd->lex->sql_command == SQLCOM_DELETE &&
-          thd->lex->table_count == 1 &&
-          table->s->keys == 1 &&
-          !has_hidden_pk(table) &&
-          !thd->rli_slave);
+          thd->lex->table_count == 1 && table->s->keys == 1 &&
+          !has_hidden_pk(table) && !thd->rli_slave);
 }
 
 /*
@@ -8538,11 +8530,9 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
   rocksdb::Status s;
 
   /* Pretend row found without looking up */
-  if (skip_lookup)
-  {
+  if (skip_lookup) {
     update_row_stats(ROWS_DELETED_BLIND);
     m_last_rowkey.copy((const char *)rowid, rowid_size, &my_charset_bin);
-    table->status = 0;
     DBUG_RETURN(0);
   }
 
@@ -11003,7 +10993,9 @@ int ha_rocksdb::delete_table(Rdb_tbl_def *const tbl) {
     other            HA_ERR error code (can be SE-specific)
 */
 
-int ha_rocksdb::delete_non_partitioned_table(const char *const tablename) {
+int ha_rocksdb::delete_table(const char *const tablename,
+                             const dd::Table *table_def
+                                 MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(tablename != nullptr);
@@ -12587,8 +12579,8 @@ static void myrocks_update_memory_status() {
 static SHOW_VAR myrocks_status_variables[] = {
     DEF_STATUS_VAR_FUNC("rows_deleted", &export_stats.rows_deleted,
                         SHOW_LONGLONG),
-    DEF_STATUS_VAR_FUNC("rows_deleted_blind",
-                        &export_stats.rows_deleted_blind, SHOW_LONGLONG),
+    DEF_STATUS_VAR_FUNC("rows_deleted_blind", &export_stats.rows_deleted_blind,
+                        SHOW_LONGLONG),
     DEF_STATUS_VAR_FUNC("rows_inserted", &export_stats.rows_inserted,
                         SHOW_LONGLONG),
     DEF_STATUS_VAR_FUNC("rows_read", &export_stats.rows_read, SHOW_LONGLONG),
@@ -13843,9 +13835,7 @@ void ha_rocksdb::rpl_after_update_rows() {
   DBUG_VOID_RETURN;
 }
 
-bool ha_rocksdb::rpl_lookup_rows() {
-  return !use_read_free_rpl();
-}
+bool ha_rocksdb::rpl_lookup_rows() { return !use_read_free_rpl(); }
 
 /**
   @brief

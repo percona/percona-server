@@ -21,7 +21,6 @@
 #include <vector>
 
 /* MySQL header files */
-#include "./my_global.h"
 
 /* MyRocks header files */
 #include "./rdb_global.h"
@@ -526,4 +525,4 @@ template <size_t buf_length> class Rdb_buf_writer {
   uchar *m_ptr;
 };
 
-} // namespace myrocks
+}  // namespace myrocks

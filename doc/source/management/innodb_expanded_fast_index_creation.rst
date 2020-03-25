@@ -6,11 +6,15 @@ Expanded Fast Index Creation
 
 .. note::
 
- This feature implementation is considered BETA quality.
+ This feature implementation is **Experimental** quality.
 
 Percona has implemented several changes related to |MySQL|'s fast index creation feature. Fast index creation was implemented in |MySQL| as a way to speed up the process of adding or dropping indexes on tables with many rows. 
 
-This feature implements a session variable that enables extended fast index creation. Besides optimizing DDL directly, :variable:`expand_fast_index_creation` may also optimize index access for subsequent DML statements because using it results in much less fragmented indexes.
+This feature implements a session variable that enables extended fast index creation. Besides optimizing DDL directly, :variable:`expand_fast_index_creation` may also optimize index access for subsequent DML statements because using it results in much less fragmented indexes. 
+
+The variables, `expand_fast_index_creation` and `fast_index_creation`, must both be enabled. 
+
+If the `fast_index_creation` variable is not enabled, the `expand_fast_index_creation` disables the `fast_index_creation` variable. This behavior creates indexes in the slower method and avoids data dictionary inconsistency between MySQL and InnoDB. If both variables are enabled, there is no inconsistency. 
 
 :command:`mysqldump`
 --------------------
@@ -41,6 +45,8 @@ Caveats
 
 |InnoDB| fast index creation uses temporary files in tmpdir for all indexes being created. So make sure you have enough tmpdir space when using :variable:`expand_fast_index_creation`. It is a session variable, so you can temporarily switch it off if you are short on tmpdir space and/or don’t want this optimization to be used for a specific table. 
 
+|InnoDB| copies the data from an existing table to a temporary table with the required index structure. After the copy operation is completed, the temporary table is renamed with the original table name and the original table is dropped. If a system exit occurs during the index creation, you must complete process using the temporary tables. 
+
 There’s also a number of cases when this optimization is not applicable:
   * ``UNIQUE`` indexes in ``ALTER TABLE`` are ignored to enforce uniqueness where necessary when copying the data to a temporary table;
 
@@ -51,6 +57,10 @@ There’s also a number of cases when this optimization is not applicable:
   * :command:`mysqldump --innodb-optimize-keys` ignores indexes on ``AUTO_INCREMENT`` columns, because they must be indexed, so it is impossible to temporarily drop the corresponding index;
 
   * :command:`mysqldump --innodb-optimize-keys` ignores the first UNIQUE index on non-nullable columns when the table has no ``PRIMARY KEY`` defined, because in this case |InnoDB| picks such an index as the clustered one.
+
+You must specify the index name explicitly.
+
+|MySQL| sets the ``FIELD_IS_RENAMED`` bit for the column being renamed, but the new column name is not set until after the ALTER TABLE operation completes and the table is re-opened.
 
 Version Specific Information
 ============================

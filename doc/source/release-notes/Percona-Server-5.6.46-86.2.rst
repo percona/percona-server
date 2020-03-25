@@ -29,7 +29,9 @@ Other Bugs Fixed
 :psbug:`5761`,
 :psbug:`5933`,
 :psbug:`5941`, and
-:psbug:`5997`,
+:psbug:`5997`.
+
+=======
 
 Find the release notes for Percona Server for MySQL 5.6.46-86.2 in our
 `online documentation

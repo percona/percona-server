@@ -20,7 +20,6 @@ Bugs Fixed
 
 - The Audit log filtering by user was not working. Bug fixed :psbug:`5707`.
 
-
 Other Bugs Fixed
 ================================================================================
 
@@ -32,6 +31,7 @@ Other Bugs Fixed
 :psbug:`5941`, and
 :psbug:`5997`.
 
+=======
 
 Find the release notes for Percona Server for MySQL 5.6.46-86.2 in our
 `online documentation

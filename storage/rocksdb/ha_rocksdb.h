@@ -23,6 +23,7 @@
 
 /* C++ standard header files */
 #include <cinttypes>
+#include <regex>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -80,12 +81,13 @@ class Rdb_transaction;
 class Rdb_transaction_impl;
 class Rdb_writebatch_impl;
 class Rdb_field_encoder;
+class Regex_list_handler;
 
 extern char *rocksdb_read_free_rpl_tables;
 #if defined(HAVE_PSI_INTERFACE)
 extern PSI_rwlock_key key_rwlock_read_free_rpl_tables;
 #endif
-extern Regex rdb_read_free_regex_handler;
+extern Regex_list_handler rdb_read_free_regex_handler;
 
 /**
   @brief
@@ -941,7 +943,7 @@ class ha_rocksdb : public my_core::handler {
   virtual void rpl_after_update_rows() override;
   virtual bool rpl_lookup_rows() override;
 
-  virtual bool use_read_free_rpl() const; // MyRocks only
+  virtual bool use_read_free_rpl() const;  // MyRocks only
 
  private:
   /* Flags tracking if we are inside different replication operation */

@@ -356,7 +356,7 @@ count(*)
 2
 select count(*) from t4 force index(i1);
 count(*)
-3
+2
 select count(*) from t4 force index(i2);
 count(*)
 2

@@ -24,6 +24,7 @@
 /* MySQL header files */
 #define LOG_COMPONENT_TAG "rocksdb"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/psi/mysql_rwlock.h"
 
 #include "my_stacktrace.h"
 #include "sql_string.h"
@@ -308,7 +309,41 @@ std::string rdb_hexdump(const char *data, const std::size_t data_len,
  */
 bool rdb_database_exists(const std::string &db_name);
 
-void warn_about_bad_patterns(const char *regex, const char *name);
+class Regex_list_handler {
+ private:
+  const PSI_rwlock_key &m_key;
+
+  char m_delimiter;
+  std::string m_bad_pattern_str;
+  std::unique_ptr<const std::regex> m_pattern;
+
+  mutable mysql_rwlock_t m_rwlock;
+
+  Regex_list_handler(const Regex_list_handler &other) = delete;
+  Regex_list_handler &operator=(const Regex_list_handler &other) = delete;
+
+ public:
+  Regex_list_handler(const PSI_rwlock_key &key, char delimiter = ',')
+      : m_key(key), m_delimiter(delimiter), m_bad_pattern_str(""),
+        m_pattern(nullptr) {
+    mysql_rwlock_init(key, &m_rwlock);
+  }
+
+  ~Regex_list_handler() { mysql_rwlock_destroy(&m_rwlock); }
+
+  // Set the list of patterns
+  bool set_patterns(const std::string &patterns,
+                    std::regex_constants::syntax_option_type flags);
+
+  // See if a string matches at least one pattern
+  bool matches(const std::string &str) const;
+
+  // See the list of bad patterns
+  const std::string &bad_pattern() const { return m_bad_pattern_str; }
+};
+
+void warn_about_bad_patterns(const Regex_list_handler *regex_list_handler,
+                             const char *name);
 
 std::vector<std::string> split_into_vector(const std::string &input,
                                            char delimiter);

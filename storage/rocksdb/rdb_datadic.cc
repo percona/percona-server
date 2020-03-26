@@ -3559,10 +3559,11 @@ rdb_init_collation_mapping(const my_core::CHARSET_INFO *const cs) {
           }
         }
 
-        cur->m_make_unpack_info_func = {{Rdb_key_def::make_unpack_simple_varchar,
-                                        Rdb_key_def::make_unpack_simple}};
+        cur->m_make_unpack_info_func = {
+            {Rdb_key_def::make_unpack_simple_varchar,
+             Rdb_key_def::make_unpack_simple}};
         cur->m_unpack_func = {{Rdb_key_def::unpack_simple_varchar_space_pad,
-                              Rdb_key_def::unpack_simple}};
+                               Rdb_key_def::unpack_simple}};
       } else {
         // Out of luck for now.
       }
@@ -4152,7 +4153,7 @@ void Rdb_tbl_def::check_if_is_mysql_system_table() {
 
 void Rdb_tbl_def::check_and_set_read_free_rpl_table() {
   m_is_read_free_rpl_table =
-      rdb_read_free_regex_handler.match(base_tablename());
+      rdb_read_free_regex_handler.matches(base_tablename());
 }
 
 void Rdb_tbl_def::set_name(const std::string &name) {

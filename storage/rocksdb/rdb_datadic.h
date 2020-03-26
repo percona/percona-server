@@ -580,75 +580,75 @@ class Rdb_key_def {
     or at least sk_min if SK.*/
   bool index_format_min_check(const int pk_min, const int sk_min) const;
 
-  static void pack_tiny(Rdb_field_packing *const fpi, Field *const field,
-                 uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                 Rdb_pack_field_context *const pack_ctx
-                     MY_ATTRIBUTE((__unused__)));
+  static void
+  pack_tiny(Rdb_field_packing *const fpi, Field *const field,
+            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+            Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
-  static void pack_short(Rdb_field_packing *const fpi, Field *const field,
-                  uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                  Rdb_pack_field_context *const pack_ctx
-                      MY_ATTRIBUTE((__unused__)));
+  static void
+  pack_short(Rdb_field_packing *const fpi, Field *const field,
+             uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+             Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
   static void pack_medium(Rdb_field_packing *const fpi, Field *const field,
-                   uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                   Rdb_pack_field_context *const pack_ctx
-                       MY_ATTRIBUTE((__unused__)));
+                          uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                          Rdb_pack_field_context *const pack_ctx
+                              MY_ATTRIBUTE((__unused__)));
 
-  static void pack_long(Rdb_field_packing *const fpi, Field *const field,
-                 uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                 Rdb_pack_field_context *const pack_ctx
-                     MY_ATTRIBUTE((__unused__)));
+  static void
+  pack_long(Rdb_field_packing *const fpi, Field *const field,
+            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+            Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
   static void pack_longlong(Rdb_field_packing *const fpi, Field *const field,
-                     uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                     Rdb_pack_field_context *const pack_ctx
-                         MY_ATTRIBUTE((__unused__)));
+                            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                            Rdb_pack_field_context *const pack_ctx
+                                MY_ATTRIBUTE((__unused__)));
 
   static void pack_double(Rdb_field_packing *const fpi, Field *const field,
-                   uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                   Rdb_pack_field_context *const pack_ctx
-                       MY_ATTRIBUTE((__unused__)));
+                          uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                          Rdb_pack_field_context *const pack_ctx
+                              MY_ATTRIBUTE((__unused__)));
 
-  static void pack_float(Rdb_field_packing *const fpi, Field *const field,
-                  uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                  Rdb_pack_field_context *const pack_ctx
-                      MY_ATTRIBUTE((__unused__)));
+  static void
+  pack_float(Rdb_field_packing *const fpi, Field *const field,
+             uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+             Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
-  static void pack_new_decimal(Rdb_field_packing *const fpi, Field *const field,
-                        uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                        Rdb_pack_field_context *const pack_ctx
-                            MY_ATTRIBUTE((__unused__)));
+  static void pack_new_decimal(
+      Rdb_field_packing *const fpi, Field *const field,
+      uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+      Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
   static void pack_datetime2(Rdb_field_packing *const fpi, Field *const field,
-                     uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                     Rdb_pack_field_context *const pack_ctx
-                         MY_ATTRIBUTE((__unused__)));
+                             uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                             Rdb_pack_field_context *const pack_ctx
+                                 MY_ATTRIBUTE((__unused__)));
 
-  static void pack_timestamp2(Rdb_field_packing *const fpi, Field *const field,
-                      uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                      Rdb_pack_field_context *const pack_ctx
-                          MY_ATTRIBUTE((__unused__)));
+  static void pack_timestamp2(
+      Rdb_field_packing *const fpi, Field *const field,
+      uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+      Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
-  static void pack_time2(Rdb_field_packing *const fpi, Field *const field,
-                  uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                  Rdb_pack_field_context *const pack_ctx
-                      MY_ATTRIBUTE((__unused__)));
+  static void
+  pack_time2(Rdb_field_packing *const fpi, Field *const field,
+             uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+             Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
-  static void pack_year(Rdb_field_packing *const fpi, Field *const field,
-                 uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                 Rdb_pack_field_context *const pack_ctx
-                     MY_ATTRIBUTE((__unused__)));
+  static void
+  pack_year(Rdb_field_packing *const fpi, Field *const field,
+            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+            Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
   static void pack_newdate(Rdb_field_packing *const fpi, Field *const field,
-                    uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                    Rdb_pack_field_context *const pack_ctx
-                        MY_ATTRIBUTE((__unused__)));
+                           uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                           Rdb_pack_field_context *const pack_ctx
+                               MY_ATTRIBUTE((__unused__)));
 
-  static void pack_blob(Rdb_field_packing *const fpi, Field *const field,
-                 uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                 Rdb_pack_field_context *const pack_ctx
-                     MY_ATTRIBUTE((__unused__)));
+  static void
+  pack_blob(Rdb_field_packing *const fpi, Field *const field,
+            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+            Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
   static void pack_with_make_sort_key(
       Rdb_field_packing *const fpi, Field *const field,

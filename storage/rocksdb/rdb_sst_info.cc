@@ -24,7 +24,6 @@
 #include <vector>
 
 /* MySQL header files */
-#include "log.h"
 #include "my_dir.h"
 #include "sql/sql_class.h"
 

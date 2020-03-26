@@ -24,16 +24,15 @@
 #include <vector>
 
 /* MySQL header files */
-#include "log.h"
 #include "my_stacktrace.h"
-#include "sql_array.h"
+#include "sql/sql_array.h"
 
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
 #include "./ha_rocksdb_proto.h"
 #include "./rdb_datadic.h"
-#include "./rdb_utils.h"
 #include "./rdb_psi.h"
+#include "./rdb_utils.h"
 
 namespace myrocks {
 
@@ -431,9 +430,11 @@ void Rdb_converter::setup_field_encoders() {
 
   m_encoder_arr = static_cast<Rdb_field_encoder *>(
 #ifdef HAVE_PSI_INTERFACE
-      my_malloc(rdb_handler_memory_key, m_table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
+      my_malloc(rdb_handler_memory_key,
+                m_table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
 #else
-      my_malloc(PSI_NOT_INSTRUMENTED, m_table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
+      my_malloc(PSI_NOT_INSTRUMENTED,
+                m_table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
 #endif
   if (m_encoder_arr == nullptr) {
     return;

@@ -498,6 +498,7 @@ void buf_get_total_stat(
     tot_stat->n_pages_made_young += buf_stat->n_pages_made_young;
 
     tot_stat->n_pages_not_made_young += buf_stat->n_pages_not_made_young;
+    tot_stat->buf_lru_flush_page_count += buf_stat->buf_lru_flush_page_count;
   }
 }
 

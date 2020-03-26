@@ -166,7 +166,7 @@ static Rdb_manual_compaction_thread rdb_mc_thread;
 
 // List of table names (using regex) that are exceptions to the strict
 // collation check requirement.
-std::unique_ptr<std::regex> rdb_collation_exceptions;
+Regex_list_handler *rdb_collation_exceptions;
 
 static const char *rdb_get_error_messages(int error);
 
@@ -526,19 +526,19 @@ static uint64_t rocksdb_write_policy =
 char *rocksdb_read_free_rpl_tables;
 std::mutex rocksdb_read_free_rpl_tables_mutex;
 #if defined(HAVE_PSI_INTERFACE)
-Regex rdb_read_free_regex_handler(key_rwlock_read_free_rpl_tables);
+Regex_list_handler rdb_read_free_regex_handler(key_rwlock_read_free_rpl_tables);
 #else
-Regex rdb_read_free_regex_handler;
+Regex_list_handler rdb_read_free_regex_handler;
 #endif
 enum read_free_rpl_type { OFF = 0, PK_ONLY, PK_SK };
 static uint64_t rocksdb_read_free_rpl = read_free_rpl_type::OFF;
-static my_bool rocksdb_error_on_suboptimal_collation = FALSE;
+static bool rocksdb_error_on_suboptimal_collation = false;
 static uint32_t rocksdb_stats_recalc_rate = 0;
 static bool rocksdb_no_create_column_family = false;
 static uint32_t rocksdb_debug_manual_compaction_delay = 0;
 static uint32_t rocksdb_max_manual_compactions = 0;
 static bool rocksdb_rollback_on_timeout = false;
-static bool rocksdb_enable_insert_with_update_caching = TRUE;
+static bool rocksdb_enable_insert_with_update_caching = true;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -759,17 +759,18 @@ static MYSQL_THDVAR_BOOL(
 
 #define DEFAULT_READ_FREE_RPL_TABLES ".*"
 
-static int get_regex_flags()
-{
-  int flags = MY_REG_EXTENDED | MY_REG_NOSUB;
-  if (lower_case_table_names)
-    flags |= MY_REG_ICASE;
+static std::regex_constants::syntax_option_type get_regex_flags() {
+  std::regex_constants::syntax_option_type flags =
+      std::regex::nosubs | std::regex::extended;
+  if (lower_case_table_names) {
+    flags |= std::regex::icase;
+  }
   return flags;
 }
 
 static int rocksdb_validate_read_free_rpl_tables(
     THD *thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)), void *save,
+    struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *save,
     struct st_mysql_value *value) {
   char buff[STRING_BUFFER_USUAL_SIZE];
   int length = sizeof(buff);
@@ -777,30 +778,31 @@ static int rocksdb_validate_read_free_rpl_tables(
   const auto wlist = wlist_buf ? wlist_buf : DEFAULT_READ_FREE_RPL_TABLES;
 
 #if defined(HAVE_PSI_INTERFACE)
-  Regex regex_handler(key_rwlock_read_free_rpl_tables);
+  Regex_list_handler regex_handler(key_rwlock_read_free_rpl_tables);
 #else
-  Regex regex_handler;
+  Regex_list_handler regex_handler;
 #endif
 
-  if (!regex_handler.compile(wlist, get_regex_flags(), table_alias_charset)) {
-    warn_about_bad_patterns(regex_handler, "rocksdb_read_free_rpl_tables");
+  if (!regex_handler.set_patterns(wlist, get_regex_flags())) {
+    warn_about_bad_patterns(&regex_handler, "rocksdb_read_free_rpl_tables");
     return HA_EXIT_FAILURE;
   }
 
-  *static_cast<const char **>(save) = my_strdup(PSI_NOT_INSTRUMENTED, wlist, MYF(MY_WME));
+  *static_cast<const char **>(save) =
+      my_strdup(PSI_NOT_INSTRUMENTED, wlist, MYF(MY_WME));
   return HA_EXIT_SUCCESS;
 }
 
 static void rocksdb_update_read_free_rpl_tables(
     THD *thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)), void *var_ptr,
+    struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *var_ptr,
     const void *save) {
   const auto wlist = *static_cast<const char *const *>(save);
   DBUG_ASSERT(wlist != nullptr);
 
   // This is bound to succeed since we've already checked for bad patterns in
   // rocksdb_validate_read_free_rpl_tables
-  rdb_read_free_regex_handler.compile(wlist, get_regex_flags(), table_alias_charset);
+  rdb_read_free_regex_handler.set_patterns(wlist, get_regex_flags());
 
   // update all table defs
   struct Rdb_read_free_rpl_updater : public Rdb_tables_scanner {
@@ -811,7 +813,8 @@ static void rocksdb_update_read_free_rpl_tables(
   } updater;
   ddl_manager.scan_for_tables(&updater);
 
-  *static_cast<const char **>(var_ptr) = my_strdup(PSI_NOT_INSTRUMENTED, wlist, MYF(MY_WME));
+  *static_cast<const char **>(var_ptr) =
+      my_strdup(PSI_NOT_INSTRUMENTED, wlist, MYF(MY_WME));
 }
 
 static MYSQL_SYSVAR_STR(
@@ -4552,6 +4555,13 @@ static int rocksdb_init_func(void *const p) {
   mysql_mutex_init(rdb_mem_cmp_space_mutex_key, &rdb_mem_cmp_space_mutex,
                    MY_MUTEX_INIT_FAST);
 
+#if defined(HAVE_PSI_INTERFACE)
+  rdb_collation_exceptions =
+      new Regex_list_handler(key_rwlock_collation_exception_list);
+#else
+  rdb_collation_exceptions = new Regex_list_handler();
+#endif
+
   mysql_mutex_init(rdb_sysvars_psi_mutex_key, &rdb_sysvars_mutex,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(rdb_block_cache_resize_mutex_key,
@@ -4597,8 +4607,8 @@ static int rocksdb_init_func(void *const p) {
     rocksdb_db_options->max_open_files = open_files_limit / 2;
   }
 
-  rdb_read_free_regex_handler.compile(DEFAULT_READ_FREE_RPL_TABLES,
-                                      get_regex_flags(), table_alias_charset);
+  rdb_read_free_regex_handler.set_patterns(DEFAULT_READ_FREE_RPL_TABLES,
+                                           get_regex_flags());
 
   rocksdb_stats = rocksdb::CreateDBStatistics();
   rocksdb_db_options->statistics = rocksdb_stats;
@@ -5050,7 +5060,7 @@ static int rocksdb_done_func(void *const p) {
   mysql_mutex_destroy(&rdb_sysvars_mutex);
   mysql_mutex_destroy(&rdb_block_cache_resize_mutex);
 
-  rdb_collation_exceptions.reset(nullptr);
+  delete rdb_collation_exceptions;
   mysql_mutex_destroy(&rdb_collation_data_mutex);
   mysql_mutex_destroy(&rdb_mem_cmp_space_mutex);
 
@@ -5513,13 +5523,12 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
       m_scan_it_skips_bloom(false), m_scan_it_snapshot(nullptr),
       m_scan_it_lower_bound(nullptr), m_scan_it_upper_bound(nullptr),
       m_tbl_def(nullptr), m_pk_descr(nullptr), m_key_descr_arr(nullptr),
-      m_pk_can_be_decoded(false),
-      m_pk_tuple(nullptr), m_pk_packed_tuple(nullptr),
-      m_sk_packed_tuple(nullptr), m_end_key_packed_tuple(nullptr),
-      m_sk_match_prefix(nullptr), m_sk_match_prefix_buf(nullptr),
-      m_sk_packed_tuple_old(nullptr), m_dup_sk_packed_tuple(nullptr),
-      m_dup_sk_packed_tuple_old(nullptr), m_pack_buffer(nullptr),
-      m_lock_rows(RDB_LOCK_NONE), m_keyread_only(false),
+      m_pk_can_be_decoded(false), m_pk_tuple(nullptr),
+      m_pk_packed_tuple(nullptr), m_sk_packed_tuple(nullptr),
+      m_end_key_packed_tuple(nullptr), m_sk_match_prefix(nullptr),
+      m_sk_match_prefix_buf(nullptr), m_sk_packed_tuple_old(nullptr),
+      m_dup_sk_packed_tuple(nullptr), m_dup_sk_packed_tuple_old(nullptr),
+      m_pack_buffer(nullptr), m_lock_rows(RDB_LOCK_NONE), m_keyread_only(false),
       m_insert_with_update(false), m_dup_pk_found(false)
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
       ,
@@ -6322,12 +6331,10 @@ int ha_rocksdb::create_cfs(
         tbl_def_arg->base_tablename().find(tmp_file_prefix) != 0) {
       for (uint part = 0; part < table_arg->key_info[i].actual_key_parts;
            part++) {
-        std::cmatch matches;
         if (!rdb_is_index_collation_supported(
                 table_arg->key_info[i].key_part[part].field) &&
             (!rdb_collation_exceptions ||
-             !std::regex_match(tablename_sys, matches,
-                               *rdb_collation_exceptions))) {
+             !rdb_collation_exceptions->matches(tablename_sys))) {
           std::string collation_err;
           for (const auto &coll : RDB_INDEX_COLLATIONS) {
             if (collation_err != "") {
@@ -7555,7 +7562,7 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
     DBUG_RETURN(rc);
   }
 
-  ha_statistic_increment(&SSV::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
   const Rdb_key_def &kd = *m_key_descr_arr[active_index];
   const uint actual_key_parts = kd.get_key_parts();
   bool using_full_key = is_using_full_key(keypart_map, actual_key_parts);
@@ -7691,16 +7698,7 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
     release_scan_iterator();
   }
 
-  if (rc) {
-    /*
-      This status is returned on any error
-      the only possible error condition is record-not-found
-    */
-    table->status = STATUS_NOT_FOUND;
-  } else {
-    table->status = 0;
-    update_row_stats(ROWS_READ);
-  }
+  update_row_stats(ROWS_READ);
 
   DBUG_RETURN(rc);
 }
@@ -13060,15 +13058,12 @@ void rocksdb_set_max_latest_deadlocks(THD *thd, struct SYS_VAR *var,
 }
 
 void rdb_set_collation_exception_list(const char *const exception_list) {
-  try {
-    std::regex_constants::syntax_option_type flags =
-        std::regex::nosubs | std::regex::extended;
-    if (lower_case_table_names) {
-      flags |= std::regex::icase;
-    }
-    rdb_collation_exceptions.reset(new std::regex(exception_list, flags));
-  } catch (std::regex_error const &re) {
-    warn_about_bad_patterns(exception_list, "strict_collation_exceptions");
+  DBUG_ASSERT(rdb_collation_exceptions != nullptr);
+
+  if (!rdb_collation_exceptions->set_patterns(exception_list,
+                                              get_regex_flags())) {
+    warn_about_bad_patterns(rdb_collation_exceptions,
+                            "strict_collation_exceptions");
   }
 }
 

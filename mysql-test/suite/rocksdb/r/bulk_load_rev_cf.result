@@ -28,7 +28,7 @@ select VALUE > 0 as 'Has opened snapshots' from information_schema.rocksdb_dbsta
 Has opened snapshots
 1
 SET @@GLOBAL.ROCKSDB_UPDATE_CF_OPTIONS=
-'cf1={write_buffer_size=8m;target_file_size_base=1m};';
+'rev:cf1={write_buffer_size=8m;target_file_size_base=1m};';
 set rocksdb_bulk_load=1;
 set rocksdb_bulk_load_size=100000;
 LOAD DATA INFILE <input_file> INTO TABLE t1;

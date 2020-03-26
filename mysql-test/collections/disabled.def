@@ -93,7 +93,6 @@ rocksdb.covered_unpack_info_format : BUG#0 MYR-180 fb-mysql-5.6.35/922021ce3d8bf
 rocksdb.fast_prefix_index_fetch : BUG#0 MYR-180 fb-mysql-5.6.35/922021ce3d8bfc40152c112f6a59eb71e3d6dd98
 rocksdb.level_read_uncommitted : BUG#0 MyRocks does not yet suppore ISO read uncommitted
 rocksdb.level_serializable : BUG#0 MyRocks does not yet support ISO serializable
-rocksdb.rpl_read_free : BUG#6 MYR-6
 rocksdb.slow_query_log : BUG#26 MYR-26
 # 8.0
 rocksdb.allow_to_start_after_corruption : BUG#4584 PS-4584

@@ -27,6 +27,7 @@ INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 
 SET(LINUX 1)
+SET(TARGET_OS_LINUX 1)
 
 # We require at least GCC 4.4 or Clang 3.3.
 IF(NOT FORCE_UNSUPPORTED_COMPILER)

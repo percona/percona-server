@@ -68,6 +68,7 @@ class Rdb_cf_manager;
 Rdb_cf_manager &rdb_get_cf_manager();
 
 const rocksdb::BlockBasedTableOptions &rdb_get_table_options();
+bool rdb_is_table_scan_index_stats_calculation_enabled();
 bool rdb_is_ttl_enabled();
 bool rdb_is_ttl_read_filtering_enabled();
 #if !defined(DBUG_OFF)
@@ -92,4 +93,4 @@ Rdb_ddl_manager *rdb_get_ddl_manager(void)
 struct Rdb_hton_init_state;
 Rdb_hton_init_state *rdb_get_hton_init_state(void)
     MY_ATTRIBUTE((__warn_unused_result__));
-} // namespace myrocks
+}  // namespace myrocks

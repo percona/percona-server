@@ -244,6 +244,12 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-test%{product_suffix}
 Summary:        Test suite for the Percona Server
 Group:          Applications/Databases
+Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
+%if 0%{?rhel} == 8
+Requires:       perl(Getopt::Long)
+Requires:       perl(Memoize)
+Requires:       perl(Time::HiRes)
+%endif
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56
@@ -573,6 +579,12 @@ fi
       /sbin/chkconfig --add mysql
   fi
 %endif
+
+if [ ! -d %{_datadir}/mysql ]; then
+    pushd %{_datadir}
+    ln -s percona-server mysql
+    popd
+fi
 
 %if 0%{?rhel} > 6
   MYCNF_PACKAGE="mariadb-libs"

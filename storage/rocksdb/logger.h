@@ -17,7 +17,6 @@
 
 #include <sstream>
 #include <string>
-#include "log.h"
 
 namespace myrocks {
 

@@ -3,15 +3,15 @@
 --source include/restart_mysqld.inc
 
 CREATE TABLE `linktable` (
-  `id1` bigint(20) unsigned NOT NULL DEFAULT '0',
-  `id1_type` int(10) unsigned NOT NULL DEFAULT '0',
-  `id2` bigint(20) unsigned NOT NULL DEFAULT '0',
-  `id2_type` int(10) unsigned NOT NULL DEFAULT '0',
-  `link_type` bigint(20) unsigned NOT NULL DEFAULT '0',
-  `visibility` tinyint(3) NOT NULL DEFAULT '0',
+  `id1` bigint unsigned NOT NULL DEFAULT '0',
+  `id1_type` int unsigned NOT NULL DEFAULT '0',
+  `id2` bigint unsigned NOT NULL DEFAULT '0',
+  `id2_type` int unsigned NOT NULL DEFAULT '0',
+  `link_type` bigint unsigned NOT NULL DEFAULT '0',
+  `visibility` tinyint NOT NULL DEFAULT '0',
   `data` varchar(255) NOT NULL DEFAULT '',
-  `time` bigint(20) unsigned NOT NULL DEFAULT '0',
-  `version` int(11) unsigned NOT NULL DEFAULT '0',
+  `time` bigint unsigned NOT NULL DEFAULT '0',
+  `version` int unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (link_type, `id1`,`id2`) COMMENT 'cfname=cf_link_pk',
   KEY `id1_type` (`id1`,`link_type`,`visibility`,`time`,`version`,`data`) COMMENT 'cfname=rev:cf_link_id1_type',
   KEY `id1_type2` (`id1`,`link_type`,`time`,`version`,`data`,`visibility`) COMMENT 'cfname=rev:cf_link_id1_type2',
@@ -19,7 +19,7 @@ CREATE TABLE `linktable` (
 ) ENGINE=ROCKSDB DEFAULT COLLATE=latin1_bin;
 
 --disable_query_log
-call mtr.add_suppression("LibRocksDB");
+call mtr.add_suppression("Transaction write_policy is");
 let $i = 1;
 while ($i <= 10000) {
   let $insert = INSERT INTO linktable VALUES($i, $i, $i, $i, 1, 1, $i, $i, $i);

@@ -212,6 +212,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_delete_cf`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_delete_obsolete_files_period_micros`
      - Yes
      - No
@@ -221,6 +225,14 @@ Also, all variables can exist in one or both of the following scopes:
      - No
      - Global
    * - :variable:`rocksdb_enable_insert_with_update_caching`
+     - Yes
+     - Yes
+     - Global
+   * - :variable:`rocksdb_enable_iterate_bounds`
+     - Yes
+     - Yes
+     - Global, Local
+   * - :variable:`rocksdb_enable_remove_orphaned_dropped_cfs`
      - Yes
      - Yes
      - Global
@@ -1263,6 +1275,22 @@ if MyRocks hits a soft limit or threshold for writes.
 Default value is ``16777216`` (16 MB/sec).
 Allowed range is from ``0`` to ``18446744073709551615``.
 
+.. variable:: rocksdb_delete_cf
+
+  :version 5.7.30-33: Implemented
+  :cli: ``--rocksdb-delete-cf``
+  :dyn: Yes
+  :scope: Global
+  :vartype: String
+  :default: ""
+
+Deletes the column family by name. The default value is "", an empty 
+string.
+
+For example: ::
+
+    SET @@global.ROCKSDB_DELETE_CF = 'cf_primary_key';
+    
 .. variable:: rocksdb_delete_obsolete_files_period_micros
 
   :version 5.7.19-17: Implemented
@@ -1304,7 +1332,34 @@ and does not require keys to be inserted in any order.
    :default: ``ON``
 
 Specifies whether to enable optimization where the read is cached from a 
-failed insertion attempt in INSERT ON DUPLICATE KEY UPDATE.
+failed insertion attempt in INSERT ON DUPLICATE KEY UPDATE.. variable:: rocksdb_enable_iterate_bounds
+
+.. variable:: rocksdb_enable_iterate_bounds
+
+  :version 5.7.30-33: Implemented
+  :cli: ``--rocksdb-enable-iterate-bounds``
+  :dyn: Yes
+  :scope: Global, Local
+  :vartype: Boolean
+  :default: ``TRUE``
+
+Enables the rocksdb iterator upper bounds and lower bounds in read options.
+
+The default value is ``TRUE``.
+
+.. variable:: rocksdb_enable_remove_orphaned_dropped_cfs
+
+  :version 5.7.30-33: Implemented
+  :cli: ``--rocksdb-enable-remove-orphaned-dropped-cfs``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``TRUE``
+
+Enables the removal of dropped column families (cfs) from metadata if the cfs do 
+not exist in the cf manager.
+
+The default value is ``TRUE``.
 
 .. variable:: rocksdb_enable_ttl
 
@@ -2080,6 +2135,7 @@ The options are the following:
             
 .. variable:: rocksdb_read_free_rpl_tables
 
+  :version 5.7.30-33: Disabled
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-read-free-rpl-tables``
   :dyn: Yes
@@ -2091,6 +2147,9 @@ Lists tables (as a regular expression)
 that should use read-free replication on the slave
 (that is, replication without row lookups).
 Empty by default.
+
+This variable is disabled in |Percona Server| 5.7.30-33. We recommend
+that you use ``rocksdb_read_free_rpl`` instead of this variable.
 
 .. variable:: rocksdb_records_in_range
 

@@ -24,8 +24,8 @@
 #include "./ha_rocksdb.h"
 
 /* C++ standard header files */
-#include <algorithm>
 #include <inttypes.h>
+#include <algorithm>
 #include <limits>
 #include <map>
 #include <queue>
@@ -116,8 +116,8 @@ static handler *rocksdb_create_handler(my_core::handlerton *hton,
                                        bool partitioned,
                                        my_core::MEM_ROOT *mem_root);
 
-static rocksdb::CompactRangeOptions
-getCompactRangeOptions(int concurrency = 0) {
+static rocksdb::CompactRangeOptions getCompactRangeOptions(
+    int concurrency = 0) {
   rocksdb::CompactRangeOptions compact_range_options;
   compact_range_options.bottommost_level_compaction =
       rocksdb::BottommostLevelCompaction::kForce;
@@ -296,10 +296,9 @@ static void rocksdb_force_flush_memtable_now_stub(THD *const thd,
                                                   void *const var_ptr,
                                                   const void *const save) {}
 
-static int
-rocksdb_force_flush_memtable_now(THD *const thd, struct SYS_VAR *const var,
-                                 void *const var_ptr,
-                                 struct st_mysql_value *const value) {
+static int rocksdb_force_flush_memtable_now(
+    THD *const thd, struct SYS_VAR *const var, void *const var_ptr,
+    struct st_mysql_value *const value) {
   LogPluginErrMsg(INFORMATION_LEVEL, 0, "Manual memtable flush.");
   rocksdb_flush_all_memtables();
   return HA_EXIT_SUCCESS;
@@ -424,10 +423,9 @@ static int rocksdb_validate_update_cf_options(THD *thd, struct SYS_VAR *var,
 static void rocksdb_set_update_cf_options(THD *thd, struct SYS_VAR *var,
                                           void *var_ptr, const void *save);
 
-static int
-rocksdb_check_bulk_load(THD *const thd,
-                        struct SYS_VAR *var MY_ATTRIBUTE((__unused__)),
-                        void *save, struct st_mysql_value *value);
+static int rocksdb_check_bulk_load(
+    THD *const thd, struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *save,
+    struct st_mysql_value *value);
 
 static int rocksdb_check_bulk_load_allow_unsorted(
     THD *const thd, struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *save,
@@ -1943,8 +1941,8 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(enable_insert_with_update_caching),
     nullptr};
 
-static rocksdb::WriteOptions
-rdb_get_rocksdb_write_options(my_core::THD *const thd) {
+static rocksdb::WriteOptions rdb_get_rocksdb_write_options(
+    my_core::THD *const thd) {
   rocksdb::WriteOptions opt;
 
   opt.sync = (rocksdb_flush_log_at_trx_commit == FLUSH_LOG_SYNC);
@@ -2112,9 +2110,9 @@ class Rdb_transaction {
   // This should be used only when updating binlog information.
   virtual rocksdb::WriteBatchBase *get_write_batch() = 0;
   virtual bool commit_no_binlog() = 0;
-  virtual rocksdb::Iterator *
-  get_iterator(const rocksdb::ReadOptions &options,
-               rocksdb::ColumnFamilyHandle *column_family) = 0;
+  virtual rocksdb::Iterator *get_iterator(
+      const rocksdb::ReadOptions &options,
+      rocksdb::ColumnFamilyHandle *column_family) = 0;
 
   /*
     @detail
@@ -2177,8 +2175,7 @@ class Rdb_transaction {
 
     RDB_MUTEX_LOCK_CHECK(s_tx_list_mutex);
 
-    for (auto it : s_tx_list)
-      walker->process_tran(it);
+    for (auto it : s_tx_list) walker->process_tran(it);
 
     RDB_MUTEX_UNLOCK_CHECK(s_tx_list_mutex);
   }
@@ -2626,12 +2623,10 @@ class Rdb_transaction {
       inserts while inside a multi-statement transaction.
   */
   bool flush_batch() {
-    if (get_write_count() == 0)
-      return false;
+    if (get_write_count() == 0) return false;
 
     /* Commit the current transaction */
-    if (commit_no_binlog())
-      return true;
+    if (commit_no_binlog()) return true;
 
     /* Start another one */
     start_tx();
@@ -2656,12 +2651,12 @@ class Rdb_transaction {
                               const rocksdb::Slice &key,
                               const rocksdb::Slice &value,
                               const bool assume_tracked) = 0;
-  virtual rocksdb::Status
-  delete_key(rocksdb::ColumnFamilyHandle *const column_family,
-             const rocksdb::Slice &key, const bool assume_tracked) = 0;
-  virtual rocksdb::Status
-  single_delete(rocksdb::ColumnFamilyHandle *const column_family,
-                const rocksdb::Slice &key, const bool assume_tracked) = 0;
+  virtual rocksdb::Status delete_key(
+      rocksdb::ColumnFamilyHandle *const column_family,
+      const rocksdb::Slice &key, const bool assume_tracked) = 0;
+  virtual rocksdb::Status single_delete(
+      rocksdb::ColumnFamilyHandle *const column_family,
+      const rocksdb::Slice &key, const bool assume_tracked) = 0;
 
   virtual bool has_modifications() const = 0;
 
@@ -2677,25 +2672,23 @@ class Rdb_transaction {
   virtual rocksdb::Status get(rocksdb::ColumnFamilyHandle *const column_family,
                               const rocksdb::Slice &key,
                               rocksdb::PinnableSlice *const value) const = 0;
-  virtual rocksdb::Status
-  get_for_update(rocksdb::ColumnFamilyHandle *const column_family,
-                 const rocksdb::Slice &key, rocksdb::PinnableSlice *const value,
-                 bool exclusive, const bool do_validate) = 0;
+  virtual rocksdb::Status get_for_update(
+      rocksdb::ColumnFamilyHandle *const column_family,
+      const rocksdb::Slice &key, rocksdb::PinnableSlice *const value,
+      bool exclusive, const bool do_validate) = 0;
 
-  rocksdb::Iterator *
-  get_iterator(rocksdb::ColumnFamilyHandle *const column_family,
-               bool skip_bloom_filter, bool fill_cache,
-               const rocksdb::Slice &eq_cond_lower_bound,
-               const rocksdb::Slice &eq_cond_upper_bound,
-               bool read_current = false, bool create_snapshot = true) {
+  rocksdb::Iterator *get_iterator(
+      rocksdb::ColumnFamilyHandle *const column_family, bool skip_bloom_filter,
+      bool fill_cache, const rocksdb::Slice &eq_cond_lower_bound,
+      const rocksdb::Slice &eq_cond_upper_bound, bool read_current = false,
+      bool create_snapshot = true) {
     // Make sure we are not doing both read_current (which implies we don't
     // want a snapshot) and create_snapshot which makes sure we create
     // a snapshot
     DBUG_ASSERT(column_family != nullptr);
     DBUG_ASSERT(!read_current || !create_snapshot);
 
-    if (create_snapshot)
-      acquire_snapshot(true);
+    if (create_snapshot) acquire_snapshot(true);
 
     rocksdb::ReadOptions options = m_read_opts;
 
@@ -2735,7 +2728,6 @@ class Rdb_transaction {
     successfully and its changes become part of the transaction's changes.
   */
   int make_stmt_savepoint_permanent() {
-
     // Take another RocksDB savepoint only if we had changes since the last
     // one. This is very important for long transactions doing lots of
     // SELECTs.
@@ -2960,8 +2952,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
       m_read_opts.snapshot = nullptr;
     }
 
-    if (need_clear && m_rocksdb_tx != nullptr)
-      m_rocksdb_tx->ClearSnapshot();
+    if (need_clear && m_rocksdb_tx != nullptr) m_rocksdb_tx->ClearSnapshot();
   }
 
   bool has_snapshot() { return m_read_opts.snapshot != nullptr; }
@@ -2988,9 +2979,9 @@ class Rdb_transaction_impl : public Rdb_transaction {
     return m_rocksdb_tx->Delete(column_family, key, assume_tracked);
   }
 
-  rocksdb::Status
-  single_delete(rocksdb::ColumnFamilyHandle *const column_family,
-                const rocksdb::Slice &key, const bool assume_tracked) override {
+  rocksdb::Status single_delete(
+      rocksdb::ColumnFamilyHandle *const column_family,
+      const rocksdb::Slice &key, const bool assume_tracked) override {
     ++m_write_count;
     ++m_lock_count;
     if (m_write_count > m_max_row_locks || m_lock_count > m_max_row_locks) {
@@ -3029,10 +3020,10 @@ class Rdb_transaction_impl : public Rdb_transaction {
     return m_rocksdb_tx->Get(m_read_opts, column_family, key, value);
   }
 
-  rocksdb::Status
-  get_for_update(rocksdb::ColumnFamilyHandle *const column_family,
-                 const rocksdb::Slice &key, rocksdb::PinnableSlice *const value,
-                 bool exclusive, const bool do_validate) override {
+  rocksdb::Status get_for_update(
+      rocksdb::ColumnFamilyHandle *const column_family,
+      const rocksdb::Slice &key, rocksdb::PinnableSlice *const value,
+      bool exclusive, const bool do_validate) override {
     if (++m_lock_count > m_max_row_locks) {
       return rocksdb::Status::Aborted(rocksdb::Status::kLockLimit);
     }
@@ -3059,9 +3050,9 @@ class Rdb_transaction_impl : public Rdb_transaction {
     return s;
   }
 
-  rocksdb::Iterator *
-  get_iterator(const rocksdb::ReadOptions &options,
-               rocksdb::ColumnFamilyHandle *const column_family) override {
+  rocksdb::Iterator *get_iterator(
+      const rocksdb::ReadOptions &options,
+      rocksdb::ColumnFamilyHandle *const column_family) override {
     global_stats.queries[QUERIES_RANGE].inc();
     return m_rocksdb_tx->GetIterator(options, column_family);
   }
@@ -3137,8 +3128,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
 
       const rocksdb::Snapshot *const cur_snapshot = m_rocksdb_tx->GetSnapshot();
       if (org_snapshot != cur_snapshot) {
-        if (org_snapshot != nullptr)
-          m_snapshot_timestamp = 0;
+        if (org_snapshot != nullptr) m_snapshot_timestamp = 0;
 
         m_read_opts.snapshot = cur_snapshot;
         if (cur_snapshot != nullptr) {
@@ -3251,8 +3241,7 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   }
 
   void acquire_snapshot(bool acquire_now) override {
-    if (m_read_opts.snapshot == nullptr)
-      snapshot_created(rdb->GetSnapshot());
+    if (m_read_opts.snapshot == nullptr) snapshot_created(rdb->GetSnapshot());
   }
 
   void release_snapshot() override {
@@ -3280,9 +3269,9 @@ class Rdb_writebatch_impl : public Rdb_transaction {
     return rocksdb::Status::OK();
   }
 
-  rocksdb::Status
-  single_delete(rocksdb::ColumnFamilyHandle *const column_family,
-                const rocksdb::Slice &key, const bool assume_tracked) override {
+  rocksdb::Status single_delete(
+      rocksdb::ColumnFamilyHandle *const column_family,
+      const rocksdb::Slice &key, const bool assume_tracked) override {
     ++m_write_count;
     m_batch->SingleDelete(column_family, key);
     return rocksdb::Status::OK();
@@ -3307,10 +3296,10 @@ class Rdb_writebatch_impl : public Rdb_transaction {
                                       value);
   }
 
-  rocksdb::Status
-  get_for_update(rocksdb::ColumnFamilyHandle *const column_family,
-                 const rocksdb::Slice &key, rocksdb::PinnableSlice *const value,
-                 bool exclusive, const bool do_validate) override {
+  rocksdb::Status get_for_update(
+      rocksdb::ColumnFamilyHandle *const column_family,
+      const rocksdb::Slice &key, rocksdb::PinnableSlice *const value,
+      bool exclusive, const bool do_validate) override {
     if (value == nullptr) {
       rocksdb::PinnableSlice pin_val;
       rocksdb::Status s = get(column_family, key, &pin_val);
@@ -3321,9 +3310,9 @@ class Rdb_writebatch_impl : public Rdb_transaction {
     return get(column_family, key, value);
   }
 
-  rocksdb::Iterator *
-  get_iterator(const rocksdb::ReadOptions &options,
-               rocksdb::ColumnFamilyHandle *const column_family) override {
+  rocksdb::Iterator *get_iterator(
+      const rocksdb::ReadOptions &options,
+      rocksdb::ColumnFamilyHandle *const column_family) override {
     const auto it = rdb->NewIterator(options);
     return m_batch->NewIteratorWithBase(it);
   }
@@ -3343,8 +3332,7 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   void start_stmt() override {}
 
   void rollback_stmt() override {
-    if (m_batch)
-      rollback_to_stmt_savepoint();
+    if (m_batch) rollback_to_stmt_savepoint();
   }
 
   explicit Rdb_writebatch_impl(THD *const thd)
@@ -3658,7 +3646,6 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
   }
   if (prepare_tx ||
       (!my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
-
     if (thd->durability_property == HA_IGNORE_DURABILITY) {
       tx->set_sync(false);
     }
@@ -3713,9 +3700,8 @@ static xa_status_code rocksdb_commit_by_xid(handlerton *const hton,
   DBUG_RETURN(XA_OK);
 }
 
-static xa_status_code
-rocksdb_rollback_by_xid(handlerton *const hton MY_ATTRIBUTE((__unused__)),
-                        XID *const xid) {
+static xa_status_code rocksdb_rollback_by_xid(
+    handlerton *const hton MY_ATTRIBUTE((__unused__)), XID *const xid) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(hton != nullptr);
@@ -3774,7 +3760,6 @@ static void rdb_xid_from_string(const std::string &src, XID *const dst) {
 */
 static int rocksdb_recover(handlerton *hton, XA_recover_txn *txn_list, uint len,
                            MEM_ROOT *mem_root) {
-
   if (len == 0 || txn_list == nullptr) {
     return HA_EXIT_SUCCESS;
   }
@@ -3791,8 +3776,7 @@ static int rocksdb_recover(handlerton *hton, XA_recover_txn *txn_list, uint len,
     rdb_xid_from_string(name, &(txn_list[count].id));
 
     txn_list[count].mod_tables = new (mem_root) List<st_handler_tablename>();
-    if (!txn_list[count].mod_tables)
-      break;
+    if (!txn_list[count].mod_tables) break;
 
     count++;
   }
@@ -3816,8 +3800,8 @@ static int rocksdb_commit(handlerton *const hton, THD *const thd,
   Rdb_perf_context_guard guard(tx, rocksdb_perf_context_level(thd));
 
   if (tx != nullptr) {
-    if (commit_tx || (!my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT |
-                                                          OPTION_BEGIN))) {
+    if (commit_tx || (!my_core::thd_test_options(
+                         thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
       /*
         We get here
          - For a COMMIT statement that finishes a multi-statement transaction
@@ -3973,9 +3957,8 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
            "=========================================\n";
   }
 
-  static Rdb_deadlock_info::Rdb_dl_trx_info
-  get_dl_txn_info(const rocksdb::DeadlockInfo &txn,
-                  const GL_INDEX_ID &gl_index_id) {
+  static Rdb_deadlock_info::Rdb_dl_trx_info get_dl_txn_info(
+      const rocksdb::DeadlockInfo &txn, const GL_INDEX_ID &gl_index_id) {
     Rdb_deadlock_info::Rdb_dl_trx_info txn_data;
 
     txn_data.trx_id = txn.m_txn_id;
@@ -4002,8 +3985,8 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
     return txn_data;
   }
 
-  static Rdb_deadlock_info
-  get_dl_path_trx_info(const rocksdb::DeadlockPath &path_entry) {
+  static Rdb_deadlock_info get_dl_path_trx_info(
+      const rocksdb::DeadlockPath &path_entry) {
     Rdb_deadlock_info deadlock_info;
     deadlock_info.path.reserve(path_entry.path.size());
 
@@ -4042,11 +4025,12 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
       THD *thd = tx->get_thd();
       char buffer[1024];
       thd_security_context(thd, buffer, sizeof buffer, 0);
-      m_data += format_string("---SNAPSHOT, ACTIVE %lld sec\n"
-                              "%s\n"
-                              "lock count %llu, write count %llu\n",
-                              curr_time - snapshot_timestamp, buffer,
-                              tx->get_lock_count(), tx->get_write_count());
+      m_data += format_string(
+          "---SNAPSHOT, ACTIVE %lld sec\n"
+          "%s\n"
+          "lock count %llu, write count %llu\n",
+          curr_time - snapshot_timestamp, buffer, tx->get_lock_count(),
+          tx->get_write_count());
     }
   }
 
@@ -4395,22 +4379,16 @@ static bool rocksdb_collect_hton_log_info(handlerton *const /* unused */,
 
     Json_object json_wal;
     ret_val = json_wal.add_clone("log_number", &json_log_number);
-    if (!ret_val)
-      json_wal.add_clone("path_name", &json_path_name);
-    if (!ret_val)
-      json_wal.add_clone("size_file_bytes", &json_size_file_bytes);
-    if (!ret_val)
-      json_wal_files.insert_clone(index, &json_wal);
-    if (ret_val)
-      break;
+    if (!ret_val) json_wal.add_clone("path_name", &json_path_name);
+    if (!ret_val) json_wal.add_clone("size_file_bytes", &json_size_file_bytes);
+    if (!ret_val) json_wal_files.insert_clone(index, &json_wal);
+    if (ret_val) break;
     ++index;
   }
 
-  if (!ret_val)
-    ret_val = json_rocksdb.add_clone("wal_files", &json_wal_files);
+  if (!ret_val) ret_val = json_rocksdb.add_clone("wal_files", &json_wal_files);
 
-  if (!ret_val)
-    ret_val = json_engines->add_clone("RocksDB", &json_rocksdb);
+  if (!ret_val) ret_val = json_engines->add_clone("RocksDB", &json_rocksdb);
 
   return ret_val;
 }
@@ -4478,9 +4456,8 @@ static int rocksdb_rollback_to_savepoint(handlerton *const hton, THD *const thd,
   return tx->rollback_to_savepoint(savepoint);
 }
 
-static bool
-rocksdb_rollback_to_savepoint_can_release_mdl(handlerton *const hton,
-                                              THD *const thd) {
+static bool rocksdb_rollback_to_savepoint_can_release_mdl(
+    handlerton *const hton, THD *const thd) {
   return true;
 }
 
@@ -4507,8 +4484,9 @@ static rocksdb::Status check_rocksdb_options_compatibility(
   }
 
   if (loaded_cf_descs.size() != cf_descr.size()) {
-    return rocksdb::Status::NotSupported("Mismatched size of column family "
-                                         "descriptors.");
+    return rocksdb::Status::NotSupported(
+        "Mismatched size of column family "
+        "descriptors.");
   }
 
   // Please see RocksDB documentation for more context about why we need to set
@@ -4874,8 +4852,7 @@ static int rocksdb_init_func(void *const p) {
     If there are no column families, we're creating the new database.
     Create one column family named "default".
   */
-  if (cf_names.size() == 0)
-    cf_names.push_back(DEFAULT_CF_NAME);
+  if (cf_names.size() == 0) cf_names.push_back(DEFAULT_CF_NAME);
 
   std::vector<int> compaction_enabled_cf_indices;
   LogPluginErrMsg(INFORMATION_LEVEL, 0, "Column Families at start:");
@@ -5036,7 +5013,10 @@ static int rocksdb_init_func(void *const p) {
   // succeeded, set the init status flag
   rdb_get_hton_init_state()->set_initialized(true);
 
-  LogPluginErrMsg(INFORMATION_LEVEL, 0, "instance opened");
+  // NO_LINT_DEBUG
+  LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                  "MyRocks storage engine plugin has been successfully "
+                  "initialized.");
 
   // Skip cleaning up rdb_open_tables as we've succeeded
   rdb_open_tables_cleanup.skip();
@@ -5210,9 +5190,8 @@ static inline bool is_valid(rocksdb::Iterator *scan_it) {
   they are needed to function.
 */
 
-Rdb_table_handler *
-Rdb_open_tables_map::get_table_handler(const char *const table_name) {
-
+Rdb_table_handler *Rdb_open_tables_map::get_table_handler(
+    const char *const table_name) {
   DBUG_ASSERT(table_name != nullptr);
 
   Rdb_table_handler *table_handler;
@@ -5290,44 +5269,44 @@ std::vector<std::string> Rdb_open_tables_map::get_table_names(void) const {
 static ulonglong rdb_get_int_col_max_value(const Field *field) {
   ulonglong max_value = 0;
   switch (field->key_type()) {
-  case HA_KEYTYPE_BINARY:
-    max_value = 0xFFULL;
-    break;
-  case HA_KEYTYPE_INT8:
-    max_value = 0x7FULL;
-    break;
-  case HA_KEYTYPE_USHORT_INT:
-    max_value = 0xFFFFULL;
-    break;
-  case HA_KEYTYPE_SHORT_INT:
-    max_value = 0x7FFFULL;
-    break;
-  case HA_KEYTYPE_UINT24:
-    max_value = 0xFFFFFFULL;
-    break;
-  case HA_KEYTYPE_INT24:
-    max_value = 0x7FFFFFULL;
-    break;
-  case HA_KEYTYPE_ULONG_INT:
-    max_value = 0xFFFFFFFFULL;
-    break;
-  case HA_KEYTYPE_LONG_INT:
-    max_value = 0x7FFFFFFFULL;
-    break;
-  case HA_KEYTYPE_ULONGLONG:
-    max_value = 0xFFFFFFFFFFFFFFFFULL;
-    break;
-  case HA_KEYTYPE_LONGLONG:
-    max_value = 0x7FFFFFFFFFFFFFFFULL;
-    break;
-  case HA_KEYTYPE_FLOAT:
-    max_value = 0x1000000ULL;
-    break;
-  case HA_KEYTYPE_DOUBLE:
-    max_value = 0x20000000000000ULL;
-    break;
-  default:
-    abort();
+    case HA_KEYTYPE_BINARY:
+      max_value = 0xFFULL;
+      break;
+    case HA_KEYTYPE_INT8:
+      max_value = 0x7FULL;
+      break;
+    case HA_KEYTYPE_USHORT_INT:
+      max_value = 0xFFFFULL;
+      break;
+    case HA_KEYTYPE_SHORT_INT:
+      max_value = 0x7FFFULL;
+      break;
+    case HA_KEYTYPE_UINT24:
+      max_value = 0xFFFFFFULL;
+      break;
+    case HA_KEYTYPE_INT24:
+      max_value = 0x7FFFFFULL;
+      break;
+    case HA_KEYTYPE_ULONG_INT:
+      max_value = 0xFFFFFFFFULL;
+      break;
+    case HA_KEYTYPE_LONG_INT:
+      max_value = 0x7FFFFFFFULL;
+      break;
+    case HA_KEYTYPE_ULONGLONG:
+      max_value = 0xFFFFFFFFFFFFFFFFULL;
+      break;
+    case HA_KEYTYPE_LONGLONG:
+      max_value = 0x7FFFFFFFFFFFFFFFULL;
+      break;
+    case HA_KEYTYPE_FLOAT:
+      max_value = 0x1000000ULL;
+      break;
+    case HA_KEYTYPE_DOUBLE:
+      max_value = 0x20000000000000ULL;
+      break;
+    default:
+      abort();
   }
 
   return max_value;
@@ -5560,7 +5539,6 @@ static handler *rocksdb_create_handler(my_core::handlerton *const hton,
                                        my_core::TABLE_SHARE *const table_arg,
                                        bool partitioned,
                                        my_core::MEM_ROOT *const mem_root) {
-
   if (partitioned) {
     ha_rockspart *file = new (mem_root) ha_rockspart(hton, table_arg);
     if (file && file->init_partitioning(mem_root)) {
@@ -5575,20 +5553,35 @@ static handler *rocksdb_create_handler(my_core::handlerton *const hton,
 
 ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
                        my_core::TABLE_SHARE *const table_arg)
-    : handler(hton, table_arg), m_table_handler(nullptr), m_scan_it(nullptr),
-      m_scan_it_skips_bloom(false), m_scan_it_snapshot(nullptr),
-      m_scan_it_lower_bound(nullptr), m_scan_it_upper_bound(nullptr),
-      m_tbl_def(nullptr), m_pk_descr(nullptr), m_key_descr_arr(nullptr),
-      m_pk_can_be_decoded(false), m_pk_tuple(nullptr),
-      m_pk_packed_tuple(nullptr), m_sk_packed_tuple(nullptr),
-      m_end_key_packed_tuple(nullptr), m_sk_match_prefix(nullptr),
-      m_sk_match_prefix_buf(nullptr), m_sk_packed_tuple_old(nullptr),
-      m_dup_sk_packed_tuple(nullptr), m_dup_sk_packed_tuple_old(nullptr),
-      m_pack_buffer(nullptr), m_lock_rows(RDB_LOCK_NONE), m_keyread_only(false),
-      m_insert_with_update(false), m_dup_pk_found(false)
+    : handler(hton, table_arg),
+      m_table_handler(nullptr),
+      m_scan_it(nullptr),
+      m_scan_it_skips_bloom(false),
+      m_scan_it_snapshot(nullptr),
+      m_scan_it_lower_bound(nullptr),
+      m_scan_it_upper_bound(nullptr),
+      m_tbl_def(nullptr),
+      m_pk_descr(nullptr),
+      m_key_descr_arr(nullptr),
+      m_pk_can_be_decoded(false),
+      m_pk_tuple(nullptr),
+      m_pk_packed_tuple(nullptr),
+      m_sk_packed_tuple(nullptr),
+      m_end_key_packed_tuple(nullptr),
+      m_sk_match_prefix(nullptr),
+      m_sk_match_prefix_buf(nullptr),
+      m_sk_packed_tuple_old(nullptr),
+      m_dup_sk_packed_tuple(nullptr),
+      m_dup_sk_packed_tuple_old(nullptr),
+      m_pack_buffer(nullptr),
+      m_lock_rows(RDB_LOCK_NONE),
+      m_keyread_only(false),
+      m_insert_with_update(false),
+      m_dup_pk_found(false)
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
       ,
-      m_in_rpl_delete_rows(false), m_in_rpl_update_rows(false)
+      m_in_rpl_delete_rows(false),
+      m_in_rpl_update_rows(false)
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 {
 }
@@ -5750,7 +5743,6 @@ void dbug_create_err_inplace_alter() {
 
 int ha_rocksdb::convert_record_from_storage_format(
     const rocksdb::Slice *const key, uchar *const buf) {
-
   DBUG_EXECUTE_IF("myrocks_simulate_bad_row_read1",
                   dbug_append_garbage_at_end(&m_retrieved_record););
   DBUG_EXECUTE_IF("myrocks_simulate_bad_row_read2",
@@ -6161,60 +6153,61 @@ int ha_rocksdb::rdb_error_to_mysql(const rocksdb::Status &s,
 
   int err;
   switch (s.code()) {
-  case rocksdb::Status::Code::kOk:
-    err = HA_EXIT_SUCCESS;
-    break;
-  case rocksdb::Status::Code::kNotFound:
-    err = HA_ERR_ROCKSDB_STATUS_NOT_FOUND;
-    break;
-  case rocksdb::Status::Code::kCorruption:
-    err = HA_ERR_ROCKSDB_STATUS_CORRUPTION;
-    break;
-  case rocksdb::Status::Code::kNotSupported:
-    err = HA_ERR_ROCKSDB_STATUS_NOT_SUPPORTED;
-    break;
-  case rocksdb::Status::Code::kInvalidArgument:
-    err = HA_ERR_ROCKSDB_STATUS_INVALID_ARGUMENT;
-    break;
-  case rocksdb::Status::Code::kIOError:
-    err = (s.IsNoSpace()) ? HA_ERR_ROCKSDB_STATUS_NO_SPACE
-                          : HA_ERR_ROCKSDB_STATUS_IO_ERROR;
-    break;
-  case rocksdb::Status::Code::kMergeInProgress:
-    err = HA_ERR_ROCKSDB_STATUS_MERGE_IN_PROGRESS;
-    break;
-  case rocksdb::Status::Code::kIncomplete:
-    err = HA_ERR_ROCKSDB_STATUS_INCOMPLETE;
-    break;
-  case rocksdb::Status::Code::kShutdownInProgress:
-    err = HA_ERR_ROCKSDB_STATUS_SHUTDOWN_IN_PROGRESS;
-    break;
-  case rocksdb::Status::Code::kTimedOut:
-    err = HA_ERR_ROCKSDB_STATUS_TIMED_OUT;
-    break;
-  case rocksdb::Status::Code::kAborted:
-    err = (s.IsLockLimit()) ? HA_ERR_ROCKSDB_STATUS_LOCK_LIMIT
-                            : HA_ERR_ROCKSDB_STATUS_ABORTED;
-    break;
-  case rocksdb::Status::Code::kBusy:
-    err = (s.IsDeadlock()) ? HA_ERR_ROCKSDB_STATUS_DEADLOCK
-                           : HA_ERR_ROCKSDB_STATUS_BUSY;
-    break;
-  case rocksdb::Status::Code::kExpired:
-    err = HA_ERR_ROCKSDB_STATUS_EXPIRED;
-    break;
-  case rocksdb::Status::Code::kTryAgain:
-    err = HA_ERR_ROCKSDB_STATUS_TRY_AGAIN;
-    break;
-  default:
-    DBUG_ASSERT(0);
-    return -1;
+    case rocksdb::Status::Code::kOk:
+      err = HA_EXIT_SUCCESS;
+      break;
+    case rocksdb::Status::Code::kNotFound:
+      err = HA_ERR_ROCKSDB_STATUS_NOT_FOUND;
+      break;
+    case rocksdb::Status::Code::kCorruption:
+      err = HA_ERR_ROCKSDB_STATUS_CORRUPTION;
+      break;
+    case rocksdb::Status::Code::kNotSupported:
+      err = HA_ERR_ROCKSDB_STATUS_NOT_SUPPORTED;
+      break;
+    case rocksdb::Status::Code::kInvalidArgument:
+      err = HA_ERR_ROCKSDB_STATUS_INVALID_ARGUMENT;
+      break;
+    case rocksdb::Status::Code::kIOError:
+      err = (s.IsNoSpace()) ? HA_ERR_ROCKSDB_STATUS_NO_SPACE
+                            : HA_ERR_ROCKSDB_STATUS_IO_ERROR;
+      break;
+    case rocksdb::Status::Code::kMergeInProgress:
+      err = HA_ERR_ROCKSDB_STATUS_MERGE_IN_PROGRESS;
+      break;
+    case rocksdb::Status::Code::kIncomplete:
+      err = HA_ERR_ROCKSDB_STATUS_INCOMPLETE;
+      break;
+    case rocksdb::Status::Code::kShutdownInProgress:
+      err = HA_ERR_ROCKSDB_STATUS_SHUTDOWN_IN_PROGRESS;
+      break;
+    case rocksdb::Status::Code::kTimedOut:
+      err = HA_ERR_ROCKSDB_STATUS_TIMED_OUT;
+      break;
+    case rocksdb::Status::Code::kAborted:
+      err = (s.IsLockLimit()) ? HA_ERR_ROCKSDB_STATUS_LOCK_LIMIT
+                              : HA_ERR_ROCKSDB_STATUS_ABORTED;
+      break;
+    case rocksdb::Status::Code::kBusy:
+      err = (s.IsDeadlock()) ? HA_ERR_ROCKSDB_STATUS_DEADLOCK
+                             : HA_ERR_ROCKSDB_STATUS_BUSY;
+      break;
+    case rocksdb::Status::Code::kExpired:
+      err = HA_ERR_ROCKSDB_STATUS_EXPIRED;
+      break;
+    case rocksdb::Status::Code::kTryAgain:
+      err = HA_ERR_ROCKSDB_STATUS_TRY_AGAIN;
+      break;
+    default:
+      DBUG_ASSERT(0);
+      return -1;
   }
 
   std::string errMsg;
   if (s.IsLockLimit()) {
-    errMsg = "Operation aborted: Failed to acquire lock due to "
-             "rocksdb_max_row_locks limit";
+    errMsg =
+        "Operation aborted: Failed to acquire lock due to "
+        "rocksdb_max_row_locks limit";
   } else {
     errMsg = s.ToString();
   }
@@ -6235,8 +6228,8 @@ int ha_rocksdb::rdb_error_to_mysql(const rocksdb::Status &s,
 static const std::set<const my_core::CHARSET_INFO *> RDB_INDEX_COLLATIONS = {
     &my_charset_bin, &my_charset_utf8_bin, &my_charset_latin1_bin};
 
-static bool
-rdb_is_index_collation_supported(const my_core::Field *const field) {
+static bool rdb_is_index_collation_supported(
+    const my_core::Field *const field) {
   const my_core::enum_field_types type = field->real_type();
   /* Handle [VAR](CHAR|BINARY) or TEXT|BLOB */
   if (type == MYSQL_TYPE_VARCHAR || type == MYSQL_TYPE_STRING ||
@@ -7227,65 +7220,66 @@ int ha_rocksdb::position_to_correct_key(
   *move_forward = true;
 
   switch (find_flag) {
-  case HA_READ_KEY_EXACT:
-    rc =
-        read_key_exact(kd, m_scan_it, full_key_match, key_slice, ttl_filter_ts);
-    break;
-  case HA_READ_BEFORE_KEY:
-    *move_forward = false;
-    rc = read_before_key(kd, full_key_match, key_slice, ttl_filter_ts);
-    if (rc == 0 && !kd.covers_key(m_scan_it->key())) {
-      /* The record we've got is not from this index */
-      rc = HA_ERR_KEY_NOT_FOUND;
-    }
-    break;
-  case HA_READ_AFTER_KEY:
-  case HA_READ_KEY_OR_NEXT:
-    rc = read_after_key(kd, key_slice, ttl_filter_ts);
-    if (rc == 0 && !kd.covers_key(m_scan_it->key())) {
-      /* The record we've got is not from this index */
-      rc = HA_ERR_KEY_NOT_FOUND;
-    }
-    break;
-  case HA_READ_KEY_OR_PREV:
-  case HA_READ_PREFIX:
-    /* This flag is not used by the SQL layer, so we don't support it yet. */
-    rc = HA_ERR_UNSUPPORTED;
-    break;
-  case HA_READ_PREFIX_LAST:
-  case HA_READ_PREFIX_LAST_OR_PREV:
-    *move_forward = false;
-    /*
-      Find the last record with the specified index prefix lookup.
-      - HA_READ_PREFIX_LAST requires that the record has the
-        prefix=lookup (if there are no such records,
-        HA_ERR_KEY_NOT_FOUND should be returned).
-      - HA_READ_PREFIX_LAST_OR_PREV has no such requirement. If there are no
-        records with prefix=lookup, we should return the last record
-        before that.
-    */
-    rc = read_before_key(kd, full_key_match, key_slice, ttl_filter_ts);
-    if (rc == 0) {
-      const rocksdb::Slice &rkey = m_scan_it->key();
-      if (!kd.covers_key(rkey)) {
+    case HA_READ_KEY_EXACT:
+      rc = read_key_exact(kd, m_scan_it, full_key_match, key_slice,
+                          ttl_filter_ts);
+      break;
+    case HA_READ_BEFORE_KEY:
+      *move_forward = false;
+      rc = read_before_key(kd, full_key_match, key_slice, ttl_filter_ts);
+      if (rc == 0 && !kd.covers_key(m_scan_it->key())) {
         /* The record we've got is not from this index */
         rc = HA_ERR_KEY_NOT_FOUND;
-      } else if (find_flag == HA_READ_PREFIX_LAST) {
-        uint size = kd.pack_index_tuple(table, m_pack_buffer, m_sk_packed_tuple,
-                                        key, keypart_map);
-        rocksdb::Slice lookup_tuple(reinterpret_cast<char *>(m_sk_packed_tuple),
-                                    size);
-
-        // We need to compare the key we've got with the original search prefix.
-        if (!kd.value_matches_prefix(rkey, lookup_tuple)) {
+      }
+      break;
+    case HA_READ_AFTER_KEY:
+    case HA_READ_KEY_OR_NEXT:
+      rc = read_after_key(kd, key_slice, ttl_filter_ts);
+      if (rc == 0 && !kd.covers_key(m_scan_it->key())) {
+        /* The record we've got is not from this index */
+        rc = HA_ERR_KEY_NOT_FOUND;
+      }
+      break;
+    case HA_READ_KEY_OR_PREV:
+    case HA_READ_PREFIX:
+      /* This flag is not used by the SQL layer, so we don't support it yet. */
+      rc = HA_ERR_UNSUPPORTED;
+      break;
+    case HA_READ_PREFIX_LAST:
+    case HA_READ_PREFIX_LAST_OR_PREV:
+      *move_forward = false;
+      /*
+        Find the last record with the specified index prefix lookup.
+        - HA_READ_PREFIX_LAST requires that the record has the
+          prefix=lookup (if there are no such records,
+          HA_ERR_KEY_NOT_FOUND should be returned).
+        - HA_READ_PREFIX_LAST_OR_PREV has no such requirement. If there are no
+          records with prefix=lookup, we should return the last record
+          before that.
+      */
+      rc = read_before_key(kd, full_key_match, key_slice, ttl_filter_ts);
+      if (rc == 0) {
+        const rocksdb::Slice &rkey = m_scan_it->key();
+        if (!kd.covers_key(rkey)) {
+          /* The record we've got is not from this index */
           rc = HA_ERR_KEY_NOT_FOUND;
+        } else if (find_flag == HA_READ_PREFIX_LAST) {
+          uint size = kd.pack_index_tuple(table, m_pack_buffer,
+                                          m_sk_packed_tuple, key, keypart_map);
+          rocksdb::Slice lookup_tuple(
+              reinterpret_cast<char *>(m_sk_packed_tuple), size);
+
+          // We need to compare the key we've got with the original search
+          // prefix.
+          if (!kd.value_matches_prefix(rkey, lookup_tuple)) {
+            rc = HA_ERR_KEY_NOT_FOUND;
+          }
         }
       }
-    }
-    break;
-  default:
-    DBUG_ASSERT(0);
-    break;
+      break;
+    default:
+      DBUG_ASSERT(0);
+      break;
   }
 
   return rc;
@@ -7297,8 +7291,7 @@ int ha_rocksdb::calc_eq_cond_len(const Rdb_key_def &kd,
                                  const int bytes_changed_by_succ,
                                  const key_range *const end_key,
                                  uint *const end_key_packed_size) {
-  if (find_flag == HA_READ_KEY_EXACT)
-    return slice.size();
+  if (find_flag == HA_READ_KEY_EXACT) return slice.size();
 
   if (find_flag == HA_READ_PREFIX_LAST) {
     /*
@@ -7395,8 +7388,7 @@ int ha_rocksdb::read_row_from_secondary_key(uchar *const buf,
       global_stats.covered_secondary_key_lookups.inc();
     }
   } else {
-    if (kd.m_is_reverse_cf)
-      move_forward = !move_forward;
+    if (kd.m_is_reverse_cf) move_forward = !move_forward;
 
     rc = find_icp_matching_index_rec(move_forward, buf);
     if (!rc) {
@@ -7447,10 +7439,10 @@ ulong ha_rocksdb::index_flags(bool &pk_can_be_decoded,
 
   ulong base_flags = HA_READ_NEXT |  // doesn't seem to be used
                      HA_READ_ORDER | HA_READ_RANGE | HA_READ_PREV;
+  if (res) base_flags |= HA_KEYREAD_ONLY;
 
   if (check_keyread_allowed(pk_can_be_decoded, table_share, inx, part,
                             all_parts))
-    base_flags |= HA_KEYREAD_ONLY;
 
   if (inx == table_share->primary_key) {
     /*
@@ -7629,8 +7621,7 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
   const uint actual_key_parts = kd.get_key_parts();
   bool using_full_key = is_using_full_key(keypart_map, actual_key_parts);
 
-  if (!end_key)
-    end_key = end_range;
+  if (!end_key) end_key = end_range;
 
   /* By default, we don't need the retrieved records to match the prefix */
   m_sk_match_prefix = nullptr;
@@ -7910,8 +7901,7 @@ int ha_rocksdb::check(THD *const thd, HA_CHECK_OPT *const check_opt) {
           res = index_next(table->record[0]);
         }
 
-        if (res == HA_ERR_END_OF_FILE)
-          break;
+        if (res == HA_ERR_END_OF_FILE) break;
         if (res) {
           // error
           LogPluginErrMsg(ERROR_LEVEL, 0,
@@ -8047,8 +8037,7 @@ static void dbug_dump_str(FILE *const out, const char *const str, int len) {
 
 void dbug_dump_database(rocksdb::DB *const db) {
   FILE *const out = fopen("/tmp/rocksdb.dump", "wt");
-  if (!out)
-    return;
+  if (!out) return;
 
   rocksdb::Iterator *it = db->NewIterator(rocksdb::ReadOptions());
   for (it->SeekToFirst(); it->Valid(); it->Next()) {
@@ -8117,8 +8106,9 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
   DEBUG_SYNC(ha_thd(), "rocksdb.get_row_by_rowid");
   DBUG_EXECUTE_IF("dbug.rocksdb.get_row_by_rowid", {
     THD *thd = ha_thd();
-    const char act[] = "now signal Reached "
-                       "wait_for signal.rocksdb.get_row_by_rowid_let_running";
+    const char act[] =
+        "now signal Reached "
+        "wait_for signal.rocksdb.get_row_by_rowid_let_running";
     DBUG_ASSERT(opt_debug_sync_timeout > 0);
     DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
@@ -8196,8 +8186,7 @@ int ha_rocksdb::index_next(uchar *const buf) {
   }
 
   int rc = index_next_with_direction(buf, moves_forward);
-  if (rc == HA_ERR_KEY_NOT_FOUND)
-    rc = HA_ERR_END_OF_FILE;
+  if (rc == HA_ERR_KEY_NOT_FOUND) rc = HA_ERR_END_OF_FILE;
 
   DBUG_RETURN(rc);
 }
@@ -8217,8 +8206,7 @@ int ha_rocksdb::index_prev(uchar *const buf) {
   }
 
   int rc = index_next_with_direction(buf, moves_forward);
-  if (rc == HA_ERR_KEY_NOT_FOUND)
-    rc = HA_ERR_END_OF_FILE;
+  if (rc == HA_ERR_KEY_NOT_FOUND) rc = HA_ERR_END_OF_FILE;
 
   DBUG_RETURN(rc);
 }
@@ -8255,8 +8243,7 @@ int ha_rocksdb::index_next_with_direction(uchar *const buf, bool move_forward) {
         break;
       }
       rc = find_icp_matching_index_rec(move_forward, buf);
-      if (!rc)
-        rc = secondary_index_read(active_index, buf);
+      if (!rc) rc = secondary_index_read(active_index, buf);
       if (!should_skip_invalidated_record(rc)) {
         break;
       }
@@ -8279,8 +8266,7 @@ int ha_rocksdb::index_first(uchar *const buf) {
   int rc = m_key_descr_arr[active_index]->m_is_reverse_cf
                ? index_last_intern(buf)
                : index_first_intern(buf);
-  if (rc == HA_ERR_KEY_NOT_FOUND)
-    rc = HA_ERR_END_OF_FILE;
+  if (rc == HA_ERR_KEY_NOT_FOUND) rc = HA_ERR_END_OF_FILE;
 
   DBUG_RETURN(rc);
 }
@@ -8298,8 +8284,7 @@ int ha_rocksdb::index_last(uchar *const buf) {
   int rc = m_key_descr_arr[active_index]->m_is_reverse_cf
                ? index_first_intern(buf)
                : index_last_intern(buf);
-  if (rc == HA_ERR_KEY_NOT_FOUND)
-    rc = HA_ERR_END_OF_FILE;
+  if (rc == HA_ERR_KEY_NOT_FOUND) rc = HA_ERR_END_OF_FILE;
 
   DBUG_RETURN(rc);
 }
@@ -8456,8 +8441,7 @@ int ha_rocksdb::index_last_intern(uchar *const buf) {
       rc = rnd_next_with_direction(buf, false);
     } else {
       rc = find_icp_matching_index_rec(false /*move_forward*/, buf);
-      if (!rc)
-        rc = secondary_index_read(active_index, buf);
+      if (!rc) rc = secondary_index_read(active_index, buf);
     }
 
     if (!should_recreate_snapshot(rc, is_new_snapshot)) {
@@ -8614,10 +8598,9 @@ const char *ha_rocksdb::get_key_comment(const uint index,
   return table_arg->key_info[index].comment.str;
 }
 
-const std::string
-ha_rocksdb::generate_cf_name(const uint index, const TABLE *const table_arg,
-                             const Rdb_tbl_def *const tbl_def_arg,
-                             bool *per_part_match_found) {
+const std::string ha_rocksdb::generate_cf_name(
+    const uint index, const TABLE *const table_arg,
+    const Rdb_tbl_def *const tbl_def_arg, bool *per_part_match_found) {
   DBUG_ASSERT(table_arg != nullptr);
   DBUG_ASSERT(tbl_def_arg != nullptr);
   DBUG_ASSERT(per_part_match_found != nullptr);
@@ -8649,8 +8632,7 @@ ha_rocksdb::generate_cf_name(const uint index, const TABLE *const table_arg,
   // causes any index comment to create a new column family.
 
   // Strip leading and trailing whitespace as that is not part of a valid name
-  if (!cf_name.empty())
-    rdb_trim_whitespace_from_edges(cf_name);
+  if (!cf_name.empty()) rdb_trim_whitespace_from_edges(cf_name);
 
   return cf_name;
 }
@@ -9670,8 +9652,7 @@ int ha_rocksdb::rnd_next(uchar *const buf) {
 
   m_rnd_scan_is_new_snapshot = false;
 
-  if (rc == HA_ERR_KEY_NOT_FOUND)
-    rc = HA_ERR_END_OF_FILE;
+  if (rc == HA_ERR_KEY_NOT_FOUND) rc = HA_ERR_END_OF_FILE;
 
   DBUG_RETURN(rc);
 }
@@ -9969,8 +9950,7 @@ void ha_rocksdb::update_stats(void) {
 int ha_rocksdb::info(uint flag) {
   DBUG_ENTER_FUNC();
 
-  if (!table)
-    DBUG_RETURN(HA_EXIT_FAILURE);
+  if (!table) DBUG_RETURN(HA_EXIT_FAILURE);
 
   if (flag & HA_STATUS_VARIABLE) {
     /*
@@ -10085,8 +10065,7 @@ int ha_rocksdb::info(uint flag) {
         } else {
           x = 0;
         }
-        if (x > stats.records)
-          x = stats.records;
+        if (x > stats.records) x = stats.records;
         if ((x == 0 && rocksdb_debug_optimizer_no_zero_cardinality) ||
             rocksdb_debug_optimizer_n_rows > 0) {
           // Fake cardinality implementation. For example, (idx1, idx2, idx3)
@@ -10200,8 +10179,7 @@ void ha_rocksdb::calc_updated_indexes() {
       /* Walk over all key parts, including the "extended key" suffix */
       const uint key_parts = kd.get_key_parts();
       for (uint kp = 0; kp < key_parts; kp++) {
-        if (has_hidden_pk(table) && kp + 1 == key_parts)
-          break;
+        if (has_hidden_pk(table) && kp + 1 == key_parts) break;
 
         Field *const field = kd.get_table_field_for_part_no(table, kp);
         if (bitmap_is_set(table->write_set, field->field_index)) {
@@ -10274,7 +10252,6 @@ THR_LOCK_DATA **ha_rocksdb::store_lock(THD *const thd, THR_LOCK_DATA **to,
           lock_type == TL_READ_WITH_SHARED_LOCKS ||
           lock_type == TL_READ_NO_INSERT ||
           (lock_type != TL_IGNORE && sql_command != SQLCOM_SELECT)) {
-
         ulong tx_isolation = my_core::thd_tx_isolation(thd);
         if (sql_command != SQLCOM_CHECKSUM &&
             ((my_core::thd_test_options(thd, OPTION_BIN_LOG) &&
@@ -10486,9 +10463,8 @@ rocksdb::Range get_range(const Rdb_key_def &kd,
   }
 }
 
-rocksdb::Range
-ha_rocksdb::get_range(const int i,
-                      uchar buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2]) const {
+rocksdb::Range ha_rocksdb::get_range(
+    const int i, uchar buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2]) const {
   return myrocks::get_range(*m_key_descr_arr[i], buf);
 }
 
@@ -10838,33 +10814,33 @@ int ha_rocksdb::extra(enum ha_extra_function operation) {
   DBUG_ENTER_FUNC();
 
   switch (operation) {
-  case HA_EXTRA_KEYREAD:
-    m_keyread_only = true;
-    break;
-  case HA_EXTRA_NO_KEYREAD:
-    m_keyread_only = false;
-    break;
-  case HA_EXTRA_FLUSH:
-    /*
-      If the table has blobs, then they are part of m_retrieved_record.
-      This call invalidates them.
-    */
-    m_retrieved_record.Reset();
-    break;
-  case HA_EXTRA_INSERT_WITH_UPDATE:
-    // INSERT ON DUPLICATE KEY UPDATE
-    if (rocksdb_enable_insert_with_update_caching) {
-      m_insert_with_update = true;
-    }
-    break;
-  case HA_EXTRA_NO_IGNORE_DUP_KEY:
-    // PAIRED with HA_EXTRA_INSERT_WITH_UPDATE or HA_EXTRA_WRITE_CAN_REPLACE
-    // that indicates the end of REPLACE / INSERT ON DUPLICATE KEY
-    m_insert_with_update = false;
-    break;
+    case HA_EXTRA_KEYREAD:
+      m_keyread_only = true;
+      break;
+    case HA_EXTRA_NO_KEYREAD:
+      m_keyread_only = false;
+      break;
+    case HA_EXTRA_FLUSH:
+      /*
+        If the table has blobs, then they are part of m_retrieved_record.
+        This call invalidates them.
+      */
+      m_retrieved_record.Reset();
+      break;
+    case HA_EXTRA_INSERT_WITH_UPDATE:
+      // INSERT ON DUPLICATE KEY UPDATE
+      if (rocksdb_enable_insert_with_update_caching) {
+        m_insert_with_update = true;
+      }
+      break;
+    case HA_EXTRA_NO_IGNORE_DUP_KEY:
+      // PAIRED with HA_EXTRA_INSERT_WITH_UPDATE or HA_EXTRA_WRITE_CAN_REPLACE
+      // that indicates the end of REPLACE / INSERT ON DUPLICATE KEY
+      m_insert_with_update = false;
+      break;
 
-  default:
-    break;
+    default:
+      break;
   }
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
@@ -10935,8 +10911,7 @@ ha_rows ha_rocksdb::records_in_range(uint inx, key_range *const min_key,
 
   uint64_t sz = 0;
   auto disk_size = kd.m_stats.m_actual_disk_size;
-  if (disk_size == 0)
-    disk_size = kd.m_stats.m_data_size;
+  if (disk_size == 0) disk_size = kd.m_stats.m_data_size;
   auto rows = kd.m_stats.m_rows;
   if (rows == 0 || disk_size == 0) {
     rows = 1;
@@ -11311,8 +11286,7 @@ const char *dbug_print_item(const THD *thd, Item *const item) {
   char *const buf = dbug_item_print_buf;
   String str(buf, sizeof(dbug_item_print_buf), &my_charset_bin);
   str.length(0);
-  if (!item)
-    return "(Item*)nullptr";
+  if (!item) return "(Item*)nullptr";
   item->print(thd, &str, QT_ORDINARY);
   if (str.c_ptr() == buf) {
     return buf;
@@ -11484,7 +11458,6 @@ bool ha_rocksdb::prepare_inplace_alter_table(
        my_core::Alter_inplace_info::DROP_UNIQUE_INDEX |
        my_core::Alter_inplace_info::ADD_INDEX |
        my_core::Alter_inplace_info::ADD_UNIQUE_INDEX)) {
-
     if (has_hidden_pk(altered_table)) {
       new_n_keys += 1;
     }
@@ -12063,22 +12036,22 @@ bool ha_rocksdb::commit_inplace_alter_table(
 
 #define SHOW_FNAME(name) rocksdb_show_##name
 
-#define DEF_SHOW_FUNC(name, key)                                               \
-  static int SHOW_FNAME(name)(MYSQL_THD thd, SHOW_VAR * var, char *buff) {     \
-    rocksdb_status_counters.name =                                             \
-        rocksdb_stats->getTickerCount(rocksdb::key);                           \
-    var->type = SHOW_LONGLONG;                                                 \
-    var->value = (char *)&rocksdb_status_counters.name;                        \
-    return HA_EXIT_SUCCESS;                                                    \
+#define DEF_SHOW_FUNC(name, key)                                           \
+  static int SHOW_FNAME(name)(MYSQL_THD thd, SHOW_VAR * var, char *buff) { \
+    rocksdb_status_counters.name =                                         \
+        rocksdb_stats->getTickerCount(rocksdb::key);                       \
+    var->type = SHOW_LONGLONG;                                             \
+    var->value = (char *)&rocksdb_status_counters.name;                    \
+    return HA_EXIT_SUCCESS;                                                \
   }
 
-#define DEF_STATUS_VAR(name)                                                   \
+#define DEF_STATUS_VAR(name) \
   { "rocksdb_" #name, (char *)&SHOW_FNAME(name), SHOW_FUNC, SHOW_SCOPE_GLOBAL }
 
-#define DEF_STATUS_VAR_PTR(name, ptr, option)                                  \
+#define DEF_STATUS_VAR_PTR(name, ptr, option) \
   { "rocksdb_" name, (char *)ptr, option, SHOW_SCOPE_GLOBAL }
 
-#define DEF_STATUS_VAR_FUNC(name, ptr, option)                                 \
+#define DEF_STATUS_VAR_FUNC(name, ptr, option) \
   { name, reinterpret_cast<char *>(ptr), option, SHOW_SCOPE_GLOBAL }
 
 struct rocksdb_status_counters_t {
@@ -12308,9 +12281,8 @@ static void show_myrocks_vars(THD *thd, SHOW_VAR *var, char *buff) {
   var->value = reinterpret_cast<char *>(&myrocks_status_variables);
 }
 
-static ulonglong
-io_stall_prop_value(const std::map<std::string, std::string> &props,
-                    const std::string &key) {
+static ulonglong io_stall_prop_value(
+    const std::map<std::string, std::string> &props, const std::string &key) {
   std::map<std::string, std::string>::const_iterator iter =
       props.find("io_stalls." + key);
   if (iter != props.end()) {
@@ -12660,8 +12632,7 @@ void Rdb_manual_compaction_thread::run() {
         RDB_MUTEX_LOCK_CHECK(m_signal_mutex);
         const bool local_stop = m_stop;
         RDB_MUTEX_UNLOCK_CHECK(m_signal_mutex);
-        if (local_stop)
-          break;
+        if (local_stop) break;
         my_sleep(1000000);
       }
     }
@@ -12942,17 +12913,17 @@ const char *get_rdb_io_error_string(const RDB_IO_ERROR_TYPE err_type) {
   static_assert(RDB_IO_ERROR_LAST == 4, "Please handle all the error types.");
 
   switch (err_type) {
-  case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_TX_COMMIT:
-    return "RDB_IO_ERROR_TX_COMMIT";
-  case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_DICT_COMMIT:
-    return "RDB_IO_ERROR_DICT_COMMIT";
-  case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_BG_THREAD:
-    return "RDB_IO_ERROR_BG_THREAD";
-  case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_GENERAL:
-    return "RDB_IO_ERROR_GENERAL";
-  default:
-    DBUG_ASSERT(false);
-    return "(unknown)";
+    case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_TX_COMMIT:
+      return "RDB_IO_ERROR_TX_COMMIT";
+    case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_DICT_COMMIT:
+      return "RDB_IO_ERROR_DICT_COMMIT";
+    case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_BG_THREAD:
+      return "RDB_IO_ERROR_BG_THREAD";
+    case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_GENERAL:
+      return "RDB_IO_ERROR_GENERAL";
+    default:
+      DBUG_ASSERT(false);
+      return "(unknown)";
   }
 }
 
@@ -12970,29 +12941,29 @@ void rdb_handle_io_error(const rocksdb::Status status,
                          const RDB_IO_ERROR_TYPE err_type) {
   if (status.IsIOError()) {
     switch (err_type) {
-    case RDB_IO_ERROR_TX_COMMIT:
-    case RDB_IO_ERROR_DICT_COMMIT: {
-      rdb_log_status_error(status, "failed to write to WAL");
-      LogPluginErrMsg(ERROR_LEVEL, 0, "aborting on WAL write error.");
-      abort();
-      break;
-    }
-    case RDB_IO_ERROR_BG_THREAD: {
-      rdb_log_status_error(status, "BG thread failed to write to RocksDB");
-      /* NO_LINT_DEBUG */
-      LogPluginErrMsg(ERROR_LEVEL, 0, "aborting on BG write error.");
-      abort();
-      break;
-    }
-    case RDB_IO_ERROR_GENERAL: {
-      rdb_log_status_error(status, "failed on I/O");
-      LogPluginErrMsg(ERROR_LEVEL, 0, "aborting on I/O error.");
-      abort();
-      break;
-    }
-    default:
-      DBUG_ASSERT(0);
-      break;
+      case RDB_IO_ERROR_TX_COMMIT:
+      case RDB_IO_ERROR_DICT_COMMIT: {
+        rdb_log_status_error(status, "failed to write to WAL");
+        LogPluginErrMsg(ERROR_LEVEL, 0, "aborting on WAL write error.");
+        abort();
+        break;
+      }
+      case RDB_IO_ERROR_BG_THREAD: {
+        rdb_log_status_error(status, "BG thread failed to write to RocksDB");
+        /* NO_LINT_DEBUG */
+        LogPluginErrMsg(ERROR_LEVEL, 0, "aborting on BG write error.");
+        abort();
+        break;
+      }
+      case RDB_IO_ERROR_GENERAL: {
+        rdb_log_status_error(status, "failed on I/O");
+        LogPluginErrMsg(ERROR_LEVEL, 0, "aborting on I/O error.");
+        abort();
+        break;
+      }
+      default:
+        DBUG_ASSERT(0);
+        break;
     }
   } else if (status.IsCorruption()) {
     rdb_log_status_error(status, "data corruption detected!");
@@ -13001,15 +12972,15 @@ void rdb_handle_io_error(const rocksdb::Status status,
     abort();
   } else if (!status.ok()) {
     switch (err_type) {
-    case RDB_IO_ERROR_DICT_COMMIT: {
-      rdb_log_status_error(status, "Failed to write to WAL (dictionary)");
-      LogPluginErrMsg(ERROR_LEVEL, 0, "aborting on WAL write error.");
-      abort();
-      break;
-    }
-    default:
-      rdb_log_status_error(status, "Failed to read/write in RocksDB");
-      break;
+      case RDB_IO_ERROR_DICT_COMMIT: {
+        rdb_log_status_error(status, "Failed to write to WAL (dictionary)");
+        LogPluginErrMsg(ERROR_LEVEL, 0, "aborting on WAL write error.");
+        abort();
+        break;
+      }
+      default:
+        rdb_log_status_error(status, "Failed to read/write in RocksDB");
+        break;
     }
   }
 }
@@ -13174,8 +13145,7 @@ int mysql_value_to_bool(struct st_mysql_value *value, bool *return_value) {
   } else if (new_value_type == MYSQL_VALUE_TYPE_INT) {
     long long intbuf;
     value->val_int(value, &intbuf);
-    if (intbuf > 1)
-      return 1;
+    if (intbuf > 1) return 1;
     *return_value = intbuf > 0;
   } else {
     return 1;
@@ -13256,11 +13226,10 @@ static void rocksdb_set_max_background_jobs(THD *thd, struct SYS_VAR *const var,
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
-static void
-rocksdb_set_bytes_per_sync(THD *thd MY_ATTRIBUTE((__unused__)),
-                           struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
-                           void *const var_ptr MY_ATTRIBUTE((__unused__)),
-                           const void *const save) {
+static void rocksdb_set_bytes_per_sync(
+    THD *thd MY_ATTRIBUTE((__unused__)),
+    struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
+    void *const var_ptr MY_ATTRIBUTE((__unused__)), const void *const save) {
   DBUG_ASSERT(save != nullptr);
   DBUG_ASSERT(rocksdb_db_options != nullptr);
   DBUG_ASSERT(rocksdb_db_options->env != nullptr);
@@ -13353,7 +13322,6 @@ static int rocksdb_validate_update_cf_options(
     THD *thd MY_ATTRIBUTE((__unused__)),
     struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *save,
     struct st_mysql_value *value) {
-
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *str;
   int length;
@@ -13545,12 +13513,12 @@ bool ha_rocksdb::use_read_free_rpl() const {
   }
 
   switch (rocksdb_read_free_rpl) {
-  case read_free_rpl_type::OFF:
-    DBUG_RETURN(false);
-  case read_free_rpl_type::PK_ONLY:
-    DBUG_RETURN(!has_hidden_pk(table) && table->s->keys == 1);
-  case read_free_rpl_type::PK_SK:
-    DBUG_RETURN(!has_hidden_pk(table));
+    case read_free_rpl_type::OFF:
+      DBUG_RETURN(false);
+    case read_free_rpl_type::PK_ONLY:
+      DBUG_RETURN(!has_hidden_pk(table) && table->s->keys == 1);
+    case read_free_rpl_type::PK_SK:
+      DBUG_RETURN(!has_hidden_pk(table));
   }
 
   DBUG_ASSERT(false);

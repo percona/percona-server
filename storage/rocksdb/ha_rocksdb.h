@@ -491,10 +491,9 @@ class ha_rocksdb : public my_core::handler {
   static const std::vector<std::string> parse_into_tokens(const std::string &s,
                                                           const char delim);
 
-  static const std::string
-  generate_cf_name(const uint index, const TABLE *const table_arg,
-                   const Rdb_tbl_def *const tbl_def_arg,
-                   bool *per_part_match_found);
+  static const std::string generate_cf_name(
+      const uint index, const TABLE *const table_arg,
+      const Rdb_tbl_def *const tbl_def_arg, bool *per_part_match_found);
 
   static const char *get_key_name(const uint index,
                                   const TABLE *const table_arg,
@@ -545,8 +544,8 @@ class ha_rocksdb : public my_core::handler {
     DBUG_RETURN(MAX_REF_PARTS);
   }
 
-  uint
-  max_supported_key_part_length(HA_CREATE_INFO *create_info) const override;
+  uint max_supported_key_part_length(
+      HA_CREATE_INFO *create_info) const override;
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle
@@ -926,11 +925,10 @@ class ha_rocksdb : public my_core::handler {
                            const dd::Table *old_table_def,
                            dd::Table *new_table_def) override;
 
-  bool
-  commit_inplace_alter_table(TABLE *altered_table,
-                             my_core::Alter_inplace_info *const ha_alter_info,
-                             bool commit, const dd::Table *old_table_def,
-                             dd::Table *new_table_def) override;
+  bool commit_inplace_alter_table(
+      TABLE *const altered_table,
+      my_core::Alter_inplace_info *const ha_alter_info, bool commit,
+      const dd::Table *old_table_def, dd::Table *new_table_def) override;
 
   bool is_read_free_rpl_table() const;
 

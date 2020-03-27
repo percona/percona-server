@@ -12,4 +12,4 @@
 	url = https://github.com/facebook/zstd
 [submodule "storage/rocksdb/rocksdb"]
 	path = storage/rocksdb/rocksdb
-	url = https://github.com/percona/rocksdb
+	url = https://github.com/facebook/rocksdb

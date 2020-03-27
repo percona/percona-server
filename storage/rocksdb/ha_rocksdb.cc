@@ -618,15 +618,14 @@ static void rocksdb_set_rocksdb_info_log_level(THD *const thd,
 }
 
 static void rocksdb_set_rocksdb_stats_level(THD *const thd,
-                                            struct st_mysql_sys_var *const var,
+                                            struct SYS_VAR *const var,
                                             void *const var_ptr,
                                             const void *const save) {
   DBUG_ASSERT(save != nullptr);
 
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
   rocksdb_db_options->statistics->set_stats_level(
-      static_cast<rocksdb::StatsLevel>(
-          *static_cast<const uint64_t *>(save)));
+      static_cast<rocksdb::StatsLevel>(*static_cast<const uint64_t *>(save)));
   // Actual stats level is defined at rocksdb dbopt::statistics::stats_level_
   // so adjusting rocksdb_stats_level here to make sure it points to
   // the correct stats level.
@@ -634,10 +633,10 @@ static void rocksdb_set_rocksdb_stats_level(THD *const thd,
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
-static void rocksdb_set_reset_stats(
-    my_core::THD *const /* unused */,
-    my_core::st_mysql_sys_var *const /* unused */,
-    void *const var_ptr, const void *const save) {
+static void rocksdb_set_reset_stats(my_core::THD *const /* unused */,
+                                    my_core::SYS_VAR *const /* unused */,
+                                    void *const var_ptr,
+                                    const void *const save) {
   DBUG_ASSERT(save != nullptr);
   DBUG_ASSERT(rdb != nullptr);
   DBUG_ASSERT(rocksdb_stats != nullptr);
@@ -789,7 +788,8 @@ static int rocksdb_validate_read_free_rpl_tables(
   char buff[STRING_BUFFER_USUAL_SIZE];
   int length = sizeof(buff);
   const char *wlist_buf = value->val_str(value, buff, &length);
-  if (wlist_buf) wlist_buf= thd->strmake(wlist_buf, length); // make a temp copy
+  if (wlist_buf)
+    wlist_buf = thd->strmake(wlist_buf, length);  // make a temp copy
   const auto wlist = wlist_buf ? wlist_buf : DEFAULT_READ_FREE_RPL_TABLES;
 
 #if defined(HAVE_PSI_INTERFACE)

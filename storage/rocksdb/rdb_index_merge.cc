@@ -590,7 +590,7 @@ size_t Rdb_index_merge::merge_buf_info::prepare(File fd, ulonglong f_offset) {
     size of each chunk.
   */
   const uchar *block_ptr = m_block.get();
-  merge_read_uint64(&block_ptr, (__uint64_t*)(&m_total_size));
+  merge_read_uint64(&block_ptr, (__uint64_t *)(&m_total_size));
   m_curr_offset += RDB_MERGE_CHUNK_LEN;
   return m_total_size;
 }

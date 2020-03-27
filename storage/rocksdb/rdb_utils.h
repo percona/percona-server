@@ -198,10 +198,8 @@ inline void rdb_trim_whitespace_from_edges(std::string &str) {
   if (start == std::string::npos && end == std::string::npos) {
     str.erase();
   } else {
-    if (end != std::string::npos)
-      str.erase(end + 1, std::string::npos);
-    if (start != std::string::npos)
-      str.erase(0, start);
+    if (end != std::string::npos) str.erase(end + 1, std::string::npos);
+    if (start != std::string::npos) str.erase(0, start);
   }
 }
 
@@ -324,7 +322,9 @@ class Regex_list_handler {
 
  public:
   Regex_list_handler(const PSI_rwlock_key &key, char delimiter = ',')
-      : m_key(key), m_delimiter(delimiter), m_bad_pattern_str(""),
+      : m_key(key),
+        m_delimiter(delimiter),
+        m_bad_pattern_str(""),
         m_pattern(nullptr) {
     mysql_rwlock_init(key, &m_rwlock);
   }

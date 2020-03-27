@@ -27,10 +27,11 @@ set debug_sync='now WAIT_FOR parked';
 affected rows: 0
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+###	###	###	###	Daemon	###	Waiting on empty queue	NULL	0	###
 ###	###	###	###	Query	###	debug sync point: rocksdb.ttl_rows_examined	SELECT * FROM t_re	0	###
 ###	###	###	###	Query	###	starting	SHOW PROCESSLIST	0	###
 ###	###	###	###	Sleep	###		NULL	0	###
-affected rows: 3
+affected rows: 4
 set debug_sync='now SIGNAL go';
 affected rows: 0
 connection conn1;

@@ -48,11 +48,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 template <typename Type, int N> struct generic_indexer_t {
   /** Default constructor/destructor should be OK. */
 
-        /** @return offset within m_counter */
-        size_t offset(size_t index) const {
-                return(((index % N) + 1) * (INNOBASE_CACHE_LINE_SIZE /
-			sizeof(Type)));
-        }
+  /** @return offset within m_counter */
+  size_t offset(size_t index) const {
+    return (((index % N) + 1) * (INNOBASE_CACHE_LINE_SIZE / sizeof(Type)));
+  }
 };
 
 #ifdef HAVE_SCHED_GETCPU
@@ -92,11 +91,11 @@ struct thread_id_indexer_t : public generic_indexer_t<Type, N> {
 template <typename Type, int N = 1> struct single_indexer_t {
   /** Default constructor/destructor should are OK. */
 
-        /** @return offset within m_counter */
-        size_t offset(size_t index) const {
-		assert(N == 1);
-                return((INNOBASE_CACHE_LINE_SIZE / sizeof(Type)));
-        }
+  /** @return offset within m_counter */
+  size_t offset(size_t index) const {
+    assert(N == 1);
+    return ((INNOBASE_CACHE_LINE_SIZE / sizeof(Type)));
+  }
 
   /* @return 1 */
   size_t get_rnd_index() const {
@@ -119,7 +118,7 @@ class ib_counter_t {
 
   bool validate() {
 #ifdef UNIV_DEBUG
-		size_t	n = (INNOBASE_CACHE_LINE_SIZE / sizeof(Type));
+    size_t n = (INNOBASE_CACHE_LINE_SIZE / sizeof(Type));
 
     /* Check that we aren't writing outside our defined bounds. */
     for (size_t i = 0; i < UT_ARRAY_SIZE(m_counter); i += n) {

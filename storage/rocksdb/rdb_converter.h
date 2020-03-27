@@ -21,14 +21,13 @@
 #include <vector>
 
 // MySQL header files
-#include "handler.h"  // handler
-#include "ib_ut0counter.h"
 #include "sql/handler.h"  // handler
 #include "sql_string.h"
 
 // MyRocks header files
 #include "./ha_rocksdb.h"
 #include "./rdb_datadic.h"
+#include "ib_ut0counter.h"
 
 namespace myrocks {
 class Rdb_field_encoder;

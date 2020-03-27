@@ -70,7 +70,7 @@ namespace myrocks {
   The intent behind a SHIP_ASSERT() macro is to have a mechanism for validating
   invariants in retail builds. Traditionally assertions (such as macros defined
   in <cassert>) are evaluated for performance reasons only in debug builds and
-  become NOOP in retail builds when NDEBUG is defined.
+  become NOOP in retail builds when DBUG_OFF is defined.
 
   This macro is intended to validate the invariants which are critical for
   making sure that data corruption and data loss won't take place. Proper
@@ -81,12 +81,12 @@ namespace myrocks {
   Use the power of SHIP_ASSERT() wisely.
 */
 #ifndef SHIP_ASSERT
-#define SHIP_ASSERT(expr)                                                      \
-  do {                                                                         \
-    if (!(expr)) {                                                             \
-      my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr);         \
-      abort();                                                                 \
-    }                                                                          \
+#define SHIP_ASSERT(expr)                                              \
+  do {                                                                 \
+    if (!(expr)) {                                                     \
+      my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr); \
+      abort();                                                         \
+    }                                                                  \
   } while (0)
 #endif  // SHIP_ASSERT
 
@@ -104,7 +104,7 @@ namespace myrocks {
   a and b must be both true or both false.
 */
 #ifndef DBUG_ASSERT_IFF
-#define DBUG_ASSERT_IFF(a, b)                                                  \
+#define DBUG_ASSERT_IFF(a, b) \
   DBUG_ASSERT(static_cast<bool>(a) == static_cast<bool>(b))
 #endif
 
@@ -140,10 +140,10 @@ namespace myrocks {
   Macros to better convey the intent behind checking the results from locking
   and unlocking mutexes.
 */
-#define RDB_MUTEX_LOCK_CHECK(m)                                                \
+#define RDB_MUTEX_LOCK_CHECK(m) \
   rdb_check_mutex_call_result(__PRETTY_FUNCTION__, true, mysql_mutex_lock(&m))
-#define RDB_MUTEX_UNLOCK_CHECK(m)                                              \
-  rdb_check_mutex_call_result(__PRETTY_FUNCTION__, false,                      \
+#define RDB_MUTEX_UNLOCK_CHECK(m)                         \
+  rdb_check_mutex_call_result(__PRETTY_FUNCTION__, false, \
                               mysql_mutex_unlock(&m))
 
 /*
@@ -198,10 +198,8 @@ inline void rdb_trim_whitespace_from_edges(std::string &str) {
   if (start == std::string::npos && end == std::string::npos) {
     str.erase();
   } else {
-    if (end != std::string::npos)
-      str.erase(end + 1, std::string::npos);
-    if (start != std::string::npos)
-      str.erase(0, start);
+    if (end != std::string::npos) str.erase(end + 1, std::string::npos);
+    if (start != std::string::npos) str.erase(0, start);
   }
 }
 
@@ -324,7 +322,9 @@ class Regex_list_handler {
 
  public:
   Regex_list_handler(const PSI_rwlock_key &key, char delimiter = ',')
-      : m_key(key), m_delimiter(delimiter), m_bad_pattern_str(""),
+      : m_key(key),
+        m_delimiter(delimiter),
+        m_bad_pattern_str(""),
         m_pattern(nullptr) {
     mysql_rwlock_init(key, &m_rwlock);
   }
@@ -354,11 +354,20 @@ std::vector<std::string> split_into_vector(const std::string &input,
  */
 class Ensure_cleanup {
  public:
-  explicit Ensure_cleanup(std::function<void()> cleanup) : m_cleanup(cleanup) {}
+  explicit Ensure_cleanup(std::function<void()> cleanup)
+      : m_cleanup(cleanup), m_skip_cleanup(false) {}
 
-  ~Ensure_cleanup() { m_cleanup(); }
+  ~Ensure_cleanup() {
+    if (!m_skip_cleanup) {
+      m_cleanup();
+    }
+  }
+
+  // If you want to skip cleanup (such as when the operation is successful)
+  void skip() { m_skip_cleanup = true; }
 
  private:
   std::function<void()> m_cleanup;
+  bool m_skip_cleanup;
 };
 }  // namespace myrocks

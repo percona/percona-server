@@ -36,7 +36,7 @@ bool Rdb_cf_manager::is_cf_name_reverse(const char *const name) {
 }
 
 void Rdb_cf_manager::init(
-    std::unique_ptr<Rdb_cf_options> cf_options,
+    std::unique_ptr<Rdb_cf_options> &&cf_options,
     std::vector<rocksdb::ColumnFamilyHandle *> *const handles) {
 #ifdef HAVE_PSI_INTERFACE
   mysql_mutex_init(rdb_cfm_mutex_key, &m_mutex, MY_MUTEX_INIT_FAST);
@@ -58,7 +58,7 @@ void Rdb_cf_manager::init(
 }
 
 void Rdb_cf_manager::cleanup() {
-  for (auto it : m_cf_name_map) {
+  for (const auto &it : m_cf_name_map) {
     delete it.second;
   }
   mysql_mutex_destroy(&m_mutex);
@@ -72,9 +72,8 @@ void Rdb_cf_manager::cleanup() {
   @detail
     See Rdb_cf_manager::get_cf
 */
-rocksdb::ColumnFamilyHandle *
-Rdb_cf_manager::get_or_create_cf(rocksdb::DB *const rdb,
-                                 const std::string &cf_name_arg, bool create) {
+rocksdb::ColumnFamilyHandle *Rdb_cf_manager::get_or_create_cf(
+    rocksdb::DB *const rdb, const std::string &cf_name_arg, bool create) {
   DBUG_ASSERT(rdb != nullptr);
 
   rocksdb::ColumnFamilyHandle *cf_handle = nullptr;
@@ -101,7 +100,6 @@ Rdb_cf_manager::get_or_create_cf(rocksdb::DB *const rdb,
     bool cf_name_found = m_cf_options->get_cf_options(cf_name, &opts);
 
     if (create || cf_name_found) {
-
       LogPluginErrMsg(INFORMATION_LEVEL, 0, "Creating a column family %s",
                       cf_name.c_str());
       LogPluginErrMsg(INFORMATION_LEVEL, 0, "    write_buffer_size=%ld",
@@ -137,8 +135,8 @@ Rdb_cf_manager::get_or_create_cf(rocksdb::DB *const rdb,
   Find column family by its cf_name.
 */
 
-rocksdb::ColumnFamilyHandle *
-Rdb_cf_manager::get_cf(const std::string &cf_name_arg) const {
+rocksdb::ColumnFamilyHandle *Rdb_cf_manager::get_cf(
+    const std::string &cf_name_arg) const {
   rocksdb::ColumnFamilyHandle *cf_handle;
 
   RDB_MUTEX_LOCK_CHECK(m_mutex);
@@ -163,8 +161,7 @@ rocksdb::ColumnFamilyHandle *Rdb_cf_manager::get_cf(const uint32_t id) const {
 
   RDB_MUTEX_LOCK_CHECK(m_mutex);
   const auto it = m_cf_id_map.find(id);
-  if (it != m_cf_id_map.end())
-    cf_handle = it->second;
+  if (it != m_cf_id_map.end()) cf_handle = it->second;
   RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 
   return cf_handle;
@@ -174,7 +171,7 @@ std::vector<std::string> Rdb_cf_manager::get_cf_names(void) const {
   std::vector<std::string> names;
 
   RDB_MUTEX_LOCK_CHECK(m_mutex);
-  for (auto it : m_cf_name_map) {
+  for (const auto &it : m_cf_name_map) {
     names.push_back(it.first);
   }
   RDB_MUTEX_UNLOCK_CHECK(m_mutex);
@@ -182,8 +179,8 @@ std::vector<std::string> Rdb_cf_manager::get_cf_names(void) const {
   return names;
 }
 
-std::vector<rocksdb::ColumnFamilyHandle *>
-Rdb_cf_manager::get_all_cf(void) const {
+std::vector<rocksdb::ColumnFamilyHandle *> Rdb_cf_manager::get_all_cf(
+    void) const {
   std::vector<rocksdb::ColumnFamilyHandle *> list;
 
   RDB_MUTEX_LOCK_CHECK(m_mutex);

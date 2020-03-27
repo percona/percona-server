@@ -51,8 +51,8 @@ class Rdb_convert_to_record_key_decoder {
   Rdb_convert_to_record_key_decoder() = default;
   Rdb_convert_to_record_key_decoder(
       const Rdb_convert_to_record_key_decoder &decoder) = delete;
-  Rdb_convert_to_record_key_decoder &
-  operator=(const Rdb_convert_to_record_key_decoder &decoder) = delete;
+  Rdb_convert_to_record_key_decoder &operator=(
+      const Rdb_convert_to_record_key_decoder &decoder) = delete;
   static int decode(uchar *const buf, uint *offset, Rdb_field_packing *fpi,
                     TABLE *table, Field *field, bool has_unpack_info,
                     Rdb_string_reader *reader,
@@ -369,8 +369,7 @@ class Rdb_key_def {
 
   /* Check if given mem-comparable key belongs to this index */
   bool covers_key(const rocksdb::Slice &slice) const {
-    if (slice.size() < INDEX_NUMBER_SIZE)
-      return false;
+    if (slice.size() < INDEX_NUMBER_SIZE) return false;
 
     if (memcmp(slice.data(), m_index_number_storage_form, INDEX_NUMBER_SIZE)) {
       return false;
@@ -607,15 +606,14 @@ class Rdb_key_def {
                               const uchar *const val,
                               enum INDEX_FLAG flag) const;
 
-  static const std::string
-  gen_qualifier_for_table(const char *const qualifier,
-                          const std::string &partition_name = "");
-  static const std::string
-  gen_cf_name_qualifier_for_partition(const std::string &s);
-  static const std::string
-  gen_ttl_duration_qualifier_for_partition(const std::string &s);
-  static const std::string
-  gen_ttl_col_qualifier_for_partition(const std::string &s);
+  static const std::string gen_qualifier_for_table(
+      const char *const qualifier, const std::string &partition_name = "");
+  static const std::string gen_cf_name_qualifier_for_partition(
+      const std::string &s);
+  static const std::string gen_ttl_duration_qualifier_for_partition(
+      const std::string &s);
+  static const std::string gen_ttl_col_qualifier_for_partition(
+      const std::string &s);
 
   static const std::string parse_comment_for_qualifier(
       const std::string &comment, const TABLE *const table_arg,
@@ -639,25 +637,25 @@ class Rdb_key_def {
     or at least sk_min if SK.*/
   bool index_format_min_check(const int pk_min, const int sk_min) const;
 
-  static void
-  pack_tiny(Rdb_field_packing *const fpi, Field *const field,
-            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-            Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
+  static void pack_tiny(Rdb_field_packing *const fpi, Field *const field,
+                        uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                        Rdb_pack_field_context *const pack_ctx
+                            MY_ATTRIBUTE((__unused__)));
 
-  static void
-  pack_short(Rdb_field_packing *const fpi, Field *const field,
-             uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-             Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
+  static void pack_short(Rdb_field_packing *const fpi, Field *const field,
+                         uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                         Rdb_pack_field_context *const pack_ctx
+                             MY_ATTRIBUTE((__unused__)));
 
   static void pack_medium(Rdb_field_packing *const fpi, Field *const field,
                           uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
                           Rdb_pack_field_context *const pack_ctx
                               MY_ATTRIBUTE((__unused__)));
 
-  static void
-  pack_long(Rdb_field_packing *const fpi, Field *const field,
-            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-            Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
+  static void pack_long(Rdb_field_packing *const fpi, Field *const field,
+                        uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                        Rdb_pack_field_context *const pack_ctx
+                            MY_ATTRIBUTE((__unused__)));
 
   static void pack_longlong(Rdb_field_packing *const fpi, Field *const field,
                             uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
@@ -669,10 +667,10 @@ class Rdb_key_def {
                           Rdb_pack_field_context *const pack_ctx
                               MY_ATTRIBUTE((__unused__)));
 
-  static void
-  pack_float(Rdb_field_packing *const fpi, Field *const field,
-             uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-             Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
+  static void pack_float(Rdb_field_packing *const fpi, Field *const field,
+                         uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                         Rdb_pack_field_context *const pack_ctx
+                             MY_ATTRIBUTE((__unused__)));
 
   static void pack_new_decimal(
       Rdb_field_packing *const fpi, Field *const field,
@@ -689,25 +687,25 @@ class Rdb_key_def {
       uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
       Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
-  static void
-  pack_time2(Rdb_field_packing *const fpi, Field *const field,
-             uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-             Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
+  static void pack_time2(Rdb_field_packing *const fpi, Field *const field,
+                         uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                         Rdb_pack_field_context *const pack_ctx
+                             MY_ATTRIBUTE((__unused__)));
 
-  static void
-  pack_year(Rdb_field_packing *const fpi, Field *const field,
-            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-            Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
+  static void pack_year(Rdb_field_packing *const fpi, Field *const field,
+                        uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                        Rdb_pack_field_context *const pack_ctx
+                            MY_ATTRIBUTE((__unused__)));
 
   static void pack_newdate(Rdb_field_packing *const fpi, Field *const field,
                            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
                            Rdb_pack_field_context *const pack_ctx
                                MY_ATTRIBUTE((__unused__)));
 
-  static void
-  pack_blob(Rdb_field_packing *const fpi, Field *const field,
-            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-            Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
+  static void pack_blob(Rdb_field_packing *const fpi, Field *const field,
+                        uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                        Rdb_pack_field_context *const pack_ctx
+                            MY_ATTRIBUTE((__unused__)));
 
   static void pack_with_make_sort_key(
       Rdb_field_packing *const fpi, Field *const field,
@@ -718,27 +716,26 @@ class Rdb_key_def {
       Rdb_field_packing *const fpi, Field *const field, uchar *buf, uchar **dst,
       Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__)));
 
-  static void
-  pack_with_varchar_space_pad(Rdb_field_packing *const fpi, Field *const field,
-                              uchar *buf, uchar **dst,
-                              Rdb_pack_field_context *const pack_ctx);
+  static void pack_with_varchar_space_pad(
+      Rdb_field_packing *const fpi, Field *const field, uchar *buf, uchar **dst,
+      Rdb_pack_field_context *const pack_ctx);
 
   static int unpack_integer(Rdb_field_packing *const fpi, Field *const field,
                             uchar *const to, Rdb_string_reader *const reader,
                             Rdb_string_reader *const unp_reader
                                 MY_ATTRIBUTE((__unused__)));
 
-  static int
-  unpack_double(Rdb_field_packing *const fpi MY_ATTRIBUTE((__unused__)),
-                Field *const field MY_ATTRIBUTE((__unused__)),
-                uchar *const field_ptr, Rdb_string_reader *const reader,
-                Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__)));
+  static int unpack_double(
+      Rdb_field_packing *const fpi MY_ATTRIBUTE((__unused__)),
+      Field *const field MY_ATTRIBUTE((__unused__)), uchar *const field_ptr,
+      Rdb_string_reader *const reader,
+      Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__)));
 
-  static int
-  unpack_float(Rdb_field_packing *const fpi,
-               Field *const field MY_ATTRIBUTE((__unused__)),
-               uchar *const field_ptr, Rdb_string_reader *const reader,
-               Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__)));
+  static int unpack_float(
+      Rdb_field_packing *const fpi,
+      Field *const field MY_ATTRIBUTE((__unused__)), uchar *const field_ptr,
+      Rdb_string_reader *const reader,
+      Rdb_string_reader *const unp_reader MY_ATTRIBUTE((__unused__)));
 
   static int unpack_binary_str(Rdb_field_packing *const fpi, Field *const field,
                                uchar *const to, Rdb_string_reader *const reader,
@@ -790,10 +787,9 @@ class Rdb_key_def {
                                    const uchar *const zero_val,
                                    void (*swap_func)(uchar *, const uchar *));
 
-  static void
-  make_unpack_simple_varchar(const Rdb_collation_codec *const codec,
-                             const Field *const field,
-                             Rdb_pack_field_context *const pack_ctx);
+  static void make_unpack_simple_varchar(
+      const Rdb_collation_codec *const codec, const Field *const field,
+      Rdb_pack_field_context *const pack_ctx);
 
   static void make_unpack_simple(const Rdb_collation_codec *const codec,
                                  const Field *const field,
@@ -812,10 +808,10 @@ class Rdb_key_def {
       const Field *field MY_ATTRIBUTE((__unused__)),
       Rdb_pack_field_context *pack_ctx MY_ATTRIBUTE((__unused__)));
 
-  static int
-  skip_max_length(const Rdb_field_packing *const fpi,
-                  const Field *const field MY_ATTRIBUTE((__unused__)),
-                  Rdb_string_reader *const reader);
+  static int skip_max_length(const Rdb_field_packing *const fpi,
+                             const Field *const field
+                                 MY_ATTRIBUTE((__unused__)),
+                             Rdb_string_reader *const reader);
 
   static int skip_variable_length(const Rdb_field_packing *const fpi,
                                   const Field *const field,
@@ -896,7 +892,6 @@ class Rdb_key_def {
   std::string m_ttl_column;
 
  private:
-
   /* Number of key parts in the primary key*/
   uint m_pk_key_parts;
 
@@ -1269,7 +1264,7 @@ class Rdb_ddl_manager {
   Rdb_ddl_manager &operator=(const Rdb_ddl_manager &) = delete;
   Rdb_ddl_manager() {}
 
-    /* Load the data dictionary from on-disk storage */
+  /* Load the data dictionary from on-disk storage */
 #if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
   bool init(Rdb_dict_manager *const dict_arg, Rdb_cf_manager *const cf_manager,
             const uint32_t validate_tables);
@@ -1449,9 +1444,9 @@ class Rdb_dict_manager {
   rocksdb::Iterator *new_iterator() const;
 
   /* Internal Index id => CF */
-  void
-  add_or_update_index_cf_mapping(rocksdb::WriteBatch *batch,
-                                 struct Rdb_index_info *const index_info) const;
+  void add_or_update_index_cf_mapping(
+      rocksdb::WriteBatch *batch,
+      struct Rdb_index_info *const index_info) const;
   void delete_index_info(rocksdb::WriteBatch *batch,
                          const GL_INDEX_ID &index_id) const;
   bool get_index_info(const GL_INDEX_ID &gl_index_id,
@@ -1463,9 +1458,9 @@ class Rdb_dict_manager {
   bool get_cf_flags(const uint cf_id, uint *const cf_flags) const;
 
   /* Functions for fast CREATE/DROP TABLE/INDEX */
-  void
-  get_ongoing_index_operation(std::unordered_set<GL_INDEX_ID> *gl_index_ids,
-                              Rdb_key_def::DATA_DICT_TYPE dd_type) const;
+  void get_ongoing_index_operation(
+      std::unordered_set<GL_INDEX_ID> *gl_index_ids,
+      Rdb_key_def::DATA_DICT_TYPE dd_type) const;
   bool is_index_operation_ongoing(const GL_INDEX_ID &gl_index_id,
                                   Rdb_key_def::DATA_DICT_TYPE dd_type) const;
   void start_ongoing_index_operation(rocksdb::WriteBatch *batch,
@@ -1482,9 +1477,9 @@ class Rdb_dict_manager {
                       rocksdb::WriteBatch *const batch) const;
   void add_create_index(const std::unordered_set<GL_INDEX_ID> &gl_index_ids,
                         rocksdb::WriteBatch *const batch) const;
-  void
-  finish_indexes_operation(const std::unordered_set<GL_INDEX_ID> &gl_index_ids,
-                           Rdb_key_def::DATA_DICT_TYPE dd_type) const;
+  void finish_indexes_operation(
+      const std::unordered_set<GL_INDEX_ID> &gl_index_ids,
+      Rdb_key_def::DATA_DICT_TYPE dd_type) const;
   void rollback_ongoing_index_creation() const;
 
   inline void get_ongoing_drop_indexes(

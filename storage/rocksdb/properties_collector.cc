@@ -155,28 +155,28 @@ void Rdb_tbl_prop_coll::CollectStatsForRow(const rocksdb::Slice &key,
 
   // Incrementing per-index entry-type statistics
   switch (type) {
-  case rocksdb::kEntryPut:
-    stats->m_rows++;
-    break;
-  case rocksdb::kEntryDelete:
-    stats->m_entry_deletes++;
-    break;
-  case rocksdb::kEntrySingleDelete:
-    stats->m_entry_single_deletes++;
-    break;
-  case rocksdb::kEntryMerge:
-    stats->m_entry_merges++;
-    break;
-  case rocksdb::kEntryOther:
-    stats->m_entry_others++;
-    break;
-  default:
-    LogPluginErrMsg(ERROR_LEVEL, 0,
-                    "Unexpected entry type found: %u. This should not happen "
-                    "so aborting the system.",
-                    type);
-    abort();
-    break;
+    case rocksdb::kEntryPut:
+      stats->m_rows++;
+      break;
+    case rocksdb::kEntryDelete:
+      stats->m_entry_deletes++;
+      break;
+    case rocksdb::kEntrySingleDelete:
+      stats->m_entry_single_deletes++;
+      break;
+    case rocksdb::kEntryMerge:
+      stats->m_entry_merges++;
+      break;
+    case rocksdb::kEntryOther:
+      stats->m_entry_others++;
+      break;
+    default:
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Unexpected entry type found: %u. This should not happen "
+                      "so aborting the system.",
+                      type);
+      abort();
+      break;
   }
 
   stats->m_actual_disk_size += file_size - m_file_size;

@@ -99,7 +99,6 @@ bool Rdb_cf_options::set_default(const std::string &default_config) {
   if (!default_config.empty() && !rocksdb::GetColumnFamilyOptionsFromString(
                                       options, default_config, &options)
                                       .ok()) {
-    // NO_LINT_DEBUG
     fprintf(stderr, "Invalid default column family config: %s\n",
             default_config.c_str());
     return false;
@@ -172,14 +171,14 @@ bool Rdb_cf_options::find_options(const std::string &input, size_t *const pos,
   // number of closing curly braces.
   while (*pos < input.size()) {
     switch (input[*pos]) {
-    case '}':
-      // If this is a closing curly brace and we bring the count down to zero
-      // we can exit the loop with a valid options string.
-      if (--brace_count == 0) {
-        *options = input.substr(beg_pos, *pos - beg_pos);
-        ++(*pos);  // Move past the last closing curly brace
-        return true;
-      }
+      case '}':
+        // If this is a closing curly brace and we bring the count down to zero
+        // we can exit the loop with a valid options string.
+        if (--brace_count == 0) {
+          *options = input.substr(beg_pos, *pos - beg_pos);
+          ++(*pos);  // Move past the last closing curly brace
+          return true;
+        }
 
         break;
 

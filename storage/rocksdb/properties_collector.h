@@ -125,8 +125,8 @@ class Rdb_tbl_prop_coll : public rocksdb::TablePropertiesCollector {
                                      rocksdb::SequenceNumber seq,
                                      uint64_t file_size) override;
 
-  virtual rocksdb::Status
-  Finish(rocksdb::UserCollectedProperties *properties) override;
+  virtual rocksdb::Status Finish(
+      rocksdb::UserCollectedProperties *properties) override;
 
   virtual const char *Name() const override { return "Rdb_tbl_prop_coll"; }
 

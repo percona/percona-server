@@ -75,9 +75,7 @@ handler *ha_rockspart::clone(const char *name, MEM_ROOT *mem_root) {
 
   new_handler =
       new (mem_root) ha_rockspart(ht, table_share, m_part_info, this, mem_root);
-
-  if (!new_handler)
-    DBUG_RETURN(nullptr);
+  if (!new_handler) DBUG_RETURN(nullptr);
 
   /*
     Allocate new_handler->ref here because otherwise ha_open will allocate it

@@ -27,8 +27,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UT0COUNTER_H
 #define UT0COUNTER_H
 
-#include "my_dbug.h"
 #include <string.h>
+#include "my_dbug.h"
 
 /** CPU cache line size */
 #define INNOBASE_CACHE_LINE_SIZE 64
@@ -66,7 +66,6 @@ struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 
   /* @return result from sched_getcpu(), the thread id if it fails. */
   size_t get_rnd_index() const {
-
     size_t cpu = sched_getcpu();
     if (cpu == (size_t)-1) {
       cpu = get_curr_thread_id();
@@ -90,6 +89,7 @@ struct thread_id_indexer_t : public generic_indexer_t<Type, N> {
 
 /** For counters wher N=1 */
 template <typename Type, int N = 1>
+struct single_indexer_t {
   /** Default constructor/destructor should are OK. */
 
   /** @return offset within m_counter */

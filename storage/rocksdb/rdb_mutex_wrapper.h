@@ -54,8 +54,8 @@ class Rdb_mutex : public rocksdb::TransactionDBMutex {
   //         TimedOut if timed out,
   //         or other Status on failure.
   // If returned status is OK, TransactionDB will eventually call UnLock().
-  virtual rocksdb::Status
-  TryLockFor(int64_t timeout_time MY_ATTRIBUTE((__unused__))) override;
+  virtual rocksdb::Status TryLockFor(
+      int64_t timeout_time MY_ATTRIBUTE((__unused__))) override;
 
   // Unlock Mutex that was successfully locked by Lock() or TryLockUntil()
   virtual void UnLock() override;

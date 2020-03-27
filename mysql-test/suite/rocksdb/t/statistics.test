@@ -26,7 +26,7 @@ create table t3(
 
 --disable_query_log
 let $i=0;
-while ($i<100000)
+while ($i<10000)
 {
   inc $i;
   eval insert t1(a,b) values(concat('a',$i,'b',$i,'c',$i), $i);

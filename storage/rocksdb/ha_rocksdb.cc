@@ -4724,7 +4724,9 @@ static bool rocksdb_show_status(handlerton *const hton, THD *const thd,
     std::vector<rocksdb::ThreadStatus> thread_list;
     rocksdb::Status s = rdb->GetEnv()->GetThreadList(&thread_list);
 
-    if (!s.ok()) {
+    // GetThreadList() may return Status::NotSupported when
+    // ROCKSDB_USING_THREAD_STATUS is not defined
+    if (!s.ok() && !s.IsNotSupported()) {
       LogPluginErrMsg(ERROR_LEVEL, 0,
                       "Returned error (%s) from GetThreadList.\n",
                       s.ToString().c_str());
@@ -4757,6 +4759,9 @@ static bool rocksdb_show_status(handlerton *const hton, THD *const thd,
     }
   }
 
+  if (res) {
+    my_error(ER_UNKNOWN_ERROR, MYF(0), "SHOW ENGINE");
+  }
   return res;
 }
 

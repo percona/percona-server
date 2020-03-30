@@ -986,6 +986,12 @@ if [ $? -eq 1 -a "$SERVER_TO_START" = "true" ] ; then
 fi
 %endif
 
+if [ ! -d %{_datadir}/mysql ]; then
+    pushd %{_datadir}
+    ln -s percona-server mysql
+    popd
+fi
+
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
 echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
@@ -1020,6 +1026,10 @@ mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun" and TokuDB packag
 #  http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch09s04s05.html
 
 if [ $1 = 0 ] ; then
+  if [ -L %{_datadir}/mysql ]; then
+      rm %{_datadir}/mysql
+  fi
+
 %if 0%{?systemd}
 	%systemd_preun mysqld
 %else

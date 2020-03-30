@@ -37,7 +37,17 @@ Status Variables
   :vartype: Numeric
   :scope: Global
 
-This variable shows the number of submitted buffered asynchronous I/O requests.
+This variable shows the total number of submitted buffered asynchronous I/O requests.
+The variable is updated after the submission request to the kernel and is a
+counter, which always increases.
+
+The following is an example of a variable call:
+
+.. code-block:: mysql
+
+   mysql> SHOW GLOBAL STATUS like "innodb_buffered_aio_submitted";
+
+   innodb_buffered_aio_submitted 12439
 
 Other Reading
 =============

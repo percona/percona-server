@@ -4421,7 +4421,45 @@ void init_log_slow_verbosity()
 {
   update_slow_query_log_use_global_control(0,0,OPT_GLOBAL);
 }
-static Sys_var_set Sys_slow_query_log_use_global_control(
+
+/**
+  Specialized class that handles "none" value of
+  slow_query_log_use_global_control_set variable.
+  When "none" only value is detected, it is rewriten to empty
+  causing set to be cleared.
+*/
+class Sys_var_set_none: public Sys_var_set {
+public:
+  Sys_var_set_none(const char *name_arg,
+        const char *comment, int flag_args, ptrdiff_t off, size_t size,
+        CMD_LINE getopt, const char *values[], ulonglong def_val, PolyLock *lock =
+        0, enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
+        on_check_function on_check_func = 0,
+        on_update_function on_update_func = 0, const char *substitute = 0)
+    : Sys_var_set(name_arg, comment, flag_args, off, size, getopt, values,
+          def_val, lock, binlog_status_arg, on_check_func, on_update_func,
+          substitute)
+  {
+  }
+
+  virtual bool do_check(THD *thd, set_var *var)
+  {
+    if (var->value->result_type() == STRING_RESULT) {
+      char buff[STRING_BUFFER_USUAL_SIZE];
+      String str(buff, sizeof(buff), system_charset_info);
+
+      String *res = var->value->val_str(&str);
+      if (res
+          && (res->length() > 0)
+          && (0 == my_strcasecmp(system_charset_info, res->ptr(), "none"))) {
+        var->value = new Item_string("", 0, system_charset_info);
+      }
+    }
+    return Sys_var_set::do_check(thd, var);
+  }
+};
+
+static Sys_var_set_none Sys_slow_query_log_use_global_control(
        "slow_query_log_use_global_control",
        "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
        GLOBAL_VAR(opt_slow_query_log_use_global_control), CMD_LINE(REQUIRED_ARG),

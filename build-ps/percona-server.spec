@@ -60,7 +60,7 @@
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{percona_server_version}%{?dist}
+%define release         rel%{percona_server_version}%{pkg_ver}%{?dist}
 
 %if "%rhel" > "6"
 %define shared_lib_pri_name libmysqlclient
@@ -245,8 +245,8 @@
 %define license_files_server    LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_server    COPYING README
-%define license_type            GPL
+%define license_files_server    README
+%define license_type            GPLv2
 %endif
 
 ##############################################################################
@@ -395,6 +395,7 @@ Summary:        Percona Server - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
 Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55
+Obsoletes:      mariadb-connector-c-devel
 %if "%rhel" > "6"
 Obsoletes:      mariadb-devel
 %endif
@@ -985,6 +986,12 @@ if [ $? -eq 1 -a "$SERVER_TO_START" = "true" ] ; then
 fi
 %endif
 
+if [ ! -d %{_datadir}/mysql ]; then
+    pushd %{_datadir}
+    ln -s percona-server mysql
+    popd
+fi
+
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
 echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
@@ -1019,6 +1026,10 @@ mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun" and TokuDB packag
 #  http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch09s04s05.html
 
 if [ $1 = 0 ] ; then
+  if [ -L %{_datadir}/mysql ]; then
+      rm %{_datadir}/mysql
+  fi
+
 %if 0%{?systemd}
 	%systemd_preun mysqld
 %else
@@ -1286,7 +1297,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 # %attr(755, root, root) %{_libdir}/mysql/plugin/debug/*.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam.so

@@ -231,10 +231,13 @@ void table_threads::make_row(PFS_thread *pfs)
     m_row.m_processlist_state_length= 0;
   }
 
-  m_row.m_enabled_ptr= &pfs->m_enabled;
+  m_row.m_enabled_ptr= pfs->m_disable_instrumentation ? NULL : &pfs->m_enabled;
 
   if (pfs->m_lock.end_optimistic_lock(& lock))
     m_row_exists= true;
+
+  if(pfs->m_disable_instrumentation)
+    m_row_exists= false;
 }
 
 int table_threads::read_row_values(TABLE *table,
@@ -352,7 +355,8 @@ int table_threads::read_row_values(TABLE *table,
         f->set_null();
         break;
       case 13: /* INSTRUMENTED */
-        set_field_enum(f, (*m_row.m_enabled_ptr) ? ENUM_YES : ENUM_NO);
+        set_field_enum(f, (m_row.m_enabled_ptr && *m_row.m_enabled_ptr)
+			? ENUM_YES : ENUM_NO);
         break;
       default:
         DBUG_ASSERT(false);
@@ -391,6 +395,9 @@ int table_threads::update_row_values(TABLE *table,
       case 12: /* ROLE */
         return HA_ERR_WRONG_COMMAND;
       case 13: /* INSTRUMENTED */
+        if(m_row.m_enabled_ptr == NULL) {
+          return HA_ERR_WRONG_COMMAND;
+        }
         value= (enum_yes_no) get_field_enum(f);
         *m_row.m_enabled_ptr= (value == ENUM_YES) ? true : false;
         break;

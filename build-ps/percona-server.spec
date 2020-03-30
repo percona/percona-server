@@ -657,6 +657,9 @@ echo "See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_t
 %endif
 if [ "$1" = 0 ]; then
   timestamp=$(date '+%Y%m%d-%H%M')
+  if [ -L %{_datadir}/mysql ]; then
+      rm %{_datadir}/mysql
+  fi
   if [ ! -L /etc/my.cnf ]; then
     cp -p /etc/my.cnf /etc/my.cnf_backup-${timestamp}
   else

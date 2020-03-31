@@ -38,12 +38,14 @@ my_core::PSI_thread_key rdb_background_psi_thread_key,
     rdb_drop_idx_psi_thread_key, rdb_is_psi_thread_key, rdb_mc_psi_thread_key;
 
 my_core::PSI_thread_info all_rocksdb_threads[] = {
-    {&rdb_background_psi_thread_key, "background", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
-    {&rdb_drop_idx_psi_thread_key, "drop index", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
-    {&rdb_mc_psi_thread_key, "manual compaction", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
+    {&rdb_background_psi_thread_key, "background", "rdb_bg",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&rdb_drop_idx_psi_thread_key, "drop index", "rdb_drop_ix",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&rdb_signal_is_psi_mutex_key, "signal index stats calculation",
+     "rdb_ix_st", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&rdb_mc_psi_thread_key, "manual compaction", "rdb_compact",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
 
 my_core::PSI_mutex_key rdb_psi_open_tbls_mutex_key, rdb_signal_bg_psi_mutex_key,
@@ -58,6 +60,8 @@ my_core::PSI_mutex_info all_rocksdb_mutexes[] = {
     {&rdb_signal_bg_psi_mutex_key, "stop background", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&rdb_signal_drop_idx_psi_mutex_key, "signal drop index",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&rdb_signal_is_psi_mutex_key, "signal index stats calculation",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&rdb_collation_data_mutex_key, "collation data init", PSI_FLAG_SINGLETON,
      0, PSI_DOCUMENT_ME},
@@ -97,6 +101,8 @@ my_core::PSI_cond_info all_rocksdb_conds[] = {
     {&rdb_signal_bg_psi_cond_key, "cond signal background", PSI_FLAG_SINGLETON,
      0, PSI_DOCUMENT_ME},
     {&rdb_signal_drop_idx_psi_cond_key, "cond signal drop index",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&rdb_signal_is_psi_cond_key, "cond signal index stats calculation",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&rdb_signal_mc_psi_cond_key, "cond signal manual compaction",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},

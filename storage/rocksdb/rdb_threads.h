@@ -28,10 +28,10 @@
 #include "include/mysql/psi/mysql_thread.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/thread_pool_priv.h"
+#include "sql/sql_class.h"
 
 /* MyRocks header files */
 #include "./rdb_utils.h"
-#include "./sql_class.h"
 #include "rocksdb/db.h"
 
 namespace myrocks {
@@ -53,7 +53,7 @@ class Rdb_thread {
 
   // TODO: When porting to 8.0 we should move to std::atomic
   // instead of volatile
-  THD::killed_state volatile m_killed;
+  std::atomic<THD::killed_state> m_killed;
 
  public:
   Rdb_thread() : m_run_once(false), m_killed(THD::NOT_KILLED) {}

@@ -406,12 +406,12 @@ static void rocksdb_set_table_stats_sampling_pct(THD *thd, struct SYS_VAR *var,
                                                  const void *save);
 
 static void rocksdb_update_table_stats_use_table_scan(
-    THD *const /* thd */, struct st_mysql_sys_var *const /* var */,
-    void *const var_ptr, const void *const save);
+    THD *const /* thd */, struct SYS_VAR *const /* var */, void *const var_ptr,
+    const void *const save);
 
 static int rocksdb_index_stats_thread_renice(
-    THD *const /* thd */, struct st_mysql_sys_var *const /* var */,
-    void *const save, struct st_mysql_value *const value);
+    THD *const /* thd */, struct SYS_VAR *const /* var */, void *const save,
+    struct st_mysql_value *const value);
 
 static void rocksdb_set_rate_limiter_bytes_per_sec(THD *thd,
                                                    struct SYS_VAR *var,
@@ -548,7 +548,7 @@ static uint32_t rocksdb_table_stats_sampling_pct =
     RDB_DEFAULT_TBL_STATS_SAMPLE_PCT;
 static uint32_t rocksdb_table_stats_recalc_threshold_pct = 10;
 static unsigned long long rocksdb_table_stats_recalc_threshold_count = 100ul;
-static my_bool rocksdb_table_stats_use_table_scan = 0;
+static bool rocksdb_table_stats_use_table_scan = 0;
 static int32_t rocksdb_table_stats_background_thread_nice_value =
     THREAD_PRIO_MAX;
 static unsigned long long rocksdb_table_stats_max_num_rows_scanned = 0ul;
@@ -587,9 +587,8 @@ std::atomic<uint64_t> rocksdb_num_get_for_update_calls(0);
 #endif
 
 static int rocksdb_trace_block_cache_access(
-    THD *const thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *const var, void *const save,
-    struct st_mysql_value *const value) {
+    THD *const thd MY_ATTRIBUTE((__unused__)), struct SYS_VAR *const var,
+    void *const save, struct st_mysql_value *const value) {
   char buf[FN_REFLEN];
   int len = sizeof(buf);
   const char *const trace_opt_str_raw = value->val_str(value, buf, &len);
@@ -606,8 +605,8 @@ static int rocksdb_trace_block_cache_access(
   std::string trace_opt_str(trace_opt_str_raw);
   if (trace_opt_str.empty()) {
     // End tracing block cache accesses.
-    // NO_LINT_DEBUG
-    sql_print_information("RocksDB: Stop tracing block cache accesses.\n");
+    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                    "Stop tracing block cache accesses.\n");
     s = rdb->EndBlockCacheTrace();
     if (!s.ok()) {
       rc = ha_rocksdb::rdb_error_to_mysql(s);
@@ -632,9 +631,9 @@ static int rocksdb_trace_block_cache_access(
     trace_opt.sampling_frequency = std::stoull(trace_opts_strs[0]);
     trace_opt.max_trace_file_size = std::stoull(trace_opts_strs[1]);
   } catch (const std::exception &e) {
-    // NO_LINT_DEBUG
-    sql_print_information(
-        "RocksDB: Failed to parse trace option string: %s. The correct "
+    LogPluginErrMsg(
+        INFORMATION_LEVEL, 0,
+        "Failed to parse trace option string: %s. The correct "
         "format is sampling_frequency:max_trace_file_size:trace_file_name. "
         "sampling_frequency and max_trace_file_size are positive integers. "
         "The block accesses are saved to the "
@@ -644,30 +643,29 @@ static int rocksdb_trace_block_cache_access(
   }
   const std::string &trace_file_name = trace_opts_strs[2];
   if (trace_file_name.find("/") != std::string::npos) {
-    // NO_LINT_DEBUG
-    sql_print_information(
-        "RocksDB: Start tracing failed (trace option string: %s). The file "
-        "name contains directory separator.\n",
-        trace_opt_str.c_str());
+    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                    "Start tracing failed (trace option string: %s). The file "
+                    "name contains directory separator.\n",
+                    trace_opt_str.c_str());
     return HA_EXIT_FAILURE;
   }
   const std::string trace_dir =
       std::string(rocksdb_datadir) + "/block_cache_traces";
   s = rdb->GetEnv()->CreateDirIfMissing(trace_dir);
   if (!s.ok()) {
-    // NO_LINT_DEBUG
-    sql_print_information(
-        "RocksDB: Start tracing failed (trace option string: %s). Failed to "
-        "create the trace directory %s: %s\n",
-        trace_opt_str.c_str(), trace_dir.c_str(), s.ToString().c_str());
+    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                    "Start tracing failed (trace option string: %s). Failed to "
+                    "create the trace directory %s: %s\n",
+                    trace_opt_str.c_str(), trace_dir.c_str(),
+                    s.ToString().c_str());
     return HA_EXIT_FAILURE;
   }
   const std::string trace_file_path = trace_dir + "/" + trace_file_name;
   s = rdb->GetEnv()->FileExists(trace_file_path);
   if (s.ok() || !s.IsNotFound()) {
-    // NO_LINT_DEBUG
-    sql_print_information(
-        "RocksDB: Start tracing failed (trace option string: %s). The trace "
+    LogPluginErrMsg(
+        INFORMATION_LEVEL, 0,
+        "Start tracing failed (trace option string: %s). The trace "
         "file either already exists or we encountered an error "
         "when calling rdb->GetEnv()->FileExists. The returned status string "
         "is: %s\n",
@@ -688,8 +686,9 @@ static int rocksdb_trace_block_cache_access(
     return HA_EXIT_FAILURE;
   }
   // NO_LINT_DEBUG
-  sql_print_information(
-      "RocksDB: Start tracing block cache accesses. Sampling frequency: %lu, "
+  LogPluginErrMsg(
+      INFORMATION_LEVEL, 0,
+      "Start tracing block cache accesses. Sampling frequency: %lu, "
       "Maximum trace file size: %lu, Trace file path %s.\n",
       trace_opt.sampling_frequency, trace_opt.max_trace_file_size,
       trace_file_path.c_str());
@@ -5181,11 +5180,9 @@ static int rocksdb_init_func(void *const p) {
                                     rdb_is_psi_thread_key);
 #endif
   if (err != 0) {
-    // NO_LINT_DEBUG
-    sql_print_error(
-        "RocksDB: Couldn't start the index stats calculation thread: "
-        "(errno=%d)",
-        err);
+    LogPluginErrMsg(
+        ERROR_LEVEL, 0,
+        "Couldn't start the index stats calculation thread: (errno=%d)", err);
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -5291,10 +5288,9 @@ static int rocksdb_done_func(void *const p) {
   // Wait for the index stats calculation thread to finish.
   err = rdb_is_thread.join();
   if (err != 0) {
-    // NO_LINT_DEBUG
-    sql_print_error(
-        "RocksDB: Couldn't stop the index stats calculation thread: (errno=%d)",
-        err);
+    LogPluginErrMsg(
+        ERROR_LEVEL, 0,
+        "Couldn't stop the index stats calculation thread: (errno=%d)", err);
   }
 
   // Wait for the manual compaction thread to finish.
@@ -5814,11 +5810,9 @@ ha_rocksdb::~ha_rocksdb() {
   int err MY_ATTRIBUTE((__unused__));
   err = finalize_bulk_load(false);
   if (err != 0) {
-    // NO_LINT_DEBUG
-    sql_print_error(
-        "RocksDB: Error %d finalizing bulk load while closing "
-        "handler.",
-        err);
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Error %d finalizing bulk load while closing handler.",
+                    err);
   }
 }
 
@@ -8917,7 +8911,6 @@ int ha_rocksdb::write_row(uchar *const buf) {
   const int rv = update_write_row(nullptr, buf, skip_unique_check());
 
   if (rv == 0) {
-
     // Not protected by ddl_manger lock for performance
     // reasons. This is an estimate value anyway.
     inc_table_n_rows();
@@ -10484,7 +10477,7 @@ void ha_rocksdb::update_table_stats_if_needed() {
   uint64 n_rows = m_tbl_def->m_tbl_stats.m_stat_n_rows;
 
   if (counter > std::max(rocksdb_table_stats_recalc_threshold_count,
-                         static_cast<uint64>(
+                         static_cast<long long unsigned int>(
                              n_rows * rocksdb_table_stats_recalc_threshold_pct /
                              100.0))) {
     // Add the table to the recalc queue
@@ -11294,7 +11287,7 @@ static int calculate_cardinality_table_scan(
         &to_recalc,
     std::unordered_map<GL_INDEX_ID, Rdb_index_stats> *stats,
     table_cardinality_scan_type scan_type, uint64_t max_num_rows_scanned,
-    THD::killed_state volatile *killed) {
+    std::atomic<THD::killed_state> *killed) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(scan_type != SCAN_TYPE_NONE);
@@ -11354,8 +11347,8 @@ static int calculate_cardinality_table_scan(
     uint64_t rows_scanned = 0ul;
     for (it->Seek(first_index_key); is_valid(it.get()); it->Next()) {
       if (killed && *killed) {
-        // NO_LINT_DEBUG
-        sql_print_information(
+        LogPluginErrMsg(
+            INFORMATION_LEVEL, 0,
             "Index stats calculation for index %s with id (%u,%u) is "
             "terminated",
             kd->get_name().c_str(), stat.m_gl_index_id.cf_id,
@@ -11508,7 +11501,8 @@ static int read_stats_from_ssts(
 static int calculate_stats(
     const std::unordered_map<GL_INDEX_ID, std::shared_ptr<const Rdb_key_def>>
         &to_recalc,
-    table_cardinality_scan_type scan_type, THD::killed_state volatile *killed) {
+    table_cardinality_scan_type scan_type,
+    std::atomic<THD::killed_state> *killed) {
   DBUG_ENTER_FUNC();
 
   std::unordered_map<GL_INDEX_ID, Rdb_index_stats> stats;
@@ -11545,7 +11539,7 @@ static int calculate_stats(
 
 static int calculate_stats_for_table(
     const std::string &tbl_name, table_cardinality_scan_type scan_type,
-    THD::killed_state volatile *killed = nullptr) {
+    std::atomic<THD::killed_state> *killed = nullptr) {
   DBUG_ENTER_FUNC();
   std::unordered_map<GL_INDEX_ID, std::shared_ptr<const Rdb_key_def>> to_recalc;
   std::vector<GL_INDEX_ID> indexes;
@@ -13078,7 +13072,7 @@ void Rdb_background_thread::run() {
 
     // Check that we receive only the expected error codes.
     DBUG_ASSERT(ret == 0 || ret == ETIMEDOUT);
-    const THD::killed_state local_killed = m_killed;
+    const std::atomic<THD::killed_state> local_killed(m_killed.load());
     const bool local_save_stats = m_save_stats;
     reset();
     RDB_MUTEX_UNLOCK_CHECK(m_signal_mutex);
@@ -13314,8 +13308,8 @@ int Rdb_index_stats_thread::renice(int nice_val) {
 #ifdef TARGET_OS_LINUX
   int ret = setpriority(PRIO_PROCESS, m_tid, nice_val);
   if (ret != 0) {
-    // NO_LINT_DEBUG
-    sql_print_error("Set index stats thread priority failed due to %s",
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Set index stats thread priority failed due to %s",
                     strerror(errno));
     RDB_MUTEX_UNLOCK_CHECK(m_is_mutex);
     return HA_EXIT_FAILURE;
@@ -13789,12 +13783,13 @@ void rocksdb_set_table_stats_sampling_pct(
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
-void rocksdb_update_table_stats_use_table_scan(
-    THD *const /* thd */, struct st_mysql_sys_var *const /* var */,
-    void *const var_ptr, const void *const save) {
+void rocksdb_update_table_stats_use_table_scan(THD *const /* thd */,
+                                               struct SYS_VAR *const /* var */,
+                                               void *const var_ptr,
+                                               const void *const save) {
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
-  bool old_val = *static_cast<const my_bool *>(var_ptr);
-  bool new_val = *static_cast<const my_bool *>(save);
+  bool old_val = *static_cast<const bool *>(var_ptr);
+  bool new_val = *static_cast<const bool *>(save);
 
   if (old_val == new_val) {
     RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
@@ -13820,12 +13815,12 @@ void rocksdb_update_table_stats_use_table_scan(
     rdb_is_thread.clear_all_index_stats_requests();
   }
 
-  *static_cast<my_bool *>(var_ptr) = *static_cast<const my_bool *>(save);
+  *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
 int rocksdb_index_stats_thread_renice(THD *const /* thd */,
-                                      struct st_mysql_sys_var *const /* var */,
+                                      struct SYS_VAR *const /* var */,
                                       void *const save,
                                       struct st_mysql_value *const value) {
   long long nice_val;

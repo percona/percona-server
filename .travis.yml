@@ -24,7 +24,7 @@ matrix:
     - env: COMMAND=clang-test
       script:
         - curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
-        - echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-8 main" | sudo tee -a /etc/apt/sources.list > /dev/null;
+        - echo "deb http://apt.llvm.org/$TRAVIS_DIST/ llvm-toolchain-$TRAVIS_DIST-8 main" | sudo tee -a /etc/apt/sources.list > /dev/null;
         - sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
         - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install diffstat clang-format-8 || travis_terminate 1
         - wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py || travis_terminate 1
@@ -232,7 +232,7 @@ script:
        PACKAGES="llvm-$VERSION-dev $PACKAGES";
        curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
        if [[ "$CC-$VERSION" != "clang-4.0" ]]; then
-         echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-$VERSION main" | sudo tee -a /etc/apt/sources.list > /dev/null;
+         echo "deb http://apt.llvm.org/$TRAVIS_DIST/ llvm-toolchain-$TRAVIS_DIST-$VERSION main" | sudo tee -a /etc/apt/sources.list > /dev/null;
        fi;
     fi;
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then

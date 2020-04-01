@@ -164,7 +164,8 @@ class Rdb_sst_info {
     Rdb_sst_commit_info() : m_committed(true), m_cf(nullptr) {}
 
     Rdb_sst_commit_info(Rdb_sst_commit_info &&rhs) noexcept
-        : m_committed(rhs.m_committed), m_cf(rhs.m_cf),
+        : m_committed(rhs.m_committed),
+          m_cf(rhs.m_cf),
           m_committed_files(std::move(rhs.m_committed_files)) {
       rhs.m_committed = true;
       rhs.m_cf = nullptr;
@@ -190,7 +191,7 @@ class Rdb_sst_info {
 
     void reset() {
       if (!m_committed) {
-        for (auto sst_file : m_committed_files) {
+        for (const auto &sst_file : m_committed_files) {
           // In case something went wrong attempt to delete the temporary file.
           // If everything went fine that file will have been renamed and this
           // function call will fail.

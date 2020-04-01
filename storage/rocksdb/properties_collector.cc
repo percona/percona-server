@@ -44,10 +44,17 @@ Rdb_tbl_prop_coll::Rdb_tbl_prop_coll(Rdb_ddl_manager *const ddl_manager,
                                      const Rdb_compact_params &params,
                                      const uint32_t cf_id,
                                      const uint8_t table_stats_sampling_pct)
-    : m_cf_id(cf_id), m_ddl_manager(ddl_manager), m_last_stats(nullptr),
-      m_rows(0l), m_window_pos(0l), m_deleted_rows(0l), m_max_deleted_rows(0l),
-      m_file_size(0), m_params(params),
-      m_cardinality_collector(table_stats_sampling_pct), m_recorded(false) {
+    : m_cf_id(cf_id),
+      m_ddl_manager(ddl_manager),
+      m_last_stats(nullptr),
+      m_rows(0l),
+      m_window_pos(0l),
+      m_deleted_rows(0l),
+      m_max_deleted_rows(0l),
+      m_file_size(0),
+      m_params(params),
+      m_cardinality_collector(table_stats_sampling_pct),
+      m_recorded(false) {
   DBUG_ASSERT(ddl_manager != nullptr);
 
   m_deleted_rows_window.resize(m_params.m_window, false);
@@ -148,28 +155,28 @@ void Rdb_tbl_prop_coll::CollectStatsForRow(const rocksdb::Slice &key,
 
   // Incrementing per-index entry-type statistics
   switch (type) {
-  case rocksdb::kEntryPut:
-    stats->m_rows++;
-    break;
-  case rocksdb::kEntryDelete:
-    stats->m_entry_deletes++;
-    break;
-  case rocksdb::kEntrySingleDelete:
-    stats->m_entry_single_deletes++;
-    break;
-  case rocksdb::kEntryMerge:
-    stats->m_entry_merges++;
-    break;
-  case rocksdb::kEntryOther:
-    stats->m_entry_others++;
-    break;
-  default:
-    LogPluginErrMsg(ERROR_LEVEL, 0,
-                    "Unexpected entry type found: %u. This should not happen "
-                    "so aborting the system.",
-                    type);
-    abort();
-    break;
+    case rocksdb::kEntryPut:
+      stats->m_rows++;
+      break;
+    case rocksdb::kEntryDelete:
+      stats->m_entry_deletes++;
+      break;
+    case rocksdb::kEntrySingleDelete:
+      stats->m_entry_single_deletes++;
+      break;
+    case rocksdb::kEntryMerge:
+      stats->m_entry_merges++;
+      break;
+    case rocksdb::kEntryOther:
+      stats->m_entry_others++;
+      break;
+    default:
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Unexpected entry type found: %u. This should not happen "
+                      "so aborting the system.",
+                      type);
+      abort();
+      break;
   }
 
   stats->m_actual_disk_size += file_size - m_file_size;
@@ -185,8 +192,8 @@ const char *Rdb_tbl_prop_coll::INDEXSTATS_KEY = "__indexstats__";
 /*
   This function is called by RocksDB to compute properties to store in sst file
 */
-rocksdb::Status
-Rdb_tbl_prop_coll::Finish(rocksdb::UserCollectedProperties *const properties) {
+rocksdb::Status Rdb_tbl_prop_coll::Finish(
+    rocksdb::UserCollectedProperties *const properties) {
   uint64_t num_sst_entry_put = 0;
   uint64_t num_sst_entry_delete = 0;
   uint64_t num_sst_entry_singledelete = 0;
@@ -242,8 +249,8 @@ bool Rdb_tbl_prop_coll::NeedCompact() const {
 /*
   Returns the same as above, but in human-readable way for logging
 */
-rocksdb::UserCollectedProperties
-Rdb_tbl_prop_coll::GetReadableProperties() const {
+rocksdb::UserCollectedProperties Rdb_tbl_prop_coll::GetReadableProperties()
+    const {
   std::string s;
 #ifdef DBUG_OFF
   s.append("[...");
@@ -251,7 +258,7 @@ Rdb_tbl_prop_coll::GetReadableProperties() const {
   s.append("  records...]");
 #else
   bool first = true;
-  for (auto it : m_stats) {
+  for (const auto &it : m_stats) {
     if (first) {
       first = false;
     } else {
@@ -314,8 +321,8 @@ void Rdb_tbl_prop_coll::read_stats_from_tbl_props(
 /*
   Serializes an array of Rdb_index_stats into a network string.
 */
-std::string
-Rdb_index_stats::materialize(const std::vector<Rdb_index_stats> &stats) {
+std::string Rdb_index_stats::materialize(
+    const std::vector<Rdb_index_stats> &stats) {
   String ret;
   rdb_netstr_append_uint16(&ret, INDEX_STATS_VERSION_ENTRY_TYPES);
   for (const auto &i : stats) {

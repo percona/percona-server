@@ -272,9 +272,9 @@ class Rdb_string_reader {
 
   bool read_uint8(uint *const res) {
     const uchar *p;
-    if (!(p = reinterpret_cast<const uchar *>(read(1))))
+    if (!(p = reinterpret_cast<const uchar *>(read(1)))) {
       return true;  // error
-    else {
+    } else {
       *res = *p;
       return false;  // Ok
     }
@@ -282,9 +282,9 @@ class Rdb_string_reader {
 
   bool read_uint16(uint *const res) {
     const uchar *p;
-    if (!(p = reinterpret_cast<const uchar *>(read(2))))
+    if (!(p = reinterpret_cast<const uchar *>(read(2)))) {
       return true;  // error
-    else {
+    } else {
       *res = rdb_netbuf_to_uint16(p);
       return false;  // Ok
     }
@@ -463,7 +463,8 @@ class Rdb_bit_reader {
   }
 };
 
-template <size_t buf_length> class Rdb_buf_writer {
+template <size_t buf_length>
+class Rdb_buf_writer {
  public:
   Rdb_buf_writer(const Rdb_buf_writer &) = delete;
   Rdb_buf_writer &operator=(const Rdb_buf_writer &) = delete;

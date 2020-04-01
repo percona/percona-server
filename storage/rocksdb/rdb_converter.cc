@@ -192,7 +192,6 @@ int Rdb_convert_to_record_value_decoder::decode_fixed_length_field(
 */
 int Rdb_convert_to_record_value_decoder::decode_varchar(
     Field *field, Rdb_string_reader *const reader, bool decode) {
-
   my_core::Field_varstring *const field_var = (my_core::Field_varstring *)field;
 
   const char *data_len_str;
@@ -301,8 +300,8 @@ int Rdb_value_field_iterator<value_field_decoder>::get_field_index() const {
 }
 
 template <typename value_field_decoder>
-enum_field_types
-Rdb_value_field_iterator<value_field_decoder>::get_field_type() const {
+enum_field_types Rdb_value_field_iterator<value_field_decoder>::get_field_type()
+    const {
   DBUG_ASSERT(m_field_dec != nullptr);
   return m_field_dec->m_field_type;
 }
@@ -512,7 +511,7 @@ int Rdb_converter::decode(const std::shared_ptr<Rdb_key_def> &key_def,
               key_def->m_index_type == Rdb_key_def::INDEX_TYPE_HIDDEN_PRIMARY);
 
   const rocksdb::Slice *updated_key_slice = key_slice;
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   String last_rowkey;
   last_rowkey.copy(key_slice->data(), key_slice->size(), &my_charset_bin);
   DBUG_EXECUTE_IF("myrocks_simulate_bad_pk_read1",
@@ -717,7 +716,7 @@ int Rdb_converter::encode_value_slice(
       DBUG_ASSERT(field->real_type() == MYSQL_TYPE_LONGLONG);
 
       uint64 ts = uint8korr(field->ptr);
-#ifndef NDEBUG
+#ifndef DBUG_OFF
       ts += rdb_dbug_set_ttl_rec_ts();
 #endif
       rdb_netbuf_store_uint64(reinterpret_cast<uchar *>(data), ts);
@@ -739,7 +738,7 @@ int Rdb_converter::encode_value_slice(
         memcpy(data, ttl_bytes, sizeof(uint64));
       } else {
         uint64 ts = static_cast<uint64>(std::time(nullptr));
-#ifndef NDEBUG
+#ifndef DBUG_OFF
         ts += rdb_dbug_set_ttl_rec_ts();
 #endif
         rdb_netbuf_store_uint64(reinterpret_cast<uchar *>(data), ts);

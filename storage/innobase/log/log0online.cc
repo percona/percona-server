@@ -295,6 +295,8 @@ class log_parse_buffer final : public log_buffer<RECV_PARSING_BUF_SIZE> {
     return true;
   }
 #endif
+
+  void reset_lsn() { current_lsn = 0; }
 };
 
 bool log_parse_buffer::advance(ulint delta) noexcept {
@@ -1097,16 +1099,26 @@ static void log_online_parse_redo_log_block(
   ut_ad(block_data_len == 0 || block_data_len >= LOG_BLOCK_HDR_SIZE);
   ut_ad(block_data_len <= OS_FILE_LOG_BLOCK_SIZE);
   if (skip_already_parsed_len == block_data_len || block_data_len == 0) {
+    /* We need to skip the current block. But in the current block, the data may
+    be less than OS_FILE_LOG_BLOCK_SIZE. And the calculated parsing buffer lsn
+    will continue to point to the current block. And after the next iteration of
+    reading, the parsing will continue after the end of the data in the current
+    block.
+    We reset the parsing buffer lsn so that it synchronizes with the read buffer
+    lsn and the parsing moves to the next block. */
+    log_bmp_sys->parse_buf.reset_lsn();
     log_bmp_sys->read_buf.advance();
     return;
   }
   ut_ad(skip_already_parsed_len < block_data_len);
   if (skip_already_parsed_len == LOG_BLOCK_SIZE_NO_TRL &&
       block_data_len == OS_FILE_LOG_BLOCK_SIZE) {
+    log_bmp_sys->parse_buf.reset_lsn();
     log_bmp_sys->read_buf.advance();
     return;
   }
   if (block_data_len == LOG_BLOCK_HDR_SIZE) {
+    log_bmp_sys->parse_buf.reset_lsn();
     log_bmp_sys->read_buf.advance();
     return;
   }

@@ -1,6 +1,7 @@
 set @old_debug = @@global.debug;
 set @@global.debug = '+d,rocksdb_remove_dropped_cf';
-set @@global.rocksdb_update_cf_options = 'cf_primary_key={};';
+create table create_cf ( id int, primary key (id) comment 'cfname=cf_primary_key' ) engine=rocksdb;
+drop table create_cf;
 select * from information_schema.rocksdb_cfstats where cf_name='cf_primary_key';
 CF_NAME	STAT_TYPE	VALUE
 cf_primary_key	NUM_IMMUTABLE_MEM_TABLE	0

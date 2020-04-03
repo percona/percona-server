@@ -190,15 +190,15 @@ static void rocksdb_flush_all_memtables() {
   }
 }
 
-static void rocksdb_delete_column_family_stub(
-    THD *const /* thd */, struct st_mysql_sys_var *const /* var */,
-    void *const /* var_ptr */, const void *const /* save */) {}
+static void rocksdb_delete_column_family_stub(THD *const /* thd */,
+                                              struct SYS_VAR *const /* var */,
+                                              void *const /* var_ptr */,
+                                              const void *const /* save */) {}
 
-static int rocksdb_delete_column_family(
-    THD *const /* thd */, struct st_mysql_sys_var *const /* var */,
-    void *const /* var_ptr */, struct st_mysql_value *const value) {
-
-
+static int rocksdb_delete_column_family(THD *const /* thd */,
+                                        struct SYS_VAR *const /* var */,
+                                        void *const /* var_ptr */,
+                                        struct st_mysql_value *const value) {
   char buff[STRING_BUFFER_USUAL_SIZE];
   int len = sizeof(buff);
 
@@ -399,9 +399,9 @@ static int rocksdb_force_flush_memtable_and_lzero_now(
         // If the CF handle has been removed from cf_manager, it is not an
         // error. We are done with this CF and proceed to the next CF.
         if (!cfh) {
-          // NO_LINT_DEBUG
-          sql_print_information("cf %s has been dropped during CompactFiles.",
-                                cf_handle->GetName().c_str());
+          LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                          "cf %s has been dropped during CompactFiles.",
+                          cf_handle->GetName().c_str());
           break;
         }
 
@@ -609,7 +609,7 @@ static int32_t rocksdb_table_stats_background_thread_nice_value =
     THREAD_PRIO_MAX;
 static unsigned long long rocksdb_table_stats_max_num_rows_scanned = 0ul;
 static bool rocksdb_enable_bulk_load_api = true;
-static bool rocksdb_enable_remove_orphaned_dropped_cfs = TRUE;
+static bool rocksdb_enable_remove_orphaned_dropped_cfs = true;
 static bool rpl_skip_tx_api_var = false;
 static bool rocksdb_print_snapshot_conflict_queries = false;
 static bool rocksdb_large_prefix = true;
@@ -987,7 +987,7 @@ static MYSQL_THDVAR_BOOL(
 static MYSQL_THDVAR_BOOL(
     enable_iterate_bounds, PLUGIN_VAR_OPCMDARG,
     "Enable rocksdb iterator upper/lower bounds in read options.", nullptr,
-    nullptr, TRUE);
+    nullptr, true);
 
 static const char *DEFAULT_READ_FREE_RPL_TABLES = ".*";
 
@@ -5190,8 +5190,7 @@ static int rocksdb_init_func(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
-  // NO_LINT_DEBUG
-  sql_print_information("RocksDB: Opening TransactionDB...");
+  LogPluginErrMsg(INFORMATION_LEVEL, 0, "Opening TransactionDB...");
 
   status = rocksdb::TransactionDB::Open(
       main_opts, tx_db_options, rocksdb_datadir, cf_descr, &cf_handles, &rdb);
@@ -5202,8 +5201,7 @@ static int rocksdb_init_func(void *const p) {
   }
   cf_manager.init(std::move(cf_options_map), &cf_handles);
 
-  // NO_LINT_DEBUG
-  sql_print_information("RocksDB: Initializing data dictionary...");
+  LogPluginErrMsg(INFORMATION_LEVEL, 0, "Initializing data dictionary...");
 
   if (st_rdb_exec_time.exec("Rdb_dict_manager::init", [&]() {
         return dict_manager.init(rdb, &cf_manager,
@@ -5214,7 +5212,7 @@ static int rocksdb_init_func(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
-  sql_print_information("RocksDB: Initializing DDL Manager...");
+  LogPluginErrMsg(INFORMATION_LEVEL, 0, "Initializing DDL Manager...");
 
   if (st_rdb_exec_time.exec("Rdb_ddl_manager::init", [&]() {
 #if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
@@ -5222,7 +5220,8 @@ static int rocksdb_init_func(void *const p) {
                                 rocksdb_validate_tables);
 #else
         return ddl_manager.init(&dict_manager, &cf_manager);
-#endif // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
+#endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
+        // ROCKSDB_INCLUDE_VALIDATE_TABLES
       })) {
     LogPluginErrMsg(ERROR_LEVEL, 0, "Failed to initialize DDL manager.");
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
@@ -6801,7 +6800,8 @@ int ha_rocksdb::create_cfs(
     // `cf_name` - will be used as a CF name.
     {
       std::lock_guard<Rdb_dict_manager> dm_lock(dict_manager);
-      cf_handle = cf_manager.get_or_create_cf(rdb, cf_name, !rocksdb_no_create_column_family);
+      cf_handle = cf_manager.get_or_create_cf(rdb, cf_name,
+                                              !rocksdb_no_create_column_family);
       if (!cf_handle) {
         DBUG_RETURN(HA_EXIT_FAILURE);
       }
@@ -11616,6 +11616,8 @@ static int calculate_cardinality_table_scan(
       rows_scanned++;
     }
 
+    cardinality_collector
+        .Reset(); /* reset m_last_key for each key definition */
     cardinality_collector.SetCardinality(&stat);
     cardinality_collector.AdjustStats(&stat);
 
@@ -13525,7 +13527,8 @@ void Rdb_index_stats_thread::run() {
           thd->thread_stack = reinterpret_cast<char *>(&thd);
           thd->store_globals();
 
-          static constexpr char act[] = "now wait_for ready_to_calculate_index_stats";
+          static constexpr char act[] =
+              "now wait_for ready_to_calculate_index_stats";
           DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
 
           thd->restore_globals();
@@ -13549,7 +13552,8 @@ void Rdb_index_stats_thread::run() {
           thd->thread_stack = reinterpret_cast<char *>(&thd);
           thd->store_globals();
 
-          static constexpr char act[] = "now signal index_stats_calculation_done";
+          static constexpr char act[] =
+              "now signal index_stats_calculation_done";
           DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
 
           thd->restore_globals();
@@ -13731,9 +13735,8 @@ void Rdb_manual_compaction_thread::run() {
                       "Manual Compaction id %d cf %s aborted. %s", mcr.mc_id,
                       mcr.cf->GetName().c_str(), s.getState());
       if (!cf_manager.get_cf(mcr.cf->GetID())) {
-        // NO_LINT_DEBUG
-        sql_print_information("cf %s has been dropped",
-                              mcr.cf->GetName().c_str());
+        LogPluginErrMsg(INFORMATION_LEVEL, 0, "cf %s has been dropped",
+                        mcr.cf->GetName().c_str());
       } else if (!s.IsShutdownInProgress()) {
         rdb_handle_io_error(s, RDB_IO_ERROR_BG_THREAD);
       } else {
@@ -14479,25 +14482,24 @@ static int rocksdb_validate_update_cf_options(
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "rocksdb_update_cf_options", str);
     return HA_EXIT_FAILURE;
   }
-  // Loop through option_map and create missing column families
-  for (Rdb_cf_options::Name_to_config_t::iterator it = option_map.begin();
-       it != option_map.end(); ++it) {
-    // If the CF is removed at this point, i.e., cf_manager.drop_cf() has
-    // been called, it is OK to create a new CF.
+  // Loop through option_map and check if all specified CFs exist.
+  std::vector<const std::string *> unknown_cfs;
+  for (const auto &option : option_map) {
+    if (!cf_manager.get_cf(option.first)) {
+      unknown_cfs.push_back(&(option.first));
+    }
+  }
 
-    const auto &cf_name = it->first;
-    {
-      std::lock_guard<Rdb_dict_manager> dm_lock(dict_manager);
-      auto cfh = cf_manager.get_or_create_cf(rdb, cf_name, !rocksdb_no_create_column_family);
-
-      if (!cfh) {
-        return HA_EXIT_FAILURE;
-      }
-
-      if (cf_manager.create_cf_flags_if_needed(&dict_manager, cfh->GetID(),
-                                               cf_name)) {
-        return HA_EXIT_FAILURE;
-      }
+  if (!unknown_cfs.empty()) {
+    std::string err(str);
+    err.append(" Unknown CF: ");
+    bool first = true;
+    for (const auto cf : unknown_cfs) {
+      if (first)
+        first = false;
+      else
+        err.append(", ");
+      err.append(*cf);
     }
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "rocksdb_update_cf_options",
              err.c_str());
@@ -14545,8 +14547,8 @@ static void rocksdb_set_update_cf_options(
         cf_manager.get_cf(cf_name);
 
     if (!cfh) {
-      // NO_LINT_DEBUG
-      sql_print_information(
+      LogPluginErrMsg(
+          INFORMATION_LEVEL, 0,
           "Skip updating options for cf %s because the cf has been dropped.",
           cf_name.c_str());
       continue;
@@ -14647,7 +14649,12 @@ void ha_rocksdb::rpl_after_update_rows() {
 bool ha_rocksdb::rpl_lookup_rows() { return !use_read_free_rpl(); }
 
 bool ha_rocksdb::is_read_free_rpl_table() const {
+#if 1  // Percona Server disabled rocksdb_read_free_rpl_tables as it's dangerous
+       // to use
+  return true;
+#else
   return table->s && m_tbl_def->m_is_read_free_rpl_table;
+#endif
 }
 
 /**

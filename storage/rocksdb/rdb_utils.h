@@ -19,8 +19,8 @@
 #include <chrono>
 #include <regex>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 /* MySQL header files */
 #define LOG_COMPONENT_TAG "rocksdb"
@@ -418,9 +418,8 @@ class Rdb_exec_time {
 
     result += "}";
 
-    /* NO_LINT_DEBUG */
-    sql_print_information("MyRocks: rdb execution report (microsec): %s",
-                          result.c_str());
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "rdb execution report (microsec): %s",
+                    result.c_str());
   }
 };
 

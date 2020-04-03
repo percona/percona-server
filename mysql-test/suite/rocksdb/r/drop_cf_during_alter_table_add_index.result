@@ -1,8 +1,8 @@
 set @old_debug = @@global.debug;
 create table t1 (
-id1 int(10) unsigned not null default '0',
-id2 int(10) unsigned not null default '0',
-primary key (id1) comment 'cf_primary_key'
+id1 int unsigned not null default '0',
+id2 int unsigned not null default '0',
+primary key (id1) comment 'cfname=cf_primary_key'
   ) engine=rocksdb;
 insert into t1 (id1, id2)
 values(1, 1);
@@ -11,10 +11,11 @@ values(2, 2);
 insert into t1 (id1, id2)
 values(3, 3);
 set global rocksdb_force_flush_memtable_now = true;
-set @@global.rocksdb_update_cf_options= 'cf_secondary_key={};';
+create table create_cf ( id int, primary key (id) comment 'cfname=cf_secondary_key' ) engine=rocksdb;
+drop table create_cf;
 set @@global.debug = '+d,rocksdb_create_secondary_cf';
 set @@global.debug = '+d,rocksdb_drop_cf';
-alter table t1 add index secondary_key (id2) comment 'cf_secondary_key';
+alter table t1 add index secondary_key (id2) comment 'cfname=cf_secondary_key';
 set debug_sync = "now wait_for ready_to_mark_cf_dropped_in_create_cfs";
 set @@global.rocksdb_delete_cf = 'cf_secondary_key';
 set debug_sync = "now signal mark_cf_dropped_done_in_create_cfs";
@@ -22,10 +23,10 @@ ERROR HY000: Column family ('cf_secondary_key') is being dropped.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id1` int(10) unsigned NOT NULL DEFAULT '0',
-  `id2` int(10) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id1`) COMMENT 'cf_primary_key'
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+  `id1` int unsigned NOT NULL DEFAULT '0',
+  `id2` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id1`) COMMENT 'cfname=cf_primary_key'
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*) > 0 from information_schema.rocksdb_cfstats where cf_name = 'cf_secondary_key' ;
 count(*) > 0
 1
@@ -37,7 +38,7 @@ count(*) = 0
 set @@global.debug = @old_debug;
 set @@global.debug = '+d,rocksdb_inplace_populate_sk';
 set @@global.debug = '+d,rocksdb_drop_cf';
-alter table t1 add index secondary_key (id2) comment 'cf_secondary_key';
+alter table t1 add index secondary_key (id2) comment 'cfname=cf_secondary_key';
 set debug_sync = "now wait_for ready_to_mark_cf_dropped_in_populate_sk";
 set @@global.rocksdb_delete_cf = 'cf_secondary_key';
 set debug_sync = "now signal mark_cf_dropped_done_in_populate_sk";
@@ -45,10 +46,10 @@ ERROR HY000: MyRocks failed populating secondary key during alter.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id1` int(10) unsigned NOT NULL DEFAULT '0',
-  `id2` int(10) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id1`) COMMENT 'cf_primary_key'
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+  `id1` int unsigned NOT NULL DEFAULT '0',
+  `id2` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id1`) COMMENT 'cfname=cf_primary_key'
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*) > 0 from information_schema.rocksdb_cfstats where cf_name = 'cf_secondary_key' ;
 count(*) > 0
 1
@@ -60,7 +61,7 @@ count(*) = 0
 set @@global.debug = @old_debug;
 set @@global.debug = '+d,rocksdb_commit_alter_table';
 set @@global.debug = '+d,rocksdb_drop_cf';
-alter table t1 add index secondary_key (id2) comment 'cf_secondary_key';
+alter table t1 add index secondary_key (id2) comment 'cfname=cf_secondary_key';
 set debug_sync = "now wait_for ready_to_mark_cf_dropped_before_commit_alter_table";
 set @@global.rocksdb_delete_cf = 'cf_secondary_key';
 ERROR HY000: Cannot drop Column family ('cf_secondary_key') because it is in use or does not exist.
@@ -68,11 +69,11 @@ set debug_sync = "now signal mark_cf_dropped_done_before_commit_alter_table";
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id1` int(10) unsigned NOT NULL DEFAULT '0',
-  `id2` int(10) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id1`) COMMENT 'cf_primary_key',
-  KEY `secondary_key` (`id2`) COMMENT 'cf_secondary_key'
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+  `id1` int unsigned NOT NULL DEFAULT '0',
+  `id2` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id1`) COMMENT 'cfname=cf_primary_key',
+  KEY `secondary_key` (`id2`) COMMENT 'cfname=cf_secondary_key'
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*) > 0 from information_schema.rocksdb_cfstats where cf_name = 'cf_secondary_key' ;
 count(*) > 0
 1
@@ -82,5 +83,4 @@ select count(*) > 0 from information_schema.rocksdb_cfstats where cf_name = 'cf_
 count(*) > 0
 1
 set @@global.debug = @old_debug;
-set @@global.rocksdb_update_cf_options= @save.rocksdb_update_cf_options;
 drop table t1;

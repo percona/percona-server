@@ -23,7 +23,7 @@
 #include "./rdb_threads.h"
 
 /* MySQL header files */
-#include "sql_class.h"
+#include "sql/sql_class.h"
 
 namespace myrocks {
 

@@ -11616,6 +11616,8 @@ static int calculate_cardinality_table_scan(
       rows_scanned++;
     }
 
+    cardinality_collector
+        .Reset(); /* reset m_last_key for each key definition */
     cardinality_collector.SetCardinality(&stat);
     cardinality_collector.AdjustStats(&stat);
 

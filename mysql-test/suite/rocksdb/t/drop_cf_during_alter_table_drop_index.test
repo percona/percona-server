@@ -11,10 +11,10 @@ connect (conn2,localhost,root,,);
 ## test1 ##
 --connection conn1
 create table t1 (
-  id1 int(10) unsigned not null default '0',
-  id2 int(10) unsigned not null default '0',
-  primary key (id1) comment 'cf_primary_key',
-  key `secondary_key` (id2) COMMENT 'cf_secondary_key'
+  id1 int unsigned not null default '0',
+  id2 int unsigned not null default '0',
+  primary key (id1) comment 'cfname=cf_primary_key',
+  key `secondary_key` (id2) comment 'cfname=cf_secondary_key'
   ) engine=rocksdb;
 
 insert into t1 (id1, id2)

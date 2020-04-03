@@ -96,12 +96,8 @@ rocksdb.level_serializable : BUG#0 MyRocks does not yet support ISO serializable
 rocksdb.slow_query_log : BUG#26 MYR-26
 # 8.0
 rocksdb.allow_to_start_after_corruption : BUG#4584 PS-4584
-rocksdb.bloomfilter3 : BUG#4618 PS-4618 - Port PS-4070 a.k.a. MYR-63 to 8.0
 rocksdb.skip_validate_tmp_table : BUG#4218 PS-4218
 rocksdb.validate_datadic : BUG#4218 PS-4218
-
-rocksdb.add_index_inplace : BUG#0 inplace alter partitioning has not yet been implemented
-rocksdb.add_index_inplace_crash : BUG#0 inplace alter partitioning has not yet been implemented
 
 # rocksdb_rpl suite tests
 rocksdb_rpl.rpl_rocksdb_snapshot : BUG#0 LOCK BINLOG FOR BACKUP

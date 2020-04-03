@@ -15,14 +15,14 @@ connect (conn2,localhost,root,,);
 ## test1 ##
 --connection conn1
 
-set @save.rocksdb_update_cf_options = @@global.rocksdb_update_cf_options;
-set @@global.rocksdb_update_cf_options= 'cf_primary_key={};';
+create table create_cf ( id int, primary key (id) comment 'cfname=cf_primary_key' ) engine=rocksdb;
+drop table create_cf;
 
 set @@global.debug = '+d,rocksdb_create_primary_cf';
 set @@global.debug = '+d,rocksdb_drop_cf';
 send create table t1 (
-  id1 int(10) unsigned not null default '0',
-  primary key (id1) comment 'cf_primary_key'
+  id1 int unsigned not null default '0',
+  primary key (id1) comment 'cfname=cf_primary_key'
   ) engine=rocksdb;
 
 --connection conn2
@@ -54,8 +54,8 @@ set @@global.debug = '+d,rocksdb_create_table';
 set @@global.debug = '+d,rocksdb_drop_cf';
 
 send create table t1 (
-  id1 int(10) unsigned not null default '0',
-  primary key (id1) comment 'cf_primary_key'
+  id1 int unsigned not null default '0',
+  primary key (id1) comment 'cfname=cf_primary_key'
   ) engine=rocksdb;
 
 --connection conn2
@@ -80,7 +80,6 @@ set debug_sync = "now wait_for drop_cf_done";
 select * from information_schema.rocksdb_cfstats where cf_name = 'cf_primary_key';
 
 set @@global.debug = @old_debug;
-set @@global.rocksdb_update_cf_options= @save.rocksdb_update_cf_options;
 
 --connection default
 --disconnect conn1

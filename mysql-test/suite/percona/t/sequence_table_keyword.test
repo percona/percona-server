@@ -1,0 +1,107 @@
+#
+# PS-8963: SEQUENCE_TABLE reserved keyword issue
+# https://perconadev.atlassian.net/browse/PS-8963
+#
+
+# creating a simple table for referencing
+CREATE TABLE t1(id INT UNSIGNED) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+
+# creating a table with the 'percona_sequence_table' name must fail as
+# this is a reserved keyword
+--error ER_PARSE_ERROR
+CREATE TABLE percona_sequence_table(id INT UNSIGNED) ENGINE=InnoDB;
+
+# disabling ER_WARN_DEPRECATED_SYNTAX as a number of 'sequence_table'
+# identifiers used in table function context will generate this warning
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX
+
+# creating a table with the 'sequence_table' name
+CREATE TABLE sequence_table(id INT UNSIGNED) ENGINE=InnoDB;
+
+INSERT INTO sequence_table VALUES (1);
+INSERT INTO sequence_table VALUES (2);
+
+# <single_table>
+SELECT * FROM sequence_table;
+SELECT * FROM sequence_table AS tt;
+SELECT * FROM sequence_table tt;
+
+# <single_table_parens>
+SELECT * FROM (sequence_table);
+SELECT * FROM (sequence_table AS tt);
+SELECT * FROM (sequence_table tt);
+
+# <derived_table> with optional alias and optional column list
+SELECT * FROM (SELECT * FROM t1) AS sequence_table;
+SELECT * FROM (SELECT * FROM t1) sequence_table;
+SELECT sequence_table.* FROM (SELECT * FROM t1) AS sequence_table;
+SELECT sequence_table.* FROM (SELECT * FROM t1) sequence_table;
+
+SELECT * FROM (SELECT * FROM t1) AS sequence_table(val);
+SELECT * FROM (SELECT * FROM t1) sequence_table(val);
+SELECT sequence_table.* FROM (SELECT * FROM t1) AS sequence_table(val);
+SELECT sequence_table.* FROM (SELECT * FROM t1) sequence_table(val);
+SELECT sequence_table.val FROM (SELECT * FROM t1) AS sequence_table(val);
+SELECT sequence_table.val FROM (SELECT * FROM t1) sequence_table(val);
+SELECT val FROM (SELECT * FROM t1) AS sequence_table(val);
+SELECT val FROM (SELECT * FROM t1) sequence_table(val);
+
+SELECT * FROM (SELECT * FROM t1) AS tt(sequence_table);
+SELECT * FROM (SELECT * FROM t1) tt(sequence_table);
+SELECT tt.sequence_table FROM (SELECT * FROM t1) AS tt(sequence_table);
+SELECT tt.sequence_table FROM (SELECT * FROM t1) tt(sequence_table);
+SELECT sequence_table FROM (SELECT * FROM t1) AS tt(sequence_table);
+SELECT sequence_table FROM (SELECT * FROM t1) tt(sequence_table);
+
+SELECT * FROM (SELECT * FROM t1) AS sequence_table(sequence_table);
+SELECT * FROM (SELECT * FROM t1) sequence_table(sequence_table);
+SELECT sequence_table.sequence_table FROM (SELECT * FROM t1) AS sequence_table(sequence_table);
+SELECT sequence_table.sequence_table FROM (SELECT * FROM t1) sequence_table(sequence_table);
+SELECT sequence_table FROM (SELECT * FROM t1) AS sequence_table(sequence_table);
+SELECT sequence_table FROM (SELECT * FROM t1) sequence_table(sequence_table);
+
+# single table with 'sequence_table' as an alias
+SELECT * FROM t1 AS sequence_table;
+SELECT * FROM t1 sequence_table;
+SELECT * FROM t1 AS sequence_table WHERE id = 1;
+SELECT * FROM t1 sequence_table WHERE id = 1;
+SELECT * FROM t1 AS sequence_table WHERE sequence_table.id = 1;
+SELECT * FROM t1 sequence_table WHERE sequence_table.id = 1;
+
+# SEQUENCE_TABLE() as a table function
+SELECT * FROM SEQUENCE_TABLE(2) AS tt;
+SELECT * FROM SEQUENCE_TABLE(2) tt;
+
+# SEQUENCE_TABLE() as a table function with 'sequence_table' alias
+SELECT * FROM SEQUENCE_TABLE(2) AS sequence_table;
+SELECT sequence_table.* FROM SEQUENCE_TABLE(2) AS sequence_table;
+SELECT value FROM SEQUENCE_TABLE(2) AS sequence_table;
+SELECT sequence_table.value FROM SEQUENCE_TABLE(2) AS sequence_table;
+
+# the mixture of <single_table> 'sequence_table' and the table function
+SELECT * FROM sequence_table, SEQUENCE_TABLE(2) AS tt;
+
+# inserts
+INSERT INTO sequence_table VALUES (3);
+INSERT INTO sequence_table SELECT value + 4 FROM SEQUENCE_TABLE(2) AS tt;
+INSERT INTO t1 SELECT * FROM sequence_table;
+
+# updates
+UPDATE sequence_table SET id = id + 100;
+UPDATE sequence_table SET id = id + 100 WHERE id IN (SELECT * FROM SEQUENCE_TABLE(10) AS tt);
+UPDATE t1 SET id = id + 100 WHERE id IN (SELECT * FROM sequence_table);
+
+# deletes
+DELETE FROM sequence_table WHERE id = 101;
+DELETE FROM sequence_table WHERE id IN (SELECT * FROM SEQUENCE_TABLE(10) AS tt);
+DELETE FROM t1 WHERE id IN (SELECT * FROM sequence_table);
+
+# truncates
+TRUNCATE TABLE sequence_table;
+
+--enable_warnings ER_WARN_DEPRECATED_SYNTAX
+
+# cleaning up
+DROP TABLE t1;
+DROP TABLE sequence_table;

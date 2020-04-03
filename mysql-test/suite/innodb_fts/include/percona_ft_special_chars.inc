@@ -99,7 +99,7 @@ OPTIMIZE TABLE t1;
 --echo *** creating a list of all printable characters (ASCII 33..126)
 --echo *** (whitespace and control characters are excluded)
 
-SELECT GROUP_CONCAT(CHAR(value + 33 USING utf8mb4) SEPARATOR '') INTO @special_characters FROM SEQUENCE_TABLE(127 - 33) AS tt;
+SELECT GROUP_CONCAT(CHAR(value + 33 USING utf8mb4) SEPARATOR '') INTO @special_characters FROM PERCONA_SEQUENCE_TABLE(127 - 33) AS tt;
 SELECT @special_characters;
 
 --echo

@@ -1659,6 +1659,9 @@ The following options may be given as the first argument:
  a version lower than 8.2.0. SHOW EVENTS and queries into
  information_schema.events will also output the old
  terminology for the event status field.
+ --tf-sequence-table-max-upper-bound=# 
+ Maximum number of records SEQUENCE_TABLE() table function
+ is allowed to generate.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -2179,6 +2182,7 @@ temptable-max-mmap 1073741824
 temptable-max-ram 1073741824
 temptable-use-mmap TRUE
 terminology-use-previous NONE
+tf-sequence-table-max-upper-bound 1048576
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 1048576

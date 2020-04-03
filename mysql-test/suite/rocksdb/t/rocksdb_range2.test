@@ -24,9 +24,9 @@ drop table t1;
 --echo #
 
 CREATE TABLE t1 (
-  part_id smallint(5) unsigned NOT NULL,
-  oid bigint(20) unsigned NOT NULL,
-  tid bigint(20) unsigned NOT NULL,
+  part_id smallint unsigned NOT NULL,
+  oid bigint unsigned NOT NULL,
+  tid bigint unsigned NOT NULL,
   filler char(32),
   KEY tid (part_id,tid,oid)
 ) ENGINE=ROCKSDB;

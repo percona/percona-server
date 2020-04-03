@@ -44,7 +44,7 @@ SELECT * FROM test.t1;
 id
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,PS-8747_wait_for_disconnect_after_check';
-INSERT INTO test.t1 SELECT tt.* FROM SEQUENCE_TABLE(20000) AS tt;
+INSERT INTO test.t1 SELECT tt.* FROM PERCONA_SEQUENCE_TABLE(20000) AS tt;
 SET GLOBAL DEBUG= @debug_save;
 DROP TABLE test.t1;
 DROP SERVER test;

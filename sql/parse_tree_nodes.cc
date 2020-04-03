@@ -1395,6 +1395,29 @@ bool PT_table_factor_function::do_contextualize(Parse_context *pc) {
   return false;
 }
 
+bool PT_table_sequence_function::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc) || m_expr->itemize(pc, &m_expr)) return true;
+
+  auto stf = new (pc->mem_root)
+      Table_function_sequence(m_table_alias.str, m_expr);
+  if (stf == nullptr) return true;  // OOM
+
+  LEX_CSTRING alias;
+  alias.length = strlen(stf->func_name());
+  alias.str = sql_strmake(stf->func_name(), alias.length);
+  if (alias.str == nullptr) return true;  // OOM
+
+  auto ti = new (pc->mem_root) Table_ident(alias, stf);
+  if (ti == nullptr) return true;
+
+  m_table_ref = pc->select->add_table_to_list(pc->thd, ti, m_table_alias.str, 0,
+                                        TL_READ, MDL_SHARED_READ);
+  if (m_table_ref == nullptr) return true;
+  if (pc->select->add_joined_table(m_table_ref)) return true;
+
+  return false;
+}
+
 PT_derived_table::PT_derived_table(const POS &pos, bool lateral,
                                    PT_subquery *subquery,
                                    const LEX_CSTRING &table_alias,

@@ -774,3 +774,115 @@ void JT_data_source::cleanup() {
   v.clear();
   producing_records = false;
 }
+
+Table_function_sequence::Table_function_sequence(const char *alias, Item *a)
+    : Table_function(),
+      m_table_alias(alias),
+      m_source(a),
+      m_vt_list(),
+      m_upper_bound_precalculated(false),
+      m_precalculated_upper_bound(0) {
+  m_value_field.init_for_tmp_table(MYSQL_TYPE_LONGLONG,  // sql_type_arg
+                                   20,                   // length_arg
+                                   0,                    // decimals_arg
+                                   false,                // maybe_null_arg
+                                   true,                 // is_unsigned_arg
+                                   8,  // pack_length_override_arg
+                                   value_field_name);  // fld_name
+}
+
+bool Table_function_sequence::init() {
+  return m_vt_list.push_back(&m_value_field);
+}
+
+List<Create_field> *Table_function_sequence::get_field_list() {
+  return &m_vt_list;
+}
+
+bool Table_function_sequence::fill_result_table() {
+  assert(!table->materialized);
+  // reset table
+  empty_table();
+
+  ulonglong upper_bound;
+  if (m_upper_bound_precalculated) {
+    upper_bound = m_precalculated_upper_bound;
+  } else {
+    upper_bound = calculate_upper_bound();
+    if (m_source->const_item()) m_upper_bound_precalculated = true;
+  }
+
+  if (upper_bound > tf_sequence_table_max_upper_bound) {
+    my_error(ER_SEQUENCE_TABLE_SIZE_LIMIT, MYF(0),
+             tf_sequence_table_max_upper_bound, upper_bound);
+    return true;
+  }
+
+  for (ulonglong u = 0; u < upper_bound; ++u) {
+    if (get_field(0)->store(u, true)) return true;
+    if (write_row()) return true;
+  }
+  return false;
+}
+
+table_map Table_function_sequence::used_tables() const {
+  return m_source->used_tables();
+}
+
+bool Table_function_sequence::print(const THD *thd, String *str,
+                                    enum_query_type query_type) const {
+  if (str->append(STRING_WITH_LEN("sequence_table("))) return true;
+  m_source->print(thd, str, query_type);
+  if (thd->is_error()) return true;
+  return str->append(')');
+}
+
+bool Table_function_sequence::walk(Item_processor processor, enum_walk walk,
+                                   uchar *arg) {
+  // Only 'source' may reference columns of other tables; rest is literals.
+  return m_source->walk(processor, walk, arg);
+}
+
+bool Table_function_sequence::do_init_args() {
+  assert(!m_upper_bound_precalculated);
+
+  Item *dummy = m_source;
+  if (m_source->fix_fields(current_thd, &dummy)) return true;
+
+  // Set the default type of '?'
+  if (m_source->propagate_type(current_thd, MYSQL_TYPE_LONGLONG)) return true;
+
+  assert(m_source->data_type() != MYSQL_TYPE_VAR_STRING);
+  if (m_source->has_aggregation() || m_source->has_subquery() ||
+      m_source != dummy) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "SEQUENCE_TABLE");
+    return true;
+  }
+
+  if (m_source->const_item()) {
+    m_precalculated_upper_bound = calculate_upper_bound();
+    m_upper_bound_precalculated = true;
+  }
+
+  return false;
+}
+
+void Table_function_sequence::do_cleanup() {
+  m_source->cleanup();
+  m_vt_list.clear();
+  m_upper_bound_precalculated = false;
+  m_precalculated_upper_bound = 0;
+}
+
+ulonglong Table_function_sequence::calculate_upper_bound() const {
+  ulonglong res = 0;
+  if (!m_source->is_null()) {
+    if (m_source->unsigned_flag) {
+      res = m_source->val_uint();
+    } else {
+      auto signed_res = m_source->val_int();
+      if (signed_res > 0) res = static_cast<ulonglong>(signed_res);
+    }
+  }
+  return res;
+}

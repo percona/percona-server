@@ -433,6 +433,78 @@ class Table_function_json final : public Table_function {
   void do_cleanup() override;
 };
 
+class Table_function_sequence final : public Table_function {
+  static constexpr const char *value_field_name = "value";
+
+ public:
+  Table_function_sequence(const char *alias, Item *a);
+
+  /**
+    Returns function's name
+  */
+  const char *func_name() const override { return "sequence_table"; }
+  /**
+    Initialize the table function before creation of result table
+
+    @returns
+      true  on error
+      false on success
+  */
+  virtual bool init() override;
+
+  /**
+    Execute table function
+
+    @returns
+      true  on error
+      false on success
+  */
+  virtual bool fill_result_table() override;
+
+  /**
+    Return table_map of tables used by function's data source
+  */
+  virtual table_map used_tables() const override;
+
+  /**
+    SEQUENCE_TABLE printout
+
+    @param str        string to print to
+    @param query_type type of query
+
+    @returns
+      true  on error
+      false on success
+  */
+  virtual bool print(const THD *thd, String *str,
+                     enum_query_type query_type) const override;
+
+  virtual bool walk(Item_processor processor, enum_walk walk,
+                    uchar *arg) override;
+
+ private:
+  /// SEQUENCE_TABLE's alias, for error reporting
+  const char *m_table_alias;
+
+  /// SEQUENCE_TABLE's data source expression
+  Item *m_source;
+
+  Create_field m_value_field;
+  List<Create_field> m_vt_list;
+
+  bool m_upper_bound_precalculated;
+  ulonglong m_precalculated_upper_bound;
+
+  /**
+    Return list of fields to create result table from
+  */
+  virtual List<Create_field> *get_field_list() override;
+  virtual bool do_init_args() override;
+  virtual void do_cleanup() override;
+
+  ulonglong calculate_upper_bound() const;
+};
+
 /**
   Print ON EMPTY or ON ERROR clauses.
 

@@ -1,15 +1,13 @@
 # Run the load generator to populate the table and generate concurrent
 # updates.  After the load generator is complete, verify the tables on the
 # master and the slave are consistent
-
 --sync_slave_with_master
 
 --connection master
 --let $master_host = 127.0.0.1
-let $MYSQL_BASEDIR = `SELECT @@BASEDIR`;
 
 let $exec =
-  python2 $MYSQL_BASEDIR/mysql-test/suite/rocksdb_stress/t/load_generator.py
+  python2 $MYSQL_TEST_DIR/suite/rocksdb_stress/t/load_generator.py
   -L $MYSQL_TMP_DIR/load_generator.log -H $master_host -t $table
   -P $MASTER_MYPORT -n $num_records -m $max_records
   -l $num_loaders -c $num_checkers -r $num_requests
@@ -17,6 +15,8 @@ let $exec =
   -D $reap_delay;
 
 exec $exec;
+
+--exec rm $MYSQL_TMP_DIR/load_generator.log
 
 enable_reconnect;
 source include/wait_until_connected_again.inc;
@@ -54,3 +54,5 @@ let $slave_sync_timeout = 7200;
 # restarting replication clears the errors.
 --source include/start_slave.inc
 --source include/stop_slave.inc
+--connection master
+--source include/stop_dump_threads.inc

@@ -11,8 +11,8 @@ SET SESSION debug="-d,crash_during_online_index_creation";
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `ka` (`a`),
   KEY `kab` (`a`,`b`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -30,9 +30,9 @@ SET SESSION debug="-d,crash_during_index_creation_partition";
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
+  `i` int NOT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
   PRIMARY KEY (`i`),
   KEY `j` (`j`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -65,9 +65,9 @@ SET SESSION debug="-d,myrocks_simulate_index_create_rollback";
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
+  `i` int NOT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
   PRIMARY KEY (`i`),
   KEY `j` (`j`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -77,9 +77,9 @@ ALTER TABLE t1 ADD INDEX kij(i,j), ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
+  `i` int NOT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
   PRIMARY KEY (`i`),
   KEY `j` (`j`),
   KEY `kij` (`i`,`j`)

@@ -251,6 +251,7 @@ start slave sql_thread;
 set @@global.rocksdb_read_free_rpl = PK_SK;
 --source include/start_slave.inc
 
+if (0) { # Percona Server disabled rocksdb_read_free_rpl_tables as it's dangerous to use
 --echo
 --echo # some tables with read-free replication on and some with it off
 --echo
@@ -316,6 +317,7 @@ start slave sql_thread;
 --source include/stop_slave.inc
 set @@global.rocksdb_read_free_rpl_tables = ".*";
 --source include/start_slave.inc
+} # if (0)
 
 --echo
 --echo # secondary keys lose rows

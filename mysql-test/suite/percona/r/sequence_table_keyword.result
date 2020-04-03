@@ -1,0 +1,163 @@
+CREATE TABLE t1(id INT UNSIGNED) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+CREATE TABLE percona_sequence_table(id INT UNSIGNED) ENGINE=InnoDB;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'percona_sequence_table(id INT UNSIGNED) ENGINE=InnoDB' at line 1
+CREATE TABLE sequence_table(id INT UNSIGNED) ENGINE=InnoDB;
+INSERT INTO sequence_table VALUES (1);
+INSERT INTO sequence_table VALUES (2);
+SELECT * FROM sequence_table;
+id
+1
+2
+SELECT * FROM sequence_table AS tt;
+id
+1
+2
+SELECT * FROM sequence_table tt;
+id
+1
+2
+SELECT * FROM (sequence_table);
+id
+1
+2
+SELECT * FROM (sequence_table AS tt);
+id
+1
+2
+SELECT * FROM (sequence_table tt);
+id
+1
+2
+SELECT * FROM (SELECT * FROM t1) AS sequence_table;
+id
+1
+SELECT * FROM (SELECT * FROM t1) sequence_table;
+id
+1
+SELECT sequence_table.* FROM (SELECT * FROM t1) AS sequence_table;
+id
+1
+SELECT sequence_table.* FROM (SELECT * FROM t1) sequence_table;
+id
+1
+SELECT * FROM (SELECT * FROM t1) AS sequence_table(val);
+val
+1
+SELECT * FROM (SELECT * FROM t1) sequence_table(val);
+val
+1
+SELECT sequence_table.* FROM (SELECT * FROM t1) AS sequence_table(val);
+val
+1
+SELECT sequence_table.* FROM (SELECT * FROM t1) sequence_table(val);
+val
+1
+SELECT sequence_table.val FROM (SELECT * FROM t1) AS sequence_table(val);
+val
+1
+SELECT sequence_table.val FROM (SELECT * FROM t1) sequence_table(val);
+val
+1
+SELECT val FROM (SELECT * FROM t1) AS sequence_table(val);
+val
+1
+SELECT val FROM (SELECT * FROM t1) sequence_table(val);
+val
+1
+SELECT * FROM (SELECT * FROM t1) AS tt(sequence_table);
+sequence_table
+1
+SELECT * FROM (SELECT * FROM t1) tt(sequence_table);
+sequence_table
+1
+SELECT tt.sequence_table FROM (SELECT * FROM t1) AS tt(sequence_table);
+sequence_table
+1
+SELECT tt.sequence_table FROM (SELECT * FROM t1) tt(sequence_table);
+sequence_table
+1
+SELECT sequence_table FROM (SELECT * FROM t1) AS tt(sequence_table);
+sequence_table
+1
+SELECT sequence_table FROM (SELECT * FROM t1) tt(sequence_table);
+sequence_table
+1
+SELECT * FROM (SELECT * FROM t1) AS sequence_table(sequence_table);
+sequence_table
+1
+SELECT * FROM (SELECT * FROM t1) sequence_table(sequence_table);
+sequence_table
+1
+SELECT sequence_table.sequence_table FROM (SELECT * FROM t1) AS sequence_table(sequence_table);
+sequence_table
+1
+SELECT sequence_table.sequence_table FROM (SELECT * FROM t1) sequence_table(sequence_table);
+sequence_table
+1
+SELECT sequence_table FROM (SELECT * FROM t1) AS sequence_table(sequence_table);
+sequence_table
+1
+SELECT sequence_table FROM (SELECT * FROM t1) sequence_table(sequence_table);
+sequence_table
+1
+SELECT * FROM t1 AS sequence_table;
+id
+1
+SELECT * FROM t1 sequence_table;
+id
+1
+SELECT * FROM t1 AS sequence_table WHERE id = 1;
+id
+1
+SELECT * FROM t1 sequence_table WHERE id = 1;
+id
+1
+SELECT * FROM t1 AS sequence_table WHERE sequence_table.id = 1;
+id
+1
+SELECT * FROM t1 sequence_table WHERE sequence_table.id = 1;
+id
+1
+SELECT * FROM SEQUENCE_TABLE(2) AS tt;
+value
+0
+1
+SELECT * FROM SEQUENCE_TABLE(2) tt;
+value
+0
+1
+SELECT * FROM SEQUENCE_TABLE(2) AS sequence_table;
+value
+0
+1
+SELECT sequence_table.* FROM SEQUENCE_TABLE(2) AS sequence_table;
+value
+0
+1
+SELECT value FROM SEQUENCE_TABLE(2) AS sequence_table;
+value
+0
+1
+SELECT sequence_table.value FROM SEQUENCE_TABLE(2) AS sequence_table;
+value
+0
+1
+SELECT * FROM sequence_table, SEQUENCE_TABLE(2) AS tt;
+id	value
+2	0
+1	0
+2	1
+1	1
+INSERT INTO sequence_table VALUES (3);
+INSERT INTO sequence_table SELECT value + 4 FROM SEQUENCE_TABLE(2) AS tt;
+INSERT INTO t1 SELECT * FROM sequence_table;
+UPDATE sequence_table SET id = id + 100;
+UPDATE sequence_table SET id = id + 100 WHERE id IN (SELECT * FROM SEQUENCE_TABLE(10) AS tt);
+UPDATE t1 SET id = id + 100 WHERE id IN (SELECT * FROM sequence_table);
+DELETE FROM sequence_table WHERE id = 101;
+DELETE FROM sequence_table WHERE id IN (SELECT * FROM SEQUENCE_TABLE(10) AS tt);
+DELETE FROM t1 WHERE id IN (SELECT * FROM sequence_table);
+TRUNCATE TABLE sequence_table;
+DROP TABLE t1;
+DROP TABLE sequence_table;

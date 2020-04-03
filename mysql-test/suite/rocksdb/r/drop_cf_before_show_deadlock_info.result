@@ -8,7 +8,7 @@ set global rocksdb_lock_wait_timeout = 10000;
 set global rocksdb_max_latest_deadlocks = 0;
 set global rocksdb_max_latest_deadlocks = @prior_max_latest_deadlocks;
 create table t (
-i int(5), primary key(i) comment 'cf_primary_key'
+i int, primary key(i) comment 'cfname=cf_primary_key'
 ) engine=rocksdb;
 insert into t values (1), (2), (3);
 select * from information_schema.rocksdb_deadlock;

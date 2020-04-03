@@ -2265,3 +2265,18 @@ SELECT * FROM JSON_TABLE(x, '$[*]' COLUMNS (i INT PATH '$')) AS jt WHERE i = 2
 x
 [2]
 DROP TABLE t;
+#
+# PS-9390: JSON_TABLE and EXISTS() does not work
+# https://perconadev.atlassian.net/browse/PS-9390
+#
+CREATE TABLE t (id INT PRIMARY KEY, b JSON);
+INSERT INTO t SET id = 1, b = '{"a": [{"b": "1"}]}';
+SELECT * FROM t WHERE EXISTS(SELECT 1 FROM JSON_TABLE(t.b, '$."a"[*]' COLUMNS (col1 VARCHAR(100) PATH '$.b' )) a);
+id	b
+1	{"a": [{"b": "1"}]}
+INSERT INTO t SET id = 2, b = '{"a": [{"b": "2"}]}';
+SELECT * FROM t WHERE EXISTS(SELECT 1 FROM JSON_TABLE(t.b, '$."a"[*]' COLUMNS (col1 VARCHAR(100) PATH '$.b' )) a);
+id	b
+1	{"a": [{"b": "1"}]}
+2	{"a": [{"b": "2"}]}
+DROP TABLE t;

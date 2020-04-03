@@ -17,8 +17,8 @@ connect (conn2,localhost,root,,);
 set @@global.debug = '+d,rocksdb_before_delete_table';
 set @@global.debug = '+d,rocksdb_drop_cf';
 create table t1 (
-  id1 int(10) unsigned not null default '0',
-  primary key (id1) comment 'cf_primary_key'
+  id1 int unsigned not null default '0',
+  primary key (id1) comment 'cfname=cf_primary_key'
   ) engine=rocksdb;
 
 send drop table t1;
@@ -48,8 +48,8 @@ set @@global.debug = @old_debug;
 set @@global.debug = '+d,rocksdb_after_delete_table';
 set @@global.debug = '+d,rocksdb_drop_cf';
 create table t1 (
-  id1 int(10) unsigned not null default '0',
-  primary key (id1) comment 'cf_primary_key'
+  id1 int unsigned not null default '0',
+  primary key (id1) comment 'cfname=cf_primary_key'
   ) engine=rocksdb;
 
 send drop table t1;

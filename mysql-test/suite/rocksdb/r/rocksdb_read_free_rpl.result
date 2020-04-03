@@ -243,64 +243,6 @@ include/stop_slave.inc
 set @@global.rocksdb_read_free_rpl = PK_SK;
 include/start_slave.inc
 
-# some tables with read-free replication on and some with it off
-
-[connection slave]
-[on slave]
-include/stop_slave.inc
-set @@global.rocksdb_read_free_rpl_tables = "t.*";
-include/start_slave.inc
-[connection master]
-[on master]
-drop table if exists t2;
-drop table if exists u2;
-create table t2 (id int primary key, i1 int, i2 int, value int) Engine=RocksDB;
-create table u2 (id int primary key, i1 int, i2 int, value int) Engine=RocksDB;
-insert into t2 values (1,1,1,1),(2,2,2,2),(3,3,3,3);
-insert into u2 values (1,1,1,1),(2,2,2,2),(3,3,3,3);
-include/sync_slave_sql_with_master.inc
-[connection slave]
-[on slave]
-delete from t2 where id <= 2;
-delete from u2 where id <= 2;
-[connection master]
-[on master]
-update t2 set i2=100, value=100 where id=1;
-update u2 set i2=100, value=100 where id=1;
-[connection slave]
-[on slave]
-call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.u2.*Error_code.*");
-call mtr.add_suppression("Slave: Can't find record in 'u2'.*");
-include/wait_for_slave_sql_error.inc [errno=1032]
-[connection slave]
-select count(*) from t2 force index(primary);
-count(*)
-2
-select * from t2 where id=1;
-id	i1	i2	value
-1	1	100	100
-select i1 from t2 where i1=1;
-i1
-1
-select i2 from t2 where i2=100;
-i2
-100
-select count(*) from u2 force index(primary);
-count(*)
-1
-select * from u2 where id=1;
-id	i1	i2	value
-select i1 from u2 where i1=1;
-i1
-select i2 from u2 where i2=100;
-i2
-include/wait_for_slave_sql_to_start.inc
-[connection slave]
-[on slave]
-include/stop_slave.inc
-set @@global.rocksdb_read_free_rpl_tables = ".*";
-include/start_slave.inc
-
 # secondary keys lose rows
 
 [connection master]

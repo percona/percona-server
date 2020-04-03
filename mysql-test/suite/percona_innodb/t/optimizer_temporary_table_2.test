@@ -15,7 +15,7 @@ CREATE TABLE dest LIKE source;
 
 --echo # Populate source table with 64K records.
 INSERT INTO source (a, b, c, d, e, hdl_source_id, hdl_created_date)
-  SELECT 'aaaaaaaaa', 'bbbbbbbbbb', 'cccccccccccccccc', 'dddddddddddddddddddddddddddd', 'eeeeeeeeeeeeeeeeee', value, NOW() FROM SEQUENCE_TABLE(65536) AS tt;
+  SELECT 'aaaaaaaaa', 'bbbbbbbbbb', 'cccccccccccccccc', 'dddddddddddddddddddddddddddd', 'eeeeeeeeeeeeeeeeee', value, NOW() FROM PERCONA_SEQUENCE_TABLE(65536) AS tt;
 SELECT count(*) FROM source;
 
 --echo # Run query that creates big intrinsic temporary table. Prior to the

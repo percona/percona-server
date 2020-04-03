@@ -1449,7 +1449,7 @@ class Rdb_dict_manager {
 
   bool init(rocksdb::TransactionDB *const rdb_dict,
             Rdb_cf_manager *const cf_manager,
-            const my_bool enable_remove_orphaned_cf_flags);
+            const bool enable_remove_orphaned_cf_flags);
 
   inline void cleanup() { mysql_mutex_destroy(&m_mutex); }
 
@@ -1499,7 +1499,7 @@ class Rdb_dict_manager {
 
   int remove_orphaned_dropped_cfs(
       Rdb_cf_manager *const cf_manager,
-      const my_bool &enable_remove_orphaned_dropped_cfs) const;
+      const bool &enable_remove_orphaned_dropped_cfs) const;
 
   void delete_dropped_cf_and_flags(rocksdb::WriteBatch *const batch,
                                    const uint &cf_id) const;

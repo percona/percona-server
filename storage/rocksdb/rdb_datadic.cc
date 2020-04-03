@@ -5182,7 +5182,7 @@ int Rdb_ddl_manager::scan_for_tables(Rdb_tables_scanner *const tables_scanner) {
 
 bool Rdb_dict_manager::init(rocksdb::TransactionDB *const rdb_dict,
                             Rdb_cf_manager *const cf_manager,
-                            const my_bool enable_remove_orphaned_dropped_cfs) {
+                            const bool enable_remove_orphaned_dropped_cfs) {
   DBUG_ASSERT(rdb_dict != nullptr);
   DBUG_ASSERT(cf_manager != nullptr);
 
@@ -5638,7 +5638,7 @@ int Rdb_dict_manager::add_missing_cf_flags(
  */
 int Rdb_dict_manager::remove_orphaned_dropped_cfs(
     Rdb_cf_manager *const cf_manager,
-    const my_bool &enable_remove_orphaned_dropped_cfs) const {
+    const bool &enable_remove_orphaned_dropped_cfs) const {
   const std::unique_ptr<rocksdb::WriteBatch> wb = begin();
   rocksdb::WriteBatch *const batch = wb.get();
 
@@ -5646,11 +5646,10 @@ int Rdb_dict_manager::remove_orphaned_dropped_cfs(
   get_all_dropped_cfs(&dropped_cf_ids);
   for (const auto cf_id : dropped_cf_ids) {
     if (!cf_manager->get_cf(cf_id)) {
-      // NO_LINT_DEBUG
-      sql_print_warning(
-          "RocksDB: Column family with id %u doesn't exist in "
-          "cf manager, but it is listed to be dropped",
-          cf_id);
+      LogPluginErrMsg(WARNING_LEVEL, 0,
+                      "Column family with id %u doesn't exist in "
+                      "cf manager, but it is listed to be dropped",
+                      cf_id);
 
       if (enable_remove_orphaned_dropped_cfs) {
         delete_dropped_cf_and_flags(batch, cf_id);

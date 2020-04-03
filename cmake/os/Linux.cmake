@@ -26,6 +26,7 @@ INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 
 SET(LINUX 1)
+SET(TARGET_OS_LINUX 1)
 
 IF(EXISTS "/etc/SuSE-release")
   SET(LINUX_SUSE 1)

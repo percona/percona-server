@@ -2,8 +2,8 @@ create table t0(
 id bigint not null primary key, 
 i1 bigint, #unique
 i2 bigint, #repeating
-c1 char(20), #unique
-c2 char(20), #repeating
+c1 varchar(20), #unique
+c2 varchar(20), #repeating
 index t0_1(id, i1),
 index t0_2(i1, i2),
 index t0_3(i2, i1),
@@ -25,8 +25,8 @@ t0	1	t0_2	1	i1	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 t0	1	t0_2	2	i2	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 t0	1	t0_3	1	i2	A	1111	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 t0	1	t0_3	2	i1	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
-t0	1	t0_4	1	c1	A	NULL	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
-t0	1	t0_4	2	c2	A	NULL	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t0	1	t0_4	1	c1	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t0	1	t0_4	2	c2	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 t0	1	t0_5	1	c2	A	1111	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 t0	1	t0_5	2	c1	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 select table_name, table_rows from information_schema.tables where table_schema = database() and table_name = 't0';
@@ -43,8 +43,8 @@ t0	1	t0_2	1	i1	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 t0	1	t0_2	2	i2	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 t0	1	t0_3	1	i2	A	1111	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 t0	1	t0_3	2	i1	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
-t0	1	t0_4	1	c1	A	NULL	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
-t0	1	t0_4	2	c2	A	NULL	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t0	1	t0_4	1	c1	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+t0	1	t0_4	2	c2	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 t0	1	t0_5	1	c2	A	1111	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 t0	1	t0_5	2	c1	A	10000	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
 select table_name, table_rows from information_schema.tables where table_schema = database() and table_name = 't0';
@@ -58,11 +58,11 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 cardinality of the columns after 'a' must be equal to the cardinality of column 'a'
-select table_name, index_name, column_name, seq_in_index, cardinality from information_schema.statistics where table_name='t1';
+select table_name, index_name, column_name, seq_in_index, cardinality from information_schema.statistics where table_name='t1' order by table_name, index_name, column_name;
 TABLE_NAME	INDEX_NAME	COLUMN_NAME	SEQ_IN_INDEX	CARDINALITY
-t1	c	c	1	1
-t1	c	b	2	11
 t1	c	a	3	100
+t1	c	b	2	11
+t1	c	c	1	1
 t1	c	d	4	100
 t1	c	e	5	100
 t1	c	f	6	100

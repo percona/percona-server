@@ -6,8 +6,8 @@ ALTER TABLE t1 ADD INDEX kb(b), ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `ka` (`a`),
   KEY `kab` (`a`,`b`),
   KEY `kb` (`b`)
@@ -31,8 +31,8 @@ ALTER TABLE t1 ADD INDEX kb(b), DROP INDEX ka, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `kab` (`a`,`b`),
   KEY `kb` (`b`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -56,8 +56,8 @@ ALTER TABLE t1 ADD INDEX kb(b), ADD INDEX kab(a,b), ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `kb` (`b`),
   KEY `kab` (`a`,`b`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -80,8 +80,8 @@ ALTER TABLE t1 ADD INDEX kb(b), DROP INDEX ka, ADD INDEX kba(b,a), DROP INDEX ka
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `kb` (`b`),
   KEY `kba` (`b`,`a`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -101,8 +101,8 @@ ALTER TABLE t1 DROP INDEX ka, ADD INDEX ka(b), ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `kab` (`a`,`b`),
   KEY `ka` (`b`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -123,14 +123,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `pk` char(8) COLLATE utf8mb3_bin NOT NULL,
   `a` varchar(11) COLLATE utf8mb3_bin DEFAULT NULL,
-  `b` int(10) unsigned DEFAULT NULL,
+  `b` int unsigned DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
 pk	char(8)	NO	PRI	NULL	
 a	varchar(11)	YES		NULL	
-b	int(10) unsigned	YES		NULL	
+b	int unsigned	YES		NULL	
 INSERT INTO t1 VALUES ('aaa', '1111', 1);
 INSERT INTO t1 VALUES ('bbb', '2222', 2);
 INSERT INTO t1 VALUES ('ccc', '3333', 3);
@@ -140,7 +140,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `pk` char(8) COLLATE utf8mb3_bin NOT NULL,
   `a` varchar(11) COLLATE utf8mb3_bin DEFAULT NULL,
-  `b` int(10) unsigned DEFAULT NULL,
+  `b` int unsigned DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `kab` (`a`,`b`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin
@@ -160,14 +160,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `pk` char(8) COLLATE utf8mb3_bin NOT NULL,
   `a` varchar(11) COLLATE utf8mb3_bin DEFAULT NULL,
-  `b` int(10) unsigned DEFAULT NULL,
+  `b` int unsigned DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
 pk	char(8)	NO	PRI	NULL	
 a	varchar(11)	YES		NULL	
-b	int(10) unsigned	YES		NULL	
+b	int unsigned	YES		NULL	
 INSERT INTO t1 VALUES ('aaa', '1111', 1);
 INSERT INTO t1 VALUES ('bbb', '2222', 2);
 INSERT INTO t1 VALUES ('ccc', '3333', 3);
@@ -178,7 +178,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `pk` char(8) COLLATE utf8mb3_bin NOT NULL,
   `a` varchar(11) COLLATE utf8mb3_bin DEFAULT NULL,
-  `b` int(10) unsigned DEFAULT NULL,
+  `b` int unsigned DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `ka` (`a`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin
@@ -198,14 +198,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `pk` char(8) COLLATE utf8mb3_bin NOT NULL,
   `a` varchar(11) COLLATE utf8mb3_bin DEFAULT NULL,
-  `b` int(10) unsigned DEFAULT NULL,
+  `b` int unsigned DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
 pk	char(8)	NO	PRI	NULL	
 a	varchar(11)	YES		NULL	
-b	int(10) unsigned	YES		NULL	
+b	int unsigned	YES		NULL	
 INSERT INTO t1 VALUES ('aaa', '1111', 1);
 INSERT INTO t1 VALUES ('bbb', '2222', 2);
 INSERT INTO t1 VALUES ('ccc', '3333', 3);
@@ -216,7 +216,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `pk` char(8) COLLATE utf8mb3_bin NOT NULL,
   `a` varchar(11) COLLATE utf8mb3_bin DEFAULT NULL,
-  `b` int(10) unsigned DEFAULT NULL,
+  `b` int unsigned DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `kab` (`a`,`b`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin
@@ -238,8 +238,8 @@ DROP INDEX kab on t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `kb` (`b`),
   KEY `kba` (`b`,`a`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -260,9 +260,9 @@ DROP INDEX kij ON t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
+  `i` int NOT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
   PRIMARY KEY (`i`),
   KEY `j` (`j`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -422,9 +422,9 @@ INSERT INTO t1 (a,b,c) VALUES (3,3,3);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `kbc` (`b`,`c`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -451,7 +451,7 @@ a	b
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(10) COLLATE utf8mb3_bin DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `kb` (`b`(8))
@@ -492,7 +492,7 @@ ALTER TABLE t1 ALTER INDEX kb INVISIBLE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `kb` (`b`(5)) /*!80000 INVISIBLE */
@@ -501,7 +501,7 @@ ALTER TABLE t1 ALTER INDEX kb VISIBLE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `kb` (`b`(5))

@@ -1,9 +1,9 @@
 set @old_debug = @@global.debug;
 create table t1 (
-id1 int(10) unsigned not null default '0',
-id2 int(10) unsigned not null default '0',
-primary key (id1) comment 'cf_primary_key',
-key `secondary_key` (id2) COMMENT 'cf_secondary_key'
+id1 int unsigned not null default '0',
+id2 int unsigned not null default '0',
+primary key (id1) comment 'cfname=cf_primary_key',
+key `secondary_key` (id2) comment 'cfname=cf_secondary_key'
   ) engine=rocksdb;
 insert into t1 (id1, id2)
 values(1, 1);
@@ -21,10 +21,10 @@ set debug_sync = "now signal mark_cf_dropped_done_after_commit_alter_table";
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id1` int(10) unsigned NOT NULL DEFAULT '0',
-  `id2` int(10) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id1`) COMMENT 'cf_primary_key'
-) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+  `id1` int unsigned NOT NULL DEFAULT '0',
+  `id2` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id1`) COMMENT 'cfname=cf_primary_key'
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*) > 0 from information_schema.rocksdb_cfstats where cf_name = 'cf_secondary_key' ;
 count(*) > 0
 1

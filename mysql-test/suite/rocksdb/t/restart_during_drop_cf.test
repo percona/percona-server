@@ -16,7 +16,8 @@ connect (conn1,localhost,root,,);
 --connection conn1
 set @@global.debug = '+d,rocksdb_remove_dropped_cf';
 
-set @@global.rocksdb_update_cf_options = 'cf_primary_key={};';
+create table create_cf ( id int, primary key (id) comment 'cfname=cf_primary_key' ) engine=rocksdb;
+drop table create_cf;
 select * from information_schema.rocksdb_cfstats where cf_name='cf_primary_key';
 
 set @@global.rocksdb_delete_cf = 'cf_primary_key';

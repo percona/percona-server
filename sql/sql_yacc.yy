@@ -1475,6 +1475,8 @@ void warn_on_deprecated_user_defined_collation(
    Tokens from Percona Server 8.0
 */
 %token<lexer.keyword> EFFECTIVE_SYM 1350
+%token<lexer.keyword> SEQUENCE_TABLE_SYM 1351
+%token PERCONA_SEQUENCE_TABLE_SYM 1352
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -12138,6 +12140,29 @@ table_function:
 
             $$= NEW_PTN PT_table_factor_function(@$, $3, $5, $6, to_lex_string($8));
           }
+        | SEQUENCE_TABLE_SYM '(' expr ')' opt_table_alias
+          {
+            // Alias isn't optional, follow derived's behavior
+            if ($5 == NULL_CSTR)
+            {
+              my_message(ER_TF_MUST_HAVE_ALIAS,
+                         ER_THD(YYTHD, ER_TF_MUST_HAVE_ALIAS), MYF(0));
+              MYSQL_YYABORT;
+            }
+            push_deprecated_warn(YYTHD, "SEQUENCE_TABLE", "PERCONA_SEQUENCE_TABLE");
+            $$= NEW_PTN PT_table_sequence_function(@$, $3, $5);
+          }
+        | PERCONA_SEQUENCE_TABLE_SYM '(' expr ')' opt_table_alias
+          {
+            // Alias isn't optional, follow derived's behavior
+            if ($5 == NULL_CSTR)
+            {
+              my_message(ER_TF_MUST_HAVE_ALIAS,
+                         ER_THD(YYTHD, ER_TF_MUST_HAVE_ALIAS), MYF(0));
+              MYSQL_YYABORT;
+            }
+            $$= NEW_PTN PT_table_sequence_function(@$, $3, $5);
+          }
         ;
 
 columns_clause:
@@ -15767,6 +15792,7 @@ ident_keywords_unambiguous:
         | SECONDARY_UNLOAD_SYM
         | SECOND_SYM
         | SECURITY_SYM
+        | SEQUENCE_TABLE_SYM
         | SERIALIZABLE_SYM
         | SERIAL_SYM
         | SERVER_SYM

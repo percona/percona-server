@@ -525,6 +525,20 @@ class PT_table_factor_function : public PT_table_reference {
   const LEX_STRING m_table_alias;
 };
 
+class PT_table_sequence_function : public PT_table_reference {
+  typedef PT_table_reference super;
+
+ public:
+  PT_table_sequence_function(const POS &pos, Item *expr, const LEX_CSTRING &table_alias)
+      : super(pos), m_expr(expr), m_table_alias(table_alias) {}
+
+  bool do_contextualize(Parse_context *pc) override;
+
+ private:
+  Item *m_expr;
+  LEX_CSTRING m_table_alias;
+};
+
 class PT_table_reference_list_parens : public PT_table_reference {
   typedef PT_table_reference super;
 

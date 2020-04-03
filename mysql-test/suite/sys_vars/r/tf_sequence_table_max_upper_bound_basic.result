@@ -1,0 +1,170 @@
+########################################################################
+#              START OF tf_sequence_table_max_upper_bound TESTS        #
+########################################################################
+SET @start_tf_sequence_table_max_upper_bound = @@global.tf_sequence_table_max_upper_bound;
+SELECT @start_tf_sequence_table_max_upper_bound;
+@start_tf_sequence_table_max_upper_bound
+1048576
+########################################################################
+#    Display the DEFAULT value of tf_sequence_table_max_upper_bound    #
+########################################################################
+SET @@global.tf_sequence_table_max_upper_bound = 5000;
+SET @@global.tf_sequence_table_max_upper_bound = DEFAULT;
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1048576
+###############################################
+#     Verify default value of variable        #
+###############################################
+SET @@global.tf_sequence_table_max_upper_bound = @start_tf_sequence_table_max_upper_bound;
+SELECT @@global.tf_sequence_table_max_upper_bound = 18446744073709551615;
+@@global.tf_sequence_table_max_upper_bound = 18446744073709551615
+0
+##########################################################################
+# Change the value of tf_sequence_table_max_upper_bound to a valid value #
+##########################################################################
+SET @@global.tf_sequence_table_max_upper_bound = 1024;
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+SET @@global.tf_sequence_table_max_upper_bound = 4294967294;
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+4294967294
+SET @@global.tf_sequence_table_max_upper_bound = 4294967295;
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+4294967295
+SET @@global.tf_sequence_table_max_upper_bound = 4294967296;
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+4294967296
+SET @@global.tf_sequence_table_max_upper_bound = 18446744073709551614;
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+18446744073709551614
+SET @@global.tf_sequence_table_max_upper_bound = 18446744073709551615;
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+18446744073709551615
+###########################################################################
+# Change the value of tf_sequence_table_max_upper_bound to invalid value  #
+###########################################################################
+SET @@global.tf_sequence_table_max_upper_bound = -1;
+Warnings:
+Warning	1292	Truncated incorrect tf_sequence_table_max_upper_bound value: '-1'
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+SET @@global.tf_sequence_table_max_upper_bound = 0;
+Warnings:
+Warning	1292	Truncated incorrect tf_sequence_table_max_upper_bound value: '0'
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+SET @@global.tf_sequence_table_max_upper_bound = 1023;
+Warnings:
+Warning	1292	Truncated incorrect tf_sequence_table_max_upper_bound value: '1023'
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+SET @@global.tf_sequence_table_max_upper_bound = 10000.01;
+ERROR 42000: Incorrect argument type to variable 'tf_sequence_table_max_upper_bound'
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+SET @@global.tf_sequence_table_max_upper_bound = -1024;
+Warnings:
+Warning	1292	Truncated incorrect tf_sequence_table_max_upper_bound value: '-1024'
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+SET @@global.tf_sequence_table_max_upper_bound = 1024;
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+SET @@global.tf_sequence_table_max_upper_bound = ON;
+ERROR 42000: Incorrect argument type to variable 'tf_sequence_table_max_upper_bound'
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+SET @@global.tf_sequence_table_max_upper_bound = 'test';
+ERROR 42000: Incorrect argument type to variable 'tf_sequence_table_max_upper_bound'
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+SET @@global.tf_sequence_table_max_upper_bound = ' ';
+ERROR 42000: Incorrect argument type to variable 'tf_sequence_table_max_upper_bound'
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+###########################################################################
+# Test if accessing session tf_sequence_table_max_upper_bound gives error #
+###########################################################################
+SET @@session.tf_sequence_table_max_upper_bound = 4096;
+ERROR HY000: Variable 'tf_sequence_table_max_upper_bound' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.tf_sequence_table_max_upper_bound;
+ERROR HY000: Variable 'tf_sequence_table_max_upper_bound' is a GLOBAL variable
+##############################################################################
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+SELECT @@global.tf_sequence_table_max_upper_bound = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='tf_sequence_table_max_upper_bound';
+@@global.tf_sequence_table_max_upper_bound = VARIABLE_VALUE
+1
+SELECT @@tf_sequence_table_max_upper_bound = VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='tf_sequence_table_max_upper_bound';
+@@tf_sequence_table_max_upper_bound = VARIABLE_VALUE
+1
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+SET @@global.tf_sequence_table_max_upper_bound = TRUE;
+Warnings:
+Warning	1292	Truncated incorrect tf_sequence_table_max_upper_bound value: '1'
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+SET @@global.tf_sequence_table_max_upper_bound = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect tf_sequence_table_max_upper_bound value: '0'
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1024
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+SET @@global.tf_sequence_table_max_upper_bound = 5000;
+SELECT @@tf_sequence_table_max_upper_bound = @@global.tf_sequence_table_max_upper_bound;
+@@tf_sequence_table_max_upper_bound = @@global.tf_sequence_table_max_upper_bound
+1
+#######################################################################################
+# Check if tf_sequence_table_max_upper_bound can be accessed with and without @@ sign #
+#######################################################################################
+SET tf_sequence_table_max_upper_bound = 6000;
+ERROR HY000: Variable 'tf_sequence_table_max_upper_bound' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@tf_sequence_table_max_upper_bound;
+@@tf_sequence_table_max_upper_bound
+5000
+SET local.tf_sequence_table_max_upper_bound = 7000;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.tf_sequence_table_max_upper_bound = 7000' at line 1
+SELECT local.tf_sequence_table_max_upper_bound;
+ERROR 42S02: Unknown table 'local' in field list
+SET global.tf_sequence_table_max_upper_bound = 8000;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.tf_sequence_table_max_upper_bound = 8000' at line 1
+SELECT global.tf_sequence_table_max_upper_bound;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT tf_sequence_table_max_upper_bound;
+ERROR 42S22: Unknown column 'tf_sequence_table_max_upper_bound' in 'field list'
+##############################
+#   Restore initial value    #
+##############################
+SET @@global.tf_sequence_table_max_upper_bound = @start_tf_sequence_table_max_upper_bound;
+SELECT @@global.tf_sequence_table_max_upper_bound;
+@@global.tf_sequence_table_max_upper_bound
+1048576
+########################################################################
+#              END OF tf_sequence_table_max_upper_bound TESTS          #
+########################################################################

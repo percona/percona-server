@@ -5,8 +5,8 @@ create table t0(
        id bigint not null primary key, 
        i1 bigint, #unique
        i2 bigint, #repeating
-       c1 char(20), #unique
-       c2 char(20), #repeating
+       c1 varchar(20), #unique
+       c2 varchar(20), #repeating
        index t0_1(id, i1),
        index t0_2(i1, i2),
        index t0_3(i2, i1),

@@ -54,7 +54,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
   MY_CHECK_CXX_COMPILER_FLAG("-Wno-conditional-uninitialized" HAVE_NO_CONDITIONAL_UNINITIALIZED)
   IF(HAVE_NO_CONDITIONAL_UNINITIALIZED)
-    ADD_COMPILE_FLAGS(ha_rocksdb.cc rocksdb/env/env_posix.cc rocksdb/db/write_thread.cc COMPILE_FLAGS "-Wno-conditional-uninitialized")
+    ADD_COMPILE_FLAGS(rocksdb/db/db_impl/db_impl.cc ha_rocksdb.cc rocksdb/env/env_posix.cc rocksdb/db/write_thread.cc COMPILE_FLAGS "-Wno-conditional-uninitialized")
   ENDIF()
 ENDIF()
 
@@ -178,7 +178,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include/rocksdb
-  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.7.0/fused-src
+  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.8.1/fused-src
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common

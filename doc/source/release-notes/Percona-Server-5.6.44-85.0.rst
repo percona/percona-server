@@ -32,13 +32,10 @@ Bugs Fixed
 - ``FLUSH`` commands written to the binary log could cause errors in case of
   replication. Bug fixed :psbug:`1827` (upstream :mysqlbug:`88720`).
 
-- TokuDB storage engine couldn't be enabled on Docker images. Bug fixed :bug:`5283`. 
+- TokuDB storage engine couldn't be enabled on Docker images. Bug fixed :bug:`5283`.
 
 - the ``ACCESS_DENIED`` field of the :table:`information_schema.user_statistics`
   table was not updated correctly. Bugs fixed :psbug:`3956`, :psbug:`4996`.
-
-- postinst maintainer script in ``percona-server-server-5.6`` did not escape the
-  password properly and as a result would fail to use it. Bug fixed :psbug:`4572`.
 
 - the page cleaner could sleep for long time when the system clock was adjusted
   to an earlier point in time. Bug fixed :psbug:`5221` (upstream :mysqlbug:`93708`).
@@ -58,7 +55,6 @@ Bugs Fixed
   Bug fixed :psbug:`5501`.
 
 Other bugs fixed:
-:psbug:`5428`,
 :psbug:`5512`,
 :psbug:`5550`,
 :psbug:`5578`,

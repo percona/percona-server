@@ -5129,6 +5129,13 @@ end:
   thd->m_digest = nullptr;
 
   /*
+    Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST,
+    and performance_schema.threads.
+  */
+  thd->reset_rewritten_query();
+  thd->reset_query_for_display();
+
+  /*
     As a disk space optimization, future masters will not log an event for
     LAST_INSERT_ID() if that function returned 0 (and thus they will be able
     to replace the THD::stmt_depends_on_first_successful_insert_id_in_prev_stmt

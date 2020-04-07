@@ -5135,6 +5135,7 @@ static int rocksdb_init_func(void *const p) {
   if (!rocksdb_tbl_options->no_block_cache) {
     std::shared_ptr<rocksdb::MemoryAllocator> memory_allocator;
     if (!rocksdb_cache_dump) {
+#ifdef HAVE_JEMALLOC
       size_t block_size = rocksdb_tbl_options->block_size;
       rocksdb::JemallocAllocatorOptions alloc_opt;
       // Limit jemalloc tcache memory usage. The range
@@ -5152,6 +5153,11 @@ static int rocksdb_init_func(void *const p) {
         memory_allocator = nullptr;
         DBUG_RETURN(HA_EXIT_FAILURE);
       }
+#else
+      // NO_LINT_DEBUG
+      sql_print_warning(
+          "Ignoring rocksdb_cache_dump because jemalloc is missing.");
+#endif  // HAVE_JEMALLOC
     }
     std::shared_ptr<rocksdb::Cache> block_cache = rocksdb::NewLRUCache(
         rocksdb_block_cache_size, -1 /*num_shard_bits*/,

@@ -1,0 +1,22 @@
+--source include/master-slave.inc
+
+CREATE USER `bugddl1`@`localhost` IDENTIFIED BY 'S0meRand0mPWD!';
+
+# performance_schema.threads requires 2 DDL's to manifest the issue.
+CREATE USER `bugddl2`@`localhost` IDENTIFIED BY 'S0meRand0mPWD!';
+
+--source include/sync_slave_sql_with_master.inc
+
+let $wait_timeout= 10;
+let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.threads WHERE PROCESSLIST_INFO LIKE "CREATE USER%";
+--source include/wait_condition.inc
+
+--let $assert_text= Check that CREATE USER statement has been removed from IS.PROCESSLIST.
+--let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE "CREATE USER%"] = 0
+--source include/assert.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP USER `bugddl1`@`localhost`;
+DROP USER `bugddl2`@`localhost`;
+--source include/rpl_end.inc

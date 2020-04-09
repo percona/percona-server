@@ -132,4 +132,51 @@ if ($_show_master_host != No such row)
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port
 --source include/start_slave.inc
 
+#
+# PS-7792: On replica Master_User should be blank if not storing in slave_master_info
+# Bug#27357189 MASTER_USER BECOMES 'TEST' IF IT IS EMPTY WHEN READ FROM REPO
+#
+
+# Clean all the previous info and change the repository type to TABLE.
+
+--source include/stop_slave.inc
+
+--let $save_mi_repo_type=`SELECT @@GLOBAL.master_info_repository`
+--let $save_rli_repo_type=`SELECT @@GLOBAL.relay_log_info_repository`
+SET GLOBAL relay_log_info_repository='TABLE';
+SET GLOBAL master_info_repository='TABLE';
+RESET SLAVE ALL;
+
+--echo # Configure the slave with an empty user
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='localhost'
+
+--echo # Issue a RESET SLAVE instruction and try to start the slave IO thread that will error out
+
+RESET SLAVE;
+START SLAVE IO_THREAD;
+
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--source include/wait_for_slave_io_error.inc
+
+--echo # Check the user is still empty
+
+--let $_user= `SELECT user_name FROM mysql.slave_master_info`
+--let $assert_cond= "$_user" = ""
+--let $assert_text= User_name in slave_master_info is empty
+--source include/assert.inc
+
+--echo # Cleanup
+
+--eval SET @@global.master_info_repository='$save_mi_repo_type'
+--eval SET @@global.relay_log_info_repository='$save_rli_repo_type'
+RESET SLAVE ALL;
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root'
+--source include/start_slave.inc
+
+CALL mtr.add_suppression("Slave I/O for channel '': Fatal error: Invalid .* username when attempting to connect to the master server*");
+
 --source include/rpl_end.inc

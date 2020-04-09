@@ -2332,7 +2332,7 @@ static void lock_grant_cats(hash_table_t *hash, lock_t *in_lock,
     const auto trx = lock->trx;
     int32_t age_compensate = 0;
 
-    for (const auto new_granted_lock : new_granted) {
+    for (const auto &new_granted_lock : new_granted) {
       if (lock->trx == new_granted_lock.first->trx) {
         age_compensate += trx->age + 1;
       }
@@ -2348,7 +2348,7 @@ static void lock_grant_cats(hash_table_t *hash, lock_t *in_lock,
     const auto trx = lock->trx;
     int32_t age_compensate = 0;
 
-    for (const auto wait_lock : waiting) {
+    for (const auto &wait_lock : waiting) {
       if (wait_lock.first->is_waiting() && lock->trx == wait_lock.first->trx) {
         age_compensate -= trx->age + 1;
       }

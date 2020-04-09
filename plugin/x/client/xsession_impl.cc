@@ -462,7 +462,7 @@ XError Session_impl::set_mysql_option(
                   ER_TEXT_OPTION_NOT_SUPPORTED_AFTER_CONNECTING};
 
   Argument_array array;
-  for (const auto value : values_list) {
+  for (const auto &value : values_list) {
     array.push_back(Argument_value{value});
   }
 

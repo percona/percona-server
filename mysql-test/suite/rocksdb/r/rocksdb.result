@@ -1551,6 +1551,7 @@ rocksdb_table_index_stats_success	#
 rocksdb_table_index_stats_failure	#
 rocksdb_table_index_stats_req_queue_length	#
 rocksdb_covered_secondary_key_lookups	#
+rocksdb_additional_compaction_triggers	#
 rocksdb_block_cache_add	#
 rocksdb_block_cache_add_failures	#
 rocksdb_block_cache_bytes_read	#
@@ -1665,6 +1666,7 @@ rocksdb_table_index_stats_success
 rocksdb_table_index_stats_failure
 rocksdb_table_index_stats_req_queue_length
 rocksdb_covered_secondary_key_lookups
+rocksdb_additional_compaction_triggers
 rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read
@@ -1781,6 +1783,7 @@ rocksdb_table_index_stats_success
 rocksdb_table_index_stats_failure
 rocksdb_table_index_stats_req_queue_length
 rocksdb_covered_secondary_key_lookups
+rocksdb_additional_compaction_triggers
 rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read

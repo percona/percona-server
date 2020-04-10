@@ -27,69 +27,35 @@ IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
   RETURN ()
 ENDIF ()
 
+
 # Suppress warnings for all compilers
-remove_compile_flags(-Wundef)
 append_cflags_if_supported(-Wno-unused-parameter)
-
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-variable" HAVE_NO_UNUSED_VARIABLE)
-IF(HAVE_NO_UNUSED_VARIABLE)
-  ADD_COMPILE_FLAGS(ha_rocksdb.cc COMPILE_FLAGS "-Wno-unused-variable")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_FLAG("-Wcast-qual" HAVE_CAST_EQUAL)
-IF(HAVE_CAST_EQUAL)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cast-qual")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-cast-qual")
-ENDIF()
-
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-shadow-field" HAVE_NO_SHADOW_FIELD)
-IF(HAVE_NO_SHADOW_FIELD)
-  ADD_COMPILE_FLAGS(ha_rocksdb.cc rocksdb/utilities/geodb/geodb_impl.cc rocksdb/memtable/hash_skiplist_rep.cc rocksdb/memtable/hash_cuckoo_rep.cc COMPILE_FLAGS "-Wno-shadow-field")
-ENDIF()
+# "cmake/maintainer.cmake" sets "-Wcast-qual -Wundef" which cause warnings with RocksDB
+remove_compile_flags(-Wcast-qual -Wundef)
 
 
 # Suppress warnings for all clang versions
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  remove_compile_flags(-Winconsistent-missing-destructor-override -Wdeprecated -Wextra-semi -Wnon-virtual-dtor)
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wno-conditional-uninitialized" HAVE_NO_CONDITIONAL_UNINITIALIZED)
-  IF(HAVE_NO_CONDITIONAL_UNINITIALIZED)
-    ADD_COMPILE_FLAGS(rocksdb/db/db_impl/db_impl.cc ha_rocksdb.cc rocksdb/env/env_posix.cc rocksdb/db/write_thread.cc COMPILE_FLAGS "-Wno-conditional-uninitialized")
-  ENDIF()
+  remove_compile_flags(-Wdeprecated -Winconsistent-missing-destructor-override -Wextra-semi -Wnon-virtual-dtor)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-shadow-field FILES ha_rocksdb.cc rocksdb/memtable/hash_skiplist_rep.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-conditional-uninitialized FILES ha_rocksdb.cc rdb_datadic.cc rocksdb/db/db_impl/db_impl.cc rocksdb/db/write_thread.cc rocksdb/env/env_posix.cc)
 ENDIF()
 
 
-# Suppress warnings for clang-8 or newer
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
-  append_cflags_if_supported(-Wno-defaulted-function-deleted)
+# Suppress warnings for clang-10 or newer
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-range-loop-construct FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/options/options_parser.cc)
 ENDIF()
 
-
-# Suppress warnings for gcc-5 or newer
-IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
-  append_cflags_if_supported(-Wno-suggest-attribute=format)
+# Suppress warnings for gcc
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  # "cmake/maintainer.cmake" sets "-Wmissing-format-attribute" which cause warnings with RocksDB
+  remove_compile_flags(-Wmissing-format-attribute)
 ENDIF()
-
 
 # Suppress warnings for gcc-7 or newer (it's in zstd)
 IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
   append_cflags_if_supported(-Wimplicit-fallthrough=0)
-ENDIF()
-
-
-# Suppress warnings for gcc-9 or newer
-IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
-  append_cflags_if_supported(-Wno-deprecated-copy -Wno-pessimizing-move)
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wno-redundant-move" HAVE_NO_REDUNDANT_MOVE)
-  IF(HAVE_NO_REDUNDANT_MOVE)
-    ADD_COMPILE_FLAGS(rocksdb/db/range_del_aggregator.cc COMPILE_FLAGS "-Wno-redundant-move")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" HAVE_NO_SIGN_COMPARE)
-  IF(HAVE_NO_SIGN_COMPARE)
-    ADD_COMPILE_FLAGS(rocksdb/env/io_posix.cc rocksdb/port/port_posix.cc COMPILE_FLAGS "-Wno-sign-compare")
-  ENDIF()
 ENDIF()
 
 

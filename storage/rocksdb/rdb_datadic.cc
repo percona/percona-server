@@ -5047,7 +5047,6 @@ int Rdb_ddl_manager::put_and_write(Rdb_tbl_def *const tbl,
   Tracked by https://github.com/facebook/mysql-5.6/issues/33
 */
 int Rdb_ddl_manager::put(Rdb_tbl_def *const tbl, const bool lock) {
-  Rdb_tbl_def *rec;
   const std::string &dbname_tablename = tbl->full_tablename();
 
   if (lock) mysql_rwlock_wrlock(&m_rwlock);

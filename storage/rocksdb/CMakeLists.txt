@@ -35,37 +35,20 @@ IF ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
   RETURN ()
 ENDIF ()
 
-# Suppress warnings for gcc-9
-IF(CMAKE_COMPILER_IS_GNUCXX AND
-   (CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 9.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0))
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-copy -Wno-redundant-move -Wno-pessimizing-move -Wno-sign-compare")
-ENDIF()
 
-# Suppress warnings for clang-8
-IF((CMAKE_CXX_COMPILER_ID MATCHES "Clang") AND
-   (CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 8.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8.0))
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-defaulted-function-deleted")
-ENDIF()
-
-# Relax unused variable warnings for release modes
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-variable" HAVE_UNUSED_VARIABLE)
-IF(HAVE_UNUSED_VARIABLE)
-  SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wno-unused-variable")
-  SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wno-unused-variable")
-ENDIF()
-
-# Relax fallthrough warnings we have no control over, as it's in zstd
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  MY_CHECK_CXX_COMPILER_FLAG("-Wimplicit-fallthrough=0" HAVE_IMPLICIT_FALLTHROUGH)
-  IF(HAVE_IMPLICIT_FALLTHROUGH)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wimplicit-fallthrough=0")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wimplicit-fallthrough=0")
+# Suppress warnings for clang-10 or newer
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
+  MY_CHECK_CXX_COMPILER_FLAG("-Wno-range-loop-construct" HAVE_NO_RANGE_LOOP_CONSTRUCT)
+  IF(HAVE_NO_RANGE_LOOP_CONSTRUCT)
+    ADD_COMPILE_FLAGS(rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/options/options_parser.cc COMPILE_FLAGS "-Wno-range-loop-construct")
   ENDIF()
 ENDIF()
 
-# Relax unused variable warnings
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
+# Suppress warnings for gcc-7 or newer (it's in zstd)
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+  append_cflags_if_supported(-Wimplicit-fallthrough=0)
+ENDIF()
+
 
 # check that compiler supports cxx11 and set options
 INCLUDE (check_stdcxx11)
@@ -95,7 +78,7 @@ int main() {
   const auto a = _mm_set_epi64x(0, 0);
   const auto b = _mm_set_epi64x(0, 0);
   const auto c = _mm_clmulepi64_si128(a, b, 0x00);
-  auto d = _mm_cvtsi128_si64(c);
+  auto d __attribute__((unused)) = _mm_cvtsi128_si64(c);
 }
 " HAVE_SSE42)
 IF (HAVE_SSE42)

@@ -244,6 +244,12 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-test%{product_suffix}
 Summary:        Test suite for the Percona Server
 Group:          Applications/Databases
+Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
+%if 0%{?rhel} == 8
+Requires:       perl(Getopt::Long)
+Requires:       perl(Memoize)
+Requires:       perl(Time::HiRes)
+%endif
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56
@@ -574,6 +580,12 @@ fi
   fi
 %endif
 
+if [ ! -d %{_datadir}/mysql ]; then
+    pushd %{_datadir}
+    ln -s percona-server mysql
+    popd
+fi
+
 %if 0%{?rhel} > 6
   MYCNF_PACKAGE="mariadb-libs"
 %else
@@ -645,6 +657,9 @@ echo "See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_t
 %endif
 if [ "$1" = 0 ]; then
   timestamp=$(date '+%Y%m%d-%H%M')
+  if [ -L %{_datadir}/mysql ]; then
+      rm %{_datadir}/mysql
+  fi
   if [ ! -L /etc/my.cnf ]; then
     cp -p /etc/my.cnf /etc/my.cnf_backup-${timestamp}
   else

@@ -100,6 +100,21 @@ static void acl_free_utility_user();
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /**
+  Check if the given host name is equal to "localhost".
+
+  @return a flag telling if the given host name is equal to "localhost".
+  @retval TRUE the given host name is equal to "localhost".
+  @retval FALSE the given host name is not equal to "localhost".
+}
+*/
+static bool is_localhost_string(const char *hostname)
+{
+  if (!hostname) return false;
+
+  return !strcmp(hostname, "localhost");
+}
+
+/**
   Add an internal schema to the registry.
   @param name the schema name
   @param access the schema ACL specific rules
@@ -280,7 +295,7 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
   if (check_no_resolve && 
       (hostname_requires_resolving(host.get_host()) ||
        hostname_requires_resolving(proxied_host.get_host())) &&
-      strcmp(host.get_host(), "localhost") != 0) {
+       !is_localhost_string(host.get_host())) {
     sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
                       "ignored in --skip-name-resolve mode.",
                       proxied_user ? proxied_user : "",
@@ -1776,7 +1791,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     user.user= get_field(&global_acl_memory,
                          table->field[table_schema->user_idx()]);
   if (check_no_resolve && hostname_requires_resolving(user.host.get_host()) &&
-      strcmp(user.host.get_host(), "localhost") != 0) {
+      !is_localhost_string(user.host.get_host())) {
       sql_print_warning("'user' entry '%s@%s' "
                         "ignored in --skip-name-resolve mode.",
                         user.user ? user.user : "",
@@ -2154,7 +2169,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     }
     db.user=get_field(&global_acl_memory, table->field[MYSQL_DB_FIELD_USER]);
     if (check_no_resolve && hostname_requires_resolving(db.host.get_host()) &&
-        strcmp(db.host.get_host(), "localhost") != 0) {
+        !is_localhost_string(db.host.get_host())) {
       sql_print_warning("'db' entry '%s %s@%s' "
                         "ignored in --skip-name-resolve mode.",
                         db.db,
@@ -2700,7 +2715,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
       if (check_no_resolve)
       {
         if (hostname_requires_resolving(mem_check->host.get_host()) &&
-            strcmp(mem_check->host.get_host(), "localhost") != 0) {
+            !is_localhost_string(mem_check->host.get_host())) {
           sql_print_warning("'tables_priv' entry '%s %s@%s' "
                             "ignored in --skip-name-resolve mode.",
                             mem_check->tname,

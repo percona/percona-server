@@ -7892,6 +7892,12 @@ ER_RDB_TTL_DURATION_FORMAT
 ER_PER_INDEX_CF_DEPRECATED
   eng "The per-index column family option has been deprecated."
 
+ER_CF_DROPPED
+  eng "Column family ('%s') is being dropped."
+
+ER_CANT_DROP_CF
+  eng "Cannot drop Column family ('%s') because it is in use or does not exist."
+
 #
 # End of MyRocks specific messages
 #

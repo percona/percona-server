@@ -38,11 +38,9 @@ ENDIF ()
 
 # Suppress warnings for clang-10 or newer
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
-  MY_CHECK_CXX_COMPILER_FLAG("-Wno-range-loop-construct" HAVE_NO_RANGE_LOOP_CONSTRUCT)
-  IF(HAVE_NO_RANGE_LOOP_CONSTRUCT)
-    ADD_COMPILE_FLAGS(rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/options/options_parser.cc COMPILE_FLAGS "-Wno-range-loop-construct")
-  ENDIF()
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-range-loop-construct FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc rocksdb/options/options_parser.cc)
 ENDIF()
+
 
 # Suppress warnings for gcc-7 or newer (it's in zstd)
 IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)

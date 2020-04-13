@@ -53,12 +53,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   remove_compile_flags(-Wmissing-format-attribute)
 ENDIF()
 
-# Suppress warnings for gcc-7 or newer (it's in zstd)
-IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
-  append_cflags_if_supported(-Wimplicit-fallthrough=0)
-ENDIF()
-
-
 
 IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
   MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
@@ -123,21 +117,7 @@ SET(ROCKSDB_LIB_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4hc.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4frame.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/entropy_common.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/error_private.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/fse_decompress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/pool.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/threading.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/xxhash.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/zstd_common.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/fse_compress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/huf_compress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstdmt_compress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/huf_decompress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_decompress.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/divsufsort.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/zdict.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/xxhash.c
 )
 
 INCLUDE_DIRECTORIES(
@@ -146,10 +126,12 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.8.1/fused-src
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder
 )
+
+IF(BUILD_BUNDLED_ZSTD)
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM
+    ${CMAKE_SOURCE_DIR}/extra/zstd/lib/dictBuilder)
+ENDIF()
 
 ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4
   -DZSTD -DROCKSDB_SUPPORT_THREAD_LOCAL)
@@ -186,7 +168,7 @@ SET(ROCKSDB_SOURCES
   ${ROCKSDB_LIB_SOURCES}
 )
 
-SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} "-lrt" "-ldl")
+SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} ${ZSTD_LIBRARY} "-lrt" "-ldl")
 
 MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}

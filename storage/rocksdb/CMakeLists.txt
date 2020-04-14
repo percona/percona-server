@@ -130,12 +130,24 @@ SET(ROCKSDB_LIB_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/threading.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/xxhash.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/zstd_common.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress_literals.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress_sequences.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_double_fast.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_fast.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_lazy.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_ldm.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_opt.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/hist.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/fse_compress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/huf_compress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstdmt_compress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/huf_decompress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_decompress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_decompress_block.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_ddict.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/cover.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/fastcover.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/divsufsort.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/zdict.c
 )

@@ -6415,6 +6415,20 @@ static void bootstrap(MYSQL_FILE *file)
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
   in_bootstrap= TRUE;
+  DBUG_EXECUTE_IF("bootstrap_crash", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("bootstrap_hang", {
+    while (1)
+      my_sleep(1000000);
+  });
+  DBUG_EXECUTE_IF("bootstrap_buffer_overrun", {
+    int *mem = static_cast<int *>(my_malloc(127, 0));
+    // Allocations are usually aligned, so even if 127 bytes were requested,
+    // it's mostly safe to assume there are 128 bytes. Writing into the last
+    // byte is safe for the rest of the code, but still enough to trigger
+    // AddressSanitizer (ASAN) or Valgrind.
+    my_atomic_store32(mem + (128 / sizeof(*mem)) - 1, 1);
+    free(mem);
+  });
 
   bootstrap_file=file;
 #ifndef EMBEDDED_LIBRARY      // TODO:  Enable this

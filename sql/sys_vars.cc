@@ -5421,3 +5421,6 @@ static Sys_var_mybool Sys_show_old_temporals(
         ON_CHECK(0), ON_UPDATE(0),
         DEPRECATED(""));
 
+#ifndef DBUG_OFF
+Debug_shutdown_actions Debug_shutdown_actions::instance;
+#endif

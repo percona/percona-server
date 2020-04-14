@@ -227,9 +227,10 @@ sub run {
 sub shutdown {
   my $shutdown_timeout= shift;
   my @processes= @_;
+  my %status;
   _verbose("shutdown, timeout: $shutdown_timeout, @processes");
 
-  return if (@processes == 0);
+  return %status if (@processes == 0);
 
   # Call shutdown function if process has one, else
   # use kill
@@ -255,6 +256,9 @@ sub shutdown {
     if ($ret != 0) {
       push(@kill_processes, $proc);
     }
+    else {
+      $status{failed}= 1 if $? >> 8 != 0 and $? >> 8 != 62;
+    }
     # Only wait for the first process with shutdown timeout
     $shutdown_timeout= 0;
   }
@@ -269,10 +273,13 @@ sub shutdown {
       push(@kill_processes, $proc);
       # Try one more time, best option...
     }
+    else {
+      $status{killed}= 1 if $? >> 8 != 0 and $? >> 8 != 62;
+    }
   }
 
   # Return if all servers has exited
-  return if (@kill_processes == 0);
+  return %status if (@kill_processes == 0);
 
   foreach my $proc (@kill_processes){
     $proc->start_kill();
@@ -280,9 +287,10 @@ sub shutdown {
 
   foreach my $proc (@kill_processes){
     $proc->wait_one(undef);
+    $status{killed}= 1 if $? >> 8 != 0 and $? >> 8 != 62;
   }
 
-  return;
+  return %status;
 }
 
 

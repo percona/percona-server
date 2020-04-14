@@ -290,6 +290,11 @@ SET(TESTS
   thread_utils
   )
 
+OPTION(WITH_FAILING_GUNIT_TESTS "Build deliberately failing GUint tests" OFF)
+IF (WITH_FAILING_GUNIT_TESTS)
+    LIST(APPEND TESTS junit_integration)
+ENDIF()
+
 # Add tests (link them with gunit/gmock libraries and the server libraries) 
 SET(SERVER_TESTS
   copy_info

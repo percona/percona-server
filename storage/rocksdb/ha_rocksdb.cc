@@ -11177,7 +11177,6 @@ int ha_rocksdb::remove_rows(Rdb_tbl_def *const tbl) {
 
   char key_buf[MAX_KEY_LENGTH];
   uint key_len;
-  ulonglong bytes_written = 0;
 
   uchar lower_bound_buf[Rdb_key_def::INDEX_NUMBER_SIZE];
   uchar upper_bound_buf[Rdb_key_def::INDEX_NUMBER_SIZE];

@@ -6737,11 +6737,14 @@ sub run_ctest() {
   # Add vs-config option if needed
   $ctest_vs= "-C $opt_vs_config" if $opt_vs_config;
 
+  # Limit ctest execution time
+  my $ctest_timeout= "--timeout @{[$opt_testcase_timeout * 60]}";
+
   # Also silently ignore if we don't have ctest and didn't insist
   # Special override: also ignore in Pushbuild, some platforms may not have it
   # Now, run ctest and collect output
   $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
-  my $ctest_out= `ctest $ctest_vs 2>&1`;
+  my $ctest_out= `ctest $ctest_vs $ctest_timeout 2>&1`;
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;
@@ -6790,6 +6793,7 @@ sub run_ctest() {
   $ctest_report .= "Report from unit tests in $ctfile";
   $tinfo->{failures}= ($tinfo->{result} eq 'MTR_RES_FAILED');
 
+  $tinfo->{comment} .= "\n" . $ctest_out;
   mark_time_used('test');
   mtr_report_test($tinfo);
   chdir($olddir);

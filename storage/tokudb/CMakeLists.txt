@@ -88,8 +88,9 @@ ENDIF()
 
 # Suppress warnings for all compilers
 append_cflags_if_supported(-Wno-missing-field-initializers)
-remove_compile_flags(-Wvla)
 
+# "cmake/maintainer.cmake" sets "-Wvla" which causes warnings with PerconaFT
+remove_compile_flags(-Wvla)
 
 # Suppress warnings for all clang versions
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -97,18 +98,10 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   remove_compile_flags(-Wextra-semi -Wheader-hygiene -Wconditional-uninitialized -Winconsistent-missing-destructor-override)
 ENDIF()
 
-
 # Suppress warnings for clang-8 or newer
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
   remove_compile_flags(-Wshadow-field)
 ENDIF()
-
-
-# Suppress warnings for gcc-9 or newer
-IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
-  append_cflags_if_supported(-Wno-address-of-packed-member)
-ENDIF()
-
 
 
 IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PerconaFT/")
